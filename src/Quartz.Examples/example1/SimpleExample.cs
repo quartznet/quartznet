@@ -16,8 +16,7 @@
 */
 using System;
 using System.Threading;
-using log4net;
-using log4net.Config;
+using Common.Logging;
 using Nullables;
 using Quartz.Impl;
 

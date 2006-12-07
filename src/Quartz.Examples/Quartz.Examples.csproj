@@ -85,14 +85,14 @@
                     Package = "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"
                 />
                 <Reference
-                    Name = "log4net"
-                    AssemblyName = "log4net"
-                    HintPath = "..\..\lib\log4net.dll"
-                />
-                <Reference
                     Name = "Nullables"
                     AssemblyName = "Nullables"
-                    HintPath = "..\..\lib\Nullables.dll"
+                    HintPath = "..\..\lib\1.1\Nullables.dll"
+                />
+                <Reference
+                    Name = "Common.Logging"
+                    AssemblyName = "Common.Logging"
+                    HintPath = "..\..\lib\1.1\Common.Logging.dll"
                 />
             </References>
         </Build>

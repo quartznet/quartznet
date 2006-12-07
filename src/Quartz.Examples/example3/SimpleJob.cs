@@ -15,7 +15,7 @@
 * 
 */
 using System;
-using log4net;
+using Common.Logging;
 using Quartz;
 
 namespace org.quartz.examples.example3

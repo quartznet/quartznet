@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Reflection;
-using log4net.Config;
 using Quartz.Util;
 
 namespace Quartz.Examples
@@ -16,7 +15,6 @@ namespace Quartz.Examples
 		{
 			try
 			{
-				BasicConfigurator.Configure();
 				Assembly asm = Assembly.GetExecutingAssembly();
 				Type[] types = asm.GetTypes();
 			

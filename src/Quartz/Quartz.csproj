@@ -115,12 +115,12 @@
                 <Reference
                     Name = "Nullables"
                     AssemblyName = "Nullables"
-                    HintPath = "..\..\lib\Nullables.dll"
+                    HintPath = "..\..\lib\1.1\Nullables.dll"
                 />
                 <Reference
-                    Name = "log4net"
-                    AssemblyName = "log4net"
-                    HintPath = "..\..\lib\log4net.dll"
+                    Name = "Common.Logging"
+                    AssemblyName = "Common.Logging"
+                    HintPath = "..\..\lib\1.1\Common.Logging.dll"
                 />
             </References>
         </Build>

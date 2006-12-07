@@ -21,7 +21,7 @@
 
 using System;
 using System.Web.Mail;
-using log4net;
+using Common.Logging;
 
 namespace Quartz.Job
 {

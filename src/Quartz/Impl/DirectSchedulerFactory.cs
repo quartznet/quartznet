@@ -22,7 +22,7 @@
 using System;
 using System.Collections;
 using System.Threading;
-using log4net;
+using Common.Logging;
 using Quartz.Core;
 using Quartz.Simpl;
 using Quartz.Spi;

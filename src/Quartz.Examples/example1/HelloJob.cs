@@ -14,7 +14,7 @@
 * under the License.
 * 
 */
-using log4net;
+using Common.Logging;
 
 namespace Quartz.Examples.Example1
 {
@@ -48,7 +48,7 @@ namespace Quartz.Examples.Example1
 		{
 			
 			// Say Hello to the World and display the date/time
-			_log.InfoFormat("Hello World! - {0}", System.DateTime.Now.ToString("r"));
+			_log.Info(string.Format("Hello World! - {0}", System.DateTime.Now.ToString("r")));
 		}
 
 	}

@@ -24,7 +24,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 
-using log4net;
+using Common.Logging;
 
 namespace Quartz.Job
 {
@@ -207,7 +207,7 @@ namespace Quartz.Job
 				}
 
 				// Executes the command
-				Log.InfoFormat("About to run{0}{1}", cmd[0], cmd[1]);
+				Log.Info(string.Format("About to run {0}{1}", cmd[0], cmd[1]));
 				string temp = "";
 				for (int i = 1; i < cmd.Length; i++)
 				{

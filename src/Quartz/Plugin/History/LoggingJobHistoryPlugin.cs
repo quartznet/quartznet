@@ -19,7 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
-using log4net;
+using Common.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Plugins.History

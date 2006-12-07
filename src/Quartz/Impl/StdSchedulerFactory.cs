@@ -25,7 +25,7 @@ using System.Collections.Specialized;
 using System.Configuration;
 using System.Data.OleDb;
 using System.Reflection;
-using log4net;
+using Common.Logging;
 using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Simpl;
@@ -830,9 +830,9 @@ namespace Quartz.Impl
 
 			jrsf.Initialize(sched, schedCtxt);
 
-			Log.InfoFormat("Quartz scheduler '{0}' initialized", sched.SchedulerName);
+			Log.Info(string.Format("Quartz scheduler '{0}' initialized", sched.SchedulerName));
 
-			Log.InfoFormat("Quartz scheduler version: {0}", qs.Version);
+			Log.Info(string.Format("Quartz scheduler version: {0}", qs.Version));
 
 			// prevents the repository from being garbage collected
 			qs.AddNoGCObject(schedRep);

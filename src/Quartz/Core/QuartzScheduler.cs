@@ -25,7 +25,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.Remoting;
 using System.Threading;
-using log4net;
+using Common.Logging;
 using Nullables;
 using Quartz.Collection;
 using Quartz.Impl;

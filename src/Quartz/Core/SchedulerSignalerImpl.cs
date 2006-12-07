@@ -18,7 +18,7 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
-using log4net;
+using Common.Logging;
 
 using Quartz.Spi;
 
