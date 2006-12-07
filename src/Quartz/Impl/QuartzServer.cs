@@ -1,0 +1,227 @@
+/* 
+* Copyright 2004-2005 OpenSymphony 
+* 
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+* use this file except in compliance with the License. You may obtain a copy 
+* of the License at 
+* 
+*   http://www.apache.org/licenses/LICENSE-2.0 
+*   
+* Unless required by applicable law or agreed to in writing, software 
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+* License for the specific language governing permissions and limitations 
+* under the License.
+* 
+*/
+
+/*
+* Previously Copyright (c) 2001-2004 James House
+*/
+using System;
+using System.Threading;
+
+namespace Quartz.Impl
+{
+	/// <summary>
+	/// Instantiates an instance of Quartz Scheduler as a stand-alone program, if
+	/// the scheduler is configured for RMI it will be made available.
+	/// <p>
+	/// The main() method of this class currently accepts 0 or 1 arguemtns, if there
+	/// is an argument, and its value is <code>"console"</code>, then the program
+	/// will print a short message on the console (std-out) and wait for the user to
+	/// type "exit" - at which time the scheduler will be shutdown.
+	/// </p>
+	/// <p>
+	/// Future versions of this server should allow additional configuration for
+	/// responding to scheduler events by allowing the user to specify <code>JobListener</code>,
+	/// <code>TriggerListener</code> and <code>SchedulerListener</code>
+	/// classes.
+	/// </p>
+	/// <p>
+	/// Please read the Quartz FAQ entries about RMI before asking questions in the
+	/// forums or mail-lists.
+	/// </p>
+	/// </summary>
+	/// <author>James House</author>
+	/// <author>Marko Lahma (.NET)</author>
+	public class QuartzServer : ISchedulerListener
+	{
+		private IScheduler sched = null;
+
+		internal QuartzServer()
+		{
+		}
+
+		public virtual void Serve(ISchedulerFactory schedFact, bool console)
+		{
+			sched = schedFact.GetScheduler();
+
+			sched.Start();
+
+			try
+			{
+				Thread.Sleep(3000);
+			}
+			catch (Exception)
+			{
+			}
+
+			Console.Out.WriteLine("\n*** The scheduler successfully started.");
+
+			if (console)
+			{
+				Console.Out.WriteLine("\n");
+				Console.Out.WriteLine("The scheduler will now run until you type \"exit\"");
+				Console.Out.WriteLine("   If it was configured to export itself via RMI,");
+				Console.Out.WriteLine("   then other process may now use it.");
+				while (true)
+				{
+					Console.Out.Write("Type 'exit' to shutdown the server: ");
+					if ("exit".Equals(Console.ReadLine()))
+					{
+						break;
+					}
+				}
+
+				Console.Out.WriteLine("\n...Shutting down server...");
+
+				sched.Shutdown(true);
+			}
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
+		/// is scheduled.
+		/// </summary>
+		public virtual void JobScheduled(Trigger trigger)
+		{
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
+		/// is unscheduled.
+		/// </summary>
+		public virtual void JobUnscheduled(string triggerName, string triggerGroup)
+		{
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
+		/// has reached the condition in which it will never fire again.
+		/// </summary>
+		public virtual void TriggerFinalized(Trigger trigger)
+		{
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
+		/// or group of <code>Trigger</code>s has been paused.
+		/// <p>
+		/// If a group was paused, then the <code>triggerName</code> parameter
+		/// will be null.
+		/// </p>
+		/// </summary>
+		public virtual void TriggersPaused(string triggerName, string triggerGroup)
+		{
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
+		/// or group of <code>Trigger</code>s has been un-paused.
+		/// <p>
+		/// If a group was resumed, then the <code>triggerName</code> parameter
+		/// will be null.
+		/// </p>
+		/// </summary>
+		public virtual void TriggersResumed(string triggerName, string triggerGroup)
+		{
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
+		/// or group of <code>JobDetail</code>s has been
+		/// paused.
+		/// <p>
+		/// If a group was paused, then the <code>jobName</code> parameter will be
+		/// null.
+		/// </p>
+		/// </summary>
+		public virtual void JobsPaused(string jobName, string jobGroup)
+		{
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
+		/// or group of <code>JobDetail</code>s has been un-paused.
+		/// <p>
+		/// If a group was paused, then the <code>jobName</code> parameter will be
+		/// null.
+		/// </p>
+		/// </summary>
+		public virtual void JobsResumed(string jobName, string jobGroup)
+		{
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a serious error has
+		/// occured within the scheduler - such as repeated failures in the <code>JobStore</code>,
+		/// or the inability to instantiate a <code>Job</code> instance when its
+		/// <code>Trigger</code> has fired.
+		/// <p>
+		/// The <code>getErrorCode()</code> method of the given SchedulerException
+		/// can be used to determine more specific information about the type of
+		/// error that was encountered.
+		/// </p>
+		/// </summary>
+		public virtual void SchedulerError(string msg, SchedulerException cause)
+		{
+			Console.Error.WriteLine("*** " + msg);
+			Console.Error.WriteLine(cause.ToString());
+		}
+
+		/// <summary>
+		/// Called by the <code>Scheduler</code> to inform the listener
+		/// that it has shutdown.
+		/// </summary>
+		public virtual void SchedulerShutdown()
+		{
+			Console.Out.WriteLine("\n*** The scheduler is now shutdown.");
+			sched = null;
+		}
+
+		/*
+		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		* 
+		* Main Method.
+		* 
+		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		*/
+
+		[STAThread]
+		public static void Main(string[] args)
+		{
+
+			try
+			{
+				QuartzServer server = new QuartzServer();
+				if (args.Length == 0)
+				{
+					server.Serve(new StdSchedulerFactory(), false);
+				}
+				else if (args.Length == 1 && args[0].ToUpper().Equals("console".ToUpper()))
+				{
+					server.Serve(new StdSchedulerFactory(), true);
+				}
+				else
+				{
+					Console.Error.WriteLine("\nUsage: QuartzServer [console]");
+				}
+			}
+			catch (Exception e)
+			{
+				Console.Error.WriteLine(e.ToString());
+			}
+		}
+	}
+}

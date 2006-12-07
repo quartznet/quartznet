@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Nullables</name>
+    </assembly>
+    <members>
+        <member name="T:Nullables.NullableBoolean">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.Boolean"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableByte">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.Byte"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableChar">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.Char"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableDateTime">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.DateTime"/> value.
+            </summary>
+            <remarks>
+            Please see the 
+            <a href="http://msdn.microsoft.com/netframework/programming/bcl/faq/DateAndTimeFAQ.aspx">DateTime FAQ</a>
+            on MSDN. 
+            </remarks>
+        </member>
+        <member name="T:Nullables.NullableDecimal">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.Decimal"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableDouble">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.Double"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableGuid">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.Guid"/> value.
+            </summary>
+        </member>
+        <member name="M:Nullables.NullableGuid.#ctor(System.String)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Nullables.NullableGuid"/> class using the 
+            value represented by the specified string.
+            </summary>
+            <param name="g">
+            A <see cref="T:System.String"/> that contains a GUID as described
+            in the <see cref="M:System.Guid.#ctor(System.String)"/> constructor.
+            </param>
+            <remarks>
+            If the <c>guid</c> string is <c>null</c> or <c>Empty</c> then the <c>HasValue</c> 
+            property will be <c>false</c>.		
+            </remarks>
+            <exception cref="T:System.FormatException">
+            The format of <c>g</c> is invalid.
+            </exception>
+        </member>
+        <member name="T:Nullables.NullableInt16">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps an <see cref="T:System.Int16"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableInt32">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps an <see cref="T:System.Int32"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableInt64">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps an <see cref="T:System.Int64"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableSByte">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.SByte"/> value.
+            </summary>
+        </member>
+        <member name="T:Nullables.NullableSingle">
+            <summary>
+            An <see cref="T:Nullables.INullableType"/> that wraps a <see cref="T:System.Single"/> value.
+            </summary>
+        </member>
+    </members>
+</doc>

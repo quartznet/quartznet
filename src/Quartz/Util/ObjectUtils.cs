@@ -1,0 +1,128 @@
+#region License
+
+/*
+ * Copyright 2002-2004 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#endregion
+
+using System;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Globalization;
+using System.Reflection;
+
+namespace Quartz.Util
+{
+	/// <summary>
+	/// Utility methods that are used to convert objects from one type into another.
+	/// </summary>
+	/// <author>Aleksandar Seovic</author>
+	public class ObjectUtils
+	{
+		/// <summary>
+		/// Convert the value to the required <see cref="System.Type"/> (if necessary from a string).
+		/// </summary>
+		/// <param name="newValue">The proposed change value.</param>
+		/// <param name="requiredType">
+		/// The <see cref="System.Type"/> we must convert to.
+		/// </param>
+		/// <returns>The new value, possibly the result of type conversion.</returns>
+		public static object ConvertValueIfNecessary(Type requiredType, object newValue)
+		{
+			if (newValue != null)
+			{
+				// if it is assignable, return the value right away
+				if (IsAssignableFrom(newValue, requiredType))
+				{
+					return newValue;
+				}
+
+				
+				// try to convert using type converter
+				try
+				{
+					TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
+					if (typeConverter.CanConvertFrom(newValue.GetType()))
+					{
+						newValue = typeConverter.ConvertFrom(newValue);
+					}
+				}
+				catch (Exception)
+				{
+					throw;
+				}
+				if (newValue == null)
+				{
+					throw new Exception();
+				}
+			}
+			return newValue;
+		}
+
+
+		private static bool IsAssignableFrom(object newValue, Type requiredType)
+		{
+			return requiredType.IsAssignableFrom(newValue.GetType());
+		}
+		
+		public static object InstantiateType(Type t)
+		{
+			ConstructorInfo ci = t.GetConstructor(Type.EmptyTypes);
+			if (ci == null)
+			{
+				throw new ArgumentException("Cannot instantiate type which has no empty constructor", t.Name);
+			}
+			return ci.Invoke(new object[0]);
+		}
+
+		
+		public static void SetObjectProperties(object obj, NameValueCollection props)
+		{
+			props.Remove("class");
+			Type t = obj.GetType();
+
+			foreach (string name in props.Keys)
+			{
+				string propertyName = name.Substring(0, 1).ToUpper(CultureInfo.InvariantCulture) + name.Substring(1);
+
+				PropertyInfo pi = t.GetProperty(propertyName);
+
+				try
+				{
+					if (pi == null)
+					{
+						throw new MethodAccessException("No property '" + propertyName + "'");
+					}
+					
+					MethodInfo mi = pi.GetSetMethod();
+
+					object value = props[name];
+					value = ConvertValueIfNecessary(mi.GetParameters()[0].ParameterType, value);
+
+					mi.Invoke(obj, new object[] {value});
+
+				}
+				catch (Exception nfe)
+				{
+					throw new SchedulerConfigException("Could not parse property '" + name + "' into correct data type: " +
+													   nfe.ToString());
+				}
+			}
+			
+		}
+
+	}
+}

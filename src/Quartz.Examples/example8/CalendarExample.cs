@@ -1,0 +1,118 @@
+/* 
+* Copyright 2007 OpenSymphony 
+* 
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+* use this file except in compliance with the License. You may obtain a copy 
+* of the License at 
+* 
+*   http://www.apache.org/licenses/LICENSE-2.0 
+*   
+* Unless required by applicable law or agreed to in writing, software 
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+* License for the specific language governing permissions and limitations 
+* under the License.
+* 
+*/
+using System;
+using System.Threading;
+using log4net;
+using Quartz;
+using Quartz.Examples;
+using Quartz.Impl;
+using Quartz.Impl.Calendar;
+
+namespace Quartz.Examples.Example8
+{
+	
+	/// <summary> This example will demonstrate how calendars can be used 
+	/// to exclude periods of time when scheduling should not
+	/// take place.
+	/// 
+	/// </summary>
+	public class CalendarExample : IExample
+	{
+		public string Name
+		{
+			get { return GetType().Name; }
+		}
+
+		public virtual void Run()
+		{
+			ILog log = LogManager.GetLogger(typeof(CalendarExample));
+			
+			log.Info("------- Initializing ----------------------");
+			
+			// First we must get a reference to a scheduler
+			ISchedulerFactory sf = new StdSchedulerFactory();
+			IScheduler sched = sf.GetScheduler();
+			
+			log.Info("------- Initialization Complete -----------");
+			
+			log.Info("------- Scheduling Jobs -------------------");
+			
+			// Add the holiday calendar to the schedule
+			AnnualCalendar holidays = new AnnualCalendar();
+			
+			// fourth of July (July 4)
+			DateTime fourthOfJuly = new DateTime(DateTime.Now.Year, 7, 4);
+			holidays.SetDayExcluded(fourthOfJuly, true);
+			
+			// halloween (Oct 31)
+			DateTime halloween = new DateTime(DateTime.Now.Year, 10, 31);
+			holidays.SetDayExcluded(halloween, true);
+			
+			// christmas (Dec 25)
+			DateTime christmas = new DateTime(DateTime.Now.Year, 12, 25);
+			holidays.SetDayExcluded(christmas, true);
+			
+			// tell the schedule about our holiday calendar
+			sched.AddCalendar("holidays", holidays, false, false);
+			
+			
+			// schedule a job to run hourly, starting on halloween
+			// at 10 am
+			DateTime runDate = TriggerUtils.GetDateOf(0, 0, 10, 31, 10);
+			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob));
+			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runDate, null, SimpleTrigger.REPEAT_INDEFINITELY, 60 * 60 * 1000);
+			// tell the trigger to obey the Holidays calendar!
+			trigger.CalendarName = "holidays";
+			
+			// schedule the job and print the first run date
+			DateTime firstRunTime = sched.ScheduleJob(job, trigger);
+			
+			// print out the first execution date.
+			// Note:  Since Halloween (Oct 31) is a holiday, then
+			// we will not run unti the next day! (Nov 1)
+			log.Info(job.FullName + " will run at: " + firstRunTime.ToString("r") + " and repeat: " + trigger.RepeatCount + " times, every " + (trigger.RepeatInterval / 1000) + " seconds");
+			
+			// All of the jobs have been added to the scheduler, but none of the jobs
+			// will run until the scheduler has been started
+			log.Info("------- Starting Scheduler ----------------");
+			sched.Start();
+			
+			// wait 30 seconds:
+			// note:  nothing will run
+			log.Info("------- Waiting 30 seconds... --------------");
+			try
+			{
+				// wait 30 seconds to show jobs
+				Thread.Sleep(30 * 1000);
+				// executing...
+			}
+			catch (System.Exception)
+			{
+			}
+			
+			
+			// shut down the scheduler
+			log.Info("------- Shutting Down ---------------------");
+			sched.Shutdown(true);
+			log.Info("------- Shutdown Complete -----------------");
+			
+			SchedulerMetaData metaData = sched.GetMetaData();
+			log.Info("Executed " + metaData.NumJobsExecuted+ " jobs.");
+		}
+		
+	}
+}

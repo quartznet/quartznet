@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+This is the XML DTD for Job Scheduling Data.
+All xml files containing job scheduling data should include a DOCTYPE
+of the following form:
+
+  <!DOCTYPE quartz PUBLIC
+	"-//Quartz Enterprise Job Scheduler//DTD Job Scheduling Data 1.5//EN"
+	"http://www.quartzscheduler.org/dtd/job_scheduling_data_1_5.dtd">
+
+-->
+
+<!--namespace prefixes-->
+<!ENTITY % quartz "quartz">
+<!--namespace prefix to namespace uri mappings-->
+<!ENTITY % quartz_prefix "%quartz;:">
+<!--namespaces attributes for root element-->
+<!ENTITY % documentElementAttributes " xmlns:%quartz; CDATA #IMPLIED">
+<!--the declarations below should not be modified-->
+<!--element name mappings-->
+<!ENTITY % quartz "%quartz_prefix;quartz">
+<!ENTITY % job-listener "%quartz_prefix;job-listener">
+<!ENTITY % calendar "%quartz_prefix;calendar">
+<!ENTITY % job "%quartz_prefix;job">
+<!ENTITY % name "%quartz_prefix;name">
+<!ENTITY % description "%quartz_prefix;description">
+<!ENTITY % base-calendar "%quartz_prefix;base-calendar">
+<!ENTITY % job-detail "%quartz_prefix;job-detail">
+<!ENTITY % trigger "%quartz_prefix;trigger">
+<!ENTITY % description "%quartz_prefix;description">
+<!ENTITY % job-data-map "%quartz_prefix;job-data-map">
+<!ENTITY % name "%quartz_prefix;name">
+<!ENTITY % group "%quartz_prefix;group">
+<!ENTITY % job-class "%quartz_prefix;job-class">
+<!ENTITY % job-listener-ref "%quartz_prefix;job-listener-ref">
+<!ENTITY % volatility "%quartz_prefix;volatility">
+<!ENTITY % durability "%quartz_prefix;durability">
+<!ENTITY % recover "%quartz_prefix;recover">
+<!ENTITY % entry "%quartz_prefix;entry">
+<!ENTITY % key "%quartz_prefix;key">
+<!ENTITY % value "%quartz_prefix;value">
+<!ENTITY % simple "%quartz_prefix;simple">
+<!ENTITY % cron "%quartz_prefix;cron">
+<!ENTITY % description "%quartz_prefix;description">
+<!ENTITY % misfire-instruction "%quartz_prefix;misfire-instruction">
+<!ENTITY % calendar-name "%quartz_prefix;calendar-name">
+<!ENTITY % repeat-count "%quartz_prefix;repeat-count">
+<!ENTITY % job-name "%quartz_prefix;job-name">
+<!ENTITY % job-group "%quartz_prefix;job-group">
+<!ENTITY % start-time "%quartz_prefix;start-time">
+<!ENTITY % end-time "%quartz_prefix;end-time">
+<!ENTITY % repeat-interval "%quartz_prefix;repeat-interval">
+<!ENTITY % cron-expression "%quartz_prefix;cron-expression">
+<!ENTITY % time-zone "%quartz_prefix;time-zone">
+<!--element and attribute declarations-->
+<!--Root level node-->
+<!ELEMENT %quartz; ((%job-listener;)*, (%calendar;)*, (%job;)*)>
+<!ATTLIST %quartz;
+	version CDATA #IMPLIED
+	overwrite-existing-jobs NMTOKEN "true"
+	%documentElementAttributes; 
+>
+<!ELEMENT %job-listener; EMPTY>
+<!ATTLIST %job-listener;
+	class-name CDATA #REQUIRED
+	name CDATA "required"
+>
+<!ELEMENT %calendar; (%name;, (%description;)?, (%base-calendar;)?)>
+<!ATTLIST %calendar;
+	class-name CDATA #REQUIRED
+	replace NMTOKEN "false"
+>
+<!ELEMENT %job; (%job-detail;, (%trigger;)*)>
+<!ELEMENT %name; (#PCDATA)>
+<!ELEMENT %description; (#PCDATA)>
+<!ELEMENT %base-calendar; (%name;, (%description;)?, (%base-calendar;)?)>
+<!ATTLIST %base-calendar;
+	class-name CDATA #REQUIRED
+	replace NMTOKEN "false"
+>
+<!ELEMENT %job-detail; (%name;, %group;, (%description;)?, %job-class;, (%job-listener-ref;)?, (%volatility;, %durability;, %recover;)?, (%job-data-map;)?)>
+<!ELEMENT %trigger; (%simple; | %cron;)>
+<!ELEMENT %job-data-map; (%entry;)*>
+<!ATTLIST %job-data-map;
+	allows-transient-data NMTOKEN "false"
+>
+<!--Name of the JobDetail or Trigger-->
+<!ATTLIST %name;
+	%documentElementAttributes; 
+>
+<!--Group in which the JobDetail or Trigger resides-->
+<!ELEMENT %group; (#PCDATA)>
+<!ATTLIST %group;
+	%documentElementAttributes; 
+>
+<!--Fully qualified name of the Job class-->
+<!ELEMENT %job-class; (#PCDATA)>
+<!ATTLIST %job-class;
+	%documentElementAttributes; 
+>
+<!--logical name of the Job Listener-->
+<!ELEMENT %job-listener-ref; (#PCDATA)>
+<!ATTLIST %job-listener-ref;
+	%documentElementAttributes; 
+>
+<!--Whether the Job is volatile-->
+<!ELEMENT %volatility; (#PCDATA)>
+<!ATTLIST %volatility;
+	%documentElementAttributes; 
+>
+<!--Whether the Job is durable-->
+<!ELEMENT %durability; (#PCDATA)>
+<!ATTLIST %durability;
+	%documentElementAttributes; 
+>
+<!--Whether the Job is recoverable-->
+<!ELEMENT %recover; (#PCDATA)>
+<!ATTLIST %recover;
+	%documentElementAttributes; 
+>
+<!ELEMENT %entry; (%key;, %value;)>
+<!--Define a JobDataMap key-->
+<!ELEMENT %key; (#PCDATA)>
+<!ATTLIST %key;
+	%documentElementAttributes; 
+>
+<!--Define a JobDataMap value-->
+<!ELEMENT %value; (#PCDATA)>
+<!ATTLIST %value;
+	%documentElementAttributes; 
+>
+<!ELEMENT %simple; ((%name;, %group;, (%description;)?, (%misfire-instruction;)?, (%calendar-name;)?), ((%job-name;, %job-group;)?, (%start-time;, (%end-time;)?)?, (%repeat-count;, %repeat-interval;)?))>
+<!ELEMENT %cron; ((%name;, %group;, (%description;)?, (%misfire-instruction;)?, (%calendar-name;)?), ((%job-name;, %job-group;), ((%start-time;, %end-time;)?, %cron-expression;, (%time-zone;)?)?)?)>
+<!ELEMENT %misfire-instruction; (#PCDATA)>
+<!--Define a Trigger Calendar name-->
+<!ELEMENT %calendar-name; (#PCDATA)>
+<!ATTLIST %calendar-name;
+	%documentElementAttributes; 
+>
+<!ELEMENT %repeat-count; (#PCDATA)>
+<!--Name of the Job-->
+<!ELEMENT %job-name; (#PCDATA)>
+<!ATTLIST %job-name;
+	%documentElementAttributes; 
+>
+<!--Group in which the Job resides-->
+<!ELEMENT %job-group; (#PCDATA)>
+<!ATTLIST %job-group;
+	%documentElementAttributes; 
+>
+<!--Start time of the job-->
+<!ELEMENT %start-time; (#PCDATA)>
+<!ATTLIST %start-time;
+	%documentElementAttributes; 
+>
+<!--End time of the job-->
+<!ELEMENT %end-time; (#PCDATA)>
+<!ATTLIST %end-time;
+	%documentElementAttributes; 
+>
+<!--Time interval (in milliseconds) at which the Trigger should repeat-->
+<!ELEMENT %repeat-interval; (#PCDATA)>
+<!ATTLIST %repeat-interval;
+	%documentElementAttributes; 
+>
+<!ELEMENT %cron-expression; (#PCDATA)>
+<!--Valid java.util.Timezone ID-->
+<!ELEMENT %time-zone; (#PCDATA)>
+<!ATTLIST %time-zone;
+	%documentElementAttributes; 
+>

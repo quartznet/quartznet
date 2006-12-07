@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:quartz="http://www.opensymphony.com/quartz/JobSchedulingData" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.opensymphony.com/quartz/JobSchedulingData" elementFormDefault="qualified" version="1.5">
+	<annotation>
+		<documentation>
+      
+      Copyright (c) 2004-2005 by OpenSymphony
+      All rights reserved.
+ 
+      Previously Copyright (c) 2001-2004 James House
+	  
+      And Previously Copyright Third Eye Consulting, Inc. (c) 2004
+      
+    </documentation>
+	</annotation>
+	<annotation>
+		<documentation><![CDATA[
+        This is the XML Schema for Job Scheduling Data.
+        All xml files containing job scheduling data must indicate the
+        Quartz schema by using the Quartz namespace:
+        
+        http://www.opensymphony.com/quartz/JobSchedulingData
+  
+        and indicate the version of the schema by
+        using the version element as shown below:
+
+            <quartz xmlns="http://www.quartzscheduler.org/ns/quartz"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://www.quartzscheduler.org/ns/quartz
+                      http://www.opensymphony.com/quartz/xml/job_scheduling_data_1_5.xsd"
+                    version="1.5">
+              ...
+            </quartz>
+
+        The instance documents may indicate the published version of
+        the schema using the xsi:schemaLocation attribute for the Quartz
+        namespace with the following location:
+
+        http://www.opensymphony.com/quartz/xml/job_scheduling_data_1_5.xsd
+      ]]></documentation>
+	</annotation>
+	<element name="quartz">
+		<annotation>
+			<documentation>Root level node</documentation>
+		</annotation>
+		<complexType>
+			<sequence>
+				<element name="job-listener" type="quartz:job-listenerType" minOccurs="0" maxOccurs="unbounded"/>
+				<element name="calendar" type="quartz:calendarType" minOccurs="0" maxOccurs="unbounded"/>
+				<element name="job" type="quartz:jobType" minOccurs="0" maxOccurs="unbounded"/>
+			</sequence>
+			<attribute name="version" type="xsd:string">
+				<annotation>
+					<documentation>Version of the XML Schema instance</documentation>
+				</annotation>
+			</attribute>
+			<attribute name="overwrite-existing-jobs" type="xsd:boolean" default="true">
+				<annotation>
+					<documentation>Whether the existing jobs will be overwritten.</documentation>
+				</annotation>
+			</attribute>
+		</complexType>
+	</element>
+	<complexType name="job-listenerType">
+		<annotation>
+			<documentation>Define a Job Listener</documentation>
+		</annotation>
+		<attribute name="class-name" type="xsd:string" use="required">
+			<annotation>
+				<documentation>Job Listener class name</documentation>
+			</annotation>
+		</attribute>
+		<attribute name="name" type="xsd:string" default="required">
+			<annotation>
+				<documentation>logical name for listener</documentation>
+			</annotation>
+		</attribute>
+	</complexType>
+	<complexType name="calendarType">
+		<annotation>
+			<documentation>Define a Calendar</documentation>
+		</annotation>
+		<sequence>
+			<element name="name" type="xsd:string"/>
+			<element name="description" type="xsd:string" minOccurs="0"/>
+			<element name="base-calendar" type="quartz:calendarType" minOccurs="0"/>
+		</sequence>
+		<attribute name="class-name" type="xsd:string" use="required">
+			<annotation>
+				<documentation>Calendar class name</documentation>
+			</annotation>
+		</attribute>
+		<attribute name="replace" type="xsd:boolean" default="false">
+			<annotation>
+				<documentation>Flag to replace existing calendar</documentation>
+			</annotation>
+		</attribute>
+	</complexType>
+	<complexType name="jobType">
+		<annotation>
+			<documentation>Define a Job</documentation>
+		</annotation>
+		<sequence>
+			<element name="job-detail" type="quartz:job-detailType"/>
+			<element name="trigger" type="quartz:triggerType" minOccurs="0" maxOccurs="unbounded"/>
+		</sequence>
+	</complexType>
+	<complexType name="job-detailType">
+		<annotation>
+			<documentation>Define a JobDetail</documentation>
+		</annotation>
+		<sequence>
+			<element ref="quartz:name"/>
+			<element ref="quartz:group"/>
+			<element name="description" type="xsd:string" minOccurs="0"/>
+			<element ref="quartz:job-class"/>
+			<element ref="quartz:job-listener-ref" minOccurs="0"/>
+			<sequence minOccurs="0">
+				<element ref="quartz:volatility"/>
+				<element ref="quartz:durability"/>
+				<element ref="quartz:recover"/>
+			</sequence>
+			<element name="job-data-map" type="quartz:job-data-mapType" minOccurs="0"/>
+		</sequence>
+	</complexType>
+	<element name="name" type="xsd:string">
+		<annotation>
+			<documentation>Name of the JobDetail or Trigger</documentation>
+		</annotation>
+	</element>
+	<element name="group" type="xsd:string">
+		<annotation>
+			<documentation>Group in which the JobDetail or Trigger resides</documentation>
+		</annotation>
+	</element>
+	<element name="job-class" type="xsd:string">
+		<annotation>
+			<documentation>Fully qualified name of the Job class</documentation>
+		</annotation>
+	</element>
+	<element name="job-listener-ref" type="xsd:string">
+		<annotation>
+			<documentation>logical name of the Job Listener</documentation>
+		</annotation>
+	</element>
+	<element name="volatility" type="xsd:boolean" default="false">
+		<annotation>
+			<documentation>Whether the Job is volatile</documentation>
+		</annotation>
+	</element>
+	<element name="durability" type="xsd:boolean" default="false">
+		<annotation>
+			<documentation>Whether the Job is durable</documentation>
+		</annotation>
+	</element>
+	<element name="recover" type="xsd:boolean" default="false">
+		<annotation>
+			<documentation>Whether the Job is recoverable</documentation>
+		</annotation>
+	</element>
+	<complexType name="job-data-mapType">
+		<annotation>
+			<documentation>Define a JobDataMap</documentation>
+		</annotation>
+		<sequence minOccurs="0" maxOccurs="unbounded">
+			<element name="entry" type="quartz:entryType"/>
+		</sequence>
+		<attribute name="allows-transient-data" type="xsd:boolean" default="false">
+			<annotation>
+				<documentation>Whether the JobDataMap allows transient data.</documentation>
+			</annotation>
+		</attribute>
+	</complexType>
+	<complexType name="entryType">
+		<annotation>
+			<documentation>Define a JobDataMap entry</documentation>
+		</annotation>
+		<sequence>
+			<element ref="quartz:key"/>
+			<element ref="quartz:value"/>
+		</sequence>
+	</complexType>
+	<element name="key" type="xsd:string">
+		<annotation>
+			<documentation>Define a JobDataMap key</documentation>
+		</annotation>
+	</element>
+	<element name="value" type="xsd:string">
+		<annotation>
+			<documentation>Define a JobDataMap value</documentation>
+		</annotation>
+	</element>
+	<complexType name="triggerType">
+		<annotation>
+			<documentation>Define a Trigger</documentation>
+		</annotation>
+		<choice>
+			<element name="simple" type="quartz:simpleType"/>
+			<element name="cron" type="quartz:cronType"/>
+		</choice>
+	</complexType>
+	<complexType name="abstractTriggerType" abstract="true">
+		<annotation>
+			<documentation>Common Trigger definitions</documentation>
+		</annotation>
+		<sequence>
+			<element ref="quartz:name"/>
+			<element ref="quartz:group"/>
+			<element name="description" type="xsd:string" minOccurs="0"/>
+			<element name="misfire-instruction" type="quartz:misfire-instructionType" minOccurs="0"/>
+			<element ref="quartz:calendar-name" minOccurs="0"/>
+			<element ref="quartz:volatility" minOccurs="0"/>
+  		</sequence>
+	</complexType>
+	<simpleType name="misfire-instructionType">
+		<annotation>
+			<documentation>Define a Trigger Misfire Instruction</documentation>
+		</annotation>
+		<restriction base="xsd:string">
+			<pattern value="MISFIRE_INSTRUCTION_SMART_POLICY"/>
+			<pattern value="MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_EXISTING_COUNT"/>
+			<pattern value="MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT"/>
+			<pattern value="MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT"/>
+			<pattern value="MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT"/>
+			<pattern value="MISFIRE_INSTRUCTION_DO_NOTHING"/>
+			<pattern value="MISFIRE_INSTRUCTION_FIRE_ONCE_NOW"/>
+		</restriction>
+	</simpleType>
+	<element name="calendar-name" type="xsd:string">
+		<annotation>
+			<documentation>Define a Trigger Calendar name</documentation>
+		</annotation>
+	</element>
+	<complexType name="simpleType">
+		<annotation>
+			<documentation>Define a SimpleTrigger</documentation>
+		</annotation>
+		<complexContent>
+			<extension base="quartz:abstractTriggerType">
+				<sequence>
+					<sequence minOccurs="0">
+						<element ref="quartz:job-name"/>
+						<element ref="quartz:job-group"/>
+					</sequence>
+					<sequence minOccurs="0">
+						<element ref="quartz:start-time"/>
+						<element ref="quartz:end-time" minOccurs="0"/>
+					</sequence>
+					<sequence minOccurs="0">
+						<element name="repeat-count" type="quartz:repeat-countType"/>
+						<element ref="quartz:repeat-interval"/>
+					</sequence>
+				</sequence>
+			</extension>
+		</complexContent>
+	</complexType>
+	<element name="job-name" type="xsd:string">
+		<annotation>
+			<documentation>Name of the Job</documentation>
+		</annotation>
+	</element>
+	<element name="job-group" type="xsd:string">
+		<annotation>
+			<documentation>Group in which the Job resides</documentation>
+		</annotation>
+	</element>
+   	<element name="start-time" type="xsd:dateTime">
+		<annotation>
+			<documentation>Start time of the job</documentation>
+		</annotation>
+	</element>
+	<element name="end-time" type="xsd:dateTime">
+		<annotation>
+			<documentation>End time of the job</documentation>
+		</annotation>
+	</element>
+	<simpleType name="repeat-countType">
+		<annotation>
+			<documentation>Number of times to repeat the Trigger (-1 for indefinite)</documentation>
+		</annotation>
+		<restriction base="xsd:integer">
+			<minInclusive value="-1"/>
+		</restriction>
+	</simpleType>
+	<element name="repeat-interval" type="xsd:nonNegativeInteger">
+		<annotation>
+			<documentation>Time interval (in milliseconds) at which the Trigger should repeat</documentation>
+		</annotation>
+	</element>
+	<complexType name="cronType">
+		<annotation>
+			<documentation>Define a CronTrigger</documentation>
+		</annotation>
+		<complexContent>
+			<extension base="quartz:abstractTriggerType">
+				<sequence minOccurs="0">
+					<sequence>
+						<element ref="quartz:job-name"/>
+						<element ref="quartz:job-group"/>
+					</sequence>
+					<sequence minOccurs="0">
+						<sequence minOccurs="0">
+							<element ref="quartz:start-time"/>
+							<element ref="quartz:end-time"/>
+						</sequence>
+						<element name="cron-expression" type="quartz:cron-expressionType"/>
+						<element ref="quartz:time-zone" minOccurs="0"/>
+					</sequence>
+				</sequence>
+			</extension>
+		</complexContent>
+	</complexType>
+	<simpleType name="cron-expressionType">
+		<annotation>
+			<documentation>
+        Cron expression (see JavaDoc for examples)
+
+        Special thanks to Chris Thatcher (thatcher@butterfly.net) for the regular expression!
+        
+                  Regular expressions are not my strong point but I believe this is complete,
+                  with the caveat that order for expressions like 3-0 is not legal but will pass, 
+                  and month and day names must be capitalized.
+                  If you want to examine the correctness look for the [\s] to denote the
+                  seperation of individual regular expressions. This is how I break them up visually 
+                  to examine them:
+                  
+                SECONDS:
+                (   
+                      ((([0-9] | [0-5][0-9]),)*([0-9]|[0-5][0-9]))
+                    | (([0-9]|[0-5][0-9])(/|-)([0-9]|[0-5][0-9]))
+                    | ([\?])
+                    | ([\*])
+                ) [\s]
+                MINUTES:
+                (   
+                      ((([0-9] | [0-5][0-9]),)*([0-9]|[0-5][0-9]))
+                    | (([0-9]|[0-5][0-9])(/|-)([0-9]|[0-5][0-9]))
+                    | ([\?])
+                    | ([\*])
+                ) [\s]
+                HOURS:
+                (
+                    ((([0-9]|[0-1][0-9]|[2][0-3]),)*([0-9]|[0-1][0-9]|[2][0-3]))
+                  | (([0-9]|[0-1][0-9]|[2][0-3])(/|-)([0-9]|[0-1][0-9]|[2][0-3])) 
+                  | ([\?])
+                  | ([\*]) 
+                ) [\s]
+                DAY OF MONTH:
+                (
+                    ((([1-9]|[0][1-9]|[1-2][0-9]|[3][0-1]),)*([1-9]|[0][1-9]|[1-2][0-9]|[3][0-1])(C)?)
+                  | (([1-9]|[0][1-9]|[1-2][0-9]|[3][0-1])(/|-)([1-9]|[0][1-9]|[1-2][0-9]|[3][0-1])(C)?)
+                  | (L)
+                  | ([\?])
+                  | ([\*])
+                )[\s]
+                MONTH:
+                (  
+                    ((([1-9]|0[1-9]|1[0-2]),)*([1-9]|0[1-9]|1[0-2]))
+                  | (([1-9]|0[1-9]|1[0-2])(/|-)([1-9]|0[1-9]|1[0-2]))
+                  | (((JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC),)*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))
+                  | ((JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(-|/)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))
+                  | ([\?])
+                  | ([\*])
+                )[\s]
+                DAY OF WEEK:
+                ( 
+                    (([1-7],)*([1-7]))
+                  | ([1-7](/|-)([1-7]))
+                  | (((MON|TUE|WED|THU|FRI|SAT|SUN),)*(MON|TUE|WED|THU|FRI|SAT|SUN)(C)?)
+                  | ((MON|TUE|WED|THU|FRI|SAT|SUN)(-|/)(MON|TUE|WED|THU|FRI|SAT|SUN)(C)?)
+                  | (([1-7]|(MON|TUE|WED|THU|FRI|SAT|SUN))?(L)?)
+                  | ([1-7]#([1-7])?)
+                  | ([\?])
+                  | ([\*])
+                )
+                YEAR (OPTIONAL):
+                ([\s]19[7-9][0-9]|20[0-9]{2})?         
+      </documentation>
+		</annotation>
+		<restriction base="xsd:string">
+			<pattern value="(((([0-9]|[0-5][0-9]),)*([0-9]|[0-5][0-9]))|(([0-9]|[0-5][0-9])(/|-)([0-9]|[0-5][0-9]))|([\?])|([\*]))[\s](((([0-9]|[0-5][0-9]),)*([0-9]|[0-5][0-9]))|(([0-9]|[0-5][0-9])(/|-)([0-9]|[0-5][0-9]))|([\?])|([\*]))[\s](((([0-9]|[0-1][0-9]|[2][0-3]),)*([0-9]|[0-1][0-9]|[2][0-3]))|(([0-9]|[0-1][0-9]|[2][0-3])(/|-)([0-9]|[0-1][0-9]|[2][0-3]))|([\?])|([\*]))[\s](((([1-9]|[0][1-9]|[1-2][0-9]|[3][0-1]),)*([1-9]|[0][1-9]|[1-2][0-9]|[3][0-1])(C)?)|(([1-9]|[0][1-9]|[1-2][0-9]|[3][0-1])(/|-)([1-9]|[0][1-9]|[1-2][0-9]|[3][0-1])(C)?)|(L)|([\?])|([\*]))[\s](((([1-9]|0[1-9]|1[0-2]),)*([1-9]|0[1-9]|1[0-2]))|(([1-9]|0[1-9]|1[0-2])(/|-)([1-9]|0[1-9]|1[0-2]))|(((JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC),)*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))|((JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(-|/)(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC))|([\?])|([\*]))[\s]((([1-7],)*([1-7]))|([1-7](/|-)([1-7]))|(((MON|TUE|WED|THU|FRI|SAT|SUN),)*(MON|TUE|WED|THU|FRI|SAT|SUN)(C)?)|((MON|TUE|WED|THU|FRI|SAT|SUN)(-|/)(MON|TUE|WED|THU|FRI|SAT|SUN)(C)?)|(([1-7]|(MON|TUE|WED|THU|FRI|SAT|SUN))?(L)?)|([1-7]#([1-7])?)|([\?])|([\*]))([\s]19[7-9][0-9]|20[0-9]{2})?"/>
+		</restriction>
+	</simpleType>
+	<element name="time-zone" type="xsd:string">
+		<annotation>
+			<documentation>Valid java.util.Timezone ID</documentation>
+		</annotation>
+	</element>
+</schema>
