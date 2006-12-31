@@ -206,7 +206,10 @@ namespace Quartz.Impl
 			}
 
 			NameValueCollection props = (NameValueCollection) ConfigurationSettings.GetConfig("quartz");
-
+			if (props == null)
+			{
+				throw new SchedulerConfigException("Could not find <quartz> configuration section from your application config. Please add it to correctly initialize Quartz.");
+			}
 			Initialize(OverrideWithSysProps(props));
 		}
 
