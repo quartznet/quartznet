@@ -36,13 +36,15 @@ namespace Quartz.Examples
 				Type eType = (Type) typeMap[num];
 				IExample example = (IExample) ObjectUtils.InstantiateType(eType);
 				example.Run();
+				Console.WriteLine("Example run successfully.");
 			}
 			catch (Exception ex)
 			{
 				Console.WriteLine("Error running example: " + ex.Message);
 				Console.WriteLine(ex.ToString());
-				Console.Read();
+				
 			}
+			Console.Read();
 		}	
 	}
 }
