@@ -21,7 +21,7 @@ using Quartz;
 using Quartz.Examples;
 using Quartz.Impl;
 
-namespace org.quartz.examples.example5
+namespace Quartz.Examples.Example5
 {
 	
 	/// <summary> Demonstrates the behavior of <code>StatefulJob</code>s, as well as how

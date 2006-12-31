@@ -21,7 +21,7 @@ using Quartz;
 using Quartz.Examples;
 using Quartz.Impl;
 
-namespace org.quartz.examples.example7
+namespace Quartz.Examples.Example7
 {
 	
 	/// <summary>

@@ -18,7 +18,7 @@ using System;
 using System.Threading;
 using Quartz;
 
-namespace org.quartz.examples.example5
+namespace Quartz.Examples.Example5
 {
 	
 	/// <summary>

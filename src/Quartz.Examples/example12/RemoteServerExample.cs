@@ -1,5 +1,5 @@
 /* 
-* Copyright 2005 OpenSymphony 
+* Copyright 2007 OpenSymphony 
 * 
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
 * use this file except in compliance with the License. You may obtain a copy 
@@ -15,80 +15,63 @@
 * 
 */
 using System;
-//UPGRADE_TODO: The type 'org.apache.commons.logging.Log' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using Log = org.apache.commons.logging.Log;
-//UPGRADE_TODO: The type 'org.apache.commons.logging.LogFactory' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using LogFactory = org.apache.commons.logging.LogFactory;
-//UPGRADE_TODO: The type 'org.quartz.Scheduler' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using Scheduler = org.quartz.Scheduler;
-//UPGRADE_TODO: The type 'org.quartz.SchedulerFactory' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using SchedulerFactory = org.quartz.SchedulerFactory;
-//UPGRADE_TODO: The type 'org.quartz.SchedulerMetaData' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using SchedulerMetaData = org.quartz.SchedulerMetaData;
-//UPGRADE_TODO: The type 'org.quartz.impl.StdSchedulerFactory' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using StdSchedulerFactory = org.quartz.impl.StdSchedulerFactory;
-namespace org.quartz.examples.example12
+using Common.Logging;
+using Quartz.Impl;
+
+namespace Quartz.Examples.Example12
 {
 	
-	/// <author>  Bill Kratzer
-	/// 
-	/// TODO To change the template for this generated type comment go to Window -
-	/// Preferences - Java - Code Style - Code Templates
-	/// </author>
-	public class RemoteServerExample
+	/// <author>Bill Kratzer</author>
+	public class RemoteServerExample : IExample
 	{
-		
+		public string Name
+		{
+			get { throw new NotImplementedException(); }
+		}
+
 		/// <summary> This example will spawn a large number of jobs to run
 		/// 
 		/// </summary>
 		/// <author>  James House, Bill Kratzer
 		/// </author>
-		public virtual void  run()
+		public virtual void Run()
 		{
-			Log log = LogFactory.getLog(typeof(RemoteServerExample));
+			ILog log = LogManager.GetLogger(typeof(RemoteServerExample));
 			
 			// First we must get a reference to a scheduler
-			SchedulerFactory sf = new StdSchedulerFactory();
-			Scheduler sched = sf.getScheduler();
+			ISchedulerFactory sf = new StdSchedulerFactory();
+			IScheduler sched = sf.GetScheduler();
 			
-			log.info("------- Initialization Complete -----------");
+			log.Info("------- Initialization Complete -----------");
 			
-			log.info("------- (Not Scheduling any Jobs - relying on a remote client to schedule jobs --");
+			log.Info("------- (Not Scheduling any Jobs - relying on a remote client to schedule jobs --");
 			
-			log.info("------- Starting Scheduler ----------------");
+			log.Info("------- Starting Scheduler ----------------");
 			
 			// start the schedule
-			sched.start();
+			sched.Start();
 			
-			log.info("------- Started Scheduler -----------------");
+			log.Info("------- Started Scheduler -----------------");
 			
-			log.info("------- Waiting ten minutes... ------------");
+			log.Info("------- Waiting ten minutes... ------------");
 			
 			// wait five minutes to give our jobs a chance to run
 			try
 			{
-				//UPGRADE_TODO: Method 'java.lang.Thread.sleep' was converted to 'System.Threading.Thread.Sleep' which has a different behavior. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1073_javalangThreadsleep_long'"
-				System.Threading.Thread.Sleep(new System.TimeSpan((System.Int64) 10000 * 600L * 1000L));
+				System.Threading.Thread.Sleep(1000 * 60 * 5);
 			}
-			catch (System.Exception e)
+			catch 
 			{
 			}
 			
 			// shut down the scheduler
-			log.info("------- Shutting Down ---------------------");
-			sched.shutdown(true);
-			log.info("------- Shutdown Complete -----------------");
+			log.Info("------- Shutting Down ---------------------");
+			sched.Shutdown(true);
+			log.Info("------- Shutdown Complete -----------------");
 			
-			SchedulerMetaData metaData = sched.getMetaData();
-			log.info("Executed " + metaData.numJobsExecuted() + " jobs.");
+			SchedulerMetaData metaData = sched.GetMetaData();
+			log.Info("Executed " + metaData.NumJobsExecuted + " jobs.");
 		}
-		
-		[STAThread]
-		public static void  Main(System.String[] args)
-		{
-			
-			RemoteServerExample example = new RemoteServerExample();
-			example.run();
-		}
+
 	}
 }

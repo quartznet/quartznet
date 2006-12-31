@@ -1,5 +1,5 @@
 /* 
-* Copyright 2005 OpenSymphony 
+* Copyright 2007 OpenSymphony 
 * 
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
 * use this file except in compliance with the License. You may obtain a copy 
@@ -15,24 +15,14 @@
 * 
 */
 using System;
-//UPGRADE_TODO: The type 'org.apache.commons.logging.Log' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using Log = org.apache.commons.logging.Log;
-//UPGRADE_TODO: The type 'org.apache.commons.logging.LogFactory' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using LogFactory = org.apache.commons.logging.LogFactory;
-//UPGRADE_TODO: The type 'org.quartz.JobDetail' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using JobDetail = org.quartz.JobDetail;
-//UPGRADE_TODO: The type 'org.quartz.Scheduler' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using Scheduler = org.quartz.Scheduler;
-//UPGRADE_TODO: The type 'org.quartz.SchedulerFactory' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using SchedulerFactory = org.quartz.SchedulerFactory;
-//UPGRADE_TODO: The type 'org.quartz.SimpleTrigger' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using SimpleTrigger = org.quartz.SimpleTrigger;
-//UPGRADE_TODO: The type 'org.quartz.impl.StdSchedulerFactory' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using StdSchedulerFactory = org.quartz.impl.StdSchedulerFactory;
-namespace org.quartz.examples.example13
+using System.Threading;
+using Common.Logging;
+using Quartz.Impl;
+
+namespace Quartz.Examples.Example13
 {
-	
-	/// <summary> Used to test/show the clustering features of JDBCJobStore (JobStoreTX or
+	/// <summary> 
+	/// Used to test/show the clustering features of JDBCJobStore (JobStoreTX or
 	/// JobStoreCMT).
 	/// 
 	/// <p>
@@ -69,144 +59,144 @@ namespace org.quartz.examples.example13
 	/// </p>
 	/// 
 	/// </summary>
-	/// <seealso cref="DumbRecoveryJob">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
-	public class ClusterExample
+	/// <author>James House</author>
+	public class ClusterExample : IExample
 	{
-		
-		//UPGRADE_NOTE: The initialization of  '_log' was moved to static method 'org.quartz.examples.example13.ClusterExample'. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1005'"
-		private static Log _log;
-		
-		public virtual void  cleanUp(Scheduler inScheduler)
+		private static ILog _log = LogManager.GetLogger(typeof (ClusterExample));
+
+		public virtual void CleanUp(IScheduler inScheduler)
 		{
-			_log.warn("***** Deleting existing jobs/triggers *****");
-			
+			_log.Warn("***** Deleting existing jobs/triggers *****");
+
 			// unschedule jobs
-			System.String[] groups = inScheduler.getTriggerGroupNames();
+			string[] groups = inScheduler.TriggerGroupNames;
 			for (int i = 0; i < groups.Length; i++)
 			{
-				System.String[] names = inScheduler.getTriggerNames(groups[i]);
+				String[] names = inScheduler.GetTriggerNames(groups[i]);
 				for (int j = 0; j < names.Length; j++)
-					inScheduler.unscheduleJob(names[j], groups[i]);
+					inScheduler.UnscheduleJob(names[j], groups[i]);
 			}
-			
+
 			// delete jobs
-			groups = inScheduler.getJobGroupNames();
+			groups = inScheduler.JobGroupNames;
 			for (int i = 0; i < groups.Length; i++)
 			{
-				System.String[] names = inScheduler.getJobNames(groups[i]);
+				String[] names = inScheduler.GetJobNames(groups[i]);
 				for (int j = 0; j < names.Length; j++)
-					inScheduler.deleteJob(names[j], groups[i]);
+					inScheduler.DeleteJob(names[j], groups[i]);
 			}
 		}
-		
-		public virtual void  run(bool inClearJobs, bool inScheduleJobs)
+
+		public virtual void Run(bool inClearJobs, bool inScheduleJobs)
 		{
-			
 			// First we must get a reference to a scheduler
-			SchedulerFactory sf = new StdSchedulerFactory();
-			Scheduler sched = sf.getScheduler();
-			
+			ISchedulerFactory sf = new StdSchedulerFactory();
+			IScheduler sched = sf.GetScheduler();
+
 			if (inClearJobs)
 			{
-				cleanUp(sched);
+				CleanUp(sched);
 			}
-			
-			_log.info("------- Initialization Complete -----------");
-			
+
+			_log.Info("------- Initialization Complete -----------");
+
 			if (inScheduleJobs)
 			{
-				
-				_log.info("------- Scheduling Jobs ------------------");
-				
-				System.String schedId = sched.getSchedulerInstanceId();
-				
+				_log.Info("------- Scheduling Jobs ------------------");
+
+				string schedId = sched.SchedulerInstanceId;
+
 				int count = 1;
-				
-				JobDetail job = new JobDetail("job_" + count, schedId, typeof(SimpleRecoveryJob));
+
+				JobDetail job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
-				job.setRequestsRecovery(true);
+				job.RequestsRecovery = true;
 				SimpleTrigger trigger = new SimpleTrigger("triger_" + count, schedId, 20, 5000L);
-				//UPGRADE_TODO: Constructor 'java.util.Date.Date' was converted to 'System.DateTime.DateTime' which has a different behavior. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1073_javautilDateDate_long'"
-				trigger.setStartTime(new System.DateTime((System.DateTime.Now.Ticks - 621355968000000000) / 10000 + 1000L));
-				_log.info(job.getFullName() + " will run at: " + trigger.getNextFireTime() + " and repeat: " + trigger.getRepeatCount() + " times, every " + (trigger.getRepeatInterval() / 1000) + " seconds");
-				sched.scheduleJob(job, trigger);
-				
+
+				trigger.StartTime = new DateTime((DateTime.Now.Ticks - 621355968000000000)/10000 + 1000L);
+				_log.Info(job.FullName + " will run at: " + trigger.GetNextFireTime() + " and repeat: " + trigger.RepeatCount +
+				          " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+				sched.ScheduleJob(job, trigger);
+
 				count++;
-				job = new JobDetail("job_" + count, schedId, typeof(SimpleRecoveryJob));
+				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
-				job.setRequestsRecovery(true);
+				job.RequestsRecovery = (true);
 				trigger = new SimpleTrigger("trig_" + count, schedId, 20, 5000L);
-				//UPGRADE_TODO: Constructor 'java.util.Date.Date' was converted to 'System.DateTime.DateTime' which has a different behavior. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1073_javautilDateDate_long'"
-				trigger.setStartTime(new System.DateTime((System.DateTime.Now.Ticks - 621355968000000000) / 10000 + 2000L));
-				_log.info(job.getFullName() + " will run at: " + trigger.getNextFireTime() + " and repeat: " + trigger.getRepeatCount() + " times, every " + (trigger.getRepeatInterval() / 1000) + " seconds");
-				sched.scheduleJob(job, trigger);
-				
+
+				trigger.StartTime = (new DateTime((DateTime.Now.Ticks - 621355968000000000)/10000 + 2000L));
+				_log.Info(job.FullName + " will run at: " + trigger.GetNextFireTime() + " and repeat: " + trigger.RepeatCount +
+				          " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+				sched.ScheduleJob(job, trigger);
+
 				count++;
-				job = new JobDetail("job_" + count, schedId, typeof(SimpleRecoveryStatefulJob));
+				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
-				job.setRequestsRecovery(true);
+				job.RequestsRecovery = (true);
 				trigger = new SimpleTrigger("trig_" + count, schedId, 20, 3000L);
-				//UPGRADE_TODO: Constructor 'java.util.Date.Date' was converted to 'System.DateTime.DateTime' which has a different behavior. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1073_javautilDateDate_long'"
-				trigger.setStartTime(new System.DateTime((System.DateTime.Now.Ticks - 621355968000000000) / 10000 + 1000L));
-				_log.info(job.getFullName() + " will run at: " + trigger.getNextFireTime() + " and repeat: " + trigger.getRepeatCount() + " times, every " + (trigger.getRepeatInterval() / 1000) + " seconds");
-				sched.scheduleJob(job, trigger);
-				
+
+				trigger.StartTime = (new DateTime((DateTime.Now.Ticks - 621355968000000000)/10000 + 1000L));
+				_log.Info(job.FullName + " will run at: " + trigger.GetNextFireTime() + " and repeat: " + trigger.RepeatCount +
+				          " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+				sched.ScheduleJob(job, trigger);
+
 				count++;
-				job = new JobDetail("job_" + count, schedId, typeof(SimpleRecoveryJob));
+				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
-				job.setRequestsRecovery(true);
+				job.RequestsRecovery = (true);
 				trigger = new SimpleTrigger("trig_" + count, schedId, 20, 4000L);
-				//UPGRADE_TODO: Constructor 'java.util.Date.Date' was converted to 'System.DateTime.DateTime' which has a different behavior. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1073_javautilDateDate_long'"
-				trigger.setStartTime(new System.DateTime((System.DateTime.Now.Ticks - 621355968000000000) / 10000 + 1000L));
-				_log.info(job.getFullName() + " will run at: " + trigger.getNextFireTime() + " & repeat: " + trigger.getRepeatCount() + "/" + trigger.getRepeatInterval());
-				sched.scheduleJob(job, trigger);
-				
+
+				trigger.StartTime = (new DateTime((DateTime.Now.Ticks - 621355968000000000)/10000 + 1000L));
+				_log.Info(job.FullName + " will run at: " + trigger.GetNextFireTime() + " & repeat: " + trigger.RepeatCount + "/" +
+				          trigger.RepeatInterval);
+				sched.ScheduleJob(job, trigger);
+
 				count++;
-				job = new JobDetail("job_" + count, schedId, typeof(SimpleRecoveryJob));
+				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
-				job.setRequestsRecovery(true);
+				job.RequestsRecovery = (true);
 				trigger = new SimpleTrigger("trig_" + count, schedId, 20, 4500L);
-				//UPGRADE_TODO: Constructor 'java.util.Date.Date' was converted to 'System.DateTime.DateTime' which has a different behavior. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1073_javautilDateDate_long'"
-				trigger.setStartTime(new System.DateTime((System.DateTime.Now.Ticks - 621355968000000000) / 10000 + 1000L));
-				_log.info(job.getFullName() + " will run at: " + trigger.getNextFireTime() + " & repeat: " + trigger.getRepeatCount() + "/" + trigger.getRepeatInterval());
-				sched.scheduleJob(job, trigger);
+
+				trigger.StartTime = (new DateTime((DateTime.Now.Ticks - 621355968000000000)/10000 + 1000L));
+				_log.Info(job.FullName + " will run at: " + trigger.GetNextFireTime() + " & repeat: " + trigger.RepeatCount + "/" +
+				          trigger.RepeatInterval);
+				sched.ScheduleJob(job, trigger);
 			}
-			
+
 			// jobs don't start firing until start() has been called...
-			_log.info("------- Starting Scheduler ---------------");
-			sched.start();
-			_log.info("------- Started Scheduler ----------------");
-			
-			_log.info("------- Waiting for one hour... ----------");
+			_log.Info("------- Starting Scheduler ---------------");
+			sched.Start();
+			_log.Info("------- Started Scheduler ----------------");
+
+			_log.Info("------- Waiting for one hour... ----------");
 			try
 			{
-				//UPGRADE_TODO: Method 'java.lang.Thread.sleep' was converted to 'System.Threading.Thread.Sleep' which has a different behavior. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1073_javalangThreadsleep_long'"
-				System.Threading.Thread.Sleep(new System.TimeSpan((System.Int64) 10000 * 3600L * 1000L));
+				Thread.Sleep(new TimeSpan(10000*3600L*1000L));
 			}
-			catch (System.Exception e)
+			catch
 			{
 			}
-			
-			_log.info("------- Shutting Down --------------------");
-			sched.shutdown();
-			_log.info("------- Shutdown Complete ----------------");
+
+			_log.Info("------- Shutting Down --------------------");
+			sched.Shutdown();
+			_log.Info("------- Shutdown Complete ----------------");
 		}
-		
-		[STAThread]
-		public static void  Main(System.String[] args)
+
+		public string Name
+		{
+			get { throw new NotImplementedException(); }
+		}
+
+		public void Run()
 		{
 			bool clearJobs = false;
 			bool scheduleJobs = true;
-			
+			/* TODO
 			for (int i = 0; i < args.Length; i++)
 			{
 				if (args[i].ToUpper().Equals("clearJobs".ToUpper()))
@@ -218,13 +208,10 @@ namespace org.quartz.examples.example13
 					scheduleJobs = false;
 				}
 			}
-			
+			*/
 			ClusterExample example = new ClusterExample();
-			example.run(clearJobs, scheduleJobs);
-		}
-		static ClusterExample()
-		{
-			_log = LogFactory.getLog(typeof(ClusterExample));
+			example.Run(clearJobs, scheduleJobs);
+
 		}
 	}
 }

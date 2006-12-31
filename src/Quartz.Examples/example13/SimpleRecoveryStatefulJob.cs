@@ -1,5 +1,5 @@
 /* 
-* Copyright 2005 OpenSymphony 
+* Copyright 2007 OpenSymphony 
 * 
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
 * use this file except in compliance with the License. You may obtain a copy 
@@ -14,10 +14,10 @@
 * under the License.
 * 
 */
+
 using System;
-//UPGRADE_TODO: The type 'org.quartz.StatefulJob' could not be found. If it was not included in the conversion, there may be compiler issues. "ms-help://MS.VSCC.v80/dv_commoner/local/redirect.htm?index='!DefaultContextWindowIndex'&keyword='jlca1262'"
-using StatefulJob = org.quartz.StatefulJob;
-namespace org.quartz.examples.example13
+
+namespace Quartz.Examples.Example13
 {
 	
 	/// <summary> This job has the same functionality of SimpleRecoveryJob
@@ -26,12 +26,8 @@ namespace org.quartz.examples.example13
 	/// </summary>
 	/// <author>  Bill Kratzer
 	/// </author>
-	public class SimpleRecoveryStatefulJob:SimpleRecoveryJob, StatefulJob
+	public class SimpleRecoveryStatefulJob:SimpleRecoveryJob, IStatefulJob
 	{
 		
-		/// <summary> </summary>
-		public SimpleRecoveryStatefulJob():base()
-		{
-		}
 	}
 }

@@ -18,7 +18,7 @@ using System;
 using Common.Logging;
 using Quartz;
 
-namespace org.quartz.examples.example3
+namespace Quartz.Examples.Example3
 {
 	
 	/// <summary> <p>

@@ -20,7 +20,7 @@ using Quartz;
 using Quartz.Examples;
 using Quartz.Impl;
 
-namespace org.quartz.examples.example3
+namespace Quartz.Examples.Example3
 {
 	
 	/// <summary> This Example will demonstrate all of the basics of scheduling capabilities of
