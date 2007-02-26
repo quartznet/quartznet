@@ -20,8 +20,14 @@
 */
 
 using System;
-using System.Web.Mail;
+
 using Common.Logging;
+
+#if NET_20
+using System.Net.Mail;
+#else
+using System.Web.Mail;
+#endif
 
 namespace Quartz.Job
 {
@@ -120,23 +126,25 @@ namespace Quartz.Job
 		private void SendMail(string smtpHost, string to, string cc, string from, string replyTo, string subject,
 		                      string message)
 		{
-			MailMessage mimeMessage = PrepareMimeMessage(to, cc, from, replyTo, subject);
+#if NET_20
+            MailMessage mimeMessage = new MailMessage(from, to, subject, message);
+		    mimeMessage.CC.Add(cc);
+            mimeMessage.ReplyTo = new MailAddress(replyTo);
+
+            SmtpClient client = new SmtpClient(smtpHost);
+            client.Send(mimeMessage);
+#else
+            MailMessage mimeMessage = new MailMessage();
+			mimeMessage.To = to;
+			mimeMessage.Cc = cc;
+			mimeMessage.From = from;
+			mimeMessage.Subject = subject;
 			mimeMessage.Body = message;
-			SmtpMail.SmtpServer = smtpHost;
-			SmtpMail.Send(mimeMessage);
-		}
+			
+            SmtpMail.SmtpServer = smtpHost;
+            SmtpMail.Send(mimeMessage);
+#endif
+        }
 
-		private MailMessage PrepareMimeMessage(string to, string cc, string from, string replyTo,
-		                                       string subject)
-		{
-			MailMessage message = new MailMessage();
-
-			message.From = from;
-			message.To = to;
-			message.Subject = subject;
-			message.Cc = cc;
-
-			return message;
-		}
 	}
 }

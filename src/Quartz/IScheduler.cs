@@ -298,7 +298,7 @@ namespace Quartz
 		/// </summary>
 		/// <seealso cref="Standby">
 		/// </seealso>
-		/// <seealso cref="Shutdown">
+		/// <seealso cref="Shutdown(bool)">
 		/// </seealso>
 		void Start();
 
@@ -347,7 +347,7 @@ namespace Quartz
 		/// to return until all currently executing jobs have completed.
 		/// 
 		/// </param>
-		/// <seealso cref="Shutdown">
+		/// <seealso cref="Shutdown()">
 		/// </seealso>
 		void Shutdown(bool waitForJobsToComplete);
 

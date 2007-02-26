@@ -1,8 +1,4 @@
 using System;
-using System.IO;
-using System.Reflection;
-using System.Runtime.Remoting;
-using System.Runtime.Serialization;
 using System.Threading;
 
 /// <summary>
@@ -218,7 +214,12 @@ public class SupportClass
 		/// </summary>
 		public void Resume()
 		{
-			thread.Resume();
+            // TODO, FIX THIS
+#if NET_20
+            thread.Resume();
+#else
+            thread.Resume();
+#endif
 		}
 
 		/// <summary>
@@ -251,7 +252,13 @@ public class SupportClass
 		/// </summary>
 		public void Suspend()
 		{
+            // TODO, FIX THIS!
+#if NET_20
+            thread.Suspend();
+#else
 			thread.Suspend();
+#endif
+			
 		}
 
 		/// <summary>
@@ -260,7 +267,7 @@ public class SupportClass
 		/// <returns>A string that represents the current object</returns>
 		public override string ToString()
 		{
-			return "Thread[" + Name + "," + Priority.ToString() + "," + "" + "]";
+			return string.Format("Thread[{0},{1},]", Name, Priority);
 		}
 
 		/// <summary>
