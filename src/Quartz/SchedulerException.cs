@@ -22,18 +22,14 @@ using System;
 
 namespace Quartz
 {
-	/// <summary> <p>
-	/// Base class for exceptions thrown by the Quartz <code>{@link Scheduler}</code>.
-	/// </p>
-	/// 
+	/// <summary> 
+	/// Base class for exceptions thrown by the Quartz <code>Scheduler</code>.
 	/// <p>
 	/// <code>SchedulerException</code> s may contain a reference to another
 	/// <code>Exception</code>, which was the underlying cause of the <code>SchedulerException</code>.
 	/// </p>
-	/// 
 	/// </summary>
-	/// <author>  James House
-	/// </author>
+	/// <author>James House</author>
 	[Serializable]
 	public class SchedulerException : ApplicationException
 	{
