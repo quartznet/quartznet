@@ -1,8 +1,8 @@
 Microsoft Visual Studio Solution File, Format Version 9.00
 # Visual Studio 2005
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz", "src\Quartz\Quartz.2005.csproj", "{AEF8823B-E45B-4B35-A4D0-C08C1196D017}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.2005", "src\Quartz\Quartz.2005.csproj", "{AEF8823B-E45B-4B35-A4D0-C08C1196D017}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples", "src\Quartz.Examples\Quartz.Examples.2005.csproj", "{70A37974-17DE-474C-8A1C-19637622E75F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.2005", "src\Quartz.Examples\Quartz.Examples.2005.csproj", "{70A37974-17DE-474C-8A1C-19637622E75F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
