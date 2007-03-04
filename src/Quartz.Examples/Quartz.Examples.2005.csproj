@@ -94,8 +94,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <Compile Include="AssemblyInfo.cs">
-      <SubType>Code</SubType>
+    <Compile Include="..\AssemblyInfo.cs">
+      <Link>AssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="ConsoleMain.cs">
       <SubType>Code</SubType>

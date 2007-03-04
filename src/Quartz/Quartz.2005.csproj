@@ -118,8 +118,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AssemblyInfo.cs">
-      <SubType>Code</SubType>
+    <Compile Include="..\AssemblyInfo.cs">
+      <Link>AssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Collection\CollectionUtil.cs">
       <SubType>Code</SubType>

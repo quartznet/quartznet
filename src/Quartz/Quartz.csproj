@@ -128,7 +128,7 @@
             <Include>
                 <File
                     RelPath = "AssemblyInfo.cs"
-                    SubType = "Code"
+                    Link = "..\AssemblyInfo.cs"
                     BuildAction = "Compile"
                 />
                 <File

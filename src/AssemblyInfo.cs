@@ -1,33 +1,28 @@
 using System.Reflection;
-using System.Runtime.CompilerServices;
-
-//
-// General Information about an assembly is controlled through the following 
+// General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-//
-[assembly: AssemblyTitle("")]
-[assembly: AssemblyDescription("")]
-[assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("")]
-[assembly: AssemblyCopyright("")]
-[assembly: AssemblyTrademark("")]
-[assembly: AssemblyCulture("")]		
+
+[assembly : AssemblyTitle("Quarz Scheduler .NET")]
+[assembly : AssemblyDescription("Quartz Scheduling Framework")]
+[assembly : AssemblyCompany("")]
+[assembly : AssemblyProduct("")]
+[assembly : AssemblyCopyright("Copyright 2007 OpenSymphony")]
+[assembly : AssemblyTrademark("")]
+[assembly : AssemblyCulture("")]
 
 
-//
 // Version information for an assembly consists of the following four values:
 //
 //      Major Version
-//      Minor Version 
-//      Build Number
+//      Minor Version
 //      Revision
+//      Build Number
 //
-// You can specify all the values or you can default the Revision and Build Numbers 
+// You can specify all the values or you can default the Revision and Build Numbers
 // by using the '*' as shown below:
 
-[assembly: AssemblyVersion("1.0.*")]
+[assembly : AssemblyVersion("0.4.0.*")]
 
 //
 // In order to sign your assembly you must specify a key to use. Refer to the 
@@ -50,10 +45,12 @@ using System.Runtime.CompilerServices;
 //       relative to the project output directory which is
 //       %Project Directory%\obj\<configuration>. For example, if your KeyFile is
 //       located in the project directory, you would specify the AssemblyKeyFile 
-//       attribute as [assembly: AssemblyKeyFile("..\\..\\mykey.snk")]
+//       attribute as [assembly: AssemblyKeyFile("..\..\mykey.snk")]
 //   (*) Delay Signing is an advanced option - see the Microsoft .NET Framework
 //       documentation for more information on this.
 //
-[assembly: AssemblyDelaySign(false)]
-[assembly: AssemblyKeyFile("")]
-[assembly: AssemblyKeyName("")]
+
+[assembly : AssemblyConfiguration("")]
+[assembly : AssemblyDelaySign(false)]
+[assembly : AssemblyKeyFile("")]
+[assembly : AssemblyKeyName("")]
