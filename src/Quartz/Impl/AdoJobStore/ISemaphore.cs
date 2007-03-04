@@ -19,6 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
+using System.Data;
+
 namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary> 
@@ -34,17 +36,17 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns> true if the lock was obtained.
 		/// </returns>
-		bool ObtainLock(System.Data.OleDb.OleDbConnection conn, string lockName);
+		bool ObtainLock(IDbConnection conn, string lockName);
 
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		void ReleaseLock(System.Data.OleDb.OleDbConnection conn, string lockName);
+		void ReleaseLock(IDbConnection conn, string lockName);
 
 		/// <summary> 
 		/// Determine whether the calling thread owns a lock on the identified
 		/// resource.
 		/// </summary>
-		bool IsLockOwner(System.Data.OleDb.OleDbConnection conn, string lockName);
+		bool IsLockOwner(IDbConnection conn, string lockName);
 	}
 }

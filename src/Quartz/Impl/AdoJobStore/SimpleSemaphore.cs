@@ -21,8 +21,9 @@
 
 using System;
 using System.Collections;
-using System.Data.OleDb;
+using System.Data;
 using System.Threading;
+
 using Common.Logging;
 
 using Quartz.Collection;
@@ -37,6 +38,8 @@ namespace Quartz.Impl.AdoJobStore
 	public class SimpleSemaphore : ISemaphore
 	{
 		private ILog log = LogManager.GetLogger(typeof(SimpleSemaphore));
+		internal LocalDataStoreSlot lockOwners = Thread.AllocateDataSlot();
+		internal HashSet locks = new HashSet();
 		
 		private HashSet ThreadLocks
 		{
@@ -53,40 +56,25 @@ namespace Quartz.Impl.AdoJobStore
 
 		}
 
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Data members.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
-		internal LocalDataStoreSlot lockOwners = Thread.AllocateDataSlot();
-
-		internal HashSet locks = new HashSet();
-
 		/// <summary> Grants a lock on the identified resource to the calling thread (blocking
 		/// until it is available).
 		/// 
 		/// </summary>
-		/// <returns> true if the lock was obtained.
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		//UPGRADE_NOTE: Synchronized keyword was removed from method 'ObtainLock'. Lock expression was added. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1027_3"'
-		public virtual bool ObtainLock(OleDbConnection conn, String lockName)
+		/// <returns>True if the lock was obtained.</returns>
+		public virtual bool ObtainLock(IDbConnection conn, string lockName)
 		{
 			lock (this)
 			{
 				lockName = String.Intern(lockName);
 
 				if (log.IsDebugEnabled)
-					log.Debug("Lock '" + lockName + "' is desired by: " + SupportClass.ThreadClass.Current().Name);
+					log.Debug("Lock '" + lockName + "' is desired by: " + Thread.CurrentThread.Name);
 
 				if (!IsLockOwner(conn, lockName))
 				{
 					if (log.IsDebugEnabled)
 					{
-						log.Debug("Lock '" + lockName + "' is being obtained: " + SupportClass.ThreadClass.Current().Name);
+						log.Debug("Lock '" + lockName + "' is being obtained: " + Thread.CurrentThread.Name);
 					}
 					
 					while (locks.Contains(lockName))
@@ -99,18 +87,22 @@ namespace Quartz.Impl.AdoJobStore
 						{
 							if (log.IsDebugEnabled)
 							{
-								log.Debug("Lock '" + lockName + "' was not obtained by: " + SupportClass.ThreadClass.Current().Name);
+								log.Debug("Lock '" + lockName + "' was not obtained by: " + Thread.CurrentThread.Name);
 							}
 						}
 					}
 
 					if (log.IsDebugEnabled)
-						log.Debug("Lock '" + lockName + "' given to: " + SupportClass.ThreadClass.Current().Name);
+					{
+						log.Debug(string.Format("Lock '{0}' given to: {1}", lockName, Thread.CurrentThread.Name));
+					}
 					ThreadLocks.Add(lockName);
 					locks.Add(lockName);
 				}
 				else if (log.IsDebugEnabled)
-					log.Debug("Lock '" + lockName + "' already owned by: " + SupportClass.ThreadClass.Current().Name + " -- but not owner!", new Exception("stack-trace of wrongful returner"));
+				{
+					log.Debug(string.Format("Lock '{0}' already owned by: {1} -- but not owner!", lockName, Thread.CurrentThread.Name), new Exception("stack-trace of wrongful returner"));
+				}
 
 				return true;
 			}
@@ -119,7 +111,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		public virtual void ReleaseLock(OleDbConnection conn, String lockName)
+		public virtual void ReleaseLock(IDbConnection conn, String lockName)
 		{
 			lock (this)
 			{
@@ -129,7 +121,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					if (log.IsDebugEnabled)
 					{
-						log.Debug("Lock '" + lockName + "' retuned by: " + SupportClass.ThreadClass.Current().Name);
+						log.Debug(string.Format("Lock '{0}' retuned by: {1}", lockName, Thread.CurrentThread.Name));
 					}
 					ThreadLocks.Remove(lockName);
 					locks.Remove(lockName);
@@ -137,17 +129,16 @@ namespace Quartz.Impl.AdoJobStore
 				}
 				else if (log.IsDebugEnabled)
 				{
-					log.Debug("Lock '" + lockName + "' attempt to retun by: " + SupportClass.ThreadClass.Current().Name + " -- but not owner!", new Exception("stack-trace of wrongful returner"));
+					log.Debug(string.Format("Lock '{0}' attempt to retun by: {1} -- but not owner!", lockName, Thread.CurrentThread.Name), new Exception("stack-trace of wrongful returner"));
 				}
 			}
 		}
 
-		/// <summary> Determine whether the calling thread owns a lock on the identified
+		/// <summary> 
+		/// Determine whether the calling thread owns a lock on the identified
 		/// resource.
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		//UPGRADE_NOTE: Synchronized keyword was removed from method 'IsLockOwner'. Lock expression was added. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1027_3"'
-		public virtual bool IsLockOwner(OleDbConnection conn, String lockName)
+		public virtual bool IsLockOwner(IDbConnection conn, String lockName)
 		{
 			lock (this)
 			{
@@ -157,8 +148,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual void init(OleDbConnection conn, IList listOfLocks)
+		
+		public virtual void init(IDbConnection conn, IList listOfLocks)
 		{
 			// nothing to do...
 		}

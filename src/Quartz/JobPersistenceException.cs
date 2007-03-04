@@ -22,11 +22,9 @@ using System;
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// An exception that is thrown to indicate that there has been a failure in the
 	/// scheduler's underlying persistence mechanism.
-	/// </p>
-	/// 
 	/// </summary>
 	/// <author>  James House
 	/// </author>

@@ -50,7 +50,7 @@ namespace Quartz.Spi
 
 		/// <summary> <p>
 		/// Called by the QuartzScheduler before the <code>ThreadPool</code> is
-		/// used, in order to give the it a chance to initialize.
+		/// used, in order to give the it a chance to Initialize.
 		/// </p>
 		/// </summary>
 		void Initialize();

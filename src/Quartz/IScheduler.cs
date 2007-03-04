@@ -179,7 +179,7 @@ namespace Quartz
 		bool InStandbyMode { get; }
 
 		/// <summary> <p>
-		/// Reports whether the <code>Scheduler</code> has been shutdown.
+		/// Reports whether the <code>Scheduler</code> has been Shutdown.
 		/// </p>
 		/// </summary>
 		bool IsShutdown { get; }
@@ -292,7 +292,7 @@ namespace Quartz
 		/// 
 		/// </summary>
 		/// <throws>  SchedulerException </throws>
-		/// <summary>           if <code>shutdown()</code> has been called, or there is an
+		/// <summary>           if <code>Shutdown()</code> has been called, or there is an
 		/// error within the <code>Scheduler</code>.
 		/// 
 		/// </summary>
@@ -322,7 +322,7 @@ namespace Quartz
 		/// <summary> <p>
 		/// Halts the <code>Scheduler</code>'s firing of <code>{@link Trigger}s</code>,
 		/// and cleans up all resources associated with the Scheduler. Equivalent to
-		/// <code>shutdown(false)</code>.
+		/// <code>Shutdown(false)</code>.
 		/// </p>
 		/// 
 		/// <p>
@@ -585,14 +585,14 @@ namespace Quartz
 		void ResumeTriggerGroup(string groupName);
 
 		/// <summary> <p>
-		/// Pause all triggers - similar to calling <code>pauseTriggerGroup(group)</code>
-		/// on every group, however, after using this method <code>resumeAll()</code> 
+		/// Pause all triggers - similar to calling <code>PauseTriggerGroup(group)</code>
+		/// on every group, however, after using this method <code>ResumeAll()</code> 
 		/// must be called to clear the scheduler's state of 'remembering' that all 
 		/// new triggers will be paused as they are added. 
 		/// </p>
 		/// 
 		/// <p>
-		/// When <code>resumeAll()</code> is called (to un-pause), trigger misfire
+		/// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
 		/// </p>
 		/// 
@@ -607,7 +607,7 @@ namespace Quartz
 
 		/// <summary> <p>
 		/// Resume (un-pause) all triggers - similar to calling 
-		/// <code>resumeTriggerGroup(group)</code> on every group.
+		/// <code>ResumeTriggerGroup(group)</code> on every group.
 		/// </p>
 		/// 
 		/// <p>

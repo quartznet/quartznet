@@ -34,7 +34,7 @@ namespace Quartz.Spi
 	/// 
 	/// <p>
 	/// If you use <code>{@link org.quartz.impl.StdSchedulerFactory}</code> to
-	/// initialize your Scheduler, it can also create and initialize your plugins -
+	/// Initialize your Scheduler, it can also create and Initialize your plugins -
 	/// look at the configuration docs for details.
 	/// </p>
 	/// 
@@ -45,7 +45,7 @@ namespace Quartz.Spi
 	{
 		/// <summary> <p>
 		/// Called during creation of the <code>Scheduler</code> in order to give
-		/// the <code>SchedulerPlugin</code> a chance to initialize.
+		/// the <code>SchedulerPlugin</code> a chance to Initialize.
 		/// </p>
 		/// 
 		/// <p>

@@ -24,38 +24,27 @@ using Quartz.Core;
 
 namespace Quartz.Spi
 {
-	/// <summary> <p>
-	/// The interface to be implemented by classes that want to provide a <code>{@link org.quartz.Job}</code>
-	/// and <code>{@link org.quartz.Trigger}</code> storage mechanism for the
-	/// <code>{@link org.quartz.core.QuartzScheduler}</code>'s use.
-	/// </p>
-	/// 
+	/// <summary> 
+	/// The interface to be implemented by classes that want to provide a <code>IJob</code>
+	/// and <code>Trigger</code> storage mechanism for the
+	/// <code>QuartzScheduler</code>'s use.
 	/// <p>
 	/// Storage of <code>Job</code> s and <code>Trigger</code> s should be keyed
 	/// on the combination of their name and group for uniqueness.
 	/// </p>
-	/// 
 	/// </summary>
-	/// <seealso cref="QuartzScheduler">
-	/// </seealso>
-	/// <seealso cref="Trigger">
-	/// </seealso>
-	/// <seealso cref="IJob">
-	/// </seealso>
-	/// <seealso cref="JobDetail">
-	/// </seealso>
-	/// <seealso cref="JobDataMap">
-	/// </seealso>
-	/// <seealso cref="ICalendar">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="QuartzScheduler" />
+	/// <seealso cref="Trigger" />
+	/// <seealso cref="IJob" />
+	/// <seealso cref="JobDetail" />
+	/// <seealso cref="JobDataMap" />
+	/// <seealso cref="ICalendar" />
+	/// <author>James House</author>
 	public interface IJobStore
 	{
 		/// <summary> <p>
 		/// Called by the QuartzScheduler before the <code>JobStore</code> is
-		/// used, in order to give the it a chance to initialize.
+		/// used, in order to give the it a chance to Initialize.
 		/// </p>
 		/// </summary>
 		void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler signaler);
@@ -532,12 +521,12 @@ namespace Quartz.Spi
 		void ResumeJobGroup(SchedulingContext ctxt, string groupName);
 
 		/// <summary> <p>
-		/// Pause all triggers - equivalent of calling <code>pauseTriggerGroup(group)</code>
+		/// Pause all triggers - equivalent of calling <code>PauseTriggerGroup(group)</code>
 		/// on every group.
 		/// </p>
 		/// 
 		/// <p>
-		/// When <code>resumeAll()</code> is called (to un-pause), trigger misfire
+		/// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
 		/// </p>
 		/// 
@@ -549,7 +538,7 @@ namespace Quartz.Spi
 		void PauseAll(SchedulingContext ctxt);
 
 		/// <summary> <p>
-		/// Resume (un-pause) all triggers - equivalent of calling <code>resumeTriggerGroup(group)</code>
+		/// Resume (un-pause) all triggers - equivalent of calling <code>ResumeTriggerGroup(group)</code>
 		/// on every group.
 		/// </p>
 		/// 

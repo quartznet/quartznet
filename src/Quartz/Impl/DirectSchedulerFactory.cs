@@ -56,10 +56,10 @@ namespace Quartz.Impl
 	/// <pre>
 	/// // create the thread pool 
 	/// SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, Thread.NORM_PRIORITY); 
-	/// threadPool.initialize(); 
+	/// threadPool.Initialize(); 
 	/// // create the job store 
 	/// JobStore jobStore = new RAMJobStore(); 
-	/// jobStore.initialize();
+	/// jobStore.Initialize();
 	/// 
 	/// DirectSchedulerFactory.getInstance().createScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore, "localhost", 1099); 
 	/// // don't forget to start the scheduler: 
@@ -75,7 +75,7 @@ namespace Quartz.Impl
 	/// jdbcJobStore.setPostgresStyleBlobs(true); 
 	/// jdbcJobStore.setTablePrefix("QRTZ_"); 
 	/// jdbcJobStore.setInstanceId("My Instance"); 
-	/// jdbcJobStore.initialize();
+	/// jdbcJobStore.Initialize();
 	/// </pre>
 	/// </summary>
 	/// <author>Mohammad Rezaei</author>

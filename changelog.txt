@@ -1,0 +1,13 @@
+QUARTZ.NET CHANGELOG
+==============================
+http://quartznet.sourceforge.net
+
+
+
+
+Release 0.4, March 4, 2007
+
+Summary: Initial release
+
+
+---------------------------

@@ -26,6 +26,9 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using Common.Logging;
+
+using Nullables;
+
 using Quartz;
 using Quartz.Collection;
 using Quartz.Core;
@@ -33,7 +36,7 @@ using Quartz.Impl.AdoJobStore;
 using Quartz.Spi;
 using Quartz.Util;
 
-namespace org.quartz.impl.jdbcjobstore
+namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary> <p>
 	/// Contains base functionality for JDBC-based JobStore implementations.
@@ -42,10 +45,11 @@ namespace org.quartz.impl.jdbcjobstore
 	/// </summary>
 	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a>
 	/// </author>
-	/// <author>  James House
-	/// </author>
-	public abstract class JobStoreSupport : IJobStore, Constants
+	/// <author>James House</author>
+	public abstract class JobStoreSupport : AdoConstants, IJobStore
 	{
+		public ILog Log = LogManager.GetLogger(typeof(JobStoreSupport));
+		
 		public JobStoreSupport()
 		{
 			InitBlock();
@@ -53,7 +57,7 @@ namespace org.quartz.impl.jdbcjobstore
 
 		private void InitBlock()
 		{
-			delegateClass = typeof (StdJDBCDelegate);
+			delegateClass = typeof (StdAdoDelegate);
 		}
 
 		//UPGRADE_NOTE: Respective javadoc comments were merged.  It should be changed in order to comply with .NET documentation conventions. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1199_3"'
@@ -67,23 +71,18 @@ namespace org.quartz.impl.jdbcjobstore
 		/// performing database functions.
 		/// </p>
 		/// </summary>
-		public virtual String DataSource
+		public virtual string DataSource
 		{
 			get { return dsName; }
 
 			set { dsName = value; }
 		}
 
-		//UPGRADE_NOTE: Respective javadoc comments were merged.  It should be changed in order to comply with .NET documentation conventions. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1199_3"'
-		/// <summary> <p>
-		/// Get the prefix that should be pre-pended to all table names.
-		/// </p>
+		/// <summary> 
+		/// Get or sets the prefix that should be pre-pended to all table names.
 		/// </summary>
-		/// <summary> <p>
-		/// Set the prefix that should be pre-pended to all table names.
-		/// </p>
 		/// </summary>
-		public virtual String TablePrefix
+		public virtual string TablePrefix
 		{
 			get { return tablePrefix; }
 
@@ -102,7 +101,7 @@ namespace org.quartz.impl.jdbcjobstore
 		/// Set whether String-only properties will be handled in JobDataMaps.
 		/// </p>
 		/// </summary>
-		public virtual String UseProperties
+		public virtual string UseProperties
 		{
 			set
 			{
@@ -125,7 +124,7 @@ namespace org.quartz.impl.jdbcjobstore
 		/// Set the instance Id of the Scheduler (must be unique within a cluster).
 		/// </p>
 		/// </summary>
-		public virtual String InstanceId
+		public virtual string InstanceId
 		{
 			get { return instanceId; }
 
@@ -141,7 +140,7 @@ namespace org.quartz.impl.jdbcjobstore
 		/// Set the instance Id of the Scheduler (must be unique within a cluster).
 		/// </p>
 		/// </summary>
-		public virtual String InstanceName
+		public virtual string InstanceName
 		{
 			get { return instanceName; }
 
@@ -318,7 +317,7 @@ namespace org.quartz.impl.jdbcjobstore
 		/// <param name="">delegateClassName
 		/// the delegate class name
 		/// </param>
-		public virtual String DriverDelegateClass
+		public virtual string DriverDelegateClass
 		{
 			get { return delegateClassName; }
 
@@ -333,48 +332,48 @@ namespace org.quartz.impl.jdbcjobstore
 		/// </summary>
 		/// <seealso cref="StdRowLockSemaphore">
 		/// </seealso>
-		public virtual String SelectWithLockSQL
+		public virtual string SelectWithLockSQL
 		{
 			get { return selectWithLockSQL; }
 
 			set { selectWithLockSQL = value; }
 		}
 
-		protected internal virtual ClassLoadHelper ClassLoadHelper
+		protected internal virtual IClassLoadHelper ClassLoadHelper
 		{
 			get { return classLoadHelper; }
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual OleDbConnection Connection
+		
+		protected internal virtual IDbConnection Connection
 		{
 			get
 			{
 				try
 				{
-					//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-					IDbConnection conn = DBConnectionManager.Instance.getConnection(DataSource);
+					
+					IDbConnection conn = DBConnectionManager.Instance.GetConnection(DataSource);
 
 					if (conn == null)
 					{
 						//UPGRADE_ISSUE: Constructor 'java.sql.SQLException.SQLException' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlSQLExceptionSQLException_javalangString_3"'
-						throw new SQLException("Could not get connection from DataSource '" + DataSource + "'");
+						throw new JobPersistenceException("Could not get connection from DataSource '" + DataSource + "'");
 					}
 
 					try
 					{
 						if (!DontSetAutoCommitFalse)
 						{
-							SupportClass.TransactionManager.manager.SetAutoCommit(conn, false);
+							// TODO SupportClass.TransactionManager.manager.SetAutoCommit(conn, false);
 						}
 
 						if (TxIsolationLevelSerializable)
 						{
 							//UPGRADE_TODO: The equivalent in .NET for field 'java.sql.Connection.TRANSACTION_SERIALIZABLE' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-							SupportClass.TransactionManager.manager.SetTransactionIsolation(conn, (int) IsolationLevel.Serializable);
+							// TODO SupportClass.TransactionManager.manager.SetTransactionIsolation(conn, (int) IsolationLevel.Serializable);
 						}
 					}
-					catch (OleDbException ingore)
+					catch (OleDbException)
 					{
 					}
 
@@ -411,7 +410,7 @@ namespace org.quartz.impl.jdbcjobstore
 		}
 
 		//UPGRADE_NOTE: Synchronized keyword was removed from method 'getFiredTriggerRecordId'. Lock expression was added. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1027_3"'
-		protected internal virtual String FiredTriggerRecordId
+		protected internal virtual string FiredTriggerRecordId
 		{
 			get
 			{
@@ -426,7 +425,7 @@ namespace org.quartz.impl.jdbcjobstore
 		/// Get the driver delegate for DB operations.
 		/// </p>
 		/// </summary>
-		protected internal virtual DriverDelegate Delegate
+		protected internal virtual IDriverDelegate Delegate
 		{
 			get
 			{
@@ -436,25 +435,25 @@ namespace org.quartz.impl.jdbcjobstore
 					{
 						if (delegateClassName != null)
 						{
-							delegateClass = ClassLoadHelper.loadClass(delegateClassName);
+							delegateClass = ClassLoadHelper.LoadClass(delegateClassName);
 						}
 
 						ConstructorInfo ctor = null;
 						Object[] ctorParams = null;
 						if (canUseProperties())
 						{
-							Type[] ctorParamTypes = new Type[] {typeof (Log), typeof (String), typeof (String), typeof (Boolean)};
+							Type[] ctorParamTypes = new Type[] {typeof (ILog), typeof (String), typeof (String), typeof (Boolean)};
 							ctor = delegateClass.GetConstructor(ctorParamTypes);
 							ctorParams = new Object[] {Log, tablePrefix, instanceId, canUseProperties()};
 						}
 						else
 						{
-							Type[] ctorParamTypes = new Type[] {typeof (Log), typeof (String), typeof (String)};
+							Type[] ctorParamTypes = new Type[] {typeof (ILog), typeof (String), typeof (String)};
 							ctor = delegateClass.GetConstructor(ctorParamTypes);
 							ctorParams = new Object[] {Log, tablePrefix, instanceId};
 						}
 
-						delegate_Renamed = (DriverDelegate) ctor.Invoke(ctorParams);
+						delegate_Renamed = (IDriverDelegate) ctor.Invoke(ctorParams);
 					}
 					catch (MethodAccessException e)
 					{
@@ -502,15 +501,15 @@ namespace org.quartz.impl.jdbcjobstore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-		protected internal static String LOCK_TRIGGER_ACCESS = "TRIGGER_ACCESS";
+		protected internal static string LOCK_TRIGGER_ACCESS = "TRIGGER_ACCESS";
 
-		protected internal static String LOCK_JOB_ACCESS = "JOB_ACCESS";
+		protected internal static string LOCK_JOB_ACCESS = "JOB_ACCESS";
 
-		protected internal static String LOCK_CALENDAR_ACCESS = "CALENDAR_ACCESS";
+		protected internal static string LOCK_CALENDAR_ACCESS = "CALENDAR_ACCESS";
 
-		protected internal static String LOCK_STATE_ACCESS = "STATE_ACCESS";
+		protected internal static string LOCK_STATE_ACCESS = "STATE_ACCESS";
 
-		protected internal static String LOCK_MISFIRE_ACCESS = "MISFIRE_ACCESS";
+		protected internal static string LOCK_MISFIRE_ACCESS = "MISFIRE_ACCESS";
 
 		/*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -520,24 +519,24 @@ namespace org.quartz.impl.jdbcjobstore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-		protected internal String dsName;
+		protected internal string dsName;
 
-		protected internal String tablePrefix = Constants_Fields.DEFAULT_TABLE_PREFIX;
+		protected internal string tablePrefix = AdoConstants.DEFAULT_TABLE_PREFIX;
 
 		protected internal bool useProperties = false;
 
-		protected internal String instanceId;
+		protected internal string instanceId;
 
-		protected internal String instanceName;
+		protected internal string instanceName;
 
-		protected internal String delegateClassName;
+		protected internal string delegateClassName;
 		//UPGRADE_NOTE: The initialization of  'delegateClass' was moved to method 'InitBlock'. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1005_3"'
 		protected internal Type delegateClass;
 
 		//UPGRADE_TODO: Class 'java.util.HashMap' was converted to 'System.Collections.Hashtable' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilHashMap_3"'
 		protected internal Hashtable calendarCache = new Hashtable();
 
-		private DriverDelegate delegate_Renamed;
+		private IDriverDelegate delegate_Renamed;
 
 		private long misfireThreshold = 60000L; // one minute
 
@@ -549,9 +548,9 @@ namespace org.quartz.impl.jdbcjobstore
 
 		private bool lockOnInsert = true;
 
-		private ISemaphore lockHandler = null; // set in initialize() method...
+		private ISemaphore lockHandler = null; // set in Initialize() method...
 
-		private String selectWithLockSQL = null;
+		private string selectWithLockSQL = null;
 
 		private long clusterCheckinInterval = 7500L;
 
@@ -559,7 +558,7 @@ namespace org.quartz.impl.jdbcjobstore
 
 		private MisfireHandler misfireHandler = null;
 
-		private ClassLoadHelper classLoadHelper;
+		private IClassLoadHelper classLoadHelper;
 
 		private ISchedulerSignaler signaler;
 
@@ -588,10 +587,10 @@ namespace org.quartz.impl.jdbcjobstore
 
 		/// <summary> <p>
 		/// Called by the QuartzScheduler before the <code>JobStore</code> is
-		/// used, in order to give the it a chance to initialize.
+		/// used, in order to give the it a chance to Initialize.
 		/// </p>
 		/// </summary>
-		public virtual void initialize(ClassLoadHelper loadHelper, SchedulerSignaler signaler)
+		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler signaler)
 		{
 			if (dsName == null)
 			{
@@ -603,12 +602,12 @@ namespace org.quartz.impl.jdbcjobstore
 
 			if (!UseDBLocks && !Clustered)
 			{
-				Log.info("Using thread monitor-based data access locking (synchronization).");
+				Log.Info("Using thread monitor-based data access locking (synchronization).");
 				lockHandler = new SimpleSemaphore();
 			}
 			else
 			{
-				Log.info("Using db table-based data access locking (synchronization).");
+				Log.Info("Using db table-based data access locking (synchronization).");
 				lockHandler = new StdRowLockSemaphore(TablePrefix, SelectWithLockSQL);
 			}
 
@@ -616,7 +615,7 @@ namespace org.quartz.impl.jdbcjobstore
 			{
 				try
 				{
-					cleanVolatileTriggerAndJobs();
+					CleanVolatileTriggerAndJobs();
 				}
 				catch (SchedulerException se)
 				{
@@ -625,9 +624,9 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		/// <seealso cref="org.quartz.spi.JobStore#schedulerStarted()">
+		/// <seealso cref="org.quartz.spi.JobStore#SchedulerStarted()">
 		/// </seealso>
-		public virtual void schedulerStarted()
+		public virtual void SchedulerStarted()
 		{
 			if (Clustered)
 			{
@@ -638,7 +637,7 @@ namespace org.quartz.impl.jdbcjobstore
 			{
 				try
 				{
-					recoverJobs();
+					RecoverJobs();
 				}
 				catch (SchedulerException se)
 				{
@@ -656,7 +655,7 @@ namespace org.quartz.impl.jdbcjobstore
 		/// shutting down.
 		/// </p>
 		/// </summary>
-		public virtual void shutdown()
+		public virtual void Shutdown()
 		{
 			if (clusterManagementThread != null)
 			{
@@ -665,7 +664,7 @@ namespace org.quartz.impl.jdbcjobstore
 
 			if (misfireHandler != null)
 			{
-				misfireHandler.shutdown();
+				misfireHandler.Shutdown();
 			}
 
 			try
@@ -674,11 +673,11 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 			catch (OleDbException sqle)
 			{
-				Log.warn("Database connection shutdown unsuccessful.", sqle);
+				Log.Warn("Database connection Shutdown unsuccessful.", sqle);
 			}
 		}
 
-		public virtual bool supportsPersistence()
+		public virtual bool SupportsPersistence()
 		{
 			return true;
 		}
@@ -687,8 +686,8 @@ namespace org.quartz.impl.jdbcjobstore
 		// helper methods for subclasses
 		//---------------------------------------------------------------------------
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void releaseLock(OleDbConnection conn, String lockName, bool doIt)
+		
+		protected internal virtual void ReleaseLock(IDbConnection conn, string lockName, bool doIt)
 		{
 			if (doIt && conn != null)
 			{
@@ -699,7 +698,7 @@ namespace org.quartz.impl.jdbcjobstore
 				catch (LockException le)
 				{
 					//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-					Log.error("Error returning lock: " + le.Message, le);
+					Log.Error("Error returning lock: " + le.Message, le);
 				}
 			}
 		}
@@ -712,7 +711,7 @@ namespace org.quartz.impl.jdbcjobstore
 		/// <throws>  JobPersistenceException </throws>
 		/// <summary>           if jobs could not be recovered
 		/// </summary>
-		protected internal abstract void cleanVolatileTriggerAndJobs();
+		protected internal abstract void CleanVolatileTriggerAndJobs();
 
 		/// <summary> <p>
 		/// Removes all volatile data.
@@ -722,29 +721,29 @@ namespace org.quartz.impl.jdbcjobstore
 		/// <throws>  JobPersistenceException </throws>
 		/// <summary>           if jobs could not be recovered
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void cleanVolatileTriggerAndJobs(OleDbConnection conn)
+		
+		protected internal virtual void CleanVolatileTriggerAndJobs(IDbConnection conn)
 		{
 			try
 			{
 				// find volatile jobs & triggers...
-				Key[] volatileTriggers = Delegate.selectVolatileTriggers(conn);
-				Key[] volatileJobs = Delegate.selectVolatileJobs(conn);
+				Key[] volatileTriggers = Delegate.SelectVolatileTriggers(conn);
+				Key[] volatileJobs = Delegate.SelectVolatileJobs(conn);
 
 				for (int i = 0; i < volatileTriggers.Length; i++)
 				{
-					removeTrigger(conn, null, volatileTriggers[i].Name, volatileTriggers[i].Group);
+					RemoveTrigger(conn, null, volatileTriggers[i].Name, volatileTriggers[i].Group);
 				}
-				Log.info("Removed " + volatileTriggers.Length + " Volatile Trigger(s).");
+				Log.Info("Removed " + volatileTriggers.Length + " Volatile Trigger(s).");
 
 				for (int i = 0; i < volatileJobs.Length; i++)
 				{
-					removeJob(conn, null, volatileJobs[i].Name, volatileJobs[i].Group, true);
+					RemoveJob(conn, null, volatileJobs[i].Name, volatileJobs[i].Group, true);
 				}
-				Log.info("Removed " + volatileJobs.Length + " Volatile Job(s).");
+				Log.Info("Removed " + volatileJobs.Length + " Volatile Job(s).");
 
 				// clean up any fired trigger entries
-				Delegate.deleteVolatileFiredTriggers(conn);
+				Delegate.DeleteVolatileFiredTriggers(conn);
 			}
 			catch (Exception e)
 			{
@@ -762,7 +761,7 @@ namespace org.quartz.impl.jdbcjobstore
 		/// <throws>  JobPersistenceException </throws>
 		/// <summary>           if jobs could not be recovered
 		/// </summary>
-		protected internal abstract void recoverJobs();
+		protected internal abstract void RecoverJobs();
 
 		/// <summary> <p>
 		/// Will recover any failed or misfired jobs and clean up the data store as
@@ -773,55 +772,55 @@ namespace org.quartz.impl.jdbcjobstore
 		/// <throws>  JobPersistenceException </throws>
 		/// <summary>           if jobs could not be recovered
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void recoverJobs(OleDbConnection conn)
+		
+		protected internal virtual void RecoverJobs(IDbConnection conn)
 		{
 			try
 			{
 				// update inconsistent job states
 				int rows =
-					Delegate.updateTriggerStatesFromOtherStates(conn, Constants_Fields.STATE_WAITING, Constants_Fields.STATE_ACQUIRED,
-					                                            Constants_Fields.STATE_BLOCKED);
+					Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.STATE_WAITING, AdoConstants.STATE_ACQUIRED,
+					                                            AdoConstants.STATE_BLOCKED);
 
 				rows +=
-					Delegate.updateTriggerStatesFromOtherStates(conn, Constants_Fields.STATE_PAUSED,
-					                                            Constants_Fields.STATE_PAUSED_BLOCKED,
-					                                            Constants_Fields.STATE_PAUSED_BLOCKED);
+					Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.STATE_PAUSED,
+					                                            AdoConstants.STATE_PAUSED_BLOCKED,
+					                                            AdoConstants.STATE_PAUSED_BLOCKED);
 
-				Log.info("Freed " + rows + " triggers from 'acquired' / 'blocked' state.");
+				Log.Info("Freed " + rows + " triggers from 'acquired' / 'blocked' state.");
 
 				// clean up misfired jobs
-				Delegate.updateTriggerStateFromOtherStatesBeforeTime(conn, Constants_Fields.STATE_MISFIRED,
-				                                                     Constants_Fields.STATE_WAITING, Constants_Fields.STATE_WAITING,
+				Delegate.UpdateTriggerStateFromOtherStatesBeforeTime(conn, AdoConstants.STATE_MISFIRED,
+				                                                     AdoConstants.STATE_WAITING, AdoConstants.STATE_WAITING,
 				                                                     MisfireTime); // only waiting
-				recoverMisfiredJobs(conn, true);
+				RecoverMisfiredJobs(conn, true);
 
 				// recover jobs marked for recovery that were not fully executed
-				Trigger[] recoveringJobTriggers = Delegate.selectTriggersForRecoveringJobs(conn);
-				Log.info("Recovering " + recoveringJobTriggers.Length +
+				Trigger[] recoveringJobTriggers = Delegate.SelectTriggersForRecoveringJobs(conn);
+				Log.Info("Recovering " + recoveringJobTriggers.Length +
 				         " jobs that were in-progress at the time of the last shut-down.");
 
 				for (int i = 0; i < recoveringJobTriggers.Length; ++i)
 				{
-					if (jobExists(conn, recoveringJobTriggers[i].JobName, recoveringJobTriggers[i].JobGroup))
+					if (JobExists(conn, recoveringJobTriggers[i].JobName, recoveringJobTriggers[i].JobGroup))
 					{
-						recoveringJobTriggers[i].computeFirstFireTime(null);
-						storeTrigger(conn, null, recoveringJobTriggers[i], null, false, Constants_Fields.STATE_WAITING, false, true);
+						recoveringJobTriggers[i].ComputeFirstFireTime(null);
+						StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, AdoConstants.STATE_WAITING, false, true);
 					}
 				}
-				Log.info("Recovery complete.");
+				Log.Info("Recovery complete.");
 
 				// remove lingering 'complete' triggers...
-				Key[] ct = Delegate.selectTriggersInState(conn, Constants_Fields.STATE_COMPLETE);
+				Key[] ct = Delegate.SelectTriggersInState(conn, AdoConstants.STATE_COMPLETE);
 				for (int i = 0; ct != null && i < ct.Length; i++)
 				{
-					removeTrigger(conn, null, ct[i].Name, ct[i].Group);
+					RemoveTrigger(conn, null, ct[i].Name, ct[i].Group);
 				}
-				Log.info("Removed " + ct.Length + " 'complete' triggers.");
+				Log.Info("Removed " + ct.Length + " 'complete' triggers.");
 
 				// clean up any fired trigger entries
-				int n = Delegate.deleteFiredTriggers(conn);
-				Log.info("Removed " + n + " stale fired job entries.");
+				int n = Delegate.DeleteFiredTriggers(conn);
+				Log.Info("Removed " + n + " stale fired job entries.");
 			}
 			catch (Exception e)
 			{
@@ -832,43 +831,43 @@ namespace org.quartz.impl.jdbcjobstore
 
 		private int lastRecoverCount = 0;
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool recoverMisfiredJobs(OleDbConnection conn, bool recovering)
+		
+		protected internal virtual bool RecoverMisfiredJobs(IDbConnection conn, bool recovering)
 		{
-			Key[] misfiredTriggers = Delegate.selectTriggersInState(conn, Constants_Fields.STATE_MISFIRED);
+			Key[] misfiredTriggers = Delegate.SelectTriggersInState(conn, AdoConstants.STATE_MISFIRED);
 
 			if (misfiredTriggers.Length > 0 && misfiredTriggers.Length > MaxMisfiresToHandleAtATime)
 			{
-				Log.info("Handling " + MaxMisfiresToHandleAtATime + " of " + misfiredTriggers.Length +
+				Log.Info("Handling " + MaxMisfiresToHandleAtATime + " of " + misfiredTriggers.Length +
 				         " triggers that missed their scheduled fire-time.");
 			}
 			else if (misfiredTriggers.Length > 0)
 			{
-				Log.info("Handling " + misfiredTriggers.Length + " triggers that missed their scheduled fire-time.");
+				Log.Info("Handling " + misfiredTriggers.Length + " triggers that missed their scheduled fire-time.");
 			}
 			else
 			{
-				Log.debug("Found 0 triggers that missed their scheduled fire-time.");
+				Log.Debug("Found 0 triggers that missed their scheduled fire-time.");
 			}
 
 			lastRecoverCount = misfiredTriggers.Length;
 
 			for (int i = 0; i < misfiredTriggers.Length && i < MaxMisfiresToHandleAtATime; i++)
 			{
-				Trigger trig = Delegate.selectTrigger(conn, misfiredTriggers[i].Name, misfiredTriggers[i].Group);
+				Trigger trig = Delegate.SelectTrigger(conn, misfiredTriggers[i].Name, misfiredTriggers[i].Group);
 
 				if (trig == null)
 				{
 					continue;
 				}
 
-				Calendar cal = null;
+				ICalendar cal = null;
 				if (trig.CalendarName != null)
 				{
-					cal = retrieveCalendar(conn, null, trig.CalendarName);
+					cal = RetrieveCalendar(conn, null, trig.CalendarName);
 				}
 
-				String[] listeners = Delegate.selectTriggerListeners(conn, trig.Name, trig.Group);
+				String[] listeners = Delegate.SelectTriggerListeners(conn, trig.Name, trig.Group);
 				for (int l = 0; l < listeners.Length; ++l)
 				{
 					trig.addTriggerListener(listeners[l]);
@@ -881,11 +880,11 @@ namespace org.quartz.impl.jdbcjobstore
 				//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
 				if (trig.getNextFireTime() == null)
 				{
-					storeTrigger(conn, null, trig, null, true, Constants_Fields.STATE_COMPLETE, false, recovering);
+					StoreTrigger(conn, null, trig, null, true, AdoConstants.STATE_COMPLETE, false, recovering);
 				}
 				else
 				{
-					storeTrigger(conn, null, trig, null, true, Constants_Fields.STATE_WAITING, false, recovering);
+					StoreTrigger(conn, null, trig, null, true, AdoConstants.STATE_WAITING, false, recovering);
 				}
 			}
 
@@ -897,13 +896,13 @@ namespace org.quartz.impl.jdbcjobstore
 			return false;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool updateMisfiredTrigger(OleDbConnection conn, SchedulingContext ctxt, String triggerName,
-		                                                      String groupName, String newStateIfNotComplete, bool forceState)
+		
+		protected internal virtual bool UpdateMisfiredTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
+		                                                      string groupName, string newStateIfNotComplete, bool forceState)
 		{
 			try
 			{
-				Trigger trig = Delegate.selectTrigger(conn, triggerName, groupName);
+				Trigger trig = Delegate.SelectTrigger(conn, triggerName, groupName);
 
 				long misfireTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
 				if (MisfireThreshold > 0)
@@ -920,7 +919,7 @@ namespace org.quartz.impl.jdbcjobstore
 				Calendar cal = null;
 				if (trig.CalendarName != null)
 				{
-					cal = retrieveCalendar(conn, ctxt, trig.CalendarName);
+					cal = RetrieveCalendar(conn, ctxt, trig.CalendarName);
 				}
 
 				signaler.notifyTriggerListenersMisfired(trig);
@@ -930,11 +929,11 @@ namespace org.quartz.impl.jdbcjobstore
 				//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
 				if (trig.getNextFireTime() == null)
 				{
-					storeTrigger(conn, ctxt, trig, null, true, Constants_Fields.STATE_COMPLETE, forceState, false);
+					StoreTrigger(conn, ctxt, trig, null, true, AdoConstants.STATE_COMPLETE, forceState, false);
 				}
 				else
 				{
-					storeTrigger(conn, ctxt, trig, null, true, newStateIfNotComplete, forceState, false);
+					StoreTrigger(conn, ctxt, trig, null, true, newStateIfNotComplete, forceState, false);
 				}
 
 				return true;
@@ -951,16 +950,16 @@ namespace org.quartz.impl.jdbcjobstore
 		/// Insert or update a job.
 		/// </p>
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void storeJob(OleDbConnection conn, SchedulingContext ctxt, JobDetail newJob,
+		
+		protected internal virtual void StoreJob(IDbConnection conn, SchedulingContext ctxt, JobDetail newJob,
 		                                         bool replaceExisting)
 		{
 			if (newJob.Volatile && Clustered)
 			{
-				Log.info("note: volatile jobs are effectively non-volatile in a clustered environment.");
+				Log.Info("note: volatile jobs are effectively non-volatile in a clustered environment.");
 			}
 
-			bool existingJob = jobExists(conn, newJob.Name, newJob.Group);
+			bool existingJob = JobExists(conn, newJob.Name, newJob.Group);
 			try
 			{
 				if (existingJob)
@@ -969,11 +968,11 @@ namespace org.quartz.impl.jdbcjobstore
 					{
 						throw new ObjectAlreadyExistsException(newJob);
 					}
-					Delegate.updateJobDetail(conn, newJob);
+					Delegate.UpdateJobDetail(conn, newJob);
 				}
 				else
 				{
-					Delegate.insertJobDetail(conn, newJob);
+					Delegate.InsertJobDetail(conn, newJob);
 				}
 			}
 			catch (IOException e)
@@ -992,12 +991,12 @@ namespace org.quartz.impl.jdbcjobstore
 		/// Check existence of a given job.
 		/// </p>
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool jobExists(OleDbConnection conn, String jobName, String groupName)
+		
+		protected internal virtual bool JobExists(IDbConnection conn, string jobName, string groupName)
 		{
 			try
 			{
-				return Delegate.jobExists(conn, jobName, groupName);
+				return Delegate.JobExists(conn, jobName, groupName);
 			}
 			catch (OleDbException e)
 			{
@@ -1011,17 +1010,17 @@ namespace org.quartz.impl.jdbcjobstore
 		/// Insert or update a trigger.
 		/// </p>
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void storeTrigger(OleDbConnection conn, SchedulingContext ctxt, Trigger newTrigger,
-		                                             JobDetail job, bool replaceExisting, String state, bool forceState,
+		
+		protected internal virtual void StoreTrigger(IDbConnection conn, SchedulingContext ctxt, Trigger newTrigger,
+		                                             JobDetail job, bool replaceExisting, string state, bool forceState,
 		                                             bool recovering)
 		{
 			if (newTrigger.Volatile && Clustered)
 			{
-				Log.info("note: volatile triggers are effectively non-volatile in a clustered environment.");
+				Log.Info("note: volatile triggers are effectively non-volatile in a clustered environment.");
 			}
 
-			bool existingTrigger = triggerExists(conn, newTrigger.Name, newTrigger.Group);
+			bool existingTrigger = TriggerExists(conn, newTrigger.Name, newTrigger.Group);
 
 			try
 			{
@@ -1029,28 +1028,28 @@ namespace org.quartz.impl.jdbcjobstore
 
 				if (!forceState)
 				{
-					shouldBepaused = Delegate.isTriggerGroupPaused(conn, newTrigger.Group);
+					shouldBepaused = Delegate.IsTriggerGroupPaused(conn, newTrigger.Group);
 
 					if (!shouldBepaused)
 					{
-						shouldBepaused = Delegate.isTriggerGroupPaused(conn, Constants_Fields.ALL_GROUPS_PAUSED);
+						shouldBepaused = Delegate.IsTriggerGroupPaused(conn, AdoConstants.ALL_GROUPS_PAUSED);
 
 						if (shouldBepaused)
 						{
-							Delegate.insertPausedTriggerGroup(conn, newTrigger.Group);
+							Delegate.InsertPausedTriggerGroup(conn, newTrigger.Group);
 						}
 					}
 
 					if (shouldBepaused &&
-					    (state.Equals(Constants_Fields.STATE_WAITING) || state.Equals(Constants_Fields.STATE_ACQUIRED)))
+					    (state.Equals(AdoConstants.STATE_WAITING) || state.Equals(AdoConstants.STATE_ACQUIRED)))
 					{
-						state = Constants_Fields.STATE_PAUSED;
+						state = AdoConstants.STATE_PAUSED;
 					}
 				}
 
 				if (job == null)
 				{
-					job = Delegate.selectJobDetail(conn, newTrigger.JobName, newTrigger.JobGroup, ClassLoadHelper);
+					job = Delegate.SelectJobDetail(conn, newTrigger.JobName, newTrigger.JobGroup, ClassLoadHelper);
 				}
 				if (job == null)
 				{
@@ -1065,14 +1064,14 @@ namespace org.quartz.impl.jdbcjobstore
 
 				if (job.Stateful && !recovering)
 				{
-					String bstate = getNewStatusForTrigger(conn, ctxt, job.Name, job.Group);
-					if (Constants_Fields.STATE_BLOCKED.Equals(bstate) && Constants_Fields.STATE_WAITING.Equals(state))
+					String bstate = GetNewStatusForTrigger(conn, ctxt, job.Name, job.Group);
+					if (AdoConstants.STATE_BLOCKED.Equals(bstate) && AdoConstants.STATE_WAITING.Equals(state))
 					{
-						state = Constants_Fields.STATE_BLOCKED;
+						state = AdoConstants.STATE_BLOCKED;
 					}
-					if (Constants_Fields.STATE_BLOCKED.Equals(bstate) && Constants_Fields.STATE_PAUSED.Equals(state))
+					if (AdoConstants.STATE_BLOCKED.Equals(bstate) && AdoConstants.STATE_PAUSED.Equals(state))
 					{
-						state = Constants_Fields.STATE_PAUSED_BLOCKED;
+						state = AdoConstants.STATE_PAUSED_BLOCKED;
 					}
 				}
 				if (existingTrigger)
@@ -1083,32 +1082,32 @@ namespace org.quartz.impl.jdbcjobstore
 					}
 					if (newTrigger is SimpleTrigger)
 					{
-						Delegate.updateSimpleTrigger(conn, (SimpleTrigger) newTrigger);
+						Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger) newTrigger);
 					}
 					else if (newTrigger is CronTrigger)
 					{
-						Delegate.updateCronTrigger(conn, (CronTrigger) newTrigger);
+						Delegate.UpdateCronTrigger(conn, (CronTrigger) newTrigger);
 					}
 					else
 					{
-						Delegate.updateBlobTrigger(conn, newTrigger);
+						Delegate.UpdateBlobTrigger(conn, newTrigger);
 					}
-					Delegate.updateTrigger(conn, newTrigger, state, job);
+					Delegate.UpdateTrigger(conn, newTrigger, state, job);
 				}
 				else
 				{
-					Delegate.insertTrigger(conn, newTrigger, state, job);
+					Delegate.InsertTrigger(conn, newTrigger, state, job);
 					if (newTrigger is SimpleTrigger)
 					{
-						Delegate.insertSimpleTrigger(conn, (SimpleTrigger) newTrigger);
+						Delegate.InsertSimpleTrigger(conn, (SimpleTrigger) newTrigger);
 					}
 					else if (newTrigger is CronTrigger)
 					{
-						Delegate.insertCronTrigger(conn, (CronTrigger) newTrigger);
+						Delegate.InsertCronTrigger(conn, (CronTrigger) newTrigger);
 					}
 					else
 					{
-						Delegate.insertBlobTrigger(conn, newTrigger);
+						Delegate.InsertBlobTrigger(conn, newTrigger);
 					}
 				}
 			}
@@ -1123,12 +1122,12 @@ namespace org.quartz.impl.jdbcjobstore
 		/// Check existence of a given trigger.
 		/// </p>
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool triggerExists(OleDbConnection conn, String triggerName, String groupName)
+		
+		protected internal virtual bool TriggerExists(IDbConnection conn, string triggerName, string groupName)
 		{
 			try
 			{
-				return Delegate.triggerExists(conn, triggerName, groupName);
+				return Delegate.TriggerExists(conn, triggerName, groupName);
 			}
 			catch (OleDbException e)
 			{
@@ -1138,25 +1137,25 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool removeJob(OleDbConnection conn, SchedulingContext ctxt, String jobName,
-		                                          String groupName, bool activeDeleteSafe)
+		
+		protected internal virtual bool RemoveJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
+		                                          string groupName, bool activeDeleteSafe)
 		{
 			try
 			{
-				Key[] jobTriggers = Delegate.selectTriggerNamesForJob(conn, jobName, groupName);
+				Key[] jobTriggers = Delegate.SelectTriggerNamesForJob(conn, jobName, groupName);
 				for (int i = 0; i < jobTriggers.Length; ++i)
 				{
-					Delegate.deleteSimpleTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-					Delegate.deleteCronTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-					Delegate.deleteBlobTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-					Delegate.deleteTriggerListeners(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-					Delegate.deleteTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
+					Delegate.DeleteSimpleTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
+					Delegate.DeleteCronTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
+					Delegate.DeleteBlobTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
+					Delegate.DeleteTriggerListeners(conn, jobTriggers[i].Name, jobTriggers[i].Group);
+					Delegate.DeleteTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
 				}
 
-				Delegate.deleteJobListeners(conn, jobName, groupName);
+				Delegate.DeleteJobListeners(conn, jobName, groupName);
 
-				if (Delegate.deleteJobDetail(conn, jobName, groupName) > 0)
+				if (Delegate.DeleteJobDetail(conn, jobName, groupName) > 0)
 				{
 					return true;
 				}
@@ -1172,17 +1171,17 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual JobDetail retrieveJob(OleDbConnection conn, SchedulingContext ctxt, String jobName,
-		                                                 String groupName)
+		
+		protected internal virtual JobDetail RetrieveJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
+		                                                 string groupName)
 		{
 			try
 			{
-				JobDetail job = Delegate.selectJobDetail(conn, jobName, groupName, ClassLoadHelper);
-				String[] listeners = Delegate.selectJobListeners(conn, jobName, groupName);
+				JobDetail job = Delegate.SelectJobDetail(conn, jobName, groupName, ClassLoadHelper);
+				String[] listeners = Delegate.SelectJobListeners(conn, jobName, groupName);
 				for (int i = 0; i < listeners.Length; ++i)
 				{
-					job.addJobListener(listeners[i]);
+					job.AddJobListener(listeners[i]);
 				}
 
 				return job;
@@ -1207,28 +1206,28 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool removeTrigger(OleDbConnection conn, SchedulingContext ctxt, String triggerName,
-		                                              String groupName)
+		
+		protected internal virtual bool RemoveTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
+		                                              string groupName)
 		{
 			bool removedTrigger = false;
 			try
 			{
 				// this must be called before we delete the trigger, obviously
-				JobDetail job = Delegate.selectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
+				JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
 
-				Delegate.deleteSimpleTrigger(conn, triggerName, groupName);
-				Delegate.deleteCronTrigger(conn, triggerName, groupName);
-				Delegate.deleteBlobTrigger(conn, triggerName, groupName);
-				Delegate.deleteTriggerListeners(conn, triggerName, groupName);
-				removedTrigger = (Delegate.deleteTrigger(conn, triggerName, groupName) > 0);
+				Delegate.DeleteSimpleTrigger(conn, triggerName, groupName);
+				Delegate.DeleteCronTrigger(conn, triggerName, groupName);
+				Delegate.DeleteBlobTrigger(conn, triggerName, groupName);
+				Delegate.DeleteTriggerListeners(conn, triggerName, groupName);
+				removedTrigger = (Delegate.DeleteTrigger(conn, triggerName, groupName) > 0);
 
 				if (null != job && !job.Durable)
 				{
-					int numTriggers = Delegate.selectNumTriggersForJob(conn, job.Name, job.Group);
+					int numTriggers = Delegate.SelectNumTriggersForJob(conn, job.Name, job.Group);
 					if (numTriggers == 0)
 					{
-						removeJob(conn, ctxt, job.Name, job.Group, true);
+						RemoveJob(conn, ctxt, job.Name, job.Group, true);
 					}
 				}
 			}
@@ -1247,15 +1246,15 @@ namespace org.quartz.impl.jdbcjobstore
 			return removedTrigger;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool replaceTrigger(OleDbConnection conn, SchedulingContext ctxt, String triggerName,
-		                                               String groupName, Trigger newTrigger)
+		
+		protected internal virtual bool ReplaceTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
+		                                               string groupName, Trigger newTrigger)
 		{
 			bool removedTrigger = false;
 			try
 			{
 				// this must be called before we delete the trigger, obviously
-				JobDetail job = Delegate.selectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
+				JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
 
 				if (job == null)
 				{
@@ -1267,13 +1266,13 @@ namespace org.quartz.impl.jdbcjobstore
 					throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
 				}
 
-				Delegate.deleteSimpleTrigger(conn, triggerName, groupName);
-				Delegate.deleteCronTrigger(conn, triggerName, groupName);
-				Delegate.deleteBlobTrigger(conn, triggerName, groupName);
-				Delegate.deleteTriggerListeners(conn, triggerName, groupName);
-				removedTrigger = (Delegate.deleteTrigger(conn, triggerName, groupName) > 0);
+				Delegate.DeleteSimpleTrigger(conn, triggerName, groupName);
+				Delegate.DeleteCronTrigger(conn, triggerName, groupName);
+				Delegate.DeleteBlobTrigger(conn, triggerName, groupName);
+				Delegate.DeleteTriggerListeners(conn, triggerName, groupName);
+				removedTrigger = (Delegate.DeleteTrigger(conn, triggerName, groupName) > 0);
 
-				storeTrigger(conn, ctxt, newTrigger, job, false, Constants_Fields.STATE_WAITING, false, false);
+				StoreTrigger(conn, ctxt, newTrigger, job, false, AdoConstants.STATE_WAITING, false, false);
 			}
 				//UPGRADE_NOTE: Exception 'java.lang.ClassNotFoundException' was converted to 'System.Exception' which has different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1100_3"'
 			catch (Exception e)
@@ -1290,21 +1289,21 @@ namespace org.quartz.impl.jdbcjobstore
 			return removedTrigger;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual Trigger retrieveTrigger(OleDbConnection conn, SchedulingContext ctxt, String triggerName,
-		                                                   String groupName)
+		
+		protected internal virtual Trigger RetrieveTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
+		                                                   string groupName)
 		{
 			try
 			{
-				Trigger trigger = Delegate.selectTrigger(conn, triggerName, groupName);
+				Trigger trigger = Delegate.SelectTrigger(conn, triggerName, groupName);
 				if (trigger == null)
 				{
 					return null;
 				}
-				String[] listeners = Delegate.selectTriggerListeners(conn, triggerName, groupName);
+				String[] listeners = Delegate.SelectTriggerListeners(conn, triggerName, groupName);
 				for (int i = 0; i < listeners.Length; ++i)
 				{
-					trigger.addTriggerListener(listeners[i]);
+					trigger.AddTriggerListener(listeners[i]);
 				}
 
 				return trigger;
@@ -1316,44 +1315,44 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int getTriggerState(OleDbConnection conn, SchedulingContext ctxt, String triggerName, String groupName)
+		
+		public virtual int GetTriggerState(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
 			{
-				String ts = Delegate.selectTriggerState(conn, triggerName, groupName);
+				String ts = Delegate.SelectTriggerState(conn, triggerName, groupName);
 
 				if (ts == null)
 				{
 					return Trigger.STATE_NONE;
 				}
 
-				if (ts.Equals(Constants_Fields.STATE_DELETED))
+				if (ts.Equals(AdoConstants.STATE_DELETED))
 				{
 					return Trigger.STATE_NONE;
 				}
 
-				if (ts.Equals(Constants_Fields.STATE_COMPLETE))
+				if (ts.Equals(AdoConstants.STATE_COMPLETE))
 				{
 					return Trigger.STATE_COMPLETE;
 				}
 
-				if (ts.Equals(Constants_Fields.STATE_PAUSED))
+				if (ts.Equals(AdoConstants.STATE_PAUSED))
 				{
 					return Trigger.STATE_PAUSED;
 				}
 
-				if (ts.Equals(Constants_Fields.STATE_PAUSED_BLOCKED))
+				if (ts.Equals(AdoConstants.STATE_PAUSED_BLOCKED))
 				{
 					return Trigger.STATE_PAUSED;
 				}
 
-				if (ts.Equals(Constants_Fields.STATE_ERROR))
+				if (ts.Equals(AdoConstants.STATE_ERROR))
 				{
 					return Trigger.STATE_ERROR;
 				}
 
-				if (ts.Equals(Constants_Fields.STATE_BLOCKED))
+				if (ts.Equals(AdoConstants.STATE_BLOCKED))
 				{
 					return Trigger.STATE_BLOCKED;
 				}
@@ -1368,13 +1367,13 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void storeCalendar(OleDbConnection conn, SchedulingContext ctxt, String calName,
-		                                              Calendar calendar, bool replaceExisting, bool updateTriggers)
+		
+		protected internal virtual void StoreCalendar(IDbConnection conn, SchedulingContext ctxt, string calName,
+		                                              ICalendar calendar, bool replaceExisting, bool updateTriggers)
 		{
 			try
 			{
-				bool existingCal = calendarExists(conn, calName);
+				bool existingCal = CalendarExists(conn, calName);
 				if (existingCal && !replaceExisting)
 				{
 					throw new ObjectAlreadyExistsException("Calendar with name '" + calName + "' already exists.");
@@ -1382,25 +1381,25 @@ namespace org.quartz.impl.jdbcjobstore
 
 				if (existingCal)
 				{
-					if (Delegate.updateCalendar(conn, calName, calendar) < 1)
+					if (Delegate.UpdateCalendar(conn, calName, calendar) < 1)
 					{
 						throw new JobPersistenceException("Couldn't store calendar.  Update failed.");
 					}
 
 					if (updateTriggers)
 					{
-						Trigger[] trigs = Delegate.selectTriggersForCalendar(conn, calName);
+						Trigger[] trigs = Delegate.SelectTriggersForCalendar(conn, calName);
 
 						for (int i = 0; i < trigs.Length; i++)
 						{
-							trigs[i].updateWithNewCalendar(calendar, MisfireThreshold);
-							storeTrigger(conn, ctxt, trigs[i], null, true, Constants_Fields.STATE_WAITING, false, false);
+							trigs[i].UpdateWithNewCalendar(calendar, MisfireThreshold);
+							StoreTrigger(conn, ctxt, trigs[i], null, true, AdoConstants.STATE_WAITING, false, false);
 						}
 					}
 				}
 				else
 				{
-					if (Delegate.insertCalendar(conn, calName, calendar) < 1)
+					if (Delegate.InsertCalendar(conn, calName, calendar) < 1)
 					{
 						throw new JobPersistenceException("Couldn't store calendar.  Insert failed.");
 					}
@@ -1426,12 +1425,12 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool calendarExists(OleDbConnection conn, String calName)
+		
+		protected internal virtual bool CalendarExists(IDbConnection conn, string calName)
 		{
 			try
 			{
-				return Delegate.calendarExists(conn, calName);
+				return Delegate.CalendarExists(conn, calName);
 			}
 			catch (OleDbException e)
 			{
@@ -1440,19 +1439,19 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual bool removeCalendar(OleDbConnection conn, SchedulingContext ctxt, String calName)
+		
+		protected internal virtual bool RemoveCalendar(IDbConnection conn, SchedulingContext ctxt, string calName)
 		{
 			try
 			{
-				if (Delegate.calendarIsReferenced(conn, calName))
+				if (Delegate.CalendarIsReferenced(conn, calName))
 				{
 					throw new JobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
 				}
 
 				calendarCache.Remove(calName);
 
-				return (Delegate.deleteCalendar(conn, calName) > 0);
+				return (Delegate.DeleteCalendar(conn, calName) > 0);
 			}
 			catch (OleDbException e)
 			{
@@ -1461,13 +1460,13 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual Calendar retrieveCalendar(OleDbConnection conn, SchedulingContext ctxt, String calName)
+		
+		protected internal virtual ICalendar RetrieveCalendar(IDbConnection conn, SchedulingContext ctxt, string calName)
 		{
 			// all calendars are persistent, but we lazy-cache them during run
 			// time...
 			//UPGRADE_TODO: Method 'java.util.HashMap.get' was converted to 'System.Collections.Hashtable.Item' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilHashMapget_javalangObject_3"'
-			Calendar cal = (Calendar) calendarCache[calName];
+			ICalendar cal = (ICalendar) calendarCache[calName];
 			if (cal != null)
 			{
 				return cal;
@@ -1475,7 +1474,7 @@ namespace org.quartz.impl.jdbcjobstore
 
 			try
 			{
-				cal = Delegate.selectCalendar(conn, calName);
+				cal = Delegate.SelectCalendar(conn, calName);
 				calendarCache[calName] = cal; // lazy-cache...
 				return cal;
 			}
@@ -1499,12 +1498,12 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual int getNumberOfJobs(OleDbConnection conn, SchedulingContext ctxt)
+		
+		protected internal virtual int GetNumberOfJobs(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
 			{
-				return Delegate.selectNumJobs(conn);
+				return Delegate.SelectNumJobs(conn);
 			}
 			catch (OleDbException e)
 			{
@@ -1513,12 +1512,12 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual int getNumberOfTriggers(OleDbConnection conn, SchedulingContext ctxt)
+		
+		protected internal virtual int GetNumberOfTriggers(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
 			{
-				return Delegate.selectNumTriggers(conn);
+				return Delegate.SelectNumTriggers(conn);
 			}
 			catch (OleDbException e)
 			{
@@ -1527,12 +1526,12 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual int getNumberOfCalendars(OleDbConnection conn, SchedulingContext ctxt)
+		
+		protected internal virtual int GetNumberOfCalendars(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
 			{
-				return Delegate.selectNumCalendars(conn);
+				return Delegate.SelectNumCalendars(conn);
 			}
 			catch (OleDbException e)
 			{
@@ -1541,14 +1540,14 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual String[] getJobNames(OleDbConnection conn, SchedulingContext ctxt, String groupName)
+		
+		protected internal virtual String[] GetJobNames(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			String[] jobNames = null;
 
 			try
 			{
-				jobNames = Delegate.selectJobsInGroup(conn, groupName);
+				jobNames = Delegate.SelectJobsInGroup(conn, groupName);
 			}
 			catch (OleDbException e)
 			{
@@ -1559,14 +1558,14 @@ namespace org.quartz.impl.jdbcjobstore
 			return jobNames;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual String[] getTriggerNames(OleDbConnection conn, SchedulingContext ctxt, String groupName)
+		
+		protected internal virtual String[] GetTriggerNames(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			String[] trigNames = null;
 
 			try
 			{
-				trigNames = Delegate.selectTriggersInGroup(conn, groupName);
+				trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
 			}
 			catch (OleDbException e)
 			{
@@ -1577,14 +1576,14 @@ namespace org.quartz.impl.jdbcjobstore
 			return trigNames;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual String[] getJobGroupNames(OleDbConnection conn, SchedulingContext ctxt)
+		
+		protected internal virtual String[] GetJobGroupNames(IDbConnection conn, SchedulingContext ctxt)
 		{
 			String[] groupNames = null;
 
 			try
 			{
-				groupNames = Delegate.selectJobGroups(conn);
+				groupNames = Delegate.SelectJobGroups(conn);
 			}
 			catch (OleDbException e)
 			{
@@ -1595,14 +1594,14 @@ namespace org.quartz.impl.jdbcjobstore
 			return groupNames;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual String[] getTriggerGroupNames(OleDbConnection conn, SchedulingContext ctxt)
+		
+		protected internal virtual String[] GetTriggerGroupNames(IDbConnection conn, SchedulingContext ctxt)
 		{
 			String[] groupNames = null;
 
 			try
 			{
-				groupNames = Delegate.selectTriggerGroups(conn);
+				groupNames = Delegate.SelectTriggerGroups(conn);
 			}
 			catch (OleDbException e)
 			{
@@ -1613,12 +1612,12 @@ namespace org.quartz.impl.jdbcjobstore
 			return groupNames;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual String[] getCalendarNames(OleDbConnection conn, SchedulingContext ctxt)
+		
+		protected internal virtual String[] GetCalendarNames(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
 			{
-				return Delegate.selectCalendars(conn);
+				return Delegate.SelectCalendars(conn);
 			}
 			catch (OleDbException e)
 			{
@@ -1627,15 +1626,15 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual Trigger[] getTriggersForJob(OleDbConnection conn, SchedulingContext ctxt, String jobName,
-		                                                       String groupName)
+		
+		protected internal virtual Trigger[] GetTriggersForJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
+		                                                       string groupName)
 		{
 			Trigger[] array = null;
 
 			try
 			{
-				array = Delegate.selectTriggersForJob(conn, jobName, groupName);
+				array = Delegate.SelectTriggersForJob(conn, jobName, groupName);
 			}
 			catch (Exception e)
 			{
@@ -1646,27 +1645,24 @@ namespace org.quartz.impl.jdbcjobstore
 			return array;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Pause the <code>{@link org.quartz.Trigger}</code> with the given name.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <seealso cref="SchedulingContext, String, String)">
 		/// </seealso>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual void pauseTrigger(OleDbConnection conn, SchedulingContext ctxt, String triggerName, String groupName)
+		public virtual void PauseTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
 			{
-				String oldState = Delegate.selectTriggerState(conn, triggerName, groupName);
+				String oldState = Delegate.SelectTriggerState(conn, triggerName, groupName);
 
-				if (oldState.Equals(Constants_Fields.STATE_WAITING) || oldState.Equals(Constants_Fields.STATE_ACQUIRED))
+				if (oldState.Equals(AdoConstants.STATE_WAITING) || oldState.Equals(AdoConstants.STATE_ACQUIRED))
 				{
-					Delegate.updateTriggerState(conn, triggerName, groupName, Constants_Fields.STATE_PAUSED);
+					Delegate.UpdateTriggerState(conn, triggerName, groupName, AdoConstants.STATE_PAUSED);
 				}
-				else if (oldState.Equals(Constants_Fields.STATE_BLOCKED))
+				else if (oldState.Equals(AdoConstants.STATE_BLOCKED))
 				{
-					Delegate.updateTriggerState(conn, triggerName, groupName, Constants_Fields.STATE_PAUSED_BLOCKED);
+					Delegate.UpdateTriggerState(conn, triggerName, groupName, AdoConstants.STATE_PAUSED_BLOCKED);
 				}
 			}
 			catch (OleDbException e)
@@ -1676,15 +1672,15 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual String getStatusForResumedTrigger(OleDbConnection conn, SchedulingContext ctxt,
+		
+		protected internal virtual string GetStatusForResumedTrigger(IDbConnection conn, SchedulingContext ctxt,
 		                                                             TriggerStatus status)
 		{
 			try
 			{
-				String newState = Constants_Fields.STATE_WAITING;
+				String newState = AdoConstants.STATE_WAITING;
 
-				IList lst = Delegate.selectFiredTriggerRecordsByJob(conn, status.JobKey.Name, status.JobKey.Group);
+				IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, status.JobKey.Name, status.JobKey.Group);
 
 				if (lst.Count > 0)
 				{
@@ -1694,7 +1690,7 @@ namespace org.quartz.impl.jdbcjobstore
 						// TODO: worry about
 						// failed/recovering/volatile job
 						// states?
-						newState = Constants_Fields.STATE_BLOCKED;
+						newState = AdoConstants.STATE_BLOCKED;
 					}
 				}
 
@@ -1709,15 +1705,15 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual String getNewStatusForTrigger(OleDbConnection conn, SchedulingContext ctxt, String jobName,
-		                                                         String groupName)
+		
+		protected internal virtual string GetNewStatusForTrigger(IDbConnection conn, SchedulingContext ctxt, string jobName,
+		                                                         string groupName)
 		{
 			try
 			{
-				String newState = Constants_Fields.STATE_WAITING;
+				String newState = AdoConstants.STATE_WAITING;
 
-				IList lst = Delegate.selectFiredTriggerRecordsByJob(conn, jobName, groupName);
+				IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, jobName, groupName);
 
 				if (lst.Count > 0)
 				{
@@ -1727,7 +1723,7 @@ namespace org.quartz.impl.jdbcjobstore
 						// TODO: worry about
 						// failed/recovering/volatile job
 						// states?
-						newState = Constants_Fields.STATE_BLOCKED;
+						newState = AdoConstants.STATE_BLOCKED;
 					}
 				}
 
@@ -1742,17 +1738,17 @@ namespace org.quartz.impl.jdbcjobstore
 
 		/*
 		* private List findTriggersToBeBlocked(Connection conn, SchedulingContext
-		* ctxt, String groupName) throws JobPersistenceException {
+		* ctxt, string groupName) throws JobPersistenceException {
 		* 
 		* try { List blockList = new LinkedList();
 		* 
 		* List affectingJobs =
-		* getDelegate().selectStatefulJobsOfTriggerGroup(conn, groupName);
+		* getDelegate().SelectStatefulJobsOfTriggerGroup(conn, groupName);
 		* 
 		* Iterator itr = affectingJobs.iterator(); while(itr.hasNext()) { Key
 		* jobKey = (Key) itr.next();
 		* 
-		* List lst = getDelegate().selectFiredTriggerRecordsByJob(conn,
+		* List lst = getDelegate().SelectFiredTriggerRecordsByJob(conn,
 		* jobKey.getName(), jobKey.getGroup());
 		* 
 		* This logic is BROKEN...
@@ -1781,43 +1777,43 @@ namespace org.quartz.impl.jdbcjobstore
 		/// </summary>
 		/// <seealso cref="SchedulingContext, String, String)">
 		/// </seealso>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual void resumeTrigger(OleDbConnection conn, SchedulingContext ctxt, String triggerName, String groupName)
+		
+		public virtual void ResumeTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
 			{
-				TriggerStatus status = Delegate.selectTriggerStatus(conn, triggerName, groupName);
+				TriggerStatus status = Delegate.SelectTriggerStatus(conn, triggerName, groupName);
 
-				if (status == null || status.NextFireTime == DateTime.MinValue)
+				if (status == null || !status.NextFireTime.HasValue || status.NextFireTime == DateTime.MinValue)
 				{
 					return;
 				}
 
 				bool blocked = false;
-				if (Constants_Fields.STATE_PAUSED_BLOCKED.Equals(status.Status))
+				if (AdoConstants.STATE_PAUSED_BLOCKED.Equals(status.Status))
 				{
 					blocked = true;
 				}
 
-				String newState = getStatusForResumedTrigger(conn, ctxt, status);
+				String newState = GetStatusForResumedTrigger(conn, ctxt, status);
 
 				bool misfired = false;
 
-				if ((status.NextFireTime < DateTime.Now))
+				if ((status.NextFireTime.Value < DateTime.Now))
 				{
-					misfired = updateMisfiredTrigger(conn, ctxt, triggerName, groupName, newState, true);
+					misfired = UpdateMisfiredTrigger(conn, ctxt, triggerName, groupName, newState, true);
 				}
 
 				if (!misfired)
 				{
 					if (blocked)
 					{
-						Delegate.updateTriggerStateFromOtherState(conn, triggerName, groupName, newState,
-						                                          Constants_Fields.STATE_PAUSED_BLOCKED);
+						Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState,
+						                                          AdoConstants.STATE_PAUSED_BLOCKED);
 					}
 					else
 					{
-						Delegate.updateTriggerStateFromOtherState(conn, triggerName, groupName, newState, Constants_Fields.STATE_PAUSED);
+						Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState, AdoConstants.STATE_PAUSED);
 					}
 				}
 			}
@@ -1836,21 +1832,21 @@ namespace org.quartz.impl.jdbcjobstore
 		/// </summary>
 		/// <seealso cref="SchedulingContext, String)">
 		/// </seealso>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual void pauseTriggerGroup(OleDbConnection conn, SchedulingContext ctxt, String groupName)
+		
+		public virtual void PauseTriggerGroup(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			try
 			{
-				Delegate.updateTriggerGroupStateFromOtherStates(conn, groupName, Constants_Fields.STATE_PAUSED,
-				                                                Constants_Fields.STATE_ACQUIRED, Constants_Fields.STATE_WAITING,
-				                                                Constants_Fields.STATE_WAITING);
+				Delegate.UpdateTriggerGroupStateFromOtherStates(conn, groupName, AdoConstants.STATE_PAUSED,
+				                                                AdoConstants.STATE_ACQUIRED, AdoConstants.STATE_WAITING,
+				                                                AdoConstants.STATE_WAITING);
 
-				Delegate.updateTriggerGroupStateFromOtherState(conn, groupName, Constants_Fields.STATE_PAUSED_BLOCKED,
-				                                               Constants_Fields.STATE_BLOCKED);
+				Delegate.UpdateTriggerGroupStateFromOtherState(conn, groupName, AdoConstants.STATE_PAUSED_BLOCKED,
+				                                               AdoConstants.STATE_BLOCKED);
 
-				if (!Delegate.isTriggerGroupPaused(conn, groupName))
+				if (!Delegate.IsTriggerGroupPaused(conn, groupName))
 				{
-					Delegate.insertPausedTriggerGroup(conn, groupName);
+					Delegate.InsertPausedTriggerGroup(conn, groupName);
 				}
 			}
 			catch (OleDbException e)
@@ -1868,12 +1864,12 @@ namespace org.quartz.impl.jdbcjobstore
 		/// </summary>
 		/// <seealso cref="SchedulingContext, String)">
 		/// </seealso>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual ISet getPausedTriggerGroups(OleDbConnection conn, SchedulingContext ctxt)
+		
+		public virtual ISet GetPausedTriggerGroups(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
 			{
-				return Delegate.selectPausedTriggerGroups(conn);
+				return Delegate.SelectPausedTriggerGroups(conn);
 			}
 			catch (OleDbException e)
 			{
@@ -1895,18 +1891,18 @@ namespace org.quartz.impl.jdbcjobstore
 		/// </summary>
 		/// <seealso cref="SchedulingContext, String)">
 		/// </seealso>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual void resumeTriggerGroup(OleDbConnection conn, SchedulingContext ctxt, String groupName)
+		
+		public virtual void ResumeTriggerGroup(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			try
 			{
-				Delegate.deletePausedTriggerGroup(conn, groupName);
+				Delegate.DeletePausedTriggerGroup(conn, groupName);
 
-				String[] trigNames = Delegate.selectTriggersInGroup(conn, groupName);
+				String[] trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
 
 				for (int i = 0; i < trigNames.Length; i++)
 				{
-					resumeTrigger(conn, ctxt, trigNames[i], groupName);
+					ResumeTrigger(conn, ctxt, trigNames[i], groupName);
 				}
 
 				// TODO: find an efficient way to resume triggers (better than the
@@ -1914,7 +1910,7 @@ namespace org.quartz.impl.jdbcjobstore
 				// findTriggersToBeBlocked()
 				/*
 				* int res =
-				* getDelegate().updateTriggerGroupStateFromOtherState(conn,
+				* getDelegate().UpdateTriggerGroupStateFromOtherState(conn,
 				* groupName, STATE_WAITING, STATE_PAUSED);
 				* 
 				* if(res > 0) {
@@ -1924,7 +1920,7 @@ namespace org.quartz.impl.jdbcjobstore
 				* getMisfireThreshold();
 				* 
 				* Key[] misfires =
-				* getDelegate().selectMisfiredTriggersInGroupInState(conn,
+				* getDelegate().SelectMisfiredTriggersInGroupInState(conn,
 				* groupName, STATE_WAITING, misfireTime);
 				* 
 				* List blockedTriggers = findTriggersToBeBlocked(conn, ctxt,
@@ -1932,13 +1928,13 @@ namespace org.quartz.impl.jdbcjobstore
 				* 
 				* Iterator itr = blockedTriggers.iterator(); while(itr.hasNext()) {
 				* Key key = (Key)itr.next();
-				* getDelegate().updateTriggerState(conn, key.getName(),
+				* getDelegate().UpdateTriggerState(conn, key.getName(),
 				* key.getGroup(), STATE_BLOCKED); }
 				* 
 				* for(int i=0; i < misfires.length; i++) {               String
 				* newState = STATE_WAITING;
 				* if(blockedTriggers.contains(misfires[i])) newState =
-				* STATE_BLOCKED; updateMisfiredTrigger(conn, ctxt,
+				* STATE_BLOCKED; UpdateMisfiredTrigger(conn, ctxt,
 				* misfires[i].getName(), misfires[i].getGroup(), newState, true); } }
 				*/
 			}
@@ -1950,35 +1946,35 @@ namespace org.quartz.impl.jdbcjobstore
 		}
 
 		/// <summary> <p>
-		/// Pause all triggers - equivalent of calling <code>pauseTriggerGroup(group)</code>
+		/// Pause all triggers - equivalent of calling <code>PauseTriggerGroup(group)</code>
 		/// on every group.
 		/// </p>
 		/// 
 		/// <p>
-		/// When <code>resumeAll()</code> is called (to un-pause), trigger misfire
+		/// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <seealso cref="#resumeAll(SchedulingContext)">
+		/// <seealso cref="#ResumeAll(SchedulingContext)">
 		/// </seealso>
 		/// <seealso cref="String)">
 		/// </seealso>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual void pauseAll(OleDbConnection conn, SchedulingContext ctxt)
+		
+		public virtual void PauseAll(IDbConnection conn, SchedulingContext ctxt)
 		{
-			String[] names = getTriggerGroupNames(conn, ctxt);
+			String[] names = GetTriggerGroupNames(conn, ctxt);
 
 			for (int i = 0; i < names.Length; i++)
 			{
-				pauseTriggerGroup(conn, ctxt, names[i]);
+				PauseTriggerGroup(conn, ctxt, names[i]);
 			}
 
 			try
 			{
-				if (!Delegate.isTriggerGroupPaused(conn, Constants_Fields.ALL_GROUPS_PAUSED))
+				if (!Delegate.IsTriggerGroupPaused(conn, AdoConstants.ALL_GROUPS_PAUSED))
 				{
-					Delegate.insertPausedTriggerGroup(conn, Constants_Fields.ALL_GROUPS_PAUSED);
+					Delegate.InsertPausedTriggerGroup(conn, AdoConstants.ALL_GROUPS_PAUSED);
 				}
 			}
 			catch (OleDbException e)
@@ -1990,7 +1986,7 @@ namespace org.quartz.impl.jdbcjobstore
 
 		/// <summary> protected
 		/// <p>
-		/// Resume (un-pause) all triggers - equivalent of calling <code>resumeTriggerGroup(group)</code>
+		/// Resume (un-pause) all triggers - equivalent of calling <code>ResumeTriggerGroup(group)</code>
 		/// on every group.
 		/// </p>
 		/// 
@@ -2000,21 +1996,21 @@ namespace org.quartz.impl.jdbcjobstore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <seealso cref="#pauseAll(SchedulingContext)">
+		/// <seealso cref="#PauseAll(SchedulingContext)">
 		/// </seealso>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual void resumeAll(OleDbConnection conn, SchedulingContext ctxt)
+		
+		public virtual void ResumeAll(IDbConnection conn, SchedulingContext ctxt)
 		{
-			String[] names = getTriggerGroupNames(conn, ctxt);
+			String[] names = GetTriggerGroupNames(conn, ctxt);
 
 			for (int i = 0; i < names.Length; i++)
 			{
-				resumeTriggerGroup(conn, ctxt, names[i]);
+				ResumeTriggerGroup(conn, ctxt, names[i]);
 			}
 
 			try
 			{
-				Delegate.deletePausedTriggerGroup(conn, Constants_Fields.ALL_GROUPS_PAUSED);
+				Delegate.DeletePausedTriggerGroup(conn, AdoConstants.ALL_GROUPS_PAUSED);
 			}
 			catch (OleDbException e)
 			{
@@ -2027,8 +2023,8 @@ namespace org.quartz.impl.jdbcjobstore
 
 		// TODO: this really ought to return something like a FiredTriggerBundle,
 		// so that the fireInstanceId doesn't have to be on the trigger...
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual Trigger acquireNextTrigger(OleDbConnection conn, SchedulingContext ctxt, long noLaterThan)
+		
+		protected internal virtual Trigger AcquireNextTrigger(IDbConnection conn, SchedulingContext ctxt, DateTime noLaterThan)
 		{
 			Trigger nextTrigger = null;
 
@@ -2038,13 +2034,13 @@ namespace org.quartz.impl.jdbcjobstore
 			{
 				try
 				{
-					Delegate.updateTriggerStateFromOtherStatesBeforeTime(conn, Constants_Fields.STATE_MISFIRED,
-					                                                     Constants_Fields.STATE_WAITING, Constants_Fields.STATE_WAITING,
+					Delegate.UpdateTriggerStateFromOtherStatesBeforeTime(conn, AdoConstants.STATE_MISFIRED,
+					                                                     AdoConstants.STATE_WAITING, AdoConstants.STATE_WAITING,
 					                                                     MisfireTime); // only waiting
 
-					long nextFireTime = Delegate.selectNextFireTime(conn);
+					DateTime nextFireTime = Delegate.SelectNextFireTime(conn);
 
-					if (nextFireTime == 0 || nextFireTime > noLaterThan)
+					if (nextFireTime == DateTime.MinValue || nextFireTime > noLaterThan)
 					{
 						return null;
 					}
@@ -2052,19 +2048,19 @@ namespace org.quartz.impl.jdbcjobstore
 					Key triggerKey = null;
 					do
 					{
-						triggerKey = Delegate.selectTriggerForFireTime(conn, nextFireTime);
+						triggerKey = Delegate.SelectTriggerForFireTime(conn, nextFireTime);
 						if (null != triggerKey)
 						{
 							int res =
-								Delegate.updateTriggerStateFromOtherState(conn, triggerKey.Name, triggerKey.Group,
-								                                          Constants_Fields.STATE_ACQUIRED, Constants_Fields.STATE_WAITING);
+								Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey.Name, triggerKey.Group,
+								                                          AdoConstants.STATE_ACQUIRED, AdoConstants.STATE_WAITING);
 
 							if (res <= 0)
 							{
 								continue;
 							}
 
-							nextTrigger = retrieveTrigger(conn, ctxt, triggerKey.Name, triggerKey.Group);
+							nextTrigger = RetrieveTrigger(conn, ctxt, triggerKey.Name, triggerKey.Group);
 
 							if (nextTrigger == null)
 							{
@@ -2072,7 +2068,7 @@ namespace org.quartz.impl.jdbcjobstore
 							}
 
 							nextTrigger.FireInstanceId = FiredTriggerRecordId;
-							Delegate.insertFiredTrigger(conn, nextTrigger, Constants_Fields.STATE_ACQUIRED, null);
+							Delegate.InsertFiredTrigger(conn, nextTrigger, AdoConstants.STATE_ACQUIRED, null);
 
 							acquiredOne = true;
 						}
@@ -2088,14 +2084,14 @@ namespace org.quartz.impl.jdbcjobstore
 			return nextTrigger;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void releaseAcquiredTrigger(OleDbConnection conn, SchedulingContext ctxt, Trigger trigger)
+		
+		protected internal virtual void ReleaseAcquiredTrigger(IDbConnection conn, SchedulingContext ctxt, Trigger trigger)
 		{
 			try
 			{
-				Delegate.updateTriggerStateFromOtherState(conn, trigger.Name, trigger.Group, Constants_Fields.STATE_WAITING,
-				                                          Constants_Fields.STATE_ACQUIRED);
-				Delegate.deleteFiredTrigger(conn, trigger.FireInstanceId);
+				Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Name, trigger.Group, AdoConstants.STATE_WAITING,
+				                                          AdoConstants.STATE_ACQUIRED);
+				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
 			}
 			catch (OleDbException e)
 			{
@@ -2104,32 +2100,31 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual TriggerFiredBundle triggerFired(OleDbConnection conn, SchedulingContext ctxt,
+		
+		protected internal virtual TriggerFiredBundle TriggerFired(IDbConnection conn, SchedulingContext ctxt,
 		                                                           Trigger trigger)
 		{
 			JobDetail job = null;
-			Calendar cal = null;
+			ICalendar cal = null;
 
 			// Make sure trigger wasn't deleted, paused, or completed...
 			try
 			{
 				// if trigger was deleted, state will be STATE_DELETED
-				String state = Delegate.selectTriggerState(conn, trigger.Name, trigger.Group);
-				if (!state.Equals(Constants_Fields.STATE_ACQUIRED))
+				String state = Delegate.SelectTriggerState(conn, trigger.Name, trigger.Group);
+				if (!state.Equals(AdoConstants.STATE_ACQUIRED))
 				{
 					return null;
 				}
 			}
 			catch (OleDbException e)
 			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException("Couldn't select trigger state: " + e.Message, e);
 			}
 
 			try
 			{
-				job = retrieveJob(conn, ctxt, trigger.JobName, trigger.JobGroup);
+				job = RetrieveJob(conn, ctxt, trigger.JobName, trigger.JobGroup);
 				if (job == null)
 				{
 					return null;
@@ -2139,19 +2134,19 @@ namespace org.quartz.impl.jdbcjobstore
 			{
 				try
 				{
-					Log.error("Error retrieving job, setting trigger state to ERROR.", jpe);
-					Delegate.updateTriggerState(conn, trigger.Name, trigger.Group, Constants_Fields.STATE_ERROR);
+					Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
+					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, AdoConstants.STATE_ERROR);
 				}
 				catch (OleDbException sqle)
 				{
-					Log.error("Unable to set trigger state to ERROR.", sqle);
+					Log.Error("Unable to set trigger state to ERROR.", sqle);
 				}
 				throw jpe;
 			}
 
 			if (trigger.CalendarName != null)
 			{
-				cal = retrieveCalendar(conn, ctxt, trigger.CalendarName);
+				cal = RetrieveCalendar(conn, ctxt, trigger.CalendarName);
 				if (cal == null)
 				{
 					return null;
@@ -2160,35 +2155,34 @@ namespace org.quartz.impl.jdbcjobstore
 
 			try
 			{
-				Delegate.deleteFiredTrigger(conn, trigger.FireInstanceId);
-				Delegate.insertFiredTrigger(conn, trigger, Constants_Fields.STATE_EXECUTING, job);
+				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
+				Delegate.InsertFiredTrigger(conn, trigger, AdoConstants.STATE_EXECUTING, job);
 			}
 			catch (OleDbException e)
 			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
 			}
 
-			DateTime prevFireTime = trigger.getPreviousFireTime();
+			NullableDateTime prevFireTime = trigger.GetPreviousFireTime();
 
 			// call triggered - to update the trigger's next-fire-time state...
-			trigger.triggered(cal);
+			trigger.Triggered(cal);
 
-			String state2 = Constants_Fields.STATE_WAITING;
+			String state2 = AdoConstants.STATE_WAITING;
 			bool force = true;
 
 			if (job.Stateful)
 			{
-				state2 = Constants_Fields.STATE_BLOCKED;
+				state2 = AdoConstants.STATE_BLOCKED;
 				force = false;
 				try
 				{
-					Delegate.updateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, Constants_Fields.STATE_BLOCKED,
-					                                                 Constants_Fields.STATE_WAITING);
-					Delegate.updateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, Constants_Fields.STATE_BLOCKED,
-					                                                 Constants_Fields.STATE_ACQUIRED);
-					Delegate.updateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, Constants_Fields.STATE_PAUSED_BLOCKED,
-					                                                 Constants_Fields.STATE_PAUSED);
+					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, AdoConstants.STATE_BLOCKED,
+					                                                 AdoConstants.STATE_WAITING);
+					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, AdoConstants.STATE_BLOCKED,
+					                                                 AdoConstants.STATE_ACQUIRED);
+					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, AdoConstants.STATE_PAUSED_BLOCKED,
+					                                                 AdoConstants.STATE_PAUSED);
 				}
 				catch (OleDbException e)
 				{
@@ -2197,28 +2191,27 @@ namespace org.quartz.impl.jdbcjobstore
 				}
 			}
 
-			//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
-			if (trigger.getNextFireTime() == null)
+			if (!trigger.GetNextFireTime().HasValue)
 			{
-				state2 = Constants_Fields.STATE_COMPLETE;
+				state2 = AdoConstants.STATE_COMPLETE;
 				force = true;
 			}
 
-			storeTrigger(conn, ctxt, trigger, job, true, state2, force, false);
+			StoreTrigger(conn, ctxt, trigger, job, true, state2, force, false);
 
-			job.JobDataMap.clearDirtyFlag();
+			job.JobDataMap.ClearDirtyFlag();
 
 			DateTime tempAux = DateTime.Now;
-			//UPGRADE_NOTE: ref keyword was added to struct-type parameters. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1303_3"'
-			DateTime tempAux2 = trigger.getPreviousFireTime();
-			DateTime tempAux3 = trigger.getNextFireTime();
+
+			NullableDateTime tempAux2 = trigger.GetPreviousFireTime();
+			NullableDateTime tempAux3 = trigger.GetNextFireTime();
 			return
-				new TriggerFiredBundle(job, trigger, cal, trigger.Group.Equals(Scheduler_Fields.DEFAULT_RECOVERY_GROUP), ref tempAux,
-				                       ref tempAux2, ref prevFireTime, ref tempAux3);
+				new TriggerFiredBundle(job, trigger, cal, trigger.Group.Equals(Scheduler_Fields.DEFAULT_RECOVERY_GROUP), tempAux,
+				                       tempAux2, prevFireTime, tempAux3);
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void triggeredJobComplete(OleDbConnection conn, SchedulingContext ctxt, Trigger trigger,
+		
+		protected internal virtual void TriggeredJobComplete(IDbConnection conn, SchedulingContext ctxt, Trigger trigger,
 		                                                     JobDetail jobDetail, int triggerInstCode)
 		{
 			try
@@ -2226,55 +2219,55 @@ namespace org.quartz.impl.jdbcjobstore
 				if (triggerInstCode == Trigger.INSTRUCTION_DELETE_TRIGGER)
 				{
 					//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
-					if (trigger.getNextFireTime() == null)
+					if (!trigger.GetNextFireTime().HasValue)
 					{
 						// double check for possible reschedule within job 
 						// execution, which would cancel the need to delete...
-						TriggerStatus stat = Delegate.selectTriggerStatus(conn, trigger.Name, trigger.Group);
+						TriggerStatus stat = Delegate.SelectTriggerStatus(conn, trigger.Name, trigger.Group);
 						//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
-						if (stat != null && stat.NextFireTime == null)
+						if (stat != null && !stat.NextFireTime.HasValue)
 						{
-							removeTrigger(conn, ctxt, trigger.Name, trigger.Group);
+							RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
 						}
 					}
 					else
 					{
-						removeTrigger(conn, ctxt, trigger.Name, trigger.Group);
+						RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
 					}
 				}
 				else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_COMPLETE)
 				{
-					Delegate.updateTriggerState(conn, trigger.Name, trigger.Group, Constants_Fields.STATE_COMPLETE);
+					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, AdoConstants.STATE_COMPLETE);
 				}
 				else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_ERROR)
 				{
-					Log.info("Trigger " + trigger.FullName + " set to ERROR state.");
-					Delegate.updateTriggerState(conn, trigger.Name, trigger.Group, Constants_Fields.STATE_ERROR);
+					Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
+					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, AdoConstants.STATE_ERROR);
 				}
 				else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE)
 				{
-					Delegate.updateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, Constants_Fields.STATE_COMPLETE);
+					Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, AdoConstants.STATE_COMPLETE);
 				}
 				else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR)
 				{
-					Log.info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
-					Delegate.updateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, Constants_Fields.STATE_ERROR);
+					Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
+					Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, AdoConstants.STATE_ERROR);
 				}
 
 				if (jobDetail.Stateful)
 				{
-					Delegate.updateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
-					                                                 Constants_Fields.STATE_WAITING, Constants_Fields.STATE_BLOCKED);
+					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
+					                                                 AdoConstants.STATE_WAITING, AdoConstants.STATE_BLOCKED);
 
-					Delegate.updateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
-					                                                 Constants_Fields.STATE_PAUSED,
-					                                                 Constants_Fields.STATE_PAUSED_BLOCKED);
+					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
+					                                                 AdoConstants.STATE_PAUSED,
+					                                                 AdoConstants.STATE_PAUSED_BLOCKED);
 
 					try
 					{
 						if (jobDetail.JobDataMap.Dirty)
 						{
-							Delegate.updateJobData(conn, jobDetail);
+							Delegate.UpdateJobData(conn, jobDetail);
 						}
 					}
 					catch (IOException e)
@@ -2297,7 +2290,7 @@ namespace org.quartz.impl.jdbcjobstore
 
 			try
 			{
-				Delegate.deleteFiredTrigger(conn, trigger.FireInstanceId);
+				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
 			}
 			catch (OleDbException e)
 			{
@@ -2310,25 +2303,25 @@ namespace org.quartz.impl.jdbcjobstore
 		// Management methods
 		//---------------------------------------------------------------------------
 
-		protected internal abstract bool doRecoverMisfires();
+		protected internal abstract bool DoRecoverMisfires();
 
-		protected internal virtual void signalSchedulingChange()
+		protected internal virtual void SignalSchedulingChange()
 		{
-			signaler.signalSchedulingChange();
+			signaler.SignalSchedulingChange();
 		}
 
 		//---------------------------------------------------------------------------
 		// Cluster management methods
 		//---------------------------------------------------------------------------
 
-		protected internal abstract bool doCheckin();
+		protected internal abstract bool DoCheckin();
 
 		protected internal bool firstCheckIn = true;
 
 		protected internal long lastCheckin = (DateTime.Now.Ticks - 621355968000000000)/10000;
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual IList clusterCheckIn(OleDbConnection conn)
+		
+		protected internal virtual IList ClusterCheckIn(IDbConnection conn)
 		{
 			IList states = null;
 			//UPGRADE_TODO: Class 'java.util.LinkedList' was converted to 'System.Collections.ArrayList' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilLinkedList_3"'
@@ -2340,7 +2333,7 @@ namespace org.quartz.impl.jdbcjobstore
 
 			try
 			{
-				states = Delegate.selectSchedulerStateRecords(conn, null);
+				states = Delegate.SelectSchedulerStateRecords(conn, null);
 
 				IEnumerator itr = states.GetEnumerator();
 				//UPGRADE_TODO: Method 'java.util.Iterator.hasNext' was converted to 'System.Collections.IEnumerator.MoveNext' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilIteratorhasNext_3"'
@@ -2386,13 +2379,13 @@ namespace org.quartz.impl.jdbcjobstore
 				lastCheckin = (DateTime.Now.Ticks - 621355968000000000)/10000;
 				if (firstCheckIn)
 				{
-					Delegate.deleteSchedulerState(conn, InstanceId);
-					Delegate.insertSchedulerState(conn, InstanceId, lastCheckin, ClusterCheckinInterval, null);
+					Delegate.DeleteSchedulerState(conn, InstanceId);
+					Delegate.InsertSchedulerState(conn, InstanceId, lastCheckin, ClusterCheckinInterval, null);
 					firstCheckIn = false;
 				}
 				else
 				{
-					Delegate.updateSchedulerState(conn, InstanceId, lastCheckin);
+					Delegate.UpdateSchedulerState(conn, InstanceId, lastCheckin);
 				}
 			}
 			catch (Exception e)
@@ -2405,14 +2398,14 @@ namespace org.quartz.impl.jdbcjobstore
 			return failedInstances;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void clusterRecover(OleDbConnection conn, IList failedInstances)
+		
+		protected internal virtual void ClusterRecover(IDbConnection conn, IList failedInstances)
 		{
 			if (failedInstances.Count > 0)
 			{
 				long recoverIds = (DateTime.Now.Ticks - 621355968000000000)/10000;
 
-				logWarnIfNonZero(failedInstances.Count,
+				LogWarnIfNonZero(failedInstances.Count,
 				                 "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
 				try
 				{
@@ -2423,9 +2416,9 @@ namespace org.quartz.impl.jdbcjobstore
 						//UPGRADE_TODO: Method 'java.util.Iterator.next' was converted to 'System.Collections.IEnumerator.Current' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilIteratornext_3"'
 						SchedulerStateRecord rec = (SchedulerStateRecord) itr.Current;
 
-						Log.info("ClusterManager: Scanning for instance \"" + rec.SchedulerInstanceId + "\"'s failed in-progress jobs.");
+						Log.Info("ClusterManager: Scanning for instance \"" + rec.SchedulerInstanceId + "\"'s failed in-progress jobs.");
 
-						IList firedTriggerRecs = Delegate.selectInstancesFiredTriggerRecords(conn, rec.SchedulerInstanceId);
+						IList firedTriggerRecs = Delegate.SelectInstancesFiredTriggerRecords(conn, rec.SchedulerInstanceId);
 
 						int acquiredCount = 0;
 						int recoveredCount = 0;
@@ -2442,52 +2435,52 @@ namespace org.quartz.impl.jdbcjobstore
 							Key jKey = ftRec.JobKey;
 
 							// release blocked triggers..
-							if (ftRec.FireInstanceState.Equals(Constants_Fields.STATE_BLOCKED))
+							if (ftRec.FireInstanceState.Equals(AdoConstants.STATE_BLOCKED))
 							{
-								Delegate.updateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, Constants_Fields.STATE_WAITING,
-								                                                 Constants_Fields.STATE_BLOCKED);
+								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, AdoConstants.STATE_WAITING,
+								                                                 AdoConstants.STATE_BLOCKED);
 							}
-							if (ftRec.FireInstanceState.Equals(Constants_Fields.STATE_PAUSED_BLOCKED))
+							if (ftRec.FireInstanceState.Equals(AdoConstants.STATE_PAUSED_BLOCKED))
 							{
-								Delegate.updateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, Constants_Fields.STATE_PAUSED,
-								                                                 Constants_Fields.STATE_PAUSED_BLOCKED);
+								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, AdoConstants.STATE_PAUSED,
+								                                                 AdoConstants.STATE_PAUSED_BLOCKED);
 							}
 
 							// release acquired triggers..
-							if (ftRec.FireInstanceState.Equals(Constants_Fields.STATE_ACQUIRED))
+							if (ftRec.FireInstanceState.Equals(AdoConstants.STATE_ACQUIRED))
 							{
-								Delegate.updateTriggerStateFromOtherState(conn, tKey.Name, tKey.Group, Constants_Fields.STATE_WAITING,
-								                                          Constants_Fields.STATE_ACQUIRED);
+								Delegate.UpdateTriggerStateFromOtherState(conn, tKey.Name, tKey.Group, AdoConstants.STATE_WAITING,
+								                                          AdoConstants.STATE_ACQUIRED);
 								acquiredCount++;
 							}
 								// handle jobs marked for recovery that were not fully
 								// executed..
 							else if (ftRec.JobRequestsRecovery)
 							{
-								if (jobExists(conn, jKey.Name, jKey.Group))
+								if (JobExists(conn, jKey.Name, jKey.Group))
 								{
 									//UPGRADE_TODO: Constructor 'java.util.Date.Date' was converted to 'DateTime.DateTime' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilDateDate_long_3"'
 									DateTime tempAux = new DateTime(ftRec.FireTimestamp);
 									//UPGRADE_NOTE: ref keyword was added to struct-type parameters. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1303_3"'
 									SimpleTrigger rcvryTrig =
 										new SimpleTrigger("recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++),
-										                  Scheduler_Fields.DEFAULT_RECOVERY_GROUP, ref tempAux);
+										                  Scheduler_Fields.DEFAULT_RECOVERY_GROUP, tempAux);
 									rcvryTrig.JobName = jKey.Name;
 									rcvryTrig.JobGroup = jKey.Group;
 									rcvryTrig.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW;
-									JobDataMap jd = Delegate.selectTriggerJobDataMap(conn, tKey.Name, tKey.Group);
-									jd.put("QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME", tKey.Name);
-									jd.put("QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP", tKey.Group);
-									jd.put("QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING", Convert.ToString(ftRec.FireTimestamp));
+									JobDataMap jd = Delegate.SelectTriggerJobDataMap(conn, tKey.Name, tKey.Group);
+									jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME", tKey.Name);
+									jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP", tKey.Group);
+									jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING", Convert.ToString(ftRec.FireTimestamp));
 									rcvryTrig.JobDataMap = jd;
 
-									rcvryTrig.computeFirstFireTime(null);
-									storeTrigger(conn, null, rcvryTrig, null, false, Constants_Fields.STATE_WAITING, false, true);
+									rcvryTrig.ComputeFirstFireTime(null);
+									StoreTrigger(conn, null, rcvryTrig, null, false, AdoConstants.STATE_WAITING, false, true);
 									recoveredCount++;
 								}
 								else
 								{
-									Log.warn("ClusterManager: failed job '" + jKey + "' no longer exists, cannot schedule recovery.");
+									Log.Warn("ClusterManager: failed job '" + jKey + "' no longer exists, cannot schedule recovery.");
 									otherCount++;
 								}
 							}
@@ -2499,21 +2492,21 @@ namespace org.quartz.impl.jdbcjobstore
 							// free up stateful job's triggers
 							if (ftRec.JobIsStateful)
 							{
-								Delegate.updateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, Constants_Fields.STATE_WAITING,
-								                                                 Constants_Fields.STATE_BLOCKED);
-								Delegate.updateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, Constants_Fields.STATE_PAUSED,
-								                                                 Constants_Fields.STATE_PAUSED_BLOCKED);
+								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, AdoConstants.STATE_WAITING,
+								                                                 AdoConstants.STATE_BLOCKED);
+								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, AdoConstants.STATE_PAUSED,
+								                                                 AdoConstants.STATE_PAUSED_BLOCKED);
 							}
 						}
 
-						Delegate.deleteFiredTriggers(conn, rec.SchedulerInstanceId);
+						Delegate.DeleteFiredTriggers(conn, rec.SchedulerInstanceId);
 
-						logWarnIfNonZero(acquiredCount, "ClusterManager: ......Freed " + acquiredCount + " acquired trigger(s).");
-						logWarnIfNonZero(recoveredCount,
+						LogWarnIfNonZero(acquiredCount, "ClusterManager: ......Freed " + acquiredCount + " acquired trigger(s).");
+						LogWarnIfNonZero(recoveredCount,
 						                 "ClusterManager: ......Scheduled " + recoveredCount + " recoverable job(s) for recovery.");
-						logWarnIfNonZero(otherCount, "ClusterManager: ......Cleaned-up " + otherCount + " other failed job(s).");
+						LogWarnIfNonZero(otherCount, "ClusterManager: ......Cleaned-up " + otherCount + " other failed job(s).");
 
-						Delegate.deleteSchedulerState(conn, rec.SchedulerInstanceId);
+						Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId);
 
 						// update record to show that recovery was handled
 						String recoverer = InstanceId;
@@ -2524,7 +2517,7 @@ namespace org.quartz.impl.jdbcjobstore
 							checkInTS = (DateTime.Now.Ticks - 621355968000000000)/10000;
 						}
 
-						Delegate.insertSchedulerState(conn, rec.SchedulerInstanceId, checkInTS, rec.CheckinInterval, recoverer);
+						Delegate.InsertSchedulerState(conn, rec.SchedulerInstanceId, checkInTS, rec.CheckinInterval, recoverer);
 					}
 				}
 				catch (Exception e)
@@ -2535,15 +2528,15 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		protected internal virtual void logWarnIfNonZero(int val, String warning)
+		protected internal virtual void LogWarnIfNonZero(int val, string warning)
 		{
 			if (val > 0)
 			{
-				Log.info(warning);
+				Log.Info(warning);
 			}
 			else
 			{
-				Log.debug(warning);
+				Log.Debug(warning);
 			}
 		}
 
@@ -2555,39 +2548,39 @@ namespace org.quartz.impl.jdbcjobstore
 		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
 		/// <summary> connection is closed
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void closeConnection(OleDbConnection conn)
+		
+		protected internal virtual void CloseConnection(IDbConnection conn)
 		{
 			if (conn != null)
 			{
 				try
 				{
-					SupportClass.TransactionManager.manager.Close(conn);
+					conn.Close();
 				}
-				catch (OleDbException e)
+				catch (Exception ex)
 				{
 					//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-					throw new JobPersistenceException("Couldn't close jdbc connection. " + e.Message, e);
+					throw new JobPersistenceException("Couldn't close jdbc connection. " + ex.Message, ex);
 				}
 			}
 		}
 
-		/// <summary> Rollback the supplied connection
-		/// 
+		/// <summary>
+		/// Rollback the supplied connection.
 		/// </summary>
 		/// <param name="conn">(Optional)
 		/// </param>
 		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
 		/// <summary> connection is rolled back
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void rollbackConnection(OleDbConnection conn)
+		
+		protected internal virtual void RollbackConnection(IDbConnection conn)
 		{
 			if (conn != null)
 			{
 				try
 				{
-					SupportClass.TransactionManager.manager.RollBack(conn);
+					// TODO SupportClass.TransactionManager.manager.RollBack(conn);
 				}
 				catch (OleDbException e)
 				{
@@ -2597,22 +2590,18 @@ namespace org.quartz.impl.jdbcjobstore
 			}
 		}
 
-		/// <summary> Commit the supplied connection
-		/// 
+		/// <summary> 
+		/// Commit the supplied connection.
 		/// </summary>
-		/// <param name="conn">(Optional)
-		/// </param>
-		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
-		/// <summary> connection is committed
-		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		protected internal virtual void commitConnection(OleDbConnection conn)
+		/// <param name="conn"></param>
+		/// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
+		protected internal virtual void CommitConnection(IDbConnection conn)
 		{
 			if (conn != null)
 			{
 				try
 				{
-					SupportClass.TransactionManager.manager.Commit(conn);
+					// TODO SupportClass.TransactionManager.manager.Commit(conn);
 				}
 				catch (OleDbException e)
 				{
@@ -2628,7 +2617,7 @@ namespace org.quartz.impl.jdbcjobstore
 		// ClusterManager Thread
 		//
 		/////////////////////////////////////////////////////////////////////////////
-		internal class ClusterManager : SupportClass.ThreadClass
+		internal class ClusterManager : SupportClass.QuartzThread
 		{
 			private void InitBlock(JobStoreSupport enclosingInstance)
 			{
@@ -2675,17 +2664,16 @@ namespace org.quartz.impl.jdbcjobstore
 				bool res = false;
 				try
 				{
-					res = js.doCheckin();
+					res = js.DoCheckin();
 
 					numFails = 0;
-					Enclosing_Instance.Log.debug("ClusterManager: Check-in complete.");
+					Enclosing_Instance.Log.Debug("ClusterManager: Check-in complete.");
 				}
 				catch (Exception e)
 				{
 					if (numFails%4 == 0)
 					{
-						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						Enclosing_Instance.Log.error("ClusterManager: Error managing cluster: " + e.Message, e);
+						Enclosing_Instance.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
 					}
 					numFails++;
 				}
@@ -2714,18 +2702,18 @@ namespace org.quartz.impl.jdbcjobstore
 						try
 						{
 							//UPGRADE_TODO: Method 'java.lang.Thread.sleep' was converted to 'System.Threading.Thread.Sleep' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javalangThreadsleep_long_3"'
-							Thread.Sleep(new TimeSpan((Int64) 10000*timeToSleep));
+							Thread.Sleep(new TimeSpan(10000*timeToSleep));
 						}
-						catch (Exception ignore)
+						catch (Exception)
 						{
 						}
 					}
 
 					if (!shutdown_Renamed_Field && manage())
 					{
-						Enclosing_Instance.signalSchedulingChange();
+						Enclosing_Instance.SignalSchedulingChange();
 					}
-				} //while !shutdown
+				} //while !Shutdown
 			}
 		}
 
@@ -2735,14 +2723,14 @@ namespace org.quartz.impl.jdbcjobstore
 		// MisfireHandler Thread
 		//
 		/////////////////////////////////////////////////////////////////////////////
-		internal class MisfireHandler : ThreadClass
+		internal class MisfireHandler : SupportClass.QuartzThread
 		{
-			private void InitBlock(JobStoreSupport enclosingInstance)
-			{
-				this.enclosingInstance = enclosingInstance;
-			}
-
 			private JobStoreSupport enclosingInstance;
+			
+			private void InitBlock(JobStoreSupport instance)
+			{
+				this.enclosingInstance = instance;
+			}
 
 			public JobStoreSupport Enclosing_Instance
 			{
@@ -2767,23 +2755,23 @@ namespace org.quartz.impl.jdbcjobstore
 
 			public virtual void initialize()
 			{
-				//this.manage();
+				//this.Manage();
 				Start();
 			}
 
-			public virtual void shutdown()
+			public virtual void Shutdown()
 			{
 				shutdown_Renamed_Field = true;
 				Interrupt();
 			}
 
-			private bool manage()
+			private bool Manage()
 			{
 				try
 				{
-					Enclosing_Instance.Log.debug("MisfireHandler: scanning for misfires...");
+					Enclosing_Instance.Log.Debug("MisfireHandler: scanning for misfires...");
 
-					bool res = js.doRecoverMisfires();
+					bool res = js.DoRecoverMisfires();
 					numFails = 0;
 					return res;
 				}
@@ -2792,7 +2780,7 @@ namespace org.quartz.impl.jdbcjobstore
 					if (numFails%4 == 0)
 					{
 						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						Enclosing_Instance.Log.error("MisfireHandler: Error handling misfires: " + e.Message, e);
+						Enclosing_Instance.Log.Error("MisfireHandler: Error handling misfires: " + e.Message, e);
 					}
 					numFails++;
 				}
@@ -2805,11 +2793,11 @@ namespace org.quartz.impl.jdbcjobstore
 				{
 					long sTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
 
-					bool moreToDo = manage();
+					bool moreToDo = Manage();
 
 					if (Enclosing_Instance.lastRecoverCount > 0)
 					{
-						Enclosing_Instance.signalSchedulingChange();
+						Enclosing_Instance.SignalSchedulingChange();
 					}
 
 					long spanTime = (DateTime.Now.Ticks - 621355968000000000)/10000 - sTime;
@@ -2834,7 +2822,7 @@ namespace org.quartz.impl.jdbcjobstore
 								//UPGRADE_TODO: Method 'java.lang.Thread.sleep' was converted to 'System.Threading.Thread.Sleep' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javalangThreadsleep_long_3"'
 								Thread.Sleep(new TimeSpan((Int64) 10000*timeToSleep));
 							}
-							catch (Exception ignore)
+							catch (Exception)
 							{
 							}
 						}
@@ -2847,50 +2835,50 @@ namespace org.quartz.impl.jdbcjobstore
 							//UPGRADE_TODO: Method 'java.lang.Thread.sleep' was converted to 'System.Threading.Thread.Sleep' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javalangThreadsleep_long_3"'
 							Thread.Sleep(new TimeSpan((Int64) 10000*50));
 						}
-						catch (Exception ignore)
+						catch (Exception)
 						{
 						}
 					}
-				} //while !shutdown
+				} //while !Shutdown
 			}
 		}
 
-		public abstract int getNumberOfTriggers(SchedulingContext param1);
-		public abstract int getTriggerState(SchedulingContext param1, String param2, String param3);
-		public abstract bool removeTrigger(SchedulingContext param1, String param2, String param3);
-		public abstract void storeJobAndTrigger(SchedulingContext param1, JobDetail param2, Trigger param3);
-		public abstract String[] getCalendarNames(SchedulingContext param1);
-		public abstract int getNumberOfCalendars(SchedulingContext param1);
-		public abstract void resumeJobGroup(SchedulingContext param1, String param2);
-		public abstract void storeJob(SchedulingContext param1, JobDetail param2, bool param3);
-		public abstract String[] getJobNames(SchedulingContext param1, String param2);
-		public abstract TriggerFiredBundle triggerFired(SchedulingContext param1, Trigger param2);
-		public abstract void triggeredJobComplete(SchedulingContext param1, Trigger param2, JobDetail param3, int param4);
-		public abstract String[] getTriggerGroupNames(SchedulingContext param1);
-		public abstract void pauseTrigger(SchedulingContext param1, String param2, String param3);
-		public abstract void resumeAll(SchedulingContext param1);
-		public abstract void storeTrigger(SchedulingContext param1, Trigger param2, bool param3);
-		public abstract String[] getJobGroupNames(SchedulingContext param1);
-		public abstract String[] getTriggerNames(SchedulingContext param1, String param2);
-		public abstract void pauseAll(SchedulingContext param1);
-		public abstract void pauseJobGroup(SchedulingContext param1, String param2);
-		public abstract void pauseTriggerGroup(SchedulingContext param1, String param2);
-		public abstract bool replaceTrigger(SchedulingContext param1, String param2, String param3, Trigger param4);
-		public abstract void resumeJob(SchedulingContext param1, String param2, String param3);
-		public abstract int getNumberOfJobs(SchedulingContext param1);
-		public abstract void pauseJob(SchedulingContext param1, String param2, String param3);
-		public abstract void releaseAcquiredTrigger(SchedulingContext param1, Trigger param2);
-		public abstract JobDetail retrieveJob(SchedulingContext param1, String param2, String param3);
-		public abstract bool removeJob(SchedulingContext param1, String param2, String param3);
-		public abstract void resumeTrigger(SchedulingContext param1, String param2, String param3);
-		public abstract Trigger acquireNextTrigger(SchedulingContext param1, long param2);
-		public abstract Trigger[] getTriggersForJob(SchedulingContext param1, String param2, String param3);
-		public abstract bool removeCalendar(SchedulingContext param1, String param2);
-		public abstract Calendar retrieveCalendar(SchedulingContext param1, String param2);
-		public abstract Trigger retrieveTrigger(SchedulingContext param1, String param2, String param3);
-		public abstract void storeCalendar(SchedulingContext param1, String param2, Calendar param3, bool param4, bool param5);
-		public abstract ISet getPausedTriggerGroups(SchedulingContext param1);
-		public abstract void resumeTriggerGroup(SchedulingContext param1, String param2);
+		public abstract int GetNumberOfTriggers(SchedulingContext param1);
+		public abstract int GetTriggerState(SchedulingContext param1, string param2, string param3);
+		public abstract bool RemoveTrigger(SchedulingContext param1, string param2, string param3);
+		public abstract void StoreJobAndTrigger(SchedulingContext param1, JobDetail param2, Trigger param3);
+		public abstract String[] GetCalendarNames(SchedulingContext param1);
+		public abstract int GetNumberOfCalendars(SchedulingContext param1);
+		public abstract void ResumeJobGroup(SchedulingContext param1, string param2);
+		public abstract void StoreJob(SchedulingContext param1, JobDetail param2, bool param3);
+		public abstract String[] GetJobNames(SchedulingContext param1, string param2);
+		public abstract TriggerFiredBundle TriggerFired(SchedulingContext param1, Trigger param2);
+		public abstract void TriggeredJobComplete(SchedulingContext param1, Trigger param2, JobDetail param3, int param4);
+		public abstract String[] GetTriggerGroupNames(SchedulingContext param1);
+		public abstract void PauseTrigger(SchedulingContext param1, string param2, string param3);
+		public abstract void ResumeAll(SchedulingContext param1);
+		public abstract void StoreTrigger(SchedulingContext param1, Trigger param2, bool param3);
+		public abstract String[] GetJobGroupNames(SchedulingContext param1);
+		public abstract String[] GetTriggerNames(SchedulingContext param1, string param2);
+		public abstract void PauseAll(SchedulingContext param1);
+		public abstract void PauseJobGroup(SchedulingContext param1, string param2);
+		public abstract void PauseTriggerGroup(SchedulingContext param1, string param2);
+		public abstract bool ReplaceTrigger(SchedulingContext param1, string param2, string param3, Trigger param4);
+		public abstract void ResumeJob(SchedulingContext param1, string param2, string param3);
+		public abstract int GetNumberOfJobs(SchedulingContext param1);
+		public abstract void PauseJob(SchedulingContext param1, string param2, string param3);
+		public abstract void ReleaseAcquiredTrigger(SchedulingContext param1, Trigger param2);
+		public abstract JobDetail RetrieveJob(SchedulingContext param1, string param2, string param3);
+		public abstract bool RemoveJob(SchedulingContext param1, string param2, string param3);
+		public abstract void ResumeTrigger(SchedulingContext param1, string param2, string param3);
+		public abstract Trigger AcquireNextTrigger(SchedulingContext param1, DateTime param2);
+		public abstract Trigger[] GetTriggersForJob(SchedulingContext param1, string param2, string param3);
+		public abstract bool RemoveCalendar(SchedulingContext param1, string param2);
+		public abstract ICalendar RetrieveCalendar(SchedulingContext param1, string param2);
+		public abstract Trigger RetrieveTrigger(SchedulingContext param1, string param2, string param3);
+		public abstract void StoreCalendar(SchedulingContext param1, string param2, ICalendar param3, bool param4, bool param5);
+		public abstract ISet GetPausedTriggerGroups(SchedulingContext param1);
+		public abstract void ResumeTriggerGroup(SchedulingContext param1, string param2);
 	}
 
 	// EOF

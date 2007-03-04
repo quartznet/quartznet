@@ -22,29 +22,16 @@ using System;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary> <p>
+	/// <summary>
 	/// Exception class for when a driver delegate cannot be found for a given
 	/// configuration, or lack thereof.
-	/// </p>
-	/// 
 	/// </summary>
-	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a>
-	/// </author>
+	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 	[Serializable]
 	public class NoSuchDelegateException : JobPersistenceException
 	{
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Constructors.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
 		public NoSuchDelegateException(string msg) : base(msg)
 		{
 		}
 	}
-
-	// EOF
 }

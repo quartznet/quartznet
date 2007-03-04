@@ -30,7 +30,7 @@ namespace Quartz.Impl
 	/// The main() method of this class currently accepts 0 or 1 arguemtns, if there
 	/// is an argument, and its value is <code>"console"</code>, then the program
 	/// will print a short message on the console (std-out) and wait for the user to
-	/// type "exit" - at which time the scheduler will be shutdown.
+	/// type "exit" - at which time the scheduler will be Shutdown.
 	/// </p>
 	/// <p>
 	/// Future versions of this server should allow additional configuration for
@@ -77,7 +77,7 @@ namespace Quartz.Impl
 				Console.Out.WriteLine("   then other process may now use it.");
 				while (true)
 				{
-					Console.Out.Write("Type 'exit' to shutdown the server: ");
+					Console.Out.Write("Type 'exit' to Shutdown the server: ");
 					if ("exit".Equals(Console.ReadLine()))
 					{
 						break;
@@ -182,11 +182,11 @@ namespace Quartz.Impl
 
 		/// <summary>
 		/// Called by the <code>Scheduler</code> to inform the listener
-		/// that it has shutdown.
+		/// that it has Shutdown.
 		/// </summary>
 		public virtual void SchedulerShutdown()
 		{
-			Console.Out.WriteLine("\n*** The scheduler is now shutdown.");
+			Console.Out.WriteLine("\n*** The scheduler is now Shutdown.");
 			sched = null;
 		}
 

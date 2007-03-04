@@ -58,7 +58,7 @@ namespace Quartz.Simpl
 
 
 		/// <summary> 
-		/// Called to give the ClassLoadHelper a chance to initialize itself,
+		/// Called to give the ClassLoadHelper a chance to Initialize itself,
 		/// including the oportunity to "steal" the class loader off of the calling
 		/// thread, which is the thread that is initializing Quartz.
 		/// </summary>

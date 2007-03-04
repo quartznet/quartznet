@@ -27,7 +27,7 @@ using Quartz.Spi;
 namespace Quartz.Plugins.Management
 {
 	/// <summary> This plugin catches the event of the JVM terminating (such as upon a CRTL-C)
-	/// and tells the scheuler to shutdown.
+	/// and tells the scheuler to Shutdown.
 	/// 
 	/// </summary>
 	/// <seealso cref="IScheduler.Shutdown(bool)">
@@ -77,7 +77,7 @@ namespace Quartz.Plugins.Management
 
 		/// <summary> 
 		/// Determine whether or not the plug-in is configured to cause a clean
-		/// shutdown of the scheduler.
+		/// Shutdown of the scheduler.
 		/// <p>
 		/// The default value is <code>true</code>.
 		/// </p>
@@ -98,7 +98,7 @@ namespace Quartz.Plugins.Management
 
 		/// <summary> <p>
 		/// Called during creation of the <code>Scheduler</code> in order to give
-		/// the <code>SchedulerPlugin</code> a chance to initialize.
+		/// the <code>SchedulerPlugin</code> a chance to Initialize.
 		/// </p>
 		/// 
 		/// </summary>
@@ -110,7 +110,7 @@ namespace Quartz.Plugins.Management
 			name = pluginName;
 			scheduler = sched;
 
-			Log.Info(string.Format("Registering Quartz shutdown hook '{0}.", pluginName));
+			Log.Info(string.Format("Registering Quartz Shutdown hook '{0}.", pluginName));
 
 			SupportClass.QuartzThread t =
 				new AnonymousClassThread(sched, this, "Quartz Shutdown-Hook " + sched.SchedulerName);

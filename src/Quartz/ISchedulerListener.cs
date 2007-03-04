@@ -126,7 +126,7 @@ namespace Quartz
 
 		/// <summary> <p>
 		/// Called by the <code>{@link Scheduler}</code> to inform the listener
-		/// that it has shutdown.
+		/// that it has Shutdown.
 		/// </p>
 		/// </summary>
 		void SchedulerShutdown();

@@ -22,25 +22,15 @@ using System;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary> <p>
+	/// <summary>
 	/// Exception class for when a driver delegate cannot be found for a given
 	/// configuration, or lack thereof.
-	/// </p>
-	/// 
 	/// </summary>
 	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a>
 	/// </author>
 	[Serializable]
-	public class InvalidConfigurationException : System.Exception
+	public class InvalidConfigurationException : SchedulerException
 	{
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Constructors.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
 		public InvalidConfigurationException(string msg) : base(msg)
 		{
 		}
@@ -49,6 +39,4 @@ namespace Quartz.Impl.AdoJobStore
 		{
 		}
 	}
-
-	// EOF
 }

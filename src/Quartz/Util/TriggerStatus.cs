@@ -1,4 +1,6 @@
 using System;
+
+using Nullables;
 /* 
 * Copyright 2004-2005 OpenSymphony 
 * 
@@ -23,7 +25,7 @@ using System;
 namespace Quartz.Util
 {
 	/// <summary> 
-	/// object representing a job or trigger key.
+	/// Object representing a job or trigger key.
 	/// </summary>
 	/// <author>James House</author>
 	public class TriggerStatus : Pair
@@ -62,9 +64,9 @@ namespace Quartz.Util
 		/// Get the group portion of the key.
 		/// </summary>
 		/// <returns> the group </returns>
-		public virtual DateTime NextFireTime
+		public virtual NullableDateTime NextFireTime
 		{
-			get { return (DateTime) Second; }
+			get { return (NullableDateTime) Second; }
 		}
 
 		// TODO: Repackage under spi or root pkg ?, put status constants here.
@@ -72,29 +74,23 @@ namespace Quartz.Util
 		private Key key;
 		private Key jobKey;
 
-		/// <summary> Construct a new TriggerStatus with the status name and nextFireTime.
-		/// 
+		/// <summary> 
+		/// Construct a new TriggerStatus with the status name and nextFireTime.
 		/// </summary>
-		/// <param name="status">
-		/// the trigger's status
-		/// </param>
-		/// <param name="nextFireTime">
-		/// the next time the trigger will fire
-		/// </param>
+		/// <param name="status">The trigger's status</param>
+		/// <param name="nextFireTime">The next time the trigger will fire</param>
 		public TriggerStatus(string status, DateTime nextFireTime) : base()
 		{
 			base.First = status;
 			base.Second = nextFireTime;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Return the string representation of the TriggerStatus.
-		/// </p>
-		/// 
 		/// </summary>
 		public override string ToString()
 		{
-			return "status: " + Status + ", next Fire = " + NextFireTime.ToString("r");
+			return "status: " + Status + ", next Fire = " + NextFireTime.Value.ToString("r");
 		}
 	}
 }

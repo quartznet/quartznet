@@ -22,28 +22,15 @@ using System;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary> <p>
+	/// <summary>
 	/// Exception class for when there is a failure obtaining or releasing a
 	/// resource lock.
-	/// </p>
-	/// 
 	/// </summary>
-	/// <seealso cref="ISemaphore">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="ISemaphore" />
+	/// <author>James House</author>
 	[Serializable]
 	public class LockException : JobPersistenceException
 	{
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Constructors.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
 		public LockException(string msg) : base(msg)
 		{
 		}
@@ -52,6 +39,4 @@ namespace Quartz.Impl.AdoJobStore
 		{
 		}
 	}
-
-	// EOF
 }

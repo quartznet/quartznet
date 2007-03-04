@@ -94,7 +94,7 @@ namespace Quartz.Simpl
 
 		/// <summary>
 		/// Called by the QuartzScheduler before the <code>JobStore</code> is
-		/// used, in order to give the it a chance to initialize.
+		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
 		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
 		{
@@ -1050,7 +1050,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) all triggers - equivalent of calling <code>resumeTriggerGroup(group)</code>
+		/// Resume (un-pause) all triggers - equivalent of calling <code>ResumeTriggerGroup(group)</code>
 		/// on every group.
 		/// <p>
 		/// If any <code>Trigger</code> missed one or more fire-times, then the

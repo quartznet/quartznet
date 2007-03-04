@@ -106,7 +106,7 @@ namespace Quartz.Core
 		}
 
 		/// <summary>
-		/// Requests the shutdown.
+		/// Requests the Shutdown.
 		/// </summary>
 		public virtual void RequestShutdown()
 		{

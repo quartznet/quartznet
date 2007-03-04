@@ -64,7 +64,7 @@ namespace Quartz.Simpl
 
 		/// <summary>
 		/// Get or set the thread priority of worker threads in the pool.
-		/// Set operation has no effect after <code>initialize()</code> has been called.
+		/// Set operation has no effect after <code>Initialize()</code> has been called.
 		/// </summary>
 		public int ThreadPriority
 		{
@@ -92,7 +92,7 @@ namespace Quartz.Simpl
 		/// <p>
 		/// getNextRunnable() should return null if within a specific time no new
 		/// Runnable is available. This gives the worker thread the chance to check
-		/// its shutdown flag. In case the worker thread is asked to shut down it
+		/// its Shutdown flag. In case the worker thread is asked to shut down it
 		/// will notify on nextRunnableLock, hence interrupt the wait state. That
 		/// is, the time used for waiting need not be short.
 		/// </p>
@@ -269,7 +269,7 @@ namespace Quartz.Simpl
 					         " See javadoc runInThread(Runnable) for a possible explanation");
 				}
 
-				Log.Debug("shutdown complete");
+				Log.Debug("Shutdown complete");
 				//}
 			}
 		}
@@ -296,7 +296,7 @@ namespace Quartz.Simpl
 			{
 				try
 				{
-					Log.Info("SimpleThreadPool.runInThread(): thread pool has been shutdown. Runnable will not be executed");
+					Log.Info("SimpleThreadPool.runInThread(): thread pool has been Shutdown. Runnable will not be executed");
 				}
 				catch (Exception)
 				{
@@ -309,7 +309,7 @@ namespace Quartz.Simpl
 			lock (nextRunnableLock)
 			{
 				// Wait until a worker thread has taken the previous Runnable
-				// or until the thread pool is asked to shutdown.
+				// or until the thread pool is asked to Shutdown.
 				while ((nextRunnable != null) && !isShutdown)
 				{
 					try
@@ -321,7 +321,7 @@ namespace Quartz.Simpl
 					}
 				}
 
-				// During normal operation, not shutdown, set the nextRunnable
+				// During normal operation, not Shutdown, set the nextRunnable
 				// and notify the worker threads waiting (getNextRunnable()).
 				if (!isShutdown)
 				{
@@ -365,7 +365,7 @@ namespace Quartz.Simpl
 
 			/// <summary> <p>
 			/// Create a worker thread and start it. Waiting for the next Runnable,
-			/// executing it, and waiting for the next Runnable, until the shutdown
+			/// executing it, and waiting for the next Runnable, until the Shutdown
 			/// flag is set.
 			/// </p>
 			/// </summary>
@@ -402,7 +402,7 @@ namespace Quartz.Simpl
 				// Javadoc mentions that it interrupts blocked I/O operations as
 				// well. Hence the job will most likely fail. I think we should
 				// shut the work thread gracefully, by letting the job finish
-				// uninterrupted. See SimpleThreadPool.shutdown()
+				// uninterrupted. See SimpleThreadPool.Shutdown()
 				//interrupt();
 			}
 
@@ -430,7 +430,7 @@ namespace Quartz.Simpl
 					}
 					catch (ThreadInterruptedException unblock)
 					{
-						// do nothing (loop will terminate if shutdown() was called
+						// do nothing (loop will terminate if Shutdown() was called
 						try
 						{
 							Log.Error("worker threat got 'interrupt'ed.", unblock);

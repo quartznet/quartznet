@@ -102,7 +102,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Reports whether the <code>Scheduler</code> has been shutdown.
+		/// Reports whether the <code>Scheduler</code> has been Shutdown.
 		/// </p>
 		/// </summary>
 		public virtual bool Shutdown

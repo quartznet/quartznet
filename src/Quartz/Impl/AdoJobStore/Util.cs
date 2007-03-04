@@ -35,9 +35,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="query">The unsubstitued query</param>
 		/// <param name="tablePrefix">The table prefix</param>
 		/// <returns>The query, with proper table prefix substituted</returns>
-		public static string rtp(string query, string tablePrefix)
+		public static string ReplaceTablePrefix(string query, string tablePrefix)
 		{
-			return string.Format(query, new System.Object[] {tablePrefix});
+			return string.Format(query, tablePrefix);
 		}
 
 		/// <summary>
@@ -47,9 +47,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="groupName">The group containing the job
 		/// </param>
 		/// <returns>A unique <code>string</code> key </returns>
-		internal static string getJobNameKey(string jobName, string groupName)
+		internal static string GetJobNameKey(string jobName, string groupName)
 		{
-			return String.Intern((groupName + "_$x$x$_" + jobName));
+			return String.Intern(string.Format("{0}_$x$x$_{1}", groupName, jobName));
 		}
 
 		/// <summary>
@@ -58,9 +58,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="triggerName">The trigger name</param>
 		/// <param name="groupName">The group containing the trigger</param>
 		/// <returns>A unique <code>string</code> key</returns>
-		internal static string getTriggerNameKey(string triggerName, string groupName)
+		internal static string GetTriggerNameKey(string triggerName, string groupName)
 		{
-			return String.Intern((groupName + "_$x$x$_" + triggerName));
+			return String.Intern(string.Format("{0}_$x$x$_{1}", groupName, triggerName));
 		}
 	}
 }

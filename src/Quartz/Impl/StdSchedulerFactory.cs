@@ -54,8 +54,8 @@ namespace Quartz.Impl
 	/// </p>
 	/// 
 	/// <p>
-	/// Alternativly, you can explicitly initialize the factory by calling one of
-	/// the <code>initialize(xx)</code> methods before calling <code>getScheduler()</code>.
+	/// Alternativly, you can explicitly Initialize the factory by calling one of
+	/// the <code>Initialize(xx)</code> methods before calling <code>getScheduler()</code>.
 	/// </p>
 	/// 
 	/// <p>
@@ -212,7 +212,7 @@ namespace Quartz.Impl
 #endif
 			if (props == null)
 			{
-				throw new SchedulerConfigException("Could not find <quartz> configuration section from your application config. Please add it to correctly initialize Quartz.");
+				throw new SchedulerConfigException("Could not find <quartz> configuration section from your application config. Please add it to correctly Initialize Quartz.");
 			}
 			Initialize(OverrideWithSysProps(props));
 		}
@@ -568,7 +568,7 @@ namespace Quartz.Impl
 						}
 						catch (OleDbException sqle)
 						{
-							initException = new SchedulerException("Could not initialize DataSource: " + dsNames[i], sqle);
+							initException = new SchedulerException("Could not Initialize DataSource: " + dsNames[i], sqle);
 							throw initException;
 						}
 					}
@@ -874,8 +874,8 @@ namespace Quartz.Impl
 		/// </p>
 		/// 
 		/// <p>
-		/// If one of the <code>initialize</code> methods has not be previously
-		/// called, then the default (no-arg) <code>initialize()</code> method
+		/// If one of the <code>Initialize</code> methods has not be previously
+		/// called, then the default (no-arg) <code>Initialize()</code> method
 		/// will be called by this method.
 		/// </p>
 		/// </summary>

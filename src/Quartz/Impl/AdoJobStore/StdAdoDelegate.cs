@@ -18,48 +18,37 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
-//UPGRADE_TODO: The type 'org.apache.commons.logging.Log' could not be found. If it was not included in the conversion, there may be compiler issues. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1262_3"'
+
 using System;
 using System.Collections;
 using System.Collections.Specialized;
 using System.Configuration;
+using System.Data;
 using System.Data.OleDb;
 using System.Globalization;
 using System.IO;
 using Common.Logging;
 
+using Quartz.Collection;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary> <p>
-	/// This is meant to be an abstract base class for most, if not all, <code>{@link org.quartz.impl.jdbcjobstore.DriverDelegate}</code>
+	/// <summary>
+	/// This is meant to be an abstract base class for most, if not all, <code>IDriverDelegate</code>
 	/// implementations. Subclasses should override only those methods that need
 	/// special handling for the DBMS driver in question.
-	/// </p>
-	/// 
 	/// </summary>
-	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a>
-	/// </author>
-	/// <author>  James House
-	/// </author>
-	public class StdJDBCDelegate : DriverDelegate, StdJDBCConstants
+	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+	/// <author>James House</author>
+	public class StdAdoDelegate : StdAdoConstants, IDriverDelegate
 	{
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Data members.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
 		protected internal ILog logger = null;
-
-		protected internal String tablePrefix = Constants_Fields.DEFAULT_TABLE_PREFIX;
-
-		protected internal String instanceId;
-
+		protected internal string tablePrefix = AdoConstants.DEFAULT_TABLE_PREFIX;
+		protected internal string instanceId;
 		protected internal bool useProperties;
+		protected internal IDbProvider dbProvider;
 
 		/*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -70,7 +59,7 @@ namespace Quartz.Impl.AdoJobStore
 		*/
 
 		/// <summary> <p>
-		/// Create new StdJDBCDelegate instance.
+		/// Create new StdAdoDelegate instance.
 		/// </p>
 		/// 
 		/// </summary>
@@ -80,7 +69,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="">tablePrefix
 		/// the prefix of all table names
 		/// </param>
-		public StdJDBCDelegate(ILog logger, String tablePrefix, String instanceId)
+		public StdAdoDelegate(ILog logger, string tablePrefix, string instanceId)
 		{
 			this.logger = logger;
 			this.tablePrefix = tablePrefix;
@@ -88,7 +77,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 		/// <summary> <p>
-		/// Create new StdJDBCDelegate instance.
+		/// Create new StdAdoDelegate instance.
 		/// </p>
 		/// 
 		/// </summary>
@@ -98,8 +87,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="">tablePrefix
 		/// the prefix of all table names
 		/// </param>
-		//UPGRADE_NOTE: ref keyword was added to struct-type parameters. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1303_3"'
-		public StdJDBCDelegate(ILog logger, String tablePrefix, String instanceId, ref Boolean useProperties)
+		public StdAdoDelegate(ILog logger, string tablePrefix, string instanceId, bool useProperties)
 		{
 			this.logger = logger;
 			this.tablePrefix = tablePrefix;
@@ -115,7 +103,7 @@ namespace Quartz.Impl.AdoJobStore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-		protected internal virtual bool canUseProperties()
+		protected internal virtual bool CanUseProperties()
 		{
 			return useProperties;
 		}
@@ -143,39 +131,23 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerStatesFromOtherStates(OleDbConnection conn, String newState, String oldState1,
-		                                                      String oldState2)
+		
+		public virtual int UpdateTriggerStatesFromOtherStates(IDbConnection legacy, string newState, string oldState1,
+		                                                      string oldState2)
 		{
-			OleDbCommand ps = null;
-
-			try
+			using (IDbConnection con = dbProvider.CreateConnection())
 			{
-				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.
-					                                                         		UPDATE_TRIGGER_STATES_FROM_OTHER_STATES));
-				SupportClass.TransactionManager.manager.SetValue(ps, 1, newState);
-				SupportClass.TransactionManager.manager.SetValue(ps, 2, oldState1);
-				SupportClass.TransactionManager.manager.SetValue(ps, 3, oldState2);
-				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
-			}
-			finally
-			{
-				if (null != ps)
+				using (IDbCommand cmd = PrepareCommand(con, ReplaceTablePrefix(StdAdoConstants.UPDATE_TRIGGER_STATES_FROM_OTHER_STATES)))
 				{
-					try
-					{
-						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
-						ps.close();
-					}
-					catch (OleDbException ignore)
-					{
-					}
+					AddCommandParameter(cmd, 1, newState);
+					AddCommandParameter(cmd, 2, oldState1);
+					AddCommandParameter(cmd, 3, oldState2);
+					return cmd.ExecuteNonQuery();
 				}
 			}
 		}
+
+
 
 		/// <summary> <p>
 		/// Get the names of all of the triggers that have misfired.
@@ -188,191 +160,95 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> an array of <code>{@link
 		/// org.quartz.utils.Key}</code> objects
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Key[] selectMisfiredTriggers(OleDbConnection conn, long ts)
+		public virtual Key[] SelectMisfiredTriggers(IDbConnection legacy, long ts)
 		{
-			OleDbCommand ps = null;
-			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-			OleDbDataReader rs = null;
-
-			try
+			using (IDbConnection conn = dbProvider.CreateConnection())
 			{
-				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_MISFIRED_TRIGGERS));
-				SupportClass.TransactionManager.manager.SetValue(ps, 1, Decimal.Parse(Convert.ToString(ts), NumberStyles.Any));
-				rs = ps.ExecuteReader();
-
-				ArrayList list = new ArrayList();
-				while (rs.Read())
+				using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_MISFIRED_TRIGGERS)))
 				{
-					String triggerName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]);
-					String groupName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]);
-					list.Add(new Key(triggerName, groupName));
-				}
-				Object[] oArr = list.ToArray();
-				Key[] kArr = new Key[oArr.Length];
-				Array.Copy(oArr, 0, kArr, 0, oArr.Length);
-				return kArr;
-			}
-			finally
-			{
-				if (null != rs)
-				{
-					try
+					AddCommandParameter(cmd, 1, ts);
+					using (IDataReader rs = cmd.ExecuteReader())
 					{
-						rs.Close();
-					}
-					catch (OleDbException ignore)
-					{
-					}
-				}
-				if (null != ps)
-				{
-					try
-					{
-						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
-						ps.close();
-					}
-					catch (OleDbException ignore)
-					{
+						ArrayList list = new ArrayList();
+						while (rs.Read())
+						{
+							string triggerName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]);
+							string groupName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]);
+							list.Add(new Key(triggerName, groupName));
+						}
+						object[] oArr = list.ToArray();
+						Key[] kArr = new Key[oArr.Length];
+						Array.Copy(oArr, 0, kArr, 0, oArr.Length);
+						return kArr;
 					}
 				}
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Select all of the triggers in a given state.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">state
-		/// the state the triggers must be in
-		/// </param>
-		/// <returns> an array of trigger <code>Key</code> s
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Key[] selectTriggersInState(OleDbConnection conn, String state)
+		/// <param name="conn">The DB Connection</param>
+		/// <param name="state">The state the triggers must be in</param>
+		/// <returns> an array of trigger <code>Key</code>s </returns>
+		public virtual Key[] SelectTriggersInState(IDbConnection legacy, string state)
 		{
-			OleDbCommand ps = null;
-			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-			OleDbDataReader rs = null;
-
-			try
+			using (IDbConnection conn = dbProvider.CreateConnection())
 			{
-				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_TRIGGERS_IN_STATE));
-				SupportClass.TransactionManager.manager.SetValue(ps, 1, state);
-				rs = ps.ExecuteReader();
+				using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGERS_IN_STATE)))
+				{
+					AddCommandParameter(cmd, 1, state);
+					using (IDataReader rs = cmd.ExecuteReader())
+					{
+						ArrayList list = new ArrayList();
+						while (rs.Read())
+						{
+							list.Add(new Key(Convert.ToString(rs[1 - 1]), Convert.ToString(rs[2 - 1])));
+						}
 
-				ArrayList list = new ArrayList();
-				while (rs.Read())
-				{
-					list.Add(new Key(Convert.ToString(rs[1 - 1]), Convert.ToString(rs[2 - 1])));
-				}
-
-				Key[] sArr = (Key[]) SupportClass.ICollectionSupport.ToArray(list, new Key[list.Count]);
-				return sArr;
-			}
-			finally
-			{
-				if (null != rs)
-				{
-					try
-					{
-						rs.Close();
-					}
-					catch (OleDbException ignore)
-					{
-					}
-				}
-				if (null != ps)
-				{
-					try
-					{
-						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
-						ps.close();
-					}
-					catch (OleDbException ignore)
-					{
+						Key[] sArr = (Key[]) list.ToArray(typeof(Key));
+						return sArr;
 					}
 				}
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Key[] selectMisfiredTriggersInState(OleDbConnection conn, String state, long ts)
+		
+		public virtual Key[] SelectMisfiredTriggersInState(IDbConnection legacy, string state, long ts)
 		{
-			OleDbCommand ps = null;
-			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-			OleDbDataReader rs = null;
-
-			try
+			using (IDbConnection conn = dbProvider.CreateConnection())
 			{
-				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.SELECT_MISFIRED_TRIGGERS_IN_STATE));
-				SupportClass.TransactionManager.manager.SetValue(ps, 1, Decimal.Parse(Convert.ToString(ts), NumberStyles.Any));
-				SupportClass.TransactionManager.manager.SetValue(ps, 2, state);
-				rs = ps.ExecuteReader();
-
-				ArrayList list = new ArrayList();
-				while (rs.Read())
+				using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_MISFIRED_TRIGGERS_IN_STATE)))
 				{
-					String triggerName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]);
-					String groupName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]);
-					list.Add(new Key(triggerName, groupName));
-				}
-				Object[] oArr = list.ToArray();
-				Key[] kArr = new Key[oArr.Length];
-				Array.Copy(oArr, 0, kArr, 0, oArr.Length);
-				return kArr;
-			}
-			finally
-			{
-				if (null != rs)
-				{
-					try
+					AddCommandParameter(cmd, 1, state);
+					AddCommandParameter(cmd, 1, ts);
+					AddCommandParameter(cmd, 2, state);
+					
+					using (IDataReader rs = cmd.ExecuteReader())
 					{
-						rs.Close();
-					}
-					catch (OleDbException ignore)
-					{
-					}
-				}
-				if (null != ps)
-				{
-					try
-					{
-						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
-						ps.close();
-					}
-					catch (OleDbException ignore)
-					{
+						ArrayList list = new ArrayList();
+						while (rs.Read())
+						{
+							string triggerName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]);
+							string groupName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]);
+							list.Add(new Key(triggerName, groupName));
+						}
+						object[] oArr = list.ToArray();
+						Key[] kArr = new Key[oArr.Length];
+						Array.Copy(oArr, 0, kArr, 0, oArr.Length);
+						return kArr;
 					}
 				}
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the names of all of the triggers in the given group and state that
 		/// have misfired.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> an array of <code>{@link
-		/// org.quartz.utils.Key}</code> objects
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Key[] selectMisfiredTriggersInGroupInState(OleDbConnection conn, String groupName, String state,
+		/// <param name="conn">The DB Connection</param>
+		/// <returns> an array of <code>Key</code> objects</returns>
+		public virtual Key[] SelectMisfiredTriggersInGroupInState(IDbConnection conn, string groupName, string state,
 		                                                          long ts)
 		{
 			OleDbCommand ps = null;
@@ -383,8 +259,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.
 					                                                         		SELECT_MISFIRED_TRIGGERS_IN_GROUP_IN_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, Decimal.Parse(Convert.ToString(ts), NumberStyles.Any));
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
@@ -394,7 +270,7 @@ namespace Quartz.Impl.AdoJobStore
 				ArrayList list = new ArrayList();
 				while (rs.Read())
 				{
-					String triggerName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]);
+					String triggerName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]);
 					list.Add(new Key(triggerName, groupName));
 				}
 				Object[] oArr = list.ToArray();
@@ -450,8 +326,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>{@link org.quartz.Trigger}</code> objects
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Trigger[] selectTriggersForRecoveringJobs(OleDbConnection conn)
+		
+		public virtual Trigger[] SelectTriggersForRecoveringJobs(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -461,8 +337,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.
 					                                                         		SELECT_INSTANCES_RECOVERABLE_FIRED_TRIGGERS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, instanceId);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, true);
@@ -472,11 +348,11 @@ namespace Quartz.Impl.AdoJobStore
 				ArrayList list = new ArrayList();
 				while (rs.Read())
 				{
-					String jobName = Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]);
-					String jobGroup = Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP]);
-					String trigName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]);
-					String trigGroup = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]);
-					long firedTime = Convert.ToInt64(rs[Constants_Fields.COL_FIRED_TIME]);
+					String jobName = Convert.ToString(rs[AdoConstants.COL_JOB_NAME]);
+					String jobGroup = Convert.ToString(rs[AdoConstants.COL_JOB_GROUP]);
+					String trigName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]);
+					String trigGroup = Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]);
+					long firedTime = Convert.ToInt64(rs[AdoConstants.COL_FIRED_TIME]);
 					//UPGRADE_TODO: Constructor 'java.util.Date.Date' was converted to 'DateTime.DateTime' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilDateDate_long_3"'
 					DateTime tempAux = new DateTime(firedTime);
 					//UPGRADE_NOTE: ref keyword was added to struct-type parameters. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1303_3"'
@@ -487,7 +363,7 @@ namespace Quartz.Impl.AdoJobStore
 					rcvryTrig.JobGroup = jobGroup;
 					rcvryTrig.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW;
 
-					JobDataMap jd = selectTriggerJobDataMap(conn, trigName, trigGroup);
+					JobDataMap jd = SelectTriggerJobDataMap(conn, trigName, trigGroup);
 					jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME", trigName);
 					jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP", trigGroup);
 					jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING", Convert.ToString(firedTime));
@@ -536,15 +412,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteFiredTriggers(OleDbConnection conn)
+		
+		public virtual int DeleteFiredTriggers(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_FIRED_TRIGGERS));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_FIRED_TRIGGERS));
 
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
 			}
@@ -564,8 +440,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteFiredTriggers(OleDbConnection conn, String instanceId)
+		
+		public virtual int DeleteFiredTriggers(IDbConnection conn, string instanceId)
 		{
 			OleDbCommand ps = null;
 
@@ -573,8 +449,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.DELETE_INSTANCES_FIRED_TRIGGERS));
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.DELETE_INSTANCES_FIRED_TRIGGERS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, instanceId);
 
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
@@ -615,10 +491,10 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the JobDataMap
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertJobDetail(OleDbConnection conn, JobDetail job)
+		
+		public virtual int InsertJobDetail(IDbConnection conn, JobDetail job)
 		{
-			MemoryStream baos = serializeJobData(job.JobDataMap);
+			MemoryStream baos = SerializeJobData(job.JobDataMap);
 
 			OleDbCommand ps = null;
 
@@ -626,7 +502,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_JOB_DETAIL));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_JOB_DETAIL));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, job.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, job.Group);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, job.Description);
@@ -660,7 +536,7 @@ namespace Quartz.Impl.AdoJobStore
 				String[] jobListeners = job.JobListenerNames;
 				for (int i = 0; jobListeners != null && i < jobListeners.Length; i++)
 				{
-					insertJobListener(conn, job, jobListeners[i]);
+					InsertJobListener(conn, job, jobListeners[i]);
 				}
 			}
 
@@ -683,10 +559,10 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the JobDataMap
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateJobDetail(OleDbConnection conn, JobDetail job)
+		
+		public virtual int UpdateJobDetail(IDbConnection conn, JobDetail job)
 		{
-			MemoryStream baos = serializeJobData(job.JobDataMap);
+			MemoryStream baos = SerializeJobData(job.JobDataMap);
 
 			OleDbCommand ps = null;
 
@@ -694,7 +570,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_JOB_DETAIL));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_JOB_DETAIL));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, job.Description);
 				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Class.getName' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, job.JobClass.FullName);
@@ -725,12 +601,12 @@ namespace Quartz.Impl.AdoJobStore
 
 			if (insertResult > 0)
 			{
-				deleteJobListeners(conn, job.Name, job.Group);
+				DeleteJobListeners(conn, job.Name, job.Group);
 
 				String[] jobListeners = job.JobListenerNames;
 				for (int i = 0; jobListeners != null && i < jobListeners.Length; i++)
 				{
-					insertJobListener(conn, job, jobListeners[i]);
+					InsertJobListener(conn, job, jobListeners[i]);
 				}
 			}
 
@@ -754,8 +630,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> an array of <code>{@link
 		/// org.quartz.utils.Key}</code> objects
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Key[] selectTriggerNamesForJob(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual Key[] SelectTriggerNamesForJob(IDbConnection conn, string jobName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -764,7 +640,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_TRIGGERS_FOR_JOB));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGERS_FOR_JOB));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -772,8 +648,8 @@ namespace Quartz.Impl.AdoJobStore
 				ArrayList list = new ArrayList(10);
 				while (rs.Read())
 				{
-					String trigName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]);
-					String trigGroup = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]);
+					String trigName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]);
+					String trigGroup = Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]);
 					list.Add(new Key(trigName, trigGroup));
 				}
 				Object[] oArr = list.ToArray();
@@ -823,15 +699,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteJobListeners(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual int DeleteJobListeners(IDbConnection conn, string jobName, string groupName)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_JOB_LISTENERS));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_JOB_LISTENERS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
@@ -868,15 +744,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteJobDetail(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual int DeleteJobDetail(IDbConnection conn, string jobName, string groupName)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				logger.debug("Deleting job: " + groupName + "." + jobName);
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_JOB_DETAIL));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_JOB_DETAIL));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
@@ -913,8 +789,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if the job exists and is stateful, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual bool isJobStateful(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual bool IsJobStateful(IDbConnection conn, string jobName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -923,7 +799,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_JOB_STATEFUL));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_JOB_STATEFUL));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -931,7 +807,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					return false;
 				}
-				return Convert.ToBoolean(rs[Constants_Fields.COL_IS_STATEFUL]);
+				return Convert.ToBoolean(rs[AdoConstants.COL_IS_STATEFUL]);
 			}
 			finally
 			{
@@ -975,8 +851,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if the job exists, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual bool jobExists(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual bool JobExists(IDbConnection conn, string jobName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -985,7 +861,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_JOB_EXISTENCE));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_JOB_EXISTENCE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -1037,16 +913,16 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateJobData(OleDbConnection conn, JobDetail job)
+		
+		public virtual int UpdateJobData(IDbConnection conn, JobDetail job)
 		{
-			MemoryStream baos = serializeJobData(job.JobDataMap);
+			MemoryStream baos = SerializeJobData(job.JobDataMap);
 
 			OleDbCommand ps = null;
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_JOB_DATA));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_JOB_DATA));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, SupportClass.ToSByteArray(baos.ToArray()));
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, job.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, job.Group);
@@ -1085,15 +961,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertJobListener(OleDbConnection conn, JobDetail job, String listener)
+		
+		public virtual int InsertJobListener(IDbConnection conn, JobDetail job, string listener)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_JOB_LISTENER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_JOB_LISTENER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, job.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, job.Group);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, listener);
@@ -1132,8 +1008,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> array of <code>String</code> listener names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual String[] selectJobListeners(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual String[] SelectJobListeners(IDbConnection conn, string jobName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -1143,7 +1019,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ArrayList list = new ArrayList();
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_JOB_LISTENERS));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_JOB_LISTENERS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -1207,9 +1083,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if deserialization causes an error
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual JobDetail selectJobDetail(OleDbConnection conn, String jobName, String groupName,
-		                                         ClassLoadHelper loadHelper)
+		
+		public virtual JobDetail SelectJobDetail(IDbConnection conn, string jobName, string groupName,
+		                                         IClassLoadHelper loadHelper)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -1217,7 +1093,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_JOB_DETAIL));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_JOB_DETAIL));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -1228,22 +1104,22 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					job = new JobDetail();
 
-					job.Name = Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]);
-					job.Group = Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP]);
-					job.Description = Convert.ToString(rs[Constants_Fields.COL_DESCRIPTION]);
-					job.JobClass = loadHelper.loadClass(Convert.ToString(rs[Constants_Fields.COL_JOB_CLASS]));
-					job.Durability = Convert.ToBoolean(rs[Constants_Fields.COL_IS_DURABLE]);
-					job.Volatility = Convert.ToBoolean(rs[Constants_Fields.COL_IS_VOLATILE]);
-					job.RequestsRecovery = Convert.ToBoolean(rs[Constants_Fields.COL_REQUESTS_RECOVERY]);
+					job.Name = Convert.ToString(rs[AdoConstants.COL_JOB_NAME]);
+					job.Group = Convert.ToString(rs[AdoConstants.COL_JOB_GROUP]);
+					job.Description = Convert.ToString(rs[AdoConstants.COL_DESCRIPTION]);
+					job.JobClass = loadHelper.loadClass(Convert.ToString(rs[AdoConstants.COL_JOB_CLASS]));
+					job.Durability = Convert.ToBoolean(rs[AdoConstants.COL_IS_DURABLE]);
+					job.Volatility = Convert.ToBoolean(rs[AdoConstants.COL_IS_VOLATILE]);
+					job.RequestsRecovery = Convert.ToBoolean(rs[AdoConstants.COL_REQUESTS_RECOVERY]);
 
 					IDictionary map = null;
-					if (canUseProperties())
+					if (CanUseProperties())
 					{
-						map = getMapFromProperties(rs);
+						map = GetMapFromProperties(rs);
 					}
 					else
 					{
-						map = (IDictionary) getObjectFromBlob(rs, Constants_Fields.COL_JOB_DATAMAP);
+						map = (IDictionary) GetObjectFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
 					}
 
 					if (null != map)
@@ -1282,10 +1158,10 @@ namespace Quartz.Impl.AdoJobStore
 
 		/// <summary> build Map from java.util.Properties encoding.</summary>
 		//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-		private IDictionary getMapFromProperties(OleDbDataReader rs)
+		private IDictionary GetMapFromProperties(OleDbDataReader rs)
 		{
 			IDictionary map;
-			Stream is_Renamed = (Stream) getJobDetailFromBlob(rs, Constants_Fields.COL_JOB_DATAMAP);
+			Stream is_Renamed = (Stream) GetJobDetailFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
 			if (is_Renamed == null)
 			{
 				return null;
@@ -1298,7 +1174,7 @@ namespace Quartz.Impl.AdoJobStore
 				//UPGRADE_TODO: Method 'java.util.Properties.load' was converted to 'System.Collections.Specialized.NameValueCollection' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilPropertiesload_javaioInputStream_3"'
 				properties = new NameValueCollection(ConfigurationSettings.AppSettings);
 			}
-			map = convertFromProperty(properties);
+			map = ConvertFromProperty(properties);
 			return map;
 		}
 
@@ -1312,8 +1188,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the total number of jobs stored
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int selectNumJobs(OleDbConnection conn)
+		
+		public virtual int SelectNumJobs(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -1322,7 +1198,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				int count = 0;
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_NUM_JOBS));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_NUM_JOBS));
 				rs = ps.ExecuteReader();
 
 				if (rs.Read())
@@ -1368,8 +1244,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> group names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual String[] selectJobGroups(OleDbConnection conn)
+		
+		public virtual String[] SelectJobGroups(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -1377,7 +1253,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_JOB_GROUPS));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_JOB_GROUPS));
 				rs = ps.ExecuteReader();
 
 				ArrayList list = new ArrayList();
@@ -1430,8 +1306,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> job names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual String[] selectJobsInGroup(OleDbConnection conn, String groupName)
+		
+		public virtual String[] SelectJobsInGroup(IDbConnection conn, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -1440,7 +1316,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_JOBS_IN_GROUP));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_JOBS_IN_GROUP));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				rs = ps.ExecuteReader();
 
@@ -1501,13 +1377,13 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertTrigger(OleDbConnection conn, Trigger trigger, String state, JobDetail jobDetail)
+		
+		public virtual int InsertTrigger(IDbConnection conn, Trigger trigger, string state, JobDetail jobDetail)
 		{
 			MemoryStream baos = null;
 			if (trigger.JobDataMap.Count > 0)
 			{
-				baos = serializeJobData(trigger.JobDataMap);
+				baos = SerializeJobData(trigger.JobDataMap);
 			}
 
 			OleDbCommand ps = null;
@@ -1516,7 +1392,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_TRIGGER));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, trigger.Group);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, trigger.JobName);
@@ -1539,16 +1415,16 @@ namespace Quartz.Impl.AdoJobStore
 				SupportClass.TransactionManager.manager.SetValue(ps, 9, state);
 				if (trigger is SimpleTrigger)
 				{
-					SupportClass.TransactionManager.manager.SetValue(ps, 10, Constants_Fields.TTYPE_SIMPLE);
+					SupportClass.TransactionManager.manager.SetValue(ps, 10, AdoConstants.TTYPE_SIMPLE);
 				}
 				else if (trigger is CronTrigger)
 				{
-					SupportClass.TransactionManager.manager.SetValue(ps, 10, Constants_Fields.TTYPE_CRON);
+					SupportClass.TransactionManager.manager.SetValue(ps, 10, AdoConstants.TTYPE_CRON);
 				}
 				else
 				{
 					// (trigger instanceof BlobTrigger)
-					SupportClass.TransactionManager.manager.SetValue(ps, 10, Constants_Fields.TTYPE_BLOB);
+					SupportClass.TransactionManager.manager.SetValue(ps, 10, AdoConstants.TTYPE_BLOB);
 				}
 				//UPGRADE_TODO: Method 'java.util.Date.getTime' was converted to 'DateTime.Ticks' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilDategetTime_3"'
 				SupportClass.TransactionManager.manager.SetValue(ps, 11,
@@ -1595,7 +1471,7 @@ namespace Quartz.Impl.AdoJobStore
 				String[] trigListeners = trigger.TriggerListenerNames;
 				for (int i = 0; trigListeners != null && i < trigListeners.Length; i++)
 				{
-					insertTriggerListener(conn, trigger, trigListeners[i]);
+					InsertTriggerListener(conn, trigger, trigListeners[i]);
 				}
 			}
 
@@ -1615,15 +1491,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertSimpleTrigger(OleDbConnection conn, SimpleTrigger trigger)
+		
+		public virtual int InsertSimpleTrigger(IDbConnection conn, SimpleTrigger trigger)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_SIMPLE_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_SIMPLE_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, trigger.Group);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, trigger.RepeatCount);
@@ -1663,15 +1539,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertCronTrigger(OleDbConnection conn, CronTrigger trigger)
+		
+		public virtual int InsertCronTrigger(IDbConnection conn, CronTrigger trigger)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_CRON_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_CRON_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, trigger.Group);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, trigger.CronExpression);
@@ -1708,8 +1584,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertBlobTrigger(OleDbConnection conn, Trigger trigger)
+		
+		public virtual int InsertBlobTrigger(IDbConnection conn, Trigger trigger)
 		{
 			OleDbCommand ps = null;
 			MemoryStream os = null;
@@ -1728,7 +1604,7 @@ namespace Quartz.Impl.AdoJobStore
 				MemoryStream is_Renamed = new MemoryStream(SupportClass.ToByteArray(buf));
 
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_BLOB_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_BLOB_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, trigger.Group);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, is_Renamed);
@@ -1767,15 +1643,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTrigger(OleDbConnection conn, Trigger trigger, String state, JobDetail jobDetail)
+		
+		public virtual int UpdateTrigger(IDbConnection conn, Trigger trigger, string state, JobDetail jobDetail)
 		{
 			// save some clock cycles by unnecessarily writing job data blob ...
 			bool updateJobData = trigger.JobDataMap.Dirty;
 			MemoryStream baos = null;
 			if (updateJobData && trigger.JobDataMap.Count > 0)
 			{
-				baos = serializeJobData(trigger.JobDataMap);
+				baos = SerializeJobData(trigger.JobDataMap);
 			}
 
 			OleDbCommand ps = null;
@@ -1787,13 +1663,13 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				if (updateJobData)
 				{
-					ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_TRIGGER));
+					ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_TRIGGER));
 				}
 				else
 				{
 					ps =
 						SupportClass.TransactionManager.manager.PrepareStatement(conn,
-						                                                         rtp(StdJDBCConstants_Fields.UPDATE_TRIGGER_SKIP_DATA));
+						                                                         ReplaceTablePrefix(StdAdoConstants.UPDATE_TRIGGER_SKIP_DATA));
 				}
 
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.JobName);
@@ -1821,18 +1697,18 @@ namespace Quartz.Impl.AdoJobStore
 				SupportClass.TransactionManager.manager.SetValue(ps, 7, state);
 				if (trigger is SimpleTrigger)
 				{
-					//                updateSimpleTrigger(conn, (SimpleTrigger)trigger);
-					SupportClass.TransactionManager.manager.SetValue(ps, 8, Constants_Fields.TTYPE_SIMPLE);
+					//                UpdateSimpleTrigger(conn, (SimpleTrigger)trigger);
+					SupportClass.TransactionManager.manager.SetValue(ps, 8, AdoConstants.TTYPE_SIMPLE);
 				}
 				else if (trigger is CronTrigger)
 				{
-					//                updateCronTrigger(conn, (CronTrigger)trigger);
-					SupportClass.TransactionManager.manager.SetValue(ps, 8, Constants_Fields.TTYPE_CRON);
+					//                UpdateCronTrigger(conn, (CronTrigger)trigger);
+					SupportClass.TransactionManager.manager.SetValue(ps, 8, AdoConstants.TTYPE_CRON);
 				}
 				else
 				{
-					//                updateBlobTrigger(conn, trigger);
-					SupportClass.TransactionManager.manager.SetValue(ps, 8, Constants_Fields.TTYPE_BLOB);
+					//                UpdateBlobTrigger(conn, trigger);
+					SupportClass.TransactionManager.manager.SetValue(ps, 8, AdoConstants.TTYPE_BLOB);
 				}
 				//UPGRADE_TODO: Method 'java.util.Date.getTime' was converted to 'DateTime.Ticks' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilDategetTime_3"'
 				SupportClass.TransactionManager.manager.SetValue(ps, 9,
@@ -1880,12 +1756,12 @@ namespace Quartz.Impl.AdoJobStore
 
 			if (insertResult > 0)
 			{
-				deleteTriggerListeners(conn, trigger.Name, trigger.Group);
+				DeleteTriggerListeners(conn, trigger.Name, trigger.Group);
 
 				String[] trigListeners = trigger.TriggerListenerNames;
 				for (int i = 0; trigListeners != null && i < trigListeners.Length; i++)
 				{
-					insertTriggerListener(conn, trigger, trigListeners[i]);
+					InsertTriggerListener(conn, trigger, trigListeners[i]);
 				}
 			}
 
@@ -1905,15 +1781,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateSimpleTrigger(OleDbConnection conn, SimpleTrigger trigger)
+		
+		public virtual int UpdateSimpleTrigger(IDbConnection conn, SimpleTrigger trigger)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_SIMPLE_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_SIMPLE_TRIGGER));
 
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.RepeatCount);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2,
@@ -1954,15 +1830,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateCronTrigger(OleDbConnection conn, CronTrigger trigger)
+		
+		public virtual int UpdateCronTrigger(IDbConnection conn, CronTrigger trigger)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_CRON_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_CRON_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.CronExpression);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, trigger.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, trigger.Group);
@@ -1998,8 +1874,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateBlobTrigger(OleDbConnection conn, Trigger trigger)
+		
+		public virtual int UpdateBlobTrigger(IDbConnection conn, Trigger trigger)
 		{
 			OleDbCommand ps = null;
 			MemoryStream os = null;
@@ -2018,7 +1894,7 @@ namespace Quartz.Impl.AdoJobStore
 				MemoryStream is_Renamed = new MemoryStream(SupportClass.ToByteArray(buf));
 
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_BLOB_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_BLOB_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, is_Renamed);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, trigger.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, trigger.Group);
@@ -2061,8 +1937,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if the trigger exists, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual bool triggerExists(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual bool TriggerExists(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -2072,7 +1948,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_TRIGGER_EXISTENCE));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGER_EXISTENCE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -2131,15 +2007,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerState(OleDbConnection conn, String triggerName, String groupName, String state)
+		
+		public virtual int UpdateTriggerState(IDbConnection conn, string triggerName, string groupName, string state)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_TRIGGER_STATE));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_TRIGGER_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, state);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, groupName);
@@ -2192,10 +2068,10 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerStateFromOtherStates(OleDbConnection conn, String triggerName, String groupName,
-		                                                     String newState, String oldState1, String oldState2,
-		                                                     String oldState3)
+		
+		public virtual int UpdateTriggerStateFromOtherStates(IDbConnection conn, string triggerName, string groupName,
+		                                                     string newState, string oldState1, string oldState2,
+		                                                     string oldState3)
 		{
 			OleDbCommand ps = null;
 
@@ -2203,8 +2079,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.UPDATE_TRIGGER_STATE_FROM_STATES));
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.UPDATE_TRIGGER_STATE_FROM_STATES));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, newState);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, groupName);
@@ -2230,9 +2106,9 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerStateFromOtherStatesBeforeTime(OleDbConnection conn, String newState, String oldState1,
-		                                                               String oldState2, long time)
+		
+		public virtual int UpdateTriggerStateFromOtherStatesBeforeTime(IDbConnection conn, string newState, string oldState1,
+		                                                               string oldState2, long time)
 		{
 			OleDbCommand ps = null;
 
@@ -2240,8 +2116,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.
 					                                                         		UPDATE_TRIGGER_STATE_FROM_OTHER_STATES_BEFORE_TIME));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, newState);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, oldState1);
@@ -2293,9 +2169,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerGroupStateFromOtherStates(OleDbConnection conn, String groupName, String newState,
-		                                                          String oldState1, String oldState2, String oldState3)
+		
+		public virtual int UpdateTriggerGroupStateFromOtherStates(IDbConnection conn, string groupName, string newState,
+		                                                          string oldState1, string oldState2, string oldState3)
 		{
 			OleDbCommand ps = null;
 
@@ -2303,8 +2179,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.
 					                                                         		UPDATE_TRIGGER_GROUP_STATE_FROM_STATES));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, newState);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
@@ -2354,9 +2230,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerStateFromOtherState(OleDbConnection conn, String triggerName, String groupName,
-		                                                    String newState, String oldState)
+		
+		public virtual int UpdateTriggerStateFromOtherState(IDbConnection conn, string triggerName, string groupName,
+		                                                    string newState, string oldState)
 		{
 			OleDbCommand ps = null;
 
@@ -2364,8 +2240,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.UPDATE_TRIGGER_STATE_FROM_STATE));
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.UPDATE_TRIGGER_STATE_FROM_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, newState);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, groupName);
@@ -2410,9 +2286,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerGroupStateFromOtherState(OleDbConnection conn, String groupName, String newState,
-		                                                         String oldState)
+		
+		public virtual int UpdateTriggerGroupStateFromOtherState(IDbConnection conn, string groupName, string newState,
+		                                                         string oldState)
 		{
 			OleDbCommand ps = null;
 
@@ -2420,8 +2296,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.
 					                                                         		UPDATE_TRIGGER_GROUP_STATE_FROM_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, newState);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
@@ -2464,8 +2340,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerStatesForJob(OleDbConnection conn, String jobName, String groupName, String state)
+		
+		public virtual int UpdateTriggerStatesForJob(IDbConnection conn, string jobName, string groupName, string state)
 		{
 			OleDbCommand ps = null;
 
@@ -2473,7 +2349,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.UPDATE_JOB_TRIGGER_STATES));
+					                                                         ReplaceTablePrefix(StdAdoConstants.UPDATE_JOB_TRIGGER_STATES));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, state);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, groupName);
@@ -2496,9 +2372,9 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateTriggerStatesForJobFromOtherState(OleDbConnection conn, String jobName, String groupName,
-		                                                           String state, String oldState)
+		
+		public virtual int UpdateTriggerStatesForJobFromOtherState(IDbConnection conn, string jobName, string groupName,
+		                                                           string state, string oldState)
 		{
 			OleDbCommand ps = null;
 
@@ -2506,8 +2382,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.
 					                                                         		UPDATE_JOB_TRIGGER_STATES_FROM_OTHER_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, state);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, jobName);
@@ -2548,8 +2424,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteTriggerListeners(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual int DeleteTriggerListeners(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 
@@ -2557,7 +2433,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.DELETE_TRIGGER_LISTENERS));
+					                                                         ReplaceTablePrefix(StdAdoConstants.DELETE_TRIGGER_LISTENERS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
@@ -2594,15 +2470,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertTriggerListener(OleDbConnection conn, Trigger trigger, String listener)
+		
+		public virtual int InsertTriggerListener(IDbConnection conn, Trigger trigger, string listener)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_TRIGGER_LISTENER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_TRIGGER_LISTENER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, trigger.Group);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, listener);
@@ -2641,8 +2517,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> array of <code>String</code> trigger listener names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual String[] selectTriggerListeners(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual String[] SelectTriggerListeners(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -2652,7 +2528,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_TRIGGER_LISTENERS));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGER_LISTENERS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -2709,15 +2585,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteSimpleTrigger(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual int DeleteSimpleTrigger(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_SIMPLE_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_SIMPLE_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 
@@ -2755,15 +2631,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteCronTrigger(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual int DeleteCronTrigger(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_CRON_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_CRON_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 
@@ -2801,15 +2677,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteBlobTrigger(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual int DeleteBlobTrigger(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_BLOB_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_BLOB_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 
@@ -2847,14 +2723,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteTrigger(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual int DeleteTrigger(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_TRIGGER));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 
@@ -2892,8 +2768,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of triggers for the given job
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int selectNumTriggersForJob(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual int SelectNumTriggersForJob(IDbConnection conn, string jobName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -2903,7 +2779,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_NUM_TRIGGERS_FOR_JOB));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_NUM_TRIGGERS_FOR_JOB));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -2962,9 +2838,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// </returns>
 		/// <throws>  SQLException </throws>
 		/// <throws>  ClassNotFoundException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual JobDetail selectJobForTrigger(OleDbConnection conn, String triggerName, String groupName,
-		                                             ClassLoadHelper loadHelper)
+		
+		public virtual JobDetail SelectJobForTrigger(IDbConnection conn, string triggerName, string groupName,
+		                                             IClassLoadHelper loadHelper)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -2973,7 +2849,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_JOB_FOR_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_JOB_FOR_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -3039,8 +2915,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// associated with a given job.
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Trigger[] selectTriggersForJob(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual Trigger[] SelectTriggersForJob(IDbConnection conn, string jobName, string groupName)
 		{
 			ArrayList trigList = new ArrayList();
 			OleDbCommand ps = null;
@@ -3050,7 +2926,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_TRIGGERS_FOR_JOB));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGERS_FOR_JOB));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -3058,8 +2934,8 @@ namespace Quartz.Impl.AdoJobStore
 				while (rs.Read())
 				{
 					trigList.Add(
-						selectTrigger(conn, Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]),
-						              Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP])));
+						SelectTrigger(conn, Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]),
+						              Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP])));
 				}
 			}
 			finally
@@ -3090,8 +2966,8 @@ namespace Quartz.Impl.AdoJobStore
 			return (Trigger[]) SupportClass.ICollectionSupport.ToArray(trigList, new Trigger[trigList.Count]);
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Trigger[] selectTriggersForCalendar(OleDbConnection conn, String calName)
+		
+		public virtual Trigger[] SelectTriggersForCalendar(IDbConnection conn, string calName)
 		{
 			ArrayList trigList = new ArrayList();
 			OleDbCommand ps = null;
@@ -3102,15 +2978,15 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_TRIGGERS_FOR_CALENDAR));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGERS_FOR_CALENDAR));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, calName);
 				rs = ps.ExecuteReader();
 
 				while (rs.Read())
 				{
 					trigList.Add(
-						selectTrigger(conn, Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]),
-						              Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP])));
+						SelectTrigger(conn, Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]),
+						              Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP])));
 				}
 			}
 			finally
@@ -3141,8 +3017,8 @@ namespace Quartz.Impl.AdoJobStore
 			return (Trigger[]) SupportClass.ICollectionSupport.ToArray(trigList, new Trigger[trigList.Count]);
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual IList selectStatefulJobsOfTriggerGroup(OleDbConnection conn, String groupName)
+		
+		public virtual IList SelectStatefulJobsOfTriggerGroup(IDbConnection conn, string groupName)
 		{
 			ArrayList jobList = new ArrayList();
 			OleDbCommand ps = null;
@@ -3153,8 +3029,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.
 					                                                         		SELECT_STATEFUL_JOBS_OF_TRIGGER_GROUP));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, true);
@@ -3163,7 +3039,7 @@ namespace Quartz.Impl.AdoJobStore
 				while (rs.Read())
 				{
 					jobList.Add(
-						new Key(Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]), Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP])));
+						new Key(Convert.ToString(rs[AdoConstants.COL_JOB_NAME]), Convert.ToString(rs[AdoConstants.COL_JOB_GROUP])));
 				}
 			}
 			finally
@@ -3210,8 +3086,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the <code>{@link org.quartz.Trigger}</code> object
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Trigger selectTrigger(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual Trigger SelectTrigger(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3221,33 +3097,33 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				Trigger trigger = null;
 
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_TRIGGER));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
 
 				if (rs.Read())
 				{
-					String jobName = Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]);
-					String jobGroup = Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP]);
-					bool volatility = Convert.ToBoolean(rs[Constants_Fields.COL_IS_VOLATILE]);
-					String description = Convert.ToString(rs[Constants_Fields.COL_DESCRIPTION]);
-					long nextFireTime = Convert.ToInt64(rs[Constants_Fields.COL_NEXT_FIRE_TIME]);
-					long prevFireTime = Convert.ToInt64(rs[Constants_Fields.COL_PREV_FIRE_TIME]);
-					String triggerType = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_TYPE]);
-					long startTime = Convert.ToInt64(rs[Constants_Fields.COL_START_TIME]);
-					long endTime = Convert.ToInt64(rs[Constants_Fields.COL_END_TIME]);
-					String calendarName = Convert.ToString(rs[Constants_Fields.COL_CALENDAR_NAME]);
-					int misFireInstr = Convert.ToInt32(rs[Constants_Fields.COL_MISFIRE_INSTRUCTION]);
+					String jobName = Convert.ToString(rs[AdoConstants.COL_JOB_NAME]);
+					String jobGroup = Convert.ToString(rs[AdoConstants.COL_JOB_GROUP]);
+					bool volatility = Convert.ToBoolean(rs[AdoConstants.COL_IS_VOLATILE]);
+					String description = Convert.ToString(rs[AdoConstants.COL_DESCRIPTION]);
+					long nextFireTime = Convert.ToInt64(rs[AdoConstants.COL_NEXT_FIRE_TIME]);
+					long prevFireTime = Convert.ToInt64(rs[AdoConstants.COL_PREV_FIRE_TIME]);
+					String triggerType = Convert.ToString(rs[AdoConstants.COL_TRIGGER_TYPE]);
+					long startTime = Convert.ToInt64(rs[AdoConstants.COL_START_TIME]);
+					long endTime = Convert.ToInt64(rs[AdoConstants.COL_END_TIME]);
+					String calendarName = Convert.ToString(rs[AdoConstants.COL_CALENDAR_NAME]);
+					int misFireInstr = Convert.ToInt32(rs[AdoConstants.COL_MISFIRE_INSTRUCTION]);
 
 					IDictionary map = null;
-					if (canUseProperties())
+					if (CanUseProperties())
 					{
-						map = getMapFromProperties(rs);
+						map = GetMapFromProperties(rs);
 					}
 					else
 					{
-						map = (IDictionary) getObjectFromBlob(rs, Constants_Fields.COL_JOB_DATAMAP);
+						map = (IDictionary) GetObjectFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
 					}
 
 					//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
@@ -3278,19 +3154,19 @@ namespace Quartz.Impl.AdoJobStore
 					//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
 					ps.close();
 
-					if (triggerType.Equals(Constants_Fields.TTYPE_SIMPLE))
+					if (triggerType.Equals(AdoConstants.TTYPE_SIMPLE))
 					{
 						ps =
-							SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_SIMPLE_TRIGGER));
+							SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_SIMPLE_TRIGGER));
 						SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 						SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 						rs = ps.ExecuteReader();
 
 						if (rs.Read())
 						{
-							int repeatCount = Convert.ToInt32(rs[Constants_Fields.COL_REPEAT_COUNT]);
-							long repeatInterval = Convert.ToInt64(rs[Constants_Fields.COL_REPEAT_INTERVAL]);
-							int timesTriggered = Convert.ToInt32(rs[Constants_Fields.COL_TIMES_TRIGGERED]);
+							int repeatCount = Convert.ToInt32(rs[AdoConstants.COL_REPEAT_COUNT]);
+							long repeatInterval = Convert.ToInt64(rs[AdoConstants.COL_REPEAT_INTERVAL]);
+							int timesTriggered = Convert.ToInt32(rs[AdoConstants.COL_TIMES_TRIGGERED]);
 
 							//UPGRADE_NOTE: ref keyword was added to struct-type parameters. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1303_3"'
 							SimpleTrigger st =
@@ -3312,18 +3188,18 @@ namespace Quartz.Impl.AdoJobStore
 							trigger = st;
 						}
 					}
-					else if (triggerType.Equals(Constants_Fields.TTYPE_CRON))
+					else if (triggerType.Equals(AdoConstants.TTYPE_CRON))
 					{
 						ps =
-							SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_CRON_TRIGGER));
+							SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_CRON_TRIGGER));
 						SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 						SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 						rs = ps.ExecuteReader();
 
 						if (rs.Read())
 						{
-							String cronExpr = Convert.ToString(rs[Constants_Fields.COL_CRON_EXPRESSION]);
-							String timeZoneId = Convert.ToString(rs[Constants_Fields.COL_TIME_ZONE_ID]);
+							String cronExpr = Convert.ToString(rs[AdoConstants.COL_CRON_EXPRESSION]);
+							String timeZoneId = Convert.ToString(rs[AdoConstants.COL_TIME_ZONE_ID]);
 
 							CronTrigger ct = null;
 							try
@@ -3361,17 +3237,17 @@ namespace Quartz.Impl.AdoJobStore
 							}
 						}
 					}
-					else if (triggerType.Equals(Constants_Fields.TTYPE_BLOB))
+					else if (triggerType.Equals(AdoConstants.TTYPE_BLOB))
 					{
 						ps =
-							SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_BLOB_TRIGGER));
+							SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_BLOB_TRIGGER));
 						SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 						SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 						rs = ps.ExecuteReader();
 
 						if (rs.Read())
 						{
-							trigger = (Trigger) getObjectFromBlob(rs, Constants_Fields.COL_BLOB);
+							trigger = (Trigger) GetObjectFromBlob(rs, AdoConstants.COL_BLOB);
 						}
 					}
 					else
@@ -3426,8 +3302,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> the <code>{@link org.quartz.JobDataMap}</code> of the Trigger,
 		/// never null, but possibly empty.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual JobDataMap selectTriggerJobDataMap(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual JobDataMap SelectTriggerJobDataMap(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3438,7 +3314,7 @@ namespace Quartz.Impl.AdoJobStore
 				Trigger trigger = null;
 
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_TRIGGER_DATA));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGER_DATA));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
@@ -3446,13 +3322,13 @@ namespace Quartz.Impl.AdoJobStore
 				if (rs.Read())
 				{
 					IDictionary map = null;
-					if (canUseProperties())
+					if (CanUseProperties())
 					{
-						map = getMapFromProperties(rs);
+						map = GetMapFromProperties(rs);
 					}
 					else
 					{
-						map = (IDictionary) getObjectFromBlob(rs, Constants_Fields.COL_JOB_DATAMAP);
+						map = (IDictionary) GetObjectFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
 					}
 
 					rs.Close();
@@ -3510,8 +3386,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the <code>{@link org.quartz.Trigger}</code> object
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual String selectTriggerState(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual string SelectTriggerState(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3522,18 +3398,18 @@ namespace Quartz.Impl.AdoJobStore
 				String state = null;
 
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_TRIGGER_STATE));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGER_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
 
 				if (rs.Read())
 				{
-					state = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_STATE]);
+					state = Convert.ToString(rs[AdoConstants.COL_TRIGGER_STATE]);
 				}
 				else
 				{
-					state = Constants_Fields.STATE_DELETED;
+					state = AdoConstants.STATE_DELETED;
 				}
 
 				return String.Intern(state);
@@ -3580,8 +3456,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> a <code>TriggerStatus</code> object, or null
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual TriggerStatus selectTriggerStatus(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual TriggerStatus SelectTriggerStatus(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3592,17 +3468,17 @@ namespace Quartz.Impl.AdoJobStore
 				TriggerStatus status = null;
 
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_TRIGGER_STATUS));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGER_STATUS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				rs = ps.ExecuteReader();
 
 				if (rs.Read())
 				{
-					String state = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_STATE]);
-					long nextFireTime = Convert.ToInt64(rs[Constants_Fields.COL_NEXT_FIRE_TIME]);
-					String jobName = Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]);
-					String jobGroup = Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP]);
+					String state = Convert.ToString(rs[AdoConstants.COL_TRIGGER_STATE]);
+					long nextFireTime = Convert.ToInt64(rs[AdoConstants.COL_NEXT_FIRE_TIME]);
+					String jobName = Convert.ToString(rs[AdoConstants.COL_JOB_NAME]);
+					String jobGroup = Convert.ToString(rs[AdoConstants.COL_JOB_GROUP]);
 
 					//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
 					DateTime nft = null;
@@ -3656,8 +3532,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the total number of triggers stored
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int selectNumTriggers(OleDbConnection conn)
+		
+		public virtual int SelectNumTriggers(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3667,7 +3543,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				int count = 0;
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_NUM_TRIGGERS));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_NUM_TRIGGERS));
 				rs = ps.ExecuteReader();
 
 				if (rs.Read())
@@ -3713,8 +3589,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> group names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual String[] selectTriggerGroups(OleDbConnection conn)
+		
+		public virtual String[] SelectTriggerGroups(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3723,7 +3599,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_TRIGGER_GROUPS));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGER_GROUPS));
 				rs = ps.ExecuteReader();
 
 				ArrayList list = new ArrayList();
@@ -3776,8 +3652,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> trigger names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual String[] selectTriggersInGroup(OleDbConnection conn, String groupName)
+		
+		public virtual String[] SelectTriggersInGroup(IDbConnection conn, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3787,7 +3663,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_TRIGGERS_IN_GROUP));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGERS_IN_GROUP));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				rs = ps.ExecuteReader();
 
@@ -3828,8 +3704,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertPausedTriggerGroup(OleDbConnection conn, String groupName)
+		
+		public virtual int InsertPausedTriggerGroup(IDbConnection conn, string groupName)
 		{
 			OleDbCommand ps = null;
 
@@ -3837,7 +3713,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.INSERT_PAUSED_TRIGGER_GROUP));
+					                                                         ReplaceTablePrefix(StdAdoConstants.INSERT_PAUSED_TRIGGER_GROUP));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				int rows = SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
 
@@ -3859,8 +3735,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deletePausedTriggerGroup(OleDbConnection conn, String groupName)
+		
+		public virtual int DeletePausedTriggerGroup(IDbConnection conn, string groupName)
 		{
 			OleDbCommand ps = null;
 
@@ -3868,7 +3744,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.DELETE_PAUSED_TRIGGER_GROUP));
+					                                                         ReplaceTablePrefix(StdAdoConstants.DELETE_PAUSED_TRIGGER_GROUP));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				int rows = SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
 
@@ -3890,8 +3766,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteAllPausedTriggerGroups(OleDbConnection conn)
+		
+		public virtual int DeleteAllPausedTriggerGroups(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 
@@ -3899,7 +3775,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.DELETE_PAUSED_TRIGGER_GROUPS));
+					                                                         ReplaceTablePrefix(StdAdoConstants.DELETE_PAUSED_TRIGGER_GROUPS));
 				int rows = SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
 
 				return rows;
@@ -3920,8 +3796,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual bool isTriggerGroupPaused(OleDbConnection conn, String groupName)
+		
+		public virtual bool IsTriggerGroupPaused(IDbConnection conn, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3931,7 +3807,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_PAUSED_TRIGGER_GROUP));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_PAUSED_TRIGGER_GROUP));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				rs = ps.ExecuteReader();
 
@@ -3963,8 +3839,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual bool isExistingTriggerGroup(OleDbConnection conn, String groupName)
+		
+		public virtual bool IsExistingTriggerGroup(IDbConnection conn, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -3974,7 +3850,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_NUM_TRIGGERS_IN_GROUP));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_NUM_TRIGGERS_IN_GROUP));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				rs = ps.ExecuteReader();
 
@@ -4034,16 +3910,16 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the calendar
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertCalendar(OleDbConnection conn, String calendarName, ICalendar calendar)
+		
+		public virtual int InsertCalendar(IDbConnection conn, string calendarName, ICalendar calendar)
 		{
-			MemoryStream baos = serializeObject(calendar);
+			MemoryStream baos = SerializeObject(calendar);
 
 			OleDbCommand ps = null;
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_CALENDAR));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_CALENDAR));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, calendarName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, SupportClass.ToSByteArray(baos.ToArray()));
 
@@ -4084,16 +3960,16 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the calendar
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateCalendar(OleDbConnection conn, String calendarName, ICalendar calendar)
+		
+		public virtual int UpdateCalendar(IDbConnection conn, string calendarName, ICalendar calendar)
 		{
-			MemoryStream baos = serializeObject(calendar);
+			MemoryStream baos = SerializeObject(calendar);
 
 			OleDbCommand ps = null;
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_CALENDAR));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_CALENDAR));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, SupportClass.ToSByteArray(baos.ToArray()));
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, calendarName);
 
@@ -4128,8 +4004,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if the trigger exists, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual bool calendarExists(OleDbConnection conn, String calendarName)
+		
+		public virtual bool CalendarExists(IDbConnection conn, string calendarName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4139,7 +4015,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_CALENDAR_EXISTENCE));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_CALENDAR_EXISTENCE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, calendarName);
 				rs = ps.ExecuteReader();
 
@@ -4198,15 +4074,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems deserializing the calendar
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual ICalendar selectCalendar(OleDbConnection conn, String calendarName)
+		
+		public virtual ICalendar SelectCalendar(IDbConnection conn, string calendarName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
 			OleDbDataReader rs = null;
 			try
 			{
-				String selCal = rtp(StdJDBCConstants_Fields.SELECT_CALENDAR);
+				String selCal = ReplaceTablePrefix(StdAdoConstants.SELECT_CALENDAR);
 				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, selCal);
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, calendarName);
 				rs = ps.ExecuteReader();
@@ -4214,7 +4090,7 @@ namespace Quartz.Impl.AdoJobStore
 				ICalendar cal = null;
 				if (rs.Read())
 				{
-					cal = (ICalendar) getObjectFromBlob(rs, Constants_Fields.COL_CALENDAR);
+					cal = (ICalendar) GetObjectFromBlob(rs, AdoConstants.COL_CALENDAR);
 				}
 				if (null == cal)
 				{
@@ -4261,8 +4137,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if any triggers reference the calendar, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual bool calendarIsReferenced(OleDbConnection conn, String calendarName)
+		
+		public virtual bool CalendarIsReferenced(IDbConnection conn, string calendarName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4271,7 +4147,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_REFERENCED_CALENDAR));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_REFERENCED_CALENDAR));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, calendarName);
 				rs = ps.ExecuteReader();
 
@@ -4323,14 +4199,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteCalendar(OleDbConnection conn, String calendarName)
+		
+		public virtual int DeleteCalendar(IDbConnection conn, string calendarName)
 		{
 			OleDbCommand ps = null;
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_CALENDAR));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_CALENDAR));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, calendarName);
 
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
@@ -4361,8 +4237,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the total number of calendars stored
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int selectNumCalendars(OleDbConnection conn)
+		
+		public virtual int SelectNumCalendars(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4372,7 +4248,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				int count = 0;
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_NUM_CALENDARS));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_NUM_CALENDARS));
 
 				rs = ps.ExecuteReader();
 
@@ -4419,8 +4295,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> calendar names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual String[] selectCalendars(OleDbConnection conn)
+		
+		public virtual String[] SelectCalendars(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4428,7 +4304,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_CALENDARS));
+				ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_CALENDARS));
 				rs = ps.ExecuteReader();
 
 				ArrayList list = new ArrayList();
@@ -4482,8 +4358,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the next fire time, or 0 if no trigger will be fired
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual long selectNextFireTime(OleDbConnection conn)
+		
+		public virtual DateTime SelectNextFireTime(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4491,13 +4367,13 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_NEXT_FIRE_TIME));
-				SupportClass.TransactionManager.manager.SetValue(ps, 1, Constants_Fields.STATE_WAITING);
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_NEXT_FIRE_TIME));
+				SupportClass.TransactionManager.manager.SetValue(ps, 1, AdoConstants.STATE_WAITING);
 				rs = ps.ExecuteReader();
 
 				if (rs.Read())
 				{
-					return Convert.ToInt64(rs[Constants_Fields.ALIAS_COL_NEXT_FIRE_TIME]);
+					return Convert.ToInt64(rs[AdoConstants.ALIAS_COL_NEXT_FIRE_TIME]);
 				}
 				else
 				{
@@ -4545,8 +4421,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// trigger that will be fired at the given fire time, or null if no
 		/// trigger will be fired at that time
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Key selectTriggerForFireTime(OleDbConnection conn, long fireTime)
+		
+		public virtual Key SelectTriggerForFireTime(IDbConnection conn, DateTime fireTime)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4555,16 +4431,16 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_TRIGGER_FOR_FIRE_TIME));
-				SupportClass.TransactionManager.manager.SetValue(ps, 1, Constants_Fields.STATE_WAITING);
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_TRIGGER_FOR_FIRE_TIME));
+				SupportClass.TransactionManager.manager.SetValue(ps, 1, AdoConstants.STATE_WAITING);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, Decimal.Parse(Convert.ToString(fireTime), NumberStyles.Any));
 				rs = ps.ExecuteReader();
 
 				if (rs.Read())
 				{
 					return
-						new Key(Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]),
-						        Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]));
+						new Key(Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]),
+						        Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]));
 				}
 				else
 				{
@@ -4590,7 +4466,7 @@ namespace Quartz.Impl.AdoJobStore
 						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
 						ps.close();
 					}
-					catch (OleDbException ignore)
+					catch (OleDbException)
 					{
 					}
 				}
@@ -4613,14 +4489,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertFiredTrigger(OleDbConnection conn, Trigger trigger, String state, JobDetail job)
+		
+		public virtual int InsertFiredTrigger(IDbConnection conn, Trigger trigger, string state, JobDetail job)
 		{
 			OleDbCommand ps = null;
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_FIRED_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_FIRED_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, trigger.FireInstanceId);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, trigger.Name);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, trigger.Group);
@@ -4672,8 +4548,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns> a List of FiredTriggerRecord objects.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual IList selectFiredTriggerRecords(OleDbConnection conn, String triggerName, String groupName)
+		
+		public virtual IList SelectFiredTriggerRecords(IDbConnection conn, string triggerName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4686,7 +4562,7 @@ namespace Quartz.Impl.AdoJobStore
 				if (triggerName != null)
 				{
 					ps =
-						SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_FIRED_TRIGGER));
+						SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_FIRED_TRIGGER));
 					SupportClass.TransactionManager.manager.SetValue(ps, 1, triggerName);
 					SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				}
@@ -4694,7 +4570,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					ps =
 						SupportClass.TransactionManager.manager.PrepareStatement(conn,
-						                                                         rtp(StdJDBCConstants_Fields.SELECT_FIRED_TRIGGER_GROUP));
+						                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_FIRED_TRIGGER_GROUP));
 					SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				}
 				rs = ps.ExecuteReader();
@@ -4703,20 +4579,20 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					FiredTriggerRecord rec = new FiredTriggerRecord();
 
-					rec.FireInstanceId = Convert.ToString(rs[Constants_Fields.COL_ENTRY_ID]);
-					rec.FireInstanceState = Convert.ToString(rs[Constants_Fields.COL_ENTRY_STATE]);
-					rec.FireTimestamp = Convert.ToInt64(rs[Constants_Fields.COL_FIRED_TIME]);
-					rec.SchedulerInstanceId = Convert.ToString(rs[Constants_Fields.COL_INSTANCE_NAME]);
-					rec.TriggerIsVolatile = Convert.ToBoolean(rs[Constants_Fields.COL_IS_VOLATILE]);
+					rec.FireInstanceId = Convert.ToString(rs[AdoConstants.COL_ENTRY_ID]);
+					rec.FireInstanceState = Convert.ToString(rs[AdoConstants.COL_ENTRY_STATE]);
+					rec.FireTimestamp = Convert.ToInt64(rs[AdoConstants.COL_FIRED_TIME]);
+					rec.SchedulerInstanceId = Convert.ToString(rs[AdoConstants.COL_INSTANCE_NAME]);
+					rec.TriggerIsVolatile = Convert.ToBoolean(rs[AdoConstants.COL_IS_VOLATILE]);
 					rec.TriggerKey =
-						new Key(Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]),
-						        Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]));
-					if (!rec.FireInstanceState.Equals(Constants_Fields.STATE_ACQUIRED))
+						new Key(Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]),
+						        Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]));
+					if (!rec.FireInstanceState.Equals(AdoConstants.STATE_ACQUIRED))
 					{
-						rec.JobIsStateful = Convert.ToBoolean(rs[Constants_Fields.COL_IS_STATEFUL]);
-						rec.JobRequestsRecovery = Convert.ToBoolean(rs[Constants_Fields.COL_REQUESTS_RECOVERY]);
+						rec.JobIsStateful = Convert.ToBoolean(rs[AdoConstants.COL_IS_STATEFUL]);
+						rec.JobRequestsRecovery = Convert.ToBoolean(rs[AdoConstants.COL_REQUESTS_RECOVERY]);
 						rec.JobKey =
-							new Key(Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]), Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP]));
+							new Key(Convert.ToString(rs[AdoConstants.COL_JOB_NAME]), Convert.ToString(rs[AdoConstants.COL_JOB_GROUP]));
 					}
 					lst.Add(rec);
 				}
@@ -4757,8 +4633,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns> a List of FiredTriggerRecord objects.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual IList selectFiredTriggerRecordsByJob(OleDbConnection conn, String jobName, String groupName)
+		
+		public virtual IList SelectFiredTriggerRecordsByJob(IDbConnection conn, string jobName, string groupName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4772,7 +4648,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					ps =
 						SupportClass.TransactionManager.manager.PrepareStatement(conn,
-						                                                         rtp(StdJDBCConstants_Fields.SELECT_FIRED_TRIGGERS_OF_JOB));
+						                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_FIRED_TRIGGERS_OF_JOB));
 					SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 					SupportClass.TransactionManager.manager.SetValue(ps, 2, groupName);
 				}
@@ -4780,8 +4656,8 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					ps =
 						SupportClass.TransactionManager.manager.PrepareStatement(conn,
-						                                                         rtp(
-						                                                         	StdJDBCConstants_Fields.
+						                                                         ReplaceTablePrefix(
+						                                                         	StdAdoConstants.
 						                                                         		SELECT_FIRED_TRIGGERS_OF_JOB_GROUP));
 					SupportClass.TransactionManager.manager.SetValue(ps, 1, groupName);
 				}
@@ -4791,20 +4667,20 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					FiredTriggerRecord rec = new FiredTriggerRecord();
 
-					rec.FireInstanceId = Convert.ToString(rs[Constants_Fields.COL_ENTRY_ID]);
-					rec.FireInstanceState = Convert.ToString(rs[Constants_Fields.COL_ENTRY_STATE]);
-					rec.FireTimestamp = Convert.ToInt64(rs[Constants_Fields.COL_FIRED_TIME]);
-					rec.SchedulerInstanceId = Convert.ToString(rs[Constants_Fields.COL_INSTANCE_NAME]);
-					rec.TriggerIsVolatile = Convert.ToBoolean(rs[Constants_Fields.COL_IS_VOLATILE]);
+					rec.FireInstanceId = Convert.ToString(rs[AdoConstants.COL_ENTRY_ID]);
+					rec.FireInstanceState = Convert.ToString(rs[AdoConstants.COL_ENTRY_STATE]);
+					rec.FireTimestamp = Convert.ToInt64(rs[AdoConstants.COL_FIRED_TIME]);
+					rec.SchedulerInstanceId = Convert.ToString(rs[AdoConstants.COL_INSTANCE_NAME]);
+					rec.TriggerIsVolatile = Convert.ToBoolean(rs[AdoConstants.COL_IS_VOLATILE]);
 					rec.TriggerKey =
-						new Key(Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]),
-						        Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]));
-					if (!rec.FireInstanceState.Equals(Constants_Fields.STATE_ACQUIRED))
+						new Key(Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]),
+						        Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]));
+					if (!rec.FireInstanceState.Equals(AdoConstants.STATE_ACQUIRED))
 					{
-						rec.JobIsStateful = Convert.ToBoolean(rs[Constants_Fields.COL_IS_STATEFUL]);
-						rec.JobRequestsRecovery = Convert.ToBoolean(rs[Constants_Fields.COL_REQUESTS_RECOVERY]);
+						rec.JobIsStateful = Convert.ToBoolean(rs[AdoConstants.COL_IS_STATEFUL]);
+						rec.JobRequestsRecovery = Convert.ToBoolean(rs[AdoConstants.COL_REQUESTS_RECOVERY]);
 						rec.JobKey =
-							new Key(Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]), Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP]));
+							new Key(Convert.ToString(rs[AdoConstants.COL_JOB_NAME]), Convert.ToString(rs[AdoConstants.COL_JOB_GROUP]));
 					}
 					lst.Add(rec);
 				}
@@ -4837,8 +4713,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual IList selectInstancesFiredTriggerRecords(OleDbConnection conn, String instanceName)
+		
+		public virtual IList SelectInstancesFiredTriggerRecords(IDbConnection conn, string instanceName)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4850,8 +4726,8 @@ namespace Quartz.Impl.AdoJobStore
 
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(
-					                                                         	StdJDBCConstants_Fields.SELECT_INSTANCES_FIRED_TRIGGERS));
+					                                                         ReplaceTablePrefix(
+					                                                         	StdAdoConstants.SELECT_INSTANCES_FIRED_TRIGGERS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, instanceName);
 				rs = ps.ExecuteReader();
 
@@ -4859,20 +4735,20 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					FiredTriggerRecord rec = new FiredTriggerRecord();
 
-					rec.FireInstanceId = Convert.ToString(rs[Constants_Fields.COL_ENTRY_ID]);
-					rec.FireInstanceState = Convert.ToString(rs[Constants_Fields.COL_ENTRY_STATE]);
-					rec.FireTimestamp = Convert.ToInt64(rs[Constants_Fields.COL_FIRED_TIME]);
-					rec.SchedulerInstanceId = Convert.ToString(rs[Constants_Fields.COL_INSTANCE_NAME]);
-					rec.TriggerIsVolatile = Convert.ToBoolean(rs[Constants_Fields.COL_IS_VOLATILE]);
+					rec.FireInstanceId = Convert.ToString(rs[AdoConstants.COL_ENTRY_ID]);
+					rec.FireInstanceState = Convert.ToString(rs[AdoConstants.COL_ENTRY_STATE]);
+					rec.FireTimestamp = Convert.ToInt64(rs[AdoConstants.COL_FIRED_TIME]);
+					rec.SchedulerInstanceId = Convert.ToString(rs[AdoConstants.COL_INSTANCE_NAME]);
+					rec.TriggerIsVolatile = Convert.ToBoolean(rs[AdoConstants.COL_IS_VOLATILE]);
 					rec.TriggerKey =
-						new Key(Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]),
-						        Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]));
-					if (!rec.FireInstanceState.Equals(Constants_Fields.STATE_ACQUIRED))
+						new Key(Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]),
+						        Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]));
+					if (!rec.FireInstanceState.Equals(AdoConstants.STATE_ACQUIRED))
 					{
-						rec.JobIsStateful = Convert.ToBoolean(rs[Constants_Fields.COL_IS_STATEFUL]);
-						rec.JobRequestsRecovery = Convert.ToBoolean(rs[Constants_Fields.COL_REQUESTS_RECOVERY]);
+						rec.JobIsStateful = Convert.ToBoolean(rs[AdoConstants.COL_IS_STATEFUL]);
+						rec.JobRequestsRecovery = Convert.ToBoolean(rs[AdoConstants.COL_REQUESTS_RECOVERY]);
 						rec.JobKey =
-							new Key(Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]), Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP]));
+							new Key(Convert.ToString(rs[AdoConstants.COL_JOB_NAME]), Convert.ToString(rs[AdoConstants.COL_JOB_GROUP]));
 					}
 					lst.Add(rec);
 				}
@@ -4918,14 +4794,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteFiredTrigger(OleDbConnection conn, String entryId)
+		
+		public virtual int DeleteFiredTrigger(IDbConnection conn, string entryId)
 		{
 			OleDbCommand ps = null;
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_FIRED_TRIGGER));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_FIRED_TRIGGER));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, entryId);
 
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
@@ -4946,8 +4822,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int selectJobExecutionCount(OleDbConnection conn, String jobName, String jobGroup)
+		
+		public virtual int SelectJobExecutionCount(IDbConnection conn, string jobName, string jobGroup)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -4957,7 +4833,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_JOB_EXECUTION_COUNT));
+					                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_JOB_EXECUTION_COUNT));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, jobName);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, jobGroup);
 
@@ -4998,15 +4874,15 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteVolatileFiredTriggers(OleDbConnection conn)
+		
+		public virtual int DeleteVolatileFiredTriggers(IDbConnection conn)
 		{
 			OleDbCommand ps = null;
 			try
 			{
 				ps =
 					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.DELETE_VOLATILE_FIRED_TRIGGERS));
+					                                                         ReplaceTablePrefix(StdAdoConstants.DELETE_VOLATILE_FIRED_TRIGGERS));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, true);
 
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
@@ -5027,15 +4903,15 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int insertSchedulerState(OleDbConnection conn, String instanceId, long checkInTime, long interval,
-		                                        String recoverer)
+		
+		public virtual int InsertSchedulerState(IDbConnection conn, string instanceId, long checkInTime, long interval,
+		                                        string recoverer)
 		{
 			OleDbCommand ps = null;
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.INSERT_SCHEDULER_STATE));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.INSERT_SCHEDULER_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, instanceId);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, checkInTime);
 				SupportClass.TransactionManager.manager.SetValue(ps, 3, interval);
@@ -5059,14 +4935,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int deleteSchedulerState(OleDbConnection conn, String instanceId)
+		
+		public virtual int DeleteSchedulerState(IDbConnection conn, string instanceId)
 		{
 			OleDbCommand ps = null;
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.DELETE_SCHEDULER_STATE));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.DELETE_SCHEDULER_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, instanceId);
 
 				return SupportClass.TransactionManager.manager.ExecuteUpdate(ps);
@@ -5087,14 +4963,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual int updateSchedulerState(OleDbConnection conn, String instanceId, long checkInTime)
+		
+		public virtual int UpdateSchedulerState(IDbConnection conn, string instanceId, long checkInTime)
 		{
 			OleDbCommand ps = null;
 			try
 			{
 				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.UPDATE_SCHEDULER_STATE));
+					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.UPDATE_SCHEDULER_STATE));
 				SupportClass.TransactionManager.manager.SetValue(ps, 1, checkInTime);
 				SupportClass.TransactionManager.manager.SetValue(ps, 2, instanceId);
 
@@ -5116,8 +4992,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual IList selectSchedulerStateRecords(OleDbConnection conn, String instanceId)
+		
+		public virtual IList SelectSchedulerStateRecords(IDbConnection conn, string instanceId)
 		{
 			OleDbCommand ps = null;
 			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
@@ -5130,14 +5006,14 @@ namespace Quartz.Impl.AdoJobStore
 				if (instanceId != null)
 				{
 					ps =
-						SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_SCHEDULER_STATE));
+						SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_SCHEDULER_STATE));
 					SupportClass.TransactionManager.manager.SetValue(ps, 1, instanceId);
 				}
 				else
 				{
 					ps =
 						SupportClass.TransactionManager.manager.PrepareStatement(conn,
-						                                                         rtp(StdJDBCConstants_Fields.SELECT_SCHEDULER_STATES));
+						                                                         ReplaceTablePrefix(StdAdoConstants.SELECT_SCHEDULER_STATES));
 				}
 				rs = ps.ExecuteReader();
 
@@ -5145,10 +5021,10 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					SchedulerStateRecord rec = new SchedulerStateRecord();
 
-					rec.SchedulerInstanceId = Convert.ToString(rs[Constants_Fields.COL_INSTANCE_NAME]);
-					rec.CheckinTimestamp = Convert.ToInt64(rs[Constants_Fields.COL_LAST_CHECKIN_TIME]);
-					rec.CheckinInterval = Convert.ToInt64(rs[Constants_Fields.COL_CHECKIN_INTERVAL]);
-					rec.Recoverer = Convert.ToString(rs[Constants_Fields.COL_RECOVERER]);
+					rec.SchedulerInstanceId = Convert.ToString(rs[AdoConstants.COL_INSTANCE_NAME]);
+					rec.CheckinTimestamp = Convert.ToInt64(rs[AdoConstants.COL_LAST_CHECKIN_TIME]);
+					rec.CheckinInterval = Convert.ToInt64(rs[AdoConstants.COL_CHECKIN_INTERVAL]);
+					rec.Recoverer = Convert.ToString(rs[AdoConstants.COL_RECOVERER]);
 
 					lst.Add(rec);
 				}
@@ -5196,9 +5072,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the query, with proper table prefix substituted
 		/// </returns>
-		protected internal String rtp(String query)
+		protected internal string ReplaceTablePrefix(String query)
 		{
-			return Util.rtp(query, tablePrefix);
+			return Util.ReplaceTablePrefix(query, tablePrefix);
 		}
 
 		/// <summary> <p>
@@ -5215,7 +5091,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if serialization causes an error
 		/// </summary>
-		protected internal virtual MemoryStream serializeObject(Object obj)
+		protected internal virtual MemoryStream SerializeObject(Object obj)
 		{
 			MemoryStream baos = new MemoryStream();
 			if (null != obj)
@@ -5243,32 +5119,32 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if serialization causes an error
 		/// </summary>
-		protected internal virtual MemoryStream serializeJobData(JobDataMap data)
+		protected internal virtual MemoryStream SerializeJobData(JobDataMap data)
 		{
-			if (canUseProperties())
+			if (CanUseProperties())
 			{
-				return serializeProperties(data);
+				return SerializeProperties(data);
 			}
 
 			if (null != data)
 			{
 				data.removeTransientData();
-				return serializeObject(data);
+				return SerializeObject(data);
 			}
 			else
 			{
-				return serializeObject((Object) null);
+				return SerializeObject((Object) null);
 			}
 		}
 
 		/// <summary> serialize the java.util.Properties</summary>
-		private MemoryStream serializeProperties(JobDataMap data)
+		private MemoryStream SerializeProperties(JobDataMap data)
 		{
 			MemoryStream ba = new MemoryStream();
 			if (null != data)
 			{
 				//UPGRADE_ISSUE: Class hierarchy differences between 'java.util.Properties' and 'System.Collections.Specialized.NameValueCollection' may cause compilation errors. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1186_3"'
-				NameValueCollection properties = convertToProperty(data.WrappedMap);
+				NameValueCollection properties = ConvertToProperty(data.WrappedMap);
 				//UPGRADE_ISSUE: Method 'java.util.Properties.store' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javautilPropertiesstore_javaioOutputStream_javalangString_3"'
 				properties.store(ba, "");
 			}
@@ -5278,7 +5154,7 @@ namespace Quartz.Impl.AdoJobStore
 
 		/// <summary> convert the JobDataMap into a list of properties</summary>
 		//UPGRADE_ISSUE: Class hierarchy differences between 'java.util.Properties' and 'System.Collections.Specialized.NameValueCollection' may cause compilation errors. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1186_3"'
-		protected internal virtual IDictionary convertFromProperty(NameValueCollection properties)
+		protected internal virtual IDictionary ConvertFromProperty(NameValueCollection properties)
 		{
 			//UPGRADE_TODO: Class 'java.util.HashMap' was converted to 'System.Collections.Hashtable' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilHashMap_3"'
 			IDictionary data = new Hashtable();
@@ -5298,7 +5174,7 @@ namespace Quartz.Impl.AdoJobStore
 
 		/// <summary> convert the JobDataMap into a list of properties</summary>
 		//UPGRADE_ISSUE: Class hierarchy differences between 'java.util.Properties' and 'System.Collections.Specialized.NameValueCollection' may cause compilation errors. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1186_3"'
-		protected internal virtual NameValueCollection convertToProperty(IDictionary data)
+		protected internal virtual NameValueCollection ConvertToProperty(IDictionary data)
 		{
 			//UPGRADE_ISSUE: Class hierarchy differences between 'java.util.Properties' and 'System.Collections.Specialized.NameValueCollection' may cause compilation errors. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1186_3"'
 			//UPGRADE_TODO: Format of property file may need to be changed. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1089_3"'
@@ -5355,7 +5231,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary>           if deserialization causes an error
 		/// </summary>
 		//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-		protected internal virtual Object getObjectFromBlob(OleDbDataReader rs, String colName)
+		protected internal virtual Object GetObjectFromBlob(OleDbDataReader rs, string colName)
 		{
 			Object obj = null;
 
@@ -5379,106 +5255,53 @@ namespace Quartz.Impl.AdoJobStore
 			return obj;
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Key[] selectVolatileTriggers(OleDbConnection conn)
+		
+		public virtual Key[] SelectVolatileTriggers(IDbConnection legacy)
 		{
-			OleDbCommand ps = null;
-			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-			OleDbDataReader rs = null;
-
-			try
+			using (IDbConnection conn = dbProvider.CreateConnection())
 			{
-				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_VOLATILE_TRIGGERS));
-				SupportClass.TransactionManager.manager.SetValue(ps, 1, true);
-				rs = ps.ExecuteReader();
-
-				ArrayList list = new ArrayList();
-				while (rs.Read())
+				using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_VOLATILE_TRIGGERS)))
 				{
-					String triggerName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_NAME]);
-					String groupName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]);
-					list.Add(new Key(triggerName, groupName));
-				}
-				Object[] oArr = list.ToArray();
-				Key[] kArr = new Key[oArr.Length];
-				Array.Copy(oArr, 0, kArr, 0, oArr.Length);
-				return kArr;
-			}
-			finally
-			{
-				if (null != rs)
-				{
-					try
+					AddCommandParameter(cmd, 1, true);
+					using (IDataReader rs = cmd.ExecuteReader())
 					{
-						rs.Close();
-					}
-					catch (OleDbException ignore)
-					{
-					}
-				}
-				if (null != ps)
-				{
-					try
-					{
-						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
-						ps.close();
-					}
-					catch (OleDbException ignore)
-					{
+						ArrayList list = new ArrayList();
+						while (rs.Read())
+						{
+							string triggerName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]);
+							string groupName = Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP]);
+							list.Add(new Key(triggerName, groupName));
+						}
+						object[] oArr = list.ToArray();
+						Key[] kArr = new Key[oArr.Length];
+						Array.Copy(oArr, 0, kArr, 0, oArr.Length);
+						return kArr;
 					}
 				}
 			}
 		}
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual Key[] selectVolatileJobs(OleDbConnection conn)
+		
+		public virtual Key[] SelectVolatileJobs(IDbConnection legacy)
 		{
-			OleDbCommand ps = null;
-			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-			OleDbDataReader rs = null;
-
-			try
+			using (IDbConnection conn = dbProvider.CreateConnection())
 			{
-				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, rtp(StdJDBCConstants_Fields.SELECT_VOLATILE_JOBS));
-				SupportClass.TransactionManager.manager.SetValue(ps, 1, true);
-				rs = ps.ExecuteReader();
-
-				ArrayList list = new ArrayList();
-				while (rs.Read())
+				using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_VOLATILE_JOBS)))
 				{
-					String triggerName = Convert.ToString(rs[Constants_Fields.COL_JOB_NAME]);
-					String groupName = Convert.ToString(rs[Constants_Fields.COL_JOB_GROUP]);
-					list.Add(new Key(triggerName, groupName));
-				}
-				Object[] oArr = list.ToArray();
-				Key[] kArr = new Key[oArr.Length];
-				Array.Copy(oArr, 0, kArr, 0, oArr.Length);
-				return kArr;
-			}
-			finally
-			{
-				if (null != rs)
-				{
-					try
+					AddCommandParameter(cmd, 1, true);
+					using (IDataReader dr = cmd.ExecuteReader())
 					{
-						rs.Close();
-					}
-					catch (OleDbException ignore)
-					{
-					}
-				}
-				if (null != ps)
-				{
-					try
-					{
-						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
-						ps.close();
-					}
-					catch (OleDbException ignore)
-					{
+						ArrayList list = new ArrayList();
+						while (dr.Read())
+						{
+							string triggerName = Convert.ToString(dr[AdoConstants.COL_JOB_NAME]);
+							string groupName = Convert.ToString(dr[AdoConstants.COL_JOB_GROUP]);
+							list.Add(new Key(triggerName, groupName));
+						}
+						Object[] oArr = list.ToArray();
+						Key[] kArr = new Key[oArr.Length];
+						Array.Copy(oArr, 0, kArr, 0, oArr.Length);
+						return kArr;
 					}
 				}
 			}
@@ -5506,9 +5329,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary>           if deserialization causes an error
 		/// </summary>
 		//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-		protected internal virtual Object getJobDetailFromBlob(OleDbDataReader rs, String colName)
+		protected internal virtual Object GetJobDetailFromBlob(OleDbDataReader rs, string colName)
 		{
-			if (canUseProperties())
+			if (CanUseProperties())
 			{
 				//UPGRADE_TODO: Interface 'java.sql.Blob' was converted to 'System.Byte[]' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlBlob_3"'
 				//UPGRADE_TODO: Method 'java.sql.ResultSet.getBlob' was converted to 'SupportClass.GetBlob(System.Data.OleDb.OleDbDataReader, string)' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSetgetBlob_javalangString_3"'
@@ -5525,60 +5348,49 @@ namespace Quartz.Impl.AdoJobStore
 				}
 			}
 
-			return getObjectFromBlob(rs, colName);
+			return GetObjectFromBlob(rs, colName);
 		}
 
-		/// <seealso cref="org.quartz.impl.jdbcjobstore.DriverDelegate#selectPausedTriggerGroups(java.sql.Connection)">
-		/// </seealso>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		public virtual SupportClass.SetSupport selectPausedTriggerGroups(OleDbConnection conn)
+		/// <seealso cref="DriverDelegate#SelectPausedTriggerGroups(IDbConnection)" />
+		public virtual ISet SelectPausedTriggerGroups(IDbConnection legacy)
 		{
-			OleDbCommand ps = null;
-			//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-			OleDbDataReader rs = null;
+			HashSet retValue = new HashSet();
 
-			//UPGRADE_TODO: Class 'java.util.HashSet' was converted to 'SupportClass.HashSetSupport' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilHashSet_3"'
-			SupportClass.HashSetSupport set_Renamed = new SupportClass.HashSetSupport();
-			try
+			using (IDbConnection conn = dbProvider.CreateConnection())
 			{
-				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn,
-					                                                         rtp(StdJDBCConstants_Fields.SELECT_PAUSED_TRIGGER_GROUPS));
-				rs = ps.ExecuteReader();
-
-				while (rs.Read())
+				using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SELECT_PAUSED_TRIGGER_GROUPS)))
 				{
-					String groupName = Convert.ToString(rs[Constants_Fields.COL_TRIGGER_GROUP]);
-					set_Renamed.Add(groupName);
-				}
-				return set_Renamed;
-			}
-			finally
-			{
-				if (null != rs)
-				{
-					try
+					using (IDataReader dr = cmd.ExecuteReader())
 					{
-						rs.Close();
+						while (dr.Read())
+						{
+							string groupName = Convert.ToString(dr[AdoConstants.COL_TRIGGER_GROUP]);
+							retValue.Add(groupName);
+						}
 					}
-					catch (OleDbException ignore)
-					{
-					}
-				}
-				if (null != ps)
-				{
-					try
-					{
-						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
-						ps.close();
-					}
-					catch (OleDbException ignore)
-					{
-					}
+					return retValue;
 				}
 			}
+		}
+		
+		protected IDbCommand PrepareCommand(IDbConnection connection, string commandText)
+		{
+			IDbCommand cmd = dbProvider.CreateCommand();
+			cmd.CommandText = commandText;
+			cmd.Connection = connection;
+			return cmd;
+		}
+		
+		private void AddCommandParameter(IDbCommand cmd, int i, object paramValue)
+		{
+			IDbDataParameter param = cmd.CreateParameter();
+			param.Value = paramValue;
+			cmd.Parameters.Add(param);
 		}
 	}
+	
+	
+	
 
 	// EOF
 }

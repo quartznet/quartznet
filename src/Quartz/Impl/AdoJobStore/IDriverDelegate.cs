@@ -18,10 +18,12 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
+using System;
 using System.Collections;
-using System.Data.OleDb;
+using System.Data;
 
 using Quartz.Collection;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
@@ -36,7 +38,7 @@ namespace Quartz.Impl.AdoJobStore
 	/// 
 	/// <p>
 	/// Unless a database driver has some <strong>extremely-DB-specific</strong>
-	/// requirements, any DriverDelegate implementation classes should extend the
+	/// requirements, any IDriverDelegate implementation classes should extend the
 	/// <code>StdAdoDelegate</code> class.
 	/// </p>
 	/// 
@@ -44,88 +46,49 @@ namespace Quartz.Impl.AdoJobStore
 	/// <author> <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a> </author>
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
-	public interface DriverDelegate
+	public interface IDriverDelegate
 	{
 
-		//---------------------------------------------------------------------------
-		// startup / recovery
-		//---------------------------------------------------------------------------
-		/// <summary> <p>
+		/// <summary>
 		/// Update all triggers having one of the two given states, to the given new
 		/// state.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">newState
-		/// the new state for the triggers
-		/// </param>
-		/// <param name="">oldState1
-		/// the first old state to update
-		/// </param>
-		/// <param name="">oldState2
-		/// the second old state to update
-		/// </param>
-		/// <returns> number of rows updated
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerStatesFromOtherStates(OleDbConnection conn, string newState, string oldState1, string oldState2);
+		/// <param name="conn">The DB Connection</param>
+		/// <param name="newState">The new state for the triggers</param>
+		/// <param name="oldState1">The first old state to update</param>
+		/// <param name="oldState2">The second old state to update</param>
+		/// <returns>Number of rows updated</returns>
+		int UpdateTriggerStatesFromOtherStates(IDbConnection conn, string newState, string oldState1, string oldState2);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the names of all of the triggers that have misfired - according to
 		/// the given timestamp.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> an array of <code>{@link
-		/// org.quartz.utils.Key}</code> objects
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Key[] selectMisfiredTriggers(OleDbConnection conn, long ts);
+		/// <param name="conn">The DB Connection</param>
+		/// <returns>An array of <code>Key</code> objects</returns>
+		Key[] SelectMisfiredTriggers(IDbConnection conn, long ts);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the names of all of the triggers in the given state that have
 		/// misfired - according to the given timestamp.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> an array of <code>{@link
-		/// org.quartz.utils.Key}</code> objects
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Key[] selectMisfiredTriggersInState(OleDbConnection conn, string state, long ts);
+		/// <param name="conn">The DB Connection</param>
+		/// <returns>An array of <code>Key</code> objects</returns>
+		Key[] SelectMisfiredTriggersInState(IDbConnection conn, string state, long ts);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the names of all of the triggers in the given group and state that
 		/// have misfired - according to the given timestamp.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> an array of <code>{@link
-		/// org.quartz.utils.Key}</code> objects
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Key[] selectMisfiredTriggersInGroupInState(OleDbConnection conn, string groupName, string state, long ts);
+		/// <param name="conn">The DB Connection</param>
+		/// <returns>An array of <code>Key</code> objects</returns>
+		Key[] SelectMisfiredTriggersInGroupInState(IDbConnection conn, string groupName, string state, long ts);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Select all of the triggers for jobs that are requesting recovery. The
 		/// returned trigger objects will have unique "recoverXXX" trigger names and
-		/// will be in the <code>{@link
-		/// org.quartz.Scheduler}.DEFAULT_RECOVERY_GROUP</code>
-		/// trigger group.
-		/// </p>
-		/// 
+		/// will be in the <code>Scheduler.DEFAULT_RECOVERY_GROUP</code> trigger group.
+		///
 		/// <p>
 		/// In order to preserve the ordering of the triggers, the fire time will be
 		/// set from the <code>COL_FIRED_TIME</code> column in the <code>TABLE_FIRED_TRIGGERS</code>
@@ -133,82 +96,52 @@ namespace Quartz.Impl.AdoJobStore
 		/// on each returned trigger. It is also up to the caller to insert the
 		/// returned triggers to ensure that they are fired.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> an array of <code>{@link org.quartz.Trigger}</code> objects
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Trigger[] selectTriggersForRecoveringJobs(OleDbConnection conn);
+		/// <param name="conn">The DB Connection</param>
+		/// <returns>An array of <code>Trigger</code> objects</returns>
+		Trigger[] SelectTriggersForRecoveringJobs(IDbConnection conn);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Delete all fired triggers.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> the number of rows deleted
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteFiredTriggers(OleDbConnection conn);
+		/// <param name="conn">The DB Connection</param>
+		/// <returns>The number of rows deleted</returns>
+		int DeleteFiredTriggers(IDbConnection conn);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Delete all fired triggers of the given instance.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> the number of rows deleted
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteFiredTriggers(OleDbConnection conn, string instanceId);
+		/// <param name="conn">The DB Connection</param>
+		/// <returns>The number of rows deleted</returns>
+		int DeleteFiredTriggers(IDbConnection conn, string instanceId);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Delete all volatile fired triggers.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> the number of rows deleted
-		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteVolatileFiredTriggers(OleDbConnection conn);
+		/// <param name="conn">The DB Connection</param>
+		/// <returns>The number of rows deleted</returns>
+		int DeleteVolatileFiredTriggers(IDbConnection conn);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the names of all of the triggers that are volatile.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> an array of <code>{@link
 		/// org.quartz.utils.Key}</code> objects
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Key[] selectVolatileTriggers(OleDbConnection conn);
+		Key[] SelectVolatileTriggers(IDbConnection conn);
 
 		/// <summary> <p>
 		/// Get the names of all of the jobs that are volatile.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> an array of <code>{@link
 		/// org.quartz.utils.Key}</code> objects
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Key[] selectVolatileJobs(OleDbConnection conn);
+		Key[] SelectVolatileJobs(IDbConnection conn);
 
 		//---------------------------------------------------------------------------
 		// jobs
@@ -219,9 +152,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">job
 		/// the job to insert
 		/// </param>
@@ -230,17 +161,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the JobDataMap
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertJobDetail(OleDbConnection conn, JobDetail job);
+		int InsertJobDetail(IDbConnection conn, JobDetail job);
 
 		/// <summary> <p>
 		/// Update the job detail record.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">job
 		/// the job to update
 		/// </param>
@@ -249,17 +177,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the JobDataMap
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateJobDetail(OleDbConnection conn, JobDetail job);
+		int UpdateJobDetail(IDbConnection conn, JobDetail job);
 
 		/// <summary> <p>
 		/// Get the names of all of the triggers associated with the given job.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">jobName
 		/// the job name
 		/// </param>
@@ -269,17 +194,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> an array of <code>{@link
 		/// org.quartz.utils.Key}</code> objects
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Key[] selectTriggerNamesForJob(OleDbConnection conn, string jobName, string groupName);
+		Key[] SelectTriggerNamesForJob(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
 		/// Delete all job listeners for the given job.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">jobName
 		/// the name of the job
 		/// </param>
@@ -288,17 +210,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteJobListeners(OleDbConnection conn, string jobName, string groupName);
+		int DeleteJobListeners(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
 		/// Delete the job detail record for the given job.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">jobName
 		/// the name of the job
 		/// </param>
@@ -307,17 +226,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteJobDetail(OleDbConnection conn, string jobName, string groupName);
+		int DeleteJobDetail(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
 		/// Check whether or not the given job is stateful.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">jobName
 		/// the name of the job
 		/// </param>
@@ -326,17 +242,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if the job exists and is stateful, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		bool isJobStateful(OleDbConnection conn, string jobName, string groupName);
+		
+		bool IsJobStateful(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
 		/// Check whether or not the given job exists.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">jobName
 		/// the name of the job
 		/// </param>
@@ -345,17 +259,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if the job exists, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		bool jobExists(OleDbConnection conn, string jobName, string groupName);
+		bool JobExists(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
 		/// Update the job data map for the given job.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">job
 		/// the job to update
 		/// </param>
@@ -364,17 +275,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the JobDataMap
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateJobData(OleDbConnection conn, JobDetail job);
+		int UpdateJobData(IDbConnection conn, JobDetail job);
 
 		/// <summary> <p>
 		/// Associate a listener with a job.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">job
 		/// the job to associate with the listener
 		/// </param>
@@ -383,17 +291,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertJobListener(OleDbConnection conn, JobDetail job, string listener);
+		int InsertJobListener(IDbConnection conn, JobDetail job, string listener);
 
 		/// <summary> <p>
 		/// Get all of the listeners for a given job.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">jobName
 		/// the job name whose listeners are wanted
 		/// </param>
@@ -402,17 +307,12 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> array of <code>String</code> listener names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		string[] selectJobListeners(OleDbConnection conn, string jobName, string groupName);
+		string[] SelectJobListeners(IDbConnection conn, string jobName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select the JobDetail object for a given job name / group name.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">jobName
 		/// the job name whose listeners are wanted
 		/// </param>
@@ -428,8 +328,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if deserialization causes an error
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		JobDetail selectJobDetail(OleDbConnection conn, string jobName, string groupName);
+		JobDetail SelectJobDetail(IDbConnection conn, string jobName, string groupName, IClassLoadHelper classLoadHelper);
 
 		/// <summary> <p>
 		/// Select the total number of jobs stored.
@@ -441,8 +340,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the total number of jobs stored
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int selectNumJobs(OleDbConnection conn);
+		
+		int SelectNumJobs(IDbConnection conn);
 
 		/// <summary> <p>
 		/// Select all of the job group names that are stored.
@@ -454,8 +353,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> group names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		string[] selectJobGroups(OleDbConnection conn);
+		
+		string[] SelectJobGroups(IDbConnection conn);
 
 		/// <summary> <p>
 		/// Select all of the jobs contained in a given group.
@@ -470,8 +369,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> job names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		string[] selectJobsInGroup(OleDbConnection conn, string groupName);
+		
+		string[] SelectJobsInGroup(IDbConnection conn, string groupName);
 
 		//---------------------------------------------------------------------------
 		// triggers
@@ -493,8 +392,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertTrigger(OleDbConnection conn, Trigger trigger, string state, JobDetail jobDetail);
+		
+		int InsertTrigger(IDbConnection conn, Trigger trigger, string state, JobDetail jobDetail);
 
 		/// <summary> <p>
 		/// Insert the simple trigger data.
@@ -509,8 +408,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertSimpleTrigger(OleDbConnection conn, SimpleTrigger trigger);
+		
+		int InsertSimpleTrigger(IDbConnection conn, SimpleTrigger trigger);
 
 		/// <summary> <p>
 		/// Insert the blob trigger data.
@@ -525,8 +424,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertBlobTrigger(OleDbConnection conn, Trigger trigger);
+		
+		int InsertBlobTrigger(IDbConnection conn, Trigger trigger);
 
 		/// <summary> <p>
 		/// Insert the cron trigger data.
@@ -541,8 +440,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertCronTrigger(OleDbConnection conn, CronTrigger trigger);
+		
+		int InsertCronTrigger(IDbConnection conn, CronTrigger trigger);
 
 		/// <summary> <p>
 		/// Update the base trigger data.
@@ -560,8 +459,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTrigger(OleDbConnection conn, Trigger trigger, string state, JobDetail jobDetail);
+		
+		int UpdateTrigger(IDbConnection conn, Trigger trigger, string state, JobDetail jobDetail);
 
 		/// <summary> <p>
 		/// Update the simple trigger data.
@@ -576,8 +475,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateSimpleTrigger(OleDbConnection conn, SimpleTrigger trigger);
+		
+		int UpdateSimpleTrigger(IDbConnection conn, SimpleTrigger trigger);
 
 		/// <summary> <p>
 		/// Update the cron trigger data.
@@ -592,8 +491,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateCronTrigger(OleDbConnection conn, CronTrigger trigger);
+		
+		int UpdateCronTrigger(IDbConnection conn, CronTrigger trigger);
 
 		/// <summary> <p>
 		/// Update the blob trigger data.
@@ -608,8 +507,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateBlobTrigger(OleDbConnection conn, Trigger trigger);
+		
+		int UpdateBlobTrigger(IDbConnection conn, Trigger trigger);
 
 		/// <summary> <p>
 		/// Check whether or not a trigger exists.
@@ -627,8 +526,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		bool triggerExists(OleDbConnection conn, string triggerName, string groupName);
+		
+		bool TriggerExists(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Update the state for a given trigger.
@@ -649,8 +548,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerState(OleDbConnection conn, string triggerName, string groupName, string state);
+		
+		int UpdateTriggerState(IDbConnection conn, string triggerName, string groupName, string state);
 
 		/// <summary> <p>
 		/// Update the given trigger to the given new state, if it is in the given
@@ -676,8 +575,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerStateFromOtherState(OleDbConnection conn, string triggerName, string groupName, string newState,
+		
+		int UpdateTriggerStateFromOtherState(IDbConnection conn, string triggerName, string groupName, string newState,
 		                                     string oldState);
 
 		/// <summary> <p>
@@ -710,8 +609,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerStateFromOtherStates(OleDbConnection conn, string triggerName, string groupName, string newState,
+		
+		int UpdateTriggerStateFromOtherStates(IDbConnection conn, string triggerName, string groupName, string newState,
 		                                      string oldState1, string oldState2, string oldState3);
 
 		/// <summary> <p>
@@ -738,8 +637,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerStateFromOtherStatesBeforeTime(OleDbConnection conn, string newState, string oldState1,
+		
+		int UpdateTriggerStateFromOtherStatesBeforeTime(IDbConnection conn, string newState, string oldState1,
 		                                                string oldState2, long time);
 
 		/// <summary> <p>
@@ -769,8 +668,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerGroupStateFromOtherStates(OleDbConnection conn, string groupName, string newState, string oldState1,
+		
+		int UpdateTriggerGroupStateFromOtherStates(IDbConnection conn, string groupName, string newState, string oldState1,
 		                                           string oldState2, string oldState3);
 
 		/// <summary> <p>
@@ -794,8 +693,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> int the number of rows updated
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerGroupStateFromOtherState(OleDbConnection conn, string groupName, string newState, string oldState);
+		
+		int UpdateTriggerGroupStateFromOtherState(IDbConnection conn, string groupName, string newState, string oldState);
 
 		/// <summary> <p>
 		/// Update the states of all triggers associated with the given job.
@@ -816,8 +715,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerStatesForJob(OleDbConnection conn, string jobName, string groupName, string state);
+		
+		int UpdateTriggerStatesForJob(IDbConnection conn, string jobName, string groupName, string state);
 
 		/// <summary> <p>
 		/// Update the states of any triggers associated with the given job, that
@@ -842,8 +741,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows updated
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateTriggerStatesForJobFromOtherState(OleDbConnection conn, string jobName, string groupName, string state,
+		
+		int UpdateTriggerStatesForJobFromOtherState(IDbConnection conn, string jobName, string groupName, string state,
 		                                            string oldState);
 
 		/// <summary> <p>
@@ -862,8 +761,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteTriggerListeners(OleDbConnection conn, string triggerName, string groupName);
+		
+		int DeleteTriggerListeners(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Associate a listener with the given trigger.
@@ -881,8 +780,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertTriggerListener(OleDbConnection conn, Trigger trigger, string listener);
+		
+		int InsertTriggerListener(IDbConnection conn, Trigger trigger, string listener);
 
 		/// <summary> <p>
 		/// Select the listeners associated with a given trigger.
@@ -900,8 +799,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> array of <code>String</code> trigger listener names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		string[] selectTriggerListeners(OleDbConnection conn, string triggerName, string groupName);
+		
+		string[] SelectTriggerListeners(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Delete the simple trigger data for a trigger.
@@ -919,8 +818,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteSimpleTrigger(OleDbConnection conn, string triggerName, string groupName);
+		
+		int DeleteSimpleTrigger(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Delete the BLOB trigger data for a trigger.
@@ -938,8 +837,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteBlobTrigger(OleDbConnection conn, string triggerName, string groupName);
+		
+		int DeleteBlobTrigger(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Delete the cron trigger data for a trigger.
@@ -957,8 +856,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteCronTrigger(OleDbConnection conn, string triggerName, string groupName);
+		
+		int DeleteCronTrigger(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Delete the base trigger data for a trigger.
@@ -976,8 +875,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteTrigger(OleDbConnection conn, string triggerName, string groupName);
+		
+		int DeleteTrigger(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Select the number of triggers associated with a given job.
@@ -995,8 +894,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of triggers for the given job
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int selectNumTriggersForJob(OleDbConnection conn, string jobName, string groupName);
+		
+		int SelectNumTriggersForJob(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
 		/// Select the job to which the trigger is associated.
@@ -1015,7 +914,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> the <code>{@link org.quartz.JobDetail}</code> object
 		/// associated with the given trigger
 		/// </returns>
-		JobDetail selectJobForTrigger(OleDbConnection conn, string triggerName, string groupName);
+		JobDetail SelectJobForTrigger(IDbConnection conn, string triggerName, string groupName, IClassLoadHelper loadHelper);
 
 		/// <summary> <p>
 		/// Select the stateful jobs which are referenced by triggers in the given
@@ -1031,8 +930,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> a List of Keys to jobs.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		IList selectStatefulJobsOfTriggerGroup(OleDbConnection conn, string groupName);
+		
+		IList SelectStatefulJobsOfTriggerGroup(IDbConnection conn, string groupName);
 
 		/// <summary> <p>
 		/// Select the triggers for a job
@@ -1052,8 +951,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// associated with a given job.
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Trigger[] selectTriggersForJob(OleDbConnection conn, string jobName, string groupName);
+		
+		Trigger[] SelectTriggersForJob(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
 		/// Select the triggers for a calendar
@@ -1073,8 +972,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// associated with a given job.
 		/// </returns>
 		/// <throws>  SQLException </throws>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Trigger[] selectTriggersForCalendar(OleDbConnection conn, string calName);
+		
+		Trigger[] SelectTriggersForCalendar(IDbConnection conn, string calName);
 
 		/// <summary> <p>
 		/// Select a trigger.
@@ -1092,8 +991,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the <code>{@link org.quartz.Trigger}</code> object
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Trigger selectTrigger(OleDbConnection conn, string triggerName, string groupName);
+		
+		Trigger SelectTrigger(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Select a trigger's JobDataMap.
@@ -1112,8 +1011,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> the <code>{@link org.quartz.JobDataMap}</code> of the Trigger,
 		/// never null, but possibly empty.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		JobDataMap selectTriggerJobDataMap(OleDbConnection conn, string triggerName, string groupName);
+		
+		JobDataMap SelectTriggerJobDataMap(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Select a trigger' state value.
@@ -1131,8 +1030,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the <code>{@link org.quartz.Trigger}</code> object
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		string selectTriggerState(OleDbConnection conn, string triggerName, string groupName);
+		
+		string SelectTriggerState(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Select a trigger' status (state & next fire time).
@@ -1150,8 +1049,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> a <code>TriggerStatus</code> object, or null
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		TriggerStatus selectTriggerStatus(OleDbConnection conn, string triggerName, string groupName);
+		
+		TriggerStatus SelectTriggerStatus(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Select the total number of triggers stored.
@@ -1163,8 +1062,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the total number of triggers stored
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int selectNumTriggers(OleDbConnection conn);
+		
+		int SelectNumTriggers(IDbConnection conn);
 
 		/// <summary> <p>
 		/// Select all of the trigger group names that are stored.
@@ -1176,8 +1075,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> group names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		string[] selectTriggerGroups(OleDbConnection conn);
+		
+		string[] SelectTriggerGroups(IDbConnection conn);
 
 		/// <summary> <p>
 		/// Select all of the triggers contained in a given group.
@@ -1192,8 +1091,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of <code>String</code> trigger names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		string[] selectTriggersInGroup(OleDbConnection conn, string groupName);
+		
+		string[] SelectTriggersInGroup(IDbConnection conn, string groupName);
 
 		/// <summary> <p>
 		/// Select all of the triggers in a given state.
@@ -1208,26 +1107,26 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> an array of trigger <code>Key</code> s
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Key[] selectTriggersInState(OleDbConnection conn, string state);
+		
+		Key[] SelectTriggersInState(IDbConnection conn, string state);
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertPausedTriggerGroup(OleDbConnection conn, string groupName);
+		
+		int InsertPausedTriggerGroup(IDbConnection conn, string groupName);
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deletePausedTriggerGroup(OleDbConnection conn, string groupName);
+		
+		int DeletePausedTriggerGroup(IDbConnection conn, string groupName);
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteAllPausedTriggerGroups(OleDbConnection conn);
+		
+		int DeleteAllPausedTriggerGroups(IDbConnection conn);
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		bool isTriggerGroupPaused(OleDbConnection conn, string groupName);
+		
+		bool IsTriggerGroupPaused(IDbConnection conn, string groupName);
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		ISet selectPausedTriggerGroups(OleDbConnection conn);
+		
+		ISet SelectPausedTriggerGroups(IDbConnection conn);
 
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		bool isExistingTriggerGroup(OleDbConnection conn, string groupName);
+		
+		bool IsExistingTriggerGroup(IDbConnection conn, string groupName);
 
 		//---------------------------------------------------------------------------
 		// calendars
@@ -1252,8 +1151,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the calendar
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertCalendar(OleDbConnection conn, string calendarName, ICalendar calendar);
+		
+		int InsertCalendar(IDbConnection conn, string calendarName, ICalendar calendar);
 
 		/// <summary> <p>
 		/// Update a calendar.
@@ -1274,8 +1173,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems serializing the calendar
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateCalendar(OleDbConnection conn, string calendarName, ICalendar calendar);
+		
+		int UpdateCalendar(IDbConnection conn, string calendarName, ICalendar calendar);
 
 		/// <summary> <p>
 		/// Check whether or not a calendar exists.
@@ -1290,8 +1189,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if the trigger exists, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		bool calendarExists(OleDbConnection conn, string calendarName);
+		
+		bool CalendarExists(IDbConnection conn, string calendarName);
 
 		/// <summary> <p>
 		/// Select a calendar.
@@ -1313,8 +1212,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  IOException </throws>
 		/// <summary>           if there were problems deserializing the calendar
 		/// </summary>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		ICalendar selectCalendar(OleDbConnection conn, string calendarName);
+		
+		ICalendar SelectCalendar(IDbConnection conn, string calendarName);
 
 		/// <summary> <p>
 		/// Check whether or not a calendar is referenced by any triggers.
@@ -1329,50 +1228,41 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> true if any triggers reference the calendar, false otherwise
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		bool calendarIsReferenced(OleDbConnection conn, string calendarName);
+		
+		bool CalendarIsReferenced(IDbConnection conn, string calendarName);
 
 		/// <summary> <p>
 		/// Delete a calendar.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">calendarName
 		/// the name of the trigger
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteCalendar(OleDbConnection conn, string calendarName);
+		int DeleteCalendar(IDbConnection conn, string calendarName);
 
 		/// <summary> <p>
 		/// Select the total number of calendars stored.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> the total number of calendars stored
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int selectNumCalendars(OleDbConnection conn);
+		int SelectNumCalendars(IDbConnection conn);
 
 		/// <summary> <p>
 		/// Select all of the stored calendars.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> an array of <code>String</code> calendar names
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		string[] selectCalendars(OleDbConnection conn);
+		string[] SelectCalendars(IDbConnection conn);
 
 		//---------------------------------------------------------------------------
 		// trigger firing
@@ -1383,22 +1273,17 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> the next fire time, or 0 if no trigger will be fired
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		long selectNextFireTime(OleDbConnection conn);
+		DateTime SelectNextFireTime(IDbConnection conn);
 
 		/// <summary> <p>
 		/// Select the trigger that will be fired at the given fire time.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">fireTime
 		/// the time that the trigger will be fired
 		/// </param>
@@ -1406,17 +1291,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// trigger that will be fired at the given fire time, or null if no
 		/// trigger will be fired at that time
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		Key selectTriggerForFireTime(OleDbConnection conn, long fireTime);
+		Key SelectTriggerForFireTime(IDbConnection conn, DateTime fireTime);
 
 		/// <summary> <p>
 		/// Insert a fired trigger.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">trigger
 		/// the trigger
 		/// </param>
@@ -1425,8 +1307,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		/// <returns> the number of rows inserted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertFiredTrigger(OleDbConnection conn, Trigger trigger, string state, JobDetail jobDetail);
+		int InsertFiredTrigger(IDbConnection conn, Trigger trigger, string state, JobDetail jobDetail);
 
 		/// <summary> <p>
 		/// Select the states of all fired-trigger records for a given trigger, or
@@ -1434,10 +1315,10 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> a List of FiredTriggerRecord objects.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		IList selectFiredTriggerRecords(OleDbConnection conn, string triggerName, string groupName);
+		IList SelectFiredTriggerRecords(IDbConnection conn, string triggerName, string groupName);
 
 		/// <summary> <p>
 		/// Select the states of all fired-trigger records for a given job, or job
@@ -1445,10 +1326,10 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> a List of FiredTriggerRecord objects.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		IList selectFiredTriggerRecordsByJob(OleDbConnection conn, string jobName, string groupName);
+		IList SelectFiredTriggerRecordsByJob(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
 		/// Select the states of all fired-trigger records for a given scheduler
@@ -1456,65 +1337,53 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> a List of FiredTriggerRecord objects.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		IList selectInstancesFiredTriggerRecords(OleDbConnection conn, string instanceName);
+		IList SelectInstancesFiredTriggerRecords(IDbConnection conn, string instanceName);
 
 		/// <summary> <p>
 		/// Delete a fired trigger.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <param name="">entryId
 		/// the fired trigger entry to delete
 		/// </param>
 		/// <returns> the number of rows deleted
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteFiredTrigger(OleDbConnection conn, string entryId);
+		int DeleteFiredTrigger(IDbConnection conn, string entryId);
 
 		/// <summary> <p>
 		/// Get the number instances of the identified job currently executing.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> the number instances of the identified job currently executing.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int selectJobExecutionCount(OleDbConnection conn, string jobName, string jobGroup);
+		int SelectJobExecutionCount(IDbConnection conn, string jobName, string jobGroup);
 
 		/// <summary> <p>
 		/// Insert a scheduler-instance state record.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> the number of inserted rows.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int insertSchedulerState(OleDbConnection conn, string instanceId, long checkInTime, long interval, string recoverer);
+		int InsertSchedulerState(IDbConnection conn, string instanceId, long checkInTime, long interval, string recoverer);
 
 		/// <summary> <p>
 		/// Delete a scheduler-instance state record.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> the number of deleted rows.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int deleteSchedulerState(OleDbConnection conn, string instanceId);
+		int DeleteSchedulerState(IDbConnection conn, string instanceId);
 
 
 		/// <summary> <p>
@@ -1522,13 +1391,10 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
+		/// <param name="conn">The DB Connection</param>
 		/// <returns> the number of updated rows.
 		/// </returns>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		int updateSchedulerState(OleDbConnection conn, string instanceId, long checkInTime);
+		int UpdateSchedulerState(IDbConnection conn, string instanceId, long checkInTime);
 
 		/// <summary> <p>
 		/// A List of all current <code>SchedulerStateRecords</code>.
@@ -1540,11 +1406,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		//UPGRADE_NOTE: There are other database providers or managers under System.Data namespace which can be used optionally to better fit the application requirements. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1208_3"'
-		IList selectSchedulerStateRecords(OleDbConnection conn, string instanceId);
+		/// <param name="conn">The DB Connection</param>
+		IList SelectSchedulerStateRecords(IDbConnection conn, string instanceId);
 	}
 
 	// EOF

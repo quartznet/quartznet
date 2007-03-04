@@ -258,7 +258,7 @@ namespace Quartz.Plugins.History
 
 		/// <summary>
 		/// Called during creation of the <code>Scheduler</code> in order to give
-		/// the <code>SchedulerPlugin</code> a chance to initialize.
+		/// the <code>SchedulerPlugin</code> a chance to Initialize.
 		/// </summary>
 		public virtual void Initialize(String pluginName, IScheduler sched)
 		{

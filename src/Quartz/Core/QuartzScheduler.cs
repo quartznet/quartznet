@@ -164,7 +164,7 @@ namespace Quartz.Core
 		}
 
 		/// <summary>
-		/// Reports whether the <code>Scheduler</code> has been shutdown.
+		/// Reports whether the <code>Scheduler</code> has been Shutdown.
 		/// </summary>
 		public virtual bool IsShutdown
 		{
@@ -350,7 +350,7 @@ namespace Quartz.Core
 		{
 			if (closed)
 			{
-				throw new SchedulerException("The Scheduler cannot be restarted after shutdown() has been called.");
+				throw new SchedulerException("The Scheduler cannot be restarted after Shutdown() has been called.");
 			}
 
 			schedThread.TogglePause(false);
@@ -403,7 +403,7 @@ namespace Quartz.Core
 		/// <summary>
 		/// Halts the <code>QuartzScheduler</code>'s firing of <code>Trigger</code>s,
 		/// and cleans up all resources associated with the QuartzScheduler.
-		/// Equivalent to <code>shutdown(false)</code>.
+		/// Equivalent to <code>Shutdown(false)</code>.
 		/// <p>
 		/// The scheduler cannot be re-started.
 		/// </p>
@@ -472,14 +472,14 @@ namespace Quartz.Core
 			{
 			}
 
-			Log.Info("Scheduler " + resources.GetUniqueIdentifier() + " shutdown complete.");
+			Log.Info("Scheduler " + resources.GetUniqueIdentifier() + " Shutdown complete.");
 		}
 
 		public virtual void ValidateState()
 		{
 			if (IsShutdown)
 			{
-				throw new SchedulerException("The Scheduler has been shutdown.");
+				throw new SchedulerException("The Scheduler has been Shutdown.");
 			}
 
 			// other conditions to check (?)
@@ -1674,7 +1674,7 @@ namespace Quartz.Core
 				}
 				catch (Exception e)
 				{
-					Log.Error("Error while notifying SchedulerListener of shutdown.", e);
+					Log.Error("Error while notifying SchedulerListener of Shutdown.", e);
 				}
 			}
 		}
@@ -1682,7 +1682,7 @@ namespace Quartz.Core
 		/// <summary> 
 		/// Add the given <code>SchedulerPlugin</code> to
 		/// the <code>Scheduler</code>. This method expects the plugin's
-		/// "initialize" method to be invoked externally (either before or after
+		/// "Initialize" method to be invoked externally (either before or after
 		/// this method is called).
 		/// </summary>
 		public virtual void AddSchedulerPlugin(ISchedulerPlugin plugin)

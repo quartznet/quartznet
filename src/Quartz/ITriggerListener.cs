@@ -81,7 +81,7 @@ namespace Quartz
 		/// has fired, and it's associated <code>{@link org.quartz.JobDetail}</code>
 		/// is about to be executed.
 		/// <p>
-		/// It is called after the <code>triggerFired(..)</code> method of this
+		/// It is called after the <code>TriggerFired(..)</code> method of this
 		/// interface.
 		/// </p>
 		/// </summary>

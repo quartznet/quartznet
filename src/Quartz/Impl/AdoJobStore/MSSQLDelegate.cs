@@ -18,7 +18,7 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
-//UPGRADE_TODO: The type 'org.apache.commons.logging.Log' could not be found. If it was not included in the conversion, there may be compiler issues. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1262_3"'
+
 using System;
 using System.Data.OleDb;
 using System.IO;
@@ -27,14 +27,11 @@ using Common.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary> <p>
-	/// This is a driver delegate for the MSSQL JDBC driver.
-	/// </p>
-	/// 
+	/// <summary>
+	/// This is a driver delegate for the MSSQL ADO.NET driver.
 	/// </summary>
-	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a>
-	/// </author>
-	public class MSSQLDelegate : StdJDBCDelegate
+	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+	public class MSSQLDelegate : StdAdoDelegate
 	{
 		/// <summary> <p>
 		/// Create new MSSQLDelegate instance.
@@ -81,7 +78,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary>           if deserialization causes an error
 		/// </summary>
 		//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-		protected internal override Object getObjectFromBlob(OleDbDataReader rs, String colName)
+		protected internal override object GetObjectFromBlob(OleDbDataReader rs, String colName)
 		{
 			Stream binaryInput = new MemoryStream((byte[]) rs[colName]);
 
@@ -91,21 +88,21 @@ namespace Quartz.Impl.AdoJobStore
 			//UPGRADE_TODO: Class 'java.io.ObjectInputStream' was converted to 'System.IO.BinaryReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javaioObjectInputStream_3"'
 			BinaryReader in_Renamed = new BinaryReader(binaryInput);
 			//UPGRADE_WARNING: Method 'java.io.ObjectInputStream.readObject' was converted to 'SupportClass.Deserialize' which may throw an exception. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1101_3"'
-			Object obj = SupportClass.Deserialize(in_Renamed);
+			// Object obj = SupportClass.Deserialize(in_Renamed);
 			in_Renamed.Close();
 
-			return obj;
+			return null;
 		}
 
 		//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-		protected internal override Object getJobDetailFromBlob(OleDbDataReader rs, String colName)
+		protected internal override object GetJobDetailFromBlob(OleDbDataReader rs, String colName)
 		{
-			if (canUseProperties())
+			if (CanUseProperties())
 			{
 				Stream binaryInput = new MemoryStream((byte[]) rs[colName]);
 				return binaryInput;
 			}
-			return getObjectFromBlob(rs, colName);
+			return GetObjectFromBlob(rs, colName);
 		}
 	}
 
