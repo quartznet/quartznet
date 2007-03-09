@@ -128,10 +128,10 @@ namespace Quartz.Collection
 		{
 			ISortedSet newList = new TreeSet();
 			int i = 0;
-			while (comparator.Compare(this[i], limit) < 0)
-			{
-				i++;
-			}
+            while ((i < this.Count) && (comparator.Compare(this[i], limit) < 0))
+            {
+                i++;
+            }
 			for (; i < Count; i++)
 			{
 				newList.Add(this[i]);

@@ -1218,7 +1218,7 @@ namespace Quartz
 
 		protected int GetDayOfWeekNumber(string s)
 		{
-			if (monthMap.ContainsKey(s))
+			if (dayMap.ContainsKey(s))
 			{
 				return (int) dayMap[s];
 			}
@@ -1538,7 +1538,7 @@ namespace Quartz
 						DayOfWeek cDow = d.DayOfWeek; // current d-o-w
 						int dow = ((int) daysOfWeek.First()); // desired
 						// d-o-w
-						st = daysOfWeek.TailSet((cDow));
+						st = daysOfWeek.TailSet((int)cDow);
 						if (st != null && st.Count > 0)
 						{
 							dow = ((int) st.First());
