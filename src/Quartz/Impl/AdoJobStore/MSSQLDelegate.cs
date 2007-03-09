@@ -56,54 +56,6 @@ namespace Quartz.Impl.AdoJobStore
 		// protected methods that can be overridden by subclasses
 		//---------------------------------------------------------------------------
 
-		/// <summary> <p>
-		/// This method should be overridden by any delegate subclasses that need
-		/// special handling for BLOBs. The default implementation uses standard
-		/// JDBC <code>java.sql.Blob</code> operations.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="">rs
-		/// the result set, already queued to the correct row
-		/// </param>
-		/// <param name="">colName
-		/// the column name for the BLOB
-		/// </param>
-		/// <returns> the deserialized Object from the ResultSet BLOB
-		/// </returns>
-		/// <throws>  ClassNotFoundException </throws>
-		/// <summary>           if a class found during deserialization cannot be found
-		/// </summary>
-		/// <throws>  IOException </throws>
-		/// <summary>           if deserialization causes an error
-		/// </summary>
-		//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-		protected internal override object GetObjectFromBlob(OleDbDataReader rs, String colName)
-		{
-			Stream binaryInput = new MemoryStream((byte[]) rs[colName]);
-
-			if (binaryInput == null)
-				return null;
-
-			//UPGRADE_TODO: Class 'java.io.ObjectInputStream' was converted to 'System.IO.BinaryReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javaioObjectInputStream_3"'
-			BinaryReader in_Renamed = new BinaryReader(binaryInput);
-			//UPGRADE_WARNING: Method 'java.io.ObjectInputStream.readObject' was converted to 'SupportClass.Deserialize' which may throw an exception. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1101_3"'
-			// Object obj = SupportClass.Deserialize(in_Renamed);
-			in_Renamed.Close();
-
-			return null;
-		}
-
-		//UPGRADE_TODO: Interface 'java.sql.ResultSet' was converted to 'System.Data.OleDb.OleDbDataReader' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javasqlResultSet_3"'
-		protected internal override object GetJobDetailFromBlob(OleDbDataReader rs, String colName)
-		{
-			if (CanUseProperties())
-			{
-				Stream binaryInput = new MemoryStream((byte[]) rs[colName]);
-				return binaryInput;
-			}
-			return GetObjectFromBlob(rs, colName);
-		}
 	}
 
 	// EOF

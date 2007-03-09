@@ -79,7 +79,7 @@ namespace Quartz.Util
 		/// </summary>
 		/// <param name="status">The trigger's status</param>
 		/// <param name="nextFireTime">The next time the trigger will fire</param>
-		public TriggerStatus(string status, DateTime nextFireTime) : base()
+		public TriggerStatus(string status, NullableDateTime nextFireTime) : base()
 		{
 			base.First = status;
 			base.Second = nextFireTime;

@@ -35,20 +35,17 @@ namespace Quartz.Impl.AdoJobStore
 	/// interface except each method has an additional <code>Connection}</code>
 	/// parameter.
 	/// </p>
-	/// 
 	/// <p>
 	/// Unless a database driver has some <strong>extremely-DB-specific</strong>
 	/// requirements, any IDriverDelegate implementation classes should extend the
 	/// <code>StdAdoDelegate</code> class.
 	/// </p>
-	/// 
 	/// </summary>
 	/// <author> <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a> </author>
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public interface IDriverDelegate
 	{
-
 		/// <summary>
 		/// Update all triggers having one of the two given states, to the given new
 		/// state.
@@ -103,7 +100,6 @@ namespace Quartz.Impl.AdoJobStore
 
 		/// <summary>
 		/// Delete all fired triggers.
-		/// </p>
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
 		/// <returns>The number of rows deleted</returns>
@@ -127,56 +123,34 @@ namespace Quartz.Impl.AdoJobStore
 		/// Get the names of all of the triggers that are volatile.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> an array of <code>{@link
-		/// org.quartz.utils.Key}</code> objects
-		/// </returns>
+		/// <returns>An array of <code>Key</code> objects.</returns>
 		Key[] SelectVolatileTriggers(IDbConnection conn);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the names of all of the jobs that are volatile.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> an array of <code>{@link
-		/// org.quartz.utils.Key}</code> objects
-		/// </returns>
+		/// <returns>An array of <code>Key</code> objects.</returns>
 		Key[] SelectVolatileJobs(IDbConnection conn);
 
 		//---------------------------------------------------------------------------
 		// jobs
 		//---------------------------------------------------------------------------
 
-		/// <summary> <p>
+		/// <summary>
 		/// Insert the job detail record.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">job
-		/// the job to insert
-		/// </param>
-		/// <returns> number of rows inserted
-		/// </returns>
-		/// <throws>  IOException </throws>
-		/// <summary>           if there were problems serializing the JobDataMap
-		/// </summary>
+		/// <param name="job">The job to insert.</param>
+		/// <returns>Number of rows inserted.</returns>
 		int InsertJobDetail(IDbConnection conn, JobDetail job);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Update the job detail record.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-		/// <param name="">job
-		/// the job to update
-		/// </param>
-		/// <returns> number of rows updated
-		/// </returns>
-		/// <throws>  IOException </throws>
-		/// <summary>           if there were problems serializing the JobDataMap
-		/// </summary>
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="job">The job to update.</param>
+		/// <returns>Number of rows updated.</returns>
 		int UpdateJobDetail(IDbConnection conn, JobDetail job);
 
 		/// <summary> <p>
@@ -212,20 +186,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </returns>
 		int DeleteJobListeners(IDbConnection conn, string jobName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
+		/// 	<p>
 		/// Delete the job detail record for the given job.
 		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">jobName
-		/// the name of the job
-		/// </param>
-		/// <param name="">groupName
-		/// the group containing the job
-		/// </param>
-		/// <returns> the number of rows deleted
-		/// </returns>
+		/// <param name="jobName">the name of the job</param>
+		/// <param name="groupName">Name of the group.</param>
+		/// <returns>the number of rows deleted</returns>
 		int DeleteJobDetail(IDbConnection conn, string jobName, string groupName);
 
 		/// <summary> <p>
@@ -245,52 +214,32 @@ namespace Quartz.Impl.AdoJobStore
 		
 		bool IsJobStateful(IDbConnection conn, string jobName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
+		/// 	<p>
 		/// Check whether or not the given job exists.
 		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">jobName
-		/// the name of the job
-		/// </param>
-		/// <param name="">groupName
-		/// the group containing the job
-		/// </param>
-		/// <returns> true if the job exists, false otherwise
-		/// </returns>
+		/// <param name="jobName">Name of the job.</param>
+		/// <param name="groupName">Name of the group.</param>
+		/// <returns>true if the job exists, false otherwise</returns>
 		bool JobExists(IDbConnection conn, string jobName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Update the job data map for the given job.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">job
-		/// the job to update
-		/// </param>
-		/// <returns> the number of rows updated
-		/// </returns>
-		/// <throws>  IOException </throws>
-		/// <summary>           if there were problems serializing the JobDataMap
-		/// </summary>
+		/// <param name="job">The job.</param>
+		/// <returns>the number of rows updated</returns>
 		int UpdateJobData(IDbConnection conn, JobDetail job);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Associate a listener with a job.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">job
-		/// the job to associate with the listener
-		/// </param>
-		/// <param name="">listener
-		/// the listener to insert
-		/// </param>
-		/// <returns> the number of rows inserted
-		/// </returns>
+		/// <param name="job">The job to associate with the listener.</param>
+		/// <param name="listener">The listener to insert.</param>
+		/// <returns>The number of rows inserted.</returns>
 		int InsertJobListener(IDbConnection conn, JobDetail job, string listener);
 
 		/// <summary> <p>
@@ -335,7 +284,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <returns> the total number of jobs stored
@@ -348,7 +297,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <returns> an array of <code>String</code> group names
@@ -361,7 +310,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">groupName
@@ -381,7 +330,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -400,7 +349,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -416,7 +365,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -432,7 +381,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -448,7 +397,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -467,7 +416,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -483,7 +432,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -499,7 +448,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -515,7 +464,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">triggerName
@@ -534,7 +483,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">triggerName
@@ -557,7 +506,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB connection
 		/// </param>
 		/// <param name="">triggerName
@@ -585,7 +534,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB connection
 		/// </param>
 		/// <param name="">triggerName
@@ -619,7 +568,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB connection
 		/// </param>
 		/// <param name="">newState
@@ -647,7 +596,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB connection
 		/// </param>
 		/// <param name="">groupName
@@ -678,7 +627,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB connection
 		/// </param>
 		/// <param name="">groupName
@@ -701,7 +650,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">jobName
@@ -724,7 +673,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">jobName
@@ -750,7 +699,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">triggerName
@@ -769,7 +718,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">trigger
@@ -788,7 +737,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">triggerName
@@ -807,7 +756,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">triggerName
@@ -826,13 +775,13 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
-		/// <param name="">triggerName
+		/// <param name="triggerName">
 		/// the name of the trigger
 		/// </param>
-		/// <param name="">groupName
+		/// <param name="groupName">
 		/// the group containing the trigger
 		/// </param>
 		/// <returns> the number of rows deleted
@@ -840,18 +789,16 @@ namespace Quartz.Impl.AdoJobStore
 		
 		int DeleteBlobTrigger(IDbConnection conn, string triggerName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Delete the cron trigger data for a trigger.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
-		/// <param name="">triggerName
+		/// <param name="triggerName">
 		/// the name of the trigger
 		/// </param>
-		/// <param name="">groupName
+		/// <param name="groupName">
 		/// the group containing the trigger
 		/// </param>
 		/// <returns> the number of rows deleted
@@ -864,7 +811,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">triggerName
@@ -883,7 +830,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">jobName
@@ -902,7 +849,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">triggerName
@@ -922,7 +869,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">groupName
@@ -938,7 +885,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">conn
+		/// <param name="conn">
 		/// the DB Connection
 		/// </param>
 		/// <param name="">jobName
@@ -954,160 +901,80 @@ namespace Quartz.Impl.AdoJobStore
 		
 		Trigger[] SelectTriggersForJob(IDbConnection conn, string jobName, string groupName);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Select the triggers for a calendar
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">jobName
-		/// the name of the trigger
-		/// </param>
-		/// <param name="">groupName
-		/// the group containing the trigger
-		/// </param>
-		/// <returns> an array of <code>(@link org.quartz.Trigger)</code> objects
-		/// associated with a given job.
-		/// </returns>
-		/// <throws>  SQLException </throws>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="jobName">The name of the trigger.</param>
+		/// <param name="groupName">The group containing the trigger.</param>
+		/// <returns>An array of <code>Trigger</code> objects associated with a given job.</returns>
 		Trigger[] SelectTriggersForCalendar(IDbConnection conn, string calName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select a trigger.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">triggerName
-		/// the name of the trigger
-		/// </param>
-		/// <param name="">groupName
-		/// the group containing the trigger
-		/// </param>
-		/// <returns> the <code>{@link org.quartz.Trigger}</code> object
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="triggerName">The name of the trigger.</param>
+		/// <param name="groupName">The group containing the trigger.</param>
+		/// <returns>The <code>Trigger</code> object.
 		/// </returns>
-		
 		Trigger SelectTrigger(IDbConnection conn, string triggerName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select a trigger's JobDataMap.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">triggerName
-		/// the name of the trigger
-		/// </param>
-		/// <param name="">groupName
-		/// the group containing the trigger
-		/// </param>
-		/// <returns> the <code>{@link org.quartz.JobDataMap}</code> of the Trigger,
-		/// never null, but possibly empty.
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="triggerName">The name of the trigger.</param>
+		/// <param name="groupName">The group containing the trigger.</param>
+		/// <returns>The <code>JobDataMap</code> of the Trigger, never null, but possibly empty.</returns>
 		JobDataMap SelectTriggerJobDataMap(IDbConnection conn, string triggerName, string groupName);
 
-		/// <summary> <p>
-		/// Select a trigger' state value.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Select a trigger's state value.
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">triggerName
-		/// the name of the trigger
-		/// </param>
-		/// <param name="">groupName
-		/// the group containing the trigger
-		/// </param>
-		/// <returns> the <code>{@link org.quartz.Trigger}</code> object
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="triggerName">The name of the trigger.</param>
+		/// <param name="groupName">The group containing the trigger.</param>
+		/// <returns>The <code>Trigger</code> object.</returns>
 		string SelectTriggerState(IDbConnection conn, string triggerName, string groupName);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Select a trigger' status (state & next fire time).
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">triggerName
-		/// the name of the trigger
-		/// </param>
-		/// <param name="">groupName
-		/// the group containing the trigger
-		/// </param>
-		/// <returns> a <code>TriggerStatus</code> object, or null
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="triggerName">The name of the trigger.</param>
+		/// <param name="groupName">The group containing the trigger.</param>
+		/// <returns>A <code>TriggerStatus</code> object, or null</returns>
 		TriggerStatus SelectTriggerStatus(IDbConnection conn, string triggerName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select the total number of triggers stored.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> the total number of triggers stored
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <returns>The total number of triggers stored.</returns>
 		int SelectNumTriggers(IDbConnection conn);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select all of the trigger group names that are stored.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <returns> an array of <code>String</code> group names
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <returns>An array of <code>String</code> group names.</returns>
 		string[] SelectTriggerGroups(IDbConnection conn);
 
-		/// <summary> <p>
-		/// Select all of the triggers contained in a given group.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Select all of the triggers contained in a given group. 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">groupName
-		/// the group containing the triggers
-		/// </param>
-		/// <returns> an array of <code>String</code> trigger names
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="groupName">The group containing the triggers.</param>
+		/// <returns>An array of <code>String</code> trigger names.</returns>
 		string[] SelectTriggersInGroup(IDbConnection conn, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select all of the triggers in a given state.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">state
-		/// the state the triggers must be in
-		/// </param>
-		/// <returns> an array of trigger <code>Key</code> s
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="state">The state the triggers must be in.</param>
+		/// <returns>An array of trigger <code>Key</code>s.</returns>
 		Key[] SelectTriggersInState(IDbConnection conn, string state);
 
 		
@@ -1124,7 +991,6 @@ namespace Quartz.Impl.AdoJobStore
 
 		
 		ISet SelectPausedTriggerGroups(IDbConnection conn);
-
 		
 		bool IsExistingTriggerGroup(IDbConnection conn, string groupName);
 
@@ -1132,283 +998,171 @@ namespace Quartz.Impl.AdoJobStore
 		// calendars
 		//---------------------------------------------------------------------------
 
-		/// <summary> <p>
+		/// <summary>
 		/// Insert a new calendar.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">calendarName
-		/// the name for the new calendar
-		/// </param>
-		/// <param name="">calendar
-		/// the calendar
-		/// </param>
-		/// <returns> the number of rows inserted
-		/// </returns>
-		/// <throws>  IOException </throws>
-		/// <summary>           if there were problems serializing the calendar
-		/// </summary>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="calendarName">The name for the new calendar.</param>
+		/// <param name="calendar">The calendar.</param>
+		/// <returns>The number of rows inserted.</returns>
 		int InsertCalendar(IDbConnection conn, string calendarName, ICalendar calendar);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Update a calendar.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">calendarName
-		/// the name for the new calendar
-		/// </param>
-		/// <param name="">calendar
-		/// the calendar
-		/// </param>
-		/// <returns> the number of rows updated
-		/// </returns>
-		/// <throws>  IOException </throws>
-		/// <summary>           if there were problems serializing the calendar
-		/// </summary>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="calendarName">The name for the new calendar.</param>
+		/// <param name="calendar">The calendar.</param>
+		/// <returns>The number of rows updated.</returns>
 		int UpdateCalendar(IDbConnection conn, string calendarName, ICalendar calendar);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Check whether or not a calendar exists.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">calendarName
-		/// the name of the calendar
-		/// </param>
-		/// <returns> true if the trigger exists, false otherwise
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="calendarName">The name of the calendar.</param>
+		/// <returns>true if the trigger exists, false otherwise.</returns>
 		bool CalendarExists(IDbConnection conn, string calendarName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select a calendar.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">calendarName
-		/// the name of the calendar
-		/// </param>
-		/// <returns> the Calendar
-		/// </returns>
-		/// <throws>  ClassNotFoundException </throws>
-		/// <summary>           if a class found during deserialization cannot be found be
-		/// found
-		/// </summary>
-		/// <throws>  IOException </throws>
-		/// <summary>           if there were problems deserializing the calendar
-		/// </summary>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="calendarName">The name of the calendar.</param>
+		/// <returns>The Calendar.</returns>
 		ICalendar SelectCalendar(IDbConnection conn, string calendarName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Check whether or not a calendar is referenced by any triggers.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="">conn
-		/// the DB Connection
-		/// </param>
-		/// <param name="">calendarName
-		/// the name of the calendar
-		/// </param>
-		/// <returns> true if any triggers reference the calendar, false otherwise
-		/// </returns>
-		
+		/// <param name="conn">The DB Connection.</param>
+		/// <param name="calendarName">The name of the calendar.</param>
+		/// <returns>true if any triggers reference the calendar, false otherwise</returns>
 		bool CalendarIsReferenced(IDbConnection conn, string calendarName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Delete a calendar.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">calendarName
-		/// the name of the trigger
-		/// </param>
-		/// <returns> the number of rows deleted
-		/// </returns>
+		/// <param name="calendarName">The name of the trigger.</param>
+		/// <returns>The number of rows deleted.</returns>
 		int DeleteCalendar(IDbConnection conn, string calendarName);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Select the total number of calendars stored.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> the total number of calendars stored
-		/// </returns>
+		/// <returns>The total number of calendars stored.</returns>
 		int SelectNumCalendars(IDbConnection conn);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select all of the stored calendars.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> an array of <code>String</code> calendar names
-		/// </returns>
+		/// <returns>An array of <code>String</code> calendar names.</returns>
 		string[] SelectCalendars(IDbConnection conn);
 
 		//---------------------------------------------------------------------------
 		// trigger firing
 		//---------------------------------------------------------------------------
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select the next time that a trigger will be fired.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> the next fire time, or 0 if no trigger will be fired
-		/// </returns>
+		/// <returns>The next fire time, or 0 if no trigger will be fired.</returns>
 		DateTime SelectNextFireTime(IDbConnection conn);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select the trigger that will be fired at the given fire time.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">fireTime
-		/// the time that the trigger will be fired
-		/// </param>
-		/// <returns> a <code>{@link org.quartz.utils.Key}</code> representing the
+		/// <param name="fireTime">The time that the trigger will be fired.</param>
+		/// <returns> 
+		/// A <code>Key</code> representing the
 		/// trigger that will be fired at the given fire time, or null if no
 		/// trigger will be fired at that time
 		/// </returns>
 		Key SelectTriggerForFireTime(IDbConnection conn, DateTime fireTime);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Insert a fired trigger.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">trigger
-		/// the trigger
-		/// </param>
-		/// <param name="">state
-		/// the state that the trigger should be stored in
-		/// </param>
-		/// <returns> the number of rows inserted
-		/// </returns>
+		/// <param name="trigger">The trigger.</param>
+		/// <param name="state">The state that the trigger should be stored in.</param>
+		/// <returns>The number of rows inserted.</returns>
 		int InsertFiredTrigger(IDbConnection conn, Trigger trigger, string state, JobDetail jobDetail);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Select the states of all fired-trigger records for a given trigger, or
 		/// trigger group if trigger name is <code>null</code>.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> a List of FiredTriggerRecord objects.
-		/// </returns>
+		/// <returns>A list of FiredTriggerRecord objects.</returns>
 		IList SelectFiredTriggerRecords(IDbConnection conn, string triggerName, string groupName);
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Select the states of all fired-trigger records for a given job, or job
 		/// group if job name is <code>null</code>.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> a List of FiredTriggerRecord objects.
-		/// </returns>
+		/// <returns>A List of FiredTriggerRecord objects.</returns>
 		IList SelectFiredTriggerRecordsByJob(IDbConnection conn, string jobName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Select the states of all fired-trigger records for a given scheduler
 		/// instance.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> a List of FiredTriggerRecord objects.
-		/// </returns>
+		/// <returns>A list of FiredTriggerRecord objects.</returns>
 		IList SelectInstancesFiredTriggerRecords(IDbConnection conn, string instanceName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Delete a fired trigger.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="">entryId
-		/// the fired trigger entry to delete
-		/// </param>
-		/// <returns> the number of rows deleted
-		/// </returns>
+		/// <param name="entryId">The fired trigger entry to delete.</param>
+		/// <returns>The number of rows deleted.</returns>
 		int DeleteFiredTrigger(IDbConnection conn, string entryId);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the number instances of the identified job currently executing.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> the number instances of the identified job currently executing.
-		/// </returns>
+		/// <returns>The number instances of the identified job currently executing.</returns>
 		int SelectJobExecutionCount(IDbConnection conn, string jobName, string jobGroup);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Insert a scheduler-instance state record.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> the number of inserted rows.
-		/// </returns>
+		/// <returns>The number of inserted rows.</returns>
 		int InsertSchedulerState(IDbConnection conn, string instanceId, long checkInTime, long interval, string recoverer);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Delete a scheduler-instance state record.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> the number of deleted rows.
-		/// </returns>
+		/// <returns>The number of deleted rows.</returns>
 		int DeleteSchedulerState(IDbConnection conn, string instanceId);
 
 
-		/// <summary> <p>
+		/// <summary>
 		/// Update a scheduler-instance state record.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns> the number of updated rows.
-		/// </returns>
+		/// <returns>The number of updated rows.</returns>
 		int UpdateSchedulerState(IDbConnection conn, string instanceId, long checkInTime);
 
-		/// <summary> <p>
+		/// <summary>
 		/// A List of all current <code>SchedulerStateRecords</code>.
-		/// </p>
-		/// 
 		/// <p>
 		/// If instanceId is not null, then only the record for the identified
 		/// instance will be returned.
 		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
 		IList SelectSchedulerStateRecords(IDbConnection conn, string instanceId);
 	}
-
-	// EOF
 }

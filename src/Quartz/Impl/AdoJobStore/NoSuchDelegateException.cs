@@ -30,6 +30,10 @@ namespace Quartz.Impl.AdoJobStore
 	[Serializable]
 	public class NoSuchDelegateException : JobPersistenceException
 	{
+		public NoSuchDelegateException(string msg, Exception cause) : base(msg, cause)
+		{
+		}
+
 		public NoSuchDelegateException(string msg) : base(msg)
 		{
 		}

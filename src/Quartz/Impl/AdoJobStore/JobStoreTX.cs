@@ -395,8 +395,6 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <seealso cref="java.lang.String, java.lang.String, org.quartz.Trigger)">
-		/// </seealso>
 		public override bool ReplaceTrigger(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger)
 		{
 			
@@ -876,20 +874,18 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the current state of the identified <code>{@link Trigger}</code>.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="Trigger#STATE_NORMAL">
+		/// <seealso cref="Trigger.STATE_NORMAL">
 		/// </seealso>
-		/// <seealso cref="Trigger#STATE_PAUSED">
+		/// <seealso cref="Trigger.STATE_PAUSED">
 		/// </seealso>
-		/// <seealso cref="Trigger#STATE_COMPLETE">
+		/// <seealso cref="Trigger.STATE_COMPLETE">
 		/// </seealso>
-		/// <seealso cref="Trigger#STATE_ERROR">
+		/// <seealso cref="Trigger.STATE_ERROR">
 		/// </seealso>
-		/// <seealso cref="Trigger#STATE_NONE">
+		/// <seealso cref="Trigger.STATE_NONE">
 		/// </seealso>
 		public override int GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
 		{
@@ -915,13 +911,9 @@ namespace Quartz.Impl.AdoJobStore
 		// trigger state manipulation methods
 		//---------------------------------------------------------------------------
 
-		/// <summary> <p>
-		/// Pause the <code>{@link org.quartz.Trigger}</code> with the given name.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Pause the <code>Trigger</code> with the given name.
 		/// </summary>
-		/// <seealso cref="string, String)">
-		/// </seealso>
 		public override void PauseTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
@@ -949,14 +941,9 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Pause all of the <code>{@link org.quartz.Trigger}s</code> in the
-		/// given group.
-		/// </p>
-		/// 
+		/// <summary> 
+		/// Pause all of the <code>Trigger</code>s in the given group.
 		/// </summary>
-		/// <seealso cref="string)">
-		/// </seealso>
 		public override void PauseTriggerGroup(SchedulingContext ctxt, string groupName)
 		{
 			
@@ -1069,19 +1056,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Resume (un-pause) the <code>{@link org.quartz.Trigger}</code> with the
+		/// <summary>
+		/// Resume (un-pause) the <code>Trigger</code> with the
 		/// given name.
-		/// </p>
-		/// 
 		/// <p>
 		/// If the <code>Trigger</code> missed one or more fire-times, then the
 		/// <code>Trigger</code>'s misfire instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="string, String)">
-		/// </seealso>
 		public override void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
@@ -1109,19 +1091,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Resume (un-pause) all of the <code>{@link org.quartz.Trigger}s</code>
 		/// in the given group.
-		/// </p>
-		/// 
 		/// <p>
 		/// If any <code>Trigger</code> missed one or more fire-times, then the
 		/// <code>Trigger</code>'s misfire instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="string)">
-		/// </seealso>
 		public override void ResumeTriggerGroup(SchedulingContext ctxt, string groupName)
 		{
 			
@@ -1195,20 +1172,15 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Resume (un-pause) all of the <code>{@link org.quartz.Job}s</code> in
+		/// <summary> 
+		/// Resume (un-pause) all of the <code>Job</code>s in
 		/// the given group.
-		/// </p>
-		/// 
 		/// <p>
 		/// If any of the <code>Job</code> s had <code>Trigger</code> s that
 		/// missed one or more fire-times, then the <code>Trigger</code>'s
 		/// misfire instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="string)">
-		/// </seealso>
 		public override void ResumeJobGroup(SchedulingContext ctxt, string groupName)
 		{
 			
@@ -1287,19 +1259,15 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Resume (un-pause) all triggers - equivalent of calling <code>ResumeTriggerGroup(group)</code>
 		/// on every group.
-		/// </p>
-		/// 
 		/// <p>
 		/// If any <code>Trigger</code> missed one or more fire-times, then the
 		/// <code>Trigger</code>'s misfire instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="#PauseAll(SchedulingContext)">
-		/// </seealso>
+		/// <seealso cref="PauseAll(SchedulingContext)" />
 		public override void ResumeAll(SchedulingContext ctxt)
 		{
 			

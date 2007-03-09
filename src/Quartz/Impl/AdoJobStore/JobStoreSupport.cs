@@ -455,32 +455,9 @@ namespace Quartz.Impl.AdoJobStore
 
 						delegate_Renamed = (IDriverDelegate) ctor.Invoke(ctorParams);
 					}
-					catch (MethodAccessException e)
-					{
-						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						throw new NoSuchDelegateException("Couldn't find delegate constructor: " + e.Message);
-					}
-						//UPGRADE_NOTE: Exception 'java.lang.InstantiationException' was converted to 'System.Exception' which has different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1100_3"'
 					catch (Exception e)
 					{
-						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						throw new NoSuchDelegateException("Couldn't create delegate: " + e.Message);
-					}
-					catch (UnauthorizedAccessException e)
-					{
-						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						throw new NoSuchDelegateException("Couldn't create delegate: " + e.Message);
-					}
-					catch (TargetInvocationException e)
-					{
-						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						throw new NoSuchDelegateException("Couldn't create delegate: " + e.Message);
-					}
-						//UPGRADE_NOTE: Exception 'java.lang.ClassNotFoundException' was converted to 'System.Exception' which has different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1100_3"'
-					catch (Exception e)
-					{
-						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						throw new NoSuchDelegateException("Couldn't load delegate class: " + e.Message);
+						throw new NoSuchDelegateException("Couldn't load delegate class: " + e.Message, e);
 					}
 				}
 
@@ -590,7 +567,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// used, in order to give the it a chance to Initialize.
 		/// </p>
 		/// </summary>
-		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler signaler)
+		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
 		{
 			if (dsName == null)
 			{
@@ -598,7 +575,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 
 			classLoadHelper = loadHelper;
-			this.signaler = signaler;
+			signaler = s;
 
 			if (!UseDBLocks && !Clustered)
 			{
@@ -624,8 +601,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <seealso cref="org.quartz.spi.JobStore#SchedulerStarted()">
-		/// </seealso>
+		/// <seealso cref="JobStore.SchedulerStarted()" />
 		public virtual void SchedulerStarted()
 		{
 			if (Clustered)
@@ -669,7 +645,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				DBConnectionManager.Instance.shutdown(DataSource);
+				DBConnectionManager.Instance.Shutdown(DataSource);
 			}
 			catch (OleDbException sqle)
 			{
@@ -870,15 +846,14 @@ namespace Quartz.Impl.AdoJobStore
 				String[] listeners = Delegate.SelectTriggerListeners(conn, trig.Name, trig.Group);
 				for (int l = 0; l < listeners.Length; ++l)
 				{
-					trig.addTriggerListener(listeners[l]);
+					trig.AddTriggerListener(listeners[l]);
 				}
 
-				signaler.notifyTriggerListenersMisfired(trig);
+				signaler.NotifyTriggerListenersMisfired(trig);
 
-				trig.updateAfterMisfire(cal);
+				trig.UpdateAfterMisfire(cal);
 
-				//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
-				if (trig.getNextFireTime() == null)
+				if (!trig.GetNextFireTime().HasValue)
 				{
 					StoreTrigger(conn, null, trig, null, true, AdoConstants.STATE_COMPLETE, false, recovering);
 				}
@@ -904,30 +879,29 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				Trigger trig = Delegate.SelectTrigger(conn, triggerName, groupName);
 
+				// TODO
 				long misfireTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
 				if (MisfireThreshold > 0)
 				{
 					misfireTime -= MisfireThreshold;
 				}
 
-				//UPGRADE_TODO: Method 'java.util.Date.getTime' was converted to 'DateTime.Ticks' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilDategetTime_3"'
-				if (trig.getNextFireTime().Ticks > misfireTime)
+				if (trig.GetNextFireTime().Value.Ticks > misfireTime)
 				{
 					return false;
 				}
 
-				Calendar cal = null;
+				ICalendar cal = null;
 				if (trig.CalendarName != null)
 				{
 					cal = RetrieveCalendar(conn, ctxt, trig.CalendarName);
 				}
 
-				signaler.notifyTriggerListenersMisfired(trig);
+				signaler.NotifyTriggerListenersMisfired(trig);
 
-				trig.updateAfterMisfire(cal);
+				trig.UpdateAfterMisfire(cal);
 
-				//UPGRADE_TODO: The 'DateTime' structure does not have an equivalent to NULL. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1291_3"'
-				if (trig.getNextFireTime() == null)
+				if (!trig.GetNextFireTime().HasValue)
 				{
 					StoreTrigger(conn, ctxt, trig, null, true, AdoConstants.STATE_COMPLETE, forceState, false);
 				}
@@ -1186,24 +1160,16 @@ namespace Quartz.Impl.AdoJobStore
 
 				return job;
 			}
-				//UPGRADE_NOTE: Exception 'java.lang.ClassNotFoundException' was converted to 'System.Exception' which has different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1100_3"'
-			catch (Exception e)
-			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-				throw new JobPersistenceException("Couldn't retrieve job because a required class was not found: " + e.Message, e,
-				                                  SchedulerException.ERR_PERSISTENCE_JOB_DOES_NOT_EXIST);
-			}
+
 			catch (IOException e)
 			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException("Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e,
 				                                  SchedulerException.ERR_PERSISTENCE_JOB_DOES_NOT_EXIST);
 			}
-			catch (OleDbException e)
+			catch (Exception e)
 			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException("Couldn't retrieve job: " + e.Message, e);
-			}
+			}	
 		}
 
 		
@@ -1231,15 +1197,8 @@ namespace Quartz.Impl.AdoJobStore
 					}
 				}
 			}
-				//UPGRADE_NOTE: Exception 'java.lang.ClassNotFoundException' was converted to 'System.Exception' which has different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1100_3"'
 			catch (Exception e)
 			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-				throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
-			}
-			catch (OleDbException e)
-			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
 			}
 
@@ -1274,18 +1233,10 @@ namespace Quartz.Impl.AdoJobStore
 
 				StoreTrigger(conn, ctxt, newTrigger, job, false, AdoConstants.STATE_WAITING, false, false);
 			}
-				//UPGRADE_NOTE: Exception 'java.lang.ClassNotFoundException' was converted to 'System.Exception' which has different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1100_3"'
 			catch (Exception e)
 			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
 			}
-			catch (OleDbException e)
-			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-				throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
-			}
-
 			return removedTrigger;
 		}
 
@@ -1418,11 +1369,6 @@ namespace Quartz.Impl.AdoJobStore
 				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException("Couldn't store calendar: " + e.Message, e);
 			}
-			catch (OleDbException e)
-			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-				throw new JobPersistenceException("Couldn't store calendar: " + e.Message, e);
-			}
 		}
 
 		
@@ -1478,22 +1424,13 @@ namespace Quartz.Impl.AdoJobStore
 				calendarCache[calName] = cal; // lazy-cache...
 				return cal;
 			}
-				//UPGRADE_NOTE: Exception 'java.lang.ClassNotFoundException' was converted to 'System.Exception' which has different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1100_3"'
-			catch (Exception e)
-			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-				throw new JobPersistenceException(
-					"Couldn't retrieve calendar because a required class was not found: " + e.Message, e);
-			}
 			catch (IOException e)
 			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException(
 					"Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
 			}
-			catch (OleDbException e)
+			catch (Exception e)
 			{
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 				throw new JobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
 			}
 		}
@@ -1646,10 +1583,9 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 		/// <summary>
-		/// Pause the <code>{@link org.quartz.Trigger}</code> with the given name.
+		/// Pause the <code>Trigger</code> with the given name.
 		/// </summary>
-		/// <seealso cref="SchedulingContext, String, String)">
-		/// </seealso>
+		/// <seealso cref="SchedulingContext(String, String)" />
 		public virtual void PauseTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
@@ -1764,20 +1700,15 @@ namespace Quartz.Impl.AdoJobStore
 		* in group '" + groupName + "': " + e.getMessage(), e); } }
 		*/
 
-		/// <summary> <p>
+		/// <summary>
 		/// Resume (un-pause) the <code>{@link org.quartz.Trigger}</code> with the
 		/// given name.
-		/// </p>
-		/// 
 		/// <p>
 		/// If the <code>Trigger</code> missed one or more fire-times, then the
 		/// <code>Trigger</code>'s misfire instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="SchedulingContext, String, String)">
-		/// </seealso>
-		
+		/// <seealso cref="SchedulingContext(String, String)"/>
 		public virtual void ResumeTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
@@ -1824,15 +1755,10 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Pause all of the <code>{@link org.quartz.Trigger}s</code> in the
-		/// given group.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Pause all of the <code>Trigger</code>s in the given group.
 		/// </summary>
-		/// <seealso cref="SchedulingContext, String)">
-		/// </seealso>
-		
+		/// <seealso cref="SchedulingContext(String)" />
 		public virtual void PauseTriggerGroup(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			try
@@ -1856,15 +1782,11 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Pause all of the <code>{@link org.quartz.Trigger}s</code> in the
+		/// <summary> 
+		/// Pause all of the <code>Trigger</code>s in the
 		/// given group.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="SchedulingContext, String)">
-		/// </seealso>
-		
+		/// <seealso cref="SchedulingContext(string)" />
 		public virtual ISet GetPausedTriggerGroups(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
@@ -1878,20 +1800,15 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Resume (un-pause) all of the <code>{@link org.quartz.Trigger}s</code>
 		/// in the given group.
-		/// </p>
-		/// 
 		/// <p>
 		/// If any <code>Trigger</code> missed one or more fire-times, then the
 		/// <code>Trigger</code>'s misfire instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="SchedulingContext, String)">
-		/// </seealso>
-		
+		/// <seealso cref="SchedulingContext(string)" />
 		public virtual void ResumeTriggerGroup(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			try
@@ -1945,22 +1862,16 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Pause all triggers - equivalent of calling <code>PauseTriggerGroup(group)</code>
 		/// on every group.
-		/// </p>
-		/// 
 		/// <p>
 		/// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="#ResumeAll(SchedulingContext)">
-		/// </seealso>
-		/// <seealso cref="String)">
-		/// </seealso>
-		
+		/// <seealso cref="ResumeAll(SchedulingContext)" />
+		/// <seealso cref="String" />
 		public virtual void PauseAll(IDbConnection conn, SchedulingContext ctxt)
 		{
 			String[] names = GetTriggerGroupNames(conn, ctxt);
@@ -1984,21 +1895,15 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> protected
-		/// <p>
+		/// <summary>
 		/// Resume (un-pause) all triggers - equivalent of calling <code>ResumeTriggerGroup(group)</code>
 		/// on every group.
-		/// </p>
-		/// 
 		/// <p>
 		/// If any <code>Trigger</code> missed one or more fire-times, then the
 		/// <code>Trigger</code>'s misfire instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="#PauseAll(SchedulingContext)">
-		/// </seealso>
-		
+		/// <seealso cref="PauseAll(SchedulingContext)" />
 		public virtual void ResumeAll(IDbConnection conn, SchedulingContext ctxt)
 		{
 			String[] names = GetTriggerGroupNames(conn, ctxt);
@@ -2324,11 +2229,11 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal virtual IList ClusterCheckIn(IDbConnection conn)
 		{
 			IList states = null;
-			//UPGRADE_TODO: Class 'java.util.LinkedList' was converted to 'System.Collections.ArrayList' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilLinkedList_3"'
 			IList failedInstances = new ArrayList();
 			SchedulerStateRecord myLastState = null;
-			bool selfFailed = false;
+			//bool selfFailed = false;
 
+			// TODO
 			long timeNow = (DateTime.Now.Ticks - 621355968000000000)/10000;
 
 			try
@@ -2336,10 +2241,9 @@ namespace Quartz.Impl.AdoJobStore
 				states = Delegate.SelectSchedulerStateRecords(conn, null);
 
 				IEnumerator itr = states.GetEnumerator();
-				//UPGRADE_TODO: Method 'java.util.Iterator.hasNext' was converted to 'System.Collections.IEnumerator.MoveNext' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilIteratorhasNext_3"'
+
 				while (itr.MoveNext())
 				{
-					//UPGRADE_TODO: Method 'java.util.Iterator.next' was converted to 'System.Collections.IEnumerator.Current' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilIteratornext_3"'
 					SchedulerStateRecord rec = (SchedulerStateRecord) itr.Current;
 
 					// find own record...
@@ -2619,9 +2523,9 @@ namespace Quartz.Impl.AdoJobStore
 		/////////////////////////////////////////////////////////////////////////////
 		internal class ClusterManager : SupportClass.QuartzThread
 		{
-			private void InitBlock(JobStoreSupport enclosingInstance)
+			private void InitBlock(JobStoreSupport enclosingInstanceParam)
 			{
-				this.enclosingInstance = enclosingInstance;
+				enclosingInstance = enclosingInstanceParam;
 			}
 
 			private JobStoreSupport enclosingInstance;
@@ -2729,7 +2633,7 @@ namespace Quartz.Impl.AdoJobStore
 			
 			private void InitBlock(JobStoreSupport instance)
 			{
-				this.enclosingInstance = instance;
+				enclosingInstance = instance;
 			}
 
 			public JobStoreSupport Enclosing_Instance
@@ -2819,8 +2723,9 @@ namespace Quartz.Impl.AdoJobStore
 						{
 							try
 							{
+								// TODO
 								//UPGRADE_TODO: Method 'java.lang.Thread.sleep' was converted to 'System.Threading.Thread.Sleep' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javalangThreadsleep_long_3"'
-								Thread.Sleep(new TimeSpan((Int64) 10000*timeToSleep));
+								Thread.Sleep(new TimeSpan(10000*timeToSleep));
 							}
 							catch (Exception)
 							{
