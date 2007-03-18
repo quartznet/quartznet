@@ -1,0 +1,19 @@
+<h1>Welcome to the home of Quartz Enterprise Scheduler .NET!</h1>
+<br />
+<cite>Quartz.NET is a full-featured, open source job scheduling system that can be used from smallest apps to large scale enterprise systems.</cite>
+
+<p>
+	Quartz.NET is a port of very propular open source Java job scheduling framework, <a href="http://www.opensymphony.com/quartz">Quartz</a>. 
+	Most of the work has already been done on the Java side. This project owes very much to original Java project, it's father James House and
+	the other contributors.
+	Quart.NET is still very much work in progress, all feedback and suggestions are greatly welcome.
+</p>
+			
+	
+<h1>Quartz.NET 0.4 Relased</h1>
+<div class="descr">March 4, 2007 by Marko Lahma</div>
+<p>
+	Quartz.NET 0.4, the initial version of Quartz.NET was released today. Grap it from <a href="download.html">downloads page</a>.
+</p>
+			
+	
