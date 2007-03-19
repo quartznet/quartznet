@@ -1,0 +1,162 @@
+<h1>Lesson 3: More About Jobs & JobDetails</h1>
+<br />
+
+<p>
+As you've seen, Jobs are rather easy to implement. There are just a few more things that you need to understand about the nature of jobs, about the Execute(..) method of the IJob interface, and about JobDetails.
+</p>
+<p>
+While a class that you implement is the actual "job", Quartz needs to be informed about various attributes that you may wish the job to have. This is done via the JobDetail class, which was mentioned briefly in the previous section. Software 'archaeologists' may be interested to know that in an older incarnation of Quartz, the implementation of the functionality of JobDetail was imposed upon the implementor of each Job class by having all of JobDetail's 'getter' methods on the Job interface itself. This forced a cumbersome job of re-implementing virtually identical code on every Job class - which was really dumb... thus we created the JobDetail class.
+</p>
+<p>
+Let's take a moment now to discuss a bit about the 'nature' of Jobs and the life-cycle of job instances within Quartz. First lets take a look back at some of that snippet of code we saw in Lesson 1:
+</p>
+<p>
+<strong>Using Quartz</strong>
+<div class='code'>
+	<font color='darkgreen'>//&nbsp;construct&nbsp;a&nbsp;scheduler&nbsp;factory<br />
+	</font><font color='black'>ISchedulerFactory&nbsp;schedFact&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>StdSchedulerFactory()</font><font color='blue'>;<br />
+	<br />
+	</font><font color='darkgreen'>//&nbsp;get&nbsp;a&nbsp;scheduler<br />
+	</font><font color='black'>IScheduler&nbsp;sched&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>schedFact.GetScheduler()</font><font color='blue'>;<br />
+	</font><font color='black'>sched.Start()</font><font color='blue'>;<br />
+	<br />
+	</font><font color='darkgreen'>//&nbsp;construct&nbsp;job&nbsp;info<br />
+	</font><font color='black'>JobDetail&nbsp;jobDetail&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>JobDetail(</font><font color='#808080'>"myJob"</font><font color='black'>,<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>null</font><font color='black'>,<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>typeof</font><font color='black'>(HelloJob))</font><font color='blue'>;<br />
+	</font><font color='darkgreen'>//&nbsp;fire&nbsp;every&nbsp;hour<br />
+	</font><font color='black'>Trigger&nbsp;trigger&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>TriggerUtils.MakeHourlyTrigger()</font><font color='blue'>;<br />
+	</font><font color='darkgreen'>//&nbsp;start&nbsp;on&nbsp;the&nbsp;next&nbsp;even&nbsp;hour<br />
+	</font><font color='black'>trigger.StartTime&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>TriggerUtils.GetEvenHourDate(DateTime.Now)</font><font color='blue'>;&nbsp;&nbsp;<br />
+	</font><font color='black'>trigger.Name&nbsp;</font><font color='blue'>=&nbsp;</font><font color='#808080'>"myTrigger"</font><font color='blue'>;<br />
+	</font><font color='black'>sched.ScheduleJob(jobDetail,&nbsp;trigger)</font><font color='blue'>;</font>
+</div>
+
+</p>
+<p>
+Now consider the job class "DumbJob" defined as such:<br />
+<strong>DumbJob</strong><br />
+<div class='code'>
+<font color='blue'>public&nbsp;class&nbsp;</font><font color='black'>DumbJob&nbsp;:&nbsp;IJob<br />
+{<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>public&nbsp;</font><font color='black'>DumbJob()&nbsp;{<br />
+&nbsp;&nbsp;&nbsp;&nbsp;}<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>public&nbsp;void&nbsp;</font><font color='black'>Execute(JobExecutionContext&nbsp;context)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;{<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Console.WriteLine(</font><font color='#808080'>"DumbJob&nbsp;is&nbsp;executing."</font><font color='black'>)</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>}<br />
+}</font>
+</div>
+
+<p>
+Notice that we 'feed' the scheduler a JobDetail instance, and that it refers to the job to be executed by simply providing the job's class. Each (and every) time the scheduler executes the job, it creates a new instance of the class before calling its Execute(..) method. One of the ramifications of this behavior is the fact that jobs must have a no-arguement constructor. Another ramification is that it does not make sense to have data-members defined on the job class - as their values would be 'cleared' every time the job executes.
+</p>
+
+<p>
+You may now be wanting to ask "how can I provide properties/configuration for a Job instance?" and "how can I keep track of a job's state between executions?" The answer to these questions are the same: the key is the JobDataMap, which is part of the JobDetail object.
+</p>
+
+<h2>JobDataMap</h2>
+<br />
+<p>
+The JobDataMap can be used to hold any number of (serializable) objects which you wish to have made available to the job instance when it executes. JobDataMap is an implementation of the Java Map interface, and has some added convenience methods for storing and retreiving data of primitive types.
+</p>
+
+<p>
+Here's some quick snippets of putting data into the JobDataMap prior to adding the job to the scheduler:
+</p>
+<strong>Setting Values in a JobDataMap</strong><br/>
+<div class='code'>
+<font color='black'>jobDetail.JobDataMap[</font><font color='#808080'>"jobSays"</font><font color='black'>]&nbsp;</font><font color='blue'>=&nbsp;</font><font color='#808080'>"Hello&nbsp;World!"</font><font color='blue'>;<br />
+</font><font color='black'>jobDetail.JobDataMap[</font><font color='#808080'>"myFloatValue"</font><font color='black'>]&nbsp;</font><font color='blue'>=&nbsp;&nbsp;</font><font color='maroon'>3</font><font color='black'>.141f</font><font color='blue'>;<br />
+</font><font color='black'>jobDetail.JobDataMap[</font><font color='#808080'>"myStateData"</font><font color='black'>]&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>ArrayList()</font><font color='blue'>;</font>
+</div>
+
+<p>
+Here's a quick example of getting data from the JobDataMap during the job's execution:
+</p>
+<strong>Getting Values from a JobDataMap</strong><br />
+<div class='code'>
+<font color='blue'>public&nbsp;class&nbsp;</font><font color='black'>DumbJob&nbsp;:&nbsp;IJob<br />
+{<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>public&nbsp;void&nbsp;</font><font color='black'>Execute(JobExecutionContext&nbsp;context)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;{<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;String&nbsp;instName&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Name</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>String&nbsp;instGroup&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Group</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>JobDataMap&nbsp;dataMap&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.JobDataMap</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>String&nbsp;jobSays&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>dataMap.GetString(</font><font color='#808080'>"jobSays"</font><font color='black'>)</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;</font><font color='black'>myFloatValue&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>dataMap.GetFloat(</font><font color='#808080'>"myFloatValue"</font><font color='black'>)</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>ArrayList&nbsp;state&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>(ArrayList)&nbsp;dataMap[</font><font color='#808080'>"myStateData"</font><font color='black'>]</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>state.Add(DateTime.Now)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>Console.WriteLine(</font><font color='#808080'>"Instance&nbsp;{0}&nbsp;of&nbsp;DumbJob&nbsp;says:&nbsp;{1}"</font><font color='black'>,&nbsp;instName,&nbsp;jobSays)</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>}<br />
+}</font>
+	</div>
+
+
+<p>
+If you use a persistent JobStore (discussed in the JobStore section of this tutorial) you should use some care in deciding what you place in the JobDataMap, because the object in it will be serialized, and they therefore become prone to class-versioning problems. Obviously standard Java types should be very safe, but beyond that, anytime someone changes the definition of a class for which you have serialized instances, care has to be taken not to break compatibility. Optionally, you can put AdoJobStore and JobDataMap into a mode where only primitives and strings can be stored in the map, thus eliminating any possibility of later serialization problems.
+
+<h2>Stateful vs. Non-Stateful Jobs</h2>
+
+<p>
+Triggers can also have JobDataMaps associated with them. This can be useful in the case where you have a Job that is stored in the scheduler for regular/repeated use by multiple Triggers, yet with each independent triggering, you want to supply the Job with different data inputs.
+</p>
+
+<p>
+The JobDataMap that is found on the JobExecutionContext during Job execution serves as a convenience. It is a merge of the JobDataMap found on the JobDetail and the one found on the Trigger, with the value in the latter overriding any same-named values in the former.
+</p>
+
+<p>
+Here's a quick example of getting data from the JobExecutionContext's merged JobDataMap during the job's execution:
+</p>
+<strong>Getting Values from the JobExecutionContext convenience/merged JobDataMap</strong>
+public class DumbJob implements Job {
+
+    public DumbJob() {
+    }
+
+    public void execute(JobExecutionContext context)
+      throws JobExecutionException
+    {
+      String instName = context.getJobDetail().getName();
+      String instGroup = context.getJobDetail().getGroup();
+
+      JobDataMap dataMap = context.getJobDataMap();  // Note the difference from the previous example
+
+      String jobSays = dataMap.getString("jobSays");
+      float myFloatValue = dataMap.getFloat("myFloatValue");
+      ArrayList state = (ArrayList)dataMap.get("myStateData");
+      state.add(new Date());
+
+      System.err.println("Instance " + instName + " of DumbJob says: " + jobSays);
+    }
+  }
+
+<h2>StatefulJob</h2>
+
+Now, some additional notes about a job's state data (aka JobDataMap): A Job instance can be defined as "stateful" or "non-stateful". Non-stateful jobs only have their JobDataMap stored at the time they are added to the scheduler. This means that any changes made to the contents of the job data map during execution of the job will be lost, and will not seen by the job the next time it executes. You have probably guessed, a stateful job is just the opposite - its JobDataMap is re-stored after every execution of the job. One side-effect of making a job stateful is that it cannot be executed concurrently. Or in other words: if a job is stateful, and a trigger attempts to 'fire' the job while it is already executing, the trigger will block (wait) until the previous execution completes.
+
+You 'mark' a Job as stateful by having it implement the StatefulJob interface, rather than the Job interface.
+Job 'Instances'
+
+One final point on this topic that may or may not be obvious by now: You can create a single job class, and store many 'instance definitions' of it within the scheduler by creating multiple instances of JobDetails - each with its own set of properties and JobDataMap - and adding them all to the scheduler.
+
+When a trigger fires, the Job it is associated to is instantiated via the JobFactory configured on the Scheduler. The default JobFactory simply calls newInstance() on the job class. You may want to create your own implementation of JobFactory to accomplish things such as having your application's IoC or DI container produce/initialize the job instance.
+Other Attributes Of Jobs
+
+Here's a quick summary of the other properties which can be defined for a job instance via the JobDetail object:
+
+    * Durability - if a job is non-durable, it is automatically deleted from the scheduler once there are no longer any active triggers associated with it.
+    * Volatility - if a job is volatile, it is not persisted between re-starts of the Quartz scheduler.
+    * RequestsRecovery - if a job "requests recovery", and it is executing during the time of a 'hard shutdown' of the scheduler (i.e. the process it is running within crashes, or the machine is shut off), then it is re-executed when the scheduler is started again. In this case, the JobExecutionContext.isRecovering() method will return true.
+    * JobListeners - a job can have a set of zero or more JobListeners associated with it. When the job executes, the listeners are notified. More discussion on JobListeners can be found in the section of this document that is dedicated to the topic of TriggerListeners & JobListeners.
+
+The Job.execute(..) Method
+JobExecutionException
+
+Finally, we need to inform you of a few details of the Job.execute(..) method. The only type of exception (including RuntimeExceptions) that you are allowed to throw from the execute method is the JobExecutionException. Because of this, you should generally wrap the entire contents of the execute method with a 'try-catch' block. You should also spend some time looking at the documentation for the JobExecutionException, as your job can use it to provide the scheduler various directives as to how you want the exception to be handled.
