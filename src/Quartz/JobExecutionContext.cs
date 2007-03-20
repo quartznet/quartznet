@@ -107,15 +107,17 @@ namespace Quartz
 			get { return recovering; }
 		}
 
+        /// <summary>
+        /// Gets the refire count.
+        /// </summary>
+        /// <value>The refire count.</value>
 		public virtual int RefireCount
 		{
 			get { return numRefires; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the convenience <code>JobDataMap</code> of this execution context.
-		/// </p>
-		/// 
 		/// <p>
 		/// The <code>JobDataMap</code> found on this object serves as a convenience -
 		/// it is a merge of the <code>JobDataMap</code> found on the 
@@ -125,9 +127,8 @@ namespace Quartz
 		/// retrieve data from the JobDataMap found on this object</i>
 		/// </p>
 		/// 
-		/// <p>NOTE: Do not
-		/// expect value 'set' into this JobDataMap to somehow be set back onto a
-		/// <code>StatefulJob</code>'s own JobDataMap.
+		/// <p>NOTE: Do not expect value 'set' into this JobDataMap to somehow be 
+		/// set back onto a <code>StatefulJob</code>'s own JobDataMap.
 		/// </p>
 		/// 
 		/// <p>

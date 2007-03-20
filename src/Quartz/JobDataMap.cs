@@ -622,5 +622,15 @@ namespace Quartz
 				throw new InvalidCastException("Identified object is not a DateTime.");
 			}
 		}
+
+        /// <summary>
+        /// Gets the value behind the specified key.
+        /// </summary>
+        /// <param name="key">The key.</param>
+        /// <returns></returns>
+	    public object Get(object key)
+	    {
+	        return this[key];
+	    }
 	}
 }
