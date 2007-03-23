@@ -42,7 +42,7 @@ or if you need to fire a job at a given time, and have it repeat N times, with a
 CronTrigger is useful if you wish to have triggering based on calendar-like schedules - such as "every Friday,
 at noon" or "at 10:15 on the 10th day of every month."
 </p> 
-<h2>Why Jobs AND Triggers?<h2>
+<h2>Why Jobs AND Triggers?</h2>
 <p> 
 Many job schedulers do not have separate notions of jobs and triggers. Some define a 'job' as simply an 
 execution time (or schedule) along with some small job identifier. Others are much like the union 
@@ -58,7 +58,6 @@ later, without having to re-define it. It also allows you to modify or replace a
 re-define its associated job.
 </p> 
 <h2>Identifiers</h2>
-<br />
 <p> 
 Jobs and Triggers are given identifying names as they are registered with the Quartz.NET scheduler. 
 Jobs and triggers can also be placed into 'groups' which can be useful for organizing your jobs and triggers 

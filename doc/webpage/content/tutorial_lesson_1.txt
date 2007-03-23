@@ -1,5 +1,5 @@
 <h1>Lesson 1: Using Quartz</h1>
-<br />
+
 <p>
 Before you can use the scheduler, it needs to be instantiated (who'd have guessed?). 
 To do this, you use a SchedulerFactory. 

@@ -1,52 +1,79 @@
-Lesson 7: TriggerListeners and JobListeners
+<h1>Lesson 7: TriggerListeners and JobListeners</h1>
+<br />
 
-Listeners are objects that you create to perform actions based on events occuring within the scheduler. As you can probably guess, TriggerListeners receive events related to triggers, and JobListeners receive events related to jobs.
+<p>
+Listeners are objects that you create to perform actions based on events occuring within the scheduler. 
+As you can probably guess, TriggerListeners receive events related to triggers, and JobListeners receive events related to jobs.
+</p>
 
-Trigger-related events include: trigger firings, trigger mis-firings (discussed in the "Triggers" section of this document), and trigger completions (the jobs fired off by the trigger is finished).
-The org.quartz.TriggerListener Interface
+<p>
+Trigger-related events include: trigger firings, trigger mis-firings (discussed in the "Triggers" section of this document), 
+and trigger completions (the jobs fired off by the trigger is finished).
+</p>
 
-public interface TriggerListener {
+<strong>The ITriggerListener Interface</strong>
 
-    public String getName();
+<div class='code'>
+<font color='blue'>public&nbsp;interface&nbsp;</font><font color='black'>ITriggerListener<br />
+{<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>string&nbsp;</font><font color='black'>Name&nbsp;{&nbsp;</font><font color='blue'>get;&nbsp;</font><font color='black'>}<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>void&nbsp;</font><font color='black'>TriggerFired(Trigger&nbsp;trigger,&nbsp;JobExecutionContext&nbsp;context)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;bool&nbsp;</font><font color='black'>VetoJobExecution(Trigger&nbsp;trigger,&nbsp;JobExecutionContext&nbsp;context)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>TriggerMisfired(Trigger&nbsp;trigger)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>TriggerComplete(Trigger&nbsp;trigger,&nbsp;JobExecutionContext&nbsp;context,&nbsp;</font><font color='blue'>int&nbsp;</font><font color='black'>triggerInstructionCode)</font><font color='blue'>;<br />
+</font><font color='black'>}</font>
+	</div>
 
-    public void triggerFired(Trigger trigger, JobExecutionContext context);
 
-    public boolean vetoJobExecution(Trigger trigger, JobExecutionContext context);
-
-    public void triggerMisfired(Trigger trigger);
-
-    public void triggerComplete(Trigger trigger, JobExecutionContext context,
-            int triggerInstructionCode);
-}
-
+<p>
 Job-related events include: a notification that the job is about to be executed, and a notification when the job has completed execution.
-The org.quartz.JobListener Interface
+</p>
 
-public interface JobListener {
+<strong>The IJobListener Interface</strong>
 
-    public String getName();
+<div class='code'>
+<font color='blue'>public&nbsp;interface&nbsp;</font><font color='black'>IJobListener<br />
+{<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>string&nbsp;</font><font color='black'>Name&nbsp;{&nbsp;</font><font color='blue'>get;&nbsp;</font><font color='black'>}<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>void&nbsp;</font><font color='black'>JobToBeExecuted(JobExecutionContext&nbsp;context)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>JobExecutionVetoed(JobExecutionContext&nbsp;context)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>JobWasExecuted(JobExecutionContext&nbsp;context,&nbsp;JobExecutionException&nbsp;jobException)</font><font color='blue'>;<br />
+</font><font color='black'>}</font>
+	</div>
 
-    public void jobToBeExecuted(JobExecutionContext context);
 
-    public void jobExecutionVetoed(JobExecutionContext context);
+<h2>Using Your Own Listeners</h2>
 
-    public void jobWasExecuted(JobExecutionContext context,
-            JobExecutionException jobException);
+<p>
+To create a listener, simply create an object the implements either the ITriggerListener and/or IJobListener interface. 
+Listeners are then registered with the scheduler during run time, and must be given a name (or rather, they must advertise their own 
+name via their Name property. Listeners can be registered as either "global" or "non-global". 
+Global listeners receive events for ALL triggers/jobs, and non-global listeners receive events only for the specific triggers/jobs that
+explicitely name the listener in their getTriggerListenerNames() or getJobListenerNames() properties.
+</p>	
 
-}
+<p>
+As described above, listeners are registered with the scheduler during run time, and are NOT stored in the JobStore along with the jobs and triggers.
+The jobs and triggers only have the names of the related listeners stored with them. Hence, each time your application runs, the listeners 
+need to be re-registered with the scheduler.
+</p>
 
-Using Your Own Listeners
+<strong>Adding a JobListener to the Scheduler</strong>
 
-To create a listener, simply create an object the implements either the org.quartz.TriggerListener and/or org.quartz.JobListener interface. Listeners are then registered with the scheduler during run time, and must be given a name (or rather, they must advertise their own name via their getName() method. Listeners can be registered as either "global" or "non-global". Global listeners receive events for ALL triggers/jobs, and non-global listeners receive events only for the specific triggers/jobs that explicitely name the listener in their getTriggerListenerNames() or getJobListenerNames() properties.
-	
-
-As described above, listeners are registered with the scheduler during run time, and are NOT stored in the JobStore along with the jobs and triggers. The jobs and triggers only have the names of the related listeners stored with them. Hence, each time your application runs, the listeners need to be re-registered with the scheduler.
-Adding a JobListener to the Scheduler
-
-scheduler.addGlobalJobListener(myJobListener);
+<code>scheduler.addGlobalJobListener(myJobListener);</code>
 
 or
 
-  scheduler.addJobListener(myJobListener);
+<code>scheduler.AddJobListener(myJobListener);</code>
 
-Listeners are not used by most users of Quartz, but are handy when application requirements create the need for the notification of events, without the Job itself explicitly notifying the application.
+<p>
+Listeners are not used by most users of Quartz, but are handy when application requirements create the need
+for the notification of events, without the Job itself explicitly notifying the application.
+<p>

@@ -1,6 +1,4 @@
 <h1>Lesson 3: More About Jobs & JobDetails</h1>
-<br />
-
 <p>
 As you've seen, Jobs are rather easy to implement. There are just a few more things that you need to understand about the nature of jobs, about the Execute(..) method of the IJob interface, and about JobDetails.
 </p>
@@ -35,7 +33,6 @@ Let's take a moment now to discuss a bit about the 'nature' of Jobs and the life
 </p>
 <p>
 Now consider the job class "DumbJob" defined as such:<br />
-<strong>DumbJob</strong><br />
 <div class='code'>
 <font color='blue'>public&nbsp;class&nbsp;</font><font color='black'>DumbJob&nbsp;:&nbsp;IJob<br />
 {<br />
@@ -64,7 +61,6 @@ which is part of the JobDetail object.
 </p>
 
 <h2>JobDataMap</h2>
-<br />
 <p>
 The JobDataMap can be used to hold any number of (serializable) objects which you wish to have made available 
 to the job instance when it executes. JobDataMap is an implementation of the Java Map interface, and has some added convenience methods for storing and retreiving data of primitive types.

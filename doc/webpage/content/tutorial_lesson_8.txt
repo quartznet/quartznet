@@ -1,30 +1,41 @@
-Lesson 8: SchedulerListeners
+<h1>Lesson 8: SchedulerListeners</h1>
+<br />
+<p>
+SchedulerListeners are much like ITriggerListeners and IJobListeners, except they receive notification of 
+events within the Scheduler itself - not necessarily events related to a specific trigger or job.
+</p>
+<p>
+Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error 
+within the scheduler, notification of the scheduler being shutdown, and others.
+</p>
 
-SchedulerListeners are much like TriggerListeners and JobListeners, except they receive notification of events within the Scheduler itself - not necessarily events related to a specific trigger or job.
+<strong>The ISchedulerListener Interface</strong>
 
-Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error within the scheduler, notification of the scheduler being shutdown, and others.
-The org.quartz.SchedulerListener Interface
+<div class='code'>
+<font color='blue'>public&nbsp;interface&nbsp;</font><font color='black'>ISchedulerListener<br />
+{<br />
+&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>void&nbsp;</font><font color='black'>JobScheduled(Trigger&nbsp;trigger)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>JobUnscheduled(</font><font color='blue'>string&nbsp;</font><font color='black'>triggerName,&nbsp;</font><font color='blue'>string&nbsp;</font><font color='black'>triggerGroup)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>TriggerFinalized(Trigger&nbsp;trigger)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>TriggersPaused(</font><font color='blue'>string&nbsp;</font><font color='black'>triggerName,&nbsp;</font><font color='blue'>string&nbsp;</font><font color='black'>triggerGroup)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>TriggersResumed(</font><font color='blue'>string&nbsp;</font><font color='black'>triggerName,&nbsp;</font><font color='blue'>string&nbsp;</font><font color='black'>triggerGroup)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>JobsPaused(</font><font color='blue'>string&nbsp;</font><font color='black'>jobName,&nbsp;</font><font color='blue'>string&nbsp;</font><font color='black'>jobGroup)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>JobsResumed(</font><font color='blue'>string&nbsp;</font><font color='black'>jobName,&nbsp;</font><font color='blue'>string&nbsp;</font><font color='black'>jobGroup)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>SchedulerError(</font><font color='blue'>string&nbsp;</font><font color='black'>msg,&nbsp;SchedulerException&nbsp;cause)</font><font color='blue'>;<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;</font><font color='black'>SchedulerShutdown()</font><font color='blue'>;<br />
+</font><font color='black'>}</font>
+	</div>
 
-public interface SchedulerListener {
-
-    public void jobScheduled(Trigger trigger);
-
-    public void jobUnscheduled(String triggerName, String triggerGroup);
-
-    public void triggerFinalized(Trigger trigger);
-
-    public void triggersPaused(String triggerName, String triggerGroup);
-
-    public void triggersResumed(String triggerName, String triggerGroup);
-
-    public void jobsPaused(String jobName, String jobGroup);
-
-    public void jobsResumed(String jobName, String jobGroup);
-
-    public void schedulerError(String msg, SchedulerException cause);
-
-    public void schedulerShutdown();
-
-}
-
-SchedulerListeners are created and registered in much the same way as the other listener types, except there is no distinction between global and non-global listeners. SchedulerListeners can be virtually any object that implements the org.quartz.SchedulerListener interface.
+<p>
+SchedulerListeners are created and registered in much the same way as the other listener types, 
+except there is no distinction between global and non-global listeners. SchedulerListeners can be 
+virtually any object that implements the org.quartz.SchedulerListener interface.
+</p>

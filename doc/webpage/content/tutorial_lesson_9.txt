@@ -1,28 +1,74 @@
-Lesson 9: JobStores
+<h1>Lesson 9: JobStores</h1>
+<br />
 
-JobStore's are responsible for keeping track of all the "work data" that you give to the scheduler: jobs, triggers, calendars, etc. Selecting the appropriate JobStore for your Quartz scheduler instance is an important step. Luckily, the choice should be a very easy one once you understand the differences between them. You declare which JobStore your scheduler should use (and it's configuration settings) in the properties file (or object) that you provide to the SchedulerFactory that you use to produce your scheduler instance.
-	
+<p>
+JobStore's are responsible for keeping track of all the "work data" that you give to the scheduler: 
+jobs, triggers, calendars, etc. Selecting the appropriate JobStore for your Quartz scheduler instance is an important step. 
+Luckily, the choice should be a very easy one once you understand the differences between them. 
+You declare which JobStore your scheduler should use (and it's configuration settings) in the properties file (or object) that
+you provide to the SchedulerFactory that you use to produce your scheduler instance.
+</p>
 
+<p>
 Never use a JobStore instance directly in your code. For some reason many people attempt to do this. The JobStore is for behind-the-scenes use of Quartz itself. You have to tell Quartz (through configuration) which JobStore to use, but then you should only work with the Scheduler interface in your code.
-RAMJobStore
+</p>
 
-RAMJobStore is the simplest JobStore to use, it is also the most performant (in terms of CPU time). RAMJobStore gets its name in the obvious way: it keeps all of its data in RAM. This is why it's lightning-fast, and also why it's so simple to configure. The drawback is that when your application ends (or crashes) all of the scheduling information is lost - this means RAMJobStore cannot honor the setting of "non-volatility" on jobs and triggers. For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disasterous.
+<h2>RAMJobStore</h2>
 
-To use RAMJobStore (and assuming you're using StdSchedulerFactory) simply specify the class name org.quartz.simpl.RAMJobStore as the JobStore class property that you use to configure quartz:
-Configuring Quartz to use RAMJobStore
+<p>
+RAMJobStore is the simplest JobStore to use, it is also the most performant (in terms of CPU time). 
+RAMJobStore gets its name in the obvious way: it keeps all of its data in RAM. This is why it's lightning-fast, 
+and also why it's so simple to configure. The drawback is that when your application ends (or crashes) all of 
+the scheduling information is lost - this means RAMJobStore cannot honor the setting of "non-volatility" on jobs and triggers. 
+For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disasterous.
+</p>
+<p>
+To use RAMJobStore (and assuming you're using StdSchedulerFactory) simply specify the class name RAMJobStore as the JobStore 
+class property that you use to configure quartz:
+
+<strong>Configuring Quartz to use RAMJobStore</strong>
 
 org.quartz.jobStore.class = org.quartz.simpl.RAMJobStore
 
+<p>
 There are no other settings you need to worry about.
-JDBCJobStore
+</p>
 
-JDBCJobStore is also aptly named - it keeps all of its data in a database via JDBC. Because of this it is a bit more complicated to configure than RAMJobStore, and it also is not as fast. However, the performance draw-back is not terribly bad, especially if you build the database tables with indexes on the primary keys. On a 800MHz Windoz box running a Quartz application utilizing Oracle running on a not-so-new Solaris box, the time to retreive and update a firing trigger and its associated job has been measured at about 15 milliseconds.
+<h2>AdoobStore</h2>
 
-JDBCJobStore works with nearly any database, it has been used widely with Oracle, MySQL, MS SQLServer2000, HSQLDB, PostreSQL and DB2. To use JDBCJobStore, you must first create a set of database tables for Quartz to use. You can find table-creation SQL scripts in the "docs/dbTables" directory of the Quartz distribution. If there is not already a script for your database type, just look at one of the existing ones, and modify it in any way necessary for your DB. One thing to note is that in these scripts, all the the tables start with the prefix "QRTZ_" (such as the tables "QRTZ_TRIGGERS", and "QRTZ_JOB_DETAIL"). This prefix can actually be anything you'd like, as long as you inform JDBCJobStore what the prefix is (in your Quartz properties). Using different prefixes may be useful for creating multiple sets of tables, for multiple scheduler instances, within the same database.
+<strong>This information is incomplete!!!</strong>
+<p>AdoJobStore is still under development</p>
 
-Once you've got the tables created, you have one more major decision to make before configuring and firing up JDBCJobStore. You need to decide what type of transactions your application needs. If you don't need to tie your scheduling commands (such as adding and removing triggers) to other transactions, then you can let Quartz manage the transaction by using JobStoreTX as your JobStore (this is the most common selection).
+<!-- TODO
+<p>
+AdoJobStore is also aptly named - it keeps all of its data in a database via ADO.NET. 
+Because of this it is a bit more complicated to configure than RAMJobStore, and it also is not as fast. 
+However, the performance draw-back is not terribly bad, especially if you build the database tables with indexes on the primary keys. 
+On a 800MHz Windoz box running a Quartz application utilizing Oracle running on a not-so-new Solaris box, the time to retreive 
+and update a firing trigger and its associated job has been measured at about 15 milliseconds.
+</p>
 
+
+AdoJobStore works with nearly any database, it has been used widely with Oracle, MySQL, MS SQLServer2000, HSQLDB, PostreSQL and DB2. 
+To use JDBCJobStore, you must first create a set of database tables for Quartz to use. 
+You can find table-creation SQL scripts in the "docs/dbTables" directory of the Quartz distribution. 
+If there is not already a script for your database type, just look at one of the existing ones, and modify it in any way necessary for your DB. 
+One thing to note is that in these scripts, all the the tables start with the prefix "QRTZ_" 
+such as the tables "QRTZ_TRIGGERS", and "QRTZ_JOB_DETAIL"). This prefix can actually be anything you'd like, as long as you inform AdoJobStore
+what the prefix is (in your Quartz properties). Using different prefixes may be useful for creating multiple sets of tables, 
+for multiple scheduler instances, within the same database.
+
+
+<p>
+Once you've got the tables created, you have one more major decision to make before configuring and firing up AdoJobStore. 
+You need to decide what type of transactions your application needs. If you don't need to tie your scheduling commands 
+(such as adding and removing triggers) to other transactions, then you can let Quartz manage the transaction by using 
+JobStoreTX as your JobStore (this is the most common selection).
+</p>
+
+<p>
 If you need Quartz to work along with other transactions (i.e. within a J2EE application server), then you should use JobStoreCMT - in which case Quartz will let the app server container manage the transactions.
+</p>
 
 The last piece of the puzzle is setting up a DataSource from which JDBCJobStore can get connections to your database. DataSources are defined in your Quartz properties using one of a few different approaches. One approach is to have Quartz create and manage the DataSource itself - by providing all of the connection information for the database. Another approach is to have Quartz use a DataSource that is managed by an application server that Quartz is running inside of - by providing JDBCJobStore the JNDI name of the DataSource. For details on the properties, consult the example config files in the "docs/config" folder.
 
@@ -54,3 +100,5 @@ If your Scheduler is very busy (i.e. nearly always executing the same number of 
 	
 
 The "org.quartz.jobStore.useProperties" config parameter can be set to "true" (defaults to false) in order to instruct JDBCJobStore that all values in JobDataMaps will be Strings, and therefore can be stored as name-value pairs, rather than storing more complex objects in their serialized form in the BLOB column. This is much safer in the long term, as you avoid the class versioning issues that there are with serializing your non-String classes into a BLOB.
+
+-->
