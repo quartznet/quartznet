@@ -25,7 +25,7 @@ namespace Quartz
 {
 	/// <summary> 
 	/// An interface to be implemented by objects that define spaces of time that
-	/// should be included or excluded from a <code>{@link Trigger}</code>'s
+	/// should be included or excluded from a <code>Trigger</code>'s
 	/// normal 'firing' schedule.
 	/// </summary>
 	/// <author>James House</author>

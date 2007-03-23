@@ -21,69 +21,50 @@
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// The interface to be implemented by classes that want to be informed when a
-	/// <code>{@link org.quartz.JobDetail}</code> executes. In general,
-	/// applications that use a <code>Scheduler</code> will not have use for this
-	/// mechanism.
-	/// </p>
-	/// 
+	/// <code>JobDetail</code> executes. In general,  applications that use a 
+	/// <code>Scheduler</code> will not have use for this mechanism.
 	/// </summary>
-	/// <seealso cref="IScheduler">
-	/// </seealso>
-	/// <seealso cref="IJob">
-	/// </seealso>
-	/// <seealso cref="JobExecutionContext">
-	/// </seealso>
-	/// <seealso cref="JobExecutionException">
-	/// </seealso>
-	/// <seealso cref="ITriggerListener">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="IScheduler" />
+	/// <seealso cref="IJob" />
+	/// <seealso cref="JobExecutionContext" />
+	/// <seealso cref="JobExecutionException" />
+	/// <seealso cref="ITriggerListener" />
+	/// <author>James House</author>
 	public interface IJobListener
 	{
-		/// <summary> <p>
+		/// <summary>
 		/// Get the name of the <code>JobListener</code>.
-		/// </p>
 		/// </summary>
 		string Name { get; }
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link org.quartz.JobDetail}</code>
-		/// is about to be executed (an associated <code>{@link Trigger}</code>
+		/// <summary>
+		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
+		/// is about to be executed (an associated <code>Trigger</code>
 		/// has occured).
-		/// </p>
-		/// 
 		/// <p>
 		/// This method will not be invoked if the execution of the Job was vetoed
-		/// by a <code>{@link TriggerListener}</code>.
+		/// by a <code>TriggerListener</code>.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="JobExecutionVetoed(JobExecutionContext)">
-		/// </seealso>
+		/// <seealso cref="JobExecutionVetoed(JobExecutionContext)" />
 		void JobToBeExecuted(JobExecutionContext context);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link org.quartz.JobDetail}</code>
-		/// was about to be executed (an associated <code>{@link Trigger}</code>
-		/// has occured), but a <code>{@link TriggerListener}</code> vetoed it's 
+		/// <summary>
+		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
+		/// was about to be executed (an associated <code>Trigger</code>
+		/// has occured), but a <code>TriggerListener</code> vetoed it's 
 		/// execution.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="JobToBeExecuted(JobExecutionContext)">
-		/// </seealso>
+		/// <seealso cref="JobToBeExecuted(JobExecutionContext)" />
 		void JobExecutionVetoed(JobExecutionContext context);
 
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> after a <code>{@link org.quartz.JobDetail}</code>
+		/// <summary>
+		/// Called by the <code>Scheduler</code> after a <code>JobDetail</code>
 		/// has been executed, and be for the associated <code>Trigger</code>'s
-		/// <code>triggered(xx)</code> method has been called.
-		/// </p>
+		/// <code>Triggered(xx)</code> method has been called.
 		/// </summary>
 		void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException);
 	}

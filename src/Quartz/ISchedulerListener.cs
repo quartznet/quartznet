@@ -21,49 +21,37 @@
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// The interface to be implemented by classes that want to be informed of major
-	/// <code>{@link Scheduler}</code> events.
-	/// </p>
-	/// 
+	/// <code>IScheduler</code> events.
 	/// </summary>
-	/// <seealso cref="IScheduler">
-	/// </seealso>
-	/// <seealso cref="IJobListener">
-	/// </seealso>
-	/// <seealso cref="ITriggerListener">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="IScheduler" />
+	/// <seealso cref="IJobListener" />
+	/// <seealso cref="ITriggerListener" />
+	/// <author> James House</author>
 	public interface ISchedulerListener
 	{
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link org.quartz.JobDetail}</code>
+		/// <summary>
+		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
 		/// is scheduled.
-		/// </p>
 		/// </summary>
 		void JobScheduled(Trigger trigger);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link org.quartz.JobDetail}</code>
+		/// <summary>
+		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
 		/// is unscheduled.
-		/// </p>
 		/// </summary>
 		void JobUnscheduled(string triggerName, string triggerGroup);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link Trigger}</code>
+		/// <summary> 
+		/// Called by the <code>IScheduler</code> when a <code>{@link Trigger}</code>
 		/// has reached the condition in which it will never fire again.
-		/// </p>
 		/// </summary>
 		void TriggerFinalized(Trigger trigger);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link Trigger}</code>
-		/// or group of <code>{@link Trigger}s</code> has been paused.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
+		/// or group of <code>Trigger</code>s has been paused.
 		/// <p>
 		/// If a group was paused, then the <code>triggerName</code> parameter
 		/// will be null.
@@ -71,11 +59,9 @@ namespace Quartz
 		/// </summary>
 		void TriggersPaused(string triggerName, string triggerGroup);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link Trigger}</code>
-		/// or group of <code>{@link Trigger}s</code> has been un-paused.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Called by the <code>IScheduler</code> when a <code>Trigger</code>
+		/// or group of <code>Trigger</code>s has been un-paused.
 		/// <p>
 		/// If a group was resumed, then the <code>triggerName</code> parameter
 		/// will be null.
@@ -83,12 +69,9 @@ namespace Quartz
 		/// </summary>
 		void TriggersResumed(string triggerName, string triggerGroup);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link org.quartz.JobDetail}</code>
-		/// or group of <code>{@link org.quartz.JobDetail}s</code> has been
-		/// paused.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
+		/// or group of <code>JobDetail</code>s has been  paused.
 		/// <p>
 		/// If a group was paused, then the <code>jobName</code> parameter will be
 		/// null. If all jobs were paused, then both parameters will be null.
@@ -96,12 +79,9 @@ namespace Quartz
 		/// </summary>
 		void JobsPaused(string jobName, string jobGroup);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link org.quartz.JobDetail}</code>
-		/// or group of <code>{@link org.quartz.JobDetail}s</code> has been
-		/// un-paused.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
+		/// or group of <code>JobDetail</code>s has been  un-paused.
 		/// <p>
 		/// If a group was resumed, then the <code>jobName</code> parameter will
 		/// be null. If all jobs were paused, then both parameters will be null.
@@ -109,25 +89,22 @@ namespace Quartz
 		/// </summary>
 		void JobsResumed(string jobName, string jobGroup);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a serious error has
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a serious error has
 		/// occured within the scheduler - such as repeated failures in the <code>JobStore</code>,
-		/// or the inability to instantiate a <code>Job</code> instance when its
+		/// or the inability to instantiate a <code>IJob</code> instance when its
 		/// <code>Trigger</code> has fired.
-		/// </p>
-		/// 
 		/// <p>
-		/// The <code>getErrorCode()</code> method of the given SchedulerException
+		/// The <code>ErrorCode</code> property of the given SchedulerException
 		/// can be used to determine more specific information about the type of
 		/// error that was encountered.
 		/// </p>
 		/// </summary>
 		void SchedulerError(string msg, SchedulerException cause);
 
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> to inform the listener
+		/// <summary> 
+		/// Called by the <code>IScheduler</code> to inform the listener
 		/// that it has Shutdown.
-		/// </p>
 		/// </summary>
 		void SchedulerShutdown();
 	}

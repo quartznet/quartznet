@@ -21,64 +21,41 @@
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// The interface to be implemented by classes that want to be informed when a
-	/// <code>{@link Trigger}</code> fires. In general, applications that use a
+	/// <code>Trigger</code> fires. In general, applications that use a
 	/// <code>Scheduler</code> will not have use for this mechanism.
-	/// </p>
-	/// 
 	/// </summary>
-	/// <seealso cref="IScheduler">
-	/// </seealso>
-	/// <seealso cref="Trigger">
-	/// </seealso>
-	/// <seealso cref="IJobListener">
-	/// </seealso>
-	/// <seealso cref="JobExecutionContext">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="IScheduler" />
+	/// <seealso cref="Trigger" />
+	/// <seealso cref="IJobListener" />
+	/// <seealso cref="JobExecutionContext" />
+	/// <author>James House</author>
 	public interface ITriggerListener
 	{
-		/// <summary> <p>
+		/// <summary>
 		/// Get the name of the <code>TriggerListener</code>.
-		/// </p>
 		/// </summary>
 		string Name { get; }
 
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Interface.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link Trigger}</code>
-		/// has fired, and it's associated <code>{@link org.quartz.JobDetail}</code>
+		/// <summary>
+		/// Called by the <code>IScheduler}</code> when a <code>Trigger</code>
+		/// has fired, and it's associated <code>JobDetail</code>
 		/// is about to be executed.
-		/// </p>
-		/// 
 		/// <p>
-		/// It is called before the <code>vetoJobExecution(..)</code> method of this
+		/// It is called before the <code>VetoJobExecution(..)</code> method of this
 		/// interface.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigger">
-		/// The <code>Trigger</code> that has fired.
-		/// </param>
+		/// <param name="trigger">The <code>Trigger</code> that has fired.</param>
 		/// <param name="context">
-		/// The <code>JobExecutionContext</code> that will be passed to
-		/// the <code>Job</code>'s<code>Execute(xx)</code> method.
+		///     The <code>JobExecutionContext</code> that will be passed to the <code>IJob</code>'s<code>Execute(xx)</code> method.
 		/// </param>
 		void TriggerFired(Trigger trigger, JobExecutionContext context);
 
 		/// <summary>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link Trigger}</code>
-		/// has fired, and it's associated <code>{@link org.quartz.JobDetail}</code>
+		/// Called by the <code>IScheduler</code> when a <code>Trigger</code>
+		/// has fired, and it's associated <code>JobDetail</code>
 		/// is about to be executed.
 		/// <p>
 		/// It is called after the <code>TriggerFired(..)</code> method of this
@@ -94,7 +71,7 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link Trigger}</code>
+		/// Called by the <code>IScheduler</code> when a <code>Trigger</code>
 		/// has misfired.
 		/// <p>
 		/// Consideration should be given to how much time is spent in this method,
@@ -107,9 +84,9 @@ namespace Quartz
 		void TriggerMisfired(Trigger trigger);
 
 		/// <summary>
-		/// Called by the <code>{@link Scheduler}</code> when a <code>{@link Trigger}</code>
-		/// has fired, it's associated <code>{@link org.quartz.JobDetail}</code>
-		/// has been executed, and it's <code>triggered(xx)</code> method has been
+		/// Called by the <code>IScheduler</code> when a <code>Trigger</code>
+		/// has fired, it's associated <code>JobDetail</code>
+		/// has been executed, and it's <code>Triggered(xx)</code> method has been
 		/// called.
 		/// </summary>
 		/// <param name="trigger">The <code>Trigger</code> that was fired.</param>
@@ -117,9 +94,8 @@ namespace Quartz
 		/// The <code>JobExecutionContext</code> that was passed to the
 		/// <code>Job</code>'s<code>Execute(xx)</code> method.
 		/// </param>
-		/// <param name="triggerInstructionCode">T
-		/// he result of the call on the <code>Trigger</code>'s<code>triggered(xx)</code>
-		/// method.
+		/// <param name="triggerInstructionCode">
+		/// The result of the call on the <code>Trigger</code>'s<code>triggered(xx)</code>  method.
 		/// </param>
 		void TriggerComplete(Trigger trigger, JobExecutionContext context, int triggerInstructionCode);
 	}
