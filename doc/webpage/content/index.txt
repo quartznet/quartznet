@@ -4,16 +4,37 @@
 
 <p>
 	Quartz.NET is a port of very propular open source Java job scheduling framework, <a href="http://www.opensymphony.com/quartz">Quartz</a>. 
-	Most of the work has already been done on the Java side. This project owes very much to original Java project, it's father James House and
-	the other contributors.
+	This project owes very much to original Java project, it's father James House and
+	the project contributors. 
+</p>
+<p>
+	Quartz.NET is a pure .NET library written in C# which currently targets Framework version 1.1 and above.
 	Quart.NET is still very much work in progress, all feedback and suggestions are greatly welcome.
 </p>
-			
+
+<h1>Quartz.NET Tutorial Online</h1>
+<div class="descr">March 24, 2007 by Marko Lahma</div>			
+<p>
+Tutorial has been ported from Java side to serve as starting point for Quartz.NET development. There may still be some 
+rough edges to smooth an minor inaccurasies but it should be enough to get you going.
+</p>	
+<p>
+Go to <a href="tutorial.html">Tutorial section</a>.
+</p>
 	
-<h1>Quartz.NET 0.4 Relased</h1>
+<h1>Quartz.NET 0.4 Released</h1>
 <div class="descr">March 4, 2007 by Marko Lahma</div>
 <p>
-	Quartz.NET 0.4, the initial version of Quartz.NET was released today. Grap it from <a href="download.html">downloads page</a>.
+	Quartz.NET 0.4, the initial version of Quartz.NET was released today. 
 </p>
-			
+<p>
+	Version 0.4 is the first public release with core features including:
+	<ul>
+		<li>SimpleTrigger and CronTrigger</li>
+		<li>RAMJobStore as job store implementation</li>
+	</ul>
+</p>
+<p>
+	Grap it from <a href="download.html">downloads page</a>.
+</p>
 	
