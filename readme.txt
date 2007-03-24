@@ -1,7 +1,7 @@
-QUARTZ JOB SCHEDULER .NET, release 0.4, March 4 2007
+QUARTZ JOB SCHEDULER .NET, release 0.4.1, March 24 2007
 -----------------------------------------------------------------
-http://quartznet.sourceforge.net/
 
+http://quartznet.sourceforge.net/
 
 1. INTRODUCTION
 ----------------
@@ -32,6 +32,8 @@ Lots of funtionality still missing.
 
 3. RELEASE INFO
 ----------------
-This release only contains minimal set of functionality that you need to run agains RAMJobStore.
+
+This release only contains minimal set of functionality that you need 
+to run against RAMJobStore.
 
 

@@ -12,6 +12,18 @@
 	Quart.NET is still very much work in progress, all feedback and suggestions are greatly welcome.
 </p>
 
+<h1>Quartz.NET 0.4.1 Released</h1>
+<div class="descr">March 24, 2007 by Marko Lahma</div>
+<p>
+	Quartz.NET 0.4.1 has been released. 
+</p>
+<p>
+	Version 0.4.1 is a bug fix release that addresses problems found in CronTrigger.
+</p>
+<p>
+	Grap it from <a href="download.html">downloads page</a>.
+</p>
+
 <h1>Quartz.NET Tutorial Online</h1>
 <div class="descr">March 24, 2007 by Marko Lahma</div>			
 <p>

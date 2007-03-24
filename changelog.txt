@@ -4,7 +4,7 @@ http://quartznet.sourceforge.net
 
 
 
-Release 0.4.1, March xx, 2007
+Release 0.4.1, March 24, 2007
 -----------------------------
 Summary: Bug fix release
 
@@ -12,11 +12,11 @@ Bugs:
 
 * [QRTZNET-8] - CronExpression problems
 
+Other:
 
+Tutorial created, available on the web page.
 
 Special thanks to Sebastian Fialka for sending Quartz.NET first patch! (QRTZNET-8)
-
-
 
 
 Release 0.4, March 4, 2007
