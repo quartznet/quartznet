@@ -26,33 +26,36 @@ using Quartz.Spi;
 
 namespace Quartz.Plugins.Management
 {
-	/// <summary> This plugin catches the event of the JVM terminating (such as upon a CRTL-C)
+	/// <summary> 
+	/// This plugin catches the event of the VM terminating (such as upon a CRTL-C)
 	/// and tells the scheuler to Shutdown.
-	/// 
 	/// </summary>
-	/// <seealso cref="IScheduler.Shutdown(bool)">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="IScheduler.Shutdown(bool)" />
+	/// <author>James House</author>
 	public class ShutdownHookPlugin : ISchedulerPlugin
 	{
+        private string name;
+        private IScheduler scheduler;
+        private bool cleanShutdown = true;
+
 		private static readonly ILog Log = LogManager.GetLogger(typeof (ShutdownHookPlugin));
 
-		private class AnonymousClassThread : SupportClass.QuartzThread
+		private class AnonymousClassThread : QuartzThread
 		{
-			private void InitBlock(IScheduler scheduler, ShutdownHookPlugin enclosingInstance)
+            private IScheduler scheduler;
+            private ShutdownHookPlugin encInstance;
+
+			private void InitBlock(IScheduler sched, ShutdownHookPlugin enclosingInstance)
 			{
-				this.scheduler = scheduler;
-				this.enclosingInstance = enclosingInstance;
+				scheduler = sched;
+				encInstance = enclosingInstance;
 			}
 
-			private IScheduler scheduler;
-			private ShutdownHookPlugin enclosingInstance;
 
-			public ShutdownHookPlugin Enclosing_Instance
+
+			public ShutdownHookPlugin EnclosingInstance
 			{
-				get { return enclosingInstance; }
+				get { return encInstance; }
 			}
 
 			internal AnonymousClassThread(IScheduler scheduler, ShutdownHookPlugin enclosingInstance, string Param1)
@@ -66,7 +69,7 @@ namespace Quartz.Plugins.Management
 				Log.Info("Shutting down Quartz...");
 				try
 				{
-					Enclosing_Instance.scheduler.Shutdown(Enclosing_Instance.CleanShutdown);
+					EnclosingInstance.scheduler.Shutdown(EnclosingInstance.CleanShutdown);
 				}
 				catch (SchedulerException e)
 				{
@@ -82,8 +85,7 @@ namespace Quartz.Plugins.Management
 		/// The default value is <code>true</code>.
 		/// </p>
 		/// </summary>
-		/// <seealso cref="IScheduler.Shutdown(bool)">
-		/// </seealso>
+		/// <seealso cref="IScheduler.Shutdown(bool)" />
 		public virtual bool CleanShutdown
 		{
 			get { return cleanShutdown; }
@@ -91,19 +93,9 @@ namespace Quartz.Plugins.Management
 		}
 
 
-		private string name;
-		private IScheduler scheduler;
-		private bool cleanShutdown = true;
-
-
-		/// <summary> <p>
+		/// <summary>
 		/// Called during creation of the <code>Scheduler</code> in order to give
 		/// the <code>SchedulerPlugin</code> a chance to Initialize.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <throws>  SchedulerConfigException </throws>
-		/// <summary>           if there is an error initializing.
 		/// </summary>
 		public virtual void Initialize(String pluginName, IScheduler sched)
 		{
@@ -112,13 +104,18 @@ namespace Quartz.Plugins.Management
 
 			Log.Info(string.Format("Registering Quartz Shutdown hook '{0}.", pluginName));
 
-			SupportClass.QuartzThread t =
+			QuartzThread t =
 				new AnonymousClassThread(sched, this, "Quartz Shutdown-Hook " + sched.SchedulerName);
 
 			// TODO
-			// Process.GetCurrentProcess().addShutdownHook(t.Instance);
+			//Process.GetCurrentProcess().addShutdownHook(t.Instance);
 		}
 
+        /// <summary>
+        /// Called when the associated <code>Scheduler</code> is started, in order
+        /// to let the plug-in know it can now make calls into the scheduler if it
+        /// needs to.
+        /// </summary>
 		public virtual void Start()
 		{
 			// do nothing.

@@ -97,7 +97,7 @@ namespace Quartz.Core
 			}
 			catch (Exception e)
 			{
-				SchedulerException se = new SchedulerException("Problem instantiating class '" + jobDetail.JobClass.FullName + "'", e);
+				SchedulerException se = new SchedulerException("Problem instantiating type '" + jobDetail.JobType.FullName + "'", e);
 				sched.NotifySchedulerListenersError("An error occured instantiating job to be executed. job= '" + jobDetail.FullName + "'", se);
 				throw se;
 			}

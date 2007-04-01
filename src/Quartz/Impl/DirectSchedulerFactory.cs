@@ -99,7 +99,7 @@ namespace Quartz.Impl
 		/// </summary>
 		public virtual ICollection AllSchedulers
 		{
-			get { return SchedulerRepository.Instance.lookupAll(); }
+			get { return SchedulerRepository.Instance.LookupAll(); }
 		}
 
 		public const string DEFAULT_INSTANCE_ID = "SIMPLE_NON_CLUSTERED";

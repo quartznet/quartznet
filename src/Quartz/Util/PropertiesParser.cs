@@ -31,6 +31,10 @@ namespace Quartz.Util
 	/// <author> James House</author>
 	public class PropertiesParser
 	{
+        /// <summary>
+        /// Gets the underlying properties.
+        /// </summary>
+        /// <value>The underlying properties.</value>
 		public virtual NameValueCollection UnderlyingProperties
 		{
 			get { return props; }
@@ -38,11 +42,20 @@ namespace Quartz.Util
 
 		internal NameValueCollection props = null;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PropertiesParser"/> class.
+        /// </summary>
+        /// <param name="props">The props.</param>
 		public PropertiesParser(NameValueCollection props)
 		{
 			this.props = props;
 		}
 
+        /// <summary>
+        /// Gets the string property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual string GetStringProperty(string name)
 		{
 			string val = props.Get(name);
@@ -53,35 +66,52 @@ namespace Quartz.Util
 			return val.Trim();
 		}
 
-		public virtual string GetStringProperty(string name, string def)
+        /// <summary>
+        /// Gets the string property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual string GetStringProperty(string name, string defaultValue)
 		{
-			string val = props[name] == null ? def : props[name];
+			string val = props[name] == null ? defaultValue : props[name];
 			if (val == null)
 			{
-				return def;
+				return defaultValue;
 			}
 			val = val.Trim();
 			if (val.Length == 0)
 			{
-				return def;
+				return defaultValue;
 			}
 			return val;
 		}
 
+        /// <summary>
+        /// Gets the string array property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual string[] GetStringArrayProperty(string name)
 		{
 			return GetStringArrayProperty(name, null);
 		}
 
-		public virtual string[] GetStringArrayProperty(string name, string[] def)
+        /// <summary>
+        /// Gets the string array property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual string[] GetStringArrayProperty(string name, string[] defaultValue)
 		{
 			string vals = GetStringProperty(name);
 			if (vals == null)
 			{
-				return def;
+				return defaultValue;
 			}
 
-			if (vals != null && !vals.Trim().Equals(""))
+			if (!vals.Trim().Equals(""))
 			{
 				string[] stok = vals.Split(',');
 				ArrayList strs = ArrayList.Synchronized(new ArrayList(10));
@@ -100,13 +130,18 @@ namespace Quartz.Util
 				}
 				catch (Exception)
 				{
-					return def;
+					return defaultValue;
 				}
 			}
 
-			return def;
+			return defaultValue;
 		}
 
+        /// <summary>
+        /// Gets the boolean property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual bool GetBooleanProperty(string name)
 		{
 			string val = GetStringProperty(name);
@@ -118,17 +153,28 @@ namespace Quartz.Util
 			return val.ToUpper().Equals("TRUE");
 		}
 
-		public virtual bool GetBooleanProperty(string name, bool def)
+        /// <summary>
+        /// Gets the boolean property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">if set to <c>true</c> [defaultValue].</param>
+        /// <returns></returns>
+		public virtual bool GetBooleanProperty(string name, bool defaultValue)
 		{
 			string val = GetStringProperty(name);
 			if (val == null)
 			{
-				return def;
+				return defaultValue;
 			}
 
 			return val.ToUpper().Equals("TRUE");
 		}
 
+        /// <summary>
+        /// Gets the byte property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual sbyte GetByteProperty(string name)
 		{
 			string val = GetStringProperty(name);
@@ -147,12 +193,18 @@ namespace Quartz.Util
 			}
 		}
 
-		public virtual sbyte GetByteProperty(string name, sbyte def)
+        /// <summary>
+        /// Gets the byte property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual sbyte GetByteProperty(string name, sbyte defaultValue)
 		{
 			string val = GetStringProperty(name);
 			if (val == null)
 			{
-				return def;
+			    return defaultValue;
 			}
 
 			try
@@ -165,6 +217,11 @@ namespace Quartz.Util
 			}
 		}
 
+        /// <summary>
+        /// Gets the char property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual char GetCharProperty(string name)
 		{
 			string param = GetStringProperty(name);
@@ -181,22 +238,33 @@ namespace Quartz.Util
 			return param[0];
 		}
 
-		public virtual char GetCharProperty(string name, char def)
+        /// <summary>
+        /// Gets the char property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual char GetCharProperty(string name, char defaultValue)
 		{
 			string param = GetStringProperty(name);
 			if (param == null)
 			{
-				return def;
+				return defaultValue;
 			}
 
 			if (param.Length == 0)
 			{
-				return def;
+				return defaultValue;
 			}
 
 			return param[0];
 		}
 
+        /// <summary>
+        /// Gets the double property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual double GetDoubleProperty(string name)
 		{
 			string val = GetStringProperty(name);
@@ -215,12 +283,18 @@ namespace Quartz.Util
 			}
 		}
 
-		public virtual double GetDoubleProperty(string name, double def)
+        /// <summary>
+        /// Gets the double property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual double GetDoubleProperty(string name, double defaultValue)
 		{
 			string val = GetStringProperty(name);
 			if (val == null)
 			{
-				return def;
+				return defaultValue;
 			}
 
 			try
@@ -233,6 +307,11 @@ namespace Quartz.Util
 			}
 		}
 
+        /// <summary>
+        /// Gets the float property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual float GetFloatProperty(string name)
 		{
 			string val = GetStringProperty(name);
@@ -251,12 +330,18 @@ namespace Quartz.Util
 			}
 		}
 
-		public virtual float GetFloatProperty(string name, float def)
+        /// <summary>
+        /// Gets the float property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual float GetFloatProperty(string name, float defaultValue)
 		{
 			string val = GetStringProperty(name);
 			if (val == null)
 			{
-				return def;
+				return defaultValue;
 			}
 
 			try
@@ -269,6 +354,11 @@ namespace Quartz.Util
 			}
 		}
 
+        /// <summary>
+        /// Gets the int property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual int GetIntProperty(string name)
 		{
 			string val = GetStringProperty(name);
@@ -287,12 +377,18 @@ namespace Quartz.Util
 			}
 		}
 
-		public virtual int GetIntProperty(string name, int def)
+        /// <summary>
+        /// Gets the int property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual int GetIntProperty(string name, int defaultValue)
 		{
 			string val = GetStringProperty(name);
 			if (val == null)
 			{
-				return def;
+				return defaultValue;
 			}
 
 			try
@@ -305,20 +401,31 @@ namespace Quartz.Util
 			}
 		}
 
+        /// <summary>
+        /// Gets the int array property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual int[] GetIntArrayProperty(string name)
 		{
 			return GetIntArrayProperty(name, null);
 		}
 
-		public virtual int[] GetIntArrayProperty(string name, int[] def)
+        /// <summary>
+        /// Gets the int array property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual int[] GetIntArrayProperty(string name, int[] defaultValue)
 		{
 			string vals = GetStringProperty(name);
 			if (vals == null)
 			{
-				return def;
+				return defaultValue;
 			}
 
-			if (vals != null && !vals.Trim().Equals(""))
+			if (!vals.Trim().Equals(""))
 			{
 				string[] stok = vals.Split(',');
 				ArrayList ints = ArrayList.Synchronized(new ArrayList(10));
@@ -344,13 +451,18 @@ namespace Quartz.Util
 				}
 				catch (Exception)
 				{
-					return def;
+					return defaultValue;
 				}
 			}
 
-			return def;
+			return defaultValue;
 		}
 
+        /// <summary>
+        /// Gets the long property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual long GetLongProperty(string name)
 		{
 			string val = GetStringProperty(name);
@@ -369,6 +481,12 @@ namespace Quartz.Util
 			}
 		}
 
+        /// <summary>
+        /// Gets the long property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="def">The def.</param>
+        /// <returns></returns>
 		public virtual long GetLongProperty(string name, long def)
 		{
 			string val = GetStringProperty(name);
@@ -387,6 +505,11 @@ namespace Quartz.Util
 			}
 		}
 
+        /// <summary>
+        /// Gets the short property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns></returns>
 		public virtual short GetShortProperty(string name)
 		{
 			string val = GetStringProperty(name);
@@ -405,12 +528,18 @@ namespace Quartz.Util
 			}
 		}
 
-		public virtual short GetShortProperty(string name, short def)
+        /// <summary>
+        /// Gets the short property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="defaultValue">The default value.</param>
+        /// <returns></returns>
+		public virtual short GetShortProperty(string name, short defaultValue)
 		{
 			string val = GetStringProperty(name);
 			if (val == null)
 			{
-				return def;
+				return defaultValue;
 			}
 
 			try
@@ -423,9 +552,14 @@ namespace Quartz.Util
 			}
 		}
 
+        /// <summary>
+        /// Gets the property groups.
+        /// </summary>
+        /// <param name="prefix">The prefix.</param>
+        /// <returns></returns>
 		public virtual string[] GetPropertyGroups(string prefix)
 		{
-			Hashtable groups = new Hashtable(10);
+			IDictionary groups = new Hashtable(10);
 
 			if (!prefix.EndsWith("."))
 			{
@@ -445,11 +579,22 @@ namespace Quartz.Util
 			return (string[]) a.ToArray(typeof (string));
 		}
 
+        /// <summary>
+        /// Gets the property group.
+        /// </summary>
+        /// <param name="prefix">The prefix.</param>
+        /// <returns></returns>
 		public virtual NameValueCollection GetPropertyGroup(string prefix)
 		{
 			return GetPropertyGroup(prefix, false);
 		}
 
+        /// <summary>
+        /// Gets the property group.
+        /// </summary>
+        /// <param name="prefix">The prefix.</param>
+        /// <param name="stripPrefix">if set to <c>true</c> [strip prefix].</param>
+        /// <returns></returns>
 		public virtual NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix)
 		{
 			NameValueCollection group = new NameValueCollection();

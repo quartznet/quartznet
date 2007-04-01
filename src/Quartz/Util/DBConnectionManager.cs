@@ -55,7 +55,7 @@ namespace Quartz.Util
 		public const string DB_PROPS_PREFIX = "org.quartz.db.";
 		private static readonly DBConnectionManager instance = new DBConnectionManager();
 
-		private Hashtable providers = new Hashtable();
+		private IDictionary providers = new Hashtable();
 
 
 		/// <summary> 

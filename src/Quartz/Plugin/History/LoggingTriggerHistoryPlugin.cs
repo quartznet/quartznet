@@ -236,6 +236,10 @@ namespace Quartz.Plugins.History
 			set { triggerMisfiredMessage = value; }
 		}
 
+        /// <summary>
+        /// Get the name of the <code>TriggerListener</code>.
+        /// </summary>
+        /// <value></value>
 		public virtual string Name
 		{
 			/*
@@ -266,6 +270,11 @@ namespace Quartz.Plugins.History
 			sched.AddGlobalTriggerListener(this);
 		}
 
+        /// <summary>
+        /// Called when the associated <code>Scheduler</code> is started, in order
+        /// to let the plug-in know it can now make calls into the scheduler if it
+        /// needs to.
+        /// </summary>
 		public virtual void Start()
 		{
 			// do nothing...
@@ -281,6 +290,17 @@ namespace Quartz.Plugins.History
 			// nothing to do...
 		}
 
+        /// <summary>
+        /// Called by the <code>IScheduler}</code> when a <code>Trigger</code>
+        /// has fired, and it's associated <code>JobDetail</code>
+        /// is about to be executed.
+        /// <p>
+        /// It is called before the <code>VetoJobExecution(..)</code> method of this
+        /// interface.
+        /// </p>
+        /// </summary>
+        /// <param name="trigger">The <code>Trigger</code> that has fired.</param>
+        /// <param name="context">The <code>JobExecutionContext</code> that will be passed to the <code>IJob</code>'s<code>Execute(xx)</code> method.</param>
 		public virtual void TriggerFired(Trigger trigger, JobExecutionContext context)
 		{
 			if (!Log.IsInfoEnabled)
@@ -298,6 +318,17 @@ namespace Quartz.Plugins.History
 			Log.Info(String.Format(TriggerFiredMessage, args));
 		}
 
+        /// <summary>
+        /// Called by the <code>IScheduler</code> when a <code>Trigger</code>
+        /// has misfired.
+        /// <p>
+        /// Consideration should be given to how much time is spent in this method,
+        /// as it will affect all triggers that are misfiring.  If you have lots
+        /// of triggers misfiring at once, it could be an issue it this method
+        /// does a lot.
+        /// </p>
+        /// </summary>
+        /// <param name="trigger">The <code>Trigger</code> that has misfired.</param>
 		public virtual void TriggerMisfired(Trigger trigger)
 		{
 			if (!Log.IsInfoEnabled)
@@ -315,6 +346,16 @@ namespace Quartz.Plugins.History
 			Log.Info(String.Format(TriggerMisfiredMessage, args));
 		}
 
+        /// <summary>
+        /// Called by the <code>IScheduler</code> when a <code>Trigger</code>
+        /// has fired, it's associated <code>JobDetail</code>
+        /// has been executed, and it's <code>Triggered(xx)</code> method has been
+        /// called.
+        /// </summary>
+        /// <param name="trigger">The <code>Trigger</code> that was fired.</param>
+        /// <param name="context">The <code>JobExecutionContext</code> that was passed to the
+        /// <code>Job</code>'s<code>Execute(xx)</code> method.</param>
+        /// <param name="triggerInstructionCode">The result of the call on the <code>Trigger</code>'s<code>triggered(xx)</code>  method.</param>
 		public virtual void TriggerComplete(Trigger trigger, JobExecutionContext context, int triggerInstructionCode)
 		{
 			if (!Log.IsInfoEnabled)
@@ -354,6 +395,19 @@ namespace Quartz.Plugins.History
 			Log.Info(String.Format(TriggerCompleteMessage, args));
 		}
 
+        /// <summary>
+        /// Called by the <code>IScheduler</code> when a <code>Trigger</code>
+        /// has fired, and it's associated <code>JobDetail</code>
+        /// is about to be executed.
+        /// <p>
+        /// It is called after the <code>TriggerFired(..)</code> method of this
+        /// interface.
+        /// </p>
+        /// </summary>
+        /// <param name="trigger">The <code>Trigger</code> that has fired.</param>
+        /// <param name="context">The <code>JobExecutionContext</code> that will be passed to
+        /// the <code>Job</code>'s<code>Execute(xx)</code> method.</param>
+        /// <returns></returns>
 		public virtual bool VetoJobExecution(Trigger trigger, JobExecutionContext context)
 		{
 			return false;

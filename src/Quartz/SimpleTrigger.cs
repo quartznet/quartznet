@@ -18,9 +18,8 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
-using System;
-using System.Collections;
 
+using System;
 using Nullables;
 
 namespace Quartz
@@ -39,8 +38,6 @@ namespace Quartz
 	[Serializable]
 	public class SimpleTrigger : Trigger
 	{
-
-
 		/// <summary>
 		/// Get or set thhe number of times the <code>SimpleTrigger</code> should
 		/// repeat, after which it will be automatically deleted.
@@ -253,7 +250,7 @@ namespace Quartz
 		/// <summary>
 		/// Create a <code>SimpleTrigger</code> with no settings.
 		/// </summary>
-		public SimpleTrigger() : base()
+		public SimpleTrigger()
 		{
 		}
 
@@ -282,25 +279,19 @@ namespace Quartz
 		{
 		}
 
-		/// <summary> 
-		/// Create a <code>SimpleTrigger</code> that will occur at the given time,
-		/// and repeat at the the given interval the given number of times, or until
-		/// the given end time.
-		/// </summary>
-		/// <param name="startTime">
-		/// A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-		/// </param>
-		/// <param name="endTime">
-		/// A <code>Date</code> set to the time for the <code>Trigger</code>
-		/// to quit repeat firing.
-		/// </param>
-		/// <param name="repeatCount">
-		/// The number of times for the <code>Trigger</code> to repeat
-		/// firing, use {@link #REPEAT_INDEFINITELY}for unlimitted times.
-		/// </param>
-		/// <param name="repeatInterval">
-		/// The number of milliseconds to pause between the repeat firing.
-		/// </param>
+        /// <summary>
+        /// Create a <code>SimpleTrigger</code> that will occur at the given time,
+        /// and repeat at the the given interval the given number of times, or until
+        /// the given end time.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="group">The group.</param>
+        /// <param name="startTime">A <code>Date</code> set to the time for the <code>Trigger</code> to fire.</param>
+        /// <param name="endTime">A <code>Date</code> set to the time for the <code>Trigger</code>
+        /// to quit repeat firing.</param>
+        /// <param name="repeatCount">The number of times for the <code>Trigger</code> to repeat
+        /// firing, use {@link #REPEAT_INDEFINITELY}for unlimitted times.</param>
+        /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, DateTime startTime, NullableDateTime endTime, int repeatCount,
 		                     long repeatInterval) : base(name, group)
 		{
@@ -310,26 +301,22 @@ namespace Quartz
 			RepeatInterval = repeatInterval;
 		}
 
-		/// <summary> 
-		/// Create a <code>SimpleTrigger</code> that will occur at the given time,
-		/// fire the identified <code>Job</code> and repeat at the the given
-		/// interval the given number of times, or until the given end time.
-		/// </summary>
-		/// <param name="startTime">
-		/// A <code>Date</code> set to the time for the <code>Trigger</code>
-		/// to fire.
-		/// </param>
-		/// <param name="endTime">
-		/// A <code>Date</code> set to the time for the <code>Trigger</code>
-		/// to quit repeat firing.
-		/// </param>
-		/// <param name="repeatCount">
-		/// The number of times for the <code>Trigger</code> to repeat
-		/// firing, use REPEAT_INDEFINITELY for unlimitted times.
-		/// </param>
-		/// <param name="repeatInterval">
-		/// The number of milliseconds to pause between the repeat firing.
-		/// </param>
+        /// <summary>
+        /// Create a <code>SimpleTrigger</code> that will occur at the given time,
+        /// fire the identified <code>Job</code> and repeat at the the given
+        /// interval the given number of times, or until the given end time.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="group">The group.</param>
+        /// <param name="jobName">Name of the job.</param>
+        /// <param name="jobGroup">The job group.</param>
+        /// <param name="startTime">A <code>Date</code> set to the time for the <code>Trigger</code>
+        /// to fire.</param>
+        /// <param name="endTime">A <code>Date</code> set to the time for the <code>Trigger</code>
+        /// to quit repeat firing.</param>
+        /// <param name="repeatCount">The number of times for the <code>Trigger</code> to repeat
+        /// firing, use REPEAT_INDEFINITELY for unlimitted times.</param>
+        /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTime,
 		                     NullableDateTime endTime, int repeatCount, long repeatInterval)
 			: base(name, group, jobName, jobGroup)
@@ -489,6 +476,11 @@ namespace Quartz
 		}
 
 
+        /// <summary>
+        /// Updates the instance with new calendar.
+        /// </summary>
+        /// <param name="calendar">The calendar.</param>
+        /// <param name="misfireThreshold">The misfire threshold.</param>
 		public override void UpdateWithNewCalendar(ICalendar calendar, long misfireThreshold)
 		{
 			nextFireTime = GetFireTimeAfter(previousFireTime);
@@ -702,6 +694,12 @@ namespace Quartz
 			return StartTime.AddMilliseconds(numFires*repeatInterval);
 		}
 
+        /// <summary>
+        /// Computes the num times fired between.
+        /// </summary>
+        /// <param name="start">The start.</param>
+        /// <param name="end">The end.</param>
+        /// <returns></returns>
 		public virtual int ComputeNumTimesFiredBetween(NullableDateTime start, NullableDateTime end)
 		{
 			long time = (long) (end.Value - start.Value).TotalMilliseconds;
@@ -730,7 +728,7 @@ namespace Quartz
 				throw new SchedulerException("Repeat Interval cannot be zero.", SchedulerException.ERR_CLIENT_ERROR);
 			}
 		}
-
+        /*
 		[STAThread]
 		public static void Main(string[] args)
 		{
@@ -747,6 +745,6 @@ namespace Quartz
 				Console.Error.WriteLine("firetime = " + times[i]);
 			}
 		}
-
+        */
 	}
 }

@@ -129,6 +129,7 @@
                 <File
                     RelPath = "AssemblyInfo.cs"
                     Link = "..\AssemblyInfo.cs"
+                    SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
@@ -227,6 +228,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "QuartzThread.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "SchedulerConfigException.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -248,11 +254,6 @@
                 />
                 <File
                     RelPath = "SimpleTrigger.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "SupportClass.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

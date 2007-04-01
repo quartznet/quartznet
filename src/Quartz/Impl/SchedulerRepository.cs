@@ -45,7 +45,7 @@ namespace Quartz.Impl
 			}
 		}
 
-		private Hashtable schedulers;
+		private IDictionary schedulers;
 		private static readonly SchedulerRepository inst = new SchedulerRepository();
 		private object syncRoot = new object();
 		
@@ -54,6 +54,10 @@ namespace Quartz.Impl
 			schedulers = new Hashtable();
 		}
 
+        /// <summary>
+        /// Binds the specified sched.
+        /// </summary>
+        /// <param name="sched">The sched.</param>
 		public virtual void Bind(IScheduler sched)
 		{
 			lock (syncRoot)
@@ -68,6 +72,11 @@ namespace Quartz.Impl
 			}
 		}
 
+        /// <summary>
+        /// Removes the specified sched name.
+        /// </summary>
+        /// <param name="schedName">Name of the sched.</param>
+        /// <returns></returns>
 		public virtual bool Remove(string schedName)
 		{
 			lock (syncRoot)
@@ -79,6 +88,11 @@ namespace Quartz.Impl
 			}
 		}
 
+        /// <summary>
+        /// Lookups the specified sched name.
+        /// </summary>
+        /// <param name="schedName">Name of the sched.</param>
+        /// <returns></returns>
 		public virtual IScheduler Lookup(string schedName)
 		{
 			lock (syncRoot)
@@ -87,7 +101,11 @@ namespace Quartz.Impl
 			}
 		}
 
-		public virtual ICollection lookupAll()
+        /// <summary>
+        /// Lookups all.
+        /// </summary>
+        /// <returns></returns>
+		public virtual ICollection LookupAll()
 		{
 			lock (syncRoot)
 			{

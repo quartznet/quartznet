@@ -173,7 +173,7 @@ namespace Quartz.Util
 				return false;
 			}
 
-			Hashtable targetAux = new Hashtable((IDictionary) obj);
+			IDictionary targetAux = new Hashtable((IDictionary) obj);
 
 			if (Count == targetAux.Count)
 			{

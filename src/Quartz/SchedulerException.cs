@@ -165,35 +165,69 @@ namespace Quartz
 		private int errorCode = ERR_UNSPECIFIED;
 
 
-		public SchedulerException() : base()
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchedulerException"/> class.
+        /// </summary>
+		public SchedulerException() 
 		{
 		}
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchedulerException"/> class.
+        /// </summary>
+        /// <param name="msg">The MSG.</param>
 		public SchedulerException(string msg) : base(msg)
 		{
 		}
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchedulerException"/> class.
+        /// </summary>
+        /// <param name="msg">The MSG.</param>
+        /// <param name="errorCode">The error code.</param>
 		public SchedulerException(string msg, int errorCode) : base(msg)
 		{
 			ErrorCode = errorCode;
 		}
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchedulerException"/> class.
+        /// </summary>
+        /// <param name="cause">The cause.</param>
 		public SchedulerException(Exception cause) : base(cause.ToString())
 		{
 			this.cause = cause;
 		}
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchedulerException"/> class.
+        /// </summary>
+        /// <param name="msg">The MSG.</param>
+        /// <param name="cause">The cause.</param>
 		public SchedulerException(string msg, Exception cause) : base(msg)
 		{
 			this.cause = cause;
 		}
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchedulerException"/> class.
+        /// </summary>
+        /// <param name="msg">The MSG.</param>
+        /// <param name="cause">The cause.</param>
+        /// <param name="errorCode">The error code.</param>
 		public SchedulerException(string msg, Exception cause, int errorCode) : base(msg)
 		{
 			this.cause = cause;
 			ErrorCode = errorCode;
 		}
 
+        /// <summary>
+        /// Creates and returns a string representation of the current exception.
+        /// </summary>
+        /// <returns>
+        /// A string representation of the current exception.
+        /// </returns>
+        /// <PermissionSet><IPermission class="System.Security.Permissions.FileIOPermission, mscorlib, Version=2.0.3600.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" version="1" PathDiscovery="*AllFiles*"/></PermissionSet>
 		public override string ToString()
 		{
 			if (cause == null)
@@ -202,7 +236,7 @@ namespace Quartz
 			}
 			else
 			{
-				return base.ToString() + " [See nested exception: " + cause.ToString() + "]";
+				return base.ToString() + " [See nested exception: " + cause + "]";
 			}
 		}
 

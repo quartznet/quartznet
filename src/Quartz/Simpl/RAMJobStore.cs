@@ -78,12 +78,12 @@ namespace Quartz.Simpl
 			}
 		}
 
-		protected internal Hashtable jobsByFQN = new Hashtable(1000);
-		protected internal Hashtable triggersByFQN = new Hashtable(1000);
-		protected internal Hashtable jobsByGroup = new Hashtable(25);
-		protected internal Hashtable triggersByGroup = new Hashtable(25);
+		protected internal IDictionary jobsByFQN = new Hashtable(1000);
+		protected internal IDictionary triggersByFQN = new Hashtable(1000);
+		protected internal IDictionary jobsByGroup = new Hashtable(25);
+		protected internal IDictionary triggersByGroup = new Hashtable(25);
 		protected internal TreeSet timeTriggers = new TreeSet(new TriggerComparator());
-		protected internal Hashtable calendarsByName = new Hashtable(25);
+		protected internal IDictionary calendarsByName = new Hashtable(25);
 		protected internal ArrayList triggers = new ArrayList(1000);
 		protected internal object jobLock = new object();
 		protected internal object triggerLock = new object();
@@ -102,6 +102,10 @@ namespace Quartz.Simpl
 			Log.Info("RAMJobStore initialized.");
 		}
 
+        /// <summary>
+        /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+        /// the scheduler has started.
+        /// </summary>
 		public virtual void SchedulerStarted()
 		{
 			// nothing to do
@@ -116,12 +120,12 @@ namespace Quartz.Simpl
 		{
 		}
 
-		public virtual bool SupportsPersistence()
-		{
-			return false;
-		}
+	    public virtual bool SupportsPersistence
+	    {
+	        get { return false; }
+	    }
 
-		/// <summary> 
+	    /// <summary> 
 		/// Store the given <code>{@link org.quartz.JobDetail}</code> and <code>{@link org.quartz.Trigger}</code>.
 		/// </summary>
 		/// <param name="newJob">The <code>JobDetail</code> to be stored.</param>
@@ -161,7 +165,7 @@ namespace Quartz.Simpl
 				if (!repl)
 				{
 					// get job group
-					Hashtable grpMap = (Hashtable) jobsByGroup[newJob.Group];
+					IDictionary grpMap = (Hashtable) jobsByGroup[newJob.Group];
 					if (grpMap == null)
 					{
 						grpMap = new Hashtable(100);
@@ -213,7 +217,7 @@ namespace Quartz.Simpl
 				found = (tempObject != null) | found;
 				if (found)
 				{
-					Hashtable grpMap = (Hashtable) jobsByGroup[groupName];
+					IDictionary grpMap = (Hashtable) jobsByGroup[groupName];
 					if (grpMap != null)
 					{
 						grpMap.Remove(jobName);
@@ -263,7 +267,7 @@ namespace Quartz.Simpl
 				triggers.Add(tw);
 
 				// add to triggers by group
-				Hashtable grpMap = (Hashtable) triggersByGroup[newTrigger.Group];
+				IDictionary grpMap = (Hashtable) triggersByGroup[newTrigger.Group];
 				if (grpMap == null)
 				{
 					grpMap = new Hashtable(100);
@@ -322,7 +326,7 @@ namespace Quartz.Simpl
 				{
 					TriggerWrapper tw = null;
 					// remove from triggers by group
-					Hashtable grpMap = (Hashtable) triggersByGroup[groupName];
+					IDictionary grpMap = (Hashtable) triggersByGroup[groupName];
 					if (grpMap != null)
 					{
 						grpMap.Remove(triggerName);
@@ -380,7 +384,7 @@ namespace Quartz.Simpl
 
 					tw = null;
 					// remove from triggers by group
-					Hashtable grpMap = (Hashtable) triggersByGroup[groupName];
+					IDictionary grpMap = (Hashtable) triggersByGroup[groupName];
 					if (grpMap != null)
 					{
 						grpMap.Remove(triggerName);
@@ -629,7 +633,7 @@ namespace Quartz.Simpl
 		public virtual string[] GetJobNames(SchedulingContext ctxt, string groupName)
 		{
 			string[] outList;
-			Hashtable grpMap = (Hashtable) jobsByGroup[groupName];
+			IDictionary grpMap = (Hashtable) jobsByGroup[groupName];
 			if (grpMap != null)
 			{
 				lock (jobLock)
@@ -677,7 +681,7 @@ namespace Quartz.Simpl
 		public virtual string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
 		{
 			string[] outList;
-			Hashtable grpMap = (Hashtable) triggersByGroup[groupName];
+			IDictionary grpMap = (Hashtable) triggersByGroup[groupName];
 			if (grpMap != null)
 			{
 				lock (triggerLock)

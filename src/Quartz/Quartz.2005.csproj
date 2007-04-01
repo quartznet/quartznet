@@ -274,6 +274,7 @@
     <Compile Include="Plugin\Management\ShutdownHookPlugin.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="QuartzThread.cs" />
     <Compile Include="SchedulerConfigException.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -347,9 +348,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SPI\TriggerFiredBundle.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SupportClass.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Trigger.cs">

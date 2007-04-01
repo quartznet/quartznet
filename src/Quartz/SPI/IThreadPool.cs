@@ -31,14 +31,16 @@ namespace Quartz.Spi
 	/// <author>James House</author>
 	public interface IThreadPool
 	{
+        /// <summary>
+        /// Gets the size of the pool.
+        /// </summary>
+        /// <value>The size of the pool.</value>
 		int PoolSize { get; }
 
 
-		/// <summary> <p>
+		/// <summary>
 		/// Execute the given <code>{@link java.lang.Runnable}</code> in the next
 		/// available <code>Thread</code>.
-		/// </p>
-		/// 
 		/// <p>
 		/// The implementation of this interface should not throw exceptions unless
 		/// there is a serious problem (i.e. a serious misconfiguration). If there

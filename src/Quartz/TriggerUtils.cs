@@ -842,7 +842,7 @@ namespace Quartz
 		/// </returns>
 		public static DateTime GetEvenHourDateBefore(NullableDateTime date)
 		{
-			if (date == null || !date.HasValue)
+			if (!date.HasValue)
 			{
 				date = DateTime.Now;
 			}
@@ -891,7 +891,7 @@ namespace Quartz
 		/// </returns>
 		public static DateTime GetEvenMinuteDateBefore(NullableDateTime date)
 		{
-			if (date == null || !date.HasValue)
+			if (!date.HasValue)
 			{
 				date = DateTime.Now;
 			}
@@ -912,7 +912,7 @@ namespace Quartz
 		/// </returns>
 		public static DateTime GetEvenSecondDate(NullableDateTime date)
 		{
-			if (date == null || !date.HasValue)
+			if (!date.HasValue)
 			{
 				date = DateTime.Now;
 			}
@@ -937,7 +937,7 @@ namespace Quartz
 		/// </returns>
 		public static DateTime GetEvenSecondDateBefore(NullableDateTime date)
 		{
-			if (date == null || !date.HasValue)
+			if (!date.HasValue)
 			{
 				date = DateTime.Now;
 			}
@@ -1089,7 +1089,7 @@ namespace Quartz
 				throw new ArgumentException("secondBase must be >=0 and <= 59");
 			}
 
-			if (date == null || !date.HasValue)
+			if (!date.HasValue)
 			{
 				date = DateTime.Now;
 			}
@@ -1373,11 +1373,21 @@ namespace Quartz
 		/// </returns>
 		public static int GetDSTSavings(TimeZone tz)
 		{
-			if (SupportClass.UseDaylightTime(tz))
+			if (UseDaylightTime(tz))
 			{
 				return 3600000;
 			}
 			return 0;
 		}
+
+        /// <summary>
+        /// This functions determines if the TimeZone uses daylight saving time
+        /// </summary>
+        /// <param name="timezone">TimeZone instance to validate</param>
+        /// <returns>True or false depending if daylight savings time is used</returns>
+        public static bool UseDaylightTime(TimeZone timezone)
+        {
+            return (timezone.DaylightName != "");
+        }
 	}
 }

@@ -347,7 +347,7 @@ namespace Quartz.Simpl
 		/// A Worker loops, waiting to Execute tasks.
 		/// </p>
 		/// </summary>
-		protected internal class WorkerThread : SupportClass.QuartzThread
+		protected internal class WorkerThread : QuartzThread
 		{
 			private SimpleThreadPool enclosingInstance;
 

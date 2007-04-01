@@ -36,7 +36,7 @@ namespace Quartz.Simpl
 		public virtual IJob NewJob(TriggerFiredBundle bundle)
 		{
 			JobDetail jobDetail = bundle.JobDetail;
-			Type jobClass = jobDetail.JobClass;
+			Type jobClass = jobDetail.JobType;
 			try
 			{
 				if (Log.IsDebugEnabled)
@@ -48,7 +48,7 @@ namespace Quartz.Simpl
 			}
 			catch (Exception e)
 			{
-				SchedulerException se = new SchedulerException("Problem instantiating class '" + jobDetail.JobClass.FullName + "'", e);
+				SchedulerException se = new SchedulerException("Problem instantiating class '" + jobDetail.JobType.FullName + "'", e);
 				throw se;
 			}
 		}

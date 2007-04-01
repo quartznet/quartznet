@@ -252,7 +252,7 @@ namespace Quartz.Job
 		/// </author>
 		/// <author>  jhouse
 		/// </author>
-		internal class StreamConsumer : SupportClass.QuartzThread
+		internal class StreamConsumer : QuartzThread
 		{
 			private void InitBlock(NativeJob job)
 			{

@@ -18,7 +18,7 @@ namespace Quartz.Examples
 				Assembly asm = Assembly.GetExecutingAssembly();
 				Type[] types = asm.GetTypes();
 			
-				Hashtable typeMap = new Hashtable();
+				IDictionary typeMap = new Hashtable();
 				int counter = 1;
 			
 				Console.WriteLine("Select example to run: ");

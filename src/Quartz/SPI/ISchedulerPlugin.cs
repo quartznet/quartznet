@@ -21,10 +21,8 @@
 
 namespace Quartz.Spi
 {
-	/// <summary> <p>
+	/// <summary>
 	/// Provides an interface for a class to become a "plugin" to Quartz.
-	/// </p>
-	/// 
 	/// <p>
 	/// Plugins can do virtually anything you wish, though the most interesting ones
 	/// will obviously interact with the scheduler in some way - either actively: by
@@ -39,46 +37,36 @@ namespace Quartz.Spi
 	/// </p>
 	/// 
 	/// </summary>
-	/// <author>  James House
-	/// </author>
+	/// <author>James House</author>
 	public interface ISchedulerPlugin
 	{
-		/// <summary> <p>
+		/// <summary>
 		/// Called during creation of the <code>Scheduler</code> in order to give
 		/// the <code>SchedulerPlugin</code> a chance to Initialize.
-		/// </p>
-		/// 
 		/// <p>
 		/// At this point, the Scheduler's <code>JobStore</code> is not yet
 		/// initialized.
 		/// </p>
-		/// 
 		/// </summary>
 		/// <param name="pluginName">
 		/// The name by which the plugin is identified.
 		/// </param>
 		/// <param name="sched">
 		/// The scheduler to which the plugin is registered.
-		/// 
 		/// </param>
-		/// <throws>  SchedulerConfigException </throws>
-		/// <summary>           if there is an error initializing.
-		/// </summary>
 		void Initialize(string pluginName, IScheduler sched);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Called when the associated <code>Scheduler</code> is started, in order
 		/// to let the plug-in know it can now make calls into the scheduler if it
 		/// needs to.
-		/// </p>
 		/// </summary>
 		void Start();
 
-		/// <summary> <p>
+		/// <summary>
 		/// Called in order to inform the <code>SchedulerPlugin</code> that it
 		/// should free up all of it's resources because the scheduler is shutting
 		/// down.
-		/// </p>
 		/// </summary>
 		void Shutdown();
 	}

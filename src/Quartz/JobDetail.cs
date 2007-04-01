@@ -23,466 +23,416 @@ using System.Collections;
 
 namespace Quartz
 {
-	/// <summary> <p>
-	/// Conveys the detail properties of a given <code>Job</code> instance.
-	/// </p>
-	/// 
-	/// <p>
-	/// Quartz does not store an actual instance of a <code>Job</code> class, but
-	/// instead allows you to define an instance of one, through the use of a <code>JobDetail</code>.
-	/// </p>
-	/// 
-	/// <p>
-	/// <code>Job</code> s have a name and group associated with them, which
-	/// should uniquely identify them within a single <code>{@link Scheduler}</code>.
-	/// </p>
-	/// 
-	/// <p>
-	/// <code>Trigger</code> s are the 'mechanism' by which <code>Job</code> s
-	/// are scheduled. Many <code>Trigger</code> s can point to the same <code>Job</code>,
-	/// but a single <code>Trigger</code> can only point to one <code>Job</code>.
-	/// </p>
-	/// 
-	/// </summary>
-	/// <seealso cref="IJob">
-	/// </seealso>
-	/// <seealso cref="IStatefulJob">
-	/// </seealso>
-	/// <seealso cref="JobDataMap">
-	/// </seealso>
-	/// <seealso cref="Trigger">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
-	/// <author>  Sharada Jambula
-	/// </author>
-	[Serializable]
-	public class JobDetail : ICloneable
-	{
-		/// <summary>
-		/// Get or sets the name of this <code>Job</code>.
-		/// </summary>
-		/// <exception cref="ArgumentException"> 
-		/// if name is null or empty.
-		/// </exception>
-		public string Name
-		{
-			get { return name; }
+    /// <summary>
+    /// Conveys the detail properties of a given <code>IJob</code> instance.
+    /// <p>
+    /// Quartz does not store an actual instance of a <code>Job</code> type, but
+    /// instead allows you to define an instance of one, through the use of a <code>JobDetail</code>.
+    /// </p>
+    /// 
+    /// <p>
+    /// <code>Job</code>s have a name and group associated with them, which
+    /// should uniquely identify them within a single <code>Scheduler</code>.
+    /// </p>
+    /// 
+    /// <p>
+    /// <code>Trigger</code> s are the 'mechanism' by which <code>Job</code> s
+    /// are scheduled. Many <code>Trigger</code> s can point to the same <code>Job</code>,
+    /// but a single <code>Trigger</code> can only point to one <code>Job</code>.
+    /// </p>
+    /// </summary>
+    /// <seealso cref="IJob" />
+    /// <seealso cref="IStatefulJob"/>
+    /// <seealso cref="JobDataMap"/>
+    /// <seealso cref="Trigger"/>
+    /// <author>James House</author>
+    /// <author>Sharada Jambula</author>
+    [Serializable]
+    public class JobDetail : ICloneable
+    {
+        private string name;
+        private string group = Scheduler_Fields.DEFAULT_GROUP;
+        private string description;
+        private Type jobType;
+        private JobDataMap jobDataMap;
+        private bool volatility = false;
+        private bool durability = false;
+        private bool shouldRecover = false;
 
-			set
-			{
-				if (value == null || value.Trim().Length == 0)
-				{
-					throw new ArgumentException("Job name cannot be empty.");
-				}
+        private ArrayList jobListeners = new ArrayList(2);
 
-				name = value;
-			}
-		}
+        /// <summary>
+        /// Get or sets the name of this <code>Job</code>.
+        /// </summary>
+        /// <exception cref="ArgumentException"> 
+        /// if name is null or empty.
+        /// </exception>
+        public string Name
+        {
+            get { return name; }
 
-		/// <summary>
-		/// Get or sets the group of this <code>Job</code>. 
-		/// If <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-		/// </summary>
-		/// <exception cref="ArgumentException"> 
-		/// If the group is an empty string.
-		/// </exception>
-		public string Group
-		{
-			get { return group; }
+            set
+            {
+                if (value == null || value.Trim().Length == 0)
+                {
+                    throw new ArgumentException("Job name cannot be empty.");
+                }
 
-			set
-			{
-				if (value != null && value.Trim().Length == 0)
-				{
-					throw new ArgumentException("Group name cannot be empty.");
-				}
+                name = value;
+            }
+        }
 
-				if (value == null)
-				{
-					value = Scheduler_Fields.DEFAULT_GROUP;
-				}
+        /// <summary>
+        /// Get or sets the group of this <code>Job</code>. 
+        /// If <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
+        /// </summary>
+        /// <exception cref="ArgumentException"> 
+        /// If the group is an empty string.
+        /// </exception>
+        public string Group
+        {
+            get { return group; }
 
-				group = value;
-			}
-		}
+            set
+            {
+                if (value != null && value.Trim().Length == 0)
+                {
+                    throw new ArgumentException("Group name cannot be empty.");
+                }
 
-		/// <summary> <p>
-		/// Returns the 'full name' of the <code>Trigger</code> in the format
-		/// "group.name".
-		/// </p>
-		/// </summary>
-		public virtual string FullName
-		{
-			get { return group + "." + name; }
-		}
+                if (value == null)
+                {
+                    value = Scheduler_Fields.DEFAULT_GROUP;
+                }
 
-		/// <summary>
-		/// Get or set the description given to the <code>Job</code> instance by its
-		/// creator (if any).
-		/// <p>
-		/// May be useful
-		/// for remembering/displaying the purpose of the job, though the
-		/// description has no meaning to Quartz.
-		/// </p>
-		/// </summary>
-		public virtual string Description
-		{
-			get { return description; }
-			set { description = value; }
-		}
+                group = value;
+            }
+        }
 
-		/// <summary>
-		/// Get or sets the instance of <code>Job</code> that will be executed.
-		/// </summary>
-		/// <exception cref="ArgumentException"> 
-		/// if jobClass is null or the class is not a <code>Job</code>.
-		/// </exception>
-		public Type JobClass
-		{
-			get { return jobClass; }
+        /// <summary> 
+        /// Returns the 'full name' of the <code>Trigger</code> in the format
+        /// "group.name".
+        /// </summary>
+        public virtual string FullName
+        {
+            get { return group + "." + name; }
+        }
 
-			set
-			{
-				if (value == null)
-				{
-					throw new ArgumentException("Job class cannot be null.");
-				}
+        /// <summary>
+        /// Get or set the description given to the <code>Job</code> instance by its
+        /// creator (if any).
+        /// <p>
+        /// May be useful
+        /// for remembering/displaying the purpose of the job, though the
+        /// description has no meaning to Quartz.
+        /// </p>
+        /// </summary>
+        public virtual string Description
+        {
+            get { return description; }
+            set { description = value; }
+        }
 
-				if (!typeof (IJob).IsAssignableFrom(value))
-				{
-					throw new ArgumentException("Job class must implement the Job interface.");
-				}
+        /// <summary>
+        /// Get or sets the instance of <code>Job</code> that will be executed.
+        /// </summary>
+        /// <exception cref="ArgumentException"> 
+        /// if jobType is null or the class is not a <code>Job</code>.
+        /// </exception>
+        public Type JobType
+        {
+            get { return jobType; }
 
-				jobClass = value;
-			}
-		}
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentException("Job class cannot be null.");
+                }
 
-		/// <summary>
-		/// Get or set the <code>JobDataMap</code> that is associated with the <code>Job</code>.
-		/// </summary>
-		public virtual JobDataMap JobDataMap
-		{
-			get
-			{
-				if (jobDataMap == null)
-				{
-					jobDataMap = new JobDataMap();
-				}
-				return jobDataMap;
-			}
+                if (!typeof (IJob).IsAssignableFrom(value))
+                {
+                    throw new ArgumentException("Job class must implement the Job interface.");
+                }
 
-			set { jobDataMap = value; }
-		}
+                jobType = value;
+            }
+        }
 
-		/// <summary> <p>
-		/// Set whether or not the <code>Job</code> should be persisted in the
-		/// <code>{@link org.quartz.spi.JobStore}</code> for re-use after program
-		/// restarts.
-		/// </p>
-		/// 
-		/// <p>
-		/// If not explicitly set, the default value is <code>false</code>.
-		/// </p>
-		/// </summary>
-		public bool Volatility
-		{
-			set { volatility = value; }
-		}
+        /// <summary>
+        /// Get or set the <code>JobDataMap</code> that is associated with the <code>Job</code>.
+        /// </summary>
+        public virtual JobDataMap JobDataMap
+        {
+            get
+            {
+                if (jobDataMap == null)
+                {
+                    jobDataMap = new JobDataMap();
+                }
+                return jobDataMap;
+            }
 
-		/// <summary> <p>
-		/// Set whether or not the <code>Job</code> should remain stored after it
-		/// is orphaned (no <code>{@link Trigger}s</code> point to it).
-		/// </p>
-		/// 
-		/// <p>
-		/// If not explicitly set, the default value is <code>false</code>.
-		/// </p>
-		/// </summary>
-		public bool Durability
-		{
-			set { durability = value; }
-		}
+            set { jobDataMap = value; }
+        }
 
-		/// <summary> <p>
-		/// Set whether or not the the <code>Scheduler</code> should re-Execute
-		/// the <code>Job</code> if a 'recovery' or 'fail-over' situation is
-		/// encountered.
-		/// </p>
-		/// 
-		/// <p>
-		/// If not explicitly set, the default value is <code>false</code>.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <seealso cref="JobExecutionContext.Recovering">
-		/// </seealso>
-		public bool RequestsRecovery
-		{
-			set { shouldRecover = value; }
-		}
+        /// <summary>
+        /// Set whether or not the <code>Job</code> should be persisted in the
+        /// <code>IJobStore</code> for re-use after program
+        /// restarts.
+        /// <p>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </p>
+        /// </summary>
+        public bool Volatility
+        {
+            set { volatility = value; }
+        }
 
-		/// <summary> <p>
-		/// Whether or not the <code>Job</code> should not be persisted in the
-		/// <code>{@link org.quartz.spi.JobStore}</code> for re-use after program
-		/// restarts.
-		/// </p>
-		/// 
-		/// <p>
-		/// If not explicitly set, the default value is <code>false</code>.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <returns> <code>true</code> if the <code>Job</code> should be garbage
-		/// collected along with the <code>{@link Scheduler}</code>.
-		/// </returns>
-		public virtual bool Volatile
-		{
-			get { return volatility; }
-		}
+        /// <summary>
+        /// Set whether or not the <code>Job</code> should remain stored after it
+        /// is orphaned (no <code>Trigger</code>s point to it).
+        /// <p>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </p>
+        /// </summary>
+        public bool Durability
+        {
+            set { durability = value; }
+        }
 
-		/// <summary> <p>
-		/// Whether or not the <code>Job</code> should remain stored after it is
-		/// orphaned (no <code>{@link Trigger}s</code> point to it).
-		/// </p>
-		/// 
-		/// <p>
-		/// If not explicitly set, the default value is <code>false</code>.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <returns> <code>true</code> if the Job should remain persisted after
-		/// being orphaned.
-		/// </returns>
-		public virtual bool Durable
-		{
-			get { return durability; }
-		}
+        /// <summary>
+        /// Set whether or not the the <code>Scheduler</code> should re-Execute
+        /// the <code>Job</code> if a 'recovery' or 'fail-over' situation is
+        /// encountered.
+        /// <p>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </p>
+        /// </summary>
+        /// <seealso cref="JobExecutionContext.Recovering" />
+        public bool RequestsRecovery
+        {
+            set { shouldRecover = value; }
+        }
 
-		/// <summary> <p>
-		/// Whether or not the <code>Job</code> implements the interface <code>{@link StatefulJob}</code>.
-		/// </p>
-		/// </summary>
-		public virtual bool Stateful
-		{
-			get
-			{
-				if (jobClass == null)
-				{
-					return false;
-				}
+        /// <summary>
+        /// Whether or not the <code>Job</code> should not be persisted in the
+        /// <code>JobStore</code> for re-use after program
+        /// restarts.
+        /// <p>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </p>
+        /// </summary>
+        /// <returns> <code>true</code> if the <code>Job</code> should be garbage
+        /// collected along with the <code>IScheduler</code>.
+        /// </returns>
+        public virtual bool Volatile
+        {
+            get { return volatility; }
+        }
 
-				return (typeof (IStatefulJob).IsAssignableFrom(jobClass));
-			}
-		}
+        /// <summary>
+        /// Whether or not the <code>Job</code> should remain stored after it is
+        /// orphaned (no <code>Trigger</code>s point to it).
+        /// <p>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </p>
+        /// </summary>
+        /// <returns> 
+        /// <code>true</code> if the Job should remain persisted after
+        /// being orphaned.
+        /// </returns>
+        public virtual bool Durable
+        {
+            get { return durability; }
+        }
 
-		/// <summary> <p>
-		/// Returns an array of <code>String</code> s containing the names of all
-		/// <code>{@link JobListener}</code> s assigned to the <code>Job</code>,
-		/// in the order in which they should be notified.
-		/// </p>
-		/// </summary>
-		public virtual string[] JobListenerNames
-		{
-			get { return (string[]) jobListeners.ToArray(typeof (string)); }
-		}
+        /// <summary>
+        /// Whether or not the <code>Job</code> implements the interface <code>IStatefulJob</code>.
+        /// </summary>
+        public virtual bool Stateful
+        {
+            get
+            {
+                if (jobType == null)
+                {
+                    return false;
+                }
 
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Data members.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
+                return (typeof (IStatefulJob).IsAssignableFrom(jobType));
+            }
+        }
 
-		private string name;
+        /// <summary>
+        /// Returns an array of <code>String</code> s containing the names of all
+        /// <code>IJobListener</code> s assigned to the <code>Job</code>,
+        /// in the order in which they should be notified.
+        /// </summary>
+        public virtual string[] JobListenerNames
+        {
+            get { return (string[]) jobListeners.ToArray(typeof (string)); }
+        }
 
-		private string group = Scheduler_Fields.DEFAULT_GROUP;
 
-		private string description;
+        /// <summary>
+        /// Create a <code>JobDetail</code> with no specified name or group, and
+        /// the default settings of all the other properties.
+        /// <p>
+        /// Note that the {@link #setName(String)},{@link #setGroup(String)}and
+        /// {@link #setJobClass(Class)}methods must be called before the job can be
+        /// placed into a {@link Scheduler}
+        /// </p>
+        /// </summary>
+        public JobDetail()
+        {
+            // do nothing...
+        }
 
-		private Type jobClass;
+        /// <summary>
+        /// Create a <code>JobDetail</code> with the given name, and group, and
+        /// the default settings of all the other properties.
+        /// If <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// If name is null or empty, or the group is an empty string.
+        /// </exception>
+        public JobDetail(string name, string group, Type jobClass)
+        {
+            Name = name;
+            Group = group;
+            JobType = jobClass;
+        }
 
-		private JobDataMap jobDataMap;
+        /// <summary>
+        /// Create a <code>JobDetail</code> with the given name, and group, and
+        /// the given settings of all the other properties.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="group">if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.</param>
+        /// <param name="jobType">Type of the job.</param>
+        /// <param name="volatility">if set to <c>true</c> [volatility].</param>
+        /// <param name="durability">if set to <c>true</c> [durability].</param>
+        /// <param name="recover">if set to <c>true</c> [recover].</param>
+        /// <exception cref="ArgumentException"> ArgumentException
+        /// if nameis null or empty, or the group is an empty string.
+        /// </exception>
+        public JobDetail(string name, string group, Type jobType, bool volatility, bool durability, bool recover)
+        {
+            Name = name;
+            Group = group;
+            JobType = jobType;
+            Volatility = volatility;
+            Durability = durability;
+            RequestsRecovery = recover;
+        }
 
-		private bool volatility = false;
+        /// <summary> 
+        /// Validates whether the properties of the <code>JobDetail</code> are
+        /// valid for submission into a <code>Scheduler</code>.
+        /// </summary>
+        public virtual void Validate()
+        {
+            if (name == null)
+            {
+                throw new SchedulerException("Job's name cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+            }
 
-		private bool durability = false;
+            if (group == null)
+            {
+                throw new SchedulerException("Job's group cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+            }
 
-		private bool shouldRecover = false;
+            if (jobType == null)
+            {
+                throw new SchedulerException("Job's class cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+            }
+        }
 
-		private ArrayList jobListeners = new ArrayList(2);
+        /// <summary> <p>
+        /// Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
+        /// should be re-executed if a 'recovery' or 'fail-over' situation is
+        /// encountered.
+        /// </p>
+        /// 
+        /// <p>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </p>
+        /// 
+        /// </summary>
+        /// <seealso cref="JobExecutionContext.Recovering">
+        /// </seealso>
+        public virtual bool requestsRecovery()
+        {
+            return shouldRecover;
+        }
 
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Constructors.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
+        /// <summary>
+        /// Add the specified name of a <code>{@link JobListener}</code> to the
+        /// end of the <code>Job</code>'s list of listeners.
+        /// </summary>
+        public virtual void AddJobListener(string listenerName)
+        {
+            jobListeners.Add(listenerName);
+        }
 
-		/// <summary> <p>
-		/// Create a <code>JobDetail</code> with no specified name or group, and
-		/// the default settings of all the other properties.
-		/// </p>
-		/// 
-		/// <p>
-		/// Note that the {@link #setName(String)},{@link #setGroup(String)}and
-		/// {@link #setJobClass(Class)}methods must be called before the job can be
-		/// placed into a {@link Scheduler}
-		/// </p>
-		/// </summary>
-		public JobDetail()
-		{
-			// do nothing...
-		}
+        /// <summary> <p>
+        /// Remove the specified name of a <code>{@link JobListener}</code> from
+        /// the <code>Job</code>'s list of listeners.
+        /// </p>
+        /// 
+        /// </summary>
+        /// <returns> true if the given name was found in the list, and removed
+        /// </returns>
+        public virtual bool RemoveJobListener(string listenerName)
+        {
+            for (int i = 0; i < jobListeners.Count; i++)
+            {
+                IJobListener listener = (IJobListener) jobListeners[i];
+                if (listener.Name == listenerName)
+                {
+                    jobListeners.RemoveAt(i);
+                    return true;
+                }
+            }
+            return false;
+        }
 
-		/// <summary> <p>
-		/// Create a <code>JobDetail</code> with the given name, and group, and
-		/// the default settings of all the other properties.
-		/// </p>
-		/// If <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-		/// </summary>
-		/// <exception cref="ArgumentException">
-		/// If name is null or empty, or the group is an empty string.
-		/// </exception>
-		public JobDetail(string name, string group, Type jobClass)
-		{
-			Name = name;
-			Group = group;
-			JobClass = jobClass;
-		}
+        /// <summary>
+        /// Return a simple string representation of this object.
+        /// </summary>
+        public override string ToString()
+        {
+            return
+                string.Format(
+                    "JobDetail '{0}':  jobType: '{1} isStateful: {2} isVolatile: {3} isDurable: {4} requestsRecovers: {5}",
+                    FullName, ((JobType == null) ? null : JobType.FullName), Stateful, Volatile, Durable,
+                    requestsRecovery());
+        }
 
-		/// <summary> <p>
-		/// Create a <code>JobDetail</code> with the given name, and group, and
-		/// the given settings of all the other properties.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="group">if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
-		/// 
-		/// </param>
-		/// <exception cref="ArgumentException"> ArgumentException
-		/// if nameis null or empty, or the group is an empty string.
-		/// </exception>
-		public JobDetail(string name, string group, Type jobClass, bool volatility, bool durability, bool recover)
-		{
-			Name = name;
-			Group = group;
-			JobClass = jobClass;
-			Volatility = volatility;
-			Durability = durability;
-			RequestsRecovery = recover;
-		}
+        /// <summary>
+        /// Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public virtual object Clone()
+        {
+            JobDetail copy;
+            try
+            {
+                copy = (JobDetail) MemberwiseClone();
+                copy.jobListeners = (ArrayList) jobListeners.Clone();
+                if (jobDataMap != null)
+                {
+                    copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
+                }
+            }
+            catch (Exception)
+            {
+                throw new Exception("Not Cloneable.");
+            }
 
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Interface.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
-		/// <summary> 
-		/// Validates whether the properties of the <code>JobDetail</code> are
-		/// valid for submission into a <code>Scheduler</code>.
-		/// </summary>
-		public virtual void Validate()
-		{
-			if (name == null)
-			{
-				throw new SchedulerException("Job's name cannot be null", SchedulerException.ERR_CLIENT_ERROR);
-			}
-
-			if (group == null)
-			{
-				throw new SchedulerException("Job's group cannot be null", SchedulerException.ERR_CLIENT_ERROR);
-			}
-
-			if (jobClass == null)
-			{
-				throw new SchedulerException("Job's class cannot be null", SchedulerException.ERR_CLIENT_ERROR);
-			}
-		}
-
-		/// <summary> <p>
-		/// Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
-		/// should be re-executed if a 'recovery' or 'fail-over' situation is
-		/// encountered.
-		/// </p>
-		/// 
-		/// <p>
-		/// If not explicitly set, the default value is <code>false</code>.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <seealso cref="JobExecutionContext.Recovering">
-		/// </seealso>
-		public virtual bool requestsRecovery()
-		{
-			return shouldRecover;
-		}
-
-		/// <summary>
-		/// Add the specified name of a <code>{@link JobListener}</code> to the
-		/// end of the <code>Job</code>'s list of listeners.
-		/// </summary>
-		public virtual void AddJobListener(string listenerName)
-		{
-			jobListeners.Add(listenerName);
-		}
-
-		/// <summary> <p>
-		/// Remove the specified name of a <code>{@link JobListener}</code> from
-		/// the <code>Job</code>'s list of listeners.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <returns> true if the given name was found in the list, and removed
-		/// </returns>
-		public virtual bool RemoveJobListener(string listenerName)
-		{
-			for (int i = 0; i < jobListeners.Count; i++)
-			{
-				IJobListener listener = (IJobListener) jobListeners[i];
-				if (listener.Name == listenerName)
-				{
-					jobListeners.RemoveAt(i);
-					return true;
-				}
-			}
-			return false;
-		}
-
-		/// <summary>
-		/// Return a simple string representation of this object.
-		/// </summary>
-		public override string ToString()
-		{
-			return
-				"JobDetail '" + FullName + "':  jobClass: '" + ((JobClass == null) ? null : JobClass.FullName) + " isStateful: " +
-				Stateful + " isVolatile: " + Volatile + " isDurable: " + Durable + " requestsRecovers: " + requestsRecovery();
-		}
-
-		public virtual object Clone()
-		{
-			JobDetail copy;
-			try
-			{
-				copy = (JobDetail) MemberwiseClone();
-				copy.jobListeners = (ArrayList) jobListeners.Clone();
-				if (jobDataMap != null)
-				{
-					copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
-				}
-			}
-			catch (Exception)
-			{
-				throw new Exception("Not Cloneable.");
-			}
-
-			return copy;
-		}
-	}
+            return copy;
+        }
+    }
 }

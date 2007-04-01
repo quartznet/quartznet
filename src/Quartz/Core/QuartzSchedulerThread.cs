@@ -37,7 +37,7 @@ namespace Quartz.Core
 	/// <seealso cref="Trigger" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
-	public class QuartzSchedulerThread : SupportClass.QuartzThread
+	public class QuartzSchedulerThread : QuartzThread
 	{
 		private static readonly ILog Log = LogManager.GetLogger(typeof (QuartzSchedulerThread));
 

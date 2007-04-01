@@ -261,7 +261,7 @@ namespace Quartz
 		private long jobRunTime = - 1;
 		private object result;
 
-		private Hashtable data = new Hashtable();
+		private IDictionary data = new Hashtable();
 
 		/// <summary> <p>
 		/// Create a JobExcecutionContext with the given context data.

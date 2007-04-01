@@ -258,9 +258,9 @@ namespace Quartz.Core
 		private QuartzSchedulerThread schedThread;
 		private SchedulerContext context = new SchedulerContext();
 
-		private Hashtable jobListeners = new Hashtable(10);
+		private IDictionary jobListeners = new Hashtable(10);
 		private ArrayList globalJobListeners = new ArrayList(10);
-		private Hashtable triggerListeners = new Hashtable(10);
+		private IDictionary triggerListeners = new Hashtable(10);
 		private ArrayList globalTriggerListeners = new ArrayList(10);
 		private ArrayList schedulerListeners = new ArrayList(10);
 		private ArrayList schedulerPlugins = new ArrayList(10);
@@ -397,7 +397,7 @@ namespace Quartz.Core
 		/// <value><c>true</c> if supports persistence; otherwise, <c>false</c>.</value>
 		public virtual bool SupportsPersistence
 		{
-			get { return resources.JobStore.SupportsPersistence(); }
+			get { return resources.JobStore.SupportsPersistence; }
 		}
 
 		/// <summary>
@@ -692,13 +692,32 @@ namespace Quartz.Core
 
 		private string NewTriggerId()
 		{
-			long r = SupportClass.NextLong(random);
+			long r = NextLong(random);
 			if (r < 0)
 			{
 				r = - r;
 			}
 			return "MT_" + Convert.ToString(r);
 		}
+
+        /// <summary>
+        /// Creates a new positive random number 
+        /// </summary>
+        /// <param name="random">The last random obtained</param>
+        /// <returns>Returns a new positive random number</returns>
+        public static long NextLong(Random random)
+        {
+            long temporaryLong = random.Next();
+            temporaryLong = (temporaryLong << 32) + random.Next();
+            if (random.Next(-1, 1) < 0)
+            {
+                return -temporaryLong;
+            }
+            else
+            {
+                return temporaryLong;
+            }
+        }
 
 		/// <summary>
 		/// Trigger the identified <code>IJob</code> (Execute it now) - with a non-volatile trigger.
@@ -1873,7 +1892,7 @@ namespace Quartz.Core
 			}
 		}
 
-		internal Hashtable executingJobs = new Hashtable();
+		internal IDictionary executingJobs = new Hashtable();
 
 		internal int numJobsFired = 0;
 
