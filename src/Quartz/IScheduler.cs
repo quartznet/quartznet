@@ -53,7 +53,7 @@ namespace Quartz
 	/// interface. <code>{@link JobDetail}</code> objects are then created (also
 	/// by the client) to define a individual instances of the <code>Job</code>.
 	/// <code>JobDetail</code> instances can then be registered with the <code>Scheduler</code>
-	/// via the <code>scheduleJob(JobDetail, Trigger)</code> or <code>addJob(JobDetail, boolean)</code>
+	/// via the <code>ScheduleJob(JobDetail, Trigger)</code> or <code>addJob(JobDetail, boolean)</code>
 	/// method.
 	/// </p>
 	/// 

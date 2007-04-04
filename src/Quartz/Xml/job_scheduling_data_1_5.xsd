@@ -64,9 +64,9 @@
 		<annotation>
 			<documentation>Define a Job Listener</documentation>
 		</annotation>
-		<attribute name="class-name" type="xsd:string" use="required">
+		<attribute name="type" type="xsd:string" use="required">
 			<annotation>
-				<documentation>Job Listener class name</documentation>
+				<documentation>Job Listener type name</documentation>
 			</annotation>
 		</attribute>
 		<attribute name="name" type="xsd:string" default="required">
@@ -84,9 +84,9 @@
 			<element name="description" type="xsd:string" minOccurs="0"/>
 			<element name="base-calendar" type="quartz:calendarType" minOccurs="0"/>
 		</sequence>
-		<attribute name="class-name" type="xsd:string" use="required">
+		<attribute name="type" type="xsd:string" use="required">
 			<annotation>
-				<documentation>Calendar class name</documentation>
+				<documentation>Calendar type name</documentation>
 			</annotation>
 		</attribute>
 		<attribute name="replace" type="xsd:boolean" default="false">
@@ -112,7 +112,7 @@
 			<element ref="quartz:name"/>
 			<element ref="quartz:group"/>
 			<element name="description" type="xsd:string" minOccurs="0"/>
-			<element ref="quartz:job-class"/>
+			<element ref="quartz:job-type"/>
 			<element ref="quartz:job-listener-ref" minOccurs="0"/>
 			<sequence minOccurs="0">
 				<element ref="quartz:volatility"/>
@@ -132,9 +132,9 @@
 			<documentation>Group in which the JobDetail or Trigger resides</documentation>
 		</annotation>
 	</element>
-	<element name="job-class" type="xsd:string">
+	<element name="job-type" type="xsd:string">
 		<annotation>
-			<documentation>Fully qualified name of the Job class</documentation>
+			<documentation>Fully qualified name of the Job type</documentation>
 		</annotation>
 	</element>
 	<element name="job-listener-ref" type="xsd:string">

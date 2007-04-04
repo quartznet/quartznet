@@ -22,7 +22,7 @@ using System;
 using System.Collections;
 using System.IO;
 
-using log4net;
+using Common.Logging;
 
 using Quartz.Job;
 using Quartz.Spi;
@@ -81,14 +81,6 @@ namespace Quartz.Plugins.Xml
 			set { failOnFileNotFound = value; }
 		}
 
-		/// <summary> 
-		/// Whether or not the context class loader should be used. Default is <code>true</code>.
-		/// </summary>
-		public virtual bool UseContextClassLoader
-		{
-			get { return useContextClassLoader; }
-			set { useContextClassLoader = value; }
-		}
 
 		/// <summary> 
 		/// Whether or not the XML should be validated. Default is <code>true</code>.
@@ -120,8 +112,6 @@ namespace Quartz.Plugins.Xml
 
 		private ArrayList files = ArrayList.Synchronized(new ArrayList(10));
 
-		private bool useContextClassLoader = true;
-
 		private bool validating = true;
 
 		private bool validatingSchema = true;
@@ -132,44 +122,20 @@ namespace Quartz.Plugins.Xml
 
 		internal bool started = false;
 
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Constructors.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
 
 		public JobInitializationPluginMultiple()
 		{
 			fileName = null; // TODO JobSchedulingDataProcessor.QUARTZ_XML_FILE_NAME;
 		}
 
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Interface.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
 
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* SchedulerPlugin Interface.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
-		/// <summary> <p>
+		/// <summary>
 		/// Called during creation of the <code>Scheduler</code> in order to give
 		/// the <code>SchedulerPlugin</code> a chance to initialize.
-		/// </p>
-		/// 
 		/// </summary>
+		/// <param name="pluginName">The name by which the plugin is identified.</param>
+		/// <param name="sched">The scheduler to which the plugin is registered.</param>
 		/// <throws>  SchedulerConfigException </throws>
-		/// <summary>           if there is an error initializing.
-		/// </summary>
 		public virtual void Initialize(String pluginName, IScheduler sched)
 		{
 			initializing = true;
@@ -254,8 +220,7 @@ namespace Quartz.Plugins.Xml
 
 		public virtual void ProcessFiles()
 		{
-			JobSchedulingDataProcessor processor = null;
-				// TODO new JobSchedulingDataProcessor(UseContextClassLoader, Validating, ValidatingSchema);
+			JobSchedulingDataProcessor processor = new JobSchedulingDataProcessor(Validating, ValidatingSchema);
 
 			foreach (JobFile jobFile in files)
 			{
@@ -263,7 +228,7 @@ namespace Quartz.Plugins.Xml
 				{
 					if (jobFile.FileFound)
 					{
-						// TODO processor.processFileAndScheduleJobs(jobFile.FileName, scheduler, OverWriteExistingJobs);
+						processor.ProcessFileAndScheduleJobs(jobFile.FileName, scheduler, OverWriteExistingJobs);
 					}
 				}
 				catch (Exception e)

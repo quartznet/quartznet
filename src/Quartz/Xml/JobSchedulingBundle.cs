@@ -31,6 +31,9 @@ namespace Quartz.Xml
 	/// <author>James House</author>
 	public class JobSchedulingBundle
 	{
+		protected internal JobDetail jobDetail;
+		protected internal IList triggers = new ArrayList();
+		
 		/// <summary>
 		/// Gets or sets the job detail.
 		/// </summary>
@@ -98,10 +101,6 @@ namespace Quartz.Xml
 			get { return ((JobDetail != null) && (Triggers != null)); }
 		}
 
-
-		protected internal JobDetail jobDetail;
-
-		protected internal IList triggers = new ArrayList();
 
 		/// <summary>
 		/// Adds a trigger to this bundle.

@@ -29,8 +29,9 @@ namespace Quartz.Xml
 	/// </summary>
 	/// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	[Serializable]
-	public class ValidationException : Exception
+	public class ValidationException : ApplicationException
 	{
+		private ICollection validationExceptions = new ArrayList();
 
 		/// <summary>
 		/// Gets the validation exceptions.
@@ -71,8 +72,6 @@ namespace Quartz.Xml
 				return sb.ToString();
 			}
 		}
-
-		private ICollection validationExceptions = new ArrayList();
 
 		/// <summary>
 		/// Constructor for ValidationException.

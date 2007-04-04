@@ -30,6 +30,11 @@ namespace Quartz.Xml
 	[Serializable]
 	public class CalendarBundle : ICalendar
 	{
+		protected internal string calendarName;
+		protected internal string typeName;
+		protected internal ICalendar calendar;
+		protected internal bool replace;
+
 		/// <summary>
 		/// Gets or sets the name of the calendar.
 		/// </summary>
@@ -44,12 +49,12 @@ namespace Quartz.Xml
 		/// Gets or sets the name of the class.
 		/// </summary>
 		/// <value>The name of the class.</value>
-		public virtual string ClassName
+		public virtual string TypeName
 		{
-			get { return className; }
+			get { return typeName; }
 			set
 			{
-				className = value;
+				typeName = value;
 				CreateCalendar();
 			}
 		}
@@ -82,11 +87,6 @@ namespace Quartz.Xml
 			set { calendar.Description = value; }
 		}
 
-		protected internal string calendarName;
-		protected internal string className;
-		protected internal ICalendar calendar;
-		protected internal bool replace;
-
 		/// <summary>
 		/// Set a new base calendar or remove the existing one.
 		/// </summary>
@@ -116,7 +116,7 @@ namespace Quartz.Xml
 
 		protected internal virtual void CreateCalendar()
 		{
-			Type type = Type.GetType(className);
+			Type type = Type.GetType(typeName);
 			Calendar = (ICalendar) ObjectUtils.InstantiateType(type);
 		}
 	}

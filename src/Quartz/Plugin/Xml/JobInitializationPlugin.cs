@@ -23,7 +23,7 @@ using System.IO;
 using System.Net;
 using System.Web;
 
-using log4net;
+using Common.Logging;
 
 using Quartz.Job;
 using Quartz.Simpl;
@@ -324,7 +324,7 @@ namespace Quartz.Plugins.Xml
 			*/
 			try
 			{
-				// TODO processor.processFileAndScheduleJobs(fileName, scheduler, OverWriteExistingJobs);
+				// TODO processor.ProcessFileAndScheduleJobs(fileName, scheduler, OverWriteExistingJobs);
 			}
 			catch (Exception e)
 			{
