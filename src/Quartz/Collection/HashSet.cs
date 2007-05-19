@@ -26,19 +26,37 @@ namespace Quartz.Collection
 	[Serializable]
 	public class HashSet : ArrayList, ISet
 	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="HashSet"/> class.
+		/// </summary>
 		public HashSet() : base()
 		{
 		}
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="HashSet"/> class.
+		/// </summary>
+		/// <param name="c">The <see cref="T:System.Collections.ICollection"/> whose elements are copied to the new list.</param>
+		/// <exception cref="T:System.ArgumentNullException">
+		/// 	<paramref name="c"/> is <see langword="null"/>.</exception>
 		public HashSet(ICollection c)
 		{
 			AddAll(c);
 		}
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="HashSet"/> class.
+		/// </summary>
+		/// <param name="capacity">The capacity.</param>
 		public HashSet(int capacity) : base(capacity)
 		{
 		}
 
+		/// <summary>
+		/// Unmodifiables the hash set.
+		/// </summary>
+		/// <param name="collection">The collection.</param>
+		/// <returns></returns>
 		public static HashSet UnmodifiableHashSet(ICollection collection)
 		{
 			ArrayList items = new ArrayList(collection);
@@ -84,6 +102,10 @@ namespace Quartz.Collection
 			return added;
 		}
 
+		/// <summary>
+		/// Returns the first item in the set.
+		/// </summary>
+		/// <returns>First object.</returns>
 		public object First()
 		{
 			return this[0];

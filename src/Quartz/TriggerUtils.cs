@@ -1262,6 +1262,11 @@ namespace Quartz
 		/// that fall within the given date range. The input trigger will be cloned
 		/// before any work is done, so you need not worry about its state being
 		/// altered by this method.
+		/// <p>
+		/// NOTE: if this is a trigger that has previously fired within the given
+		/// date range, then firings which have already occured will not be listed
+		/// in the output List.
+		/// </p>
 		/// </summary>
 		/// <param name="trigg">The trigger upon which to do the work</param>
 		/// <param name="cal">The calendar to apply to the trigger's schedule</param>
@@ -1273,7 +1278,7 @@ namespace Quartz
 		/// </param>
 		/// <returns> List of java.util.Date objects
 		/// </returns>
-		public static IList ComputeFireTimesBetween(Trigger trigg, ICalendar cal, NullableDateTime from, NullableDateTime to)
+		public static IList ComputeFireTimesBetween(Trigger trigg, ICalendar cal, DateTime from, DateTime to)
 		{
 			ArrayList lst = new ArrayList();
 
@@ -1281,6 +1286,8 @@ namespace Quartz
 
 			if (t.GetNextFireTime() == null || !t.GetNextFireTime().HasValue)
 			{
+				t.StartTime = from;
+				t.EndTime = to;
 				t.ComputeFirstFireTime(cal);
 			}
 
@@ -1291,12 +1298,12 @@ namespace Quartz
 				NullableDateTime d = t.GetNextFireTime();
 				if (d != null && d.HasValue)
 				{
-					if ((d.Value < from.Value))
+					if ((d.Value < from))
 					{
 						t.Triggered(cal);
 						continue;
 					}
-					if ((d.Value > to.Value))
+					if ((d.Value > to))
 					{
 						break;
 					}

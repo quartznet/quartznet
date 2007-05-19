@@ -57,11 +57,20 @@ namespace Quartz.Simpl
 			get { return DateTime.Now; }
 		}
 
+		/// <summary>
+		/// Called by the QuartzScheduler before the <code>TimeBroker</code> is
+		/// used, in order to give the it a chance to Initialize.
+		/// </summary>
 		public virtual void Initialize()
 		{
 			// do nothing...
 		}
 
+		/// <summary>
+		/// Called by the QuartzScheduler to inform the <code>TimeBroker</code>
+		/// that it should free up all of it's resources because the scheduler is
+		/// shutting down.
+		/// </summary>
 		public virtual void Shutdown()
 		{
 			// do nothing...

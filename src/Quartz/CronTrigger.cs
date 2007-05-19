@@ -568,18 +568,25 @@ namespace Quartz
 			get { return false; }
 		}
 
-		/**
-		 * <p>
-		 * Determines whether or not the <code>CronTrigger</code> will occur
-		 * again.
-		 * </p>
-		 */
-
+		/// <summary>
+		/// Used by the <code>Scheduler</code> to determine whether or not
+		/// it is possible for this <code>Trigger</code> to fire again.
+		/// <p>
+		/// If the returned value is <code>false</code> then the <code>Scheduler</code>
+		/// may remove the <code>Trigger</code> from the <code>JobStore</code>.
+		/// </p>
+		/// </summary>
+		/// <returns></returns>
 		public override bool MayFireAgain()
 		{
 			return (GetNextFireTime() != null);
 		}
 
+		/// <summary>
+		/// Validates the misfire instruction.
+		/// </summary>
+		/// <param name="misfireInstruction">The misfire instruction.</param>
+		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
 			if (misfireInstruction < MISFIRE_INSTRUCTION_SMART_POLICY)
@@ -719,17 +726,17 @@ namespace Quartz
 		public override int ExecutionComplete(JobExecutionContext context,
 		                                      JobExecutionException result)
 		{
-			if (result != null && result.RefireImmediately())
+			if (result != null && result.RefireImmediately)
 			{
 				return INSTRUCTION_RE_EXECUTE_JOB;
 			}
 
-			if (result != null && result.unscheduleFiringTrigger())
+			if (result != null && result.UnscheduleFiringTrigger)
 			{
 				return INSTRUCTION_SET_TRIGGER_COMPLETE;
 			}
 
-			if (result != null && result.unscheduleAllTriggers())
+			if (result != null && result.UnscheduleAllTriggers)
 			{
 				return INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE;
 			}
@@ -846,6 +853,11 @@ namespace Quartz
 			return cronEx.GetTimeAfter(afterTime);
 		}
 
+		/// <summary>
+		/// Gets the time before.
+		/// </summary>
+		/// <param name="date">The date.</param>
+		/// <returns></returns>
 		protected NullableDateTime GetTimeBefore(NullableDateTime date)
 		{
 			return null;

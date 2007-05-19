@@ -27,10 +27,19 @@ namespace Quartz.Simpl
 		ISet TriggerListenerNames { get; }
 		IList SchedulerListeners { get; }
 
+		/// <summary>
+		/// Starts this instance.
+		/// </summary>
 		void Start();
 
+		/// <summary>
+		/// Standbies this instance.
+		/// </summary>
 		void Standby();
 
+		/// <summary>
+		/// Shutdowns this instance.
+		/// </summary>
 		void Shutdown();
 
 		void Shutdown(bool waitForJobsToComplete);

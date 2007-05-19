@@ -81,64 +81,6 @@ namespace Quartz.Core
 			}
 		}
 
-		public virtual string RMIRegistryHost
-		{
-			get { return rmiRegistryHost; }
-			set { rmiRegistryHost = value; }
-		}
-
-		public virtual int RMIRegistryPort
-		{
-			get { return rmiRegistryPort; }
-
-			set { rmiRegistryPort = value; }
-		}
-
-		public virtual int RMIServerPort
-		{
-			get { return rmiServerPort; }
-
-			set { rmiServerPort = value; }
-		}
-
-		public virtual string RMICreateRegistryStrategy
-		{
-			get { return rmiCreateRegistryStrategy; }
-
-			set
-			{
-				if (value == null || value.Trim().Length == 0)
-				{
-					value = CREATE_REGISTRY_NEVER;
-				}
-				else if (value.ToUpper().Equals("true".ToUpper()))
-				{
-					value = CREATE_REGISTRY_AS_NEEDED;
-				}
-				else if (value.ToUpper().Equals("false".ToUpper()))
-				{
-					value = CREATE_REGISTRY_NEVER;
-				}
-				else if (value.ToUpper().Equals(CREATE_REGISTRY_ALWAYS.ToUpper()))
-				{
-					value = CREATE_REGISTRY_ALWAYS;
-				}
-				else if (value.ToUpper().Equals(CREATE_REGISTRY_AS_NEEDED.ToUpper()))
-				{
-					value = CREATE_REGISTRY_AS_NEEDED;
-				}
-				else if (value.ToUpper().Equals(CREATE_REGISTRY_NEVER.ToUpper()))
-				{
-					value = CREATE_REGISTRY_NEVER;
-				}
-				else
-				{
-					throw new ArgumentException("Faild to set RMICreateRegistryStrategy - strategy unknown: '" + value + "'");
-				}
-
-				rmiCreateRegistryStrategy = value;
-			}
-		}
 
 		/// <summary>
 		/// Get or set the name for the <code>QuartzSchedulerThread</code>.
@@ -227,25 +169,11 @@ namespace Quartz.Core
 			}
 		}
 
-		public const string CREATE_REGISTRY_NEVER = "never";
-
-		public const string CREATE_REGISTRY_ALWAYS = "always";
-
-		public const string CREATE_REGISTRY_AS_NEEDED = "as_needed";
-
 		private string name;
 
 		private string instanceId;
 
 		private string threadName;
-
-		private string rmiRegistryHost = null;
-
-		private int rmiRegistryPort = 1099;
-
-		private int rmiServerPort = - 1;
-
-		private string rmiCreateRegistryStrategy = CREATE_REGISTRY_NEVER;
 
 		private IThreadPool threadPool;
 
@@ -253,11 +181,21 @@ namespace Quartz.Core
 
 		private IJobRunShellFactory jobRunShellFactory;
 
+		/// <summary>
+		/// Gets the unique identifier.
+		/// </summary>
+		/// <param name="schedName">Name of the scheduler.</param>
+		/// <param name="schedInstId">The scheduler instance id.</param>
+		/// <returns></returns>
 		public static string GetUniqueIdentifier(string schedName, string schedInstId)
 		{
 			return schedName + "_$_" + schedInstId;
 		}
 
+		/// <summary>
+		/// Gets the unique identifier.
+		/// </summary>
+		/// <returns></returns>
 		public virtual string GetUniqueIdentifier()
 		{
 			return GetUniqueIdentifier(name, instanceId);

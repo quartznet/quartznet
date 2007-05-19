@@ -305,36 +305,9 @@ namespace Quartz.Impl
 			idleWaitTime = cfg.GetLongProperty(PROP_SCHED_IDLE_WAIT_TIME, idleWaitTime);
 			dbFailureRetry = cfg.GetIntProperty(PROP_SCHED_DB_FAILURE_RETRY_INTERVAL, dbFailureRetry);
 
-			bool rmiExport = cfg.GetBooleanProperty(PROP_SCHED_RMI_EXPORT, false);
-			bool rmiProxy = cfg.GetBooleanProperty(PROP_SCHED_RMI_PROXY, false);
-			String rmiHost = cfg.GetStringProperty(PROP_SCHED_RMI_HOST, "localhost");
-			int rmiPort = cfg.GetIntProperty(PROP_SCHED_RMI_PORT, 1099);
-			int rmiServerPort = cfg.GetIntProperty(PROP_SCHED_RMI_SERVER_PORT, - 1);
-			String rmiCreateRegistry =
-				cfg.GetStringProperty(PROP_SCHED_RMI_CREATE_REGISTRY, QuartzSchedulerResources.CREATE_REGISTRY_NEVER);
-
 			NameValueCollection schedCtxtProps = cfg.GetPropertyGroup(PROP_SCHED_CONTEXT_PREFIX, true);
 
-			// If Proxying to remote scheduler, short-circuit here...
-			// ~~~~~~~~~~~~~~~~~~
-			if (rmiProxy)
-			{
-				if (autoId)
-				{
-					schedInstId = DEFAULT_INSTANCE_ID;
-				}
-
-				schedCtxt = new SchedulingContext();
-				schedCtxt.InstanceId = schedInstId;
-
-				String uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
-
-				RemoteScheduler remoteScheduler = new RemoteScheduler(schedCtxt, uid, rmiHost, rmiPort);
-
-				schedRep.Bind(remoteScheduler);
-
-				return remoteScheduler;
-			}
+		
 
 			// Create class load helper
 			IClassLoadHelper loadHelper = null;
@@ -768,14 +741,6 @@ namespace Quartz.Impl
 			rsrcs.ThreadName = threadName;
 			rsrcs.InstanceId = schedInstId;
 			rsrcs.JobRunShellFactory = jrsf;
-
-			if (rmiExport)
-			{
-				rsrcs.RMIRegistryHost = rmiHost;
-				rsrcs.RMIRegistryPort = rmiPort;
-				rsrcs.RMIServerPort = rmiServerPort;
-				rsrcs.RMICreateRegistryStrategy = rmiCreateRegistry;
-			}
 
 			rsrcs.ThreadPool = tp;
 			if (tp is SimpleThreadPool)

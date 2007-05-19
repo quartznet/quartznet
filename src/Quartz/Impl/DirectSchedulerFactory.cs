@@ -198,7 +198,7 @@ namespace Quartz.Impl
 		public virtual void CreateScheduler(String schedulerName, string schedulerInstanceId, IThreadPool threadPool,
 		                                    IJobStore jobStore)
 		{
-			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, 0, - 1, - 1);
+			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, - 1, - 1);
 		}
 
 		/// <summary>
@@ -209,14 +209,11 @@ namespace Quartz.Impl
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
 		/// <param name="threadPool">The thread pool for executing jobs</param>
 		/// <param name="jobStore">The type of job store</param>
-		/// <param name="rmiRegistryHost">The hostname to register this scheduler with for RMI. Can use
-		/// "null" if no RMI is required.</param>
-		/// <param name="rmiRegistryPort">The port for RMI. Typically 1099.</param>
 		/// <param name="idleWaitTime">The idle wait time in milliseconds. You can specify "-1" for
 		/// the default value, which is currently 30000 ms.</param>
 		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
-		public virtual void CreateScheduler(String schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-		                                    IJobStore jobStore, string rmiRegistryHost, int rmiRegistryPort, long idleWaitTime,
+		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+		                                    IJobStore jobStore, long idleWaitTime,
 		                                    int dbFailureRetryInterval)
 		{
 			// Currently only one run-shell factory is available...
@@ -234,8 +231,6 @@ namespace Quartz.Impl
 			qrs.JobRunShellFactory = jrsf;
 			qrs.ThreadPool = threadPool;
 			qrs.JobStore = jobStore;
-			qrs.RMIRegistryHost = rmiRegistryHost;
-			qrs.RMIRegistryPort = rmiRegistryPort;
 
 			QuartzScheduler qs = new QuartzScheduler(qrs, schedCtxt, idleWaitTime, dbFailureRetryInterval);
 

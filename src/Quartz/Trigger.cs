@@ -646,6 +646,11 @@ namespace Quartz
 		/// </summary>
 		public abstract NullableDateTime GetFireTimeAfter(NullableDateTime afterTime);
 
+		/// <summary>
+		/// Validates the misfire instruction.
+		/// </summary>
+		/// <param name="misfireInstruction">The misfire instruction.</param>
+		/// <returns></returns>
 		protected abstract bool ValidateMisfireInstruction(int misfireInstruction);
 
 		/// <summary> 

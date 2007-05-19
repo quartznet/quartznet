@@ -28,20 +28,38 @@ namespace Quartz.Collection
 	{
 		private IComparer comparator = Comparer.Default;
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="TreeSet"/> class.
+		/// </summary>
 		public TreeSet() : base()
 		{
 		}
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="TreeSet"/> class.
+		/// </summary>
+		/// <param name="c">The <see cref="T:System.Collections.ICollection"/> whose elements are copied to the new list.</param>
+		/// <exception cref="T:System.ArgumentNullException">
+		/// 	<paramref name="c"/> is <see langword="null"/>.</exception>
 		public TreeSet(ICollection c) : base()
 		{
 			AddAll(c);
 		}
 
+		/// <summary>
+		/// Initializes a new instance of the <see cref="TreeSet"/> class.
+		/// </summary>
+		/// <param name="c">The c.</param>
 		public TreeSet(IComparer c) : base()
 		{
 			comparator = c;
 		}
 
+		/// <summary>
+		/// Unmodifiables the tree set.
+		/// </summary>
+		/// <param name="collection">The collection.</param>
+		/// <returns></returns>
 		public static TreeSet UnmodifiableTreeSet(ICollection collection)
 		{
 			ArrayList items = new ArrayList(collection);
@@ -93,6 +111,10 @@ namespace Quartz.Collection
 			return added;
 		}
 
+		/// <summary>
+		/// Returns the first item in the set.
+		/// </summary>
+		/// <returns>First object.</returns>
 		public object First()
 		{
 			return this[0];

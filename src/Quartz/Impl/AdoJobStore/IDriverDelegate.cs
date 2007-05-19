@@ -1152,8 +1152,11 @@ namespace Quartz.Impl.AdoJobStore
 		/// Update a scheduler-instance state record.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
+		/// <param name="instanceId">The instance id.</param>
+		/// <param name="checkInTime">The check in time.</param>
+		/// <param name="recoverer">The recoverer.</param>
 		/// <returns>The number of updated rows.</returns>
-		int UpdateSchedulerState(IDbConnection conn, string instanceId, long checkInTime);
+		int UpdateSchedulerState(IDbConnection conn, string instanceId, long checkInTime, string recoverer);
 
 		/// <summary>
 		/// A List of all current <code>SchedulerStateRecords</code>.

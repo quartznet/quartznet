@@ -93,7 +93,7 @@ namespace Quartz.Impl.Calendar
 		/// <summary>
 		/// Check if date/time represented by timeStamp is included. If included
 		/// return true. The implementation of BaseCalendar simply calls the base
-		/// calendars isTimeIncluded() method if base calendar is set.
+		/// calendars IsTimeIncluded() method if base calendar is set.
 		/// </summary>
 		/// <seealso cref="ICalendar.IsTimeIncluded" />
 		public virtual bool IsTimeIncluded(DateTime timeStamp)

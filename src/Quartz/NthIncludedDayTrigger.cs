@@ -103,7 +103,7 @@ namespace Quartz
 		/// {@link #INTERVAL_TYPE_YEARLY}, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every year. If 
 		/// {@link #INTERVAL_TYPE_WEEKLY}, the trigger will fire on the 
-		/// N<SUP>th</SUP> included day of every month. 
+		/// N<SUP>th</SUP> included day of every week. 
 		/// </summary>
 		/// <seealso cref="INTERVAL_TYPE_WEEKLY">
 		/// </seealso>
@@ -245,6 +245,11 @@ namespace Quartz
 			}
 		}
 
+		/// <summary>
+		/// Tells whether this Trigger instance can handle events
+		/// in millisecond precision.
+		/// </summary>
+		/// <value></value>
 		public override bool HasMillisecondPrecision
 		{
 			get { throw new NotImplementedException(); }
@@ -523,17 +528,17 @@ namespace Quartz
 		/// </returns>
 		public override int ExecutionComplete(JobExecutionContext jobCtx, JobExecutionException result)
 		{
-			if (result != null && result.RefireImmediately())
+			if (result != null && result.RefireImmediately)
 			{
 				return INSTRUCTION_RE_EXECUTE_JOB;
 			}
 
-			if (result != null && result.unscheduleFiringTrigger())
+			if (result != null && result.UnscheduleFiringTrigger)
 			{
 				return INSTRUCTION_SET_TRIGGER_COMPLETE;
 			}
 
-			if (result != null && result.unscheduleAllTriggers())
+			if (result != null && result.UnscheduleAllTriggers)
 			{
 				return INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE;
 			}

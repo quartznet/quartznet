@@ -23,6 +23,7 @@ using System;
 using System.Data;
 using System.Data.OleDb;
 using System.Threading;
+
 using Common.Logging;
 
 using Quartz.Collection;
@@ -36,7 +37,7 @@ namespace Quartz.Impl.AdoJobStore
 	/// <author>James House</author>
 	public class StdRowLockSemaphore : StdAdoConstants, ISemaphore
 	{
-		private static readonly ILog log = LogManager.GetLogger(typeof(StdRowLockSemaphore));
+		private static readonly ILog log = LogManager.GetLogger(typeof (StdRowLockSemaphore));
 
 		private HashSet ThreadLocks
 		{
@@ -50,7 +51,6 @@ namespace Quartz.Impl.AdoJobStore
 				}
 				return threadLocks;
 			}
-
 		}
 
 		/*
@@ -61,7 +61,9 @@ namespace Quartz.Impl.AdoJobStore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-		public static readonly string SELECT_FOR_LOCK = string.Format("SELECT * FROM {0}{1} WHERE {2} = ? FOR UPDATE", StdAdoConstants.TABLE_PREFIX_SUBST, AdoConstants.TABLE_LOCKS, AdoConstants.COL_LOCK_NAME);
+		public static readonly string SELECT_FOR_LOCK =
+			string.Format("SELECT * FROM {0}{1} WHERE {2} = ? FOR UPDATE", TABLE_PREFIX_SUBST, AdoConstants.TABLE_LOCKS,
+			              AdoConstants.COL_LOCK_NAME);
 
 		/*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -91,7 +93,9 @@ namespace Quartz.Impl.AdoJobStore
 			this.tablePrefix = tablePrefix;
 
 			if (selectWithLockSQL != null && selectWithLockSQL.Trim().Length != 0)
+			{
 				this.selectWithLockSQL = selectWithLockSQL;
+			}
 
 			this.selectWithLockSQL = Util.ReplaceTablePrefix(this.selectWithLockSQL, tablePrefix);
 		}
@@ -102,13 +106,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns> true if the lock was obtained.
 		/// </returns>
-		
 		public virtual bool ObtainLock(IDbConnection conn, String lockName)
 		{
 			lockName = String.Intern(lockName);
 
 			if (log.IsDebugEnabled)
+			{
 				log.Debug("Lock '" + lockName + "' is desired by: " + Thread.CurrentThread.Name);
+			}
 			if (!IsLockOwner(conn, lockName))
 			{
 				OleDbCommand ps = null;
@@ -121,12 +126,17 @@ namespace Quartz.Impl.AdoJobStore
 
 
 					if (log.IsDebugEnabled)
+					{
 						log.Debug("Lock '" + lockName + "' is being obtained: " + Thread.CurrentThread.Name);
+					}
 					rs = ps.ExecuteReader();
 					if (!rs.Read())
 					{
 						//UPGRADE_ISSUE: Constructor 'java.sql.SQLException.SQLException' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlSQLExceptionSQLException_javalangString_3"'
-						throw new JobPersistenceException(Util.ReplaceTablePrefix("No row exists in table " + StdAdoConstants.TABLE_PREFIX_SUBST + AdoConstants.TABLE_LOCKS + " for lock named: " + lockName, tablePrefix));
+						throw new JobPersistenceException(
+							Util.ReplaceTablePrefix(
+								"No row exists in table " + TABLE_PREFIX_SUBST + AdoConstants.TABLE_LOCKS + " for lock named: " + lockName,
+								tablePrefix));
 					}
 				}
 				catch (OleDbException sqle)
@@ -147,6 +157,7 @@ namespace Quartz.Impl.AdoJobStore
 				finally
 				{
 					if (rs != null)
+					{
 						try
 						{
 							rs.Close();
@@ -154,7 +165,9 @@ namespace Quartz.Impl.AdoJobStore
 						catch (Exception)
 						{
 						}
+					}
 					if (ps != null)
+					{
 						try
 						{
 							ps.close();
@@ -162,6 +175,7 @@ namespace Quartz.Impl.AdoJobStore
 						catch (Exception)
 						{
 						}
+					}
 				}
 				if (log.IsDebugEnabled)
 				{
@@ -182,7 +196,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		
 		public virtual void ReleaseLock(IDbConnection conn, String lockName)
 		{
 			lockName = String.Intern(lockName);
@@ -198,7 +211,9 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			else if (log.IsDebugEnabled)
 			{
-				log.Warn(string.Format("Lock '{0}' attempt to retun by: {1} -- but not owner!", lockName, Thread.CurrentThread.Name), new Exception("stack-trace of wrongful returner"));
+				log.Warn(
+					string.Format("Lock '{0}' attempt to retun by: {1} -- but not owner!", lockName, Thread.CurrentThread.Name),
+					new Exception("stack-trace of wrongful returner"));
 			}
 		}
 

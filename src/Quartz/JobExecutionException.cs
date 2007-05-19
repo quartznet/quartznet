@@ -22,13 +22,12 @@ using System;
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// An exception that can be thrown by a <code>{@link org.quartz.Job}</code>
 	/// to indicate to the Quartz <code>{@link Scheduler}</code> that an error
 	/// occured while executing, and whether or not the <code>Job</code> requests
 	/// to be re-fired immediately (using the same <code>{@link JobExecutionContext}</code>,
 	/// or whether it wants to be unscheduled.
-	/// </p>
 	/// 
 	/// <p>
 	/// Note that if the flag for 'refire immediately' is set, the flags for
@@ -36,100 +35,108 @@ namespace Quartz
 	/// </p>
 	/// 
 	/// </summary>
-	/// <seealso cref="IJob">
-	/// </seealso>
-	/// <seealso cref="JobExecutionContext">
-	/// </seealso>
-	/// <seealso cref="SchedulerException">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="IJob" />
+	/// <seealso cref="JobExecutionContext" />
+	/// <seealso cref="SchedulerException" />
+	/// <author>James House</author>
 	[Serializable]
 	public class JobExecutionException : SchedulerException
 	{
-		public virtual bool UnscheduleFiringTrigger
-		{
-			set { unscheduleTrigg = value; }
-		}
-
-		public virtual bool UnscheduleAllTriggers
-		{
-			set { unscheduleAllTriggs = value; }
-		}
-
 		private bool refire = false;
 		private bool unscheduleTrigg = false;
 		private bool unscheduleAllTriggs = false;
 
-		/// <summary> <p>
+		/// <summary>
+		/// Gets or sets a value indicating whether to unschedule firing trigger.
+		/// </summary>
+		/// <value>
+		/// 	<c>true</c> if firing trigger should be unscheduled; otherwise, <c>false</c>.
+		/// </value>
+		public virtual bool UnscheduleFiringTrigger
+		{
+			set { unscheduleTrigg = value; }
+			get { return unscheduleTrigg; }
+		}
+
+		/// <summary>
+		/// Gets or sets a value indicating whether to unschedule all triggers.
+		/// </summary>
+		/// <value>
+		/// 	<c>true</c> if all triggers should be unscheduled; otherwise, <c>false</c>.
+		/// </value>
+		public virtual bool UnscheduleAllTriggers
+		{
+			set { unscheduleAllTriggs = value; }
+			get { return unscheduleAllTriggs; }
+		}
+
+
+		/// <summary>
 		/// Create a JobExcecutionException, with the 're-fire immediately' flag set
 		/// to <code>false</code>.
-		/// </p>
 		/// </summary>
 		public JobExecutionException()
 		{
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Create a JobExcecutionException, with the given cause.
-		/// </p>
 		/// </summary>
+		/// <param name="cause">The cause.</param>
 		public JobExecutionException(Exception cause) : base(cause)
 		{
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Create a JobExcecutionException, with the given message.
-		/// </p>
 		/// </summary>
 		public JobExecutionException(string msg) : base(msg)
 		{
 		}
 
-		/// <summary> <p>
+		/// <summary>
+		/// Initializes a new instance of the <see cref="JobExecutionException"/> class.
+		/// </summary>
+		/// <param name="msg">The message.</param>
+		/// <param name="cause">The original cause.</param>
+		public JobExecutionException(string msg, Exception cause) : base(msg, cause)
+		{
+		}
+
+		/// <summary>
 		/// Create a JobExcecutionException with the 're-fire immediately' flag set
 		/// to the given value.
-		/// </p>
 		/// </summary>
 		public JobExecutionException(bool refireImmediately)
 		{
 			refire = refireImmediately;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Create a JobExcecutionException with the given underlying exception, and
 		/// the 're-fire immediately' flag set to the given value.
-		/// </p>
 		/// </summary>
 		public JobExecutionException(Exception cause, bool refireImmediately) : base(cause)
 		{
 			refire = refireImmediately;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Create a JobExcecutionException with the given message, and underlying
 		/// exception, and the 're-fire immediately' flag set to the given value.
-		/// </p>
 		/// </summary>
 		public JobExecutionException(string msg, Exception cause, bool refireImmediately) : base(msg, cause)
 		{
 			refire = refireImmediately;
 		}
 
-		public virtual bool RefireImmediately()
+		/// <summary>
+		/// Gets a value indicating whether to refire immediately.
+		/// </summary>
+		/// <value><c>true</c> if to refire immediately; otherwise, <c>false</c>.</value>
+		public virtual bool RefireImmediately
 		{
-			return refire;
-		}
-
-		public virtual bool unscheduleFiringTrigger()
-		{
-			return unscheduleTrigg;
-		}
-
-		public virtual bool unscheduleAllTriggers()
-		{
-			return unscheduleAllTriggs;
+			get { return refire; }
 		}
 	}
 }

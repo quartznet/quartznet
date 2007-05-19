@@ -147,40 +147,35 @@ namespace Quartz
 		public static readonly string DEFAULT_FAIL_OVER_GROUP = "FAILED_OVER_JOBS";
 	}
 
+	/// <summary>
+	/// The scheduler interface.
+	/// </summary>
 	public interface IScheduler
 	{
-		/// <summary> <p>
+		/// <summary> 
 		/// Returns the name of the <code>Scheduler</code>.
-		/// </p>
 		/// </summary>
 		string SchedulerName { get; }
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns the instance Id of the <code>Scheduler</code>.
-		/// </p>
 		/// </summary>
 		string SchedulerInstanceId { get; }
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>.
-		/// </p>
 		/// </summary>
 		SchedulerContext Context { get; }
 
-		/// <summary> <p>
+		/// <summary>
 		/// Reports whether the <code>Scheduler</code> is in stand-by mode.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="Standby()">
-		/// </seealso>
-		/// <seealso cref="Start()">
-		/// </seealso>
+		/// <seealso cref="Standby()" />
+		/// <seealso cref="Start()" />
 		bool InStandbyMode { get; }
 
-		/// <summary> <p>
+		/// <summary>
 		/// Reports whether the <code>Scheduler</code> has been Shutdown.
-		/// </p>
 		/// </summary>
 		bool IsShutdown { get; }
 
@@ -205,8 +200,7 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// </summary>
-		/// <seealso cref="JobExecutionContext">
-		/// </seealso>
+		/// <seealso cref="JobExecutionContext" />
 		IList GetCurrentlyExecutingJobs();
 
 		/// <summary>
@@ -265,17 +259,15 @@ namespace Quartz
 		/// </summary>
 		IList GlobalTriggerListeners { get; }
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get a Set containing the names of all the <i>non-global</i><code>{@link TriggerListener}</code>
 		/// s registered with the <code>Scheduler</code>.
-		/// </p>
 		/// </summary>
 		ISet TriggerListenerNames { get; }
 
-		/// <summary> <p>
-		/// Get a List containing all of the <code>{@link SchedulerListener}</code>
+		/// <summary>
+		/// Get a List containing all of the <code>SchedulerListener</code>
 		/// s registered with the <code>Scheduler</code>.
-		/// </p>
 		/// </summary>
 		IList SchedulerListeners { get; }
 
@@ -284,54 +276,44 @@ namespace Quartz
 		/// Starts the <code>Scheduler</code>'s threads that fire <code>{@link Trigger}s</code>.
 		/// When a scheduler is first created it is in "stand-by" mode, and will not
 		/// fire triggers.  The scheduler can also be put into stand-by mode by
-		/// calling the <code>standby()</code> method. 
+		/// calling the <code>standby()</code> method.
 		/// <p>
-		/// All <code>{@link Trigger}s</code> that have misfired will be passed
-		/// to the appropriate TriggerListener(s).
+		/// The misfire/recovery process will be started, if it is the initial call
+		/// to this method on this scheduler instance.
 		/// </p>
-		/// 
 		/// </summary>
 		/// <throws>  SchedulerException </throws>
-		/// <summary>           if <code>Shutdown()</code> has been called, or there is an
-		/// error within the <code>Scheduler</code>.
-		/// 
-		/// </summary>
-		/// <seealso cref="Standby">
-		/// </seealso>
-		/// <seealso cref="Shutdown(bool)">
-		/// </seealso>
+		/// <seealso cref="Standby"/>
+		/// <seealso cref="Shutdown(bool)"/>
 		void Start();
 
 		/// <summary>
 		/// Temporarily halts the <code>Scheduler</code>'s firing of <code>{@link Trigger}s</code>.
 		/// <p>
 		/// When <code>start()</code> is called (to bring the scheduler out of 
-		/// stand-by mode), trigger misfire instructions will NOT be applied.
+		/// stand-by mode), trigger misfire instructions will NOT be applied
+		/// during the execution of the <code>start()</code> method - any misfires 
+		/// will be detected immediately afterward (by the <code>JobStore</code>'s 
+		/// normal process).
 		/// </p>
 		/// <p>
 		/// The scheduler is not destroyed, and can be re-started at any time.
 		/// </p>
 		/// </summary>
-		/// <seealso cref="Start()">
-		/// </seealso>
-		/// <seealso cref="PauseAll()">
-		/// </seealso>
+		/// <seealso cref="Start()"/>
+		/// <seealso cref="PauseAll()"/>
 		void Standby();
 
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Halts the <code>Scheduler</code>'s firing of <code>{@link Trigger}s</code>,
 		/// and cleans up all resources associated with the Scheduler. Equivalent to
 		/// <code>Shutdown(false)</code>.
-		/// </p>
-		/// 
 		/// <p>
 		/// The scheduler cannot be re-started.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="Shutdown(bool)">
-		/// </seealso>
+		/// <seealso cref="Shutdown(bool)" />
 		void Shutdown();
 
 		/// <summary>
@@ -347,8 +329,7 @@ namespace Quartz
 		/// to return until all currently executing jobs have completed.
 		/// 
 		/// </param>
-		/// <seealso cref="Shutdown()">
-		/// </seealso>
+		/// <seealso cref="Shutdown()" /> 
 		void Shutdown(bool waitForJobsToComplete);
 
 
@@ -381,17 +362,16 @@ namespace Quartz
 		/// </summary>
 		DateTime ScheduleJob(Trigger trigger);
 
-		/// <summary> <p>
-		/// Remove the indicated <code>{@link Trigger}</code> from the scheduler.
-		/// </p>
+		/// <summary>
+		/// Remove the indicated <code>Trigger</code> from the scheduler.
 		/// </summary>
 		bool UnscheduleJob(string triggerName, string groupName);
 
 		/// <summary>
-		/// Remove (delete) the <code>Trigger</code> with the
+		/// Remove (delete) the <code>{@link org.quartz.Trigger}</code> with the
 		/// given name, and store the new given one - which must be associated
-		/// with the same job - however, the new trigger need not have the same 
-		/// name as the old trigger.
+		/// with the same job (the new trigger must have the job name & group specified) 
+		/// - however, the new trigger need not have the same name as the old trigger.
 		/// </summary>
 		/// <param name="triggerName">
 		/// The name of the <code>Trigger</code> to be replaced.
@@ -409,13 +389,11 @@ namespace Quartz
 		NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
 
 
-		/// <summary> <p>
+		/// <summary>
 		/// Add the given <code>Job</code> to the Scheduler - with no associated
 		/// <code>Trigger</code>. The <code>Job</code> will be 'dormant' until
 		/// it is scheduled with a <code>Trigger</code>, or <code>Scheduler.triggerJob()</code>
 		/// is called for it.
-		/// </p>
-		/// 
 		/// <p>
 		/// The <code>Job</code> must by definition be 'durable', if it is not,
 		/// SchedulerException will be thrown.
@@ -429,103 +407,80 @@ namespace Quartz
 		/// </summary>
 		void AddJob(JobDetail jobDetail, bool replace);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Delete the identified <code>Job</code> from the Scheduler - and any
 		/// associated <code>Trigger</code>s.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <returns> true if the Job was found and deleted.
 		/// </returns>
 		/// <throws>  SchedulerException </throws>
-		/// <summary>           if there is an internal Scheduler error.
-		/// </summary>
 		bool DeleteJob(string jobName, string groupName);
 
-		/// <summary> <p>
-		/// Trigger the identified <code>{@link org.quartz.JobDetail}</code>
+		/// <summary>
+		/// Trigger the identified <code>.JobDetail</code>
 		/// (Execute it now) - the generated trigger will be non-volatile.
-		/// </p>
 		/// </summary>
 		void TriggerJob(string jobName, string groupName);
 
-		/// <summary> <p>
-		/// Trigger the identified <code>{@link org.quartz.JobDetail}</code>
+		/// <summary>
+		/// Trigger the identified <code>JobDetail</code>
 		/// (Execute it now) - the generated trigger will be volatile.
-		/// </p>
 		/// </summary>
 		void TriggerJobWithVolatileTrigger(string jobName, string groupName);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Trigger the identified <code>{@link org.quartz.JobDetail}</code>
 		/// (Execute it now) - the generated trigger will be non-volatile.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="jobName">the name of the Job to trigger
-		/// </param>
-		/// <param name="groupName">the group name of the Job to trigger
-		/// </param>
-		/// <param name="data">the (possibly <code>null</code>) JobDataMap to be 
-		/// associated with the trigger that fires the job immediately. 
-		/// </param>
+		/// <param name="jobName">the name of the Job to trigger</param>
+		/// <param name="groupName">the group name of the Job to trigger</param>
+		/// <param name="data">the (possibly <code>null</code>) JobDataMap to be
+		/// associated with the trigger that fires the job immediately.</param>
 		void TriggerJob(string jobName, string groupName, JobDataMap data);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Trigger the identified <code>{@link org.quartz.JobDetail}</code>
 		/// (Execute it now) - the generated trigger will be volatile.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="jobName">the name of the Job to trigger
-		/// </param>
-		/// <param name="groupName">the group name of the Job to trigger
-		/// </param>
-		/// <param name="data">the (possibly <code>null</code>) JobDataMap to be 
-		/// associated with the trigger that fires the job immediately. 
-		/// </param>
+		/// <param name="jobName">the name of the Job to trigger</param>
+		/// <param name="groupName">the group name of the Job to trigger</param>
+		/// <param name="data">the (possibly <code>null</code>) JobDataMap to be
+		/// associated with the trigger that fires the job immediately.</param>
 		void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data);
 
 		/// <summary>
-		/// Pause the <code>{@link org.quartz.JobDetail}</code> with the given
+		/// Pause the <code>JobDetail</code> with the given
 		/// name - by pausing all of its current <code>Trigger</code>s.
 		/// </summary>
 		void PauseJob(string jobName, string groupName);
 
-		/// <summary> <p>
-		/// Pause all of the <code>{@link org.quartz.JobDetail}s</code> in the
+		/// <summary>
+		/// Pause all of the <code>JobDetail</code>s in the
 		/// given group - by pausing all of their <code>Trigger</code>s.
-		/// </p>
 		/// 
 		/// <p>
 		/// The Scheduler will "remember" that the group is paused, and impose the
 		/// pause on any new jobs that are added to the group while the group is
 		/// paused.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="ResumeJobGroup(String)">
-		/// </seealso>
+		/// <seealso cref="ResumeJobGroup(String)" />
 		void PauseJobGroup(string groupName);
 
 		/// <summary> 
-		/// Pause the <code>{@link Trigger}</code> with the given name.
+		/// Pause the <code>Trigger</code> with the given name.
 		/// </summary>
 		void PauseTrigger(string triggerName, string groupName);
 
-		/// <summary> <p>
-		/// Pause all of the <code>{@link Trigger}s</code> in the given group.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Pause all of the <code>Trigger</code>s in the given group.
 		/// <p>
 		/// The Scheduler will "remember" that the group is paused, and impose the
 		/// pause on any new triggers that are added to the group while the group is
 		/// paused.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="ResumeTriggerGroup(String)">
-		/// </seealso>
+		/// <seealso cref="ResumeTriggerGroup(String)" />
 		void PauseTriggerGroup(string groupName);
 
 		/// <summary>
@@ -672,39 +627,32 @@ namespace Quartz
 		/// </seealso>
 		int GetTriggerState(string triggerName, string triggerGroup);
 
-		/// <summary> <p>
+		/// <summary>
+		/// 	<p>
 		/// Add (register) the given <code>Calendar</code> to the Scheduler.
 		/// </p>
-		/// 
 		/// </summary>
+		/// <param name="calName">Name of the calendar.</param>
+		/// <param name="calendar">The calendar.</param>
+		/// <param name="replace">if set to <c>true</c> [replace].</param>
 		/// <param name="updateTriggers">whether or not to update existing triggers that
 		/// referenced the already existing calendar so that they are 'correct'
-		/// based on the new trigger. 
-		/// 
-		/// 
-		/// </param>
+		/// based on the new trigger.</param>
 		/// <throws>  SchedulerException </throws>
-		/// <summary>           if there is an internal Scheduler error, or a Calendar with
-		/// the same name already exists, and <code>replace</code> is
-		/// <code>false</code>.
-		/// </summary>
 		void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Delete the identified <code>Calendar</code> from the Scheduler.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <returns> true if the Calendar was found and deleted.
+		/// <param name="calName">Name of the calendar.</param>
+		/// <returns>
+		/// true if the Calendar was found and deleted.
 		/// </returns>
 		/// <throws>  SchedulerException </throws>
-		/// <summary>           if there is an internal Scheduler error.
-		/// </summary>
 		bool DeleteCalendar(string calName);
 
-		/// <summary> <p>
-		/// Get the <code>{@link Calendar}</code> instance with the given name.
-		/// </p>
+		/// <summary>
+		/// Get the <code>Calendar</code> instance with the given name.
 		/// </summary>
 		ICalendar GetCalendar(string calName);
 

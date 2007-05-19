@@ -25,14 +25,13 @@ using System.Data.OleDb;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+
 using Common.Logging;
 
 using Nullables;
 
-using Quartz;
 using Quartz.Collection;
 using Quartz.Core;
-using Quartz.Impl.AdoJobStore;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -48,8 +47,8 @@ namespace Quartz.Impl.AdoJobStore
 	/// <author>James House</author>
 	public abstract class JobStoreSupport : AdoConstants, IJobStore
 	{
-		public ILog Log = LogManager.GetLogger(typeof(JobStoreSupport));
-		
+		public ILog Log = LogManager.GetLogger(typeof (JobStoreSupport));
+
 		public JobStoreSupport()
 		{
 			InitBlock();
@@ -344,14 +343,13 @@ namespace Quartz.Impl.AdoJobStore
 			get { return classLoadHelper; }
 		}
 
-		
+
 		protected internal virtual IDbConnection Connection
 		{
 			get
 			{
 				try
 				{
-					
 					IDbConnection conn = DBConnectionManager.Instance.GetConnection(DataSource);
 
 					if (conn == null)
@@ -373,8 +371,20 @@ namespace Quartz.Impl.AdoJobStore
 							// TODO SupportClass.TransactionManager.manager.SetTransactionIsolation(conn, (int) IsolationLevel.Serializable);
 						}
 					}
-					catch (OleDbException)
+					catch (Exception e)
 					{
+						if (conn != null)
+						{
+							try
+							{
+								conn.Close();
+							}
+							catch
+							{
+							}
+						}
+						throw new JobPersistenceException(
+							"Failure setting up connection.", e);
 					}
 
 					return conn;
@@ -498,7 +508,7 @@ namespace Quartz.Impl.AdoJobStore
 
 		protected internal string dsName;
 
-		protected internal string tablePrefix = AdoConstants.DEFAULT_TABLE_PREFIX;
+		protected internal string tablePrefix = DEFAULT_TABLE_PREFIX;
 
 		protected internal bool useProperties = false;
 
@@ -653,16 +663,16 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		public virtual bool SupportsPersistence()
+		public virtual bool SupportsPersistence
 		{
-			return true;
+			get { return true; }
 		}
 
 		//---------------------------------------------------------------------------
 		// helper methods for subclasses
 		//---------------------------------------------------------------------------
 
-		
+
 		protected internal virtual void ReleaseLock(IDbConnection conn, string lockName, bool doIt)
 		{
 			if (doIt && conn != null)
@@ -697,7 +707,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  JobPersistenceException </throws>
 		/// <summary>           if jobs could not be recovered
 		/// </summary>
-		
 		protected internal virtual void CleanVolatileTriggerAndJobs(IDbConnection conn)
 		{
 			try
@@ -748,26 +757,25 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  JobPersistenceException </throws>
 		/// <summary>           if jobs could not be recovered
 		/// </summary>
-		
 		protected internal virtual void RecoverJobs(IDbConnection conn)
 		{
 			try
 			{
 				// update inconsistent job states
 				int rows =
-					Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.STATE_WAITING, AdoConstants.STATE_ACQUIRED,
-					                                            AdoConstants.STATE_BLOCKED);
+					Delegate.UpdateTriggerStatesFromOtherStates(conn, STATE_WAITING, STATE_ACQUIRED,
+					                                            STATE_BLOCKED);
 
 				rows +=
-					Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.STATE_PAUSED,
-					                                            AdoConstants.STATE_PAUSED_BLOCKED,
-					                                            AdoConstants.STATE_PAUSED_BLOCKED);
+					Delegate.UpdateTriggerStatesFromOtherStates(conn, STATE_PAUSED,
+					                                            STATE_PAUSED_BLOCKED,
+					                                            STATE_PAUSED_BLOCKED);
 
 				Log.Info("Freed " + rows + " triggers from 'acquired' / 'blocked' state.");
 
 				// clean up misfired jobs
-				Delegate.UpdateTriggerStateFromOtherStatesBeforeTime(conn, AdoConstants.STATE_MISFIRED,
-				                                                     AdoConstants.STATE_WAITING, AdoConstants.STATE_WAITING,
+				Delegate.UpdateTriggerStateFromOtherStatesBeforeTime(conn, STATE_MISFIRED,
+				                                                     STATE_WAITING, STATE_WAITING,
 				                                                     MisfireTime); // only waiting
 				RecoverMisfiredJobs(conn, true);
 
@@ -781,13 +789,13 @@ namespace Quartz.Impl.AdoJobStore
 					if (JobExists(conn, recoveringJobTriggers[i].JobName, recoveringJobTriggers[i].JobGroup))
 					{
 						recoveringJobTriggers[i].ComputeFirstFireTime(null);
-						StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, AdoConstants.STATE_WAITING, false, true);
+						StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, STATE_WAITING, false, true);
 					}
 				}
 				Log.Info("Recovery complete.");
 
 				// remove lingering 'complete' triggers...
-				Key[] ct = Delegate.SelectTriggersInState(conn, AdoConstants.STATE_COMPLETE);
+				Key[] ct = Delegate.SelectTriggersInState(conn, STATE_COMPLETE);
 				for (int i = 0; ct != null && i < ct.Length; i++)
 				{
 					RemoveTrigger(conn, null, ct[i].Name, ct[i].Group);
@@ -807,10 +815,10 @@ namespace Quartz.Impl.AdoJobStore
 
 		private int lastRecoverCount = 0;
 
-		
+
 		protected internal virtual bool RecoverMisfiredJobs(IDbConnection conn, bool recovering)
 		{
-			Key[] misfiredTriggers = Delegate.SelectTriggersInState(conn, AdoConstants.STATE_MISFIRED);
+			Key[] misfiredTriggers = Delegate.SelectTriggersInState(conn, STATE_MISFIRED);
 
 			if (misfiredTriggers.Length > 0 && misfiredTriggers.Length > MaxMisfiresToHandleAtATime)
 			{
@@ -855,11 +863,11 @@ namespace Quartz.Impl.AdoJobStore
 
 				if (!trig.GetNextFireTime().HasValue)
 				{
-					StoreTrigger(conn, null, trig, null, true, AdoConstants.STATE_COMPLETE, false, recovering);
+					StoreTrigger(conn, null, trig, null, true, STATE_COMPLETE, false, recovering);
 				}
 				else
 				{
-					StoreTrigger(conn, null, trig, null, true, AdoConstants.STATE_WAITING, false, recovering);
+					StoreTrigger(conn, null, trig, null, true, STATE_WAITING, false, recovering);
 				}
 			}
 
@@ -871,7 +879,7 @@ namespace Quartz.Impl.AdoJobStore
 			return false;
 		}
 
-		
+
 		protected internal virtual bool UpdateMisfiredTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
 		                                                      string groupName, string newStateIfNotComplete, bool forceState)
 		{
@@ -903,7 +911,7 @@ namespace Quartz.Impl.AdoJobStore
 
 				if (!trig.GetNextFireTime().HasValue)
 				{
-					StoreTrigger(conn, ctxt, trig, null, true, AdoConstants.STATE_COMPLETE, forceState, false);
+					StoreTrigger(conn, ctxt, trig, null, true, STATE_COMPLETE, forceState, false);
 				}
 				else
 				{
@@ -924,7 +932,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// Insert or update a job.
 		/// </p>
 		/// </summary>
-		
 		protected internal virtual void StoreJob(IDbConnection conn, SchedulingContext ctxt, JobDetail newJob,
 		                                         bool replaceExisting)
 		{
@@ -965,7 +972,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// Check existence of a given job.
 		/// </p>
 		/// </summary>
-		
 		protected internal virtual bool JobExists(IDbConnection conn, string jobName, string groupName)
 		{
 			try
@@ -984,7 +990,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// Insert or update a trigger.
 		/// </p>
 		/// </summary>
-		
 		protected internal virtual void StoreTrigger(IDbConnection conn, SchedulingContext ctxt, Trigger newTrigger,
 		                                             JobDetail job, bool replaceExisting, string state, bool forceState,
 		                                             bool recovering)
@@ -1006,7 +1011,7 @@ namespace Quartz.Impl.AdoJobStore
 
 					if (!shouldBepaused)
 					{
-						shouldBepaused = Delegate.IsTriggerGroupPaused(conn, AdoConstants.ALL_GROUPS_PAUSED);
+						shouldBepaused = Delegate.IsTriggerGroupPaused(conn, ALL_GROUPS_PAUSED);
 
 						if (shouldBepaused)
 						{
@@ -1015,9 +1020,9 @@ namespace Quartz.Impl.AdoJobStore
 					}
 
 					if (shouldBepaused &&
-					    (state.Equals(AdoConstants.STATE_WAITING) || state.Equals(AdoConstants.STATE_ACQUIRED)))
+					    (state.Equals(STATE_WAITING) || state.Equals(STATE_ACQUIRED)))
 					{
-						state = AdoConstants.STATE_PAUSED;
+						state = STATE_PAUSED;
 					}
 				}
 
@@ -1039,13 +1044,13 @@ namespace Quartz.Impl.AdoJobStore
 				if (job.Stateful && !recovering)
 				{
 					String bstate = GetNewStatusForTrigger(conn, ctxt, job.Name, job.Group);
-					if (AdoConstants.STATE_BLOCKED.Equals(bstate) && AdoConstants.STATE_WAITING.Equals(state))
+					if (STATE_BLOCKED.Equals(bstate) && STATE_WAITING.Equals(state))
 					{
-						state = AdoConstants.STATE_BLOCKED;
+						state = STATE_BLOCKED;
 					}
-					if (AdoConstants.STATE_BLOCKED.Equals(bstate) && AdoConstants.STATE_PAUSED.Equals(state))
+					if (STATE_BLOCKED.Equals(bstate) && STATE_PAUSED.Equals(state))
 					{
-						state = AdoConstants.STATE_PAUSED_BLOCKED;
+						state = STATE_PAUSED_BLOCKED;
 					}
 				}
 				if (existingTrigger)
@@ -1096,7 +1101,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// Check existence of a given trigger.
 		/// </p>
 		/// </summary>
-		
 		protected internal virtual bool TriggerExists(IDbConnection conn, string triggerName, string groupName)
 		{
 			try
@@ -1111,7 +1115,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual bool RemoveJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
 		                                          string groupName, bool activeDeleteSafe)
 		{
@@ -1145,7 +1149,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual JobDetail RetrieveJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
 		                                                 string groupName)
 		{
@@ -1169,10 +1173,10 @@ namespace Quartz.Impl.AdoJobStore
 			catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't retrieve job: " + e.Message, e);
-			}	
+			}
 		}
 
-		
+
 		protected internal virtual bool RemoveTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
 		                                              string groupName)
 		{
@@ -1205,7 +1209,7 @@ namespace Quartz.Impl.AdoJobStore
 			return removedTrigger;
 		}
 
-		
+
 		protected internal virtual bool ReplaceTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
 		                                               string groupName, Trigger newTrigger)
 		{
@@ -1231,7 +1235,7 @@ namespace Quartz.Impl.AdoJobStore
 				Delegate.DeleteTriggerListeners(conn, triggerName, groupName);
 				removedTrigger = (Delegate.DeleteTrigger(conn, triggerName, groupName) > 0);
 
-				StoreTrigger(conn, ctxt, newTrigger, job, false, AdoConstants.STATE_WAITING, false, false);
+				StoreTrigger(conn, ctxt, newTrigger, job, false, STATE_WAITING, false, false);
 			}
 			catch (Exception e)
 			{
@@ -1240,7 +1244,7 @@ namespace Quartz.Impl.AdoJobStore
 			return removedTrigger;
 		}
 
-		
+
 		protected internal virtual Trigger RetrieveTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
 		                                                   string groupName)
 		{
@@ -1266,7 +1270,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		public virtual int GetTriggerState(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
@@ -1278,32 +1282,32 @@ namespace Quartz.Impl.AdoJobStore
 					return Trigger.STATE_NONE;
 				}
 
-				if (ts.Equals(AdoConstants.STATE_DELETED))
+				if (ts.Equals(STATE_DELETED))
 				{
 					return Trigger.STATE_NONE;
 				}
 
-				if (ts.Equals(AdoConstants.STATE_COMPLETE))
+				if (ts.Equals(STATE_COMPLETE))
 				{
 					return Trigger.STATE_COMPLETE;
 				}
 
-				if (ts.Equals(AdoConstants.STATE_PAUSED))
+				if (ts.Equals(STATE_PAUSED))
 				{
 					return Trigger.STATE_PAUSED;
 				}
 
-				if (ts.Equals(AdoConstants.STATE_PAUSED_BLOCKED))
+				if (ts.Equals(STATE_PAUSED_BLOCKED))
 				{
 					return Trigger.STATE_PAUSED;
 				}
 
-				if (ts.Equals(AdoConstants.STATE_ERROR))
+				if (ts.Equals(STATE_ERROR))
 				{
 					return Trigger.STATE_ERROR;
 				}
 
-				if (ts.Equals(AdoConstants.STATE_BLOCKED))
+				if (ts.Equals(STATE_BLOCKED))
 				{
 					return Trigger.STATE_BLOCKED;
 				}
@@ -1318,7 +1322,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual void StoreCalendar(IDbConnection conn, SchedulingContext ctxt, string calName,
 		                                              ICalendar calendar, bool replaceExisting, bool updateTriggers)
 		{
@@ -1344,7 +1348,7 @@ namespace Quartz.Impl.AdoJobStore
 						for (int i = 0; i < trigs.Length; i++)
 						{
 							trigs[i].UpdateWithNewCalendar(calendar, MisfireThreshold);
-							StoreTrigger(conn, ctxt, trigs[i], null, true, AdoConstants.STATE_WAITING, false, false);
+							StoreTrigger(conn, ctxt, trigs[i], null, true, STATE_WAITING, false, false);
 						}
 					}
 				}
@@ -1371,7 +1375,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual bool CalendarExists(IDbConnection conn, string calName)
 		{
 			try
@@ -1385,7 +1389,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual bool RemoveCalendar(IDbConnection conn, SchedulingContext ctxt, string calName)
 		{
 			try
@@ -1406,7 +1410,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual ICalendar RetrieveCalendar(IDbConnection conn, SchedulingContext ctxt, string calName)
 		{
 			// all calendars are persistent, but we lazy-cache them during run
@@ -1435,7 +1439,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual int GetNumberOfJobs(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
@@ -1449,7 +1453,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual int GetNumberOfTriggers(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
@@ -1463,7 +1467,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual int GetNumberOfCalendars(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
@@ -1477,7 +1481,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual String[] GetJobNames(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			String[] jobNames = null;
@@ -1495,7 +1499,7 @@ namespace Quartz.Impl.AdoJobStore
 			return jobNames;
 		}
 
-		
+
 		protected internal virtual String[] GetTriggerNames(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			String[] trigNames = null;
@@ -1513,7 +1517,7 @@ namespace Quartz.Impl.AdoJobStore
 			return trigNames;
 		}
 
-		
+
 		protected internal virtual String[] GetJobGroupNames(IDbConnection conn, SchedulingContext ctxt)
 		{
 			String[] groupNames = null;
@@ -1531,7 +1535,7 @@ namespace Quartz.Impl.AdoJobStore
 			return groupNames;
 		}
 
-		
+
 		protected internal virtual String[] GetTriggerGroupNames(IDbConnection conn, SchedulingContext ctxt)
 		{
 			String[] groupNames = null;
@@ -1549,7 +1553,7 @@ namespace Quartz.Impl.AdoJobStore
 			return groupNames;
 		}
 
-		
+
 		protected internal virtual String[] GetCalendarNames(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
@@ -1563,7 +1567,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual Trigger[] GetTriggersForJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
 		                                                       string groupName)
 		{
@@ -1592,13 +1596,13 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				String oldState = Delegate.SelectTriggerState(conn, triggerName, groupName);
 
-				if (oldState.Equals(AdoConstants.STATE_WAITING) || oldState.Equals(AdoConstants.STATE_ACQUIRED))
+				if (oldState.Equals(STATE_WAITING) || oldState.Equals(STATE_ACQUIRED))
 				{
-					Delegate.UpdateTriggerState(conn, triggerName, groupName, AdoConstants.STATE_PAUSED);
+					Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED);
 				}
-				else if (oldState.Equals(AdoConstants.STATE_BLOCKED))
+				else if (oldState.Equals(STATE_BLOCKED))
 				{
-					Delegate.UpdateTriggerState(conn, triggerName, groupName, AdoConstants.STATE_PAUSED_BLOCKED);
+					Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED_BLOCKED);
 				}
 			}
 			catch (OleDbException e)
@@ -1608,13 +1612,13 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual string GetStatusForResumedTrigger(IDbConnection conn, SchedulingContext ctxt,
 		                                                             TriggerStatus status)
 		{
 			try
 			{
-				String newState = AdoConstants.STATE_WAITING;
+				String newState = STATE_WAITING;
 
 				IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, status.JobKey.Name, status.JobKey.Group);
 
@@ -1626,7 +1630,7 @@ namespace Quartz.Impl.AdoJobStore
 						// TODO: worry about
 						// failed/recovering/volatile job
 						// states?
-						newState = AdoConstants.STATE_BLOCKED;
+						newState = STATE_BLOCKED;
 					}
 				}
 
@@ -1641,13 +1645,13 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual string GetNewStatusForTrigger(IDbConnection conn, SchedulingContext ctxt, string jobName,
 		                                                         string groupName)
 		{
 			try
 			{
-				String newState = AdoConstants.STATE_WAITING;
+				String newState = STATE_WAITING;
 
 				IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, jobName, groupName);
 
@@ -1659,7 +1663,7 @@ namespace Quartz.Impl.AdoJobStore
 						// TODO: worry about
 						// failed/recovering/volatile job
 						// states?
-						newState = AdoConstants.STATE_BLOCKED;
+						newState = STATE_BLOCKED;
 					}
 				}
 
@@ -1721,7 +1725,7 @@ namespace Quartz.Impl.AdoJobStore
 				}
 
 				bool blocked = false;
-				if (AdoConstants.STATE_PAUSED_BLOCKED.Equals(status.Status))
+				if (STATE_PAUSED_BLOCKED.Equals(status.Status))
 				{
 					blocked = true;
 				}
@@ -1740,11 +1744,11 @@ namespace Quartz.Impl.AdoJobStore
 					if (blocked)
 					{
 						Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState,
-						                                          AdoConstants.STATE_PAUSED_BLOCKED);
+						                                          STATE_PAUSED_BLOCKED);
 					}
 					else
 					{
-						Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState, AdoConstants.STATE_PAUSED);
+						Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState, STATE_PAUSED);
 					}
 				}
 			}
@@ -1763,12 +1767,12 @@ namespace Quartz.Impl.AdoJobStore
 		{
 			try
 			{
-				Delegate.UpdateTriggerGroupStateFromOtherStates(conn, groupName, AdoConstants.STATE_PAUSED,
-				                                                AdoConstants.STATE_ACQUIRED, AdoConstants.STATE_WAITING,
-				                                                AdoConstants.STATE_WAITING);
+				Delegate.UpdateTriggerGroupStateFromOtherStates(conn, groupName, STATE_PAUSED,
+				                                                STATE_ACQUIRED, STATE_WAITING,
+				                                                STATE_WAITING);
 
-				Delegate.UpdateTriggerGroupStateFromOtherState(conn, groupName, AdoConstants.STATE_PAUSED_BLOCKED,
-				                                               AdoConstants.STATE_BLOCKED);
+				Delegate.UpdateTriggerGroupStateFromOtherState(conn, groupName, STATE_PAUSED_BLOCKED,
+				                                               STATE_BLOCKED);
 
 				if (!Delegate.IsTriggerGroupPaused(conn, groupName))
 				{
@@ -1883,9 +1887,9 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				if (!Delegate.IsTriggerGroupPaused(conn, AdoConstants.ALL_GROUPS_PAUSED))
+				if (!Delegate.IsTriggerGroupPaused(conn, ALL_GROUPS_PAUSED))
 				{
-					Delegate.InsertPausedTriggerGroup(conn, AdoConstants.ALL_GROUPS_PAUSED);
+					Delegate.InsertPausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
 				}
 			}
 			catch (OleDbException e)
@@ -1915,7 +1919,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				Delegate.DeletePausedTriggerGroup(conn, AdoConstants.ALL_GROUPS_PAUSED);
+				Delegate.DeletePausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
 			}
 			catch (OleDbException e)
 			{
@@ -1928,7 +1932,7 @@ namespace Quartz.Impl.AdoJobStore
 
 		// TODO: this really ought to return something like a FiredTriggerBundle,
 		// so that the fireInstanceId doesn't have to be on the trigger...
-		
+
 		protected internal virtual Trigger AcquireNextTrigger(IDbConnection conn, SchedulingContext ctxt, DateTime noLaterThan)
 		{
 			Trigger nextTrigger = null;
@@ -1939,8 +1943,8 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				try
 				{
-					Delegate.UpdateTriggerStateFromOtherStatesBeforeTime(conn, AdoConstants.STATE_MISFIRED,
-					                                                     AdoConstants.STATE_WAITING, AdoConstants.STATE_WAITING,
+					Delegate.UpdateTriggerStateFromOtherStatesBeforeTime(conn, STATE_MISFIRED,
+					                                                     STATE_WAITING, STATE_WAITING,
 					                                                     MisfireTime); // only waiting
 
 					DateTime nextFireTime = Delegate.SelectNextFireTime(conn);
@@ -1958,7 +1962,7 @@ namespace Quartz.Impl.AdoJobStore
 						{
 							int res =
 								Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey.Name, triggerKey.Group,
-								                                          AdoConstants.STATE_ACQUIRED, AdoConstants.STATE_WAITING);
+								                                          STATE_ACQUIRED, STATE_WAITING);
 
 							if (res <= 0)
 							{
@@ -1973,7 +1977,7 @@ namespace Quartz.Impl.AdoJobStore
 							}
 
 							nextTrigger.FireInstanceId = FiredTriggerRecordId;
-							Delegate.InsertFiredTrigger(conn, nextTrigger, AdoConstants.STATE_ACQUIRED, null);
+							Delegate.InsertFiredTrigger(conn, nextTrigger, STATE_ACQUIRED, null);
 
 							acquiredOne = true;
 						}
@@ -1989,13 +1993,13 @@ namespace Quartz.Impl.AdoJobStore
 			return nextTrigger;
 		}
 
-		
+
 		protected internal virtual void ReleaseAcquiredTrigger(IDbConnection conn, SchedulingContext ctxt, Trigger trigger)
 		{
 			try
 			{
-				Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Name, trigger.Group, AdoConstants.STATE_WAITING,
-				                                          AdoConstants.STATE_ACQUIRED);
+				Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Name, trigger.Group, STATE_WAITING,
+				                                          STATE_ACQUIRED);
 				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
 			}
 			catch (OleDbException e)
@@ -2005,7 +2009,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
+
 		protected internal virtual TriggerFiredBundle TriggerFired(IDbConnection conn, SchedulingContext ctxt,
 		                                                           Trigger trigger)
 		{
@@ -2017,7 +2021,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				// if trigger was deleted, state will be STATE_DELETED
 				String state = Delegate.SelectTriggerState(conn, trigger.Name, trigger.Group);
-				if (!state.Equals(AdoConstants.STATE_ACQUIRED))
+				if (!state.Equals(STATE_ACQUIRED))
 				{
 					return null;
 				}
@@ -2040,7 +2044,7 @@ namespace Quartz.Impl.AdoJobStore
 				try
 				{
 					Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
-					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, AdoConstants.STATE_ERROR);
+					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
 				}
 				catch (OleDbException sqle)
 				{
@@ -2061,7 +2065,7 @@ namespace Quartz.Impl.AdoJobStore
 			try
 			{
 				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
-				Delegate.InsertFiredTrigger(conn, trigger, AdoConstants.STATE_EXECUTING, job);
+				Delegate.InsertFiredTrigger(conn, trigger, STATE_EXECUTING, job);
 			}
 			catch (OleDbException e)
 			{
@@ -2073,21 +2077,21 @@ namespace Quartz.Impl.AdoJobStore
 			// call triggered - to update the trigger's next-fire-time state...
 			trigger.Triggered(cal);
 
-			String state2 = AdoConstants.STATE_WAITING;
+			String state2 = STATE_WAITING;
 			bool force = true;
 
 			if (job.Stateful)
 			{
-				state2 = AdoConstants.STATE_BLOCKED;
+				state2 = STATE_BLOCKED;
 				force = false;
 				try
 				{
-					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, AdoConstants.STATE_BLOCKED,
-					                                                 AdoConstants.STATE_WAITING);
-					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, AdoConstants.STATE_BLOCKED,
-					                                                 AdoConstants.STATE_ACQUIRED);
-					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, AdoConstants.STATE_PAUSED_BLOCKED,
-					                                                 AdoConstants.STATE_PAUSED);
+					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_BLOCKED,
+					                                                 STATE_WAITING);
+					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_BLOCKED,
+					                                                 STATE_ACQUIRED);
+					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_PAUSED_BLOCKED,
+					                                                 STATE_PAUSED);
 				}
 				catch (OleDbException e)
 				{
@@ -2098,7 +2102,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			if (!trigger.GetNextFireTime().HasValue)
 			{
-				state2 = AdoConstants.STATE_COMPLETE;
+				state2 = STATE_COMPLETE;
 				force = true;
 			}
 
@@ -2115,7 +2119,7 @@ namespace Quartz.Impl.AdoJobStore
 				                       tempAux2, prevFireTime, tempAux3);
 		}
 
-		
+
 		protected internal virtual void TriggeredJobComplete(IDbConnection conn, SchedulingContext ctxt, Trigger trigger,
 		                                                     JobDetail jobDetail, int triggerInstCode)
 		{
@@ -2142,31 +2146,31 @@ namespace Quartz.Impl.AdoJobStore
 				}
 				else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_COMPLETE)
 				{
-					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, AdoConstants.STATE_COMPLETE);
+					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_COMPLETE);
 				}
 				else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_ERROR)
 				{
 					Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
-					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, AdoConstants.STATE_ERROR);
+					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
 				}
 				else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE)
 				{
-					Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, AdoConstants.STATE_COMPLETE);
+					Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_COMPLETE);
 				}
 				else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR)
 				{
 					Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
-					Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, AdoConstants.STATE_ERROR);
+					Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_ERROR);
 				}
 
 				if (jobDetail.Stateful)
 				{
 					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
-					                                                 AdoConstants.STATE_WAITING, AdoConstants.STATE_BLOCKED);
+					                                                 STATE_WAITING, STATE_BLOCKED);
 
 					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
-					                                                 AdoConstants.STATE_PAUSED,
-					                                                 AdoConstants.STATE_PAUSED_BLOCKED);
+					                                                 STATE_PAUSED,
+					                                                 STATE_PAUSED_BLOCKED);
 
 					try
 					{
@@ -2225,84 +2229,132 @@ namespace Quartz.Impl.AdoJobStore
 
 		protected internal long lastCheckin = (DateTime.Now.Ticks - 621355968000000000)/10000;
 
-		
-		protected internal virtual IList ClusterCheckIn(IDbConnection conn)
-		{
-			IList states = null;
-			IList failedInstances = new ArrayList();
-			SchedulerStateRecord myLastState = null;
-			//bool selfFailed = false;
 
-			// TODO
-			long timeNow = (DateTime.Now.Ticks - 621355968000000000)/10000;
+		/// <summary>
+		/// Get a list of all scheduler instances in the cluster that may have failed.
+		/// This includes this scheduler if it has no recoverer and is checking for the
+		/// first time.
+		/// </summary>
+		/// <param name="conn"></param>
+		/// <returns></returns>
+		protected IList findFailedInstances(IDbConnection conn)
+		{
+			IList failedInstances = new ArrayList();
+			bool selfFailed = false;
+
+			long timeNow = DateTime.Now.Ticks;
 
 			try
 			{
-				states = Delegate.SelectSchedulerStateRecords(conn, null);
-
-				IEnumerator itr = states.GetEnumerator();
-
-				while (itr.MoveNext())
+				IList states = Delegate.SelectSchedulerStateRecords(conn, null);
+				// build map of states by Id...
+				Hashtable statesById = new Hashtable();
+				foreach (SchedulerStateRecord rec in states)
 				{
-					SchedulerStateRecord rec = (SchedulerStateRecord) itr.Current;
+					statesById.Add(rec.SchedulerInstanceId, rec);
+				}
 
+				foreach (SchedulerStateRecord rec in states)
+				{
 					// find own record...
 					if (rec.SchedulerInstanceId.Equals(InstanceId))
 					{
-						myLastState = rec;
-
-						// TODO: revisit when handle self-failed-out impled (see TODO below)
-						//                    if (rec.getRecoverer() != null && !firstCheckIn) {
-						//                        selfFailed = true;
-						//                    }
-						//                    if (rec.getRecoverer() == null && firstCheckIn) {
-						//                        failedInstances.add(rec);
-						//                    }
-						if (rec.Recoverer == null)
+						if (firstCheckIn)
 						{
-							failedInstances.Add(rec);
+							if (rec.Recoverer == null)
+							{
+								failedInstances.Add(rec);
+							}
+							else
+							{
+								// make sure the recoverer hasn't died itself!
+								SchedulerStateRecord recOrec = (SchedulerStateRecord) statesById[rec.Recoverer];
+
+								long failedIfAfter = (recOrec == null) ? timeNow : calcFailedIfAfter(recOrec);
+
+								// if it has failed, then let's become the recoverer
+								if (failedIfAfter < timeNow || recOrec == null)
+								{
+									failedInstances.Add(rec);
+								}
+							}
 						}
+						// TODO: revisit when handle self-failed-out impled (see TODO in clusterCheckIn() below)
+						// else if (rec.getRecoverer() != null) {
+						//     selfFailed = true;
+						// }
 					}
 					else
 					{
 						// find failed instances...
-						long failedIfAfter = rec.CheckinTimestamp +
-						                     Math.Max(rec.CheckinInterval, ((DateTime.Now.Ticks - 621355968000000000)/10000 - lastCheckin)) +
-						                     7500L;
+						long failedIfAfter = calcFailedIfAfter(rec);
 
-						if (failedIfAfter < timeNow && rec.Recoverer == null)
+						if (rec.Recoverer == null)
 						{
-							failedInstances.Add(rec);
+							if (failedIfAfter < timeNow)
+							{
+								failedInstances.Add(rec);
+							}
+						}
+						else
+						{
+							// make sure the recoverer hasn't died itself!
+							SchedulerStateRecord recOrec = (SchedulerStateRecord) statesById[rec.Recoverer];
+
+							failedIfAfter = (recOrec == null) ? timeNow : calcFailedIfAfter(recOrec);
+
+							// if it has failed, then let's become the recoverer
+							if (failedIfAfter < timeNow || recOrec == null)
+							{
+								failedInstances.Add(rec);
+							}
 						}
 					}
-				}
-
-				// TODO: handle self-failed-out
-
-				// check in...
-				lastCheckin = (DateTime.Now.Ticks - 621355968000000000)/10000;
-				if (firstCheckIn)
-				{
-					Delegate.DeleteSchedulerState(conn, InstanceId);
-					Delegate.InsertSchedulerState(conn, InstanceId, lastCheckin, ClusterCheckinInterval, null);
-					firstCheckIn = false;
-				}
-				else
-				{
-					Delegate.UpdateSchedulerState(conn, InstanceId, lastCheckin);
 				}
 			}
 			catch (Exception e)
 			{
-				lastCheckin = (DateTime.Now.Ticks - 621355968000000000)/10000;
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-				throw new JobPersistenceException("Failure checking-in: " + e.Message, e);
+				lastCheckin = DateTime.Now.Ticks;
+				throw new JobPersistenceException("Failure identifying failed instances when checking-in: "
+				                                  + e.Message, e);
 			}
 
 			return failedInstances;
 		}
 
-		
+		protected long calcFailedIfAfter(SchedulerStateRecord rec)
+		{
+			return rec.CheckinTimestamp +
+			       Math.Max(rec.CheckinInterval, (DateTime.Now.Ticks - lastCheckin))
+			       + 7500L;
+		}
+
+		protected internal virtual IList ClusterCheckIn(IDbConnection conn)
+		{
+			IList failedInstances = findFailedInstances(conn);
+			try 
+			{
+				// TODO: handle self-failed-out
+
+				// check in...
+				lastCheckin = DateTime.Now.Ticks;
+				if(Delegate.UpdateSchedulerState(conn, InstanceId, lastCheckin, null) == 0) 
+				{
+					Delegate.InsertSchedulerState(conn, InstanceId,
+						lastCheckin, ClusterCheckinInterval, null);
+				}
+            
+			} 
+			catch (Exception e) 
+			{
+				throw new JobPersistenceException("Failure updating scheduler state when checking-in: "
+					+ e.Message, e);
+			}
+
+			return failedInstances;
+		}
+
+
 		protected internal virtual void ClusterRecover(IDbConnection conn, IList failedInstances)
 		{
 			if (failedInstances.Count > 0)
@@ -2339,22 +2391,22 @@ namespace Quartz.Impl.AdoJobStore
 							Key jKey = ftRec.JobKey;
 
 							// release blocked triggers..
-							if (ftRec.FireInstanceState.Equals(AdoConstants.STATE_BLOCKED))
+							if (ftRec.FireInstanceState.Equals(STATE_BLOCKED))
 							{
-								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, AdoConstants.STATE_WAITING,
-								                                                 AdoConstants.STATE_BLOCKED);
+								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, STATE_WAITING,
+								                                                 STATE_BLOCKED);
 							}
-							if (ftRec.FireInstanceState.Equals(AdoConstants.STATE_PAUSED_BLOCKED))
+							if (ftRec.FireInstanceState.Equals(STATE_PAUSED_BLOCKED))
 							{
-								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, AdoConstants.STATE_PAUSED,
-								                                                 AdoConstants.STATE_PAUSED_BLOCKED);
+								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, STATE_PAUSED,
+								                                                 STATE_PAUSED_BLOCKED);
 							}
 
 							// release acquired triggers..
-							if (ftRec.FireInstanceState.Equals(AdoConstants.STATE_ACQUIRED))
+							if (ftRec.FireInstanceState.Equals(STATE_ACQUIRED))
 							{
-								Delegate.UpdateTriggerStateFromOtherState(conn, tKey.Name, tKey.Group, AdoConstants.STATE_WAITING,
-								                                          AdoConstants.STATE_ACQUIRED);
+								Delegate.UpdateTriggerStateFromOtherState(conn, tKey.Name, tKey.Group, STATE_WAITING,
+								                                          STATE_ACQUIRED);
 								acquiredCount++;
 							}
 								// handle jobs marked for recovery that were not fully
@@ -2379,7 +2431,7 @@ namespace Quartz.Impl.AdoJobStore
 									rcvryTrig.JobDataMap = jd;
 
 									rcvryTrig.ComputeFirstFireTime(null);
-									StoreTrigger(conn, null, rcvryTrig, null, false, AdoConstants.STATE_WAITING, false, true);
+									StoreTrigger(conn, null, rcvryTrig, null, false, STATE_WAITING, false, true);
 									recoveredCount++;
 								}
 								else
@@ -2396,10 +2448,10 @@ namespace Quartz.Impl.AdoJobStore
 							// free up stateful job's triggers
 							if (ftRec.JobIsStateful)
 							{
-								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, AdoConstants.STATE_WAITING,
-								                                                 AdoConstants.STATE_BLOCKED);
-								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, AdoConstants.STATE_PAUSED,
-								                                                 AdoConstants.STATE_PAUSED_BLOCKED);
+								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, STATE_WAITING,
+								                                                 STATE_BLOCKED);
+								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, STATE_PAUSED,
+								                                                 STATE_PAUSED_BLOCKED);
 							}
 						}
 
@@ -2413,20 +2465,14 @@ namespace Quartz.Impl.AdoJobStore
 						Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId);
 
 						// update record to show that recovery was handled
-						String recoverer = InstanceId;
-						long checkInTS = rec.CheckinTimestamp;
 						if (rec.SchedulerInstanceId.Equals(InstanceId))
 						{
-							recoverer = null;
-							checkInTS = (DateTime.Now.Ticks - 621355968000000000)/10000;
+							Delegate.InsertSchedulerState(conn, rec.SchedulerInstanceId, DateTime.Now.Ticks, rec.CheckinInterval, null);
 						}
-
-						Delegate.InsertSchedulerState(conn, rec.SchedulerInstanceId, checkInTS, rec.CheckinInterval, recoverer);
 					}
 				}
 				catch (Exception e)
 				{
-					//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Throwable.getMessage' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
 					throw new JobPersistenceException("Failure recovering jobs: " + e.Message, e);
 				}
 			}
@@ -2452,7 +2498,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
 		/// <summary> connection is closed
 		/// </summary>
-		
 		protected internal virtual void CloseConnection(IDbConnection conn)
 		{
 			if (conn != null)
@@ -2477,7 +2522,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
 		/// <summary> connection is rolled back
 		/// </summary>
-		
 		protected internal virtual void RollbackConnection(IDbConnection conn)
 		{
 			if (conn != null)
@@ -2521,7 +2565,7 @@ namespace Quartz.Impl.AdoJobStore
 		// ClusterManager Thread
 		//
 		/////////////////////////////////////////////////////////////////////////////
-		internal class ClusterManager : SupportClass.QuartzThread
+		internal class ClusterManager : QuartzThread
 		{
 			private void InitBlock(JobStoreSupport enclosingInstanceParam)
 			{
@@ -2545,7 +2589,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				InitBlock(enclosingInstance);
 				this.js = js;
-
+				Priority = ThreadPriority.AboveNormal;
 				//UPGRADE_NOTE: The Name property of a Thread in C# is write-once. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1140_3"'
 				Name = "QuartzScheduler_" + Enclosing_Instance.instanceName + "-" + Enclosing_Instance.instanceId +
 				       "_ClusterManager";
@@ -2627,10 +2671,10 @@ namespace Quartz.Impl.AdoJobStore
 		// MisfireHandler Thread
 		//
 		/////////////////////////////////////////////////////////////////////////////
-		internal class MisfireHandler : SupportClass.QuartzThread
+		internal class MisfireHandler : QuartzThread
 		{
 			private JobStoreSupport enclosingInstance;
-			
+
 			private void InitBlock(JobStoreSupport instance)
 			{
 				enclosingInstance = instance;
@@ -2749,40 +2793,75 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 		public abstract int GetNumberOfTriggers(SchedulingContext param1);
+
 		public abstract int GetTriggerState(SchedulingContext param1, string param2, string param3);
+
 		public abstract bool RemoveTrigger(SchedulingContext param1, string param2, string param3);
+
 		public abstract void StoreJobAndTrigger(SchedulingContext param1, JobDetail param2, Trigger param3);
+
 		public abstract String[] GetCalendarNames(SchedulingContext param1);
+
 		public abstract int GetNumberOfCalendars(SchedulingContext param1);
+
 		public abstract void ResumeJobGroup(SchedulingContext param1, string param2);
+
 		public abstract void StoreJob(SchedulingContext param1, JobDetail param2, bool param3);
+
 		public abstract String[] GetJobNames(SchedulingContext param1, string param2);
+
 		public abstract TriggerFiredBundle TriggerFired(SchedulingContext param1, Trigger param2);
+
 		public abstract void TriggeredJobComplete(SchedulingContext param1, Trigger param2, JobDetail param3, int param4);
+
 		public abstract String[] GetTriggerGroupNames(SchedulingContext param1);
+
 		public abstract void PauseTrigger(SchedulingContext param1, string param2, string param3);
+
 		public abstract void ResumeAll(SchedulingContext param1);
+
 		public abstract void StoreTrigger(SchedulingContext param1, Trigger param2, bool param3);
+
 		public abstract String[] GetJobGroupNames(SchedulingContext param1);
+
 		public abstract String[] GetTriggerNames(SchedulingContext param1, string param2);
+
 		public abstract void PauseAll(SchedulingContext param1);
+
 		public abstract void PauseJobGroup(SchedulingContext param1, string param2);
+
 		public abstract void PauseTriggerGroup(SchedulingContext param1, string param2);
+
 		public abstract bool ReplaceTrigger(SchedulingContext param1, string param2, string param3, Trigger param4);
+
 		public abstract void ResumeJob(SchedulingContext param1, string param2, string param3);
+
 		public abstract int GetNumberOfJobs(SchedulingContext param1);
+
 		public abstract void PauseJob(SchedulingContext param1, string param2, string param3);
+
 		public abstract void ReleaseAcquiredTrigger(SchedulingContext param1, Trigger param2);
+
 		public abstract JobDetail RetrieveJob(SchedulingContext param1, string param2, string param3);
+
 		public abstract bool RemoveJob(SchedulingContext param1, string param2, string param3);
+
 		public abstract void ResumeTrigger(SchedulingContext param1, string param2, string param3);
+
 		public abstract Trigger AcquireNextTrigger(SchedulingContext param1, DateTime param2);
+
 		public abstract Trigger[] GetTriggersForJob(SchedulingContext param1, string param2, string param3);
+
 		public abstract bool RemoveCalendar(SchedulingContext param1, string param2);
+
 		public abstract ICalendar RetrieveCalendar(SchedulingContext param1, string param2);
+
 		public abstract Trigger RetrieveTrigger(SchedulingContext param1, string param2, string param3);
+
 		public abstract void StoreCalendar(SchedulingContext param1, string param2, ICalendar param3, bool param4, bool param5);
+
 		public abstract ISet GetPausedTriggerGroups(SchedulingContext param1);
+
 		public abstract void ResumeTriggerGroup(SchedulingContext param1, string param2);
 	}
 

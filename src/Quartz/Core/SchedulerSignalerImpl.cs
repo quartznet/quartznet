@@ -40,6 +40,10 @@ namespace Quartz.Core
 			this.sched = sched;
 		}
 
+		/// <summary>
+		/// Notifies the scheduler about misfired trigger.
+		/// </summary>
+		/// <param name="trigger">The trigger.</param>
 		public virtual void NotifyTriggerListenersMisfired(Trigger trigger)
 		{
 			try
@@ -53,6 +57,9 @@ namespace Quartz.Core
 			}
 		}
 
+		/// <summary>
+		/// Signals the scheduling change.
+		/// </summary>
 		public virtual void SignalSchedulingChange()
 		{
 			sched.NotifySchedulerThread();

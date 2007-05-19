@@ -118,6 +118,10 @@ namespace Quartz.Impl.Calendar
 			dates.Add(date);
 		}
 
+		/// <summary>
+		/// Removes the excluded date.
+		/// </summary>
+		/// <param name="dateToRemove">The date to remove.</param>
 		public virtual void RemoveExcludedDate(DateTime dateToRemove)
 		{
 			DateTime date = BuildHoliday(dateToRemove);

@@ -554,17 +554,17 @@ namespace Quartz
 		/// <seealso cref="Triggered(ICalendar)" />
 		public override int ExecutionComplete(JobExecutionContext context, JobExecutionException result)
 		{
-			if (result != null && result.RefireImmediately())
+			if (result != null && result.RefireImmediately)
 			{
 				return INSTRUCTION_RE_EXECUTE_JOB;
 			}
 
-			if (result != null && result.unscheduleFiringTrigger())
+			if (result != null && result.UnscheduleFiringTrigger)
 			{
 				return INSTRUCTION_SET_TRIGGER_COMPLETE;
 			}
 
-			if (result != null && result.unscheduleAllTriggers())
+			if (result != null && result.UnscheduleAllTriggers)
 			{
 				return INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE;
 			}

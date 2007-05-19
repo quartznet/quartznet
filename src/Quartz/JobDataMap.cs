@@ -100,6 +100,12 @@ namespace Quartz
 			PutAll(map);
 		}
 
+		/// <summary>
+		/// Determines whether [contains transient data].
+		/// </summary>
+		/// <returns>
+		/// 	<c>true</c> if [contains transient data]; otherwise, <c>false</c>.
+		/// </returns>
 		public virtual bool ContainsTransientData()
 		{
 			if (!AllowsTransientData)
@@ -445,7 +451,7 @@ namespace Quartz
 			}
 			else
 			{
-				return GetIntValue(key);
+				return GetInt(key);
 			}
 		}
 
@@ -564,7 +570,7 @@ namespace Quartz
 			}
 			else
 			{
-				return GetFloatValue(key);
+				return GetFloat(key);
 			}
 		}
 
@@ -599,16 +605,25 @@ namespace Quartz
 			}
 			else
 			{
-				return GetLongValue(key);
+				return GetLong(key);
 			}
 		}
 
 
+		/// <summary>
+		/// Gets the keys.
+		/// </summary>
+		/// <returns></returns>
 		public virtual string[] GetKeys()
 		{
 			return (string[]) new ArrayList(KeySet()).ToArray(typeof (string));
 		}
 
+		/// <summary>
+		/// Gets the date time.
+		/// </summary>
+		/// <param name="key">The key.</param>
+		/// <returns></returns>
 		public DateTime GetDateTime(string key)
 		{
 			object obj = this[key];

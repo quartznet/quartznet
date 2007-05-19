@@ -39,8 +39,8 @@
                     OutputPath = "..\..\build\1.1\Debug\Quartz\"
                     RegisterForComInterop = "false"
                     RemoveIntegerChecks = "false"
-                    TreatWarningsAsErrors = "true"
-                    WarningLevel = "3"
+                    TreatWarningsAsErrors = "false"
+                    WarningLevel = "4"
                 />
                 <Config
                     Name = "Release"
@@ -338,11 +338,6 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Impl\QuartzServer.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
                     RelPath = "Impl\RemoteScheduler.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -374,6 +369,16 @@
                 />
                 <File
                     RelPath = "Impl\Calendar\BaseCalendar.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\Calendar\CronCalendar.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\Calendar\DailyCalendar.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
@@ -553,6 +558,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Util\LogicalThreadContext.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Util\ObjectUtils.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -569,6 +579,40 @@
                 />
                 <File
                     RelPath = "Util\TriggerStatus.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Xml\CalendarBundle.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Xml\job_scheduling_data_1_5.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Xml\job_scheduling_data_1_5.xsd"
+                    BuildAction = "Content"
+                />
+                <File
+                    RelPath = "Xml\job_scheduling_data_1_5.xsx"
+                    DependentUpon = "job_scheduling_data_1_5.xsd"
+                    BuildAction = "None"
+                />
+                <File
+                    RelPath = "Xml\JobSchedulingBundle.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Xml\JobSchedulingDataProcessor.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Xml\ValidationException.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

@@ -262,6 +262,14 @@ namespace Quartz.Plugins.History
 	/// <author>James House</author>
 	public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 	{
+		private string name;
+		private string jobToBeFiredMessage = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
+		private string jobSuccessMessage = "Job {1}.{0} execution complete at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
+		private string jobFailedMessage = "Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
+
+		private string jobWasVetoedMessage =
+			"Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
+
 		private static readonly ILog Log = LogManager.GetLogger(typeof (LoggingJobHistoryPlugin));
 
 		/// <summary> 
@@ -303,27 +311,14 @@ namespace Quartz.Plugins.History
 			set { jobWasVetoedMessage = value; }
 		}
 
+		/// <summary>
+		/// Get the name of the <code>JobListener</code>.
+		/// </summary>
+		/// <value></value>
 		public virtual string Name
 		{
-			/*
-			* object[] arguments = { new Integer(7), new
-			* Date(System.currentTimeMillis()), "a disturbance in the Force" };
-			* 
-			* string result = MessageFormat.format( "At {1,time} on {1,date}, there
-			* was {2} on planet {0,number,integer}.", arguments);
-			*/
-
-
 			get { return name; }
 		}
-
-		private string name;
-		private string jobToBeFiredMessage = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
-		private string jobSuccessMessage = "Job {1}.{0} execution complete at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
-		private string jobFailedMessage = "Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
-
-		private string jobWasVetoedMessage =
-			"Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
 
 		/// <summary>
 		/// Called during creation of the <code>Scheduler</code> in order to give
@@ -335,6 +330,11 @@ namespace Quartz.Plugins.History
 			sched.AddGlobalJobListener(this);
 		}
 
+		/// <summary>
+		/// Called when the associated <code>Scheduler</code> is started, in order
+		/// to let the plug-in know it can now make calls into the scheduler if it
+		/// needs to.
+		/// </summary>
 		public virtual void Start()
 		{
 			// do nothing...
@@ -350,6 +350,17 @@ namespace Quartz.Plugins.History
 			// nothing to do...
 		}
 
+		/// <summary>
+		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
+		/// is about to be executed (an associated <code>Trigger</code>
+		/// has occured).
+		/// <p>
+		/// This method will not be invoked if the execution of the Job was vetoed
+		/// by a <code>TriggerListener</code>.
+		/// </p>
+		/// </summary>
+		/// <param name="context"></param>
+		/// <seealso cref="JobExecutionVetoed(JobExecutionContext)"/>
 		public virtual void JobToBeExecuted(JobExecutionContext context)
 		{
 			if (!Log.IsInfoEnabled)
@@ -370,6 +381,13 @@ namespace Quartz.Plugins.History
 		}
 
 
+		/// <summary>
+		/// Called by the <code>Scheduler</code> after a <code>JobDetail</code>
+		/// has been executed, and be for the associated <code>Trigger</code>'s
+		/// <code>Triggered(xx)</code> method has been called.
+		/// </summary>
+		/// <param name="context"></param>
+		/// <param name="jobException"></param>
 		public virtual void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
 		{
 			Trigger trigger = context.Trigger;
@@ -412,6 +430,14 @@ namespace Quartz.Plugins.History
 			}
 		}
 
+		/// <summary>
+		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
+		/// was about to be executed (an associated <code>Trigger</code>
+		/// has occured), but a <code>TriggerListener</code> vetoed it's
+		/// execution.
+		/// </summary>
+		/// <param name="context"></param>
+		/// <seealso cref="JobToBeExecuted(JobExecutionContext)"/>
 		public virtual void JobExecutionVetoed(JobExecutionContext context)
 		{
 			if (!Log.IsInfoEnabled)

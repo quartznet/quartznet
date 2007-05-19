@@ -38,18 +38,21 @@ namespace Quartz.Job
 	{
 		private static readonly ILog Log = LogManager.GetLogger(typeof (NativeJob));
 
-		/// <summary> Required parameter that specifies the name of the command (executable) 
+		/// <summary> 
+		/// Required parameter that specifies the name of the command (executable) 
 		/// to be ran.
 		/// </summary>
 		public const string PROP_COMMAND = "command";
 
-		/// <summary> Optional parameter that specifies the parameters to be passed to the
+		/// <summary> 
+		/// Optional parameter that specifies the parameters to be passed to the
 		/// executed command.
 		/// </summary>
 		public const string PROP_PARAMETERS = "parameters";
 
 
-		/// <summary> Optional parameter (value should be 'true' or 'false') that specifies 
+		/// <summary> 
+		/// Optional parameter (value should be 'true' or 'false') that specifies 
 		/// whether the job should wait for the execution of the native process to 
 		/// complete before it completes.
 		/// 
@@ -57,7 +60,8 @@ namespace Quartz.Job
 		/// </summary>
 		public const string PROP_WAIT_FOR_PROCESS = "waitForProcess";
 
-		/// <summary> Optional parameter (value should be 'true' or 'false') that specifies 
+		/// <summary> 
+		/// Optional parameter (value should be 'true' or 'false') that specifies 
 		/// whether the spawned process's stdout and stderr streams should be 
 		/// consumed.  If the process creates output, it is possible that it might
 		/// 'hang' if the streams are not consumed.
@@ -75,6 +79,19 @@ namespace Quartz.Job
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
+		/// <summary>
+		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
+		/// fires that is associated with the <code>Job</code>.
+		/// <p>
+		/// The implementation may wish to set a  result object on the
+		/// JobExecutionContext before this method exits.  The result itself
+		/// is meaningless to Quartz, but may be informative to
+		/// <code>JobListeners</code> or
+		/// <code>TriggerListeners</code> that are watching the job's
+		/// execution.
+		/// </p>
+		/// </summary>
+		/// <param name="context"></param>
 		public virtual void Execute(JobExecutionContext context)
 		{
 			JobDataMap data = context.JobDetail.JobDataMap;
@@ -245,13 +262,11 @@ namespace Quartz.Job
 			}
 		}
 
-		/// <summary> Consumes data from the given input stream until EOF and prints the data to stdout
-		/// 
+		/// <summary> 
+		/// Consumes data from the given input stream until EOF and prints the data to stdout
 		/// </summary>
-		/// <author>  cooste
-		/// </author>
-		/// <author>  jhouse
-		/// </author>
+		/// <author>cooste</author>
+		/// <author>James House</author>
 		internal class StreamConsumer : QuartzThread
 		{
 			private void InitBlock(NativeJob job)

@@ -47,6 +47,20 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class RAMJobStore : IJobStore
 	{
+		private IDictionary jobsByFQN = new Hashtable(1000);
+		private IDictionary triggersByFQN = new Hashtable(1000);
+		private IDictionary jobsByGroup = new Hashtable(25);
+		private IDictionary triggersByGroup = new Hashtable(25);
+		private TreeSet timeTriggers = new TreeSet(new TriggerComparator());
+		private IDictionary calendarsByName = new Hashtable(25);
+		private ArrayList triggers = new ArrayList(1000);
+		private object jobLock = new object();
+		private object triggerLock = new object();
+		private HashSet pausedTriggerGroups = new HashSet();
+		private HashSet blockedJobs = new HashSet();
+		private long misfireThreshold = 5000L;
+		private ISchedulerSignaler signaler;
+		
 		private static ILog Log = LogManager.GetLogger(typeof (RAMJobStore));
 
 		/// <summary> 
@@ -67,6 +81,10 @@ namespace Quartz.Simpl
 			}
 		}
 
+		/// <summary>
+		/// Gets the fired trigger record id.
+		/// </summary>
+		/// <value>The fired trigger record id.</value>
 		protected internal virtual string FiredTriggerRecordId
 		{
 			get
@@ -77,20 +95,6 @@ namespace Quartz.Simpl
 				}
 			}
 		}
-
-		protected internal IDictionary jobsByFQN = new Hashtable(1000);
-		protected internal IDictionary triggersByFQN = new Hashtable(1000);
-		protected internal IDictionary jobsByGroup = new Hashtable(25);
-		protected internal IDictionary triggersByGroup = new Hashtable(25);
-		protected internal TreeSet timeTriggers = new TreeSet(new TriggerComparator());
-		protected internal IDictionary calendarsByName = new Hashtable(25);
-		protected internal ArrayList triggers = new ArrayList(1000);
-		protected internal object jobLock = new object();
-		protected internal object triggerLock = new object();
-		protected internal HashSet pausedTriggerGroups = new HashSet();
-		protected internal HashSet blockedJobs = new HashSet();
-		protected internal long misfireThreshold = 5000L;
-		protected internal ISchedulerSignaler signaler;
 
 		/// <summary>
 		/// Called by the QuartzScheduler before the <code>JobStore</code> is
@@ -120,14 +124,20 @@ namespace Quartz.Simpl
 		{
 		}
 
+		/// <summary>
+		/// Returns whether this instance supports persistence.
+		/// </summary>
+		/// <value></value>
+		/// <returns></returns>
 	    public virtual bool SupportsPersistence
 	    {
 	        get { return false; }
 	    }
 
-	    /// <summary> 
-		/// Store the given <code>{@link org.quartz.JobDetail}</code> and <code>{@link org.quartz.Trigger}</code>.
+		/// <summary>
+		/// Store the given <code>JobDetail</code> and <code>{@link org.quartz.Trigger}</code>.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="newJob">The <code>JobDetail</code> to be stored.</param>
 		/// <param name="newTrigger">The <code>Trigger</code> to be stored.</param>
 		public virtual void StoreJobAndTrigger(SchedulingContext ctxt, JobDetail newJob, Trigger newTrigger)
@@ -136,15 +146,14 @@ namespace Quartz.Simpl
 			StoreTrigger(ctxt, newTrigger, false);
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Store the given <code>IJob</code>.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="newJob">The <code>Job</code> to be stored.</param>
-		/// <param name="replaceExisting">
-		/// If <code>true</code>, any <code>Job</code> existing in the
+		/// <param name="replaceExisting">If <code>true</code>, any <code>Job</code> existing in the
 		/// <code>JobStore</code> with the same name and group should be
-		/// over-written.
-		/// </param>
+		/// over-written.</param>
 		public virtual void StoreJob(SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
 		{
 			JobWrapper jw = new JobWrapper(newJob);
@@ -190,10 +199,11 @@ namespace Quartz.Simpl
 		/// name, and any <code>Trigger</code> s that reference
 		/// it.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="jobName">The name of the <code>Job</code> to be removed.</param>
 		/// <param name="groupName">The group name of the <code>Job</code> to be removed.</param>
-		/// <returns> 
-		/// <code>true</code> if a <code>Job</code> with the given name and
+		/// <returns>
+		/// 	<code>true</code> if a <code>Job</code> with the given name and
 		/// group was found and removed from the store.
 		/// </returns>
 		public virtual bool RemoveJob(SchedulingContext ctxt, string jobName, string groupName)
@@ -235,12 +245,11 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Store the given <code>Trigger</code>.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="newTrigger">The <code>Trigger</code> to be stored.</param>
-		/// <param name="replaceExisting">
-		/// If <code>true</code>, any <code>Trigger</code> existing in
+		/// <param name="replaceExisting">If <code>true</code>, any <code>Trigger</code> existing in
 		/// the <code>JobStore</code> with the same name and group should
-		/// be over-written.
-		/// </param>
+		/// be over-written.</param>
 		public virtual void StoreTrigger(SchedulingContext ctxt, Trigger newTrigger, bool replaceExisting)
 		{
 			TriggerWrapper tw = new TriggerWrapper(newTrigger);
@@ -303,10 +312,11 @@ namespace Quartz.Simpl
 		/// Remove (delete) the <code>Trigger</code> with the
 		/// given name.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="triggerName">The name of the <code>Trigger</code> to be removed.</param>
 		/// <param name="groupName">The group name of the <code>Trigger</code> to be removed.</param>
 		/// <returns>
-		/// <code>true</code> if a <code>Trigger</code> with the given
+		/// 	<code>true</code> if a <code>Trigger</code> with the given
 		/// name and group was found and removed from the store.
 		/// </returns>
 		public virtual bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
@@ -360,6 +370,14 @@ namespace Quartz.Simpl
 		}
 
 
+		/// <summary>
+		/// Replaces the trigger.
+		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
+		/// <param name="triggerName">Name of the trigger.</param>
+		/// <param name="groupName">Name of the group.</param>
+		/// <param name="newTrigger">The new trigger.</param>
+		/// <returns></returns>
 		public virtual bool ReplaceTrigger(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger)
 		{
 			string key = TriggerWrapper.GetTriggerNameKey(triggerName, groupName);
@@ -424,9 +442,12 @@ namespace Quartz.Simpl
 		/// Retrieve the <code>JobDetail</code> for the given
 		/// <code>Job</code>.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="jobName">The name of the <code>Job</code> to be retrieved.</param>
 		/// <param name="groupName">The group name of the <code>Job</code> to be retrieved.</param>
-		/// <returns>The desired <code>Job</code>, or null if there is no match.</returns>
+		/// <returns>
+		/// The desired <code>Job</code>, or null if there is no match.
+		/// </returns>
 		public virtual JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			JobWrapper jw = (JobWrapper) jobsByFQN[JobWrapper.GetJobNameKey(jobName, groupName)];
@@ -441,9 +462,12 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Retrieve the given <code>Trigger</code>.
 		/// </summary>
-		/// <param name="triggerName"> The name of the <code>Trigger</code> to be retrieved.</param>
+		/// <param name="ctxt">The scheduling context.</param>
+		/// <param name="triggerName">The name of the <code>Trigger</code> to be retrieved.</param>
 		/// <param name="groupName">The group name of the <code>Trigger</code> to be retrieved.</param>
-		/// <returns> The desired <code>Trigger</code>, or null if there is no match.</returns>
+		/// <returns>
+		/// The desired <code>Trigger</code>, or null if there is no match.
+		/// </returns>
 		public virtual Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			TriggerWrapper tw = (TriggerWrapper) triggersByFQN[TriggerWrapper.GetTriggerNameKey(triggerName, groupName)];
@@ -497,18 +521,16 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Store the given <code>ICalendar</code>.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
+		/// <param name="name">The name.</param>
 		/// <param name="calendar">The <code>ICalendar</code> to be stored.</param>
-		/// <param name="replaceExisting">
-		/// If <code>true</code>, any <code>ICalendar</code> existing
+		/// <param name="replaceExisting">If <code>true</code>, any <code>ICalendar</code> existing
 		/// in the <code>JobStore</code> with the same name and group
-		/// should be over-written.
-		/// </param>
-		/// <param name="updateTriggers">
-		/// If <code>true</code>, any <code>Trigger</code>s existing
-		/// in the <code>JobStore</code> that reference an existing 
+		/// should be over-written.</param>
+		/// <param name="updateTriggers">If <code>true</code>, any <code>Trigger</code>s existing
+		/// in the <code>JobStore</code> that reference an existing
 		/// Calendar with the same name with have their next fire time
-		/// re-computed with the new <code>Calendar</code>.
-		/// </param>
+		/// re-computed with the new <code>Calendar</code>.</param>
 		public virtual void StoreCalendar(SchedulingContext ctxt, string name, ICalendar calendar, bool replaceExisting,
 		                                  bool updateTriggers)
 		{
@@ -558,9 +580,10 @@ namespace Quartz.Simpl
 		/// <code>Trigger</code>s pointing to non-existent calendars, then a
 		/// <code>JobPersistenceException</code> will be thrown.</p>
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="calName">The name of the <code>ICalendar</code> to be removed.</param>
 		/// <returns>
-		/// <code>true</code> if a <code>ICalendar</code> with the given name
+		/// 	<code>true</code> if a <code>ICalendar</code> with the given name
 		/// was found and removed from the store.
 		/// </returns>
 		public virtual bool RemoveCalendar(SchedulingContext ctxt, string calName)
@@ -589,11 +612,14 @@ namespace Quartz.Simpl
 			return (tempObject != null);
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Retrieve the given <code>Trigger</code>.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="calName">The name of the <code>Calendar</code> to be retrieved.</param>
-		/// <returns> The desired <code>Calendar</code>, or null if there is no match. </returns>
+		/// <returns>
+		/// The desired <code>Calendar</code>, or null if there is no match.
+		/// </returns>
 		public virtual ICalendar RetrieveCalendar(SchedulingContext ctxt, string calName)
 		{
 			return (ICalendar) calendarsByName[calName];
@@ -777,6 +803,12 @@ namespace Quartz.Simpl
 			return (Trigger[]) trigList.ToArray(typeof (Trigger));
 		}
 
+		/// <summary>
+		/// Gets the trigger wrappers for job.
+		/// </summary>
+		/// <param name="jobName">Name of the job.</param>
+		/// <param name="groupName">Name of the group.</param>
+		/// <returns></returns>
 		protected virtual ArrayList GetTriggerWrappersForJob(string jobName, string groupName)
 		{
 			ArrayList trigList = new ArrayList();
@@ -797,6 +829,11 @@ namespace Quartz.Simpl
 			return trigList;
 		}
 
+		/// <summary>
+		/// Gets the trigger wrappers for calendar.
+		/// </summary>
+		/// <param name="calName">Name of the cal.</param>
+		/// <returns></returns>
 		protected internal virtual ArrayList GetTriggerWrappersForCalendar(String calName)
 		{
 			ArrayList trigList = new ArrayList();
@@ -1075,6 +1112,11 @@ namespace Quartz.Simpl
 			}
 		}
 
+		/// <summary>
+		/// Applies the misfire.
+		/// </summary>
+		/// <param name="tw">The trigger wrapper.</param>
+		/// <returns></returns>
 		protected internal virtual bool ApplyMisfire(TriggerWrapper tw)
 		{
 			DateTime misfireTime = DateTime.Now;
@@ -1381,6 +1423,12 @@ namespace Quartz.Simpl
 			}
 		}
 
+		/// <summary>
+		/// Sets the state of all triggers of job to specified state.
+		/// </summary>
+		/// <param name="jobName">Name of the job.</param>
+		/// <param name="jobGroup">The job group.</param>
+		/// <param name="state">The state to set.</param>
 		protected internal virtual void SetAllTriggersOfJobToState(string jobName, string jobGroup, int state)
 		{
 			ArrayList tws = GetTriggerWrappersForJob(jobName, jobGroup);
@@ -1394,6 +1442,10 @@ namespace Quartz.Simpl
 			}
 		}
 
+		/// <summary>
+		/// Peeks the triggers.
+		/// </summary>
+		/// <returns></returns>
 		protected internal virtual string PeekTriggers()
 		{
 			StringBuilder str = new StringBuilder();

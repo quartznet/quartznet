@@ -424,6 +424,10 @@ namespace Quartz.Core
 			qsRsrcs = null;
 		}
 
+		/// <summary>
+		/// Trigger retry loop that is executed on error condition.
+		/// </summary>
+		/// <param name="bndle">The bndle.</param>
 		public virtual void ErrorTriggerRetryLoop(TriggerFiredBundle bndle)
 		{
 			int retryCount = 0;
@@ -467,6 +471,10 @@ namespace Quartz.Core
 			}
 		}
 
+		/// <summary>
+		/// Releases the trigger retry loop.
+		/// </summary>
+		/// <param name="trigger">The trigger.</param>
 		public virtual void ReleaseTriggerRetryLoop(Trigger trigger)
 		{
 			int retryCount = 0;

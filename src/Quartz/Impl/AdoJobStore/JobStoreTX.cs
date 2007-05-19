@@ -70,8 +70,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -96,9 +102,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -154,9 +165,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -201,9 +217,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -251,9 +272,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -334,9 +360,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -389,9 +420,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -417,9 +453,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -504,9 +545,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, lockOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, lockOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -528,26 +574,32 @@ namespace Quartz.Impl.AdoJobStore
 		/// </returns>
 		public override bool RemoveCalendar(SchedulingContext ctxt, string calName)
 		{
-			
 			IDbConnection conn = Connection;
-			try
+			bool lockOwner = false;
+			try 
 			{
-				LockHandler.ObtainLock(conn, LOCK_CALENDAR_ACCESS);
+				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+				lockOwner = true;
 
 				bool removed = RemoveCalendar(conn, ctxt, calName);
 				CommitConnection(conn);
 				return removed;
-			}
-			catch (JobPersistenceException e)
+			} 
+			catch (JobPersistenceException e) 
 			{
 				RollbackConnection(conn);
 				throw e;
-			}
-			finally
+			} 
+			finally 
 			{
-				ReleaseLock(conn, LOCK_CALENDAR_ACCESS, true);
-
-				CloseConnection(conn);
+				try 
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, lockOwner);
+				} 
+				finally 
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -935,9 +987,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -965,9 +1022,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1005,9 +1067,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1050,9 +1117,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1085,9 +1157,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1120,9 +1197,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1166,9 +1248,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1211,9 +1298,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1253,9 +1345,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1289,9 +1386,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1329,9 +1431,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1362,9 +1469,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1419,9 +1531,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1455,9 +1572,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1494,9 +1616,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			finally
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-
-				CloseConnection(conn);
+				try
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				}
+				finally
+				{
+					CloseConnection(conn);
+				}
 			}
 		}
 
@@ -1509,36 +1636,56 @@ namespace Quartz.Impl.AdoJobStore
 			bool transStateOwner = false;
 			bool recovered = false;
 
-			try
+			try 
 			{
-				LockHandler.ObtainLock(conn, LOCK_STATE_ACCESS);
-				transStateOwner = true;
-
-				IList failedRecords = ClusterCheckIn(conn);
-
-				if (failedRecords.Count > 0)
+				// Other than the first time, always checkin first to make sure there is 
+				// work to be done before we aquire / the lock (since that is expensive, 
+				// and is almost never necessary)
+				IList failedRecords = (firstCheckIn) ? null : ClusterCheckIn(conn);
+            
+				if (firstCheckIn || (failedRecords.Count > 0)) 
 				{
-					LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
-					//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
-					transOwner = true;
-
-					ClusterRecover(conn, failedRecords);
-					recovered = true;
+					LockHandler.ObtainLock(conn, LOCK_STATE_ACCESS);
+					transStateOwner = true;
+    
+					// Now that we own the lock, make sure we still have work to do. 
+					// The first time through, we also need to make sure we update/create our state record
+					failedRecords = (firstCheckIn) ? ClusterCheckIn(conn) : findFailedInstances(conn);
+    
+					if (failedRecords.Count > 0) 
+					{
+						LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+						//getLockHandler().obtainLock(conn, LOCK_JOB_ACCESS);
+						transOwner = true;
+    
+						ClusterRecover(conn, failedRecords);
+						recovered = true;
+					}
 				}
-
 				CommitConnection(conn);
-			}
-			catch (JobPersistenceException e)
+			} 
+			catch (JobPersistenceException e) 
 			{
 				RollbackConnection(conn);
 				throw e;
-			}
-			finally
+			} 
+			finally 
 			{
-				ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
-				ReleaseLock(conn, LOCK_STATE_ACCESS, transStateOwner);
-
-				CloseConnection(conn);
+				try 
+				{
+					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+				} 
+				finally 
+				{
+					try 
+					{
+						ReleaseLock(conn, LOCK_STATE_ACCESS, transStateOwner);
+					} 
+					finally 
+					{
+						CloseConnection(conn);
+					}
+				}
 			}
 
 			firstCheckIn = false;

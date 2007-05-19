@@ -145,12 +145,27 @@ namespace Quartz.Util
 			dirty = false;
 		}
 
+		/// <summary>
+		/// When implemented by a class, removes all elements from the <see cref="T:System.Collections.IDictionary"/>.
+		/// </summary>
+		/// <exception cref="T:System.NotSupportedException">
+		/// The <see cref="T:System.Collections.IDictionary"/> is read-only.
+		/// </exception>
 		public virtual void Clear()
 		{
 			dirty = true;
 			map.Clear();
 		}
 
+		/// <summary>
+		/// When implemented by a class, determines whether the <see cref="T:System.Collections.IDictionary"/> contains an element with the specified key.
+		/// </summary>
+		/// <param name="key">The key to locate in the <see cref="T:System.Collections.IDictionary"/>.</param>
+		/// <returns>
+		/// 	<see langword="true"/> if the <see cref="T:System.Collections.IDictionary"/> contains an element with the key; otherwise, <see langword="false"/>.
+		/// </returns>
+		/// <exception cref="T:System.ArgumentNullException">
+		/// 	<paramref name="key "/>is <see langword="null"/>.</exception>
 		public virtual bool Contains(object key)
 		{
 			return map.Contains(key);
@@ -204,21 +219,42 @@ namespace Quartz.Util
 			}
 		}
 
+		/// <summary>
+		/// Serves as a hash function for a particular type, suitable
+		/// for use in hashing algorithms and data structures like a hash table.
+		/// </summary>
+		/// <returns>
+		/// A hash code for the current <see cref="T:System.Object"/>.
+		/// </returns>
 		public override int GetHashCode()
 		{
 			return map.GetHashCode() ^ locked.GetHashCode() ^ dirty.GetHashCode();
 		}
 
-		public virtual bool isEmpty()
+		/// <summary>
+		/// Gets a value indicating whether this instance is empty.
+		/// </summary>
+		/// <value><c>true</c> if this instance is empty; otherwise, <c>false</c>.</value>
+		public virtual bool IsEmpty
 		{
-			return (map.Count == 0);
+			get { return (map.Count == 0); }
 		}
 
+		/// <summary>
+		/// Gets keyset for this map.
+		/// </summary>
+		/// <returns></returns>
 		public virtual ISet KeySet()
 		{
 			return new HashSet(map.Keys);
 		}
 
+		/// <summary>
+		/// Puts the value behind a specified key.
+		/// </summary>
+		/// <param name="key">The key.</param>
+		/// <param name="val">The val.</param>
+		/// <returns></returns>
 		public virtual object Put(object key, object val)
 		{
 			dirty = true;
@@ -228,6 +264,10 @@ namespace Quartz.Util
 			return tempObject;
 		}
 
+		/// <summary>
+		/// Puts all.
+		/// </summary>
+		/// <param name="t">The t.</param>
 		public virtual void PutAll(IDictionary t)
 		{
 			if (t != null && t.Count > 0)
@@ -244,6 +284,18 @@ namespace Quartz.Util
 			}
 		}
 
+		/// <summary>
+		/// When implemented by a class, removes the element with the
+		/// specified key from the <see cref="T:System.Collections.IDictionary"/>.
+		/// </summary>
+		/// <param name="key">The key of the element to remove.</param>
+		/// <exception cref="T:System.ArgumentNullException">
+		/// 	<paramref name="key "/> is <see langword="null"/>.</exception>
+		/// <exception cref="T:System.NotSupportedException">
+		/// 	<para>The <see cref="T:System.Collections.IDictionary"/> is read-only.</para>
+		/// 	<para>-or-</para>
+		/// 	<para>The <see cref="T:System.Collections.IDictionary"/> has a fixed size.</para>
+		/// </exception>
 		public virtual void Remove(object key)
 		{
 			object tempObject;
@@ -278,6 +330,20 @@ namespace Quartz.Util
 			return map.GetEnumerator();
 		}
 
+		/// <summary>
+		/// When implemented by a class, adds an element with the provided key and value to the <see cref="T:System.Collections.IDictionary"/>.
+		/// </summary>
+		/// <param name="key">The <see cref="T:System.Object"/> to use as the key of the element to add.</param>
+		/// <param name="value">The <see cref="T:System.Object"/> to use as the value of the element to add.</param>
+		/// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+		/// <exception cref="T:System.ArgumentException">
+		/// An element with the same key already exists in the <see cref="T:System.Collections.IDictionary"/>.
+		/// </exception>
+		/// <exception cref="T:System.NotSupportedException">
+		/// 	<para>The <see cref="T:System.Collections.IDictionary"/> is read-only.</para>
+		/// 	<para>-or-</para>
+		/// 	<para>The <see cref="T:System.Collections.IDictionary"/> has a fixed size.</para>
+		/// </exception>
 		public virtual void Add(object key, object value)
 		{
 			map.Add(key, value);

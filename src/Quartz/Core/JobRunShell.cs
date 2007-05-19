@@ -50,12 +50,12 @@ namespace Quartz.Core
 	{
 		private static readonly ILog log = LogManager.GetLogger(typeof (JobRunShell));
 
-		protected JobExecutionContext jec = null;
-		protected QuartzScheduler qs = null;
-		protected IScheduler scheduler = null;
-		protected SchedulingContext schdCtxt = null;
-		protected IJobRunShellFactory jobRunShellFactory = null;
-		protected bool shutdownRequested = false;
+		private JobExecutionContext jec = null;
+		private QuartzScheduler qs = null;
+		private IScheduler scheduler = null;
+		private SchedulingContext schdCtxt = null;
+		private IJobRunShellFactory jobRunShellFactory = null;
+		private bool shutdownRequested = false;
 
 
 		/// <summary>
@@ -264,14 +264,24 @@ namespace Quartz.Core
 			jobRunShellFactory.ReturnJobRunShell(this);
 		}
 
+		/// <summary>
+		/// Runs begin procedures on this instance.
+		/// </summary>
 		protected internal virtual void Begin()
 		{
 		}
 
+		/// <summary>
+		/// Completes the execution.
+		/// </summary>
+		/// <param name="successfulExecution">if set to <c>true</c> [successful execution].</param>
 		protected internal virtual void Complete(bool successfulExecution)
 		{
 		}
 
+		/// <summary>
+		/// Passivates this instance.
+		/// </summary>
 		public virtual void Passivate()
 		{
 			jec = null;
@@ -369,6 +379,13 @@ namespace Quartz.Core
 			return true;
 		}
 
+		/// <summary>
+		/// Completes the trigger retry loop.
+		/// </summary>
+		/// <param name="trigger">The trigger.</param>
+		/// <param name="jobDetail">The job detail.</param>
+		/// <param name="instCode">The inst code.</param>
+		/// <returns></returns>
 		public virtual bool CompleteTriggerRetryLoop(Trigger trigger, JobDetail jobDetail, int instCode)
 		{
 			while (!shutdownRequested)

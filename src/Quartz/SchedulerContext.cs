@@ -84,6 +84,12 @@ namespace Quartz
 		}
 
 
+		/// <summary>
+		/// Determines whether this context contains transient data.
+		/// </summary>
+		/// <returns>
+		/// 	<c>true</c> if instance contains transient data; otherwise, <c>false</c>.
+		/// </returns>
 		public virtual bool ContainsTransientData()
 		{
 			if (!AllowsTransientData)

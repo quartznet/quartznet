@@ -83,6 +83,10 @@ namespace Quartz.Core
 			get { return versionInfo.FileMinorPart.ToString(); }
 		}
 
+		/// <summary>
+		/// Gets the version iteration.
+		/// </summary>
+		/// <value>The version iteration.</value>
 		public static string VersionIteration
 		{
 			get { return versionInfo.FileBuildPart.ToString(); }
@@ -122,6 +126,12 @@ namespace Quartz.Core
 			get { return context; }
 		}
 
+		/// <summary>
+		/// Gets or sets a value indicating whether to signal on scheduling change.
+		/// </summary>
+		/// <value>
+		/// 	<c>true</c> if schduler should signal on scheduling change; otherwise, <c>false</c>.
+		/// </value>
 		public virtual bool SignalOnSchedulingChange
 		{
 			get { return signalOnSchedulingChange; }
@@ -329,11 +339,21 @@ namespace Quartz.Core
 			// TODO
 		}
 
+		/// <summary>
+		/// Adds an object that should be kept as reference to prevent
+		/// it from being garbage collected.
+		/// </summary>
+		/// <param name="obj">The obj.</param>
 		public virtual void AddNoGCObject(object obj)
 		{
 			holdToPreventGC.Add(obj);
 		}
 
+		/// <summary>
+		/// Removes the object from garbae collection protected list.
+		/// </summary>
+		/// <param name="obj">The obj.</param>
+		/// <returns></returns>
 		public virtual bool RemoveNoGCObject(object obj)
 		{
 			return CollectionUtil.Remove(holdToPreventGC, obj);
@@ -377,6 +397,10 @@ namespace Quartz.Core
 			Log.Info("Scheduler " + resources.GetUniqueIdentifier() + " paused.");
 		}
 
+		/// <summary>
+		/// Gets the running since.
+		/// </summary>
+		/// <value>The running since.</value>
 		public virtual NullableDateTime RunningSince
 		{
 			get { return initialStart; }
@@ -475,6 +499,9 @@ namespace Quartz.Core
 			Log.Info("Scheduler " + resources.GetUniqueIdentifier() + " Shutdown complete.");
 		}
 
+		/// <summary>
+		/// Validates the state.
+		/// </summary>
 		public virtual void ValidateState()
 		{
 			if (IsShutdown)
@@ -531,7 +558,7 @@ namespace Quartz.Core
 
 			resources.JobStore.StoreJobAndTrigger(ctxt, jobDetail, trigger);
 			NotifySchedulerThread();
-			NotifySchedulerListenersSchduled(trigger);
+			NotifySchedulerListenersScheduled(trigger);
 
 			return ft.Value;
 		}
@@ -566,7 +593,7 @@ namespace Quartz.Core
 
 			resources.JobStore.StoreTrigger(ctxt, trigger, false);
 			NotifySchedulerThread();
-			NotifySchedulerListenersSchduled(trigger);
+			NotifySchedulerListenersScheduled(trigger);
 
 			return ft.Value;
 		}
@@ -626,7 +653,7 @@ namespace Quartz.Core
 			if (resources.JobStore.RemoveTrigger(ctxt, triggerName, groupName))
 			{
 				NotifySchedulerThread();
-				NotifySchedulerListenersUnschduled(triggerName, groupName);
+				NotifySchedulerListenersUnscheduled(triggerName, groupName);
 			}
 			else
 			{
@@ -642,11 +669,12 @@ namespace Quartz.Core
 		/// given name, and store the new given one - which must be associated
 		/// with the same job.
 		/// </summary>
+		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="triggerName">The name of the <code>Trigger</code> to be removed.</param>
 		/// <param name="groupName">The group name of the <code>Trigger</code> to be removed.</param>
 		/// <param name="newTrigger">The new <code>Trigger</code> to be stored.</param>
 		/// <returns>
-		/// <code>null</code> if a <code>Trigger</code> with the given
+		/// 	<code>null</code> if a <code>Trigger</code> with the given
 		/// name and group was not found and removed from the store, otherwise
 		/// the first fire time of the newly scheduled trigger.
 		/// </returns>
@@ -678,8 +706,8 @@ namespace Quartz.Core
 			if (resources.JobStore.ReplaceTrigger(ctxt, triggerName, groupName, newTrigger))
 			{
 				NotifySchedulerThread();
-				NotifySchedulerListenersUnschduled(triggerName, groupName);
-				NotifySchedulerListenersSchduled(newTrigger);
+				NotifySchedulerListenersUnscheduled(triggerName, groupName);
+				NotifySchedulerListenersScheduled(newTrigger);
 			}
 			else
 			{
@@ -756,7 +784,7 @@ namespace Quartz.Core
 			}
 
 			NotifySchedulerThread();
-			NotifySchedulerListenersSchduled(trig);
+			NotifySchedulerListenersScheduled(trig);
 		}
 
 		/// <summary>
@@ -798,7 +826,7 @@ namespace Quartz.Core
 			}
 
 			NotifySchedulerThread();
-			NotifySchedulerListenersSchduled(trig);
+			NotifySchedulerListenersScheduled(trig);
 		}
 
 		/// <summary>
@@ -1214,7 +1242,7 @@ namespace Quartz.Core
 		/// <returns> 
 		/// true if the identifed listener was found in the list, and removed.
 		/// </returns>
-		public virtual bool RemoveJobListener(String name)
+		public virtual bool RemoveJobListener(string name)
 		{
 			object tempObject;
 			tempObject = jobListeners[name];
@@ -1232,7 +1260,7 @@ namespace Quartz.Core
 		/// <summary>
 		/// Get the <i>non-global</i><code>IJobListener</code> that has the given name.
 		/// </summary>
-		public virtual IJobListener GetJobListener(String name)
+		public virtual IJobListener GetJobListener(string name)
 		{
 			return (IJobListener) jobListeners[name];
 		}
@@ -1288,7 +1316,7 @@ namespace Quartz.Core
 		/// <returns>
 		/// true if the identifed listener was found in the list, and removed.
 		/// </returns>
-		public virtual bool RemoveTriggerListener(String name)
+		public virtual bool RemoveTriggerListener(string name)
 		{
 			object tempObject;
 			tempObject = triggerListeners[name];
@@ -1333,12 +1361,22 @@ namespace Quartz.Core
 			return CollectionUtil.Remove(schedulerListeners, schedulerListener);
 		}
 
+		/// <summary>
+		/// Notifies the job store job complete.
+		/// </summary>
+		/// <param name="ctxt">The job scheduling context.</param>
+		/// <param name="trigger">The trigger.</param>
+		/// <param name="detail">The detail.</param>
+		/// <param name="instCode">The instruction code.</param>
 		protected internal virtual void NotifyJobStoreJobComplete(SchedulingContext ctxt, Trigger trigger, JobDetail detail,
 		                                                          int instCode)
 		{
 			resources.JobStore.TriggeredJobComplete(ctxt, trigger, detail, instCode);
 		}
 
+		/// <summary>
+		/// Notifies the scheduler thread.
+		/// </summary>
 		protected internal virtual void NotifySchedulerThread()
 		{
 			if (SignalOnSchedulingChange)
@@ -1389,6 +1427,11 @@ namespace Quartz.Core
 			return listeners;
 		}
 
+		/// <summary>
+		/// Notifies the trigger listeners about fired trigger.
+		/// </summary>
+		/// <param name="jec">The job execution context.</param>
+		/// <returns></returns>
 		public virtual bool NotifyTriggerListenersFired(JobExecutionContext jec)
 		{
 			// build a list of all trigger listeners that are to be notified...
@@ -1420,6 +1463,10 @@ namespace Quartz.Core
 		}
 
 
+		/// <summary>
+		/// Notifies the trigger listeners about misfired trigger.
+		/// </summary>
+		/// <param name="trigger">The trigger.</param>
 		public virtual void NotifyTriggerListenersMisfired(Trigger trigger)
 		{
 			// build a list of all trigger listeners that are to be notified...
@@ -1441,6 +1488,11 @@ namespace Quartz.Core
 			}
 		}
 
+		/// <summary>
+		/// Notifies the trigger listeners of completion.
+		/// </summary>
+		/// <param name="jec">The job executution context.</param>
+		/// <param name="instCode">The instruction code to report to triggers.</param>
 		public virtual void NotifyTriggerListenersComplete(JobExecutionContext jec, int instCode)
 		{
 			// build a list of all trigger listeners that are to be notified...
@@ -1462,6 +1514,10 @@ namespace Quartz.Core
 			}
 		}
 
+		/// <summary>
+		/// Notifies the job listeners about job to be executed.
+		/// </summary>
+		/// <param name="jec">The jec.</param>
 		public virtual void NotifyJobListenersToBeExecuted(JobExecutionContext jec)
 		{
 			// build a list of all job listeners that are to be notified...
@@ -1483,6 +1539,10 @@ namespace Quartz.Core
 			}
 		}
 
+		/// <summary>
+		/// Notifies the job listeners that job exucution was vetoed.
+		/// </summary>
+		/// <param name="jec">The job execution context.</param>
 		public virtual void NotifyJobListenersWasVetoed(JobExecutionContext jec)
 		{
 			// build a list of all job listeners that are to be notified...
@@ -1504,6 +1564,11 @@ namespace Quartz.Core
 			}
 		}
 
+		/// <summary>
+		/// Notifies the job listeners that job was executed.
+		/// </summary>
+		/// <param name="jec">The jec.</param>
+		/// <param name="je">The je.</param>
 		public virtual void NotifyJobListenersWasExecuted(JobExecutionContext jec, JobExecutionException je)
 		{
 			// build a list of all job listeners that are to be notified...
@@ -1525,7 +1590,12 @@ namespace Quartz.Core
 			}
 		}
 
-		public virtual void NotifySchedulerListenersError(String msg, SchedulerException se)
+		/// <summary>
+		/// Notifies the scheduler listeners about scheduler error.
+		/// </summary>
+		/// <param name="msg">The MSG.</param>
+		/// <param name="se">The se.</param>
+		public virtual void NotifySchedulerListenersError(string msg, SchedulerException se)
 		{
 			// build a list of all scheduler listeners that are to be notified...
 			IList schedListeners = SchedulerListeners;
@@ -1545,7 +1615,11 @@ namespace Quartz.Core
 			}
 		}
 
-		public virtual void NotifySchedulerListenersSchduled(Trigger trigger)
+		/// <summary>
+		/// Notifies the scheduler listeners about job that was scheduled.
+		/// </summary>
+		/// <param name="trigger">The trigger.</param>
+		public virtual void NotifySchedulerListenersScheduled(Trigger trigger)
 		{
 			// build a list of all scheduler listeners that are to be notified...
 			IList schedListeners = SchedulerListeners;
@@ -1564,7 +1638,12 @@ namespace Quartz.Core
 			}
 		}
 
-		public virtual void NotifySchedulerListenersUnschduled(String triggerName, string triggerGroup)
+		/// <summary>
+		/// Notifies the scheduler listeners about job that was unscheduled.
+		/// </summary>
+		/// <param name="triggerName">Name of the trigger.</param>
+		/// <param name="triggerGroup">The trigger group.</param>
+		public virtual void NotifySchedulerListenersUnscheduled(string triggerName, string triggerGroup)
 		{
 			// build a list of all scheduler listeners that are to be notified...
 			IList schedListeners = SchedulerListeners;
@@ -1584,6 +1663,10 @@ namespace Quartz.Core
 			}
 		}
 
+		/// <summary>
+		/// Notifies the scheduler listeners about finalized trigger.
+		/// </summary>
+		/// <param name="trigger">The trigger.</param>
 		public virtual void NotifySchedulerListenersFinalized(Trigger trigger)
 		{
 			// build a list of all scheduler listeners that are to be notified...
@@ -1603,7 +1686,12 @@ namespace Quartz.Core
 			}
 		}
 
-		public virtual void NotifySchedulerListenersPausedTrigger(String name, string group)
+		/// <summary>
+		/// Notifies the scheduler listeners about paused trigger.
+		/// </summary>
+		/// <param name="name">The name.</param>
+		/// <param name="group">The group.</param>
+		public virtual void NotifySchedulerListenersPausedTrigger(string name, string group)
 		{
 			// build a list of all job listeners that are to be notified...
 			IList schedListeners = SchedulerListeners;
@@ -1622,7 +1710,12 @@ namespace Quartz.Core
 			}
 		}
 
-		public virtual void NotifySchedulerListenersResumedTrigger(String name, string group)
+		/// <summary>
+		/// Notifies the scheduler listeners resumed trigger.
+		/// </summary>
+		/// <param name="name">The name.</param>
+		/// <param name="group">The group.</param>
+		public virtual void NotifySchedulerListenersResumedTrigger(string name, string group)
 		{
 			// build a list of all job listeners that are to be notified...
 			IList schedListeners = SchedulerListeners;
@@ -1641,7 +1734,12 @@ namespace Quartz.Core
 			}
 		}
 
-		public virtual void NotifySchedulerListenersPausedJob(String name, string group)
+		/// <summary>
+		/// Notifies the scheduler listeners about paused job.
+		/// </summary>
+		/// <param name="name">The name.</param>
+		/// <param name="group">The group.</param>
+		public virtual void NotifySchedulerListenersPausedJob(string name, string group)
 		{
 			// build a list of all job listeners that are to be notified...
 			IList schedListeners = SchedulerListeners;
@@ -1660,7 +1758,12 @@ namespace Quartz.Core
 			}
 		}
 
-		public virtual void NotifySchedulerListenersResumedJob(String name, string group)
+		/// <summary>
+		/// Notifies the scheduler listeners about resumed job.
+		/// </summary>
+		/// <param name="name">The name.</param>
+		/// <param name="group">The group.</param>
+		public virtual void NotifySchedulerListenersResumedJob(string name, string group)
 		{
 			// build a list of all job listeners that are to be notified...
 			IList schedListeners = SchedulerListeners;
@@ -1679,6 +1782,9 @@ namespace Quartz.Core
 			}
 		}
 
+		/// <summary>
+		/// Notifies the scheduler listeners about scheduler shutdown.
+		/// </summary>
 		public virtual void NotifySchedulerListenersShutdown()
 		{
 			// build a list of all job listeners that are to be notified...

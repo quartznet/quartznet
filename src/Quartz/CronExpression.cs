@@ -282,7 +282,7 @@ namespace Quartz
 		 ///         expression
 		 */
 
-		public bool isSatisfiedBy(DateTime date)
+		public bool IsSatisfiedBy(DateTime date)
 		{
 			DateTime test = new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Millisecond, date.Second);
 			test = test.AddSeconds(-1);
@@ -346,7 +346,7 @@ namespace Quartz
 		 /// @return a string representation of the <code>CronExpression</code>
 		 */
 
-		public string toString()
+		public override string ToString()
 		{
 			return cronExpression;
 		}
@@ -360,7 +360,7 @@ namespace Quartz
 		 ///         expression
 		 */
 
-		public static bool isValidExpression(String cronExpression)
+		public static bool IsValidExpression(String cronExpression)
 		{
 			try
 			{
@@ -995,6 +995,12 @@ namespace Quartz
 			return i;
 		}
 
+		/// <summary>
+		/// Finds the next white space.
+		/// </summary>
+		/// <param name="i">The i.</param>
+		/// <param name="s">The s.</param>
+		/// <returns></returns>
 		protected int FindNextWhiteSpace(int i, string s)
 		{
 			for (; i < s.Length && (s[i] != ' ' || s[i] != '\t'); i++)
@@ -1005,6 +1011,13 @@ namespace Quartz
 			return i;
 		}
 
+		/// <summary>
+		/// Adds to set.
+		/// </summary>
+		/// <param name="val">The val.</param>
+		/// <param name="end">The end.</param>
+		/// <param name="incr">The incr.</param>
+		/// <param name="type">The type.</param>
 		protected void AddToSet(int val, int end, int incr, int type)
 		{
 			TreeSet data = GetSet(type);
@@ -1170,6 +1183,13 @@ namespace Quartz
 			}
 		}
 
+		/// <summary>
+		/// Gets the value.
+		/// </summary>
+		/// <param name="v">The v.</param>
+		/// <param name="s">The s.</param>
+		/// <param name="i">The i.</param>
+		/// <returns></returns>
 		protected ValueSet GetValue(int v, string s, int i)
 		{
 			char c = s[i];
@@ -1197,6 +1217,12 @@ namespace Quartz
 			return val;
 		}
 
+		/// <summary>
+		/// Gets the numeric value from string.
+		/// </summary>
+		/// <param name="s">The string to parse from.</param>
+		/// <param name="i">The i.</param>
+		/// <returns></returns>
 		protected int GetNumericValue(string s, int i)
 		{
 			int endOfVal = FindNextWhiteSpace(i, s);
@@ -1204,6 +1230,11 @@ namespace Quartz
 			return Convert.ToInt32((val));
 		}
 
+		/// <summary>
+		/// Gets the month number.
+		/// </summary>
+		/// <param name="s">The string to map with.</param>
+		/// <returns></returns>
 		protected int GetMonthNumber(string s)
 		{
 			if (monthMap.ContainsKey(s))
@@ -1216,6 +1247,11 @@ namespace Quartz
 			}
 		}
 
+		/// <summary>
+		/// Gets the day of week number.
+		/// </summary>
+		/// <param name="s">The s.</param>
+		/// <returns></returns>
 		protected int GetDayOfWeekNumber(string s)
 		{
 			if (dayMap.ContainsKey(s))
@@ -1665,21 +1701,45 @@ namespace Quartz
 			return d;
 		}
 
+		/// <summary>
+		/// Gets the time before.
+		/// </summary>
+		/// <param name="endTime">The end time.</param>
+		/// <returns></returns>
 		protected NullableDateTime GetTimeBefore(NullableDateTime endTime) // TODO: implement
 		{
 			return null;
 		}
 
+		/// <summary>
+		/// Determines whether given year is a leap year.
+		/// </summary>
+		/// <param name="year">The year.</param>
+		/// <returns>
+		/// 	<c>true</c> if the specified year is a leap year; otherwise, <c>false</c>.
+		/// </returns>
 		protected bool IsLeapYear(int year)
 		{
 			return DateTime.IsLeapYear(year);
 		}
 
+		/// <summary>
+		/// Gets the last day of month.
+		/// </summary>
+		/// <param name="monthNum">The month num.</param>
+		/// <param name="year">The year.</param>
+		/// <returns></returns>
 		protected int GetLastDayOfMonth(int monthNum, int year)
 		{
 			return DateTime.DaysInMonth(year, monthNum);
 		}
 
+		/// <summary>
+		/// Creates a new object that is a copy of the current instance.
+		/// </summary>
+		/// <returns>
+		/// A new object that is a copy of this instance.
+		/// </returns>
 		public object Clone()
 		{
 			CronExpression copy;

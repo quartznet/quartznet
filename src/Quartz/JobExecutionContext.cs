@@ -194,11 +194,19 @@ namespace Quartz
 			get { return scheduledFireTime; }
 		}
 
+		/// <summary>
+		/// Gets the previous fire time.
+		/// </summary>
+		/// <value>The previous fire time.</value>
 		public NullableDateTime PreviousFireTime
 		{
 			get { return prevFireTime; }
 		}
 
+		/// <summary>
+		/// Gets the next fire time.
+		/// </summary>
+		/// <value>The next fire time.</value>
 		public NullableDateTime NextFireTime
 		{
 			get { return nextFireTime; }
@@ -296,11 +304,20 @@ namespace Quartz
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
+		/// <summary>
+		/// Increments the refire count.
+		/// </summary>
 		public virtual void IncrementRefireCount()
 		{
 			numRefires++;
 		}
 
+		/// <summary>
+		/// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+		/// </summary>
+		/// <returns>
+		/// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+		/// </returns>
 		public override string ToString()
 		{
 			return

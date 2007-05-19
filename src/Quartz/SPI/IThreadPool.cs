@@ -37,7 +37,6 @@ namespace Quartz.Spi
         /// <value>The size of the pool.</value>
 		int PoolSize { get; }
 
-
 		/// <summary>
 		/// Execute the given <code>{@link java.lang.Runnable}</code> in the next
 		/// available <code>Thread</code>.
@@ -50,18 +49,16 @@ namespace Quartz.Spi
 		/// </summary>
 		bool RunInThread(IThreadRunnable runnable);
 
-		/// <summary> <p>
+		/// <summary>
 		/// Called by the QuartzScheduler before the <code>ThreadPool</code> is
 		/// used, in order to give the it a chance to Initialize.
-		/// </p>
 		/// </summary>
 		void Initialize();
 
-		/// <summary> <p>
+		/// <summary>
 		/// Called by the QuartzScheduler to inform the <code>ThreadPool</code>
 		/// that it should free up all of it's resources because the scheduler is
 		/// shutting down.
-		/// </p>
 		/// </summary>
 		void Shutdown(bool waitForJobsToComplete);
 	}

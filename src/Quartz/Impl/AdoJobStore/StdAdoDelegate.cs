@@ -1991,9 +1991,12 @@ namespace Quartz.Impl.AdoJobStore
 					{
 						while (rs.Read())
 						{
-							trigList.Add(
-								SelectTrigger(conn, Convert.ToString(rs[AdoConstants.COL_TRIGGER_NAME]),
-								              Convert.ToString(rs[AdoConstants.COL_TRIGGER_GROUP])));
+
+							Trigger t = SelectTrigger(conn,
+								rs.GetString(0), 
+								rs.GetString(1));
+							if(t != null)
+								trigList.Add(t);
 						}
 					}
 				}
@@ -3948,26 +3951,24 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		public virtual int UpdateSchedulerState(IDbConnection legacy, string instanceId, long checkInTime)
+		public virtual int UpdateSchedulerState(IDbConnection legacy, string instanceId, long checkInTime, string recoverer)
 		{
-			OleDbCommand ps = null;
+			IDbCommand cmd = PrepareCommand(legacy, ReplaceTablePrefix(UPDATE_SCHEDULER_STATE));
 			try
 			{
-				ps =
-					SupportClass.TransactionManager.manager.PrepareStatement(conn, ReplaceTablePrefix(UPDATE_SCHEDULER_STATE));
 				AddCommandParameter(cmd, 1, checkInTime);
-				AddCommandParameter(cmd, 2, instanceId);
+				AddCommandParameter(cmd, 2, recoverer);
+				AddCommandParameter(cmd, 3, instanceId);
 
 				return cmd.ExecuteNonQuery();
 			}
 			finally
 			{
-				if (null != ps)
+				if (null != cmd)
 				{
 					try
 					{
-						//UPGRADE_ISSUE: Method 'java.sql.Statement.close' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlStatementclose_3"'
-						ps.close();
+						cmd.close();
 					}
 					catch (OleDbException ignore)
 					{

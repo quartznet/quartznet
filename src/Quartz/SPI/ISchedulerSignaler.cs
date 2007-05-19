@@ -21,16 +21,22 @@
 
 namespace Quartz.Spi
 {
-	/// <summary> An interface to be used by <code>JobStore</code> instances in order to
+	/// <summary> 
+	/// An interface to be used by <code>JobStore</code> instances in order to
 	/// communicate signals back to the <code>QuartzScheduler</code>.
-	/// 
 	/// </summary>
-	/// <author>  jhouse
-	/// </author>
+	/// <author>James House</author>
 	public interface ISchedulerSignaler
 	{
+		/// <summary>
+		/// Notifies the trigger listeners misfired.
+		/// </summary>
+		/// <param name="trigger">The trigger.</param>
 		void NotifyTriggerListenersMisfired(Trigger trigger);
 
+		/// <summary>
+		/// Signals the scheduling change.
+		/// </summary>
 		void SignalSchedulingChange();
 	}
 }

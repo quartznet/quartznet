@@ -28,6 +28,8 @@ using System.Xml;
 
 using Common.Logging;
 
+using Quartz.Util;
+
 namespace Quartz.Xml
 {
 	/// <summary> 
@@ -62,41 +64,45 @@ namespace Quartz.Xml
 
 		public const string QUARTZ_SYSTEM_ID_DIR_PROP = "quartz.system.id.dir";
 		public const string QUARTZ_XML_FILE_NAME = "quartz_jobs.xml";
+		public const string QUARTZ_SCHEMA = "http://www.opensymphony.com/quartz/xml/job_scheduling_data_1_5.xsd";
+		public const string QUARTZ_XSD = "/org/quartz/xml/job_scheduling_data_1_5.xsd";
+		
+		protected const string THREAD_LOCAL_KEY_SCHEDULDER = "quartz_scheduler";
 
-		protected internal const string TAG_QUARTZ = "quartz";
-		protected internal const string TAG_OVERWRITE_EXISTING_JOBS = "overwrite-existing-jobs";
-		protected internal const string TAG_JOB_LISTENER = "job-listener";
-		protected internal const string TAG_CALENDAR = "calendar";
-		protected internal const string TAG_CLASS_NAME = "class-name";
-		protected internal const string TAG_DESCRIPTION = "description";
-		protected internal const string TAG_BASE_CALENDAR = "base-calendar";
-		protected internal const string TAG_MISFIRE_INSTRUCTION = "misfire-instruction";
-		protected internal const string TAG_CALENDAR_NAME = "calendar-name";
-		protected internal const string TAG_JOB = "job";
-		protected internal const string TAG_JOB_DETAIL = "job-detail";
-		protected internal const string TAG_NAME = "name";
-		protected internal const string TAG_GROUP = "group";
-		protected internal const string TAG_JOB_CLASS = "job-class";
-		protected internal const string TAG_JOB_LISTENER_REF = "job-listener-ref";
-		protected internal const string TAG_VOLATILITY = "volatility";
-		protected internal const string TAG_DURABILITY = "durability";
-		protected internal const string TAG_RECOVER = "recover";
-		protected internal const string TAG_JOB_DATA_MAP = "job-data-map";
-		protected internal const string TAG_ENTRY = "entry";
-		protected internal const string TAG_KEY = "key";
-		protected internal const string TAG_ALLOWS_TRANSIENT_DATA = "allows-transient-data";
-		protected internal const string TAG_VALUE = "value";
-		protected internal const string TAG_TRIGGER = "trigger";
-		protected internal const string TAG_SIMPLE = "simple";
-		protected internal const string TAG_CRON = "cron";
-		protected internal const string TAG_JOB_NAME = "job-name";
-		protected internal const string TAG_JOB_GROUP = "job-group";
-		protected internal const string TAG_START_TIME = "start-time";
-		protected internal const string TAG_END_TIME = "end-time";
-		protected internal const string TAG_REPEAT_COUNT = "repeat-count";
-		protected internal const string TAG_REPEAT_INTERVAL = "repeat-interval";
-		protected internal const string TAG_CRON_EXPRESSION = "cron-expression";
-		protected internal const string TAG_TIME_ZONE = "time-zone";
+		protected const string TAG_QUARTZ = "quartz";
+		protected const string TAG_OVERWRITE_EXISTING_JOBS = "overwrite-existing-jobs";
+		protected const string TAG_JOB_LISTENER = "job-listener";
+		protected const string TAG_CALENDAR = "calendar";
+		protected const string TAG_CLASS_NAME = "class-name";
+		protected const string TAG_DESCRIPTION = "description";
+		protected const string TAG_BASE_CALENDAR = "base-calendar";
+		protected const string TAG_MISFIRE_INSTRUCTION = "misfire-instruction";
+		protected const string TAG_CALENDAR_NAME = "calendar-name";
+		protected const string TAG_JOB = "job";
+		protected const string TAG_JOB_DETAIL = "job-detail";
+		protected const string TAG_NAME = "name";
+		protected const string TAG_GROUP = "group";
+		protected const string TAG_JOB_CLASS = "job-class";
+		protected const string TAG_JOB_LISTENER_REF = "job-listener-ref";
+		protected const string TAG_VOLATILITY = "volatility";
+		protected const string TAG_DURABILITY = "durability";
+		protected const string TAG_RECOVER = "recover";
+		protected const string TAG_JOB_DATA_MAP = "job-data-map";
+		protected const string TAG_ENTRY = "entry";
+		protected const string TAG_KEY = "key";
+		protected const string TAG_ALLOWS_TRANSIENT_DATA = "allows-transient-data";
+		protected const string TAG_VALUE = "value";
+		protected const string TAG_TRIGGER = "trigger";
+		protected const string TAG_SIMPLE = "simple";
+		protected const string TAG_CRON = "cron";
+		protected const string TAG_JOB_NAME = "job-name";
+		protected const string TAG_JOB_GROUP = "job-group";
+		protected const string TAG_START_TIME = "start-time";
+		protected const string TAG_END_TIME = "end-time";
+		protected const string TAG_REPEAT_COUNT = "repeat-count";
+		protected const string TAG_REPEAT_INTERVAL = "repeat-interval";
+		protected const string TAG_CRON_EXPRESSION = "cron-expression";
+		protected const string TAG_TIME_ZONE = "time-zone";
 
 		/// <summary> 
 		/// XML Schema dateTime datatype format.
@@ -105,18 +111,16 @@ namespace Quartz.Xml
 		/// http://www.w3.org/TR/2001/REC-xmlschema-2-20010502/#dateTime</a>
 		/// </p>
 		/// </summary>
-		protected internal const string XSD_DATE_FORMAT = "yyyy-MM-dd'T'hh:mm:ss";
+		protected const string XSD_DATE_FORMAT = "yyyy-MM-dd'T'hh:mm:ss";
 
-		protected internal IDictionary scheduledJobs = new Hashtable();
-		protected internal IList jobsToSchedule = new ArrayList();
-		protected internal IList calsToSchedule = new ArrayList();
-		protected internal IList listenersToSchedule = new ArrayList();
+		protected IDictionary scheduledJobs = new Hashtable();
+		protected IList jobsToSchedule = new ArrayList();
+		protected IList calsToSchedule = new ArrayList();
+		protected IList listenersToSchedule = new ArrayList();
 
-		protected internal ArrayList validationExceptions = new ArrayList();
+		protected ArrayList validationExceptions = new ArrayList();
 
 		private bool overWriteExistingJobs = true;
-
-		//private LocalDataStoreSlot schedLocal = Thread.AllocateDataSlot();
 		
 		/// <summary> 
 		/// Gets or sets whether to overwrite existing jobs.
@@ -145,7 +149,9 @@ namespace Quartz.Xml
 		}
 
 
-		/// <summary> Constructor for QuartzMetaDataProcessor.</summary>
+		/// <summary>
+		/// Constructor for QuartzMetaDataProcessor.
+		/// </summary>
 		public JobSchedulingDataProcessor() : this(true, true)
 		{
 		}
@@ -166,7 +172,7 @@ namespace Quartz.Xml
 		/// Initializes the digester for XML Schema validation.
 		/// </summary>
 		/// <param name="validatingSchema">if set to <c>true</c> [validating schema].</param>
-		protected internal virtual void InitSchemaValidation(bool validatingSchema)
+		protected virtual void InitSchemaValidation(bool validatingSchema)
 		{
 			if (validatingSchema)
 			{
@@ -195,13 +201,11 @@ namespace Quartz.Xml
 			ProcessFile(QUARTZ_XML_FILE_NAME);
 		}
 
-		/// <summary> Process the xml file named <code>fileName</code>.
-		/// 
+		/// <summary>
+		/// Process the xml file named <code>fileName</code>.
 		/// </summary>
-		/// <param name="">fileName
-		/// meta data file name.
-		/// </param>
-		public virtual void ProcessFile(String fileName)
+		/// <param name="fileName">meta data file name.</param>
+		public virtual void ProcessFile(string fileName)
 		{
 			ProcessFile(fileName, fileName);
 		}
@@ -212,7 +216,7 @@ namespace Quartz.Xml
 		/// </summary>
 		/// <param name="fileName">Name of the file.</param>
 		/// <param name="systemId">The system id.</param>
-		public virtual void ProcessFile(String fileName, string systemId)
+		public virtual void ProcessFile(string fileName, string systemId)
 		{
 			ClearValidationExceptions();
 
@@ -223,10 +227,7 @@ namespace Quartz.Xml
 			Log.Info("Parsing XML file: " + fileName + " with systemId: " + systemId + " validating: [unknown]" +
 			         " validating schema: [unknown]");
 			
-			XmlSourceSupport is_Renamed = new XmlSourceSupport(GetInputStream(fileName));
-			is_Renamed.Uri = systemId;
-			digester.push(this);
-			digester.parse(is_Renamed);
+			
 
 			MaybeThrowValidationException();
 		}
@@ -245,13 +246,9 @@ namespace Quartz.Xml
 			jobsToSchedule.Clear();
 			calsToSchedule.Clear();
 
-			Log.Info("Parsing XML from stream with systemId: " + systemId + " validating: " + digester.getValidating() +
-			         " validating schema: " + digester.getSchema());
-			XmlSourceSupport is_Renamed = new XmlSourceSupport(stream);
-			is_Renamed.Uri = systemId;
-			digester.push(this);
-			digester.parse(is_Renamed);
-
+			Log.Info("Parsing XML from stream with systemId: " + systemId + " validating: " + "[TODO]" +
+			         " validating schema: " + "[TODO]");
+			
 			MaybeThrowValidationException();
 		}
 
@@ -264,29 +261,30 @@ namespace Quartz.Xml
 			ProcessFileAndScheduleJobs(QUARTZ_XML_FILE_NAME, sched, overWriteExistingJobs);
 		}
 
-		/// <summary> Process the xml file in the given location, and schedule all of the
+		/// <summary>
+		/// Process the xml file in the given location, and schedule all of the
 		/// jobs defined within it.
-		/// 
 		/// </summary>
-		/// <param name="">fileName
-		/// meta data file name.
-		/// </param>
-		public virtual void ProcessFileAndScheduleJobs(String fileName, IScheduler sched, bool overWriteExistingJobs)
+		/// <param name="fileName">meta data file name.</param>
+		/// <param name="sched">The scheduler.</param>
+		/// <param name="overwriteExistingJobs">if set to <c>true</c> overwrite existing jobs.</param>
+		public virtual void ProcessFileAndScheduleJobs(string fileName, IScheduler sched, bool overwriteExistingJobs)
 		{
-			ProcessFileAndScheduleJobs(fileName, fileName, sched, overWriteExistingJobs);
+			ProcessFileAndScheduleJobs(fileName, fileName, sched, overwriteExistingJobs);
 		}
 
-		/// <summary> Process the xml file in the given location, and schedule all of the
+		/// <summary>
+		/// Process the xml file in the given location, and schedule all of the
 		/// jobs defined within it.
-		/// 
 		/// </summary>
-		/// <param name="">fileName
-		/// meta data file name.
-		/// </param>
-		public virtual void ProcessFileAndScheduleJobs(String fileName, string systemId, IScheduler sched,
+		/// <param name="fileName">Name of the file.</param>
+		/// <param name="systemId">The system id.</param>
+		/// <param name="sched">The sched.</param>
+		/// <param name="overWriteExistingJobs">if set to <c>true</c> [over write existing jobs].</param>
+		public virtual void ProcessFileAndScheduleJobs(string fileName, string systemId, IScheduler sched,
 		                                               bool overWriteExistingJobs)
 		{
-			Thread.SetData(schedLocal, sched);
+			LogicalThreadContext.SetData(THREAD_LOCAL_KEY_SCHEDULDER, sched);
 			try
 			{
 				ProcessFile(fileName, systemId);
@@ -294,7 +292,7 @@ namespace Quartz.Xml
 			}
 			finally
 			{
-				Thread.SetData(schedLocal, null);
+				LogicalThreadContext.FreeNamedDataSlot(THREAD_LOCAL_KEY_SCHEDULDER);
 			}
 		}
 
@@ -334,7 +332,7 @@ namespace Quartz.Xml
 		/// <returns>
 		/// a <code>JobSchedulingBundle</code> for the job name.
 		/// </returns>
-		public virtual JobSchedulingBundle GetScheduledJob(String name)
+		public virtual JobSchedulingBundle GetScheduledJob(string name)
 		{
 			return (JobSchedulingBundle) ScheduledJobs[name];
 		}
@@ -346,7 +344,7 @@ namespace Quartz.Xml
 		/// <returns>
 		/// an <code>InputStream</code> from the fileName as a resource.
 		/// </returns>
-		protected internal virtual Stream GetInputStream(String fileName)
+		protected virtual Stream GetInputStream(string fileName)
 		{
 			// TODO
 			return null;
@@ -362,7 +360,7 @@ namespace Quartz.Xml
 		/// </exception>
 		public virtual void ScheduleJob(JobSchedulingBundle job)
 		{
-			ScheduleJob(job, (IScheduler) Thread.GetData(schedLocal), OverWriteExistingJobs);
+			ScheduleJob(job, (IScheduler) LogicalThreadContext.GetData(THREAD_LOCAL_KEY_SCHEDULDER), OverWriteExistingJobs);
 		}
 
 
@@ -458,7 +456,7 @@ namespace Quartz.Xml
 		/// Adds a scheduled job.
 		/// </summary>
 		/// <param name="job">The job.</param>
-		protected internal virtual void AddScheduledJob(JobSchedulingBundle job)
+		protected virtual void AddScheduledJob(JobSchedulingBundle job)
 		{
 			scheduledJobs[job.FullName] = job;
 		}
@@ -474,215 +472,34 @@ namespace Quartz.Xml
 			sched.AddCalendar(calendarBundle.CalendarName, calendarBundle.Calendar, calendarBundle.Replace, true);
 		}
 
+
+
+
 		/// <summary>
-		/// EntityResolver interface.
-		/// <p/>
-		/// Allow the application to resolve external entities.
-		/// <p/>
-		/// Until <code>quartz.dtd</code> has a public ID, it must resolved as a
-		/// system ID. Here's the order of resolution (if one fails, continue to the
-		/// next).
-		/// <ol>
-		/// 		<li>Tries to resolve the <code>systemId</code> with <code>ClassLoader.getResourceAsStream(String)</code>.
-		/// </li>
-		/// 		<li>If the <code>systemId</code> starts with <code>QUARTZ_SYSTEM_ID_PREFIX</code>,
-		/// then resolve the part after <code>QUARTZ_SYSTEM_ID_PREFIX</code> with
-		/// <code>ClassLoader.getResourceAsStream(String)</code>.</li>
-		/// 		<li>Else try to resolve <code>systemId</code> as a URL.
-		/// <li>If <code>systemId</code> has a colon in it, create a new <code>URL</code>
-		/// 			</li>
-		/// 			<li>Else resolve <code>systemId</code> as a <code>File</code> and
-		/// then call <code>File.toURL()</code>.</li>
-		/// 		</li>
-		/// 	</ol>
-		/// 	<p/>
-		/// If the <code>publicId</code> does exist, resolve it as a URL.  If the
-		/// <code>publicId</code> is the Quartz public ID, then resolve it locally.
+		/// Adds a detected validation exception.
 		/// </summary>
-		/// <param name="publicId">The public id.</param>
-		/// <param name="systemId">The system id.</param>
-		/// <returns>
-		/// An InputSource object describing the new input source, or null
-		/// to request that the parser open a regular URI connection to the
-		/// system identifier.
-		/// </returns>
-		/// <exception cref=""> SAXException
-		/// Any SAX exception, possibly wrapping another exception.
-		/// </exception>
-		/// <exception cref=""> IOException
-		/// A Java-specific IO exception, possibly the result of
-		/// creating a new InputStream or Reader for the InputSource.
-		/// </exception>
-		public override XmlSourceSupport ResolveEntity(String publicId, string systemId)
-		{
-			XmlSourceSupport inputSource = null;
-
-			Stream is_Renamed = null;
-
-			Uri url = null;
-
-			try
-			{
-				if (publicId == null)
-				{
-					if (systemId != null)
-					{
-						// resolve Quartz Schema locally
-						if (QUARTZ_SCHEMA.Equals(systemId))
-						{
-							//UPGRADE_ISSUE: Method 'java.lang.Class.getResourceAsStream' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javalangClassgetResourceAsStream_javalangString_3"'
-							is_Renamed = GetType().getResourceAsStream(QUARTZ_DTD);
-						}
-						else
-						{
-							is_Renamed = GetInputStream(systemId);
-
-							if (is_Renamed == null)
-							{
-								int start = systemId.IndexOf(QUARTZ_SYSTEM_ID_PREFIX);
-
-								if (start > - 1)
-								{
-									String fileName = systemId.Substring(QUARTZ_SYSTEM_ID_PREFIX.Length);
-									is_Renamed = GetInputStream(fileName);
-								}
-								else
-								{
-									if (systemId.IndexOf((Char) ':') == - 1)
-									{
-										FileInfo file = new FileInfo(systemId);
-										url = SupportClass.FileSupport.ToUri(file);
-									}
-									else
-									{
-										//UPGRADE_TODO: Class 'java.net.URL' was converted to a 'System.Uri' which does not throw an exception if a URL specifies an unknown protocol. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1132_3"'
-										url = new Uri(systemId);
-									}
-
-									is_Renamed = WebRequest.Create(url).GetResponse().GetResponseStream();
-								}
-							}
-						}
-					}
-				}
-				else
-				{
-					// resolve Quartz DTD locally
-					if (QUARTZ_PUBLIC_ID.Equals(publicId))
-					{
-						//UPGRADE_ISSUE: Method 'java.lang.Class.getResourceAsStream' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javalangClassgetResourceAsStream_javalangString_3"'
-						is_Renamed = GetType().getResourceAsStream(QUARTZ_DTD);
-					}
-					else
-					{
-						//UPGRADE_TODO: Class 'java.net.URL' was converted to a 'System.Uri' which does not throw an exception if a URL specifies an unknown protocol. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1132_3"'
-						url = new Uri(systemId);
-						is_Renamed = WebRequest.Create(url).GetResponse().GetResponseStream();
-					}
-				}
-			}
-			catch (Exception e)
-			{
-				if (e is SchedulerException)
-				{
-					((SchedulerException) e).printStackTrace();
-				}
-				else
-				{
-					SupportClass.WriteStackTrace(e, Console.Error);
-				}
-			}
-			finally
-			{
-				if (is_Renamed != null)
-				{
-					inputSource = new XmlSourceSupport(is_Renamed);
-					//UPGRADE_ISSUE: Method 'org.xml.sax.InputSource.setPublicId' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_orgxmlsaxInputSourcesetPublicId_javalangString_3"'
-					inputSource.setPublicId(publicId);
-					inputSource.Uri = systemId;
-				}
-			}
-
-			return inputSource;
-		}
-
-		/// <summary> ErrorHandler interface.
-		/// 
-		/// Receive notification of a warning.
-		/// 
-		/// </summary>
-		/// <param name="">exception
-		/// The error information encapsulated in a SAX parse exception.
-		/// </param>
-		/// <exception cref=""> SAXException
-		/// Any SAX exception, possibly wrapping another exception.
-		/// </exception>
-		//UPGRADE_TODO: Class 'org.xml.sax.SAXParseException' was converted to 'System.xml.XmlException' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_3"'
-		public override void Warning(XmlException e)
-		{
-			AddValidationException(e);
-		}
-
-		/// <summary> ErrorHandler interface.
-		/// 
-		/// Receive notification of a recoverable error.
-		/// 
-		/// </summary>
-		/// <param name="">exception
-		/// The error information encapsulated in a SAX parse exception.
-		/// </param>
-		/// <exception cref=""> SAXException
-		/// Any SAX exception, possibly wrapping another exception.
-		/// </exception>
-		//UPGRADE_TODO: Class 'org.xml.sax.SAXParseException' was converted to 'System.xml.XmlException' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_3"'
-		public override void Error(XmlException e)
-		{
-			AddValidationException(e);
-		}
-
-		/// <summary> ErrorHandler interface.
-		/// 
-		/// Receive notification of a non-recoverable error.
-		/// 
-		/// </summary>
-		/// <param name="">exception
-		/// The error information encapsulated in a SAX parse exception.
-		/// </param>
-		/// <exception cref=""> SAXException
-		/// Any SAX exception, possibly wrapping another exception.
-		/// </exception>
-		//UPGRADE_TODO: Class 'org.xml.sax.SAXParseException' was converted to 'System.xml.XmlException' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_3"'
-		public override void FatalError(XmlException e)
-		{
-			AddValidationException(e);
-		}
-
-		/// <summary> Adds a detected validation exception.
-		/// 
-		/// </summary>
-		/// <param name="">SAXException
-		/// SAX exception.
-		/// </param>
-		//UPGRADE_TODO: Class 'org.xml.sax.SAXException' was converted to 'System.Xml.XmlException' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_3"'
-		protected internal virtual void AddValidationException(XmlException e)
+		/// <param name="e">The exception.</param>
+		protected virtual void AddValidationException(XmlException e)
 		{
 			validationExceptions.Add(e);
 		}
 
-		/// <summary> Resets the the number of detected validation exceptions.</summary>
-		protected internal virtual void ClearValidationExceptions()
+		/// <summary>
+		/// Resets the the number of detected validation exceptions.
+		/// </summary>
+		protected virtual void ClearValidationExceptions()
 		{
 			validationExceptions.Clear();
 		}
 
-		/// <summary> Throws a ValidationException if the number of validationExceptions
+		/// <summary>
+		/// Throws a ValidationException if the number of validationExceptions
 		/// detected is greater than zero.
-		/// 
 		/// </summary>
-		/// <exception cref=""> ValidationException
+		/// <exception cref="ValidationException"> 
 		/// DTD validation exception.
 		/// </exception>
-		protected internal virtual void MaybeThrowValidationException()
+		protected virtual void MaybeThrowValidationException()
 		{
 			if (validationExceptions.Count > 0)
 			{

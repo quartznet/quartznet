@@ -42,7 +42,7 @@ namespace Quartz.Xml
 			get { return validationExceptions; }
 		}
 
-		/// <summary
+		/// <summary>
 		/// Returns the detail message string.
 		/// </summary>
 		public override string Message

@@ -73,11 +73,24 @@ namespace Quartz.Util
 		}
 
 
-		private static bool IsAssignableFrom(object newValue, Type requiredType)
+		/// <summary>
+		/// Determines whether value is assignable to required type.
+		/// </summary>
+		/// <param name="value">The value to check.</param>
+		/// <param name="requiredType">Type of the required.</param>
+		/// <returns>
+		/// 	<c>true</c> if value can be assigned as given type; otherwise, <c>false</c>.
+		/// </returns>
+		private static bool IsAssignableFrom(object value, Type requiredType)
 		{
-			return requiredType.IsAssignableFrom(newValue.GetType());
+			return requiredType.IsAssignableFrom(value.GetType());
 		}
 		
+		/// <summary>
+		/// Instantiates an instance of the type specified.
+		/// </summary>
+		/// <param name="t">The type to instantiate.</param>
+		/// <returns></returns>
 		public static object InstantiateType(Type t)
 		{
 			ConstructorInfo ci = t.GetConstructor(Type.EmptyTypes);
@@ -89,6 +102,11 @@ namespace Quartz.Util
 		}
 
 		
+		/// <summary>
+		/// Sets the object properties using reflection.
+		/// </summary>
+		/// <param name="obj">The object to set values to.</param>
+		/// <param name="props">The properties to set to object.</param>
 		public static void SetObjectProperties(object obj, NameValueCollection props)
 		{
 			props.Remove("class");

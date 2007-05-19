@@ -47,6 +47,10 @@ namespace Quartz.Simpl
 	{
 		private static readonly ILog Log = LogManager.GetLogger(typeof (SimpleThreadPool));
 
+		/// <summary>
+		/// Gets the size of the pool.
+		/// </summary>
+		/// <value>The size of the pool.</value>
 		public virtual int PoolSize
 		{
 			get { return ThreadCount; }
@@ -72,6 +76,10 @@ namespace Quartz.Simpl
 			set { prio = value; }
 		}
 
+		/// <summary>
+		/// Gets or sets the thread name prefix.
+		/// </summary>
+		/// <value>The thread name prefix.</value>
 		public virtual string ThreadNamePrefix
 		{
 			get { return threadNamePrefix; }
@@ -160,6 +168,10 @@ namespace Quartz.Simpl
 			ThreadPriority = threadPriority;
 		}
 
+		/// <summary>
+		/// Called by the QuartzScheduler before the <code>ThreadPool</code> is
+		/// used, in order to give the it a chance to Initialize.
+		/// </summary>
 		public virtual void Initialize()
 		{
 			if (count <= 0)
@@ -175,6 +187,11 @@ namespace Quartz.Simpl
 			workers = CreateWorkerThreads(count);
 		}
 
+		/// <summary>
+		/// Creates the worker threads.
+		/// </summary>
+		/// <param name="threadCount">The thread count.</param>
+		/// <returns></returns>
 		protected internal virtual WorkerThread[] CreateWorkerThreads(int threadCount)
 		{
 			workers = new WorkerThread[threadCount];
@@ -343,25 +360,26 @@ namespace Quartz.Simpl
 		}
 
 
-		/// <summary> <p>
+		/// <summary>
 		/// A Worker loops, waiting to Execute tasks.
-		/// </p>
 		/// </summary>
 		protected internal class WorkerThread : QuartzThread
 		{
+			// A flag that signals the WorkerThread to terminate.
+			private bool run = true;
+
+			private SimpleThreadPool tp;
+			private IThreadRunnable runnable = null;
 			private SimpleThreadPool enclosingInstance;
 
-			public SimpleThreadPool Enclosing_Instance
+			/// <summary>
+			/// Gets the simple thread pool.
+			/// </summary>
+			/// <value>The simple thread pool.</value>
+			public SimpleThreadPool SimpleThreadPool
 			{
 				get { return enclosingInstance; }
 			}
-
-			// A flag that signals the WorkerThread to terminate.
-			private bool run_Renamed_Field = true;
-
-			private SimpleThreadPool tp;
-
-			private IThreadRunnable runnable = null;
 
 			/// <summary> <p>
 			/// Create a worker thread and start it. Waiting for the next Runnable,
@@ -396,7 +414,7 @@ namespace Quartz.Simpl
 			/// </summary>
 			internal virtual void shutdown()
 			{
-				run_Renamed_Field = false;
+				run = false;
 
 				// @todo I'm not really sure if we should interrupt the thread.
 				// Javadoc mentions that it interrupts blocked I/O operations as
@@ -414,7 +432,7 @@ namespace Quartz.Simpl
 			{
 				bool runOnce = (runnable != null);
 
-				while (run_Renamed_Field)
+				while (run)
 				{
 					try
 					{
@@ -455,7 +473,7 @@ namespace Quartz.Simpl
 					{
 						if (runOnce)
 						{
-							run_Renamed_Field = false;
+							run = false;
 						}
 
 						runnable = null;
