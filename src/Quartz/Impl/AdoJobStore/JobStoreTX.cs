@@ -52,7 +52,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal override void RecoverJobs()
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -84,7 +84,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal override void CleanVolatileTriggerAndJobs()
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -135,7 +135,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void StoreJobAndTrigger(SchedulingContext ctxt, JobDetail newJob, Trigger newTrigger)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -196,7 +196,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void StoreJob(SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -253,7 +253,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override bool RemoveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -300,7 +300,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -339,7 +339,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void StoreTrigger(SchedulingContext ctxt, Trigger newTrigger, bool replaceExisting)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -401,7 +401,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -434,7 +434,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override bool ReplaceTrigger(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -482,7 +482,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -525,7 +525,7 @@ namespace Quartz.Impl.AdoJobStore
 		                                   bool updateTriggers)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool lockOwner = false;
 			try
 			{
@@ -574,7 +574,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </returns>
 		public override bool RemoveCalendar(SchedulingContext ctxt, string calName)
 		{
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool lockOwner = false;
 			try 
 			{
@@ -611,7 +611,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override ICalendar RetrieveCalendar(SchedulingContext ctxt, string calName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -642,7 +642,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override int GetNumberOfJobs(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -669,7 +669,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override int GetNumberOfTriggers(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -696,7 +696,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override int GetNumberOfCalendars(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -719,7 +719,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override ISet GetPausedTriggerGroups(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -751,7 +751,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetJobNames(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -783,7 +783,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -815,7 +815,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetJobGroupNames(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -847,7 +847,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetTriggerGroupNames(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -879,7 +879,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetCalendarNames(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -909,7 +909,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override Trigger[] GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -942,7 +942,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override int GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			try
 			{
 				// no locks necessary for read...
@@ -969,7 +969,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1004,7 +1004,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseTriggerGroup(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1044,7 +1044,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1089,7 +1089,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseJobGroup(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1139,7 +1139,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1179,7 +1179,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeTriggerGroup(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1225,7 +1225,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1271,7 +1271,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeJobGroup(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1327,7 +1327,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseAll(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1368,7 +1368,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeAll(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1412,7 +1412,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override Trigger AcquireNextTrigger(SchedulingContext ctxt, DateTime noLaterThan)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1451,7 +1451,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ReleaseAcquiredTrigger(SchedulingContext ctxt, Trigger trigger)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1494,7 +1494,7 @@ namespace Quartz.Impl.AdoJobStore
 		public override TriggerFiredBundle TriggerFired(SchedulingContext ctxt, Trigger trigger)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1554,7 +1554,7 @@ namespace Quartz.Impl.AdoJobStore
 		                                          int triggerInstCode)
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
 			{
@@ -1586,7 +1586,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal override bool DoRecoverMisfires()
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			bool moreToDo = false;
 			try
@@ -1630,7 +1630,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal override bool DoCheckin()
 		{
 			
-			IDbConnection conn = Connection;
+			IDbConnection conn = GetGetConnection();
 
 			bool transOwner = false;
 			bool transStateOwner = false;
@@ -1650,7 +1650,7 @@ namespace Quartz.Impl.AdoJobStore
     
 					// Now that we own the lock, make sure we still have work to do. 
 					// The first time through, we also need to make sure we update/create our state record
-					failedRecords = (firstCheckIn) ? ClusterCheckIn(conn) : findFailedInstances(conn);
+					failedRecords = (firstCheckIn) ? ClusterCheckIn(conn) : FindFailedInstances(conn);
     
 					if (failedRecords.Count > 0) 
 					{

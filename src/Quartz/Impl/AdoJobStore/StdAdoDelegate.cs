@@ -396,8 +396,7 @@ namespace Quartz.Impl.AdoJobStore
 					AddCommandParameter(cmd, 1, job.Name);
 					AddCommandParameter(cmd, 2, job.Group);
 					AddCommandParameter(cmd, 3, job.Description);
-					//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.Class.getName' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-					AddCommandParameter(cmd, 4, job.JobClass.FullName);
+					AddCommandParameter(cmd, 4, job.JobType.FullName);
 					AddCommandParameter(cmd, 5, job.Durable);
 					AddCommandParameter(cmd, 6, job.Volatile);
 					AddCommandParameter(cmd, 7, job.Stateful);
@@ -436,7 +435,7 @@ namespace Quartz.Impl.AdoJobStore
 				using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(UPDATE_JOB_DETAIL)))
 				{
 					AddCommandParameter(cmd, 1, job.Description);
-					AddCommandParameter(cmd, 2, job.JobClass.FullName);
+					AddCommandParameter(cmd, 2, job.JobType.FullName);
 					AddCommandParameter(cmd, 3, job.Durable);
 					AddCommandParameter(cmd, 4, job.Volatile);
 					AddCommandParameter(cmd, 5, job.Stateful);
@@ -733,7 +732,7 @@ namespace Quartz.Impl.AdoJobStore
 							job.Name = Convert.ToString(rs[AdoConstants.COL_JOB_NAME]);
 							job.Group = Convert.ToString(rs[AdoConstants.COL_JOB_GROUP]);
 							job.Description = Convert.ToString(rs[AdoConstants.COL_DESCRIPTION]);
-							job.JobClass = loadHelper.LoadClass(Convert.ToString(rs[AdoConstants.COL_JOB_CLASS]));
+							job.JobType = loadHelper.LoadType(Convert.ToString(rs[AdoConstants.COL_JOB_CLASS]));
 							job.Durability = Convert.ToBoolean(rs[AdoConstants.COL_IS_DURABLE]);
 							job.Volatility = Convert.ToBoolean(rs[AdoConstants.COL_IS_VOLATILE]);
 							job.RequestsRecovery = Convert.ToBoolean(rs[AdoConstants.COL_REQUESTS_RECOVERY]);
@@ -761,16 +760,16 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 		/// <summary> build Map from java.util.Properties encoding.</summary>
-		private IDictionary GetMapFromProperties(OleDbDataReader rs)
+		private IDictionary GetMapFromProperties(IDataReader rs)
 		{
 			IDictionary map;
-			Stream is_Renamed = (Stream) GetJobDetailFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
-			if (is_Renamed == null)
+			Stream stream = (Stream) GetJobDetailFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
+			if (stream == null)
 			{
 				return null;
 			}
 			NameValueCollection properties = new NameValueCollection();
-			if (is_Renamed != null)
+			if (stream != null)
 			{
 				//UPGRADE_TODO: Method 'java.util.Properties.load' was converted to 'System.Collections.Specialized.NameValueCollection' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilPropertiesload_javaioInputStream_3"'
 				properties = new NameValueCollection(ConfigurationSettings.AppSettings);
@@ -1006,7 +1005,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					AddCommandParameter(cmd, 1, trigger.Name);
 					AddCommandParameter(cmd, 2, trigger.Group);
-					AddCommandParameter(cmd, 3, trigger.CronExpression);
+					AddCommandParameter(cmd, 3, trigger.CronExpressionString);
 					AddCommandParameter(cmd, 4, trigger.TimeZone.StandardName);
 					
 					return cmd.ExecuteNonQuery();
@@ -1945,7 +1944,7 @@ namespace Quartz.Impl.AdoJobStore
 							job.Name = Convert.ToString(rs[1 - 1]);
 							job.Group = Convert.ToString(rs[2 - 1]);
 							job.Durability = rs.GetBoolean(3 - 1);
-							job.JobClass = loadHelper.LoadClass(Convert.ToString(rs[4 - 1]));
+							job.JobType = loadHelper.LoadType(Convert.ToString(rs[4 - 1]));
 							job.RequestsRecovery = rs.GetBoolean(5 - 1);
 
 							return job;

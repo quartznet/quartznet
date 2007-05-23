@@ -41,7 +41,7 @@ namespace Quartz.Spi
 		/// <summary> 
 		/// Return the class with the given name.
 		/// </summary>
-		Type LoadClass(string name);
+		Type LoadType(string name);
 
 		/// <summary> 
 		/// Finds a resource with a given name. This method returns null if no

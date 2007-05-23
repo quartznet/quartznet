@@ -326,7 +326,7 @@ namespace Quartz.Impl
 			{
 				try
 				{
-					jobFactory = (IJobFactory) ObjectUtils.InstantiateType(loadHelper.LoadClass(jobFactoryClass));
+					jobFactory = (IJobFactory) ObjectUtils.InstantiateType(loadHelper.LoadType(jobFactoryClass));
 				}
 				catch (Exception e)
 				{
@@ -353,7 +353,7 @@ namespace Quartz.Impl
 				try
 				{
 					instanceIdGenerator =
-						(IInstanceIdGenerator) ObjectUtils.InstantiateType(loadHelper.LoadClass(instanceIdGeneratorClass));
+						(IInstanceIdGenerator) ObjectUtils.InstantiateType(loadHelper.LoadType(instanceIdGeneratorClass));
 				}
 				catch (Exception e)
 				{
@@ -374,7 +374,7 @@ namespace Quartz.Impl
 
 			try
 			{
-				tp = (IThreadPool) ObjectUtils.InstantiateType(loadHelper.LoadClass(tpClass));
+				tp = (IThreadPool) ObjectUtils.InstantiateType(loadHelper.LoadType(tpClass));
 			}
 			catch (Exception e)
 			{
@@ -407,7 +407,7 @@ namespace Quartz.Impl
 
 			try
 			{
-				js = (IJobStore) ObjectUtils.InstantiateType(loadHelper.LoadClass(jsClass));
+				js = (IJobStore) ObjectUtils.InstantiateType(loadHelper.LoadType(jsClass));
 			}
 			catch (Exception e)
 			{
@@ -449,7 +449,7 @@ namespace Quartz.Impl
 					IConnectionProvider cp = null;
 					try
 					{
-						cp = (IConnectionProvider) ObjectUtils.InstantiateType(loadHelper.LoadClass(cpClass));
+						cp = (IConnectionProvider) ObjectUtils.InstantiateType(loadHelper.LoadType(cpClass));
 					}
 					catch (Exception e)
 					{
@@ -614,7 +614,7 @@ namespace Quartz.Impl
 				IJobListener listener = null;
 				try
 				{
-					listener = (IJobListener) ObjectUtils.InstantiateType(loadHelper.LoadClass(listenerClass));
+					listener = (IJobListener) ObjectUtils.InstantiateType(loadHelper.LoadType(listenerClass));
 				}
 				catch (Exception e)
 				{
@@ -661,7 +661,7 @@ namespace Quartz.Impl
 				ITriggerListener listener = null;
 				try
 				{
-					listener = (ITriggerListener) ObjectUtils.InstantiateType(loadHelper.LoadClass(listenerClass));
+					listener = (ITriggerListener) ObjectUtils.InstantiateType(loadHelper.LoadType(listenerClass));
 				}
 				catch (Exception e)
 				{

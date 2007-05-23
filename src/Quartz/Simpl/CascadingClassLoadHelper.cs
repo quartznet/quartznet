@@ -78,13 +78,13 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Return the class with the given name.
 		/// </summary>
-		public virtual Type LoadClass(string name)
+		public virtual Type LoadType(string name)
 		{
 			if (bestCandidate != null)
 			{
 				try
 				{
-					return bestCandidate.LoadClass(name);
+					return bestCandidate.LoadType(name);
 				}
 				catch (Exception)
 				{
@@ -99,7 +99,7 @@ namespace Quartz.Simpl
 			{
 				try
 				{
-					clazz = loadHelper.LoadClass(name);
+					clazz = loadHelper.LoadType(name);
 					if (clazz != null)
 					{
 						break;

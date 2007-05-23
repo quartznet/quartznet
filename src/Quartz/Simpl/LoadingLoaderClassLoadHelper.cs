@@ -45,7 +45,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary> Return the class with the given name.</summary>
-		public virtual Type LoadClass(string name)
+		public virtual Type LoadType(string name)
 		{
 			return Type.GetType(name);
 		}
