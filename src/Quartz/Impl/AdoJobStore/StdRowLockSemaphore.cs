@@ -21,7 +21,6 @@
 
 using System;
 using System.Data;
-using System.Data.OleDb;
 using System.Threading;
 
 using Common.Logging;
@@ -76,9 +75,9 @@ namespace Quartz.Impl.AdoJobStore
 		internal LocalDataStoreSlot lockOwners = Thread.AllocateDataSlot();
 
 		//  java.util.HashMap threadLocksOb = new java.util.HashMap();
-		private string selectWithLockSQL = SELECT_FOR_LOCK;
+		private readonly string selectWithLockSQL = SELECT_FOR_LOCK;
 
-		private string tablePrefix;
+		private readonly string tablePrefix;
 
 		/*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -88,7 +87,12 @@ namespace Quartz.Impl.AdoJobStore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-		public StdRowLockSemaphore(String tablePrefix, String selectWithLockSQL)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
+        /// </summary>
+        /// <param name="tablePrefix">The table prefix.</param>
+        /// <param name="selectWithLockSQL">The select with lock SQL.</param>
+		public StdRowLockSemaphore(string tablePrefix, string selectWithLockSQL)
 		{
 			this.tablePrefix = tablePrefix;
 
@@ -100,84 +104,54 @@ namespace Quartz.Impl.AdoJobStore
 			this.selectWithLockSQL = Util.ReplaceTablePrefix(this.selectWithLockSQL, tablePrefix);
 		}
 
-		/// <summary> Grants a lock on the identified resource to the calling thread (blocking
+		/// <summary> 
+		/// Grants a lock on the identified resource to the calling thread (blocking
 		/// until it is available).
-		/// 
 		/// </summary>
-		/// <returns> true if the lock was obtained.
-		/// </returns>
-		public virtual bool ObtainLock(IDbConnection conn, String lockName)
+		/// <returns> true if the lock was obtained.</returns>
+		public virtual bool ObtainLock(IDbConnection conn, string lockName)
 		{
 			lockName = String.Intern(lockName);
 
 			if (log.IsDebugEnabled)
 			{
-				log.Debug("Lock '" + lockName + "' is desired by: " + Thread.CurrentThread.Name);
+				log.Debug(string.Format("Lock '{0}' is desired by: {1}", lockName, Thread.CurrentThread.Name));
 			}
 			if (!IsLockOwner(conn, lockName))
 			{
-				OleDbCommand ps = null;
+	    		using (IDbCommand ps = StdAdoDelegate.PrepareCommand(conn, selectWithLockSQL))
+	    		{
+                    StdAdoDelegate.AddCommandParameter(ps, 1, lockName);
 
-				OleDbDataReader rs = null;
-				try
-				{
-					ps = SupportClass.TransactionManager.manager.PrepareStatement(conn, selectWithLockSQL);
-					SupportClass.TransactionManager.manager.SetValue(ps, 1, lockName);
-
-
-					if (log.IsDebugEnabled)
-					{
-						log.Debug("Lock '" + lockName + "' is being obtained: " + Thread.CurrentThread.Name);
-					}
-					rs = ps.ExecuteReader();
-					if (!rs.Read())
-					{
-						//UPGRADE_ISSUE: Constructor 'java.sql.SQLException.SQLException' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javasqlSQLExceptionSQLException_javalangString_3"'
-						throw new JobPersistenceException(
-							Util.ReplaceTablePrefix(
-								"No row exists in table " + TABLE_PREFIX_SUBST + AdoConstants.TABLE_LOCKS + " for lock named: " + lockName,
-								tablePrefix));
-					}
-				}
-				catch (OleDbException sqle)
-				{
-					//Exception src =
-					// (Exception)getThreadLocksObtainer().get(lockName);
-					//if(src != null)
-					//  src.printStackTrace();
-					//else
-					//  System.err.println("--- ***************** NO OBTAINER!");
-
-					if (log.IsDebugEnabled)
-					{
-						log.Debug("Lock '" + lockName + "' was not obtained by: " + Thread.CurrentThread.Name);
-					}
-					throw new LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
-				}
-				finally
-				{
-					if (rs != null)
-					{
-						try
-						{
-							rs.Close();
-						}
-						catch (Exception)
-						{
-						}
-					}
-					if (ps != null)
-					{
-						try
-						{
-							ps.close();
-						}
-						catch (Exception)
-						{
-						}
-					}
-				}
-				if (log.IsDebugEnabled)
+                    try
+                    {
+                        if (log.IsDebugEnabled)
+                        {
+                            log.Debug(
+                                string.Format("Lock '{0}' is being obtained: {1}", lockName, Thread.CurrentThread.Name));
+                        }
+                        using (IDataReader rs = ps.ExecuteReader())
+                        {
+                            if (!rs.Read())
+                            {
+                                throw new JobPersistenceException(
+                                    Util.ReplaceTablePrefix(
+                                        "No row exists in table " + TABLE_PREFIX_SUBST + AdoConstants.TABLE_LOCKS +
+                                        " for lock named: " + lockName,
+                                        tablePrefix));
+                            }
+                        }
+                    }
+                    catch (Exception sqle)
+	    		    {
+	    		        if (log.IsDebugEnabled)
+	    		        {
+	    		            log.Debug(string.Format("Lock '{0}' was not obtained by: {1}", lockName, Thread.CurrentThread.Name));
+	    		        }
+	    		        throw new LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
+	    		    }
+	    		}
+			    if (log.IsDebugEnabled)
 				{
 					log.Debug(string.Format("Lock '{0}' given to: {1}", lockName, Thread.CurrentThread.Name));
 				}
@@ -187,7 +161,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 			else if (log.IsDebugEnabled)
 			{
-				log.Debug("Lock '" + lockName + "' Is already owned by: " + Thread.CurrentThread.Name);
+				log.Debug(string.Format("Lock '{0}' Is already owned by: {1}", lockName, Thread.CurrentThread.Name));
 			}
 
 			return true;
@@ -196,7 +170,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		public virtual void ReleaseLock(IDbConnection conn, String lockName)
+		public virtual void ReleaseLock(IDbConnection conn, string lockName)
 		{
 			lockName = String.Intern(lockName);
 
@@ -221,7 +195,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Determine whether the calling thread owns a lock on the identified
 		/// resource.
 		/// </summary>
-		public virtual bool IsLockOwner(IDbConnection conn, String lockName)
+		public virtual bool IsLockOwner(IDbConnection conn, string lockName)
 		{
 			lockName = String.Intern(lockName);
 

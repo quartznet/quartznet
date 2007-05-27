@@ -62,5 +62,7 @@ namespace Quartz.Impl.AdoJobStore
 		{
 			return String.Intern(string.Format("{0}_$x$x$_{1}", groupName, triggerName));
 		}
+
+
 	}
 }

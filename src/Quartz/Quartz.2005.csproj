@@ -184,6 +184,8 @@
     <Compile Include="Impl\Calendar\BaseCalendar.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Impl\Calendar\CronCalendar.cs" />
+    <Compile Include="Impl\Calendar\DailyCalendar.cs" />
     <Compile Include="Impl\Calendar\HolidayCalendar.cs">
       <SubType>Code</SubType>
     </Compile>

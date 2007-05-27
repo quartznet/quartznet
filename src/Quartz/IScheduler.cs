@@ -350,7 +350,7 @@ namespace Quartz
 		DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger);
 
 		/// <summary> <p>
-		/// Schedule the given <code>{@link org.quartz.Trigger}</code> with the
+		/// Schedule the given <code>Trigger</code> with the
 		/// <code>Job</code> identified by the <code>Trigger</code>'s settings.
 		/// </p>
 		/// 
@@ -368,9 +368,9 @@ namespace Quartz
 		bool UnscheduleJob(string triggerName, string groupName);
 
 		/// <summary>
-		/// Remove (delete) the <code>{@link org.quartz.Trigger}</code> with the
+		/// Remove (delete) the <code>Trigger</code> with the
 		/// given name, and store the new given one - which must be associated
-		/// with the same job (the new trigger must have the job name & group specified) 
+		/// with the same job (the new trigger must have the job name &amp; group specified) 
 		/// - however, the new trigger need not have the same name as the old trigger.
 		/// </summary>
 		/// <param name="triggerName">

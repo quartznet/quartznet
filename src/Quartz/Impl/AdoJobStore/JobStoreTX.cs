@@ -63,10 +63,10 @@ namespace Quartz.Impl.AdoJobStore
 				RecoverJobs(conn);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -95,10 +95,10 @@ namespace Quartz.Impl.AdoJobStore
 				CleanVolatileTriggerAndJobs(conn);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -117,21 +117,13 @@ namespace Quartz.Impl.AdoJobStore
 		// job / trigger storage methods
 		//---------------------------------------------------------------------------
 
-		/// <summary> <p>
-		/// Store the given <code>{@link org.quartz.JobDetail}</code> and <code>{@link org.quartz.Trigger}</code>.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="">newJob
-		/// The <code>JobDetail</code> to be stored.
-		/// </param>
-		/// <param name="">newTrigger
-		/// The <code>Trigger</code> to be stored.
-		/// </param>
-		/// <throws>  ObjectAlreadyExistsException </throws>
-		/// <summary>           if a <code>Job</code> with the same name/group already
-		/// exists.
-		/// </summary>
+
+        /// <summary>
+        /// Stores the job and trigger.
+        /// </summary>
+        /// <param name="ctxt">The context.</param>
+        /// <param name="newJob">The new job.</param>
+        /// <param name="newTrigger">The new trigger.</param>
 		public override void StoreJobAndTrigger(SchedulingContext ctxt, JobDetail newJob, Trigger newTrigger)
 		{
 			
@@ -155,13 +147,13 @@ namespace Quartz.Impl.AdoJobStore
 				}
 
 				StoreJob(conn, ctxt, newJob, false);
-				StoreTrigger(conn, ctxt, newTrigger, newJob, false, AdoConstants.STATE_WAITING, false, false);
+				StoreTrigger(conn, ctxt, newTrigger, newJob, false, STATE_WAITING, false, false);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -176,26 +168,16 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Store the given <code>{@link org.quartz.JobDetail}</code>.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Store the given <code>JobDetail</code>.
 		/// </summary>
-		/// <param name="">newJob
-		/// The <code>JobDetail</code> to be stored.
+        /// <param name="newJob">The <code>JobDetail</code> to be stored.</param>
+        /// <param name="replaceExisting">
+        /// If <code>true</code>, any <code>Job</code> existing in the 
+        /// <code>JobStore</code> with the same name and group should be over-written.
 		/// </param>
-		/// <param name="">replaceExisting
-		/// If <code>true</code>, any <code>Job</code> existing in the
-		/// <code>JobStore</code> with the same name & group should be
-		/// over-written.
-		/// </param>
-		/// <throws>  ObjectAlreadyExistsException </throws>
-		/// <summary>           if a <code>Job</code> with the same name/group already
-		/// exists, and replaceExisting is set to false.
-		/// </summary>
 		public override void StoreJob(SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
 		{
-			
 			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
@@ -210,10 +192,10 @@ namespace Quartz.Impl.AdoJobStore
 				StoreJob(conn, ctxt, newJob, replaceExisting);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -228,11 +210,9 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Remove (delete) the <code>{@link org.quartz.Job}</code> with the given
-		/// name, and any <code>{@link org.quartz.Trigger}</code> s that reference
-		/// it.
-		/// </p>
+		/// <summary>
+		/// Remove (delete) the <code>Job</code> with the given
+		/// name, and any <code>Trigger</code> s that reference it.
 		/// 
 		/// <p>
 		/// If removal of the <code>Job</code> results in an empty group, the
@@ -241,18 +221,13 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">jobName
-		/// The name of the <code>Job</code> to be removed.
-		/// </param>
-		/// <param name="">groupName
-		/// The group name of the <code>Job</code> to be removed.
-		/// </param>
-		/// <returns> <code>true</code> if a <code>Job</code> with the given name &
+        /// <param name="jobName">The name of the <code>Job</code> to be removed.</param>
+        /// <param name="groupName">The group name of the <code>Job</code> to be removed.</param>
+		/// <returns> <code>true</code> if a <code>Job</code> with the given name and
 		/// group was found and removed from the store.
 		/// </returns>
 		public override bool RemoveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
-			
 			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
@@ -265,10 +240,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return removed;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -283,23 +258,17 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Retrieve the <code>{@link org.quartz.JobDetail}</code> for the given
-		/// <code>{@link org.quartz.Job}</code>.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="">jobName
-		/// The name of the <code>Job</code> to be retrieved.
-		/// </param>
-		/// <param name="">groupName
-		/// The group name of the <code>Job</code> to be retrieved.
-		/// </param>
-		/// <returns> The desired <code>Job</code>, or null if there is no match.
-		/// </returns>
+        /// <summary>
+        /// Retrieve the <code>JobDetail</code> for the given <code>Job</code>.
+        /// </summary>
+        /// <param name="ctxt">The scheduling context.</param>
+        /// <param name="jobName">The name of the <code>Job</code> to be retrieved.</param>
+        /// <param name="groupName">The group name of the <code>Job</code> to be retrieved.</param>
+        /// <returns>
+        /// The desired <code>Job</code>, or null if there is no match.
+        /// </returns>
 		public override JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
-			
 			IDbConnection conn = GetGetConnection();
 			try
 			{
@@ -308,10 +277,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return job;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -319,26 +288,17 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Store the given <code>{@link org.quartz.Trigger}</code>.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Store the given <code>Trigger</code>.
 		/// </summary>
-		/// <param name="">newTrigger
-		/// The <code>Trigger</code> to be stored.
-		/// </param>
-		/// <param name="">replaceExisting
+        /// <param name="newTrigger">The <code>Trigger</code> to be stored.</param>
+        /// <param name="replaceExisting">
 		/// If <code>true</code>, any <code>Trigger</code> existing in
-		/// the <code>JobStore</code> with the same name & group should
+		/// the <code>JobStore</code> with the same name and group should
 		/// be over-written.
 		/// </param>
-		/// <throws>  ObjectAlreadyExistsException </throws>
-		/// <summary>           if a <code>Trigger</code> with the same name/group already
-		/// exists, and replaceExisting is set to false.
-		/// </summary>
 		public override void StoreTrigger(SchedulingContext ctxt, Trigger newTrigger, bool replaceExisting)
 		{
-			
 			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
@@ -350,13 +310,13 @@ namespace Quartz.Impl.AdoJobStore
 					//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 				}
 
-				StoreTrigger(conn, ctxt, newTrigger, null, replaceExisting, AdoConstants.STATE_WAITING, false, false);
+				StoreTrigger(conn, ctxt, newTrigger, null, replaceExisting, STATE_WAITING, false, false);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -371,11 +331,9 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Remove (delete) the <code>{@link org.quartz.Trigger}</code> with the
+		/// <summary>
+		/// Remove (delete) the <code>Trigger</code> with the
 		/// given name.
-		/// </p>
-		/// 
 		/// <p>
 		/// If removal of the <code>Trigger</code> results in an empty group, the
 		/// group should be removed from the <code>JobStore</code>'s list of
@@ -389,18 +347,13 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="">triggerName
-		/// The name of the <code>Trigger</code> to be removed.
-		/// </param>
-		/// <param name="">groupName
-		/// The group name of the <code>Trigger</code> to be removed.
-		/// </param>
+        /// <param name="triggerName">The name of the <code>Trigger</code> to be removed.</param>
+        /// <param name="groupName">The group name of the <code>Trigger</code> to be removed.</param>
 		/// <returns> <code>true</code> if a <code>Trigger</code> with the given
-		/// name & group was found and removed from the store.
+		/// name and group was found and removed from the store.
 		/// </returns>
 		public override bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
-			
 			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
@@ -413,10 +366,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return removed;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -446,10 +399,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return removed;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -465,23 +418,17 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		/// <summary> <p>
-		/// Retrieve the given <code>{@link org.quartz.Trigger}</code>.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="">triggerName
-		/// The name of the <code>Trigger</code> to be retrieved.
-		/// </param>
-		/// <param name="">groupName
-		/// The group name of the <code>Trigger</code> to be retrieved.
-		/// </param>
-		/// <returns> The desired <code>Trigger</code>, or null if there is no
-		/// match.
-		/// </returns>
+        /// <summary>
+        /// Retrieve the given <code>Trigger</code>.
+        /// </summary>
+        /// <param name="ctxt">The scheduling context.</param>
+        /// <param name="triggerName">The name of the <code>Trigger</code> to be retrieved.</param>
+        /// <param name="groupName">The group name of the <code>Trigger</code> to be retrieved.</param>
+        /// <returns>
+        /// The desired <code>Trigger</code>, or null if there is no match.
+        /// </returns>
 		public override Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
-			
 			IDbConnection conn = GetGetConnection();
 			try
 			{
@@ -490,10 +437,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return trigger;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -501,30 +448,19 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Store the given <code>{@link org.quartz.Calendar}</code>.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Store the given <code>Calendar</code>.
 		/// </summary>
-		/// <param name="">calName
-		/// The name of the calendar.
-		/// </param>
-		/// <param name="">calendar
-		/// The <code>Calendar</code> to be stored.
-		/// </param>
-		/// <param name="">replaceExisting
-		/// If <code>true</code>, any <code>Calendar</code> existing
-		/// in the <code>JobStore</code> with the same name & group
+        /// <param name="calName">The name of the calendar.</param>
+        /// <param name="calendar">The <code>Calendar</code> to be stored.</param>
+        /// <param name="replaceExisting">
+        /// If <code>true</code>, any <code>Calendar</code> existing
+        ///  in the <code>JobStore</code> with the same name and group
 		/// should be over-written.
 		/// </param>
-		/// <throws>  ObjectAlreadyExistsException </throws>
-		/// <summary>           if a <code>Calendar</code> with the same name already
-		/// exists, and replaceExisting is set to false.
-		/// </summary>
 		public override void StoreCalendar(SchedulingContext ctxt, string calName, ICalendar calendar, bool replaceExisting,
 		                                   bool updateTriggers)
 		{
-			
 			IDbConnection conn = GetGetConnection();
 			bool lockOwner = false;
 			try
@@ -538,10 +474,10 @@ namespace Quartz.Impl.AdoJobStore
 				StoreCalendar(conn, ctxt, calName, calendar, replaceExisting, updateTriggers);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -556,22 +492,20 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Remove (delete) the <code>{@link org.quartz.Calendar}</code> with the
-		/// given name.
-		/// </p>
-		/// 
-		/// <p>
-		/// If removal of the <code>Calendar</code> would result in
-		/// <code.Trigger</code>s pointing to non-existent calendars, then a
-		/// <code>JobPersistenceException</code> will be thrown.</p>
-		/// *
-		/// </summary>
-		/// <param name="calName">The name of the <code>Calendar</code> to be removed.
-		/// </param>
-		/// <returns> <code>true</code> if a <code>Calendar</code> with the given name
-		/// was found and removed from the store.
-		/// </returns>
+        /// <summary>
+        /// Remove (delete) the <code>Calendar</code> with the
+        /// given name.
+        /// <p>
+        /// If removal of the <code>Calendar</code> would result in
+        /// <code>Trigger</code>s pointing to non-existent calendars, then a
+        /// <code>JobPersistenceException</code> will be thrown.
+        /// </p>
+        /// </summary>
+        /// <param name="ctxt">The scheduling context.</param>
+        /// <param name="calName">The name of the <code>Calendar</code> to be removed.</param>
+        /// <returns>
+        /// 	<code>true</code> if a <code>Calendar</code> with the given name was found and removed from the store.
+        /// </returns>
 		public override bool RemoveCalendar(SchedulingContext ctxt, string calName)
 		{
 			IDbConnection conn = GetGetConnection();
@@ -585,10 +519,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return removed;
 			} 
-			catch (JobPersistenceException e) 
+			catch (JobPersistenceException) 
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			} 
 			finally 
 			{
@@ -603,14 +537,14 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary>
-		/// Retrieve the given <code>Trigger</code>.
-		/// </summary>
-		/// <param name="calName">The name of the <code>Calendar</code> to be retrieved.</param>
-		/// <returns> The desired <code>Calendar</code>, or null if there is no match.</returns>
+        /// <summary>
+        /// Retrieve the given <code>Trigger</code>.
+        /// </summary>
+        /// <param name="ctxt">The scheduling context.</param>
+        /// <param name="calName">The name of the <code>Calendar</code> to be retrieved.</param>
+        /// <returns>The desired <code>Calendar</code>, or null if there is no match.</returns>
 		public override ICalendar RetrieveCalendar(SchedulingContext ctxt, string calName)
 		{
-			
 			IDbConnection conn = GetGetConnection();
 			try
 			{
@@ -619,10 +553,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return cal;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -650,10 +584,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return numJobs;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -677,10 +611,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return numTriggers;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -704,10 +638,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return numCals;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -727,10 +661,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return groups;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -759,10 +693,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return jobNames;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -791,10 +725,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return triggerNames;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -823,10 +757,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return groupNames;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -855,10 +789,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return triggerGroups;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -887,10 +821,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return calNames;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -915,10 +849,10 @@ namespace Quartz.Impl.AdoJobStore
 				// no locks necessary for read...
 				return GetTriggersForJob(conn, ctxt, jobName, groupName);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -948,10 +882,10 @@ namespace Quartz.Impl.AdoJobStore
 				// no locks necessary for read...
 				return GetTriggerState(conn, ctxt, triggerName, groupName);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -980,10 +914,10 @@ namespace Quartz.Impl.AdoJobStore
 				PauseTrigger(conn, ctxt, triggerName, groupName);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1015,10 +949,10 @@ namespace Quartz.Impl.AdoJobStore
 				PauseTriggerGroup(conn, ctxt, groupName);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1033,17 +967,12 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Pause the <code>{@link org.quartz.Job}</code> with the given name - by
+		/// <summary>
+		/// Pause the <code>Job</code> with the given name - by
 		/// pausing all of its current <code>Trigger</code>s.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="string, String)">
-		/// </seealso>
 		public override void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
-		{
-			
+		{			
 			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
 			try
@@ -1060,10 +989,10 @@ namespace Quartz.Impl.AdoJobStore
 
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1078,14 +1007,10 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Pause all of the <code>{@link org.quartz.Job}s</code> in the given
+		/// <summary>
+		/// Pause all of the <code>Job</code>s in the given
 		/// group - by pausing all of their <code>Trigger</code>s.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="string)">
-		/// </seealso>
 		public override void PauseJobGroup(SchedulingContext ctxt, string groupName)
 		{
 			
@@ -1110,10 +1035,10 @@ namespace Quartz.Impl.AdoJobStore
 
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1150,10 +1075,10 @@ namespace Quartz.Impl.AdoJobStore
 				ResumeTrigger(conn, ctxt, triggerName, groupName);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1190,10 +1115,10 @@ namespace Quartz.Impl.AdoJobStore
 				ResumeTriggerGroup(conn, ctxt, groupName);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1208,20 +1133,15 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Resume (un-pause) the <code>{@link org.quartz.Job}</code> with the
-		/// given name.
-		/// </p>
+		/// <summary>
+		/// Resume (un-pause) the <code>Job</code> with the given name.
 		/// 
 		/// <p>
 		/// If any of the <code>Job</code>'s<code>Trigger</code> s missed one
 		/// or more fire-times, then the <code>Trigger</code>'s misfire
 		/// instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="string, String)">
-		/// </seealso>
 		public override void ResumeJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			
@@ -1241,10 +1161,10 @@ namespace Quartz.Impl.AdoJobStore
 
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1291,10 +1211,10 @@ namespace Quartz.Impl.AdoJobStore
 				}
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1309,21 +1229,16 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Pause all triggers - equivalent of calling <code>PauseTriggerGroup(group)</code>
 		/// on every group.
-		/// </p>
-		/// 
 		/// <p>
 		/// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <seealso cref="#ResumeAll(SchedulingContext)">
-		/// </seealso>
-		/// <seealso cref="string)">
-		/// </seealso>
+		/// <seealso cref="ResumeAll(SchedulingContext)" />
 		public override void PauseAll(SchedulingContext ctxt)
 		{
 			
@@ -1338,10 +1253,10 @@ namespace Quartz.Impl.AdoJobStore
 				PauseAll(conn, ctxt);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1379,10 +1294,10 @@ namespace Quartz.Impl.AdoJobStore
 				ResumeAll(conn, ctxt);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1401,15 +1316,12 @@ namespace Quartz.Impl.AdoJobStore
 		// trigger firing methods
 		//---------------------------------------------------------------------------
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get a handle to the next trigger to be fired, and mark it as 'reserved'
 		/// by the calling scheduler.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="Trigger)">
-		/// </seealso>
-		public override Trigger AcquireNextTrigger(SchedulingContext ctxt, DateTime noLaterThan)
+		/// <seealso cref="Trigger" />
+        public override Trigger AcquireNextTrigger(SchedulingContext ctxt, DateTime noLaterThan)
 		{
 			
 			IDbConnection conn = GetGetConnection();
@@ -1424,10 +1336,10 @@ namespace Quartz.Impl.AdoJobStore
 				CommitConnection(conn);
 				return trigger;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1462,10 +1374,10 @@ namespace Quartz.Impl.AdoJobStore
 				ReleaseAcquiredTrigger(conn, ctxt, trigger);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1512,7 +1424,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					if (jpe.ErrorCode != SchedulerException.ERR_PERSISTENCE_JOB_DOES_NOT_EXIST)
 					{
-						throw jpe;
+						throw;
 					}
 					err = jpe;
 				}
@@ -1524,10 +1436,10 @@ namespace Quartz.Impl.AdoJobStore
 				}
 				return tfb;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1565,10 +1477,10 @@ namespace Quartz.Impl.AdoJobStore
 				TriggeredJobComplete(conn, ctxt, trigger, jobDetail, triggerInstCode);
 				CommitConnection(conn);
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1588,7 +1500,7 @@ namespace Quartz.Impl.AdoJobStore
 			
 			IDbConnection conn = GetGetConnection();
 			bool transOwner = false;
-			bool moreToDo = false;
+			bool moreToDo;
 			try
 			{
 				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
@@ -1609,10 +1521,10 @@ namespace Quartz.Impl.AdoJobStore
 
 				return moreToDo;
 			}
-			catch (JobPersistenceException e)
+			catch (JobPersistenceException)
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			}
 			finally
 			{
@@ -1643,7 +1555,7 @@ namespace Quartz.Impl.AdoJobStore
 				// and is almost never necessary)
 				IList failedRecords = (firstCheckIn) ? null : ClusterCheckIn(conn);
             
-				if (firstCheckIn || (failedRecords.Count > 0)) 
+				if (firstCheckIn || (failedRecords != null && failedRecords.Count > 0)) 
 				{
 					LockHandler.ObtainLock(conn, LOCK_STATE_ACCESS);
 					transStateOwner = true;
@@ -1664,10 +1576,10 @@ namespace Quartz.Impl.AdoJobStore
 				}
 				CommitConnection(conn);
 			} 
-			catch (JobPersistenceException e) 
+			catch (JobPersistenceException) 
 			{
 				RollbackConnection(conn);
-				throw e;
+				throw;
 			} 
 			finally 
 			{

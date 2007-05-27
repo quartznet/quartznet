@@ -35,13 +35,9 @@ namespace Quartz
 	/// </p>
 	/// 
 	/// </summary>
-	/// <seealso cref="CronTrigger">
-	/// </seealso>
-	/// <seealso cref="SimpleTrigger">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="CronTrigger" />
+	/// <seealso cref="SimpleTrigger" />
+	/// <author>James House</author>
 	public class TriggerUtils
 	{
 		public const int SUNDAY = 1;
@@ -115,55 +111,40 @@ namespace Quartz
 			}
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Set the given <code>Trigger</code>'s name to the given value, and its
 		/// group to the default group (<code>Scheduler.DEFAULT_GROUP</code>).
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trig">the tigger to change name to 
-		/// </param>
-		/// <param name="name">the new trigger name
-		/// </param>
+		/// <param name="trig">the tigger to change name to</param>
+		/// <param name="name">the new trigger name</param>
 		public static void SetTriggerIdentity(Trigger trig, string name)
 		{
 			SetTriggerIdentity(trig, name, Scheduler_Fields.DEFAULT_GROUP);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Set the given <code>Trigger</code>'s name to the given value, and its
 		/// group to the given group.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trig">the tigger to change name to 
-		/// </param>
-		/// <param name="name">the new trigger name
-		/// </param>
-		/// <param name="group">the new trigger group
-		/// </param>
+		/// <param name="trig">the tigger to change name to</param>
+		/// <param name="name">the new trigger name</param>
+		/// <param name="group">the new trigger group</param>
 		public static void SetTriggerIdentity(Trigger trig, string name, string group)
 		{
 			trig.Name = name;
 			trig.Group = group;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every day at the given time.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="hour">the hour (0-23) upon which to fire
-		/// </param>
-		/// <param name="minute">the minute (0-59) upon which to fire
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="hour">the hour (0-23) upon which to fire</param>
+		/// <param name="minute">the minute (0-59) upon which to fire</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeDailyTrigger(int hour, int minute)
 		{
 			ValidateHour(hour);
@@ -185,24 +166,17 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every day at the given time.
-		/// </p>
-		/// 
 		/// <p>
-		/// The generated trigger will not have its group or end-time set.  
+		/// The generated trigger will not have its group or end-time set.
 		/// The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name 
-		/// </param>
-		/// <param name="hour">the hour (0-23) upon which to fire
-		/// </param>
-		/// <param name="minute">the minute (0-59) upon which to fire
-		/// </param>
-		/// <returns> the newly created trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <param name="hour">the hour (0-23) upon which to fire</param>
+		/// <param name="minute">the minute (0-59) upon which to fire</param>
+		/// <returns>the newly created trigger</returns>
 		public static Trigger MakeDailyTrigger(string trigName, int hour, int minute)
 		{
 			Trigger trig = MakeDailyTrigger(hour, minute);
@@ -210,39 +184,24 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every week at the given day and time.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="dayOfWeek">(1-7) the day of week upon which to fire
-		/// </param>
-		/// <param name="hour">the hour (0-23) upon which to fire
-		/// </param>
-		/// <param name="minute">the minute (0-59) upon which to fire
-		/// </param>
-		/// <returns> the new trigger
-		/// 
-		/// </returns>
-		/// <seealso cref="SUNDAY">
-		/// </seealso>
-		/// <seealso cref="MONDAY">
-		/// </seealso>
-		/// <seealso cref="TUESDAY">
-		/// </seealso>
-		/// <seealso cref="WEDNESDAY">
-		/// </seealso>
-		/// <seealso cref="THURSDAY">
-		/// </seealso>
-		/// <seealso cref="FRIDAY">
-		/// </seealso>
-		/// <seealso cref="SATURDAY">
-		/// </seealso>
+		/// <param name="dayOfWeek">(1-7) the day of week upon which to fire</param>
+		/// <param name="hour">the hour (0-23) upon which to fire</param>
+		/// <param name="minute">the minute (0-59) upon which to fire</param>
+		/// <returns>the new trigger</returns>
+		/// <seealso cref="SUNDAY" />
+		/// <seealso cref="MONDAY" />
+		/// <seealso cref="TUESDAY" />
+		/// <seealso cref="WEDNESDAY" />
+		/// <seealso cref="THURSDAY" />
+		/// <seealso cref="FRIDAY" />
+		/// <seealso cref="SATURDAY" />
 		public static Trigger MakeWeeklyTrigger(int dayOfWeek, int hour, int minute)
 		{
 			ValidateDayOfWeek(dayOfWeek);
@@ -265,41 +224,25 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every week at the given day and time.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name
-		/// </param>
-		/// <param name="dayOfWeek">(1-7) the day of week upon which to fire
-		/// </param>
-		/// <param name="hour">the hour (0-23) upon which to fire
-		/// </param>
-		/// <param name="minute">the minute (0-59) upon which to fire
-		/// </param>
-		/// <returns> the newly created trigger
-		/// 
-		/// </returns>
-		/// <seealso cref="SUNDAY">
-		/// </seealso>
-		/// <seealso cref="MONDAY">
-		/// </seealso>
-		/// <seealso cref="TUESDAY">
-		/// </seealso>
-		/// <seealso cref="WEDNESDAY">
-		/// </seealso>
-		/// <seealso cref="THURSDAY">
-		/// </seealso>
-		/// <seealso cref="FRIDAY">
-		/// </seealso>
-		/// <seealso cref="SATURDAY">
-		/// </seealso>
+		/// <param name="trigName">the trigger's name</param>
+		/// <param name="dayOfWeek">(1-7) the day of week upon which to fire</param>
+		/// <param name="hour">the hour (0-23) upon which to fire</param>
+		/// <param name="minute">the minute (0-59) upon which to fire</param>
+		/// <returns>the newly created trigger</returns>
+		/// <seealso cref="SUNDAY" />
+		/// <seealso cref="MONDAY" />
+		/// <seealso cref="TUESDAY" />
+		/// <seealso cref="WEDNESDAY" />
+		/// <seealso cref="THURSDAY" />
+		/// <seealso cref="FRIDAY" />
+		/// <seealso cref="SATURDAY" />
 		public static Trigger MakeWeeklyTrigger(string trigName, int dayOfWeek, int hour, int minute)
 		{
 			Trigger trig = MakeWeeklyTrigger(dayOfWeek, hour, minute);
@@ -308,31 +251,23 @@ namespace Quartz
 		}
 
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every month at the given day and time.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// <p>
 		/// If the day of the month specified does not occur in a given month, a
 		/// firing will not occur that month. (i.e. if dayOfMonth is specified as
 		/// 31, no firing will occur in the months of the year with fewer than 31
 		/// days).
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="dayOfMonth">(1-31, or -1) the day of week upon which to fire
-		/// </param>
-		/// <param name="hour">the hour (0-23) upon which to fire
-		/// </param>
-		/// <param name="minute">the minute (0-59) upon which to fire
-		/// </param>
-		/// <returns> the newly created trigger
-		/// </returns>
+		/// <param name="dayOfMonth">(1-31, or -1) the day of week upon which to fire</param>
+		/// <param name="hour">the hour (0-23) upon which to fire</param>
+		/// <param name="minute">the minute (0-59) upon which to fire</param>
+		/// <returns>the newly created trigger</returns>
 		public static Trigger MakeMonthlyTrigger(int dayOfMonth, int hour, int minute)
 		{
 			ValidateDayOfMonth(dayOfMonth);
@@ -362,33 +297,24 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every month at the given day and time.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// <p>
 		/// If the day of the month specified does not occur in a given month, a
 		/// firing will not occur that month. (i.e. if dayOfMonth is specified as
 		/// 31, no firing will occur in the months of the year with fewer than 31
 		/// days).
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name
-		/// </param>
-		/// <param name="dayOfMonth">(1-31, or -1) the day of week upon which to fire
-		/// </param>
-		/// <param name="hour">the hour (0-23) upon which to fire
-		/// </param>
-		/// <param name="minute">the minute (0-59) upon which to fire
-		/// </param>
-		/// <returns> the newly created trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <param name="dayOfMonth">(1-31, or -1) the day of week upon which to fire</param>
+		/// <param name="hour">the hour (0-23) upon which to fire</param>
+		/// <param name="minute">the minute (0-59) upon which to fire</param>
+		/// <returns>the newly created trigger</returns>
 		public static Trigger MakeMonthlyTrigger(string trigName, int dayOfMonth, int hour, int minute)
 		{
 			Trigger trig = MakeMonthlyTrigger(dayOfMonth, hour, minute);
@@ -396,43 +322,18 @@ namespace Quartz
 			return trig;
 		}
 
-		/*
-		* <p> Make a trigger that will fire every N days at the given time. </p>
-		* 
-		* <p> TThe generated trigger will not have its name, group,
-		* start-time and end-time set. </p>
-		* 
-		* @param hour the hour (0-23) upon which to fire @param minute the minute
-		* (0-59) upon which to fire @param interval the number of days between
-		* firings public static Trigger makeDailyTrigger(int interval, int hour,
-		* int minute) {
-		* 
-		* SimpleTrigger trig = new SimpleTrigger();
-		* 
-		* MILLISECONDS_IN_DAY);
-		* trig.setRepeatCount(SimpleTrigger.REPEAT_INDEFINITELY);
-		* 
-		* return trig;
-		*  }
-		*/
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire <code>repeatCount</code> times, waiting
 		/// <code>repeatInterval</code> milliseconds between each fire.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="repeatCount">the number of times to fire the trigger
-		/// </param>
-		/// <param name="repeatInterval">the number of milliseconds to wait between fires
-		/// </param>
-		/// <returns> the newly created trigger
-		/// </returns>
+		/// <param name="repeatCount">the number of times to fire the trigger</param>
+		/// <param name="repeatInterval">the number of milliseconds to wait between fires</param>
+		/// <returns>the newly created trigger</returns>
 		public static Trigger MakeImmediateTrigger(int repeatCount, long repeatInterval)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
@@ -442,25 +343,18 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire <code>repeatCount</code> times, waiting
 		/// <code>repeatInterval</code> milliseconds between each fire.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name 
-		/// </param>
-		/// <param name="repeatCount">the number of times to fire the trigger
-		/// </param>
-		/// <param name="repeatInterval">the number of milliseconds to wait between fires
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <param name="repeatCount">the number of times to fire the trigger</param>
+		/// <param name="repeatInterval">the number of milliseconds to wait between fires</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeImmediateTrigger(string trigName, int repeatCount, long repeatInterval)
 		{
 			Trigger trig = MakeImmediateTrigger(repeatCount, repeatInterval);
@@ -468,78 +362,59 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every second, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
 		/// </summary>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeSecondlyTrigger()
 		{
 			return MakeSecondlyTrigger(1, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every second, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeSecondlyTrigger(string trigName)
 		{
 			return MakeSecondlyTrigger(trigName, 1, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N seconds, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="intervalInSeconds">the number of seconds between firings
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="intervalInSeconds">the number of seconds between firings</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeSecondlyTrigger(int intervalInSeconds)
 		{
 			return MakeSecondlyTrigger(intervalInSeconds, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N seconds, with the given number of
 		/// repeats.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="intervalInSeconds">the number of seconds between firings
-		/// </param>
-		/// <param name="repeatCount">the number of times to repeat the firing
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="intervalInSeconds">the number of seconds between firings</param>
+		/// <param name="repeatCount">the number of times to repeat the firing</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeSecondlyTrigger(int intervalInSeconds, int repeatCount)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
@@ -550,25 +425,18 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N seconds, with the given number of
 		/// repeats.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name
-		/// </param>
-		/// <param name="intervalInSeconds">the number of seconds between firings
-		/// </param>
-		/// <param name="repeatCount">the number of times to repeat the firing
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <param name="intervalInSeconds">the number of seconds between firings</param>
+		/// <param name="repeatCount">the number of times to repeat the firing</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeSecondlyTrigger(string trigName, int intervalInSeconds, int repeatCount)
 		{
 			Trigger trig = MakeSecondlyTrigger(intervalInSeconds, repeatCount);
@@ -576,109 +444,80 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every minute, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeMinutelyTrigger()
 		{
 			return MakeMinutelyTrigger(1, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every minute, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name 
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeMinutelyTrigger(string trigName)
 		{
 			return MakeMinutelyTrigger(trigName, 1, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N minutes, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="intervalInMinutes">the number of minutes between firings
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="intervalInMinutes">the number of minutes between firings</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeMinutelyTrigger(int intervalInMinutes)
 		{
 			return MakeMinutelyTrigger(intervalInMinutes, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N minutes, with the given number of
 		/// repeats.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="intervalInMinutes">the number of minutes between firings
-		/// </param>
-		/// <param name="repeatCount">the number of times to repeat the firing
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="intervalInMinutes">the number of minutes between firings</param>
+		/// <param name="repeatCount">the number of times to repeat the firing</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeMinutelyTrigger(int intervalInMinutes, int repeatCount)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
-
 			trig.RepeatInterval = intervalInMinutes*MILLISECONDS_IN_MINUTE;
 			trig.RepeatCount = repeatCount;
-
 			trig.StartTime = DateTime.Now;
 
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N minutes, with the given number of
 		/// repeats.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name
-		/// </param>
-		/// <param name="intervalInMinutes">the number of minutes between firings
-		/// </param>
-		/// <param name="repeatCount">the number of times to repeat the firing
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <param name="intervalInMinutes">the number of minutes between firings</param>
+		/// <param name="repeatCount">the number of times to repeat the firing</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeMinutelyTrigger(string trigName, int intervalInMinutes, int repeatCount)
 		{
 			Trigger trig = MakeMinutelyTrigger(intervalInMinutes, repeatCount);
@@ -686,109 +525,81 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every hour, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeHourlyTrigger()
 		{
 			return MakeHourlyTrigger(1, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every hour, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeHourlyTrigger(string trigName)
 		{
 			return MakeHourlyTrigger(trigName, 1, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N hours, indefinitely.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="intervalInHours">the number of hours between firings
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="intervalInHours">the number of hours between firings</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeHourlyTrigger(int intervalInHours)
 		{
 			return MakeHourlyTrigger(intervalInHours, SimpleTrigger.REPEAT_INDEFINITELY);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N hours, with the given number of
 		/// repeats.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="intervalInHours">the number of hours between firings
-		/// </param>
-		/// <param name="repeatCount">the number of times to repeat the firing
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="intervalInHours">the number of hours between firings</param>
+		/// <param name="repeatCount">the number of times to repeat the firing</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeHourlyTrigger(int intervalInHours, int repeatCount)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 
 			trig.RepeatInterval = intervalInHours*MILLISECONDS_IN_HOUR;
 			trig.RepeatCount = repeatCount;
-
 			trig.StartTime = DateTime.Now;
 
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Make a trigger that will fire every N hours, with the given number of
 		/// repeats.
-		/// </p>
-		/// 
 		/// <p>
 		/// The generated trigger will not have its group,
 		/// or end-time set.  The Start time defaults to 'now'.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="trigName">the trigger's name
-		/// </param>
-		/// <param name="intervalInHours">the number of hours between firings
-		/// </param>
-		/// <param name="repeatCount">the number of times to repeat the firing
-		/// </param>
-		/// <returns> the new trigger
-		/// </returns>
+		/// <param name="trigName">the trigger's name</param>
+		/// <param name="intervalInHours">the number of hours between firings</param>
+		/// <param name="repeatCount">the number of times to repeat the firing</param>
+		/// <returns>the new trigger</returns>
 		public static Trigger MakeHourlyTrigger(string trigName, int intervalInHours, int repeatCount)
 		{
 			Trigger trig = MakeHourlyTrigger(intervalInHours, repeatCount);
@@ -796,24 +607,18 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns a date that is rounded to the next even hour above the given
 		/// date.
-		/// </p>
-		/// 
 		/// <p>
 		/// For example an input date with a time of 08:13:54 would result in a date
 		/// with the time of 09:00:00. If the date's time is in the 23rd hour, the
 		/// date's 'day' will be promoted, and the time will be set to 00:00:00.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="date">
-		/// the Date to round, if <code>null</code> the current time will
-		/// be used
-		/// </param>
-		/// <returns> the new rounded date
-		/// </returns>
+		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// be used</param>
+		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenHourDate(NullableDateTime date)
 		{
 			if (!date.HasValue)
@@ -827,19 +632,14 @@ namespace Quartz
 		/// <summary>
 		/// Returns a date that is rounded to the previous even hour below the given
 		/// date.
-		/// 
 		/// <p>
 		/// For example an input date with a time of 08:13:54 would result in a date
 		/// with the time of 08:00:00.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="date">
-		/// the Date to round, if <code>null</code> the current time will
-		/// be used
-		/// </param>
-		/// <returns> the new rounded date
-		/// </returns>
+		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// be used</param>
+		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenHourDateBefore(NullableDateTime date)
 		{
 			if (!date.HasValue)
@@ -858,9 +658,7 @@ namespace Quartz
 		/// then the hour (and possibly the day) will be promoted.
 		/// </p>
 		/// </summary>
-		/// <param name="date">
-		/// Tthe Date to round, if <code>null</code> the current time will  be used
-		/// </param>
+		/// <param name="date">The Date to round, if <code>null</code> the current time will  be used</param>
 		/// <returns>The new rounded date</returns>
 		public static DateTime GetEvenMinuteDate(NullableDateTime date)
 		{
@@ -875,20 +673,16 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns a date that is rounded to the previous even minute below the 
+		/// Returns a date that is rounded to the previous even minute below the
 		/// given date.
 		/// <p>
 		/// For example an input date with a time of 08:13:54 would result in a date
 		/// with the time of 08:13:00.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="date">
-		/// the Date to round, if <code>null</code> the current time will
-		/// be used
-		/// </param>
-		/// <returns> the new rounded date
-		/// </returns>
+		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// be used</param>
+		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenMinuteDateBefore(NullableDateTime date)
 		{
 			if (!date.HasValue)
@@ -904,12 +698,9 @@ namespace Quartz
 		/// Returns a date that is rounded to the next even second above the given
 		/// date.
 		/// </summary>
-		/// <param name="date">
-		/// the Date to round, if <code>null</code> the current time will
-		/// be used
-		/// </param>
-		/// <returns> the new rounded date
-		/// </returns>
+		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// be used</param>
+		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenSecondDate(NullableDateTime date)
 		{
 			if (!date.HasValue)
@@ -929,12 +720,9 @@ namespace Quartz
 		/// date with the time of 08:13:00.000.
 		/// </p>
 		/// </summary>
-		/// <param name="date">
-		/// the Date to round, if <code>null</code> the current time will
-		/// be used
-		/// </param>
-		/// <returns> the new rounded date
-		/// </returns>
+		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// be used</param>
+		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenSecondDateBefore(NullableDateTime date)
 		{
 			if (!date.HasValue)
@@ -1121,17 +909,10 @@ namespace Quartz
 		/// Get a <code>Date</code> object that represents the given time, on
 		/// today's date.
 		/// </summary>
-		/// <param name="second">
-		/// The value (0-59) to give the seconds field of the date
-		/// </param>
-		/// <param name="minute">
-		/// The value (0-59) to give the minutes field of the date
-		/// </param>
-		/// <param name="hour">
-		/// The value (0-23) to give the hours field of the date
-		/// </param>
-		/// <returns> the new date
-		/// </returns>
+		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
+		/// <param name="minute">The value (0-59) to give the minutes field of the date</param>
+		/// <param name="hour">The value (0-23) to give the hours field of the date</param>
+		/// <returns>the new date</returns>
 		public static DateTime GetDateOf(int second, int minute, int hour)
 		{
 			ValidateSecond(second);
@@ -1142,29 +923,16 @@ namespace Quartz
 			return new DateTime(now.Year, now.Month, now.Day, hour, minute, second);
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get a <code>Date</code> object that represents the given time, on the
 		/// given date.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="second">
-		/// The value (0-59) to give the seconds field of the date
-		/// </param>
-		/// <param name="minute">
-		/// The value (0-59) to give the minutes field of the date
-		/// </param>
-		/// <param name="hour">
-		/// The value (0-23) to give the hours field of the date
-		/// </param>
-		/// <param name="dayOfMonth">
-		/// The value (1-31) to give the day of month field of the date
-		/// </param>
-		/// <param name="month">
-		/// The value (1-12) to give the month field of the date
-		/// </param>
-		/// <returns> the new date
-		/// </returns>
+		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
+		/// <param name="minute">The value (0-59) to give the minutes field of the date</param>
+		/// <param name="hour">The value (0-23) to give the hours field of the date</param>
+		/// <param name="dayOfMonth">The value (1-31) to give the day of month field of the date</param>
+		/// <param name="month">The value (1-12) to give the month field of the date</param>
+		/// <returns>the new date</returns>
 		public static DateTime GetDateOf(int second, int minute, int hour, int dayOfMonth, int month)
 		{
 			ValidateSecond(second);
@@ -1176,30 +944,17 @@ namespace Quartz
 			return new DateTime(DateTime.Now.Year, month, dayOfMonth, hour, minute, second);
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Get a <code>Date</code> object that represents the given time, on the
 		/// given date.
 		/// </summary>
-		/// <param name="second">
-		/// The value (0-59) to give the seconds field of the date
-		/// </param>
-		/// <param name="minute">
-		/// The value (0-59) to give the minutes field of the date
-		/// </param>
-		/// <param name="hour">
-		/// The value (0-23) to give the hours field of the date
-		/// </param>
-		/// <param name="dayOfMonth">
-		/// The value (1-31) to give the day of month field of the date
-		/// </param>
-		/// <param name="month">
-		/// The value (1-12) to give the month field of the date
-		/// </param>
-		/// <param name="year">
-		/// The value (1970-2099) to give the year field of the date
-		/// </param>
-		/// <returns> the new date
-		/// </returns>
+		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
+		/// <param name="minute">The value (0-59) to give the minutes field of the date</param>
+		/// <param name="hour">The value (0-23) to give the hours field of the date</param>
+		/// <param name="dayOfMonth">The value (1-31) to give the day of month field of the date</param>
+		/// <param name="month">The value (1-12) to give the month field of the date</param>
+		/// <param name="year">The value (1970-2099) to give the year field of the date</param>
+		/// <returns>the new date</returns>
 		public static DateTime GetDateOf(int second, int minute, int hour, int dayOfMonth, int month, int year)
 		{
 			ValidateSecond(second);
@@ -1212,23 +967,16 @@ namespace Quartz
 			return new DateTime(year, month, dayOfMonth, hour, minute, second);
 		}
 
-		/// <summary> Returns a list of Dates that are the next fire times of a 
+		/// <summary>
+		/// Returns a list of Dates that are the next fire times of a
 		/// <code>Trigger</code>.
 		/// The input trigger will be cloned before any work is done, so you need
 		/// not worry about its state being altered by this method.
-		/// 
 		/// </summary>
-		/// <param name="trigg">
-		/// The trigger upon which to do the work
-		/// </param>
-		/// <param name="cal">
-		/// The calendar to apply to the trigger's schedule
-		/// </param>
-		/// <param name="numTimes">
-		/// The number of next fire times to produce
-		/// </param>
-		/// <returns> List of java.util.Date objects
-		/// </returns>
+		/// <param name="trigg">The trigger upon which to do the work</param>
+		/// <param name="cal">The calendar to apply to the trigger's schedule</param>
+		/// <param name="numTimes">The number of next fire times to produce</param>
+		/// <returns>List of java.util.Date objects</returns>
 		public static IList ComputeFireTimes(Trigger trigg, ICalendar cal, int numTimes)
 		{
 			ArrayList lst = new ArrayList();
@@ -1270,14 +1018,9 @@ namespace Quartz
 		/// </summary>
 		/// <param name="trigg">The trigger upon which to do the work</param>
 		/// <param name="cal">The calendar to apply to the trigger's schedule</param>
-		/// <param name="from">
-		/// The starting date at which to find fire times
-		/// </param>
-		/// <param name="to">
-		/// The ending date at which to stop finding fire times
-		/// </param>
-		/// <returns> List of java.util.Date objects
-		/// </returns>
+		/// <param name="from">The starting date at which to find fire times</param>
+		/// <param name="to">The ending date at which to stop finding fire times</param>
+		/// <returns>List of java.util.Date objects</returns>
 		public static IList ComputeFireTimesBetween(Trigger trigg, ICalendar cal, DateTime from, DateTime to)
 		{
 			ArrayList lst = new ArrayList();
@@ -1318,20 +1061,15 @@ namespace Quartz
 			return ArrayList.ReadOnly(new ArrayList(lst));
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Translate a date and time from a users timezone to the another
-		/// (probably server) timezone to assist in creating a simple trigger with 
+		/// (probably server) timezone to assist in creating a simple trigger with
 		/// the right date and time.
-		/// 
 		/// </summary>
-		/// <param name="date">the date to translate
-		/// </param>
-		/// <param name="src">the original time-zone
-		/// </param>
-		/// <param name="dest">the destination time-zone
-		/// </param>
-		/// <returns> the translated date
-		/// </returns>
+		/// <param name="date">the date to translate</param>
+		/// <param name="src">the original time-zone</param>
+		/// <param name="dest">the destination time-zone</param>
+		/// <returns>the translated date</returns>
 		public static DateTime TranslateTime(DateTime date, TimeZone src, TimeZone dest)
 		{
 			DateTime newDate = DateTime.Now;
@@ -1342,21 +1080,13 @@ namespace Quartz
 			return newDate;
 		}
 
-		/// <summary> Gets the offset from UT for the given date in the given timezone, 
+		/// <summary>
+		/// Gets the offset from UT for the given date in the given timezone,
 		/// taking into account daylight savings.
-		/// 
-		/// <p>
-		/// Equivalent of TimeZone.getOffset(date) in JDK 1.4, but Quartz is trying
-		/// to support JDK 1.3.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="date">the date (in milliseconds) that is the base for the offset
-		/// </param>
-		/// <param name="tz">the time-zone to calculate to offset to
-		/// </param>
-		/// <returns> the offset
-		/// </returns>
+		/// <param name="date">the date (in milliseconds) that is the base for the offset</param>
+		/// <param name="tz">the time-zone to calculate to offset to</param>
+		/// <returns>the offset</returns>
 		public static int GetOffset(DateTime date, TimeZone tz)
 		{
 			// TODO
@@ -1366,25 +1096,6 @@ namespace Quartz
 			}
 
 			return 0; // TODO tz.getRawOffset();
-		}
-
-		/// <summary> <p>
-		/// Equivalent of TimeZone.getDSTSavings() in JDK 1.4, but Quartz is trying
-		/// to support JDK 1.3.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="tz">the target time-zone
-		/// </param>
-		/// <returns> the amount of saving time in milliseconds
-		/// </returns>
-		public static int GetDSTSavings(TimeZone tz)
-		{
-			if (UseDaylightTime(tz))
-			{
-				return 3600000;
-			}
-			return 0;
 		}
 
         /// <summary>

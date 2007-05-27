@@ -131,12 +131,13 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Gets a value indicating whether to refire immediately.
+		/// Gets or sets a value indicating whether to refire immediately.
 		/// </summary>
 		/// <value><c>true</c> if to refire immediately; otherwise, <c>false</c>.</value>
 		public virtual bool RefireImmediately
 		{
 			get { return refire; }
+            set { refire = value; }
 		}
 	}
 }

@@ -49,6 +49,9 @@ namespace Quartz.Impl.AdoJobStore
 	{
 		public ILog Log = LogManager.GetLogger(typeof (JobStoreSupport));
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
+        /// </summary>
 		public JobStoreSupport()
 		{
 			InitBlock();
@@ -66,13 +69,11 @@ namespace Quartz.Impl.AdoJobStore
 		public virtual string DataSource
 		{
 			get { return dsName; }
-
 			set { dsName = value; }
 		}
 
 		/// <summary> 
 		/// Get or sets the prefix that should be pre-pended to all table names.
-		/// </summary>
 		/// </summary>
 		public virtual string TablePrefix
 		{
@@ -283,15 +284,12 @@ namespace Quartz.Impl.AdoJobStore
 				}
 				catch (Exception e)
 				{
-					if (conn != null)
+					try
 					{
-						try
-						{
-							conn.Close();
-						}
-						catch
-						{
-						}
+						conn.Close();
+					}
+					catch
+					{
 					}
 					throw new JobPersistenceException(
 						"Failure setting up connection.", e);
@@ -302,12 +300,12 @@ namespace Quartz.Impl.AdoJobStore
 			catch (OleDbException sqle)
 			{
 				throw new JobPersistenceException(
-					"Failed to obtain DB connection from data source '" + DataSource + "': " + sqle.ToString(), sqle);
+					"Failed to obtain DB connection from data source '" + DataSource + "': " + sqle, sqle);
 			}
 			catch (Exception e)
 			{
 				throw new JobPersistenceException(
-					"Failed to obtain DB connection from data source '" + DataSource + "': " + e.ToString(), e,
+					"Failed to obtain DB connection from data source '" + DataSource + "': " + e, e,
 					JobPersistenceException.ERR_PERSISTENCE_CRITICAL_FAILURE);
 			}
 		}
@@ -511,7 +509,7 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <seealso cref="JobStore.SchedulerStarted()" />
+		/// <seealso cref="IJobStore.SchedulerStarted()" />
 		public virtual void SchedulerStarted()
 		{
 			if (Clustered)
@@ -896,7 +894,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				bool shouldBepaused = false;
+				bool shouldBepaused;
 
 				if (!forceState)
 				{
@@ -1070,7 +1068,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal virtual bool RemoveTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
 		                                              string groupName)
 		{
-			bool removedTrigger = false;
+			bool removedTrigger;
 			try
 			{
 				// this must be called before we delete the trigger, obviously
@@ -1103,7 +1101,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal virtual bool ReplaceTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
 		                                               string groupName, Trigger newTrigger)
 		{
-			bool removedTrigger = false;
+			bool removedTrigger;
 			try
 			{
 				// this must be called before we delete the trigger, obviously
@@ -1160,6 +1158,14 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
+        /// <summary>
+        /// Gets the state of the trigger.
+        /// </summary>
+        /// <param name="conn">The conn.</param>
+        /// <param name="ctxt">The CTXT.</param>
+        /// <param name="triggerName">Name of the trigger.</param>
+        /// <param name="groupName">Name of the group.</param>
+        /// <returns></returns>
 		public virtual int GetTriggerState(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
@@ -1363,7 +1369,7 @@ namespace Quartz.Impl.AdoJobStore
 
 		protected internal virtual String[] GetJobNames(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
-			String[] jobNames = null;
+			String[] jobNames;
 
 			try
 			{
@@ -1380,7 +1386,7 @@ namespace Quartz.Impl.AdoJobStore
 
 		protected internal virtual String[] GetTriggerNames(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
-			String[] trigNames = null;
+			String[] trigNames;
 
 			try
 			{
@@ -1397,7 +1403,7 @@ namespace Quartz.Impl.AdoJobStore
 
 		protected internal virtual String[] GetJobGroupNames(IDbConnection conn, SchedulingContext ctxt)
 		{
-			String[] groupNames = null;
+			String[] groupNames;
 
 			try
 			{
@@ -1414,7 +1420,7 @@ namespace Quartz.Impl.AdoJobStore
 
 		protected internal virtual String[] GetTriggerGroupNames(IDbConnection conn, SchedulingContext ctxt)
 		{
-			String[] groupNames = null;
+			String[] groupNames;
 
 			try
 			{
@@ -1445,7 +1451,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal virtual Trigger[] GetTriggersForJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
 		                                                       string groupName)
 		{
-			Trigger[] array = null;
+			Trigger[] array;
 
 			try
 			{
@@ -1462,7 +1468,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary>
 		/// Pause the <code>Trigger</code> with the given name.
 		/// </summary>
-		/// <seealso cref="SchedulingContext(String, String)" />
+		/// <seealso cref="SchedulingContext()" />
 		public virtual void PauseTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
@@ -1582,7 +1588,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <code>Trigger</code>'s misfire instruction will be applied.
 		/// </p>
 		/// </summary>
-		/// <seealso cref="SchedulingContext(String, String)"/>
+		/// <seealso cref="SchedulingContext()"/>
 		public virtual void ResumeTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
@@ -1631,7 +1637,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary>
 		/// Pause all of the <code>Trigger</code>s in the given group.
 		/// </summary>
-		/// <seealso cref="SchedulingContext(String)" />
+		/// <seealso cref="SchedulingContext()" />
 		public virtual void PauseTriggerGroup(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			try
@@ -1658,7 +1664,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Pause all of the <code>Trigger</code>s in the
 		/// given group.
 		/// </summary>
-		/// <seealso cref="SchedulingContext(string)" />
+		/// <seealso cref="SchedulingContext()" />
 		public virtual ISet GetPausedTriggerGroups(IDbConnection conn, SchedulingContext ctxt)
 		{
 			try
@@ -1679,7 +1685,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <code>Trigger</code>'s misfire instruction will be applied.
 		/// </p>
 		/// </summary>
-		/// <seealso cref="SchedulingContext(string)" />
+		/// <seealso cref="SchedulingContext()" />
 		public virtual void ResumeTriggerGroup(IDbConnection conn, SchedulingContext ctxt, string groupName)
 		{
 			try
@@ -1811,17 +1817,17 @@ namespace Quartz.Impl.AdoJobStore
 					                                                     STATE_WAITING, STATE_WAITING,
 					                                                     MisfireTime); // only waiting
 
-					DateTime nextFireTime = Delegate.SelectNextFireTime(conn);
+					NullableDateTime nextFireTime = Delegate.SelectNextFireTime(conn);
 
-					if (nextFireTime == DateTime.MinValue || nextFireTime > noLaterThan)
+					if (!nextFireTime.HasValue || nextFireTime.Value > noLaterThan)
 					{
 						return null;
 					}
 
-					Key triggerKey = null;
+					Key triggerKey;
 					do
 					{
-						triggerKey = Delegate.SelectTriggerForFireTime(conn, nextFireTime);
+						triggerKey = Delegate.SelectTriggerForFireTime(conn, nextFireTime.Value);
 						if (null != triggerKey)
 						{
 							int res =
@@ -1875,7 +1881,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal virtual TriggerFiredBundle TriggerFired(IDbConnection conn, SchedulingContext ctxt,
 		                                                           Trigger trigger)
 		{
-			JobDetail job = null;
+			JobDetail job;
 			ICalendar cal = null;
 
 			// Make sure trigger wasn't deleted, paused, or completed...
@@ -1912,7 +1918,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					Log.Error("Unable to set trigger state to ERROR.", sqle);
 				}
-				throw jpe;
+				throw;
 			}
 
 			if (trigger.CalendarName != null)
@@ -2095,7 +2101,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected IList FindFailedInstances(IDbConnection conn)
 		{
 			IList failedInstances = new ArrayList();
-			bool selfFailed = false;
+			// TODO bool selfFailed = false;
 
 			long timeNow = DateTime.Now.Ticks;
 
@@ -2420,7 +2426,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			private bool shutdown_Renamed_Field = false;
 
-			private JobStoreSupport js;
+			private readonly JobStoreSupport js;
 
 			private int numFails = 0;
 
@@ -2485,13 +2491,8 @@ namespace Quartz.Impl.AdoJobStore
 							timeToSleep = Math.Max(Enclosing_Instance.DbRetryInterval, timeToSleep);
 						}
 
-						try
-						{
-							Thread.Sleep(new TimeSpan(10000*timeToSleep));
-						}
-						catch (Exception)
-						{
-						}
+						Thread.Sleep(new TimeSpan(10000*timeToSleep));
+						
 					}
 
 					if (!shutdown_Renamed_Field && manage())
@@ -2523,7 +2524,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			private bool shutdown_Renamed_Field = false;
 
-			private JobStoreSupport js;
+			private readonly JobStoreSupport js;
 
 			private int numFails = 0;
 
@@ -2599,26 +2600,15 @@ namespace Quartz.Impl.AdoJobStore
 
 						if (timeToSleep > 0)
 						{
-							try
-							{
-								// TODO
-								Thread.Sleep(new TimeSpan(10000*timeToSleep));
-							}
-							catch (Exception)
-							{
-							}
+							// TODO
+						    Thread.Sleep(new TimeSpan(10000*timeToSleep));
+							
 						}
 					}
 					else if (moreToDo)
 					{
 						// short pause to help balance threads...
-						try
-						{
-							Thread.Sleep(new TimeSpan((Int64) 10000*50));
-						}
-						catch (Exception)
-						{
-						}
+						Thread.Sleep(new TimeSpan((Int64) 10000*50));
 					}
 				} //while !Shutdown
 			}

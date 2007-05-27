@@ -77,7 +77,7 @@ namespace Quartz.Impl
 	/// <author>Marko Lahma (.NET)</author>
 	public class StdSchedulerFactory : ISchedulerFactory
 	{
-		private static ILog Log = LogManager.GetLogger(typeof (StdSchedulerFactory));
+		private static readonly ILog Log = LogManager.GetLogger(typeof (StdSchedulerFactory));
 
 		private string SchedulerName
 		{
@@ -165,10 +165,17 @@ namespace Quartz.Impl
 
 		private PropertiesParser cfg;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StdSchedulerFactory"/> class.
+        /// </summary>
 		public StdSchedulerFactory()
 		{
 		}
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StdSchedulerFactory"/> class.
+        /// </summary>
+        /// <param name="props">The props.</param>
 		public StdSchedulerFactory(NameValueCollection props)
 		{
 			Initialize(props);
@@ -259,13 +266,13 @@ namespace Quartz.Impl
 				throw initException;
 			}
 
-			IJobStore js = null;
-			IThreadPool tp = null;
-			QuartzScheduler qs = null;
-			SchedulingContext schedCtxt = null;
+			IJobStore js;
+			IThreadPool tp;
+			QuartzScheduler qs;
+			SchedulingContext schedCtxt;
 			DBConnectionManager dbMgr = null;
 			string instanceIdGeneratorClass = null;
-			NameValueCollection tProps = null;
+			NameValueCollection tProps;
 			String userTXLocation = null;
 			bool wrapJobInTx = false;
 			bool autoId = false;
@@ -478,18 +485,18 @@ namespace Quartz.Impl
 				}
 				else
 				{
-					String dsDriver = pp.GetStringProperty(PROP_DATASOURCE_DRIVER, null);
-					String dsURL = pp.GetStringProperty(PROP_DATASOURCE_URL, null);
+					string dsDriver = pp.GetStringProperty(PROP_DATASOURCE_DRIVER, null);
+                    string dsURL = pp.GetStringProperty(PROP_DATASOURCE_URL, null);
 					bool dsAlwaysLookup = pp.GetBooleanProperty(PROP_DATASOURCE_JNDI_ALWAYS_LOOKUP, false);
-					String dsUser = pp.GetStringProperty(PROP_DATASOURCE_USER, "");
-					String dsPass = pp.GetStringProperty(PROP_DATASOURCE_PASSWORD, "");
+                    string dsUser = pp.GetStringProperty(PROP_DATASOURCE_USER, "");
+                    string dsPass = pp.GetStringProperty(PROP_DATASOURCE_PASSWORD, "");
 					int dsCnt = pp.GetIntProperty(PROP_DATASOURCE_MAX_CONNECTIONS, 10);
-					String dsJndi = pp.GetStringProperty(PROP_DATASOURCE_JNDI_URL, null);
-					String dsJndiInitial = pp.GetStringProperty(PROP_DATASOURCE_JNDI_INITIAL, null);
-					String dsJndiProvider = pp.GetStringProperty(PROP_DATASOURCE_JNDI_PROVDER, null);
-					String dsJndiPrincipal = pp.GetStringProperty(PROP_DATASOURCE_JNDI_PRINCIPAL, null);
-					String dsJndiCredentials = pp.GetStringProperty(PROP_DATASOURCE_JNDI_CREDENTIALS, null);
-					String dsValidation = pp.GetStringProperty(PROP_DATASOURCE_VALIDATION_QUERY, null);
+                    string dsJndi = pp.GetStringProperty(PROP_DATASOURCE_JNDI_URL, null);
+                    string dsJndiInitial = pp.GetStringProperty(PROP_DATASOURCE_JNDI_INITIAL, null);
+                    string dsJndiProvider = pp.GetStringProperty(PROP_DATASOURCE_JNDI_PROVDER, null);
+                    string dsJndiPrincipal = pp.GetStringProperty(PROP_DATASOURCE_JNDI_PRINCIPAL, null);
+                    string dsJndiCredentials = pp.GetStringProperty(PROP_DATASOURCE_JNDI_CREDENTIALS, null);
+                    string dsValidation = pp.GetStringProperty(PROP_DATASOURCE_VALIDATION_QUERY, null);
 
 					if (dsJndi != null)
 					{
@@ -658,7 +665,7 @@ namespace Quartz.Impl
 						                       SchedulerException.ERR_BAD_CONFIGURATION);
 					throw initException;
 				}
-				ITriggerListener listener = null;
+				ITriggerListener listener;
 				try
 				{
 					listener = (ITriggerListener) ObjectUtils.InstantiateType(loadHelper.LoadType(listenerClass));
@@ -883,7 +890,6 @@ namespace Quartz.Impl
 		}
 	}
 
-	// TODO bring JDBC job store
 	internal class JobStoreSupport
 	{
 		public string InstanceId

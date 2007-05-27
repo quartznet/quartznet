@@ -24,12 +24,11 @@ using System.IO;
 
 namespace Quartz.Spi
 {
-	/// <summary> An interface for classes wishing to provide the service of loading classes
+	/// <summary> 
+	/// An interface for classes wishing to provide the service of loading classes
 	/// and resources within the scheduler...
-	/// 
 	/// </summary>
-	/// <author>  jhouse
-	/// </author>
+	/// <author> jhouse</author>
 	public interface IClassLoadHelper
 	{
 		/// <summary> Called to give the ClassLoadHelper a chance to Initialize itself,
