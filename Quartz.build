@@ -95,8 +95,8 @@
 					<property name="DocumentProtected" value="True" />
 					<property name="DocumentPrivates" value="False" />
 					<property name="DocumentEmptyNamespaces" value="False" />
-					<property name="IncludeAssemblyVersion" value="False" />
-					<property name="CopyrightText" value="" />
+					<property name="IncludeAssemblyVersion" value="True" />
+					<property name="CopyrightText" value="Copyright OpenSymphony 2006-2007" />
 					<property name="CopyrightHref" value="" />
 				 </documenter>
 			</documenters> 

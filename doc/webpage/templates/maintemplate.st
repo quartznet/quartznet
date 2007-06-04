@@ -59,6 +59,7 @@
 				<li><a href="download.html">Download</a></li>
 				<li><a href="license.html">License</a></li>
 				<li><a href="tutorial.html">Tutorial</a></li>
+				<li><a href="apidoc/">API Documentation</a></li>
 				<li><a href="mailing_list.html">Mailing List</a></li>
 			</ul>
 
