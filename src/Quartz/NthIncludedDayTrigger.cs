@@ -151,30 +151,32 @@ namespace Quartz
 		/// </summary>
 		public virtual string FireAtTime
 		{
-			get { return fireAtHour + ":" + fireAtMinute; }
+			get { return fireAtHour.ToString("00") + ":" + fireAtMinute.ToString("00"); }
 
 			set
 			{
-				int fireHour = 12;
-				int fireMinute = 0;
-				//string[] components;
-
 				try
 				{
+					string[] components = value.Split(':');
+
+//					foreach (string component in components)
+//					{
+//						if (component == null || component.Trim().Length != 2)
+//						{
+//							throw new ArgumentException("Time component '" + component + "' is malformed");
+//						}
+//					}
+
 					int i = value.IndexOf(":");
-					fireHour = Int32.Parse(value.Substring(0, (i) - (0)));
-					fireMinute = Int32.Parse(value.Substring(i + 1));
+					int fireHour = Int32.Parse(components[0]);
+					int fireMinute = Int32.Parse(components[1]);
+
+					fireAtHour = fireHour;
+					fireAtMinute = fireMinute;
 				}
 				catch (Exception e)
 				{
-					fireHour = 12;
-					fireMinute = 0;
 					throw new ArgumentException("Could not parse time expression: " + e.Message);
-				}
-				finally
-				{
-					fireAtHour = fireHour;
-					fireAtMinute = fireMinute;
 				}
 			}
 		}

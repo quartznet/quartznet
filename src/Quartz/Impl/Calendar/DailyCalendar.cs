@@ -578,26 +578,26 @@ namespace Quartz.Impl.Calendar
             {
                 buffer.Append("null");
             }
-            // TODO check leading zeroes
+            
+			const string THREE_DIGIT_FORMAT = "000";
+			const string TWO_DIGIT_FORMAT = "00";
+
             buffer.Append("], time range: '");
-            buffer.Append(rangeStartingHourOfDay);
+            buffer.Append(rangeStartingHourOfDay.ToString(TWO_DIGIT_FORMAT));
             buffer.Append(":");
-            buffer.Append(rangeStartingMinute);
+            buffer.Append(rangeStartingMinute.ToString(TWO_DIGIT_FORMAT));
             buffer.Append(":");
-            buffer.Append(rangeStartingSecond);
+            buffer.Append(rangeStartingSecond.ToString(TWO_DIGIT_FORMAT));
             buffer.Append(":");
-            // numberFormatter.setMinimumIntegerDigits(3);
-            buffer.Append(rangeStartingMillis);
-            // numberFormatter.setMinimumIntegerDigits(2);
+            buffer.Append(rangeStartingMillis.ToString(THREE_DIGIT_FORMAT));
             buffer.Append(" - ");
-            buffer.Append(rangeEndingHourOfDay);
+            buffer.Append(rangeEndingHourOfDay.ToString(TWO_DIGIT_FORMAT));
             buffer.Append(":");
-            buffer.Append(rangeEndingMinute);
+            buffer.Append(rangeEndingMinute.ToString(TWO_DIGIT_FORMAT));
             buffer.Append(":");
-            buffer.Append(rangeEndingSecond);
+            buffer.Append(rangeEndingSecond.ToString(TWO_DIGIT_FORMAT));
             buffer.Append(":");
-            // numberFormatter.setMinimumIntegerDigits(3);
-            buffer.Append(rangeEndingMillis);
+            buffer.Append(rangeEndingMillis.ToString(THREE_DIGIT_FORMAT));
             buffer.Append("', inverted: " +
                           invertTimeRange + "]");
             return buffer.ToString();

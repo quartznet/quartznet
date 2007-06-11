@@ -42,10 +42,10 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 		{
 			DailyCalendar dailyCalendar = new DailyCalendar("TestCal", "1:20", "14:50");
 			dailyCalendar.InvertTimeRange = true;
-			Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: true") > 0);
+			Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: True") > 0);
 
 			dailyCalendar.InvertTimeRange = false;
-			Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: false") > 0);
+			Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: False") > 0);
 		}
 
 		/// <summary>

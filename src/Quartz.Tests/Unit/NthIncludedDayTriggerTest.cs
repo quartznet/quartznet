@@ -84,10 +84,10 @@ namespace Quartz.Tests.Unit
 			catch (ArgumentException) 
 			{
 			}
-			Assert.AreEqual("14:30:10", trigger.FireAtTime);
+			Assert.AreEqual("14:30", trigger.FireAtTime);
         
 			trigger.FireAtTime = "4:03:15";
-			Assert.AreEqual("04:03:15", trigger.FireAtTime);
+			Assert.AreEqual("04:03", trigger.FireAtTime);
         
 			try 
 			{
@@ -108,7 +108,7 @@ namespace Quartz.Tests.Unit
 			}
         
 			trigger.FireAtTime = ("23:17");
-			Assert.AreEqual("23:17:00", trigger.FireAtTime);
+			Assert.AreEqual("23:17", trigger.FireAtTime);
         
 			try 
 			{
