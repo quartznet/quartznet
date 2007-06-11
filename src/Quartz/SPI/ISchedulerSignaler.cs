@@ -22,8 +22,8 @@
 namespace Quartz.Spi
 {
 	/// <summary> 
-	/// An interface to be used by <code>JobStore</code> instances in order to
-	/// communicate signals back to the <code>QuartzScheduler</code>.
+	/// An interface to be used by <see cref="IJobStore" /> instances in order to
+	/// communicate signals back to the <see cref="QuartzScheduler" />.
 	/// </summary>
 	/// <author>James House</author>
 	public interface ISchedulerSignaler

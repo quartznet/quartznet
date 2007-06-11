@@ -23,10 +23,10 @@ using System;
 namespace Quartz
 {
 	/// <summary>
-	/// An exception that can be thrown by a <code>{@link org.quartz.Job}</code>
-	/// to indicate to the Quartz <code>{@link Scheduler}</code> that an error
-	/// occured while executing, and whether or not the <code>Job</code> requests
-	/// to be re-fired immediately (using the same <code>{@link JobExecutionContext}</code>,
+	/// An exception that can be thrown by a <see cref="IJob" />
+	/// to indicate to the Quartz <see cref="IScheduler" /> that an error
+	/// occured while executing, and whether or not the <see cref="IJob" /> requests
+	/// to be re-fired immediately (using the same <see cref="JobExecutionContext" />,
 	/// or whether it wants to be unscheduled.
 	/// 
 	/// <p>
@@ -73,7 +73,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Create a JobExcecutionException, with the 're-fire immediately' flag set
-		/// to <code>false</code>.
+		/// to <see langword="false" />.
 		/// </summary>
 		public JobExecutionException()
 		{

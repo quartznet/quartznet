@@ -92,12 +92,12 @@ namespace Quartz.Impl.Calendar
 		}
 
 		/// <summary> 
-		/// Return true, if wday (see Calendar.get()) is defined to be exluded. E. g.
+		/// Return true, if wday is defined to be exluded. E. g.
 		/// saturday and sunday.
 		/// </summary>
-		public virtual bool IsDayExcluded(int wday)
+		public virtual bool IsDayExcluded(DayOfWeek wday)
 		{
-			return excludeDays[wday];
+			return excludeDays[(int) wday];
 		}
 
 		/// <summary>
@@ -105,9 +105,9 @@ namespace Quartz.Impl.Calendar
 		/// (false). Use java.util.Calendar's constants like MONDAY to determine the
 		/// wday.
 		/// </summary>
-		public virtual void SetDayExcluded(int wday, bool exclude)
+		public virtual void SetDayExcluded(DayOfWeek wday, bool exclude)
 		{
-			excludeDays[wday] = exclude;
+			excludeDays[(int) wday] = exclude;
 			excludeAll = AreAllDaysExcluded();
 		}
 
@@ -116,37 +116,37 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual bool AreAllDaysExcluded()
 		{
-			if (IsDayExcluded((int) DayOfWeek.Sunday) == false)
+			if (IsDayExcluded(DayOfWeek.Sunday) == false)
 			{
 				return false;
 			}
 
-			if (IsDayExcluded((int) DayOfWeek.Monday) == false)
+			if (IsDayExcluded(DayOfWeek.Monday) == false)
 			{
 				return false;
 			}
 
-			if (IsDayExcluded((int) DayOfWeek.Tuesday) == false)
+			if (IsDayExcluded(DayOfWeek.Tuesday) == false)
 			{
 				return false;
 			}
 
-			if (IsDayExcluded((int) DayOfWeek.Wednesday) == false)
+			if (IsDayExcluded(DayOfWeek.Wednesday) == false)
 			{
 				return false;
 			}
 
-			if (IsDayExcluded((int) DayOfWeek.Thursday) == false)
+			if (IsDayExcluded(DayOfWeek.Thursday) == false)
 			{
 				return false;
 			}
 
-			if (IsDayExcluded((int) DayOfWeek.Friday) == false)
+			if (IsDayExcluded(DayOfWeek.Friday) == false)
 			{
 				return false;
 			}
 
-			if (IsDayExcluded((int) DayOfWeek.Saturday) == false)
+			if (IsDayExcluded(DayOfWeek.Saturday) == false)
 			{
 				return false;
 			}
@@ -175,9 +175,7 @@ namespace Quartz.Impl.Calendar
 				return false;
 			}
 
-			int wday = (int) time.DayOfWeek;
-
-			return !(IsDayExcluded(wday));
+			return !(IsDayExcluded(time.DayOfWeek));
 		}
 
 		/// <summary>
@@ -205,12 +203,12 @@ namespace Quartz.Impl.Calendar
 			// Get timestamp for 00:00:00
 			DateTime d = BuildHoliday(time);
 
-			if (!IsDayExcluded((int) d.DayOfWeek))
+			if (!IsDayExcluded(d.DayOfWeek))
 			{
 				return time;
 			} // return the original value
 
-			while (IsDayExcluded((int) d.DayOfWeek))
+			while (IsDayExcluded(d.DayOfWeek))
 			{
 				d = d.AddDays(1);
 			}

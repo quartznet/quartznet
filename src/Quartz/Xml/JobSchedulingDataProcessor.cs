@@ -41,17 +41,17 @@ namespace Quartz.Xml
 	/// </p>
 	/// 
 	/// <p>
-	/// After creating an instance of this class, you should call one of the <code>ProcessFile()</code>
-	/// functions, after which you may call the <code>getScheduledJobs()</code>
+	/// After creating an instance of this class, you should call one of the <see cref="ProcessFile()" />
+	/// functions, after which you may call the <see cref="getScheduledJobs()" />
 	/// function to get a handle to the defined Jobs and Triggers, which can then be
-	/// scheduled with the <code>Scheduler</code>. Alternatively, you could call
-	/// the <code>ProcessFileAndScheduleJobs()</code> function to do all of this
+	/// scheduled with the <see cref="IScheduler" />. Alternatively, you could call
+	/// the <see cref="ProcessFileAndScheduleJobs()" /> function to do all of this
 	/// in one step.
 	/// </p>
 	/// 
 	/// <p>
 	/// The same instance can be used again and again, with the list of defined Jobs
-	/// being cleared each time you call a <code>ProcessFile</code> method,
+	/// being cleared each time you call a <see cref="ProcessFile" /> method,
 	/// however a single instance is not thread-safe.
 	/// </p>
 	/// </summary>
@@ -132,13 +132,13 @@ namespace Quartz.Xml
 		}
 
 		/// <summary> 
-		/// Returns a <code>Map</code> of scheduled jobs.
+		/// Returns a <see cref="Map" /> of scheduled jobs.
 		/// <p>
-		/// The key is the job name and the value is a <code>JobSchedulingBundle</code>
-		/// containing the <code>JobDetail</code> and <code>Trigger</code>.
+		/// The key is the job name and the value is a <see cref="JobSchedulingBundle" />
+		/// containing the <see cref="JobDetail" /> and <see cref="Trigger" />.
 		/// </p>
 		/// </summary>
-		/// <returns> a <code>Map</code> of scheduled jobs.
+		/// <returns> a <see cref="Map" /> of scheduled jobs.
 		/// </returns>
 		public virtual IDictionary ScheduledJobs
 		{
@@ -202,7 +202,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Process the xml file named <code>fileName</code>.
+		/// Process the xml file named <see cref="fileName" />.
 		/// </summary>
 		/// <param name="fileName">meta data file name.</param>
 		public virtual void ProcessFile(string fileName)
@@ -211,7 +211,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Process the xmlfile named <code>fileName</code> with the given system
+		/// Process the xmlfile named <see cref="fileName" /> with the given system
 		/// ID.
 		/// </summary>
 		/// <param name="fileName">Name of the file.</param>
@@ -233,7 +233,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Process the xmlfile named <code>fileName</code> with the given system
+		/// Process the xmlfile named <see cref="fileName" /> with the given system
 		/// ID.
 		/// </summary>
 		/// <param name="stream">The stream.</param>
@@ -297,7 +297,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Add the Jobs and Triggers defined in the given map of <code>JobSchedulingBundle</code>
+		/// Add the Jobs and Triggers defined in the given map of <see cref="JobSchedulingBundle" />
 		/// s to the given scheduler.
 		/// </summary>
 		/// <param name="jobBundles">The job bundles.</param>
@@ -326,11 +326,11 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Returns a <code>JobSchedulingBundle</code> for the job name.
+		/// Returns a <see cref="JobSchedulingBundle" /> for the job name.
 		/// </summary>
 		/// <param name="name">The name.</param>
 		/// <returns>
-		/// a <code>JobSchedulingBundle</code> for the job name.
+		/// a <see cref="JobSchedulingBundle" /> for the job name.
 		/// </returns>
 		public virtual JobSchedulingBundle GetScheduledJob(string name)
 		{
@@ -338,11 +338,11 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Returns an <code>InputStream</code> from the fileName as a resource.
+		/// Returns an <see cref="InputStream" /> from the fileName as a resource.
 		/// </summary>
 		/// <param name="fileName">Name of the file.</param>
 		/// <returns>
-		/// an <code>InputStream</code> from the fileName as a resource.
+		/// an <see cref="InputStream" /> from the fileName as a resource.
 		/// </returns>
 		protected virtual Stream GetInputStream(string fileName)
 		{
@@ -351,7 +351,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Schedules a given job and trigger (both wrapped by a <code>JobSchedulingBundle</code>).
+		/// Schedules a given job and trigger (both wrapped by a <see cref="JobSchedulingBundle" />).
 		/// </summary>
 		/// <param name="job">job wrapper.</param>
 		/// <exception cref="SchedulerException">
@@ -380,7 +380,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Schedules a given job and trigger (both wrapped by a <code>JobSchedulingBundle</code>).
+		/// Schedules a given job and trigger (both wrapped by a <see cref="JobSchedulingBundle" />).
 		/// </summary>
 		/// <param name="job">The job.</param>
 		/// <param name="sched">The sched.</param>

@@ -24,8 +24,8 @@ namespace Quartz
 {
 	/// <summary>
 	/// An exception that is thrown to indicate that an attempt to store a new
-	/// object (i.e. <code>{@link org.quartz.JobDetail}</code>,<code>{@link Trigger}</code>
-	/// or <code>{@link Calendar}</code>) in a <code>{@link Scheduler}</code>
+	/// object (i.e. <see cref="JobDetail" />,<see cref="Trigger" />
+	/// or <see cref="Calendar" />) in a <see cref="IScheduler" />
 	/// failed, because one with the same name and group already exists.
 	/// </summary>
 	/// <author>James House</author>
@@ -33,7 +33,7 @@ namespace Quartz
 	public class ObjectAlreadyExistsException : JobPersistenceException
 	{
 		/// <summary> <p>
-		/// Create a <code>ObjectAlreadyExistsException</code> with the given
+		/// Create a <see cref="ObjectAlreadyExistsException" /> with the given
 		/// message.
 		/// </p>
 		/// </summary>
@@ -42,8 +42,8 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Create a <code>ObjectAlreadyExistsException</code> and auto-generate a
-		/// message using the name/group from the given <code>JobDetail</code>.
+		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
+		/// message using the name/group from the given <see cref="JobDetail" />.
 		/// </p>
 		/// 
 		/// <p>
@@ -59,8 +59,8 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Create a <code>ObjectAlreadyExistsException</code> and auto-generate a
-		/// message using the name/group from the given <code>Trigger</code>.
+		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
+		/// message using the name/group from the given <see cref="Trigger" />.
 		/// </p>
 		/// 
 		/// <p>

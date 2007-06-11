@@ -21,30 +21,29 @@
 
 using System;
 using Quartz.Core;
+using Quartz.Simpl;
 
 namespace Quartz.Spi
 {
 	/// <summary> 
 	/// The interface to be implemented by classes that want to provide a mechanism
-	/// by which the <code>QuartzScheduler</code> can
-	/// reliably determine the current time.
-	/// <p>
-	/// In general, the default implementation of this interface (<code>{@link org.quartz.simpl.SimpleTimeBroker}</code>-
-	/// which simply uses <code>System.getCurrentTimeMillis()</code> )is
+	/// by which the <see cref="QuartzScheduler" /> can  reliably determine the current time.
+	/// </summary>
+	/// <remarks>
+	/// In general, the default implementation of this interface (<see cref="SimpleTimeBroker" />-
+	/// which simply uses <see cref="DateTime.Ticks" /> )is
 	/// sufficient. However situations may exist where this default scheme is
 	/// lacking in its robustsness - especially when Quartz is used in a clustered
 	/// configuration. For example, if one or more of the machines in the cluster
 	/// has a system time that varies by more than a few seconds from the clocks on
 	/// the other systems in the cluster, scheduling confusion will result.
-	/// </p>
-	/// 
-	/// </summary>
+	/// </remarks>
 	/// <seealso cref="QuartzScheduler" />
 	/// <author>James House</author>
 	public interface ITimeBroker
 	{
 		/// <summary>
-		/// Get the current time, as known by the <code>TimeBroker</code>.
+		/// Get the current time, as known by the <see cref="ITimeBroker" />.
 		/// </summary>
 		/// <throws>  SchedulerException </throws>
 		/// <summary>           with the error code set to
@@ -54,13 +53,13 @@ namespace Quartz.Spi
 
 
 		/// <summary>
-		/// Called by the QuartzScheduler before the <code>TimeBroker</code> is
+		/// Called by the QuartzScheduler before the <see cref="ITimeBroker" /> is
 		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
 		void Initialize();
 
 		/// <summary> 
-		/// Called by the QuartzScheduler to inform the <code>TimeBroker</code>
+		/// Called by the QuartzScheduler to inform the <see cref="ITimeBroker" />
 		/// that it should free up all of it's resources because the scheduler is
 		/// shutting down.
 		/// </summary>

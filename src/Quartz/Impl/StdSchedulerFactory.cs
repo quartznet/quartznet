@@ -34,12 +34,10 @@ using Quartz.Util;
 
 namespace Quartz.Impl
 {
-	/// <summary> <p>
-	/// An implementation of <code>{@link quartz.SchedulerFactory}</code> that
-	/// does all of it's work of creating a <code>QuartzScheduler</code> instance
-	/// based on the contenents of a <code>Properties</code> file.
-	/// </p>
-	/// 
+	/// <summary>
+	/// An implementation of <see cref="ISchedulerFactory" /> that
+	/// does all of it's work of creating a <see cref="QuartzScheduler" /> instance
+	/// based on the contenents of a Properties file.
 	/// <p>
 	/// By default a properties file named "quartz.properties" is loaded from the
 	/// 'current working directory'. If that fails, then the "quartz.properties"
@@ -55,12 +53,12 @@ namespace Quartz.Impl
 	/// 
 	/// <p>
 	/// Alternativly, you can explicitly Initialize the factory by calling one of
-	/// the <code>Initialize(xx)</code> methods before calling <code>getScheduler()</code>.
+	/// the <see cref="Initialize" /> methods before calling <see cref="GetScheduler()" />.
 	/// </p>
 	/// 
 	/// <p>
-	/// Instances of the specified <code>{@link quartz.spi.JobStore}</code>,
-	/// <code>{@link quartz.spi.ThreadPool}</code>, classes will be created
+	/// Instances of the specified <see cref="IJobStore" />,
+	/// <see cref="IThreadPool" />, classes will be created
 	/// by name, and then any additional properties specified for them in the config
 	/// file will be set on the instance by calling an equivalent 'set' method. For
 	/// example if the properties file contains the property 'quartz.jobStore.
@@ -182,8 +180,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Initialize the <code>SchedulerFactory</code> with
-		/// the contenents of a <code>Properties</code> file.
+		/// Initialize the <see cref="ISchedulerFactory" /> with
+		/// the contenents of a Properties file.
 		/// 
 		/// <p>
 		/// By default a properties file named "quartz.properties" is loaded from
@@ -245,8 +243,8 @@ namespace Quartz.Impl
 
 
 		/// <summary> 
-		/// Initialize the <code>SchedulerFactory</code> with
-		/// the contenents of the given <code>Properties</code> object.
+		/// Initialize the <see cref="ISchedulerFactory" /> with
+		/// the contenents of the given Properties object.
 		/// </summary>
 		public virtual void Initialize(NameValueCollection props)
 		{
@@ -453,7 +451,7 @@ namespace Quartz.Impl
 				// custom connectionProvider...
 				if (cpClass != null)
 				{
-					IConnectionProvider cp = null;
+					IConnectionProvider cp;
 					try
 					{
 						cp = (IConnectionProvider) ObjectUtils.InstantiateType(loadHelper.LoadType(cpClass));
@@ -618,7 +616,7 @@ namespace Quartz.Impl
 						                       SchedulerException.ERR_BAD_CONFIGURATION);
 					throw initException;
 				}
-				IJobListener listener = null;
+				IJobListener listener;
 				try
 				{
 					listener = (IJobListener) ObjectUtils.InstantiateType(loadHelper.LoadType(listenerClass));
@@ -631,7 +629,7 @@ namespace Quartz.Impl
 				}
 				try
 				{
-					MethodInfo nameSetter = listener.GetType().GetMethod("setName", (strArg == null) ? new Type[0] : (Type[]) strArg);
+					MethodInfo nameSetter = listener.GetType().GetMethod("setName", (strArg == null) ? new Type[0] : strArg);
 					if (nameSetter != null)
 					{
 						nameSetter.Invoke(listener, new object[] {jobListenerNames[i]});
@@ -846,8 +844,8 @@ namespace Quartz.Impl
 		/// </p>
 		/// 
 		/// <p>
-		/// If one of the <code>Initialize</code> methods has not be previously
-		/// called, then the default (no-arg) <code>Initialize()</code> method
+		/// If one of the <see cref="Initialize" /> methods has not be previously
+		/// called, then the default (no-arg) <see cref="Initialize()" /> method
 		/// will be called by this method.
 		/// </p>
 		/// </summary>

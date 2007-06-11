@@ -33,11 +33,11 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
 	/// <summary>
-	/// This class implements a <code>IJobStore</code> that
+	/// This class implements a <see cref="IJobStore" /> that
 	/// utilizes RAM as its storage device.
 	/// <p>
 	/// As you should know, the ramification of this is that access is extrememly
-	/// fast, but the data is completely volatile - therefore this <code>JobStore</code>
+	/// fast, but the data is completely volatile - therefore this <see cref="IJobStore" />
 	/// should not be used if true persistence between program shutdowns is
 	/// required.
 	/// </p>
@@ -97,7 +97,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Called by the QuartzScheduler before the <code>JobStore</code> is
+		/// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
 		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
 		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
@@ -107,7 +107,7 @@ namespace Quartz.Simpl
 		}
 
         /// <summary>
-        /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+        /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
         /// the scheduler has started.
         /// </summary>
 		public virtual void SchedulerStarted()
@@ -116,7 +116,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+		/// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
 		/// it should free up all of it's resources because the scheduler is
 		/// shutting down.
 		/// </summary>
@@ -135,11 +135,11 @@ namespace Quartz.Simpl
 	    }
 
 		/// <summary>
-		/// Store the given <code>JobDetail</code> and <code>{@link org.quartz.Trigger}</code>.
+		/// Store the given <see cref="JobDetail" /> and <see cref="Trigger" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="newJob">The <code>JobDetail</code> to be stored.</param>
-		/// <param name="newTrigger">The <code>Trigger</code> to be stored.</param>
+		/// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
+		/// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
 		public virtual void StoreJobAndTrigger(SchedulingContext ctxt, JobDetail newJob, Trigger newTrigger)
 		{
 			StoreJob(ctxt, newJob, false);
@@ -147,12 +147,12 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Store the given <code>IJob</code>.
+		/// Store the given <see cref="IJob" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="newJob">The <code>Job</code> to be stored.</param>
-		/// <param name="replaceExisting">If <code>true</code>, any <code>Job</code> existing in the
-		/// <code>JobStore</code> with the same name and group should be
+		/// <param name="newJob">The <see cref="IJob" /> to be stored.</param>
+		/// <param name="replaceExisting">If <see langword="true" />, any <see cref="IJob" /> existing in the
+		/// <see cref="IJobStore" /> with the same name and group should be
 		/// over-written.</param>
 		public virtual void StoreJob(SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
 		{
@@ -195,15 +195,15 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Remove (delete) the <code>IJob</code> with the given
-		/// name, and any <code>Trigger</code> s that reference
+		/// Remove (delete) the <see cref="IJob" /> with the given
+		/// name, and any <see cref="Trigger" /> s that reference
 		/// it.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="jobName">The name of the <code>Job</code> to be removed.</param>
-		/// <param name="groupName">The group name of the <code>Job</code> to be removed.</param>
+		/// <param name="jobName">The name of the <see cref="IJob" /> to be removed.</param>
+		/// <param name="groupName">The group name of the <see cref="IJob" /> to be removed.</param>
 		/// <returns>
-		/// 	<code>true</code> if a <code>Job</code> with the given name and
+		/// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
 		/// group was found and removed from the store.
 		/// </returns>
 		public virtual bool RemoveJob(SchedulingContext ctxt, string jobName, string groupName)
@@ -243,12 +243,12 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Store the given <code>Trigger</code>.
+		/// Store the given <see cref="Trigger" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="newTrigger">The <code>Trigger</code> to be stored.</param>
-		/// <param name="replaceExisting">If <code>true</code>, any <code>Trigger</code> existing in
-		/// the <code>JobStore</code> with the same name and group should
+		/// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
+		/// <param name="replaceExisting">If <see langword="true" />, any <see cref="Trigger" /> existing in
+		/// the <see cref="IJobStore" /> with the same name and group should
 		/// be over-written.</param>
 		public virtual void StoreTrigger(SchedulingContext ctxt, Trigger newTrigger, bool replaceExisting)
 		{
@@ -309,14 +309,14 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Remove (delete) the <code>Trigger</code> with the
+		/// Remove (delete) the <see cref="Trigger" /> with the
 		/// given name.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="triggerName">The name of the <code>Trigger</code> to be removed.</param>
-		/// <param name="groupName">The group name of the <code>Trigger</code> to be removed.</param>
+		/// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
+		/// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
 		/// <returns>
-		/// 	<code>true</code> if a <code>Trigger</code> with the given
+		/// 	<see langword="true" /> if a <see cref="Trigger" /> with the given
 		/// name and group was found and removed from the store.
 		/// </returns>
 		public virtual bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
@@ -439,14 +439,14 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Retrieve the <code>JobDetail</code> for the given
-		/// <code>Job</code>.
+		/// Retrieve the <see cref="JobDetail" /> for the given
+		/// <see cref="IJob" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="jobName">The name of the <code>Job</code> to be retrieved.</param>
-		/// <param name="groupName">The group name of the <code>Job</code> to be retrieved.</param>
+		/// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
+		/// <param name="groupName">The group name of the <see cref="IJob" /> to be retrieved.</param>
 		/// <returns>
-		/// The desired <code>Job</code>, or null if there is no match.
+		/// The desired <see cref="IJob" />, or null if there is no match.
 		/// </returns>
 		public virtual JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
@@ -460,13 +460,13 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Retrieve the given <code>Trigger</code>.
+		/// Retrieve the given <see cref="Trigger" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="triggerName">The name of the <code>Trigger</code> to be retrieved.</param>
-		/// <param name="groupName">The group name of the <code>Trigger</code> to be retrieved.</param>
+		/// <param name="triggerName">The name of the <see cref="Trigger" /> to be retrieved.</param>
+		/// <param name="groupName">The group name of the <see cref="Trigger" /> to be retrieved.</param>
 		/// <returns>
-		/// The desired <code>Trigger</code>, or null if there is no match.
+		/// The desired <see cref="Trigger" />, or null if there is no match.
 		/// </returns>
 		public virtual Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
@@ -480,7 +480,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the current state of the identified <code>Trigger</code>.
+		/// Get the current state of the identified <see cref="Trigger" />.
 		/// </summary>
 		/// <seealso cref="Trigger.STATE_NORMAL" />
 		/// <seealso cref="Trigger.STATE_PAUSED" />
@@ -519,18 +519,18 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Store the given <code>ICalendar</code>.
+		/// Store the given <see cref="ICalendar" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
 		/// <param name="name">The name.</param>
-		/// <param name="calendar">The <code>ICalendar</code> to be stored.</param>
-		/// <param name="replaceExisting">If <code>true</code>, any <code>ICalendar</code> existing
-		/// in the <code>JobStore</code> with the same name and group
+		/// <param name="calendar">The <see cref="ICalendar" /> to be stored.</param>
+		/// <param name="replaceExisting">If <see langword="true" />, any <see cref="ICalendar" /> existing
+		/// in the <see cref="IJobStore" /> with the same name and group
 		/// should be over-written.</param>
-		/// <param name="updateTriggers">If <code>true</code>, any <code>Trigger</code>s existing
-		/// in the <code>JobStore</code> that reference an existing
+		/// <param name="updateTriggers">If <see langword="true" />, any <see cref="Trigger" />s existing
+		/// in the <see cref="IJobStore" /> that reference an existing
 		/// Calendar with the same name with have their next fire time
-		/// re-computed with the new <code>Calendar</code>.</param>
+		/// re-computed with the new <see cref="ICalendar" />.</param>
 		public virtual void StoreCalendar(SchedulingContext ctxt, string name, ICalendar calendar, bool replaceExisting,
 		                                  bool updateTriggers)
 		{
@@ -573,17 +573,17 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Remove (delete) the <code>ICalendar</code> with the
+		/// Remove (delete) the <see cref="ICalendar" /> with the
 		/// given name.
 		/// <p>
-		/// If removal of the <code>ICalendar</code> would result in
-		/// <code>Trigger</code>s pointing to non-existent calendars, then a
-		/// <code>JobPersistenceException</code> will be thrown.</p>
+		/// If removal of the <see cref="ICalendar" /> would result in
+		/// <see cref="Trigger" />s pointing to non-existent calendars, then a
+		/// <see cref="JobPersistenceException" /> will be thrown.</p>
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="calName">The name of the <code>ICalendar</code> to be removed.</param>
+		/// <param name="calName">The name of the <see cref="ICalendar" /> to be removed.</param>
 		/// <returns>
-		/// 	<code>true</code> if a <code>ICalendar</code> with the given name
+		/// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
 		/// was found and removed from the store.
 		/// </returns>
 		public virtual bool RemoveCalendar(SchedulingContext ctxt, string calName)
@@ -613,12 +613,12 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Retrieve the given <code>Trigger</code>.
+		/// Retrieve the given <see cref="Trigger" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
-		/// <param name="calName">The name of the <code>Calendar</code> to be retrieved.</param>
+		/// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
 		/// <returns>
-		/// The desired <code>Calendar</code>, or null if there is no match.
+		/// The desired <see cref="ICalendar" />, or null if there is no match.
 		/// </returns>
 		public virtual ICalendar RetrieveCalendar(SchedulingContext ctxt, string calName)
 		{
@@ -626,8 +626,8 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the number of <code>JobDetail</code> s that are
-		/// stored in the <code>JobsStore</code>.
+		/// Get the number of <see cref="JobDetail" /> s that are
+		/// stored in the <see cref="IJobStore" />.
 		/// </summary>
 		public virtual int GetNumberOfJobs(SchedulingContext ctxt)
 		{
@@ -635,8 +635,8 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the number of <code>Trigger</code> s that are
-		/// stored in the <code>JobsStore</code>.
+		/// Get the number of <see cref="Trigger" /> s that are
+		/// stored in the <see cref="IJobStore" />.
 		/// </summary>
 		public virtual int GetNumberOfTriggers(SchedulingContext ctxt)
 		{
@@ -644,8 +644,8 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the number of <code>ICalendar</code> s that are
-		/// stored in the <code>JobsStore</code>.
+		/// Get the number of <see cref="ICalendar" /> s that are
+		/// stored in the <see cref="IJobStore" />.
 		/// </summary>
 		public virtual int GetNumberOfCalendars(SchedulingContext ctxt)
 		{
@@ -653,7 +653,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the names of all of the <code>IJob</code> s that
+		/// Get the names of all of the <see cref="IJob" /> s that
 		/// have the given group name.
 		/// </summary>
 		public virtual string[] GetJobNames(SchedulingContext ctxt, string groupName)
@@ -687,11 +687,11 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the names of all of the <code>ICalendar</code> s
-		/// in the <code>JobStore</code>.
+		/// Get the names of all of the <see cref="ICalendar" /> s
+		/// in the <see cref="IJobStore" />.
 		/// <p>
 		/// If there are no ICalendars in the given group name, the result should be
-		/// a zero-length array (not <code>null</code>).
+		/// a zero-length array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
 		public virtual string[] GetCalendarNames(SchedulingContext ctxt)
@@ -701,7 +701,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the names of all of the <code>Trigger</code> s
+		/// Get the names of all of the <see cref="Trigger" /> s
 		/// that have the given group name.
 		/// </summary>
 		public virtual string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
@@ -735,7 +735,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the names of all of the <code>IJob</code>
+		/// Get the names of all of the <see cref="IJob" />
 		/// groups.
 		/// </summary>
 		public virtual string[] GetJobGroupNames(SchedulingContext ctxt)
@@ -757,7 +757,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Get the names of all of the <code>Trigger</code> groups.
+		/// Get the names of all of the <see cref="Trigger" /> groups.
 		/// </summary>
 		public virtual string[] GetTriggerGroupNames(SchedulingContext ctxt)
 		{
@@ -855,7 +855,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary> 
-		/// Pause the <code>Trigger</code> with the given name.
+		/// Pause the <see cref="Trigger" /> with the given name.
 		/// </summary>
 		public virtual void PauseTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
@@ -887,7 +887,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Pause all of the <code>Trigger</code>s in the given group.
+		/// Pause all of the <see cref="Trigger" />s in the given group.
 		/// <p>
 		/// The JobStore should "remember" that the group is paused, and impose the
 		/// pause on any new triggers that are added to the group while the group is
@@ -913,8 +913,8 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary> 
-		/// Pause the <code>JobDetail</code> with the given
-		/// name - by pausing all of its current <code>Trigger</code>s.
+		/// Pause the <see cref="JobDetail" /> with the given
+		/// name - by pausing all of its current <see cref="Trigger" />s.
 		/// </summary>
 		public virtual void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
@@ -929,8 +929,8 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Pause all of the <code>{@link org.quartz.JobDetail}s</code> in the
-		/// given group - by pausing all of their <code>Trigger</code>s.
+		/// Pause all of the <see cref="JobDetail" />s in the
+		/// given group - by pausing all of their <see cref="Trigger" />s.
 		/// <p>
 		/// The JobStore should "remember" that the group is paused, and impose the
 		/// pause on any new jobs that are added to the group while the group is
@@ -955,11 +955,11 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) the <code>Trigger</code> with the given
+		/// Resume (un-pause) the <see cref="Trigger" /> with the given
 		/// name.
 		/// <p>
-		/// If the <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
+		/// If the <see cref="Trigger" /> missed one or more fire-times, then the
+		/// <see cref="Trigger" />'s misfire instruction will be applied.
 		/// </p>
 		/// </summary>
 		public virtual void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName)
@@ -1000,11 +1000,11 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) all of the <code>Trigger</code>s in the
+		/// Resume (un-pause) all of the <see cref="Trigger" />s in the
 		/// given group.
 		/// <p>
-		/// If any <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
+		/// If any <see cref="Trigger" /> missed one or more fire-times, then the
+		/// <see cref="Trigger" />'s misfire instruction will be applied.
 		/// </p>
 		/// </summary>
 		public virtual void ResumeTriggerGroup(SchedulingContext ctxt, string groupName)
@@ -1022,11 +1022,11 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) the <code>JobDetail</code> with
+		/// Resume (un-pause) the <see cref="JobDetail" /> with
 		/// the given name.
 		/// <p>
-		/// If any of the <code>Job</code>'s<code>Trigger</code> s missed one
-		/// or more fire-times, then the <code>Trigger</code>'s misfire
+		/// If any of the <see cref="IJob" />'s<see cref="Trigger" /> s missed one
+		/// or more fire-times, then the <see cref="Trigger" />'s misfire
 		/// instruction will be applied.
 		/// </p>
 		/// </summary>
@@ -1043,11 +1043,11 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) all of the <code>JobDetail</code>s
+		/// Resume (un-pause) all of the <see cref="JobDetail" />s
 		/// in the given group.
 		/// <p>
-		/// If any of the <code>Job</code> s had <code>Trigger</code> s that
-		/// missed one or more fire-times, then the <code>Trigger</code>'s
+		/// If any of the <see cref="IJob" /> s had <see cref="Trigger" /> s that
+		/// missed one or more fire-times, then the <see cref="Trigger" />'s
 		/// misfire instruction will be applied.
 		/// </p>
 		/// </summary>
@@ -1069,10 +1069,10 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Pause all triggers - equivalent of calling <code>PauseTriggerGroup(group)</code>
+		/// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup(SchedulingContext, string)" />
 		/// on every group.
 		/// <p>
-		/// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
+		/// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
 		/// </p>
 		/// </summary>
@@ -1091,11 +1091,11 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) all triggers - equivalent of calling <code>ResumeTriggerGroup(group)</code>
+		/// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(SchedulingContext, string)" />
 		/// on every group.
 		/// <p>
-		/// If any <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
+		/// If any <see cref="Trigger" /> missed one or more fire-times, then the
+		/// <see cref="Trigger" />'s misfire instruction will be applied.
 		/// </p>
 		/// </summary>
 		/// <seealso cref="PauseAll(SchedulingContext)" />
@@ -1219,8 +1219,8 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Inform the <code>JobStore</code> that the scheduler no longer plans to
-		/// fire the given <code>Trigger</code>, that it had previously acquired
+		/// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
+		/// fire the given <see cref="Trigger" />, that it had previously acquired
 		/// (reserved).
 		/// </summary>
 		public virtual void ReleaseAcquiredTrigger(SchedulingContext ctxt, Trigger trigger)
@@ -1237,8 +1237,8 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Inform the <code>JobStore</code> that the scheduler is now firing the
-		/// given <code>Trigger</code> (executing its associated <code>Job</code>),
+		/// Inform the <see cref="IJobStore" /> that the scheduler is now firing the
+		/// given <see cref="Trigger" /> (executing its associated <see cref="IJob" />),
 		/// that it had previously acquired (reserved).
 		/// </summary>
 		public virtual TriggerFiredBundle TriggerFired(SchedulingContext ctxt, Trigger trigger)
@@ -1326,10 +1326,10 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary> 
-		/// Inform the <code>JobStore</code> that the scheduler has completed the
-		/// firing of the given <code>Trigger</code> (and the execution its
-		/// associated <code>Job</code>), and that the <code>{@link org.quartz.JobDataMap}</code>
-		/// in the given <code>JobDetail</code> should be updated if the <code>Job</code>
+		/// Inform the <see cref="IJobStore" /> that the scheduler has completed the
+		/// firing of the given <see cref="Trigger" /> (and the execution its
+		/// associated <see cref="IJob" />), and that the <see cref="JobDataMap" />
+		/// in the given <see cref="JobDetail" /> should be updated if the <see cref="IJob" />
 		/// is stateful.
 		/// </summary>
 		public virtual void TriggeredJobComplete(SchedulingContext ctxt, Trigger trigger, JobDetail jobDetail,

@@ -15,32 +15,31 @@
 * 
 */
 using System;
+using System.Globalization;
+using System.Reflection;
+
 using Common.Logging;
+
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Simpl
 {
-	/// <summary> A JobFactory that instantiates the Job instance (using the default no-arg
-	/// constructor, or more specifically: <code>class.newInstance()</code>), and
-	/// then attempts to set all values in the <code>JobExecutionContext</code>'s
-	/// <code>JobDataMap</code> onto bean properties of the <code>Job</code>.
-	/// 
-	/// </summary>
-	/// <seealso cref="IJobFactory">
-	/// </seealso>
-	/// <seealso cref="SimpleJobFactory">
-	/// </seealso>
-	/// <seealso cref="JobExecutionContext.MergedJobDataMap">
-	/// </seealso>
-	/// <seealso cref="WarnIfPropertyNotFound">
-	/// </seealso>
-	/// <seealso cref="ThrowIfPropertyNotFound">
-	/// 
-	/// </seealso>
+	/// <summary> 
+	/// A JobFactory that instantiates the Job instance (using the default no-arg
+	/// constructor, or more specifically: <see cref="Activator.CreateInstance(string)" />), and
+	/// then attempts to set all values in the <see cref="JobExecutionContext" />'s
+	/// <see cref="JobDataMap" /> onto bean properties of the <see cref="IJob" />.
+	/// </summary
+	/// <seealso cref="IJobFactory" />
+	/// <seealso cref="SimpleJobFactory" />
+	/// <seealso cref="JobExecutionContext.MergedJobDataMap" />
+	/// <seealso cref="WarnIfPropertyNotFound" />
+	/// <seealso cref="ThrowIfPropertyNotFound" />
 	/// <author>James Houser</author>
 	public class PropertySettingJobFactory : SimpleJobFactory
 	{
-		private static readonly ILog Log = LogManager.GetLogger(typeof(PropertySettingJobFactory));
+		private static readonly ILog Log = LogManager.GetLogger(typeof (PropertySettingJobFactory));
 
 		/// <summary> 
 		/// Whether the JobInstantiation should fail and throw and exception if
@@ -50,7 +49,6 @@ namespace Quartz.Simpl
 		public virtual bool ThrowIfPropertyNotFound
 		{
 			get { return throwIfNotFound; }
-
 			set { throwIfNotFound = value; }
 		}
 
@@ -62,7 +60,6 @@ namespace Quartz.Simpl
 		public virtual bool WarnIfPropertyNotFound
 		{
 			get { return warnIfNotFound; }
-
 			set { warnIfNotFound = value; }
 		}
 
@@ -71,18 +68,18 @@ namespace Quartz.Simpl
 
 		/// <summary>
 		/// Called by the scheduler at the time of the trigger firing, in order to
-		/// produce a <code>Job</code> instance on which to call Execute.
+		/// produce a <see cref="IJob" /> instance on which to call Execute.
 		/// <p>
 		/// It should be extremely rare for this method to throw an exception -
 		/// basically only the the case where there is no way at all to instantiate
 		/// and prepare the Job for execution.  When the exception is thrown, the
 		/// Scheduler will move all triggers associated with the Job into the
-		/// <code>Trigger.STATE_ERROR</code> state, which will require human
+		/// <see cref="Trigger.STATE_ERROR" /> state, which will require human
 		/// intervention (e.g. an application restart after fixing whatever
 		/// configuration problem led to the issue wih instantiating the Job.
 		/// </p>
 		/// </summary>
-		/// <param name="bundle">The TriggerFiredBundle from which the <code>JobDetail</code>
+		/// <param name="bundle">The TriggerFiredBundle from which the <see cref="JobDetail" />
 		/// and other info relating to the trigger firing can be obtained.</param>
 		/// <returns>the newly instantiated Job</returns>
 		/// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
@@ -94,253 +91,109 @@ namespace Quartz.Simpl
 			jobDataMap.PutAll(bundle.JobDetail.JobDataMap);
 			jobDataMap.PutAll(bundle.Trigger.JobDataMap);
 
-			setBeanProps(job, jobDataMap);
+			SetObjectProperties(job, jobDataMap);
 
 			return job;
 		}
 
-		protected internal virtual void setBeanProps(object obj, JobDataMap data)
+		public virtual void SetObjectProperties(object obj, JobDataMap data)
 		{
-			/* TODO
-			//UPGRADE_ISSUE: Interface 'java.beans.BeanInfo' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javabeansBeanInfo_3"'
-			BeanInfo bi = null;
-			try
+			Type paramType = null;
+
+			foreach (string name in data.Keys)
 			{
-				//UPGRADE_ISSUE: Method 'java.beans.Introspector.getBeanInfo' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javabeansIntrospector_3"'
-				bi = Introspector.getBeanInfo(obj.GetType());
-			}
-				//UPGRADE_ISSUE: Class 'java.beans.IntrospectionException' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javabeansIntrospectionException_3"'
-			catch (IntrospectionException e1)
-			{
-				if (ThrowIfPropertyNotFound)
-				{
-					throw new SchedulerException("Unable to introspect Job class.", e1);
-				}
-				if (WarnIfPropertyNotFound)
-				{
-					Log.Warn("Unable to introspect Job class.", e1);
-				}
-			}
+				string c = name.Substring(0, 1).ToUpper(CultureInfo.InvariantCulture);
+				string propName = c + name.Substring(1);
 
-			//UPGRADE_ISSUE: Method 'java.beans.BeanInfo.getPropertyDescriptors' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javabeansBeanInfo_3"'
-			PropertyDescriptor[] propDescs = bi.getPropertyDescriptors();
-
-			IEnumerator keys = data.KeySet().GetEnumerator();
-			//UPGRADE_TODO: Method 'java.util.Iterator.hasNext' was converted to 'System.Collections.IEnumerator.MoveNext' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilIteratorhasNext_3"'
-			while (keys.MoveNext())
-			{
-				//UPGRADE_TODO: Method 'java.util.Iterator.next' was converted to 'System.Collections.IEnumerator.Current' which has a different behavior. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1073_javautilIteratornext_3"'
-				String name = (String) keys.Current;
-				String c = name.Substring(0, (1) - (0)).ToUpper(new CultureInfo("en-US"));
-				String methName = "set" + c + name.Substring(1);
-
-				MethodInfo setMeth = getSetMethod(methName, propDescs);
-
-				Type paramType = null;
-				object o = null;
+				object o = data[name];
+				PropertyInfo prop = obj.GetType().GetProperty(propName);
 
 				try
 				{
-					if (setMeth == null)
+					if (prop == null)
 					{
-						if (ThrowIfPropertyNotFound)
-						{
-							throw new SchedulerException("No setter on Job class " + obj.GetType() + " for property '" + name + "'");
-						}
-						if (WarnIfPropertyNotFound)
-						{
-							Log.Warn("No setter on Job class " + obj.GetType() + " for property '" + name + "'");
-						}
+						HandleError("No property on Job class " + obj.GetType() + " for property '" + name + "'");
 						continue;
 					}
 
-					//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.reflect.Method.getParameterTypes' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-					paramType = setMeth.GetParameters()[0];
-					o = data[name];
+					paramType = prop.PropertyType;
 
-					if (paramType.Equals(typeof (int)))
+					if (o == null && (paramType.IsPrimitive || paramType.IsEnum))
 					{
-						if (o is Int32)
-						{
-							setMeth.Invoke(obj, new object[] {o});
-						}
-						else if (o is String)
-						{
-							setMeth.Invoke(obj, new object[] {data.GetIntegerFromString(name)});
-						}
+						// cannot set null to these
+						HandleError("Cannot set null to property on Job class " + obj.GetType() + " for property '" + name + "'");
 					}
-					else if (paramType.Equals(typeof (long)))
+					if (paramType == typeof(char) && o!= null && o is string && ((string) o).Length != 1)
 					{
-						if (o is Int64)
-						{
-							setMeth.Invoke(obj, new object[] {o});
-						}
-						else if (o is String)
-						{
-							setMeth.Invoke(obj, new object[] {data.GetLongFromString(name)});
-						}
+						// handle special case
+						HandleError("Cannot set empty string to char property on Job class " + obj.GetType() + " for property '" + name + "'");
 					}
-					else if (paramType.Equals(typeof (float)))
-					{
-						if (o is Single)
-						{
-							setMeth.Invoke(obj, new object[] {o});
-						}
-						else if (o is String)
-						{
-							setMeth.Invoke(obj, new object[] {data.GetFloatFromString(name)});
-						}
-					}
-					else if (paramType.Equals(typeof (double)))
-					{
-						if (o is Double)
-						{
-							setMeth.Invoke(obj, new object[] {o});
-						}
-						else if (o is String)
-						{
-							setMeth.Invoke(obj, new object[] {data.GetDoubleFromString(name)});
-						}
-					}
-					else if (paramType.Equals(typeof (bool)))
-					{
-						if (o is Boolean)
-						{
-							setMeth.Invoke(obj, new object[] {o});
-						}
-						else if (o is String)
-						{
-							setMeth.Invoke(obj, new object[] {data.GetBooleanFromString(name)});
-						}
-					}
-					else if (paramType.Equals(typeof (String)))
-					{
-						if (o is String)
-						{
-							setMeth.Invoke(obj, new object[] {o});
-						}
-					}
-					else
-					{
-						if (paramType.IsAssignableFrom(o.GetType()))
-						{
-							setMeth.Invoke(obj, (object[]) new object[] {o});
-						}
-						else
-						{
-							throw new MethodAccessException();
-						}
-					}
+					
+					object goodValue = ObjectUtils.ConvertValueIfNecessary(paramType, o);
+					prop.GetSetMethod().Invoke(obj, new object[] {goodValue});
 				}
 				catch (FormatException nfe)
 				{
-					if (ThrowIfPropertyNotFound)
-					{
-						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.object.toString' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						throw new SchedulerException(
+					HandleError(
 							"The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
 							" but was given " + o, nfe);
-					}
-					if (WarnIfPropertyNotFound)
-					{
-						//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.object.toString' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						Log.Warn(
-							"The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
-							" but was given " + o, nfe);
-					}
+
 					continue;
 				}
 				catch (MethodAccessException)
 				{
-					if (ThrowIfPropertyNotFound)
-					{
-						throw new SchedulerException("The setter on Job class " + obj.GetType() + " for property '" + name +
-						                             "' expects a " + paramType + " but was given " + o.GetType());
-					}
-					if (WarnIfPropertyNotFound)
-					{
-						Log.Warn("The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
+					HandleError("The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
 						         " but was given a " + o.GetType());
-					}
+
 					continue;
 				}
 				catch (ArgumentException e)
 				{
-					if (ThrowIfPropertyNotFound)
-					{
-						throw new SchedulerException(
+					HandleError(
 							"The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
 							" but was given " + o.GetType(), e);
-					}
-					if (WarnIfPropertyNotFound)
-					{
-						Log.Warn(
-							"The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
-							" but was given a " + o.GetType(), e);
-					}
+
 					continue;
 				}
 				catch (UnauthorizedAccessException e)
 				{
-					if (ThrowIfPropertyNotFound)
-					{
-						throw new SchedulerException(
+					HandleError(
 							"The setter on Job class " + obj.GetType() + " for property '" + name + "' could not be accessed.", e);
-					}
-					if (WarnIfPropertyNotFound)
-					{
-						Log.Warn(
-							"The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
-							"' could not be accessed.", e);
-					}
 					continue;
 				}
 				catch (TargetInvocationException e)
 				{
-					if (ThrowIfPropertyNotFound)
-					{
-						throw new SchedulerException(
+					HandleError(
 							"The setter on Job class " + obj.GetType() + " for property '" + name + "' could not be accessed.", e);
-					}
-					if (WarnIfPropertyNotFound)
-					{
-						Log.Warn(
-							"The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
-							"' could not be accessed.", e);
-					}
+					
 					continue;
 				}
 			}
-			*/
 		}
 
-/*
-		private MethodInfo getSetMethod(String name, PropertyDescriptor[] props)
+		private void HandleError(string message)
 		{
-			for (int i = 0; i < props.Length; i++)
+			HandleError(message, null);
+		}
+
+		private void HandleError(string message, Exception e)
+		{
+			if (ThrowIfPropertyNotFound)
 			{
-				//UPGRADE_ISSUE: Method 'java.beans.PropertyDescriptor.getWriteMethod' was not converted. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1000_javabeansPropertyDescriptorgetWriteMethod_3"'
-				MethodInfo wMeth = null; // TODO props[i].getWriteMethod();
-
-				if (wMeth == null)
-				{
-					continue;
-				}
-
-				//UPGRADE_TODO: The equivalent in .NET for method 'java.lang.reflect.Method.getParameterTypes' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-				if (wMeth.GetParameters().Length != 1)
-				{
-					continue;
-				}
-
-				if (wMeth.Name.Equals(name))
-				{
-					return wMeth;
-				}
+				throw new SchedulerException(message, e);
 			}
 
-			return null;
+			if (WarnIfPropertyNotFound)
+			{
+				if (e == null)
+				{
+					Log.Warn(message);
+				}
+				else
+				{
+					Log.Warn(message, e);
+				}
+			}
 		}
-*/
 	}
 }

@@ -19,65 +19,56 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
+using System.Threading;
+
 namespace Quartz
 {
-	/// <summary> <p>
-	/// The interface to be implemented by <code>{@link Job}s</code> that provide a 
+	/// <summary>
+	/// The interface to be implemented by <see cref="IJob" />s that provide a 
 	/// mechanism for having their execution interrupted.  It is NOT a requirment
 	/// for jobs to implement this interface - in fact, for most people, none of
 	/// their jobs will.
-	/// </p>
 	/// 
 	/// <p>
 	/// The means of actually interrupting the Job must be implemented within the
-	/// <code>Job</code> itself (the <code>interrupt()</code> method of this 
-	/// interface is simply a means for the scheduler to inform the <code>Job</code>
+	/// <see cref="IJob" /> itself (the <see cref="Interrupt" /> method of this 
+	/// interface is simply a means for the scheduler to inform the <see cref="IJob" />
 	/// that a request has been made for it to be interrupted). The mechanism that
 	/// your jobs use to interrupt themselves might vary between implementations.
 	/// However the principle idea in any implementation should be to have the
-	/// body of the job's <code>Execute(..)</code> periodically check some flag to
+	/// body of the job's <see cref="IJob.Execute" /> periodically check some flag to
 	/// see if an interruption has been requested, and if the flag is set, somehow
 	/// abort the performance of the rest of the job's work.  An example of 
 	/// interrupting a job can be found in the java source for the  class 
-	/// <code>Quartz.Examples.Example2.DumbInterruptableJob</code>.  It is legal to use
-	/// some combination of <code>wait()</code> and <code>notify()</code> 
-	/// synchronization within <code>interrupt()</code> and <code>Execute(..)</code>
-	/// in order to have the <code>interrupt()</code> method block until the
-	/// <code>Execute(..)</code> signals that it has noticed the set flag.
+	/// Quartz.Examples.Example2.DumbInterruptableJob.  It is legal to use
+	/// some combination of <see cref="wait()" /> and <see cref="notify()" /> 
+	/// synchronization within <see cref="Thread.Interrupt" /> and <see cref="IJob.Execute" />
+	/// in order to have the <see cref="Thread.Interrupt" /> method block until the
+	/// <see cref="IJob.Execute" /> signals that it has noticed the set flag.
 	/// </p>
 	/// 
 	/// <p>
 	/// If the Job performs some form of blocking I/O or similar functions, you may
-	/// want to consider having the <code>Job.Execute(..)</code> method store a
-	/// reference to the calling <code>Thread</code> as a member variable.  Then the
-	/// impplementation of this interfaces <code>interrupt()</code> method can call 
-	/// <code>interrupt()</code> on that Thread.   Before attempting this, make
-	/// sure that you fully understand what <code>java.lang.Thread.interrupt()</code> 
+	/// want to consider having the <see cref="IJob.Execute" /> method store a
+	/// reference to the calling <see cref="Thread" /> as a member variable.  Then the
+	/// impplementation of this interfaces <see cref="Thread.Interrupt" /> method can call 
+	/// <see cref="Thread.Interrupt" /> on that Thread.   Before attempting this, make
+	/// sure that you fully understand what <see cref="Thread.Interrupt" /> 
 	/// does and doesn't do.  Also make sure that you clear the Job's member 
 	/// reference to the Thread when the Execute(..) method exits (preferrably in a
-	/// <code>finally</code> block.
+	/// <see langword="finally" /> block.
 	/// </p>
-	/// 
 	/// </summary>
-	/// <seealso cref="IJob">
-	/// </seealso>
-	/// <seealso cref="IStatefulJob">
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="IJob" />
+	/// <seealso cref="IStatefulJob" />
+	/// <author>James House</author>
 	public interface IInterruptableJob : IJob
 	{
-		/// <summary> <p>
-		/// Called by the <code>{@link Scheduler}</code> when a user
-		/// interrupts the <code>Job</code>.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Called by the <see cref="IScheduler" /> when a user
+		/// interrupts the <see cref="IJob" />.
 		/// </summary>
-		/// <returns> void (nothing) if job interrupt is successful.
-		/// </returns>
-		/// <throws>  UnableToInterruptJobException </throws>
-		/// <summary>           if there is an exception while interrupting the job.
-		/// </summary>
+		/// <returns> void (nothing) if job interrupt is successful.</returns>
 		void Interrupt();
 	}
 }

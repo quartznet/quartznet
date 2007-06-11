@@ -23,7 +23,7 @@ namespace Quartz.Job
 {
 	/// <summary> 
 	/// Interface for objects wishing to receive a 'call-back' from a 
-	/// <code>FileScanJob</code>.
+	/// <see cref="FileScanJob" />.
 	/// </summary>
 	/// <author>James House</author>
 	/// <seealso cref="FileScanJob" />

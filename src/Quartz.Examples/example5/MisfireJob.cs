@@ -38,8 +38,8 @@ namespace Quartz.Examples.Example5
 		
 	
 		/// <summary> <p>
-		/// Called by the <code>{@link org.quartz.Scheduler}</code> when a <code>{@link org.quartz.Trigger}</code>
-		/// fires that is associated with the <code>Job</code>.
+		/// Called by the <see cref="org.quartz.Scheduler" /> when a <see cref="Trigger" />
+		/// fires that is associated with the <see cref="IJob" />.
 		/// </p>
 		/// 
 		/// </summary>

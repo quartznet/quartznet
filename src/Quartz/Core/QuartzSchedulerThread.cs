@@ -29,8 +29,8 @@ using Quartz.Spi;
 namespace Quartz.Core
 {
 	/// <summary>
-	/// The thread responsible for performing the work of firing <code>Trigger</code>
-	/// s that are registered with the <code>QuartzScheduler</code>.
+	/// The thread responsible for performing the work of firing <see cref="Trigger" />
+	/// s that are registered with the <see cref="QuartzScheduler" />.
 	/// </summary>
 	/// <seealso cref="QuartzScheduler" />
 	/// <seealso cref="IJob" />
@@ -96,8 +96,8 @@ namespace Quartz.Core
 
 
 		/// <summary>
-		/// Construct a new <code>QuartzSchedulerThread</code> for the given
-		/// <code>QuartzScheduler</code> as a non-daemon <code>Thread</code>
+		/// Construct a new <see cref="QuartzSchedulerThread" /> for the given
+		/// <see cref="QuartzScheduler" /> as a non-daemon <see cref="Thread" />
 		/// with normal priority.
 		/// </summary>
 		internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, SchedulingContext ctxt)
@@ -106,8 +106,8 @@ namespace Quartz.Core
 		}
 
 		/// <summary>
-		/// Construct a new <code>QuartzSchedulerThread</code> for the given
-		/// <code>QuartzScheduler</code> as a <code>Thread</code> with the given
+		/// Construct a new <see cref="QuartzSchedulerThread" /> for the given
+		/// <see cref="QuartzScheduler" /> as a <see cref="Thread" /> with the given
 		/// attributes.
 		/// </summary>
 		internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, SchedulingContext ctxt,
@@ -189,7 +189,7 @@ namespace Quartz.Core
 		}
 
 		/// <summary>
-		/// The main processing loop of the <code>QuartzSchedulerThread</code>.
+		/// The main processing loop of the <see cref="QuartzSchedulerThread" />.
 		/// </summary>
 		public override void Run()
 		{

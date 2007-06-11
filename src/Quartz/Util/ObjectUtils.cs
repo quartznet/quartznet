@@ -57,7 +57,17 @@ namespace Quartz.Util
 					TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
 					if (typeConverter.CanConvertFrom(newValue.GetType()))
 					{
-						newValue = typeConverter.ConvertFrom(newValue);
+						newValue = typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
+					}
+					else if (requiredType == typeof(short) && (newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
+					{
+						// automatically doesn't work, try with converter
+						newValue = Convert.ToInt16(newValue);
+					}
+					else if (requiredType == typeof(byte) && (newValue.GetType() == typeof(short) || newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
+					{
+						// automatically doesn't work, try with converter
+						newValue = Convert.ToByte(newValue);
 					}
 				}
 				catch (Exception)

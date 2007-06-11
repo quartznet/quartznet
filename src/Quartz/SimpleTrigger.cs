@@ -25,7 +25,7 @@ using Nullables;
 namespace Quartz
 {
 	/// <summary> 
-	/// A concrete <code>Trigger</code> that is used to fire a <code>JobDetail</code>
+	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetail" />
 	/// at a given moment in time, and optionally repeated at a specified interval.
 	/// </summary>
 	/// <seealso cref="Trigger" />
@@ -39,7 +39,7 @@ namespace Quartz
 	public class SimpleTrigger : Trigger
 	{
 		/// <summary>
-		/// Get or set thhe number of times the <code>SimpleTrigger</code> should
+		/// Get or set thhe number of times the <see cref="SimpleTrigger" /> should
 		/// repeat, after which it will be automatically deleted.
 		/// </summary>
 		/// <seealso cref="REPEAT_INDEFINITELY" />
@@ -59,7 +59,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get or set the the time interval (in milliseconds) at which the <code>SimpleTrigger</code>
+		/// Get or set the the time interval (in milliseconds) at which the <see cref="SimpleTrigger" />
 		/// should repeat.
 		/// </summary>
 		public long RepeatInterval
@@ -78,7 +78,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get or set the number of times the <code>SimpleTrigger</code> has already
+		/// Get or set the number of times the <see cref="SimpleTrigger" /> has already
 		/// fired.
 		/// </summary>
 		public virtual int TimesTriggered
@@ -88,7 +88,7 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Returns the final time at which the <code>SimpleTrigger</code> will
+		/// Returns the final time at which the <see cref="SimpleTrigger" /> will
 		/// fire, if repeatCount is REPEAT_INDEFINITELY, null will be returned.
 		/// <p>
 		/// Note that the return time may be in the past.
@@ -141,22 +141,22 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Instructs the <code>{@link Scheduler}</code> that upon a mis-fire
-		/// situation, the <code>{@link SimpleTrigger}</code> wants to be fired
-		/// now by <code>Scheduler</code>.
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+		/// situation, the <see cref="SimpleTrigger" /> wants to be fired
+		/// now by <see cref="IScheduler" />.
 		/// <p>
 		/// <i>NOTE:</i> This instruction should typically only be used for
 		/// 'one-shot' (non-repeating) Triggers. If it is used on a trigger with a
-		/// repeat count > 0 then it is equivalent to the instruction <code>{@link #MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT}
-		/// </code>.
+		/// repeat count > 0 then it is equivalent to the instruction 
+		/// <see cref="MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT" />.
 		/// </p>
 		/// </summary>
 		public const int MISFIRE_INSTRUCTION_FIRE_NOW = 1;
 
 		/// <summary> <p>
-		/// Instructs the <code>{@link Scheduler}</code> that upon a mis-fire
-		/// situation, the <code>{@link SimpleTrigger}</code> wants to be
-		/// re-scheduled to 'now' (even if the associated <code>{@link Calendar}</code>
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+		/// situation, the <see cref="SimpleTrigger" /> wants to be
+		/// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
 		/// excludes 'now') with the repeat count left as-is.
 		/// </p>
 		/// 
@@ -168,7 +168,7 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// <p>
-		/// <i>NOTE:</i> This instruction could cause the <code>Trigger</code>
+		/// <i>NOTE:</i> This instruction could cause the <see cref="Trigger" />
 		/// to go to the 'COMPLETE' state after firing 'now', if all the
 		/// repeat-fire-times where missed.
 		/// </p>
@@ -176,9 +176,9 @@ namespace Quartz
 		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT = 2;
 
 		/// <summary> <p>
-		/// Instructs the <code>{@link Scheduler}</code> that upon a mis-fire
-		/// situation, the <code>{@link SimpleTrigger}</code> wants to be
-		/// re-scheduled to 'now' (even if the associated <code>{@link Calendar}</code>
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+		/// situation, the <see cref="SimpleTrigger" /> wants to be
+		/// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
 		/// excludes 'now') with the repeat count set to what it would be, if it had
 		/// not missed any firings.
 		/// </p>
@@ -191,7 +191,7 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// <p>
-		/// <i>NOTE:</i> This instruction could cause the <code>Trigger</code>
+		/// <i>NOTE:</i> This instruction could cause the <see cref="Trigger" />
 		/// to go to the 'COMPLETE' state after firing 'now', if all the
 		/// repeat-fire-times where missed.
 		/// </p>
@@ -199,25 +199,25 @@ namespace Quartz
 		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT = 3;
 
 		/// <summary> <p>
-		/// Instructs the <code>{@link Scheduler}</code> that upon a mis-fire
-		/// situation, the <code>{@link SimpleTrigger}</code> wants to be
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+		/// situation, the <see cref="SimpleTrigger" /> wants to be
 		/// re-scheduled to the next scheduled time after 'now' - taking into
-		/// account any associated <code>{@link Calendar}</code>, and with the
+		/// account any associated <see cref="ICalendar" />, and with the
 		/// repeat count set to what it would be, if it had not missed any firings.
 		/// </p>
 		/// 
 		/// <p>
-		/// <i>NOTE/WARNING:</i> This instruction could cause the <code>Trigger</code>
+		/// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="Trigger" />
 		/// to go directly to the 'COMPLETE' state if all fire-times where missed.
 		/// </p>
 		/// </summary>
 		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT = 4;
 
 		/// <summary>
-		/// Instructs the <code>{@link Scheduler}</code> that upon a mis-fire
-		/// situation, the <code>{@link SimpleTrigger}</code> wants to be
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+		/// situation, the <see cref="SimpleTrigger" /> wants to be
 		/// re-scheduled to the next scheduled time after 'now' - taking into
-		/// account any associated <code>{@link Calendar}</code>, and with the
+		/// account any associated <see cref="ICalendar" />, and with the
 		/// repeat count left unchanged.
 		/// <p>
 		/// <i>NOTE:</i> Use of this instruction causes the trigger to 'forget'
@@ -226,7 +226,7 @@ namespace Quartz
 		/// values were at some later time).
 		/// </p>
 		/// <p>
-		/// <i>NOTE/WARNING:</i> This instruction could cause the <code>Trigger</code>
+		/// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="Trigger" />
 		/// to go directly to the 'COMPLETE' state if all fire-times where missed.
 		/// </p>
 		/// </summary>
@@ -248,14 +248,14 @@ namespace Quartz
 		private bool complete = false;
 
 		/// <summary>
-		/// Create a <code>SimpleTrigger</code> with no settings.
+		/// Create a <see cref="SimpleTrigger" /> with no settings.
 		/// </summary>
 		public SimpleTrigger()
 		{
 		}
 
 		/// <summary>
-		/// Create a <code>SimpleTrigger</code> that will occur immediately, and
+		/// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
 		/// not repeat.
 		/// </summary>
 		public SimpleTrigger(string name, string group) : this(name, group, DateTime.Now, null, 0, 0)
@@ -263,7 +263,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a <code>SimpleTrigger</code> that will occur immediately, and
+		/// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
 		/// repeat at the the given interval the given number of times.
 		/// </summary>
 		public SimpleTrigger(string name, string group, int repeatCount, long repeatInterval)
@@ -272,7 +272,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a <code>SimpleTrigger</code> that will occur at the given time,
+		/// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
 		/// and not repeat.
 		/// </summary>
 		public SimpleTrigger(string name, string group, DateTime startTime) : this(name, group, startTime, null, 0, 0)
@@ -280,16 +280,16 @@ namespace Quartz
 		}
 
         /// <summary>
-        /// Create a <code>SimpleTrigger</code> that will occur at the given time,
+        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
         /// and repeat at the the given interval the given number of times, or until
         /// the given end time.
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="group">The group.</param>
-        /// <param name="startTime">A <code>Date</code> set to the time for the <code>Trigger</code> to fire.</param>
-        /// <param name="endTime">A <code>Date</code> set to the time for the <code>Trigger</code>
+        /// <param name="startTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to fire.</param>
+        /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
-        /// <param name="repeatCount">The number of times for the <code>Trigger</code> to repeat
+        /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use {@link #REPEAT_INDEFINITELY}for unlimitted times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, DateTime startTime, NullableDateTime endTime, int repeatCount,
@@ -302,19 +302,19 @@ namespace Quartz
 		}
 
         /// <summary>
-        /// Create a <code>SimpleTrigger</code> that will occur at the given time,
-        /// fire the identified <code>Job</code> and repeat at the the given
+        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
+        /// fire the identified <see cref="IJob" /> and repeat at the the given
         /// interval the given number of times, or until the given end time.
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="group">The group.</param>
         /// <param name="jobName">Name of the job.</param>
         /// <param name="jobGroup">The job group.</param>
-        /// <param name="startTime">A <code>Date</code> set to the time for the <code>Trigger</code>
+        /// <param name="startTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to fire.</param>
-        /// <param name="endTime">A <code>Date</code> set to the time for the <code>Trigger</code>
+        /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
-        /// <param name="repeatCount">The number of times for the <code>Trigger</code> to repeat
+        /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use REPEAT_INDEFINITELY for unlimitted times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTime,
@@ -327,6 +327,11 @@ namespace Quartz
 			RepeatInterval = repeatInterval;
 		}
 
+		/// <summary>
+		/// Validates the misfire instruction.
+		/// </summary>
+		/// <param name="misfireInstruction">The misfire instruction.</param>
+		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
 			if (misfireInstruction < MISFIRE_INSTRUCTION_SMART_POLICY)
@@ -343,23 +348,23 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Updates the <code>SimpleTrigger</code>'s state based on the
-		/// MISFIRE_INSTRUCTION_XXX that was selected when the <code>SimpleTrigger</code>
+		/// Updates the <see cref="SimpleTrigger" />'s state based on the
+		/// MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="SimpleTrigger" />
 		/// was created.
 		/// <p>
 		/// If the misfire instruction is set to MISFIRE_INSTRUCTION_SMART_POLICY,
 		/// then the following scheme will be used: <br />
 		/// <ul>
-		/// <li>If the Repeat Count is <code>0</code>, then the instruction will
-		/// be interpreted as <code>MISFIRE_INSTRUCTION_FIRE_NOW</code>.</li>
-		/// <li>If the Repeat Count is <code>REPEAT_INDEFINITELY</code>, then
-		/// the instruction will be interpreted as <code>MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT</code>.
+		/// <li>If the Repeat Count is 0, then the instruction will
+		/// be interpreted as <see cref="MISFIRE_INSTRUCTION_FIRE_NOW" />.</li>
+		/// <li>If the Repeat Count is <see cref="REPEAT_INDEFINITELY" />, then
+		/// the instruction will be interpreted as <see cref="MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT" />.
 		/// <b>WARNING:</b> using MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT 
 		/// with a trigger that has a non-null end-time may cause the trigger to 
 		/// never fire again if the end-time arrived during the misfire time span. 
 		/// </li>
-		/// <li>If the Repeat Count is <code>> 0</code>, then the instruction
-		/// will be interpreted as <code>MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT</code>.
+		/// <li>If the Repeat Count is > 0, then the instruction
+		/// will be interpreted as <see cref="MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT" />.
 		/// </li>
 		/// </ul>
 		/// </p>
@@ -457,9 +462,9 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Called when the <code>{@link Scheduler}</code> has decided to 'fire'
-		/// the trigger (Execute the associated <code>Job</code>), in order to
-		/// give the <code>Trigger</code> a chance to update itself for its next
+		/// Called when the <see cref="IScheduler" /> has decided to 'fire'
+		/// the trigger (Execute the associated <see cref="IJob" />), in order to
+		/// give the <see cref="Trigger" /> a chance to update itself for its next
 		/// triggering (if any).
 		/// </summary>
 		/// <seealso cref="JobExecutionException" />
@@ -506,18 +511,18 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Called by the scheduler at the time a <code>Trigger</code> is first
-		/// added to the scheduler, in order to have the <code>Trigger</code>
+		/// Called by the scheduler at the time a <see cref="Trigger" /> is first
+		/// added to the scheduler, in order to have the <see cref="Trigger" />
 		/// compute its first fire time, based on any associated calendar.
 		/// <p>
-		/// After this method has been called, <code>getNextFireTime()</code>
+		/// After this method has been called, <see cref="GetNextFireTime()" />
 		/// should return a valid answer.
 		/// </p>
 		/// </summary>
 		/// <returns> 
-		/// The first time at which the <code>Trigger</code> will be fired
-		/// by the scheduler, which is also the same value <code>getNextFireTime()</code>
-		/// will return (until after the first firing of the <code>Trigger</code>).
+		/// The first time at which the <see cref="Trigger" /> will be fired
+		/// by the scheduler, which is also the same value <see cref="GetNextFireTime()" />
+		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
 		public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
 		{
@@ -532,17 +537,17 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Called after the <code>{@link Scheduler}</code> has executed the
-		/// <code>{@link org.quartz.JobDetail}</code> associated with the <code>Trigger</code>
+		/// Called after the <see cref="IScheduler" /> has executed the
+		/// <see cref="JobDetail" /> associated with the <see cref="Trigger" />
 		/// in order to get the final instruction code from the trigger.
 		/// </summary>
 		/// <param name="context">
-		/// is the <code>JobExecutionContext</code> that was used by the
-		/// <code>Job</code>'s<code>Execute(xx)</code> method.
+		/// is the <see cref="JobExecutionContext" /> that was used by the
+		/// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
 		/// </param>
 		/// <param name="result">
-		/// is the <code>JobExecutionException</code> thrown by the
-		/// <code>Job</code>, if any (may be null).
+		/// is the <see cref="JobExecutionException" /> thrown by the
+		/// <see cref="IJob" />, if any (may be null).
 		/// </param>
 		/// <returns> 
 		/// One of the Trigger.INSTRUCTION_XXX constants.
@@ -578,10 +583,10 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the next time at which the <code>SimpleTrigger</code> will
-		/// fire. If the trigger will not fire again, <code>null</code> will be
+		/// Returns the next time at which the <see cref="SimpleTrigger" /> will
+		/// fire. If the trigger will not fire again, <see langword="null" /> will be
 		/// returned. The value returned is not guaranteed to be valid until after
-		/// the <code>Trigger</code> has been added to the scheduler.
+		/// the <see cref="Trigger" /> has been added to the scheduler.
 		/// </summary>
 		public override NullableDateTime GetNextFireTime()
 		{
@@ -589,8 +594,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the previous time at which the <code>SimpleTrigger</code> will
-		/// fire. If the trigger has not yet fired, <code>null</code> will be
+		/// Returns the previous time at which the <see cref="SimpleTrigger" /> will
+		/// fire. If the trigger has not yet fired, <see langword="null" /> will be
 		/// returned.
 		/// </summary>
 		public override NullableDateTime GetPreviousFireTime()
@@ -599,7 +604,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Set the next time at which the <code>SimpleTrigger</code> should fire.
+		/// Set the next time at which the <see cref="SimpleTrigger" /> should fire.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
 		public void SetNextFireTime(NullableDateTime fireTime)
@@ -608,7 +613,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Set the previous time at which the <code>SimpleTrigger</code> fired.
+		/// Set the previous time at which the <see cref="SimpleTrigger" /> fired.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
 		public virtual void SetPreviousFireTime(NullableDateTime fireTime)
@@ -617,9 +622,9 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Returns the next time at which the <code>SimpleTrigger</code> will
+		/// Returns the next time at which the <see cref="SimpleTrigger" /> will
 		/// fire, after the given time. If the trigger will not fire after the given
-		/// time, <code>null</code> will be returned.
+		/// time, <see langword="null" /> will be returned.
 		/// </summary>
 		public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
 		{
@@ -679,9 +684,9 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the last time at which the <code>SimpleTrigger</code> will
+		/// Returns the last time at which the <see cref="SimpleTrigger" /> will
 		/// fire, before the given time. If the trigger will not fire before the
-		/// given time, <code>null</code> will be returned.
+		/// given time, <see langword="null" /> will be returned.
 		/// </summary>
 		public virtual NullableDateTime GetFireTimeBefore(NullableDateTime end)
 		{
@@ -707,7 +712,7 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Determines whether or not the <code>SimpleTrigger</code> will occur
+		/// Determines whether or not the <see cref="SimpleTrigger" /> will occur
 		/// again.
 		/// </summary>
 		public override bool MayFireAgain()
@@ -716,8 +721,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Validates whether the properties of the <code>JobDetail</code> are
-		/// valid for submission into a <code>Scheduler</code>.
+		/// Validates whether the properties of the <see cref="JobDetail" /> are
+		/// valid for submission into a <see cref="IScheduler" />.
 		/// </summary>
 		public override void Validate()
 		{

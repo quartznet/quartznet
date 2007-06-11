@@ -82,7 +82,7 @@ namespace Quartz.Plugins.Management
 		/// Determine whether or not the plug-in is configured to cause a clean
 		/// Shutdown of the scheduler.
 		/// <p>
-		/// The default value is <code>true</code>.
+		/// The default value is <see langword="true" />.
 		/// </p>
 		/// </summary>
 		/// <seealso cref="IScheduler.Shutdown(bool)" />
@@ -94,8 +94,8 @@ namespace Quartz.Plugins.Management
 
 
 		/// <summary>
-		/// Called during creation of the <code>Scheduler</code> in order to give
-		/// the <code>SchedulerPlugin</code> a chance to Initialize.
+		/// Called during creation of the <see cref="IScheduler" /> in order to give
+		/// the <see cref="SchedulerPlugin" /> a chance to Initialize.
 		/// </summary>
 		public virtual void Initialize(String pluginName, IScheduler sched)
 		{
@@ -112,7 +112,7 @@ namespace Quartz.Plugins.Management
 		}
 
         /// <summary>
-        /// Called when the associated <code>Scheduler</code> is started, in order
+        /// Called when the associated <see cref="IScheduler" /> is started, in order
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
@@ -122,7 +122,7 @@ namespace Quartz.Plugins.Management
 		}
 
 		/// <summary>
-		/// Called in order to inform the <code>SchedulerPlugin</code> that it
+		/// Called in order to inform the <see cref="SchedulerPlugin" /> that it
 		/// should free up all of it's resources because the scheduler is shutting
 		/// down.
 		/// </summary>

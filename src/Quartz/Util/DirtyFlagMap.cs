@@ -26,13 +26,17 @@ using Quartz.Collection;
 namespace Quartz.Util
 {
 	/// <summary>
-	/// An implementation of <code>Map</code> that wraps another <code>Map</code>
+	/// An implementation of <see cref="IDictionary" /> that wraps another <see cref="IDictionary" />
 	/// and flags itself 'dirty' when it is modified.
 	/// </summary>
 	/// <author>James House</author>
 	[Serializable]
 	public class DirtyFlagMap : IDictionary, ICloneable
 	{
+		/// <summary>
+		/// Gets or sets a value indicating whether this <see cref="DirtyFlagMap"/> is mutable.
+		/// </summary>
+		/// <value><c>true</c> if mutable; otherwise, <c>false</c>.</value>
 		public virtual bool Mutable
 		{
 			get { return !locked; }
@@ -52,22 +56,25 @@ namespace Quartz.Util
 		}
 
 		/// <summary>
-		/// Determine whether the <code>Map</code> is flagged dirty.
+		/// Determine whether the <see cref="IDictionary" /> is flagged dirty.
 		/// </summary>
 		public virtual bool Dirty
 		{
 			get { return dirty; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get a direct handle to the underlying Map.
-		/// </p>
 		/// </summary>
 		public virtual IDictionary WrappedMap
 		{
 			get { return map; }
 		}
 
+		/// <summary>
+		/// Gets or sets the <see cref="Object"/> with the specified key.
+		/// </summary>
+		/// <value></value>
 		public virtual object this[object key]
 		{
 			get { return map[key]; }
@@ -78,11 +85,20 @@ namespace Quartz.Util
 			}
 		}
 
+		/// <summary>
+		/// When implemented by a class, gets the number of
+		/// elements contained in the <see cref="T:System.Collections.ICollection"/>.
+		/// </summary>
+		/// <value></value>
 		public virtual int Count
 		{
 			get { return map.Count; }
 		}
 
+		/// <summary>
+		/// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the values in the <see cref="T:System.Collections.IDictionary"/>.
+		/// </summary>
+		/// <value></value>
 		public virtual ICollection Values
 		{
 			get { return map.Values; }
@@ -92,9 +108,8 @@ namespace Quartz.Util
 		private bool dirty = false;
 		private Hashtable map;
 
-		/// <summary> <p>
-		/// Create a DirtyFlagMap that 'wraps' the given <code>Map</code>.
-		/// </p>
+		/// <summary>
+		/// Create a DirtyFlagMap that 'wraps' the given <see cref="IDictionary" />.
 		/// </summary>
 		public DirtyFlagMap(IDictionary mapToWrap)
 		{
@@ -107,38 +122,33 @@ namespace Quartz.Util
 		}
 
 		/// <summary>
-		/// Create a DirtyFlagMap that 'wraps' a <code>Hashtable</code>.
+		/// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" />.
 		/// </summary>
 		public DirtyFlagMap()
 		{
 			map = new Hashtable();
 		}
 
-		/// <summary> <p>
-		/// Create a DirtyFlagMap that 'wraps' a <code>HashMap</code> that has the
+		/// <summary>
+		/// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" /> that has the
 		/// given initial capacity.
-		/// </p>
-		/// 
 		/// </summary>
 		public DirtyFlagMap(int initialCapacity)
 		{
 			map = new Hashtable(initialCapacity);
 		}
 
-		/// <summary> <p>
-		/// Create a DirtyFlagMap that 'wraps' a <code>HashMap</code> that has the
+		/// <summary>
+		/// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" /> that has the
 		/// given initial capacity and load factor.
-		/// </p>
-		/// 
 		/// </summary>
 		public DirtyFlagMap(int initialCapacity, float loadFactor)
 		{
 			map = new Hashtable(initialCapacity, loadFactor);
 		}
 
-		/// <summary> <p>
-		/// Clear the 'dirty' flag (set dirty flag to <code>false</code>).
-		/// </p>
+		/// <summary>
+		/// Clear the 'dirty' flag (set dirty flag to <see langword="false" />).
 		/// </summary>
 		public virtual void ClearDirtyFlag()
 		{
@@ -171,16 +181,35 @@ namespace Quartz.Util
 			return map.Contains(key);
 		}
 
+		/// <summary>
+		/// Determines whether the specified obj contains value.
+		/// </summary>
+		/// <param name="obj">The obj.</param>
+		/// <returns>
+		/// 	<c>true</c> if the specified obj contains value; otherwise, <c>false</c>.
+		/// </returns>
 		public virtual bool ContainsValue(object obj)
 		{
 			return map.ContainsValue(obj);
 		}
 
+		/// <summary>
+		/// Gets the entries as a set.
+		/// </summary>
+		/// <returns></returns>
 		public virtual ISet EntrySet()
 		{
 			return new HashSet(map);
 		}
 
+		/// <summary>
+		/// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
+		/// </summary>
+		/// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
+		/// <returns>
+		/// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
+		/// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
+		/// </returns>
 		public override bool Equals(object obj)
 		{
 			if (obj == null || !(obj is DirtyFlagMap))
@@ -309,6 +338,12 @@ namespace Quartz.Util
 			}
 		}
 
+		/// <summary>
+		/// Creates a new object that is a copy of the current instance.
+		/// </summary>
+		/// <returns>
+		/// A new object that is a copy of this instance.
+		/// </returns>
 		public virtual object Clone()
 		{
 			DirtyFlagMap copy;
@@ -325,6 +360,13 @@ namespace Quartz.Util
 			return copy;
 		}
 
+		/// <summary>
+		/// When implemented by a class, returns an
+		/// <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
+		/// </summary>
+		/// <returns>
+		/// An <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
+		/// </returns>
 		IDictionaryEnumerator IDictionary.GetEnumerator()
 		{
 			return map.GetEnumerator();
@@ -350,6 +392,26 @@ namespace Quartz.Util
 			dirty = true;
 		}
 
+		/// <summary>
+		/// When implemented by a class, copies the elements of
+		/// the <see cref="T:System.Collections.ICollection"/> to an <see cref="T:System.Array"/>, starting at a particular <see cref="T:System.Array"/> index.
+		/// </summary>
+		/// <param name="array">The one-dimensional <see cref="T:System.Array"/> that is the destination of the elements copied from <see cref="T:System.Collections.ICollection"/>. The <see cref="T:System.Array"/> must have zero-based indexing.</param>
+		/// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
+		/// <exception cref="T:System.ArgumentNullException">
+		/// 	<paramref name="array"/> is <see langword="null"/>.</exception>
+		/// <exception cref="T:System.ArgumentOutOfRangeException">
+		/// 	<paramref name="index"/> is less than zero.</exception>
+		/// <exception cref="T:System.ArgumentException">
+		/// 	<para>
+		/// 		<paramref name="array"/> is multidimensional.</para>
+		/// 	<para>-or-</para>
+		/// 	<para>
+		/// 		<paramref name="index"/> is equal to or greater than the length of <paramref name="array"/>.</para>
+		/// 	<para>-or-</para>
+		/// 	<para>The number of elements in the source <see cref="T:System.Collections.ICollection"/> is greater than the available space from <paramref name="index"/> to the end of the destination <paramref name="array"/>.</para>
+		/// </exception>
+		/// <exception cref="T:System.InvalidCastException">The type of the source <see cref="T:System.Collections.ICollection"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
 		public virtual void CopyTo(Array array, int index)
 		{
 			object[] keys = new object[Count];
@@ -376,16 +438,30 @@ namespace Quartz.Util
 			return map.GetEnumerator();
 		}
 
+		/// <summary>
+		/// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the keys of the <see cref="T:System.Collections.IDictionary"/>.
+		/// </summary>
+		/// <value></value>
 		public virtual ICollection Keys
 		{
 			get { return map.Keys; }
 		}
 
+		/// <summary>
+		/// When implemented by a class, gets a value indicating whether the <see cref="T:System.Collections.IDictionary"/>
+		/// is read-only.
+		/// </summary>
+		/// <value></value>
 		public virtual bool IsReadOnly
 		{
 			get { return locked; }
 		}
 
+		/// <summary>
+		/// When implemented by a class, gets a value indicating whether the <see cref="T:System.Collections.IDictionary"/>
+		/// has a fixed size.
+		/// </summary>
+		/// <value></value>
 		public virtual Boolean IsFixedSize
 		{
 			get { return false; }
@@ -393,11 +469,22 @@ namespace Quartz.Util
 		
 		private object syncRoot = new object();
 		
+		/// <summary>
+		/// When implemented by a class, gets an object that
+		/// can be used to synchronize access to the <see cref="T:System.Collections.ICollection"/>.
+		/// </summary>
+		/// <value></value>
 		public virtual object SyncRoot
 		{
 			get { return syncRoot; }
 		}
 
+		/// <summary>
+		/// When implemented by a class, gets a value
+		/// indicating whether access to the <see cref="T:System.Collections.ICollection"/> is synchronized
+		/// (thread-safe).
+		/// </summary>
+		/// <value></value>
 		public virtual bool IsSynchronized
 		{
 			get { return false; }

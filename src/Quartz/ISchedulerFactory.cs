@@ -25,7 +25,7 @@ using Quartz.Impl;
 namespace Quartz
 {
 	/// <summary> <p>
-	/// Provides a mechanism for obtaining client-usable handles to <code>Scheduler</code>
+	/// Provides a mechanism for obtaining client-usable handles to <see cref="IScheduler" />
 	/// instances.
 	/// </p>
 	/// 
@@ -47,10 +47,10 @@ namespace Quartz
 		ICollection AllSchedulers { get; }
 
 		/// <summary>
-		/// Returns a client-usable handle to a <code>Scheduler</code>.
+		/// Returns a client-usable handle to a <see cref="IScheduler" />.
 		/// </summary>
 		/// <throws>  SchedulerException </throws>
-		/// <summary>           if there is a problem with the underlying <code>Scheduler</code>.
+		/// <summary>           if there is a problem with the underlying <see cref="IScheduler" />.
 		/// </summary>
 		IScheduler GetScheduler();
 

@@ -40,15 +40,15 @@ namespace Quartz.Examples.Example1
 		}
 		
 		/// <summary> 
-		/// Called by the <code>{@link org.quartz.Scheduler}</code> when a
-		/// <code>{@link org.quartz.Trigger}</code> fires that is associated with
-		/// the <code>Job</code>.
+		/// Called by the <see cref="org.quartz.Scheduler" /> when a
+		/// <see cref="Trigger" /> fires that is associated with
+		/// the <see cref="IJob" />.
 		/// </summary>
 		public virtual void  Execute(JobExecutionContext context)
 		{
 			
 			// Say Hello to the World and display the date/time
-			_log.Info(string.Format("Hello World! - {0}", System.DateTime.Now.ToString("r")));
+			_log.Info(string.Format("Hello World! - {0", System.DateTime.Now.ToString("r")));
 		}
 
 	}

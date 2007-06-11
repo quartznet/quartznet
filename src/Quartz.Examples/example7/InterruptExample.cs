@@ -25,8 +25,8 @@ namespace Quartz.Examples.Example7
 {
 	
 	/// <summary>
-	/// Demonstrates the behavior of <code>StatefulJob</code>s, as well as how
-	/// misfire instructions affect the firings of triggers of <code>StatefulJob</code>
+	/// Demonstrates the behavior of <see cref="StatefulJob" />s, as well as how
+	/// misfire instructions affect the firings of triggers of <see cref="StatefulJob" />
 	/// s - when the jobs take longer to execute that the frequency of the trigger's
 	/// repitition.
 	/// 
@@ -37,7 +37,7 @@ namespace Quartz.Examples.Example7
 	/// time the jobs complete their execution, the triggers have already "misfired"
 	/// (unless the scheduler's "misfire threshold" has been set to more than 7
 	/// seconds). You should see that one of the jobs has its misfire instruction
-	/// set to <code>SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT</code>-
+	/// set to <see cref="SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT" />-
 	/// which causes it to fire immediately, when the misfire is detected. The other
 	/// trigger uses the default "smart policy" misfire instruction, which causes
 	/// the trigger to advance to its next fire time (skipping those that it has

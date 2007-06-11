@@ -22,7 +22,7 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
 	/// <summary>
-	/// <code>IInstanceIdGenerator</code> that names the scheduler instance using 
+	/// <see cref="IInstanceIdGenerator" /> that names the scheduler instance using 
 	/// just the machine hostname.
 	/// <p>
 	/// This class is useful when you know that your scheduler instance will be the 
@@ -36,6 +36,10 @@ namespace Quartz.Simpl
 	/// <seealso cref="SimpleInstanceIdGenerator" />
 	public class HostnameInstanceIdGenerator : IInstanceIdGenerator
 	{
+		/// <summary>
+		/// Generate the instance id for a <see cref="IScheduler"/>
+		/// </summary>
+		/// <returns>The clusterwide unique instance id.</returns>
 		public virtual string GenerateInstanceId()
 		{
 			try

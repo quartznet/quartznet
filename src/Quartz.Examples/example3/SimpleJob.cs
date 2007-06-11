@@ -15,16 +15,14 @@
 * 
 */
 using System;
+
 using Common.Logging;
-using Quartz;
 
 namespace Quartz.Examples.Example3
 {
 	
-	/// <summary> <p>
-	/// This is just a simple job that gets fired off many times by example 1
-	/// </p>
-	/// 
+	/// <summary>
+	/// This is just a simple job that gets fired off many times by examples.
 	/// </summary>
 	/// <author>  Bill Kratzer
 	/// </author>
@@ -33,23 +31,17 @@ namespace Quartz.Examples.Example3
 		
 		private static ILog _log = LogManager.GetLogger(typeof(SimpleJob));
 
-		/// <summary> <p>
-		/// Called by the <code>{@link org.quartz.Scheduler}</code> when a
-		/// <code>{@link org.quartz.Trigger}</code> fires that is associated with
-		/// the <code>Job</code>.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <throws>  JobExecutionException </throws>
-		/// <summary>             if there is an exception while executing the job.
+		/// <summary>
+		/// Called by the <see cref="IScheduler" /> when a
+		/// <see cref="Trigger" /> fires that is associated with the <see cref="IJob" />.
 		/// </summary>
 		public virtual void Execute(JobExecutionContext context)
 		{
 			
 			// This job simply prints out its job name and the
 			// date and time that it is running
-			System.String jobName = context.JobDetail.FullName;
-			_log.Info("SimpleJob says: " + jobName + " executing at " + System.DateTime.Now.ToString("r"));
+			string jobName = context.JobDetail.FullName;
+			_log.Info("SimpleJob says: " + jobName + " executing at " + DateTime.Now.ToString("r"));
 		}
 
 	}

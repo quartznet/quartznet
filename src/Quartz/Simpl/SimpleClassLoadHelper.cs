@@ -26,7 +26,7 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
 	/// <summary> 
-	/// A <code>ClassLoadHelper</code> that simply calls <code>Class.forName(..)</code>.
+	/// A <see cref="IClassLoadHelper" /> that simply calls <see cref="Type.GetType(string)" />.
 	/// </summary>
 	/// <seealso cref="IClassLoadHelper" />
 	/// <seealso cref="CascadingClassLoadHelper" />

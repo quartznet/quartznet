@@ -28,22 +28,22 @@ using Quartz.Util;
 namespace Quartz
 {
 	/// <summary>
-	/// Holds state information for <code>Job</code> instances.
+	/// Holds state information for <see cref="IJob" /> instances.
 	/// <p>
-	/// <code>JobDataMap</code> instances are stored once when the <code>Job</code>
+	/// <see cref="JobDataMap" /> instances are stored once when the <see cref="IJob" />
 	/// is added to a scheduler. They are also re-persisted after every execution of
-	/// <code>StatefulJob</code> instances.
+	/// <see cref="StatefulJob" /> instances.
 	/// </p>
 	/// <p>
-	/// <code>JobDataMap</code> instances can also be stored with a 
-	/// <code>Trigger</code>.  This can be useful in the case where you have a Job
+	/// <see cref="JobDataMap" /> instances can also be stored with a 
+	/// <see cref="Trigger" />.  This can be useful in the case where you have a Job
 	/// that is stored in the scheduler for regular/repeated use by multiple 
 	/// Triggers, yet with each independent triggering, you want to supply the
 	/// Job with different data inputs.  
 	/// </p>
 	/// <p>
-	/// The <code>JobExecutionContext</code> passed to a Job at execution time 
-	/// also contains a convenience <code>JobDataMap</code> that is the result
+	/// The <see cref="JobExecutionContext" /> passed to a Job at execution time 
+	/// also contains a convenience <see cref="JobDataMap" /> that is the result
 	/// of merging the contents of the trigger's JobDataMap (if any) over the
 	/// Job's JobDataMap (if any).  
 	/// </p>
@@ -58,12 +58,12 @@ namespace Quartz
 	public class JobDataMap : DirtyFlagMap
 	{
 		/// <summary> 
-		/// Tell the <code>JobDataMap</code> that it should allow non- <code>Serializable</code>
+		/// Tell the <see cref="JobDataMap" /> that it should allow non- <see cref="Serializable" />
 		/// data.
 		/// <p>
-		/// If the <code>JobDataMap</code> does contain non- <code>Serializable</code>
-		/// objects, and it belongs to a non-volatile <code>Job</code> that is
-		/// stored in a <code>JobStore</code> that supports persistence, then
+		/// If the <see cref="JobDataMap" /> does contain non- <see cref="Serializable" />
+		/// objects, and it belongs to a non-volatile <see cref="IJob" /> that is
+		/// stored in a <see cref="IJobStore" /> that supports persistence, then
 		/// those elements will be nulled-out during persistence.
 		/// </p>
 		/// </summary>
@@ -86,14 +86,14 @@ namespace Quartz
 		private bool allowsTransientData = false;
 
 		/// <summary>
-		/// Create an empty <code>JobDataMap</code>.
+		/// Create an empty <see cref="JobDataMap" />.
 		/// </summary>
 		public JobDataMap() : base(15)
 		{
 		}
 
 		/// <summary> 
-		/// Create a <code>JobDataMap</code> with the given data.
+		/// Create a <see cref="JobDataMap" /> with the given data.
 		/// </summary>
 		public JobDataMap(IDictionary map) : this()
 		{
@@ -152,9 +152,9 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the name-value pairs in the given <code>Map</code> to the <code>JobDataMap</code>.
+		/// Adds the name-value pairs in the given <see cref="Map" /> to the <see cref="JobDataMap" />.
 		/// <p>
-		/// All keys must be <code>String</code>s, and all values must be <code>Serializable</code>.
+		/// All keys must be <see cref="String" />s, and all values must be <see cref="Serializable" />.
 		/// </p>
 		/// </summary>
 		public override void PutAll(IDictionary map)
@@ -171,7 +171,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>int</code> value to the <code>Job</code>'s
+		/// Adds the given <see cref="int" /> value to the <see cref="IJob" />'s
 		/// data map.
 		/// </summary>
 		public virtual void Put(string key, int value)
@@ -180,7 +180,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>long</code> value to the <code>Job</code>'s
+		/// Adds the given <see cref="long" /> value to the <see cref="IJob" />'s
 		/// data map.
 		/// </summary>
 		public virtual void Put(string key, long value)
@@ -189,7 +189,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>float</code> value to the <code>Job</code>'s
+		/// Adds the given <see cref="float" /> value to the <see cref="IJob" />'s
 		/// data map.
 		/// </summary>
 		public virtual void Put(string key, float value)
@@ -198,7 +198,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>double</code> value to the <code>Job</code>'s
+		/// Adds the given <see cref="double" /> value to the <see cref="IJob" />'s
 		/// data map.
 		/// </summary>
 		public virtual void Put(string key, double value)
@@ -207,7 +207,7 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Adds the given <code>boolean</code> value to the <code>Job</code>'s
+		/// Adds the given <see cref="boolean" /> value to the <see cref="IJob" />'s
 		/// data map.
 		/// </summary>
 		public virtual void Put(string key, bool value)
@@ -216,7 +216,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>char</code> value to the <code>Job</code>'s
+		/// Adds the given <see cref="char" /> value to the <see cref="IJob" />'s
 		/// data map.
 		/// </summary>
 		public virtual void Put(string key, char value)
@@ -225,7 +225,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>String</code> value to the <code>Job</code>'s
+		/// Adds the given <see cref="String" /> value to the <see cref="IJob" />'s
 		/// data map.
 		/// </summary>
 		public virtual void Put(string key, string value)
@@ -234,8 +234,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>boolean</code> value as a string version to the
-		/// <code>Job</code>'s data map.
+		/// Adds the given <see cref="boolean" /> value as a string version to the
+		/// <see cref="IJob" />'s data map.
 		/// </summary>
 		public virtual void PutAsString(string key, bool value)
 		{
@@ -245,8 +245,8 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Adds the given <code>char</code> value as a string version to the
-		/// <code>Job</code>'s data map.
+		/// Adds the given <see cref="char" /> value as a string version to the
+		/// <see cref="IJob" />'s data map.
 		/// </summary>
 		public virtual void PutAsString(string key, char value)
 		{
@@ -255,8 +255,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>double</code> value as a string version to the
-		/// <code>Job</code>'s data map.
+		/// Adds the given <see cref="double" /> value as a string version to the
+		/// <see cref="IJob" />'s data map.
 		/// </summary>
 		public virtual void PutAsString(string key, double value)
 		{
@@ -266,8 +266,8 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Adds the given <code>float</code> value as a string version to the
-		/// <code>Job</code>'s data map.
+		/// Adds the given <see cref="float" /> value as a string version to the
+		/// <see cref="IJob" />'s data map.
 		/// </summary>
 		public virtual void PutAsString(string key, float value)
 		{
@@ -277,8 +277,8 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Adds the given <code>int</code> value as a string version to the
-		/// <code>Job</code>'s data map.
+		/// Adds the given <see cref="int" /> value as a string version to the
+		/// <see cref="IJob" />'s data map.
 		/// </summary>
 		public virtual void PutAsString(string key, int value)
 		{
@@ -288,8 +288,8 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Adds the given <code>long</code> value as a string version to the
-		/// <code>Job</code>'s data map.
+		/// Adds the given <see cref="long" /> value as a string version to the
+		/// <see cref="IJob" />'s data map.
 		/// </summary>
 		public virtual void PutAsString(string key, long value)
 		{
@@ -298,7 +298,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <code>Serializable</code> object value to the <code>JobDataMap</code>.
+		/// Adds the given <see cref="Serializable" /> object value to the <see cref="JobDataMap" />.
 		/// </summary>
 		public override object Put(object key, object value)
 		{
@@ -310,7 +310,7 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Retrieve the identified <code>int</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual int GetInt(string key)
 		{
@@ -327,7 +327,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>long</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual long GetLong(string key)
 		{
@@ -344,7 +344,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>float</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual float GetFloat(string key)
 		{
@@ -361,7 +361,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>double</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual double GetDouble(string key)
 		{
@@ -378,7 +378,7 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Retrieve the identified <code>boolean</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="boolean" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual bool GetBoolean(string key)
 		{
@@ -395,7 +395,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>char</code> value from the <code>JobDataMap</code>. 
+		/// Retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />. 
 		/// </summary>
 		public virtual char GetChar(string key)
 		{
@@ -412,7 +412,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>String</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="String" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual string GetString(string key)
 		{
@@ -429,7 +429,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>int</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual int GetIntFromString(string key)
 		{
@@ -439,7 +439,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>int</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual long GetIntValue(string key)
 		{
@@ -456,7 +456,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>int</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual Int32 GetIntegerFromString(string key)
 		{
@@ -466,7 +466,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>boolean</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="boolean" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual bool GetBooleanValueFromString(string key)
 		{
@@ -476,8 +476,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>boolean</code> value from the 
-		/// <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="boolean" /> value from the 
+		/// <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual bool GetBooleanValue(string key)
 		{
@@ -494,7 +494,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>Boolean</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="Boolean" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual Boolean GetBooleanFromString(string key)
 		{
@@ -504,7 +504,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>char</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual char GetCharFromString(string key)
 		{
@@ -514,7 +514,7 @@ namespace Quartz
 		}
 		
 		/// <summary>
-		/// Retrieve the identified <code>double</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual double GetDoubleValueFromString(string key)
 		{
@@ -523,7 +523,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>double</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual double GetDoubleValue(string key)
 		{
@@ -540,7 +540,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>Double</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="Double" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual Double GetDoubleFromString(string key)
 		{
@@ -549,7 +549,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>float</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual float GetFloatValueFromString(string key)
 		{
@@ -558,7 +558,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>float</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual float GetFloatValue(string key)
 		{
@@ -575,7 +575,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>Float</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="Float" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual Single GetFloatFromString(string key)
 		{
@@ -584,7 +584,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>long</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual long GetLongValueFromString(string key)
 		{
@@ -593,7 +593,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <code>long</code> value from the <code>JobDataMap</code>.
+		/// Retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual long GetLongValue(string key)
 		{

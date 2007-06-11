@@ -30,8 +30,8 @@ using Quartz.Spi;
 namespace Quartz.Impl
 {
 	/// <summary>
-	/// An implementation of the <code>Scheduler</code> interface that remotely
-	/// proxies all method calls to the equivalent call on a given <code>QuartzScheduler</code>
+	/// An implementation of the <see cref="IScheduler" /> interface that remotely
+	/// proxies all method calls to the equivalent call on a given <see cref="QuartzScheduler" />
 	/// instance, via RMI.
 	/// </summary>
 	/// <seealso cref="IScheduler" />
@@ -42,7 +42,7 @@ namespace Quartz.Impl
 	public class RemoteScheduler : IScheduler
 	{
 		/// <summary>
-		/// Returns the name of the <code>Scheduler</code>.
+		/// Returns the name of the <see cref="IScheduler" />.
 		/// </summary>
 		public virtual string SchedulerName
 		{
@@ -60,7 +60,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Returns the instance Id of the <code>Scheduler</code>.
+		/// Returns the instance Id of the <see cref="IScheduler" />.
 		/// </summary>
 		public virtual string SchedulerInstanceId
 		{
@@ -96,7 +96,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary> 
-		/// Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>.
+		/// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
 		/// </summary>
 		public virtual SchedulerContext Context
 		{
@@ -114,7 +114,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual bool InStandbyMode
 		{
@@ -131,13 +131,17 @@ namespace Quartz.Impl
 			}
 		}
 
+		/// <summary>
+		/// Gets a value indicating whether this instance is paused.
+		/// </summary>
+		/// <value><c>true</c> if this instance is paused; otherwise, <c>false</c>.</value>
 		public virtual bool IsPaused
 		{
 			get { return InStandbyMode; }
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual bool IsShutdown
 		{
@@ -155,7 +159,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public IList GetCurrentlyExecutingJobs()
 		{
@@ -170,8 +174,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual string[] JobGroupNames
@@ -190,8 +194,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual string[] TriggerGroupNames
@@ -210,8 +214,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual string[] CalendarNames
@@ -230,7 +234,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equialent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equialent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual IList GlobalJobListeners
 		{
@@ -242,7 +246,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual ISet JobListenerNames
 		{
@@ -254,7 +258,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual IList GlobalTriggerListeners
 		{
@@ -266,7 +270,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual ISet TriggerListenerNames
 		{
@@ -278,7 +282,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual IList SchedulerListeners
 		{
@@ -290,7 +294,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Get the names of all <code>Trigger</code> groups that are paused.
+		/// Get the names of all <see cref="Trigger" /> groups that are paused.
 		/// </summary>
 		/// <value></value>
 		public ISet GetPausedTriggerGroups()
@@ -306,11 +310,11 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Set the <code>JobFactory</code> that will be responsible for producing
-		/// instances of <code>Job</code> classes.
+		/// Set the <see cref="JobFactory" /> that will be responsible for producing
+		/// instances of <see cref="IJob" /> classes.
 		/// <p>
 		/// JobFactories may be of use to those wishing to have their application
-		/// produce <code>Job</code> instances via some special mechanism, such as to
+		/// produce <see cref="IJob" /> instances via some special mechanism, such as to
 		/// give the opertunity for dependency injection.
 		/// </p>
 		/// </summary>
@@ -335,9 +339,9 @@ namespace Quartz.Impl
 
 
 		/// <summary>
-		/// Construct a <code>RemoteScheduler</code> instance to proxy the given
-		/// <code>RemoteableQuartzScheduler</code> instance, and with the given
-		/// <code>SchedulingContext</code>.
+		/// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
+		/// <see cref="RemoteableQuartzScheduler" /> instance, and with the given
+		/// <see cref="SchedulingContext" />.
 		/// </summary>
 		public RemoteScheduler(SchedulingContext schedCtxt, string schedId, string host, int port)
 		{
@@ -381,7 +385,7 @@ namespace Quartz.Impl
 		}
 		
 		/// <summary> 
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void Start()
 		{
@@ -396,7 +400,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void Standby()
 		{
@@ -412,7 +416,7 @@ namespace Quartz.Impl
 
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void Shutdown()
 		{
@@ -427,7 +431,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void Shutdown(bool waitForJobsToComplete)
 		{
@@ -442,8 +446,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger)
@@ -459,8 +463,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary> 
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual DateTime ScheduleJob(Trigger trigger)
@@ -476,8 +480,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void AddJob(JobDetail jobDetail, bool replace)
@@ -493,8 +497,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual bool DeleteJob(string jobName, string groupName)
@@ -510,8 +514,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual bool UnscheduleJob(string triggerName, string groupName)
@@ -527,8 +531,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
@@ -545,8 +549,8 @@ namespace Quartz.Impl
 
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void TriggerJob(string jobName, string groupName)
@@ -554,8 +558,8 @@ namespace Quartz.Impl
 			TriggerJob(jobName, groupName, null);
 		}
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void TriggerJob(string jobName, string groupName, JobDataMap data)
@@ -571,8 +575,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName)
@@ -581,8 +585,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data)
@@ -598,8 +602,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void PauseTrigger(string triggerName, string groupName)
@@ -615,8 +619,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void PauseTriggerGroup(string groupName)
@@ -632,8 +636,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary> 
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void PauseJob(string jobName, string groupName)
@@ -649,8 +653,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void PauseJobGroup(string groupName)
@@ -666,8 +670,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void ResumeTrigger(string triggerName, string groupName)
@@ -683,8 +687,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary> 
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void ResumeTriggerGroup(string groupName)
@@ -700,8 +704,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void ResumeJob(string jobName, string groupName)
@@ -717,8 +721,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void ResumeJobGroup(string groupName)
@@ -734,8 +738,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void PauseAll()
@@ -751,8 +755,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void ResumeAll()
@@ -768,8 +772,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual string[] GetJobNames(string groupName)
@@ -785,8 +789,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual Trigger[] GetTriggersOfJob(string jobName, string groupName)
@@ -802,8 +806,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual string[] GetTriggerNames(string groupName)
@@ -819,8 +823,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual JobDetail GetJobDetail(string jobName, string jobGroup)
@@ -836,8 +840,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual Trigger GetTrigger(string triggerName, string triggerGroup)
@@ -853,8 +857,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual int GetTriggerState(string triggerName, string triggerGroup)
@@ -870,8 +874,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
@@ -887,8 +891,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual bool DeleteCalendar(string calName)
@@ -904,8 +908,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual ICalendar GetCalendar(string calName)
@@ -921,8 +925,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void AddGlobalJobListener(IJobListener jobListener)
@@ -932,8 +936,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual void AddJobListener(IJobListener jobListener)
@@ -943,8 +947,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual bool RemoveGlobalJobListener(IJobListener jobListener)
@@ -954,8 +958,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>,
-		/// passing the <code>SchedulingContext</code> associated with this
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
+		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
 		public virtual bool RemoveJobListener(string name)
@@ -965,7 +969,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual IJobListener GetJobListener(string name)
 		{
@@ -974,7 +978,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void AddGlobalTriggerListener(ITriggerListener triggerListener)
 		{
@@ -983,7 +987,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void AddTriggerListener(ITriggerListener triggerListener)
 		{
@@ -992,7 +996,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual bool RemoveGlobalTriggerListener(ITriggerListener triggerListener)
 		{
@@ -1001,7 +1005,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual bool RemoveTriggerListener(string name)
 		{
@@ -1010,7 +1014,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual ITriggerListener GetTriggerListener(string name)
 		{
@@ -1019,7 +1023,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void AddSchedulerListener(ISchedulerListener schedulerListener)
 		{
@@ -1028,7 +1032,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary> 
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual bool RemoveSchedulerListener(ISchedulerListener schedulerListener)
 		{
@@ -1037,7 +1041,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <code>QuartzScheduler</code>.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual bool Interrupt(string jobName, string groupName)
 		{

@@ -23,7 +23,7 @@ using System;
 namespace Quartz.Core
 {
 	/// <summary>
-	/// An object used to pass information about the 'client' to the <code>QuartzScheduler</code>.
+	/// An object used to pass information about the 'client' to the <see cref="QuartzScheduler" />.
 	/// </summary>
 	/// <seealso cref="QuartzScheduler" />
 	/// <author>James House</author>

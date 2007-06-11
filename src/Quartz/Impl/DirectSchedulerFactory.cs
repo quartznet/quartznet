@@ -30,13 +30,14 @@ using Quartz.Spi;
 namespace Quartz.Impl
 {
 	/// <summary>
-	/// A singleton implementation of <code>SchedulerFactory</code>.
-	/// <p>
+	/// A singleton implementation of <see cref="ISchedulerFactory" />.
+	/// </summary>
+	/// <remarks>
 	/// Here are some examples of using this class:
 	/// </p>
 	/// <p>
 	/// To create a scheduler that does not write anything to the database (is not
-	/// persistent), you can call <code>createVolatileScheduler</code>:
+	/// persistent), you can call <see cref="CreateVolatileScheduler" />:
 	/// </p>
 	/// <pre>
 	/// DirectSchedulerFactory.getInstance().createVolatileScheduler(10); // 10 threads 
@@ -77,7 +78,7 @@ namespace Quartz.Impl
 	/// jdbcJobStore.setInstanceId("My Instance"); 
 	/// jdbcJobStore.Initialize();
 	/// </pre>
-	/// </summary>
+	/// </</remarks>>
 	/// <author>Mohammad Rezaei</author>
 	/// <author>James House</author>
 	/// <seealso cref="IJobStore" />
@@ -87,6 +88,10 @@ namespace Quartz.Impl
 		private static readonly ILog Log = LogManager.GetLogger(typeof (DirectSchedulerFactory));
 
 
+		/// <summary>
+		/// Gets the instance.
+		/// </summary>
+		/// <value>The instance.</value>
 		public static DirectSchedulerFactory Instance
 		{
 			get { return instance; }
@@ -116,7 +121,7 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Creates an in memory job store (<code>RAMJobStore</code>)
+		/// Creates an in memory job store (<see cref="RAMJobStore" />)
 		/// The thread priority is set to Thread.NORM_PRIORITY
 		/// </summary>
 		/// <param name="maxThreads">The number of threads in the thread pool</param>

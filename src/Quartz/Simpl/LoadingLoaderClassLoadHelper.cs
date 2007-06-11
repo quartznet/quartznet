@@ -26,8 +26,8 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
 	/// <summary>
-	/// A <code>ClassLoadHelper</code> that uses either the loader of it's own
-	/// class (<code>this.getClass().getClassLoader().loadClass( .. )</code>).
+	/// A <see cref="IClassLoadHelper" /> that uses either the loader of it's own
+	/// class (<see cref="this.getClass().getClassLoader().loadClass( .. )" />).
 	/// </summary>
 	/// <seealso cref="IClassLoadHelper" />
 	/// <seealso cref="SimpleClassLoadHelper" />

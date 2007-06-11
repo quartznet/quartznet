@@ -28,19 +28,19 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
 	/// <summary>
-	/// A <code>ClassLoadHelper</code> uses all of the <code>ClassLoadHelper</code>
+	/// A <see cref="IClassLoadHelper" /> uses all of the <see cref="IClassLoadHelper" />
 	/// types that are found in this package in its attempts to load a class, when
 	/// one scheme is found to work, it is promoted to the scheme that will be used
 	/// first the next time a class is loaded (in order to improve perfomance).
-	/// <p>
+	/// </summary>
+	/// <remarks>
 	/// This approach is used because of the wide variance in class loader behavior
 	/// between the various environments in which Quartz runs (e.g. disparate 
 	/// application servers, stand-alone, mobile devices, etc.).  Because of this
 	/// disparity, Quartz ran into difficulty with a one class-load style fits-all 
 	/// design.  Thus, this class loader finds the approach that works, then 
 	/// 'remembers' it.  
-	/// </p>
-	/// </summary>
+	/// </remarks>
 	/// <author>James House</author>
 	public class CascadingClassLoadHelper : IClassLoadHelper
 	{

@@ -25,7 +25,7 @@ namespace Quartz.Spi
 {
 	/// <summary>
 	/// The interface to be implemented by classes that want to provide a thread
-	/// pool for the <code>IQuartzScheduler</code>'s use.
+	/// pool for the <see cref="IQuartzScheduler" />'s use.
 	/// </summary>
 	/// <seealso cref="QuartzScheduler" />
 	/// <author>James House</author>
@@ -38,8 +38,8 @@ namespace Quartz.Spi
 		int PoolSize { get; }
 
 		/// <summary>
-		/// Execute the given <code>{@link java.lang.Runnable}</code> in the next
-		/// available <code>Thread</code>.
+		/// Execute the given <see cref="java.lang.Runnable" /> in the next
+		/// available <see cref="Thread" />.
 		/// <p>
 		/// The implementation of this interface should not throw exceptions unless
 		/// there is a serious problem (i.e. a serious misconfiguration). If there
@@ -50,13 +50,13 @@ namespace Quartz.Spi
 		bool RunInThread(IThreadRunnable runnable);
 
 		/// <summary>
-		/// Called by the QuartzScheduler before the <code>ThreadPool</code> is
+		/// Called by the QuartzScheduler before the <see cref="ThreadPool" /> is
 		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
 		void Initialize();
 
 		/// <summary>
-		/// Called by the QuartzScheduler to inform the <code>ThreadPool</code>
+		/// Called by the QuartzScheduler to inform the <see cref="ThreadPool" />
 		/// that it should free up all of it's resources because the scheduler is
 		/// shutting down.
 		/// </summary>

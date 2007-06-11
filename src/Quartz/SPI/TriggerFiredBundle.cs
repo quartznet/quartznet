@@ -26,7 +26,7 @@ namespace Quartz.Spi
 {
     /// <summary>
     /// A simple class (structure) used for returning execution-time data from the
-    /// JobStore to the <code>QuartzSchedulerThread</code>.
+    /// JobStore to the <see cref="QuartzSchedulerThread" />.
     /// </summary>
     /// <seealso cref="QuartzScheduler" />
     /// <author>James House</author>

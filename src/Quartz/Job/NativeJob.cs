@@ -56,7 +56,7 @@ namespace Quartz.Job
 		/// whether the job should wait for the execution of the native process to 
 		/// complete before it completes.
 		/// 
-		/// <p>Defaults to <code>true</code>.</p>  
+		/// <p>Defaults to <see langword="true" />.</p>  
 		/// </summary>
 		public const string PROP_WAIT_FOR_PROCESS = "waitForProcess";
 
@@ -66,7 +66,7 @@ namespace Quartz.Job
 		/// consumed.  If the process creates output, it is possible that it might
 		/// 'hang' if the streams are not consumed.
 		/// 
-		/// <p>Defaults to <code>false</code>.</p>  
+		/// <p>Defaults to <see langword="false" />.</p>  
 		/// </summary>
 		public const string PROP_CONSUME_STREAMS = "consumeStreams";
 
@@ -80,14 +80,14 @@ namespace Quartz.Job
 		*/
 
 		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
-		/// fires that is associated with the <code>Job</code>.
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// fires that is associated with the <see cref="IJob" />.
 		/// <p>
 		/// The implementation may wish to set a  result object on the
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to
-		/// <code>JobListeners</code> or
-		/// <code>TriggerListeners</code> that are watching the job's
+		/// <see cref="JobListeners" /> or
+		/// <see cref="TriggerListeners" /> that are watching the job's
 		/// execution.
 		/// </p>
 		/// </summary>
@@ -224,7 +224,7 @@ namespace Quartz.Job
 				}
 
 				// Executes the command
-				Log.Info(string.Format("About to run {0}{1}", cmd[0], cmd[1]));
+				Log.Info(string.Format("About to run {0}{1", cmd[0], cmd[1]));
 				string temp = "";
 				for (int i = 1; i < cmd.Length; i++)
 				{

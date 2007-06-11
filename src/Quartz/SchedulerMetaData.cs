@@ -26,7 +26,7 @@ using Nullables;
 namespace Quartz
 {
 	/// <summary> <p>
-	/// Describes the settings and capabilities of a given <code>{@link Scheduler}</code>
+	/// Describes the settings and capabilities of a given <see cref="IScheduler" />
 	/// instance.
 	/// </p>
 	/// 
@@ -37,7 +37,7 @@ namespace Quartz
 	public class SchedulerMetaData
 	{
 		/// <summary> <p>
-		/// Returns the name of the <code>Scheduler</code>.
+		/// Returns the name of the <see cref="IScheduler" />.
 		/// </p>
 		/// </summary>
 		public virtual string SchedulerName
@@ -46,7 +46,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns the instance Id of the <code>Scheduler</code>.
+		/// Returns the instance Id of the <see cref="IScheduler" />.
 		/// </p>
 		/// </summary>
 		public virtual string SchedulerInstanceId
@@ -55,7 +55,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns the class-name of the <code>Scheduler</code> instance.
+		/// Returns the class-name of the <see cref="IScheduler" /> instance.
 		/// </p>
 		/// </summary>
 		public virtual Type SchedulerClass
@@ -64,7 +64,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns whether the <code>Scheduler</code> is being used remotely (via
+		/// Returns whether the <see cref="IScheduler" /> is being used remotely (via
 		/// RMI).
 		/// </p>
 		/// </summary>
@@ -78,8 +78,8 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// <p>
-		/// Note: <code>isStarted()</code> may return <code>true</code> even if
-		/// <code>isPaused()</code> returns <code>true</code>.
+		/// Note: <see cref="isStarted()" /> may return <see langword="true" /> even if
+		/// <see cref="isPaused()" /> returns <see langword="true" />.
 		/// </p>
 		/// </summary>
 		public virtual bool Started
@@ -88,12 +88,12 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Reports whether the <code>Scheduler</code> is paused.
+		/// Reports whether the <see cref="IScheduler" /> is paused.
 		/// </p>
 		/// 
 		/// <p>
-		/// Note: <code>isStarted()</code> may return <code>true</code> even if
-		/// <code>isPaused()</code> returns <code>true</code>.
+		/// Note: <see cref="isStarted()" /> may return <see langword="true" /> even if
+		/// <see cref="isPaused()" /> returns <see langword="true" />.
 		/// </p>
 		/// </summary>
 		public virtual bool Paused
@@ -102,7 +102,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Reports whether the <code>Scheduler</code> has been Shutdown.
+		/// Reports whether the <see cref="IScheduler" /> has been Shutdown.
 		/// </p>
 		/// </summary>
 		public virtual bool Shutdown
@@ -111,8 +111,8 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns the class-name of the <code>JobStore</code> instance that is
-		/// being used by the <code>Scheduler</code>.
+		/// Returns the class-name of the <see cref="IJobStore" /> instance that is
+		/// being used by the <see cref="IScheduler" />.
 		/// </p>
 		/// </summary>
 		public virtual Type JobStoreClass
@@ -121,8 +121,8 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns the class-name of the <code>ThreadPool</code> instance that is
-		/// being used by the <code>Scheduler</code>.
+		/// Returns the class-name of the <see cref="ThreadPool" /> instance that is
+		/// being used by the <see cref="IScheduler" />.
 		/// </p>
 		/// </summary>
 		public virtual Type ThreadPoolClass
@@ -131,8 +131,8 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns the number of threads currently in the <code>Scheduler</code>'s
-		/// <code>ThreadPool</code>.
+		/// Returns the number of threads currently in the <see cref="IScheduler" />'s
+		/// <see cref="ThreadPool" />.
 		/// </p>
 		/// </summary>
 		public virtual int ThreadPoolSize
@@ -150,7 +150,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns a formatted (human readable) string describing all the <code>Scheduler</code>'s
+		/// Returns a formatted (human readable) string describing all the <see cref="IScheduler" />'s
 		/// meta-data values.
 		/// </p>
 		/// 
@@ -284,7 +284,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns the <code>Date</code> at which the Scheduler started running.
+		/// Returns the <see cref="DateTime" /> at which the Scheduler started running.
 		/// </p>
 		/// 
 		/// </summary>
@@ -296,7 +296,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns the number of jobs executed since the <code>Scheduler</code>
+		/// Returns the number of jobs executed since the <see cref="IScheduler" />
 		/// started..
 		/// </p>
 		/// </summary>
@@ -306,7 +306,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Returns whether or not the <code>Scheduler</code>'s<code>JobStore</code>
+		/// Returns whether or not the <see cref="IScheduler" />'s<see cref="IJobStore" />
 		/// instance supports persistence.
 		/// </p>
 		/// </summary>

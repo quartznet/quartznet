@@ -32,14 +32,14 @@ namespace Quartz
 	public class UnableToInterruptJobException : SchedulerException
 	{
 		/// <summary>
-		/// Create a <code>UnableToInterruptJobException</code> with the given message.
+		/// Create a <see cref="UnableToInterruptJobException" /> with the given message.
 		/// </summary>
 		public UnableToInterruptJobException(string msg) : base(msg)
 		{
 		}
 
 		/// <summary>
-		/// Create a <code>UnableToInterruptJobException</code> with the given cause.
+		/// Create a <see cref="UnableToInterruptJobException" /> with the given cause.
 		/// </summary>
 		public UnableToInterruptJobException(Exception cause) : base(cause)
 		{

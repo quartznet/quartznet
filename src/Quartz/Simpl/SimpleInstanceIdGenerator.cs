@@ -32,7 +32,7 @@ namespace Quartz.Simpl
 	public class SimpleInstanceIdGenerator : IInstanceIdGenerator
 	{
 		/// <summary>
-		/// Generate the instance id for a <code>Scheduler</code>
+		/// Generate the instance id for a <see cref="IScheduler" />
 		/// </summary>
 		/// <returns>The clusterwide unique instance id.</returns>
 		public virtual string GenerateInstanceId()

@@ -6,18 +6,18 @@ namespace Quartz.Impl.Calendar
     /// <summary>
     /// This implementation of the Calendar excludes (or includes - see below) a
     /// specified time range each day. For example, you could use this calendar to
-    /// exclude business hours (8AM - 5PM) every day. Each <code>DailyCalendar</code>
+    /// exclude business hours (8AM - 5PM) every day. Each <see cref="DailyCalendar" />
     /// only allows a single time range to be specified, and that time range may not
     /// * cross daily boundaries (i.e. you cannot specify a time range from 8PM - 5AM).
-    /// If the property <code>invertTimeRange</code> is <code>false</code> (default),
+    /// If the property <see cref="invertTimeRange" /> is <see langword="false" /> (default),
     /// the time range defines a range of times in which triggers are not allowed to
-    /// * fire. If <code>invertTimeRange</code> is <code>true</code>, the time range
+    /// * fire. If <see cref="invertTimeRange" /> is <see langword="true" />, the time range
     /// is inverted: that is, all times <i>outside</i> the defined time range
     /// are excluded.
     /// <p>
-    /// Note when using <code>DailyCalendar</code>, it behaves on the same principals
+    /// Note when using <see cref="DailyCalendar" />, it behaves on the same principals
     /// as, for example, WeeklyCalendar defines a set of days that are
-    /// excluded <i>every week</i>. Likewise, <code>DailyCalendar</code> defines a
+    /// excluded <i>every week</i>. Likewise, <see cref="DailyCalendar" /> defines a
     /// set of times that are excluded <i>every day</i>.
     /// </p>
     /// </summary>
@@ -48,9 +48,9 @@ namespace Quartz.Impl.Calendar
 
 
         /// <summary>
-        /// Create a <code>DailyCalendar</code> with a time range defined by the
-        /// specified strings and no <code>baseCalendar</code>. 
-        ///	<code>rangeStartingTime</code> and <code>rangeEndingTime</code>
+        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
+        /// specified strings and no baseCalendar. 
+        ///	<param name="rangeStartingTime" /> and <param name="rangeEndingTime" />
         /// must be in the format &quot;HH:MM[:SS[:mmm]]&quot; where:
         /// <ul>
         ///     <li>
@@ -91,9 +91,9 @@ namespace Quartz.Impl.Calendar
 
 
         /// <summary>
-        /// Create a <code>DailyCalendar</code> with a time range defined by the
-        /// specified strings and the specified <code>baseCalendar</code>. 
-        /// <code>rangeStartingTime</code> and <code>rangeEndingTime</code>
+        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
+        /// specified strings and the specified baseCalendar. 
+        /// <param name="rangeStartingTime" /> and <param name="rangeEndingTime" />
         /// must be in the format &quot;HH:MM[:SS[:mmm]]&quot; where:
         /// <ul>
         ///     <li>
@@ -123,7 +123,7 @@ namespace Quartz.Impl.Calendar
         ///     </li>  
         ///  </ul>
         /// </summary>
-        /// <param name="name">the name for the <code>DailyCalendar</code></param>
+        /// <param name="name">the name for the <see cref="DailyCalendar" /></param>
         /// <param name="baseCalendar">
         /// The base calendar for this calendar instance see BaseCalendar for more 
         /// information on base calendar functionality.
@@ -143,8 +143,8 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Create a <code>DailyCalendar</code> with a time range defined by the
-        /// specified values and no <code>baseCalendar</code>. Values are subject to
+        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
+        /// specified values and no baseCalendar. Values are subject to
         /// the following validations:
         /// <ul>
         ///     <li>
@@ -192,8 +192,8 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Create a <code>DailyCalendar</code> with a time range defined by the
-        /// specified values and the specified <code>baseCalendar</code>. Values are
+        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
+        /// specified values and the specified <param name="baseCalendar" />. Values are
         /// subject to the following validations:
         ///	<ul>
         ///     <li>
@@ -244,9 +244,9 @@ namespace Quartz.Impl.Calendar
 
 
         /// <summary>
-        /// Create a <code>DailyCalendar</code> with a time range defined by the
-        ///	specified <code>DateTime</code>s and no 
-        ///	<code>baseCalendar</code>. The Calendars are subject to the following
+        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
+        ///	specified <see cref="DateTime" />s and no 
+        ///	baseCalendar. The Calendars are subject to the following
         ///	considerations:
         ///	<ul>
         ///     <li>
@@ -259,8 +259,8 @@ namespace Quartz.Impl.Calendar
         ///		    daily boundaries (10PM - 2AM). <i>(because only time fields are
         ///		    are used, it is possible for two Calendars to represent a valid
         ///		    time range and 
-        ///		    <code>rangeStartingCalendar.after(rangeEndingCalendar) == 
-        ///		    true</code>)</i>
+        ///		    <c>rangeStartingCalendar.after(rangeEndingCalendar) ==  true</c>)
+        ///			</i>
         ///     </li>  
         /// </ul> 
         /// </summary>
@@ -276,9 +276,9 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Create a <code>DailyCalendar</code> with a time range defined by the
-        ///	specified <code>DateTime</code>s and the specified 
-        ///	<code>baseCalendar</code>. The Calendars are subject to the following
+        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
+        ///	specified <see cref="DateTime" />s and the specified 
+        ///	<param name="baseCalendar" />. The Calendars are subject to the following
         ///	considerations:
         ///	<ul>
         ///     <li>
@@ -291,8 +291,7 @@ namespace Quartz.Impl.Calendar
         ///		    daily boundaries (10PM - 2AM). <i>(because only time fields are
         ///		    are used, it is possible for two Calendars to represent a valid
         ///		    time range and 
-        ///		    <code>rangeStartingCalendar.after(rangeEndingCalendar) == 
-        ///		    true</code>)</i>
+        ///		    <c>rangeStartingCalendar.after(rangeEndingCalendar) == true</c>)</i>
         ///     </li>  
         /// </ul> 
         /// </summary>
@@ -310,8 +309,8 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Create a <code>DailyCalendar</code> with a time range defined by the
-        /// specified values and no <code>baseCalendar</code>. The values are 
+        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
+        /// specified values and no baseCalendar. The values are 
         ///	subject to the following considerations:
         ///	<ul>
         ///     <li>
@@ -323,8 +322,7 @@ namespace Quartz.Impl.Calendar
         ///		    time range. Note this means that a time range may not cross
         ///		    daily boundaries (10PM - 2AM). <i>(because only time value are
         ///		    are used, it is possible for the two values to represent a valid
-        ///		    time range and <code>rangeStartingTime &gt; 
-        ///		    rangeEndingTime</code>)</i>
+        ///		    time range and <c>rangeStartingTime &gt; rangeEndingTime</c>)</i>
         ///     </li>  
         /// </ul> 
         /// </summary>
@@ -342,8 +340,8 @@ namespace Quartz.Impl.Calendar
 
 
         /// <summary>
-        /// Create a <code>DailyCalendar</code> with a time range defined by the
-        /// specified values and the specified <code>baseCalendar</code>. The values
+        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
+        /// specified values and the specified <param name="baseCalendar" />. The values
         /// are subject to the following considerations:
         /// <ul>
         ///     <li>
@@ -355,7 +353,7 @@ namespace Quartz.Impl.Calendar
         ///         time range. Note this means that a time range may not cross
         ///         daily boundaries (10PM - 2AM). <i>(because only time value are
         ///         are used, it is possible for the two values to represent a valid
-        ///         time range and <code>rangeStartingTime &gt; rangeEndingTime</code>)</i>
+        ///         time range and <c>rangeStartingTime &gt; rangeEndingTime</c>)</i>
         ///     </li>
         /// </ul>
         /// </summary>
@@ -514,7 +512,7 @@ namespace Quartz.Impl.Calendar
 
         /// <summary>
         /// Returns the start time of the time range of the day 
-        /// specified in <code>time</code>.
+        /// specified in <param name="time" />.
         /// </summary>
         /// <param name="time">
         /// a time containing the desired date for the starting
@@ -534,7 +532,7 @@ namespace Quartz.Impl.Calendar
 
         /// <summary>
         /// Returns the end time of the time range of the day
-        /// specified in <code>time</code>
+        /// specified in <param name="time" />
         /// </summary>
         /// <param name="time">The time.</param>
         /// <returns>
@@ -607,7 +605,7 @@ namespace Quartz.Impl.Calendar
 
 
         /// <summary>
-        /// Sets the time range for the <code>DailyCalendar</code> to the times 
+        /// Sets the time range for the <see cref="DailyCalendar" /> to the times 
         /// represented in the specified Strings. 
         /// </summary>
         /// <param name="rangeStartingTimeString">The range starting time string.</param>
@@ -693,7 +691,7 @@ namespace Quartz.Impl.Calendar
 
 
         /// <summary>
-        /// Sets the time range for the <code>DailyCalendar</code> to the times
+        /// Sets the time range for the <see cref="DailyCalendar" /> to the times
         /// represented in the specified values. 
         /// </summary>
         /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
@@ -758,8 +756,8 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Sets the time range for the <code>DailyCalendar</code> to the times
-        /// represented in the specified <code>DateTime</code>s. 
+        /// Sets the time range for the <see cref="DailyCalendar" /> to the times
+        /// represented in the specified <see cref="DateTime" />s. 
         /// </summary>
         /// <param name="rangeStartingCalendar">The range starting calendar.</param>
         /// <param name="rangeEndingCalendar">The range ending calendar.</param>
@@ -778,7 +776,7 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Sets the time range for the <code>DailyCalendar</code> to the times
+        /// Sets the time range for the <see cref="DailyCalendar" /> to the times
         /// represented in the specified values. 
         /// </summary>
         /// <param name="rangeStartingTime">The range starting time.</param>

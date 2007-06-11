@@ -29,7 +29,7 @@ namespace Quartz.Plugins.History
 	/// 
 	/// <p>
 	/// The logged message is customizable by setting one of the following message
-	/// properties to a string that conforms to the syntax of <code>java.util.MessageFormat</code>.
+	/// properties to a string that conforms to the syntax of <see cref="java.util.MessageFormat" />.
 	/// </p>
 	/// 
 	/// <p>
@@ -82,7 +82,7 @@ namespace Quartz.Plugins.History
 	/// </table>
 	/// 
 	/// The default message text is <i>"Job {1}.{0} fired (by trigger {4}.{3}) at:
-	/// {2, date, HH:mm:ss MM/dd/yyyy}"</i>
+	/// {2, date, HH:mm:ss MM/dd/yyyy"</i>
 	/// </p>
 	/// 
 	/// 
@@ -143,7 +143,7 @@ namespace Quartz.Plugins.History
 	/// </table>
 	/// 
 	/// The default message text is <i>"Job {1}.{0} execution complete at {2, date,
-	/// HH:mm:ss MM/dd/yyyy} and reports: {8}"</i>
+	/// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
 	/// </p>
 	/// 
 	/// <p>
@@ -202,7 +202,7 @@ namespace Quartz.Plugins.History
 	/// </table>
 	/// 
 	/// The default message text is <i>"Job {1}.{0} execution failed at {2, date,
-	/// HH:mm:ss MM/dd/yyyy} and reports: {8}"</i>
+	/// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
 	/// </p>
 	/// 
 	/// 
@@ -256,19 +256,19 @@ namespace Quartz.Plugins.History
 	/// </table>
 	/// 
 	/// The default message text is <i>"Job {1}.{0} was vetoed.  It was to be fired 
-	/// (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}"</i>
+	/// (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy"</i>
 	/// </p>
 	/// </summary>
 	/// <author>James House</author>
 	public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 	{
 		private string name;
-		private string jobToBeFiredMessage = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
-		private string jobSuccessMessage = "Job {1}.{0} execution complete at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
-		private string jobFailedMessage = "Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8}";
+		private string jobToBeFiredMessage = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy";
+		private string jobSuccessMessage = "Job {1}.{0} execution complete at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8";
+		private string jobFailedMessage = "Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8";
 
 		private string jobWasVetoedMessage =
-			"Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy}";
+			"Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy";
 
 		private static readonly ILog Log = LogManager.GetLogger(typeof (LoggingJobHistoryPlugin));
 
@@ -312,7 +312,7 @@ namespace Quartz.Plugins.History
 		}
 
 		/// <summary>
-		/// Get the name of the <code>JobListener</code>.
+		/// Get the name of the <see cref="IJobListener" />.
 		/// </summary>
 		/// <value></value>
 		public virtual string Name
@@ -321,8 +321,8 @@ namespace Quartz.Plugins.History
 		}
 
 		/// <summary>
-		/// Called during creation of the <code>Scheduler</code> in order to give
-		/// the <code>SchedulerPlugin</code> a chance to Initialize.
+		/// Called during creation of the <see cref="IScheduler" /> in order to give
+		/// the <see cref="SchedulerPlugin" /> a chance to Initialize.
 		/// </summary>
 		public virtual void Initialize(String pluginName, IScheduler sched)
 		{
@@ -331,7 +331,7 @@ namespace Quartz.Plugins.History
 		}
 
 		/// <summary>
-		/// Called when the associated <code>Scheduler</code> is started, in order
+		/// Called when the associated <see cref="IScheduler" /> is started, in order
 		/// to let the plug-in know it can now make calls into the scheduler if it
 		/// needs to.
 		/// </summary>
@@ -341,7 +341,7 @@ namespace Quartz.Plugins.History
 		}
 
 		/// <summary> 
-		/// Called in order to inform the <code>SchedulerPlugin</code> that it
+		/// Called in order to inform the <see cref="SchedulerPlugin" /> that it
 		/// should free up all of it's resources because the scheduler is shutting
 		/// down.
 		/// </summary>
@@ -351,12 +351,12 @@ namespace Quartz.Plugins.History
 		}
 
 		/// <summary>
-		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
-		/// is about to be executed (an associated <code>Trigger</code>
+		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+		/// is about to be executed (an associated <see cref="Trigger" />
 		/// has occured).
 		/// <p>
 		/// This method will not be invoked if the execution of the Job was vetoed
-		/// by a <code>TriggerListener</code>.
+		/// by a <see cref="ITriggerListener" />.
 		/// </p>
 		/// </summary>
 		/// <param name="context"></param>
@@ -382,9 +382,9 @@ namespace Quartz.Plugins.History
 
 
 		/// <summary>
-		/// Called by the <code>Scheduler</code> after a <code>JobDetail</code>
-		/// has been executed, and be for the associated <code>Trigger</code>'s
-		/// <code>Triggered(xx)</code> method has been called.
+		/// Called by the <see cref="IScheduler" /> after a <see cref="JobDetail" />
+		/// has been executed, and be for the associated <see cref="Trigger" />'s
+		/// <see cref="Triggered(xx)" /> method has been called.
 		/// </summary>
 		/// <param name="context"></param>
 		/// <param name="jobException"></param>
@@ -431,9 +431,9 @@ namespace Quartz.Plugins.History
 		}
 
 		/// <summary>
-		/// Called by the <code>IScheduler</code> when a <code>JobDetail</code>
-		/// was about to be executed (an associated <code>Trigger</code>
-		/// has occured), but a <code>TriggerListener</code> vetoed it's
+		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+		/// was about to be executed (an associated <see cref="Trigger" />
+		/// has occured), but a <see cref="ITriggerListener" /> vetoed it's
 		/// execution.
 		/// </summary>
 		/// <param name="context"></param>

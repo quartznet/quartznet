@@ -25,8 +25,8 @@ using Quartz.Spi;
 namespace Quartz.Core
 {
 	/// <summary>
-	/// Contains all of the resources (<code>IJobStore</code>,<code>IThreadPool</code>,
-	/// etc.) necessary to create a <code>QuartzScheduler</code> instance.
+	/// Contains all of the resources (<see cref="IJobStore" />,<see cref="IThreadPool" />,
+	/// etc.) necessary to create a <see cref="QuartzScheduler" /> instance.
 	/// </summary>
 	/// <seealso cref="QuartzScheduler" />
 	/// <author>James House</author>
@@ -34,7 +34,7 @@ namespace Quartz.Core
 	public class QuartzSchedulerResources
 	{
 		/// <summary>
-		/// Get or set the name for the <code>QuartzScheduler</code>.
+		/// Get or set the name for the <see cref="QuartzScheduler" />.
 		/// </summary>
 		/// <exception cref="ArgumentException">
 		/// if name is null or empty.
@@ -61,7 +61,7 @@ namespace Quartz.Core
 		}
 
 		/// <summary>
-		/// Get or set the instance Id for the <code>QuartzScheduler</code>.
+		/// Get or set the instance Id for the <see cref="QuartzScheduler" />.
 		/// </summary>
 		/// <exception cref="ArgumentException"> 
 		/// if name is null or empty.
@@ -83,7 +83,7 @@ namespace Quartz.Core
 
 
 		/// <summary>
-		/// Get or set the name for the <code>QuartzSchedulerThread</code>.
+		/// Get or set the name for the <see cref="QuartzSchedulerThread" />.
 		/// </summary>
 		/// <exception cref="ArgumentException"> 
 		/// if name is null or empty.
@@ -104,7 +104,7 @@ namespace Quartz.Core
 		}
 
 		/// <summary>
-		/// Get or set the <code>ThreadPool</code> for the <code>QuartzScheduler</code>
+		/// Get or set the <see cref="ThreadPool" /> for the <see cref="QuartzScheduler" />
 		/// to use.
 		/// </summary>
 		/// <exception cref="ArgumentException"> 
@@ -126,7 +126,7 @@ namespace Quartz.Core
 		}
 
 		/// <summary>
-		/// Get or set the <code>JobStore</code> for the <code>QuartzScheduler</code>
+		/// Get or set the <see cref="IJobStore" /> for the <see cref="QuartzScheduler" />
 		/// to use.
 		/// </summary>
 		/// <exception cref="ArgumentException"> 
@@ -148,7 +148,7 @@ namespace Quartz.Core
 		}
 
 		/// <summary> 
-		/// Get or set the <code>JobRunShellFactory</code> for the <code>QuartzScheduler</code>
+		/// Get or set the <see cref="JobRunShellFactory" /> for the <see cref="QuartzScheduler" />
 		/// to use.
 		/// </summary>
 		/// <exception cref="ArgumentException"> 

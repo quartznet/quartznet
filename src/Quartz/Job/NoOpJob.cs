@@ -23,8 +23,8 @@ namespace Quartz.Job
 {
 	/// <summary>
 	/// An implementation of Job, that does absolutely nothing - useful for system
-	/// which only wish to use <code>{@link org.quartz.TriggerListener}s</code>
-	/// and <code>{@link org.quartz.JobListener}s</code>, rather than writing
+	/// which only wish to use <see cref="ITriggerListener" />s
+	/// and <see cref="IJobListener" />s, rather than writing
 	/// Jobs that perform work.
 	/// </summary>
 	/// <author>James House</author>

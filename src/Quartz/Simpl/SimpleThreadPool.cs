@@ -25,21 +25,18 @@ using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
-	/// <summary> <p>
+	/// <summary>
 	/// This is class is a simple implementation of a thread pool, based on the
-	/// <code>{@link IThreadPool}</code> interface.
+	/// <see cref="IThreadPool" /> interface.
+	/// <p>
+	/// <see cref="IThreadRunnable" /> objects are sent to the pool with the <see cref="RunInThread" />
+	/// method, which blocks until a <see cref="Thread" /> becomes available.
 	/// </p>
 	/// 
 	/// <p>
-	/// <code>Runnable</code> objects are sent to the pool with the <code>{@link #runInThread(Runnable)}</code>
-	/// method, which blocks until a <code>Thread</code> becomes available.
-	/// </p>
-	/// 
-	/// <p>
-	/// The pool has a fixed number of <code>Thread</code>s, and does not grow or
+	/// The pool has a fixed number of <see cref="Thread" />s, and does not grow or
 	/// shrink based on demand.
 	/// </p>
-	/// 
 	/// </summary>
 	/// <author>James House</author>
 	/// <author>Juergen Donnerstag</author>
@@ -58,7 +55,7 @@ namespace Quartz.Simpl
 
 		/// <summary>
 		/// Gets or sets the number of worker threads in the pool.
-		/// Set  has no effect after <code>Initialize()</code> has been called.
+		/// Set  has no effect after <see cref="Initialize()" /> has been called.
 		/// </summary>
 		public int ThreadCount
 		{
@@ -68,7 +65,7 @@ namespace Quartz.Simpl
 
 		/// <summary>
 		/// Get or set the thread priority of worker threads in the pool.
-		/// Set operation has no effect after <code>Initialize()</code> has been called.
+		/// Set operation has no effect after <see cref="Initialize()" /> has been called.
 		/// </summary>
 		public int ThreadPriority
 		{
@@ -96,7 +93,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Dequeue the next pending <code>Runnable</code>.
+		/// Dequeue the next pending <see cref="IThreadRunnable" />.
 		/// <p>
 		/// getNextRunnable() should return null if within a specific time no new
 		/// Runnable is available. This gives the worker thread the chance to check
@@ -105,31 +102,28 @@ namespace Quartz.Simpl
 		/// is, the time used for waiting need not be short.
 		/// </p>
 		/// </summary>
-		private IThreadRunnable NextRunnable
+		private IThreadRunnable GetNextRunnable()
 		{
-			get
+			IThreadRunnable toRun = null;
+
+			// Wait for new Runnable (see runInThread()) and notify runInThread()
+			// in case the next Runnable is already waiting.
+			lock (nextRunnableLock)
 			{
-				IThreadRunnable toRun = null;
-
-				// Wait for new Runnable (see runInThread()) and notify runInThread()
-				// in case the next Runnable is already waiting.
-				lock (nextRunnableLock)
+				if (nextRunnable == null)
 				{
-					if (nextRunnable == null)
-					{
-						Monitor.Wait(nextRunnableLock, TimeSpan.FromMilliseconds(1000));
-					}
-
-					if (nextRunnable != null)
-					{
-						toRun = nextRunnable;
-						nextRunnable = null;
-						Monitor.PulseAll(nextRunnableLock);
-					}
+					Monitor.Wait(nextRunnableLock, TimeSpan.FromMilliseconds(1000));
 				}
 
-				return toRun;
+				if (nextRunnable != null)
+				{
+					toRun = nextRunnable;
+					nextRunnable = null;
+					Monitor.PulseAll(nextRunnableLock);
+				}
 			}
+
+			return toRun;
 		}
 
 		private int count = - 1;
@@ -142,20 +136,20 @@ namespace Quartz.Simpl
 		private string threadNamePrefix = "SimpleThreadPoolWorker";
 
 		/// <summary> 
-		/// Create a new (unconfigured) <code>SimpleThreadPool</code>.
+		/// Create a new (unconfigured) <see cref="SimpleThreadPool" />.
 		/// </summary>
 		public SimpleThreadPool()
 		{
 		}
 
 		/// <summary> <p>
-		/// Create a new <code>SimpleThreadPool</code> with the specified number
-		/// of <code>Thread</code> s that have the given priority.
+		/// Create a new <see cref="SimpleThreadPool" /> with the specified number
+		/// of <see cref="Thread" /> s that have the given priority.
 		/// </p>
 		/// 
 		/// </summary>
 		/// <param name="threadCount">
-		/// the number of worker <code>Threads</code> in the pool, must
+		/// the number of worker <see cref="Thread" />s in the pool, must
 		/// be > 0.
 		/// </param>
 		/// <param name="threadPriority">
@@ -169,7 +163,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Called by the QuartzScheduler before the <code>ThreadPool</code> is
+		/// Called by the QuartzScheduler before the <see cref="ThreadPool" /> is
 		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
 		public virtual void Initialize()
@@ -291,17 +285,13 @@ namespace Quartz.Simpl
 			}
 		}
 
-		/// <summary> <p>
-		/// Run the given <code>Runnable</code> object in the next available
-		/// <code>Thread</code>. If while waiting the thread pool is asked to
+		/// <summary>
+		/// Run the given <see cref="IThreadRunnable" /> object in the next available
+		/// <see cref="Thread" />. If while waiting the thread pool is asked to
 		/// shut down, the Runnable is executed immediately within a new additional
 		/// thread.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <param name="runnable">
-		/// the <code>Runnable</code> to be added.
-		/// </param>
+		/// <param name="runnable">The <see cref="IThreadRunnable" /> to be added.</param>
 		public virtual bool RunInThread(IThreadRunnable runnable)
 		{
 			if (runnable == null)
@@ -438,7 +428,7 @@ namespace Quartz.Simpl
 					{
 						if (runnable == null)
 						{
-							runnable = tp.NextRunnable;
+							runnable = tp.GetNextRunnable();
 						}
 
 						if (runnable != null)

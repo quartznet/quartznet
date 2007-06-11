@@ -25,7 +25,7 @@ namespace Quartz
 {
 	/// <summary> 
 	/// An interface to be implemented by objects that define spaces of time that
-	/// should be included or excluded from a <code>Trigger</code>'s
+	/// should be included or excluded from a <see cref="Trigger" />'s
 	/// normal 'firing' schedule.
 	/// </summary>
 	/// <author>James House</author>
@@ -33,7 +33,7 @@ namespace Quartz
 	public interface ICalendar
 	{
 		/// <summary> 
-		/// Gets or sets a description for the <code>Calendar</code> instance - may be
+		/// Gets or sets a description for the <see cref="ICalendar" /> instance - may be
 		/// useful for remembering/displaying the purpose of the calendar, though
 		/// the description has no meaning to Quartz.
 		/// </summary>

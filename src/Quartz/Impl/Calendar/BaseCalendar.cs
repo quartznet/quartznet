@@ -42,7 +42,7 @@ namespace Quartz.Impl.Calendar
 	public class BaseCalendar : ICalendar
 	{
 		/// <summary> 
-		/// Gets or sets the description given to the <code>Calendar</code> instance by
+		/// Gets or sets the description given to the <see cref="ICalendar" /> instance by
 		/// its creator (if any).
 		/// </summary>
 		public virtual string Description

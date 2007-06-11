@@ -24,7 +24,7 @@ using System.Data;
 namespace Quartz.Util
 {
 	/// <summary> 
-	/// Implementations of this interface used by <code>DBConnectionManager</code>
+	/// Implementations of this interface used by <see cref="DBConnectionManager" />
 	/// to provide connections from various sources.
 	/// </summary>
 	/// <seealso cref="DBConnectionManager">
@@ -39,6 +39,9 @@ namespace Quartz.Util
 		IDbConnection Connection { get; }
 
 
+		/// <summary>
+		/// Shutdowns this instance.
+		/// </summary>
 		void Shutdown();
 	}
 }

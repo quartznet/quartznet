@@ -34,14 +34,14 @@ namespace Quartz.Examples.Example6
 		private static ILog _log = LogManager.GetLogger(typeof(BadJob2));
 
 		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>{@link Trigger}</code>
-		/// fires that is associated with the <code>Job</code>.
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// fires that is associated with the <see cref="IJob" />.
 		/// <p>
 		/// The implementation may wish to set a  result object on the
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to
-		/// <code>JobListeners</code> or
-		/// <code>TriggerListeners</code> that are watching the job's
+		/// <see cref="JobListeners" /> or
+		/// <see cref="TriggerListeners" /> that are watching the job's
 		/// execution.
 		/// </p>
 		/// </summary>

@@ -29,15 +29,15 @@ namespace Quartz.Core
 {
 	/// <summary> 
 	/// JobRunShell instances are responsible for providing the 'safe' environment
-	/// for <code>Job</code> s to run in, and for performing all of the work of
-	/// executing the <code>Job</code>, catching ANY thrown exceptions, updating
-	/// the <code>Trigger</code> with the <code>Job</code>'s completion code,
+	/// for <see cref="IJob" /> s to run in, and for performing all of the work of
+	/// executing the <see cref="IJob" />, catching ANY thrown exceptions, updating
+	/// the <see cref="Trigger" /> with the <see cref="IJob" />'s completion code,
 	/// etc.
 	/// <p>
-	/// A <code>JobRunShell</code> instance is created by a <code>JobRunShellFactory</code>
-	/// on behalf of the <code>QuartzSchedulerThread</code> which then runs the
-	/// shell in a thread from the configured <code>ThreadPool</code> when the
-	/// scheduler determines that a <code>Job</code> has been triggered.
+	/// A <see cref="JobRunShell" /> instance is created by a <see cref="IJobRunShellFactory" />
+	/// on behalf of the <see cref="QuartzSchedulerThread" /> which then runs the
+	/// shell in a thread from the configured <see cref="ThreadPool" /> when the
+	/// scheduler determines that a <see cref="IJob" /> has been triggered.
 	/// </p>
 	/// </summary>
 	/// <seealso cref="IJobRunShellFactory" /> 
@@ -61,12 +61,12 @@ namespace Quartz.Core
 		/// <summary>
 		/// Create a JobRunShell instance with the given settings.
 		/// </summary>
-		/// <param name="jobRunShellFactory">A handle to the <code>JobRunShellFactory</code> that produced
-		/// this <code>JobRunShell</code>.</param>
-		/// <param name="scheduler">The <code>Scheduler</code> instance that should be made
-		/// available within the <code>JobExecutionContext</code>.</param>
-		/// <param name="schdCtxt">the <code>SchedulingContext</code> that should be used by the
-		/// <code>JobRunShell</code> when making updates to the <code>JobStore</code>.</param>
+		/// <param name="jobRunShellFactory">A handle to the <see cref="IJobRunShellFactory" /> that produced
+		/// this <see cref="JobRunShell" />.</param>
+		/// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
+		/// available within the <see cref="JobExecutionContext" />.</param>
+		/// <param name="schdCtxt">the <see cref="SchedulingContext" /> that should be used by the
+		/// <see cref="JobRunShell" /> when making updates to the <see cref="IJobStore" />.</param>
 		public JobRunShell(IJobRunShellFactory jobRunShellFactory, IScheduler scheduler, SchedulingContext schdCtxt)
 		{
 			this.jobRunShellFactory = jobRunShellFactory;
@@ -160,7 +160,7 @@ namespace Quartz.Core
 				}
 
 				DateTime startTime = DateTime.Now;
-				DateTime endTime = startTime;
+				DateTime endTime;
 
 				// Execute the job
 				try
@@ -290,7 +290,7 @@ namespace Quartz.Core
 
 		private bool NotifyListenersBeginning(JobExecutionContext ctx)
 		{
-			bool vetoed = false;
+			bool vetoed;
 
 			// notify all trigger listeners
 			try

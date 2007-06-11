@@ -27,7 +27,7 @@ namespace Quartz
 {
 	/// <summary>
 	/// Convenience and utility methods for simplifying the construction and
-	/// configuration of <code>{@link Trigger}s</code>.
+	/// configuration of <see cref="Trigger" />s.
 	/// <p>
 	/// Please submit suggestions for additional convenience methods to either the
 	/// Quartz user forum or the developer's mail list at
@@ -112,8 +112,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Set the given <code>Trigger</code>'s name to the given value, and its
-		/// group to the default group (<code>Scheduler.DEFAULT_GROUP</code>).
+		/// Set the given <see cref="Trigger" />'s name to the given value, and its
+		/// group to the default group (<see cref="Scheduler_Fields.DEFAULT_GROUP" />).
 		/// </summary>
 		/// <param name="trig">the tigger to change name to</param>
 		/// <param name="name">the new trigger name</param>
@@ -123,7 +123,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Set the given <code>Trigger</code>'s name to the given value, and its
+		/// Set the given <see cref="Trigger" />'s name to the given value, and its
 		/// group to the given group.
 		/// </summary>
 		/// <param name="trig">the tigger to change name to</param>
@@ -324,8 +324,8 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Make a trigger that will fire <code>repeatCount</code> times, waiting
-		/// <code>repeatInterval</code> milliseconds between each fire.
+		/// Make a trigger that will fire <param name="repeatCount" /> times, waiting
+		/// <param name="repeatInterval" /> milliseconds between each fire.
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
@@ -344,8 +344,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Make a trigger that will fire <code>repeatCount</code> times, waiting
-		/// <code>repeatInterval</code> milliseconds between each fire.
+		/// Make a trigger that will fire <param name="repeatCount" /> times, waiting
+		/// <param name="repeatInterval" /> milliseconds between each fire.
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
@@ -616,7 +616,7 @@ namespace Quartz
 		/// date's 'day' will be promoted, and the time will be set to 00:00:00.
 		/// </p>
 		/// </summary>
-		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenHourDate(NullableDateTime date)
@@ -637,7 +637,7 @@ namespace Quartz
 		/// with the time of 08:00:00.
 		/// </p>
 		/// </summary>
-		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenHourDateBefore(NullableDateTime date)
@@ -658,7 +658,7 @@ namespace Quartz
 		/// then the hour (and possibly the day) will be promoted.
 		/// </p>
 		/// </summary>
-		/// <param name="date">The Date to round, if <code>null</code> the current time will  be used</param>
+		/// <param name="date">The Date to round, if <see langword="null" /> the current time will  be used</param>
 		/// <returns>The new rounded date</returns>
 		public static DateTime GetEvenMinuteDate(NullableDateTime date)
 		{
@@ -680,7 +680,7 @@ namespace Quartz
 		/// with the time of 08:13:00.
 		/// </p>
 		/// </summary>
-		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenMinuteDateBefore(NullableDateTime date)
@@ -698,7 +698,7 @@ namespace Quartz
 		/// Returns a date that is rounded to the next even second above the given
 		/// date.
 		/// </summary>
-		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenSecondDate(NullableDateTime date)
@@ -720,7 +720,7 @@ namespace Quartz
 		/// date with the time of 08:13:00.000.
 		/// </p>
 		/// </summary>
-		/// <param name="date">the Date to round, if <code>null</code> the current time will
+		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
 		public static DateTime GetEvenSecondDateBefore(NullableDateTime date)
@@ -817,7 +817,7 @@ namespace Quartz
 		/// 
 		/// </summary>
 		/// <param name="date">
-		/// the Date to round, if <code>null</code> the current time will
+		/// the Date to round, if <see langword="null" /> the current time will
 		/// be used
 		/// </param>
 		/// <param name="minuteBase">
@@ -864,7 +864,7 @@ namespace Quartz
 		/// <p>
 		/// The rules for calculating the second are the same as those for
 		/// calculating the minute in the method
-		/// <code>getNextGivenMinuteDate(..)</code>.
+		/// <see cref="GetNextGivenMinuteDate" />.
 		/// </p>
 		/// </summary>
 		/// <param name="date">The date.</param>
@@ -906,7 +906,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get a <code>Date</code> object that represents the given time, on
+		/// Get a <see cref="DateTime" /> object that represents the given time, on
 		/// today's date.
 		/// </summary>
 		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
@@ -924,7 +924,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get a <code>Date</code> object that represents the given time, on the
+		/// Get a <see cref="DateTime" /> object that represents the given time, on the
 		/// given date.
 		/// </summary>
 		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
@@ -945,7 +945,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get a <code>Date</code> object that represents the given time, on the
+		/// Get a <see cref="DateTime" /> object that represents the given time, on the
 		/// given date.
 		/// </summary>
 		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
@@ -969,7 +969,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Returns a list of Dates that are the next fire times of a
-		/// <code>Trigger</code>.
+		/// <see cref="Trigger" />.
 		/// The input trigger will be cloned before any work is done, so you need
 		/// not worry about its state being altered by this method.
 		/// </summary>
@@ -1006,7 +1006,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns a list of Dates that are the next fire times of a  <code>Trigger</code>
+		/// Returns a list of Dates that are the next fire times of a  <see cref="Trigger" />
 		/// that fall within the given date range. The input trigger will be cloned
 		/// before any work is done, so you need not worry about its state being
 		/// altered by this method.

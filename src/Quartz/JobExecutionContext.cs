@@ -29,32 +29,32 @@ namespace Quartz
 {
 	/// <summary> <p>
 	/// A context bundle containing handles to various environment information, that
-	/// is given to a <code>{@link org.quartz.JobDetail}</code> instance as it is
-	/// executed, and to a <code>{@link Trigger}</code> instance after the
+	/// is given to a <see cref="JobDetail" /> instance as it is
+	/// executed, and to a <see cref="Trigger" /> instance after the
 	/// execution completes.
 	/// </p>
 	/// 
 	/// <p>
-	/// The <code>JobDataMap</code> found on this object (via the 
-	/// <code>getMergedJobDataMap()</code> method) serves as a convenience -
-	/// it is a merge of the <code>JobDataMap</code> found on the 
-	/// <code>JobDetail</code> and the one found on the <code>Trigger</code>, with 
+	/// The <see cref="JobDataMap" /> found on this object (via the 
+	/// <see cref="MergedJobDataMap" /> method) serves as a convenience -
+	/// it is a merge of the <see cref="JobDataMap" /> found on the 
+	/// <see cref="JobDetail" /> and the one found on the <see cref="Trigger" />, with 
 	/// the value in the latter overriding any same-named values in the former.
 	/// <i>It is thus considered a 'best practice' that the Execute code of a Job
 	/// retrieve data from the JobDataMap found on this object</i>  NOTE: Do not
 	/// expect value 'set' into this JobDataMap to somehow be set back onto a
-	/// <code>StatefulJob</code>'s own JobDataMap.
+	/// <see cref="IStatefulJob" />'s own JobDataMap.
 	/// </p>
 	/// 
 	/// <p>
-	/// <code>JobExecutionContext</code> s are also returned from the 
-	/// <code>Scheduler.getCurrentlyExecutingJobs()</code>
+	/// <see cref="JobExecutionContext" /> s are also returned from the 
+	/// <see cref="Scheduler.GetCurrentlyExecutingJobs()" />
 	/// method. These are the same instances as those past into the jobs that are
 	/// currently executing within the scheduler. The exception to this is when your
 	/// application is using Quartz remotely (i.e. via RMI) - in which case you get
-	/// a clone of the <code>JobExecutionContext</code>s, and their references to
-	/// the <code>Scheduler</code> and <code>Job</code> instances have been lost (a
-	/// clone of the <code>JobDetail</code> is still available - just not a handle
+	/// a clone of the <see cref="JobExecutionContext" />s, and their references to
+	/// the <see cref="IScheduler" /> and <see cref="IJob" /> instances have been lost (a
+	/// clone of the <see cref="JobDetail" /> is still available - just not a handle
 	/// to the job instance that is running).
 	/// </p>
 	/// 
@@ -69,8 +69,8 @@ namespace Quartz
 	public class JobExecutionContext
 	{
 		/// <summary>
-		/// Get a handle to the <code>Scheduler</code> instance that fired the
-		/// <code>Job</code>.
+		/// Get a handle to the <see cref="IScheduler" /> instance that fired the
+		/// <see cref="IJob" />.
 		/// </summary>
 		public virtual IScheduler Scheduler
 		{
@@ -78,8 +78,8 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Get a handle to the <code>Trigger</code> instance that fired the
-		/// <code>Job</code>.
+		/// Get a handle to the <see cref="Trigger" /> instance that fired the
+		/// <see cref="IJob" />.
 		/// </p>
 		/// </summary>
 		public virtual Trigger Trigger
@@ -88,8 +88,8 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Get a handle to the <code>Calendar</code> referenced by the <code>Trigger</code>
-		/// instance that fired the <code>Job</code>.
+		/// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="Trigger" />
+		/// instance that fired the <see cref="IJob" />.
 		/// </p>
 		/// </summary>
 		public virtual ICalendar Calendar
@@ -98,8 +98,8 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// If the <code>Job</code> is being re-executed because of a 'recovery'
-		/// situation, this method will return <code>true</code>.
+		/// If the <see cref="IJob" /> is being re-executed because of a 'recovery'
+		/// situation, this method will return <see langword="true" />.
 		/// </p>
 		/// </summary>
 		public virtual bool Recovering
@@ -117,23 +117,23 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get the convenience <code>JobDataMap</code> of this execution context.
+		/// Get the convenience <see cref="JobDataMap" /> of this execution context.
 		/// <p>
-		/// The <code>JobDataMap</code> found on this object serves as a convenience -
-		/// it is a merge of the <code>JobDataMap</code> found on the 
-		/// <code>JobDetail</code> and the one found on the <code>Trigger</code>, with 
+		/// The <see cref="JobDataMap" /> found on this object serves as a convenience -
+		/// it is a merge of the <see cref="JobDataMap" /> found on the 
+		/// <see cref="JobDetail" /> and the one found on the <see cref="Trigger" />, with 
 		/// the value in the latter overriding any same-named values in the former.
 		/// <i>It is thus considered a 'best practice' that the Execute code of a Job
 		/// retrieve data from the JobDataMap found on this object</i>
 		/// </p>
 		/// 
 		/// <p>NOTE: Do not expect value 'set' into this JobDataMap to somehow be 
-		/// set back onto a <code>StatefulJob</code>'s own JobDataMap.
+		/// set back onto a <see cref="IStatefulJob" />'s own JobDataMap.
 		/// </p>
 		/// 
 		/// <p>
 		/// Attempts to change the contents of this map typically result in an 
-		/// <code>IllegalStateException</code>.
+		/// <see cref="IllegalStateException" />.
 		/// </p>
 		/// 
 		/// </summary>
@@ -143,7 +143,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Get the <code>JobDetail</code> associated with the <code>Job</code>.
+		/// Get the <see cref="JobDetail" /> associated with the <see cref="IJob" />.
 		/// </p>
 		/// </summary>
 		public virtual JobDetail JobDetail
@@ -152,7 +152,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Get the instance of the <code>Job</code> that was created for this
+		/// Get the instance of the <see cref="IJob" /> that was created for this
 		/// execution.
 		/// </p>
 		/// 
@@ -213,24 +213,24 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the result (if any) that the <code>Job</code> set before its 
+		/// Returns the result (if any) that the <see cref="IJob" /> set before its 
 		/// execution completed (the type of object set as the result is entirely up 
 		/// to the particular job).
 		/// 
 		/// <p>
 		/// The result itself is meaningless to Quartz, but may be informative
-		/// to <code>{@link JobListener}s</code> or 
-		/// <code>{@link TriggerListener}s</code> that are watching the job's 
+		/// to <see cref="IJobListener" />s or 
+		/// <see cref="ITriggerListener" />s that are watching the job's 
 		/// execution.
 		/// </p> 
 		/// 
-		/// Set the result (if any) of the <code>Job</code>'s execution (the type of 
+		/// Set the result (if any) of the <see cref="IJob" />'s execution (the type of 
 		/// object set as the result is entirely up to the particular job).
 		/// 
 		/// <p>
 		/// The result itself is meaningless to Quartz, but may be informative
-		/// to <code>{@link JobListener}s</code> or 
-		/// <code>{@link TriggerListener}s</code> that are watching the job's 
+		/// to <see cref="IJobListener" />s or 
+		/// <see cref="ITriggerListener" />s that are watching the job's 
 		/// execution.
 		/// </p> 
 		/// 
@@ -245,7 +245,7 @@ namespace Quartz
 		/// <summary> The amount of time the job ran for (in milliseconds).  The returned 
 		/// value will be -1 until the job has actually completed (or thrown an 
 		/// exception), and is therefore generally only useful to 
-		/// <code>JobListener</code>s and <code>TriggerListener</code>s.
+		/// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
 		/// </summary>
 		public virtual long JobRunTime
 		{

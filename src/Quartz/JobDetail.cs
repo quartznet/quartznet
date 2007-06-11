@@ -24,21 +24,21 @@ using System.Collections;
 namespace Quartz
 {
     /// <summary>
-    /// Conveys the detail properties of a given <code>IJob</code> instance.
+    /// Conveys the detail properties of a given <see cref="IJob" /> instance.
     /// <p>
-    /// Quartz does not store an actual instance of a <code>Job</code> type, but
-    /// instead allows you to define an instance of one, through the use of a <code>JobDetail</code>.
+    /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
+    /// instead allows you to define an instance of one, through the use of a <see cref="JobDetail" />.
     /// </p>
     /// 
     /// <p>
-    /// <code>Job</code>s have a name and group associated with them, which
-    /// should uniquely identify them within a single <code>Scheduler</code>.
+    /// <see cref="IJob" />s have a name and group associated with them, which
+    /// should uniquely identify them within a single <see cref="IScheduler" />.
     /// </p>
     /// 
     /// <p>
-    /// <code>Trigger</code> s are the 'mechanism' by which <code>Job</code> s
-    /// are scheduled. Many <code>Trigger</code> s can point to the same <code>Job</code>,
-    /// but a single <code>Trigger</code> can only point to one <code>Job</code>.
+    /// <see cref="Trigger" /> s are the 'mechanism' by which <see cref="IJob" /> s
+    /// are scheduled. Many <see cref="Trigger" /> s can point to the same <see cref="IJob" />,
+    /// but a single <see cref="Trigger" /> can only point to one <see cref="IJob" />.
     /// </p>
     /// </summary>
     /// <seealso cref="IJob" />
@@ -62,7 +62,7 @@ namespace Quartz
         private ArrayList jobListeners = new ArrayList(2);
 
         /// <summary>
-        /// Get or sets the name of this <code>Job</code>.
+        /// Get or sets the name of this <see cref="IJob" />.
         /// </summary>
         /// <exception cref="ArgumentException"> 
         /// if name is null or empty.
@@ -83,8 +83,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Get or sets the group of this <code>Job</code>. 
-        /// If <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
+        /// Get or sets the group of this <see cref="IJob" />. 
+        /// If <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.
         /// </summary>
         /// <exception cref="ArgumentException"> 
         /// If the group is an empty string.
@@ -110,7 +110,7 @@ namespace Quartz
         }
 
         /// <summary> 
-        /// Returns the 'full name' of the <code>Trigger</code> in the format
+        /// Returns the 'full name' of the <see cref="Trigger" /> in the format
         /// "group.name".
         /// </summary>
         public virtual string FullName
@@ -119,7 +119,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Get or set the description given to the <code>Job</code> instance by its
+        /// Get or set the description given to the <see cref="IJob" /> instance by its
         /// creator (if any).
         /// <p>
         /// May be useful
@@ -134,10 +134,10 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Get or sets the instance of <code>Job</code> that will be executed.
+        /// Get or sets the instance of <see cref="IJob" /> that will be executed.
         /// </summary>
         /// <exception cref="ArgumentException"> 
-        /// if jobType is null or the class is not a <code>Job</code>.
+        /// if jobType is null or the class is not a <see cref="IJob" />.
         /// </exception>
         public Type JobType
         {
@@ -160,7 +160,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Get or set the <code>JobDataMap</code> that is associated with the <code>Job</code>.
+        /// Get or set the <see cref="JobDataMap" /> that is associated with the <see cref="IJob" />.
         /// </summary>
         public virtual JobDataMap JobDataMap
         {
@@ -177,11 +177,11 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set whether or not the <code>Job</code> should be persisted in the
-        /// <code>IJobStore</code> for re-use after program
+        /// Set whether or not the <see cref="IJob" /> should be persisted in the
+        /// <see cref="IJobStore" /> for re-use after program
         /// restarts.
         /// <p>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </p>
         /// </summary>
         public bool Volatility
@@ -190,10 +190,10 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set whether or not the <code>Job</code> should remain stored after it
-        /// is orphaned (no <code>Trigger</code>s point to it).
+        /// Set whether or not the <see cref="IJob" /> should remain stored after it
+        /// is orphaned (no <see cref="Trigger" />s point to it).
         /// <p>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </p>
         /// </summary>
         public bool Durability
@@ -202,11 +202,11 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set whether or not the the <code>Scheduler</code> should re-Execute
-        /// the <code>Job</code> if a 'recovery' or 'fail-over' situation is
+        /// Set whether or not the the <see cref="IScheduler" /> should re-Execute
+        /// the <see cref="IJob" /> if a 'recovery' or 'fail-over' situation is
         /// encountered.
         /// <p>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </p>
         /// </summary>
         /// <seealso cref="JobExecutionContext.Recovering" />
@@ -216,15 +216,15 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Whether or not the <code>Job</code> should not be persisted in the
-        /// <code>JobStore</code> for re-use after program
+        /// Whether or not the <see cref="IJob" /> should not be persisted in the
+        /// <see cref="IJobStore" /> for re-use after program
         /// restarts.
         /// <p>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </p>
         /// </summary>
-        /// <returns> <code>true</code> if the <code>Job</code> should be garbage
-        /// collected along with the <code>IScheduler</code>.
+        /// <returns> <see langword="true" /> if the <see cref="IJob" /> should be garbage
+        /// collected along with the <see cref="IScheduler" />.
         /// </returns>
         public virtual bool Volatile
         {
@@ -232,14 +232,14 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Whether or not the <code>Job</code> should remain stored after it is
-        /// orphaned (no <code>Trigger</code>s point to it).
+        /// Whether or not the <see cref="IJob" /> should remain stored after it is
+        /// orphaned (no <see cref="Trigger" />s point to it).
         /// <p>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </p>
         /// </summary>
         /// <returns> 
-        /// <code>true</code> if the Job should remain persisted after
+        /// <see langword="true" /> if the Job should remain persisted after
         /// being orphaned.
         /// </returns>
         public virtual bool Durable
@@ -248,7 +248,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Whether or not the <code>Job</code> implements the interface <code>IStatefulJob</code>.
+        /// Whether or not the <see cref="IJob" /> implements the interface <see cref="IStatefulJob" />.
         /// </summary>
         public virtual bool Stateful
         {
@@ -264,8 +264,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Returns an array of <code>String</code> s containing the names of all
-        /// <code>IJobListener</code> s assigned to the <code>Job</code>,
+        /// Returns an array of <see cref="String" /> s containing the names of all
+        /// <see cref="IJobListener" /> s assigned to the <see cref="IJob" />,
         /// in the order in which they should be notified.
         /// </summary>
         public virtual string[] JobListenerNames
@@ -275,7 +275,7 @@ namespace Quartz
 
 
         /// <summary>
-        /// Create a <code>JobDetail</code> with no specified name or group, and
+        /// Create a <see cref="JobDetail" /> with no specified name or group, and
         /// the default settings of all the other properties.
         /// <p>
         /// Note that the {@link #setName(String)},{@link #setGroup(String)}and
@@ -289,9 +289,9 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Create a <code>JobDetail</code> with the given name, and group, and
+        /// Create a <see cref="JobDetail" /> with the given name, and group, and
         /// the default settings of all the other properties.
-        /// If <code>null</code>, Scheduler.DEFAULT_GROUP will be used.
+        /// If <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.
         /// </summary>
         /// <exception cref="ArgumentException">
         /// If name is null or empty, or the group is an empty string.
@@ -304,11 +304,11 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Create a <code>JobDetail</code> with the given name, and group, and
+        /// Create a <see cref="JobDetail" /> with the given name, and group, and
         /// the given settings of all the other properties.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="group">if <code>null</code>, Scheduler.DEFAULT_GROUP will be used.</param>
+        /// <param name="group">if <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.</param>
         /// <param name="jobType">Type of the job.</param>
         /// <param name="volatility">if set to <c>true</c> [volatility].</param>
         /// <param name="durability">if set to <c>true</c> [durability].</param>
@@ -327,8 +327,8 @@ namespace Quartz
         }
 
         /// <summary> 
-        /// Validates whether the properties of the <code>JobDetail</code> are
-        /// valid for submission into a <code>Scheduler</code>.
+        /// Validates whether the properties of the <see cref="JobDetail" /> are
+        /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
         public virtual void Validate()
         {
@@ -349,13 +349,13 @@ namespace Quartz
         }
 
         /// <summary> <p>
-        /// Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
+        /// Instructs the <see cref="IScheduler" /> whether or not the <see cref="IJob" />
         /// should be re-executed if a 'recovery' or 'fail-over' situation is
         /// encountered.
         /// </p>
         /// 
         /// <p>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </p>
         /// 
         /// </summary>
@@ -367,8 +367,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the specified name of a <code>{@link JobListener}</code> to the
-        /// end of the <code>Job</code>'s list of listeners.
+        /// Add the specified name of a <see cref="JobListener" /> to the
+        /// end of the <see cref="IJob" />'s list of listeners.
         /// </summary>
         public virtual void AddJobListener(string listenerName)
         {
@@ -376,8 +376,8 @@ namespace Quartz
         }
 
         /// <summary> <p>
-        /// Remove the specified name of a <code>{@link JobListener}</code> from
-        /// the <code>Job</code>'s list of listeners.
+        /// Remove the specified name of a <see cref="JobListener" /> from
+        /// the <see cref="IJob" />'s list of listeners.
         /// </p>
         /// 
         /// </summary>
@@ -404,7 +404,7 @@ namespace Quartz
         {
             return
                 string.Format(
-                    "JobDetail '{0}':  jobType: '{1} isStateful: {2} isVolatile: {3} isDurable: {4} requestsRecovers: {5}",
+                    "JobDetail '{0}':  jobType: '{1} isStateful: {2} isVolatile: {3} isDurable: {4} requestsRecovers: {5",
                     FullName, ((JobType == null) ? null : JobType.FullName), Stateful, Volatile, Durable,
                     requestsRecovery());
         }

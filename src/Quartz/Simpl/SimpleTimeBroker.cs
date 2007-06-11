@@ -24,33 +24,25 @@ using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
-	/// <summary> <p>
+	/// <summary>
 	/// The interface to be implemented by classes that want to provide a mechanism
-	/// by which the <code>{@link org.quartz.core.QuartzScheduler}</code> can
-	/// reliably determine the current time.
-	/// </p>
-	/// 
+	/// by which the <see cref="QuartzScheduler" /> can  reliably determine the current time.
 	/// <p>
-	/// In general, the default implementation of this interface (<code>{@link org.quartz.simpl.SimpleTimeBroker}</code>-
-	/// which simply uses <code>System.getCurrentTimeMillis()</code> )is
+	/// In general, the default implementation of this interface (<see cref="SimpleTimeBroker" />-
+	/// which simply uses <see cref="DateTime.Ticks" /> )is
 	/// sufficient. However situations may exist where this default scheme is
 	/// lacking in its robustsness - especially when Quartz is used in a clustered
 	/// configuration. For example, if one or more of the machines in the cluster
 	/// has a system time that varies by more than a few seconds from the clocks on
 	/// the other systems in the cluster, scheduling confusion will result.
 	/// </p>
-	/// 
 	/// </summary>
-	/// <seealso cref="QuartzScheduler">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="QuartzScheduler" /> 
+	/// <author>James House</author>
 	public class SimpleTimeBroker : ITimeBroker
 	{
-		/// <summary> <p>
-		/// Get the current time, simply using <code>new Date()</code>.
-		/// </p>
+		/// <summary>
+		/// Get the current time, simply using <see cref="DateTime.Now" />.
 		/// </summary>
 		public virtual DateTime CurrentTime
 		{
@@ -58,7 +50,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Called by the QuartzScheduler before the <code>TimeBroker</code> is
+		/// Called by the QuartzScheduler before the <see cref="ITimeBroker" /> is
 		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
 		public virtual void Initialize()
@@ -67,7 +59,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Called by the QuartzScheduler to inform the <code>TimeBroker</code>
+		/// Called by the QuartzScheduler to inform the <see cref="ITimeBroker" />
 		/// that it should free up all of it's resources because the scheduler is
 		/// shutting down.
 		/// </summary>

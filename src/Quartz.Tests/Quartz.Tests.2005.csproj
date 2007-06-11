@@ -1,0 +1,163 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectType>Local</ProjectType>
+    <ProductVersion>8.0.50727</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{5587AF00-160F-4EC1-98A2-BEABA411256C}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ApplicationIcon>
+    </ApplicationIcon>
+    <AssemblyKeyContainerName>
+    </AssemblyKeyContainerName>
+    <AssemblyName>Quartz.Tests</AssemblyName>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+    <DefaultClientScript>JScript</DefaultClientScript>
+    <DefaultHTMLPageLayout>Grid</DefaultHTMLPageLayout>
+    <DefaultTargetSchema>IE50</DefaultTargetSchema>
+    <DelaySign>false</DelaySign>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Quartz.Tests</RootNamespace>
+    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
+    <StartupObject>
+    </StartupObject>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>..\..\build\2.0\Debug\Quartz.Tests\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DocumentationFile>
+    </DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn>
+    </NoWarn>
+    <Optimize>false</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <DebugType>full</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>..\..\build\2.0\Release\Quartz.Examples\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
+    <DefineConstants>TRACE</DefineConstants>
+    <DocumentationFile>
+    </DocumentationFile>
+    <DebugSymbols>false</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn>
+    </NoWarn>
+    <Optimize>true</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <DebugType>none</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Common.Logging">
+      <Name>Common.Logging</Name>
+      <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
+    </Reference>
+    <Reference Include="Nullables">
+      <Name>Nullables</Name>
+      <HintPath>..\..\lib\1.1\Nullables.dll</HintPath>
+    </Reference>
+    <Reference Include="nunit.framework">
+      <Name>nunit.framework</Name>
+      <HintPath>..\..\lib\1.1\nunit.framework.dll</HintPath>
+    </Reference>
+    <Reference Include="System">
+      <Name>System</Name>
+    </Reference>
+    <Reference Include="System.Data">
+      <Name>System.Data</Name>
+    </Reference>
+    <Reference Include="System.XML">
+      <Name>System.XML</Name>
+    </Reference>
+    <ProjectReference Include="..\Quartz\Quartz.2005.csproj">
+      <Name>Quartz.2005</Name>
+      <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
+      <Package>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Package>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\AssemblyInfo.cs">
+      <Link>AssemblyInfo.cs</Link>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\AnnualCalendarTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\CronExpressionTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\Impl\Calendar\DailyCalendarTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\Impl\DirectSchedulerFactoryTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\JobDataMapTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\JobDetailTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\NthIncludedDayTriggerTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\PriorityTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\SerializationTestSupport.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\SimpleTriggerTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\Simpl\PropertySettingJobFactoryTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\Simpl\RAMJobStoreTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\Utils\DirtyFlagMapTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Unit\Utils\PropertiesParserTest.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <None Include="Unit\Impl\Calendar\DailyCalendar-1.5.2.ser" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Integration\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+</Project>

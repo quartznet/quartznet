@@ -25,8 +25,8 @@ namespace Quartz
 	/// The interface to be implemented by classes which represent a 'job' to be
 	/// performed.
 	/// <p>
-	/// Instances of <code>Job</code> must have a <code>public</code>
-	/// no-argument constructor. <code>JobDataMap</code> provides a mechanism for 'instance member data'
+	/// Instances of <see cref="IJob" /> must have a <see langword="public" />
+	/// no-argument constructor. <see cref="JobDataMap" /> provides a mechanism for 'instance member data'
 	/// that may be required by some implementations of this interface.
 	/// </p>
 	/// </summary>
@@ -39,14 +39,14 @@ namespace Quartz
 	public interface IJob
 	{
 		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
-		/// fires that is associated with the <code>Job</code>.
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// fires that is associated with the <see cref="IJob" />.
 		/// <p>
 		/// The implementation may wish to set a  result object on the 
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to 
-		/// <code>JobListeners</code> or 
-		/// <code>TriggerListeners</code> that are watching the job's 
+		/// <see cref="IJobListener" />s or 
+		/// <see cref="ITriggerListener" />s that are watching the job's 
 		/// execution.
 		/// </p>
 		/// <param name="context">The execution context.</param>

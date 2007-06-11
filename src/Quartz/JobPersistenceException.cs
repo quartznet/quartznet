@@ -32,7 +32,7 @@ namespace Quartz
 	public class JobPersistenceException : SchedulerException
 	{
 		/// <summary> <p>
-		/// Create a <code>JobPersistenceException</code> with the given message.
+		/// Create a <see cref="JobPersistenceException" /> with the given message.
 		/// </p>
 		/// </summary>
 		public JobPersistenceException(string msg) : base(msg)
@@ -41,7 +41,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Create a <code>JobPersistenceException</code> with the given message
+		/// Create a <see cref="JobPersistenceException" /> with the given message
 		/// and error code.
 		/// </p>
 		/// </summary>
@@ -50,7 +50,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Create a <code>JobPersistenceException</code> with the given message
+		/// Create a <see cref="JobPersistenceException" /> with the given message
 		/// and cause.
 		/// </p>
 		/// </summary>
@@ -60,7 +60,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Create a <code>JobPersistenceException</code> with the given message,
+		/// Create a <see cref="JobPersistenceException" /> with the given message,
 		/// cause and error code.
 		/// </p>
 		/// </summary>

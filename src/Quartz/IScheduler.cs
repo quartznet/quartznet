@@ -27,71 +27,70 @@ using Quartz.Collection;
 using Quartz.Spi;
 
 namespace Quartz
-{
-	/// <summary> <p>
+{	
+	/// <summary>
 	/// This is the main interface of a Quartz Scheduler.
+	/// 
+	/// <p>
+	/// A <see cref="IScheduler" /> maintains a registery of <see cref="JobDetail" />
+	/// s and <see cref="Trigger" />s. Once registered, the <see cref="IScheduler" />
+	/// is responible for executing <see cref="IJob" /> s when their associated
+	/// <see cref="Trigger" /> s fire (when their scheduled time arrives).
 	/// </p>
 	/// 
 	/// <p>
-	/// A <code>Scheduler</code> maintains a registery of <code>{@link org.quartz.JobDetail}</code>
-	/// s and <code>{@link Trigger}</code>s. Once registered, the <code>Scheduler</code>
-	/// is responible for executing <code>Job</code> s when their associated
-	/// <code>Trigger</code> s fire (when their scheduled time arrives).
-	/// </p>
-	/// 
-	/// <p>
-	/// <code>Scheduler</code> instances are produced by a <code>{@link SchedulerFactory}</code>.
+	/// <see cref="IScheduler" /> instances are produced by a <see cref="ISchedulerFactory" />.
 	/// A scheduler that has already been created/initialized can be found and used
-	/// through the same factory that produced it. After a <code>Scheduler</code>
+	/// through the same factory that produced it. After a <see cref="IScheduler" />
 	/// has been created, it is in "stand-by" mode, and must have its 
-	/// <code>start()</code> method called before it will fire any <code>Job</code>s.
+	/// <see cref="IScheduler.Start" /> method called before it will fire any <see cref="IJob" />s.
 	/// </p>
 	/// 
 	/// <p>
-	/// <code>Job</code> s are to be created by the 'client program', by defining
-	/// a class that implements the <code>{@link org.quartz.Job}</code>
-	/// interface. <code>{@link JobDetail}</code> objects are then created (also
-	/// by the client) to define a individual instances of the <code>Job</code>.
-	/// <code>JobDetail</code> instances can then be registered with the <code>Scheduler</code>
-	/// via the <code>ScheduleJob(JobDetail, Trigger)</code> or <code>addJob(JobDetail, boolean)</code>
-	/// method.
+	/// <see cref="IJob" /> s are to be created by the 'client program', by defining
+	/// a class that implements the <see cref="IJob" />
+	/// interface. <see cref="JobDetail" /> objects are then created (also
+	/// by the client) to define a individual instances of the <see cref="IJob" />.
+	/// <see cref="JobDetail" /> instances can then be registered with the <see cref="IScheduler" />
+	/// via the <see cref="IScheduler.ScheduleJob(JobDetail, Trigger)" /> or 
+	/// <see cref="IScheduler.AddJob(JobDetail, bool)" />  method.
 	/// </p>
 	/// 
 	/// <p>
-	/// <code>Trigger</code> s can then be defined to fire individual <code>Job</code>
-	/// instances based on given schedules. <code>SimpleTrigger</code> s are most
+	/// <see cref="Trigger" /> s can then be defined to fire individual <see cref="IJob" />
+	/// instances based on given schedules. <see cref="SimpleTrigger" /> s are most
 	/// useful for one-time firings, or firing at an exact moment in time, with N
-	/// repeats with a given delay between them. <code>CronTrigger</code> s allow
+	/// repeats with a given delay between them. <see cref="CronTrigger" /> s allow
 	/// scheduling based on time of day, day of week, day of month, and month of
 	/// year.
 	/// </p>
 	/// 
 	/// <p>
-	/// <code>Job</code> s and <code>Trigger</code> s have a name and group
+	/// <see cref="IJob" /> s and <see cref="Trigger" /> s have a name and group
 	/// associated with them, which should uniquely identify them within a single
-	/// <code>{@link Scheduler}</code>. The 'group' feature may be useful for
-	/// creating logical groupings or categorizations of <code>Jobs</code> s and
-	/// <code>Triggers</code>s. If you don't have need for assigning a group to a
-	/// given <code>Jobs</code> of <code>Triggers</code>, then you can use the
-	/// <code>DEFAULT_GROUP</code> constant defined on this interface.
+	/// <see cref="IScheduler" />. The 'group' feature may be useful for
+	/// creating logical groupings or categorizations of <see cref="IJob" />s and
+	/// <see cref="Trigger" />s. If you don't have need for assigning a group to a
+	/// given <see cref="IJob" />s of <see cref="Trigger" />s, then you can use the
+	/// <see cref="DEFAULT_GROUP" /> constant defined on this interface.
 	/// </p>
 	/// 
 	/// <p>
-	/// Stored <code>Job</code> s can also be 'manually' triggered through the use
-	/// of the <code>triggerJob(String jobName, string jobGroup)</code> function.
+	/// Stored <see cref="IJob" /> s can also be 'manually' triggered through the use
+	/// of the <see cref="IScheduler.TriggerJob(string, string)" /> function.
 	/// </p>
 	/// 
 	/// <p>
 	/// Client programs may also be interested in the 'listener' interfaces that are
-	/// available from Quartz. The <code>{@link JobListener}</code> interface
-	/// provides notifications of <code>Job</code> executions. The <code>{@link TriggerListener}</code>
-	/// interface provides notifications of <code>Trigger</code> firings. The
-	/// <code>{@link SchedulerListener}</code> interface provides notifications of
-	/// <code>Scheduler</code> events and errors.
+	/// available from Quartz. The <see cref="IJobListener" /> interface
+	/// provides notifications of <see cref="IJob" /> executions. The <see cref="ITriggerListener" />
+	/// interface provides notifications of <see cref="Trigger" /> firings. The
+	/// <see cref="ISchedulerListener" /> interface provides notifications of
+	/// <see cref="IScheduler" /> events and errors.
 	/// </p>
 	/// 
 	/// <p>
-	/// The setup/configuration of a <code>Scheduler</code> instance is very
+	/// The setup/configuration of a <see cref="IScheduler" /> instance is very
 	/// customizable. Please consult the documentation distributed with Quartz.
 	/// </p>
 	/// 
@@ -117,31 +116,31 @@ namespace Quartz
 	{
 		/// <summary> <p>
 		/// A (possibly) usefull constant that can be used for specifying the group
-		/// that <code>Job</code> and <code>Trigger</code> instances belong to.
+		/// that <see cref="IJob" /> and <see cref="Trigger" /> instances belong to.
 		/// </p>
 		/// </summary>
 		public static readonly string DEFAULT_GROUP = "DEFAULT";
 
 		/// <summary> <p>
-		/// A constant <code>Trigger</code> group name used internally by the
+		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
-		/// ("MANUAL_TRIGGER") for thename of a <code>Trigger</code>'s group.
+		/// ("MANUAL_TRIGGER") for thename of a <see cref="Trigger" />'s group.
 		/// </p>
 		/// </summary>
 		public static readonly string DEFAULT_MANUAL_TRIGGERS = "MANUAL_TRIGGER";
 
 		/// <summary> <p>
-		/// A constant <code>Trigger</code> group name used internally by the
+		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
-		/// ("RECOVERING_JOBS") for thename of a <code>Trigger</code>'s group.
+		/// ("RECOVERING_JOBS") for thename of a <see cref="Trigger" />'s group.
 		/// </p>
 		/// </summary>
 		public static readonly string DEFAULT_RECOVERY_GROUP = "RECOVERING_JOBS";
 
 		/// <summary> <p>
-		/// A constant <code>Trigger</code> group name used internally by the
+		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
-		/// ("FAILED_OVER_JOBS") for thename of a <code>Trigger</code>'s group.
+		/// ("FAILED_OVER_JOBS") for thename of a <see cref="Trigger" />'s group.
 		/// </p>
 		/// </summary>
 		public static readonly string DEFAULT_FAIL_OVER_GROUP = "FAILED_OVER_JOBS";
@@ -153,34 +152,34 @@ namespace Quartz
 	public interface IScheduler
 	{
 		/// <summary> 
-		/// Returns the name of the <code>Scheduler</code>.
+		/// Returns the name of the <see cref="IScheduler" />.
 		/// </summary>
 		string SchedulerName { get; }
 
 		/// <summary>
-		/// Returns the instance Id of the <code>Scheduler</code>.
+		/// Returns the instance Id of the <see cref="IScheduler" />.
 		/// </summary>
 		string SchedulerInstanceId { get; }
 
 		/// <summary>
-		/// Returns the <code>SchedulerContext</code> of the <code>Scheduler</code>.
+		/// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
 		/// </summary>
 		SchedulerContext Context { get; }
 
 		/// <summary>
-		/// Reports whether the <code>Scheduler</code> is in stand-by mode.
+		/// Reports whether the <see cref="IScheduler" /> is in stand-by mode.
 		/// </summary>
 		/// <seealso cref="Standby()" />
 		/// <seealso cref="Start()" />
 		bool InStandbyMode { get; }
 
 		/// <summary>
-		/// Reports whether the <code>Scheduler</code> has been Shutdown.
+		/// Reports whether the <see cref="IScheduler" /> has been Shutdown.
 		/// </summary>
 		bool IsShutdown { get; }
 
 		/// <summary>
-		/// Get a <code>SchedulerMetaData</code> object describiing the settings
+		/// Get a <see cref="SchedulerMetaData" /> object describiing the settings
 		/// and capabilities of the scheduler instance.
 		/// <p>
 		/// Note that the data returned is an 'instantaneous' snap-shot, and that as
@@ -190,12 +189,12 @@ namespace Quartz
 		SchedulerMetaData GetMetaData();
 
 		/// <summary>
-		/// Return a list of <code>JobExecutionContext</code> objects that
+		/// Return a list of <see cref="JobExecutionContext" /> objects that
 		/// represent all currently executing Jobs.
 		/// <p>
 		/// Note that the list returned is an 'instantaneous' snap-shot, and that as
 		/// soon as it's returned, the true list of executing jobs may be different.
-		/// Also please read the doc associated with <code>JobExecutionContext</code>-
+		/// Also please read the doc associated with <see cref="JobExecutionContext" />-
 		/// especially if you're using remoting.
 		/// </p>
 		/// 
@@ -204,11 +203,11 @@ namespace Quartz
 		IList GetCurrentlyExecutingJobs();
 
 		/// <summary>
-		/// Set the <code>JobFactory</code> that will be responsible for producing 
-		/// instances of <code>Job</code> classes.
+		/// Set the <see cref="JobFactory" /> that will be responsible for producing 
+		/// instances of <see cref="IJob" /> classes.
 		/// <p>
 		/// JobFactories may be of use to those wishing to have their application
-		/// produce <code>Job</code> instances via some special mechanism, such as to
+		/// produce <see cref="IJob" /> instances via some special mechanism, such as to
 		/// give the opertunity for dependency injection.
 		/// </p>
 		/// 
@@ -218,18 +217,18 @@ namespace Quartz
 		IJobFactory JobFactory { set; }
 
 		/// <summary>
-		/// Get the names of all known <code>{@link org.quartz.JobDetail}</code>
+		/// Get the names of all known <see cref="JobDetail" />
 		/// groups.
 		/// </summary>
 		string[] JobGroupNames { get; }
 
 		/// <summary>
-		/// Get the names of all known <code>{@link Trigger}</code> groups.
+		/// Get the names of all known <see cref="Trigger" /> groups.
 		/// </summary>
 		string[] TriggerGroupNames { get; }
 
 		/// <summary> 
-		/// Get the names of all <code>Trigger</code> groups that are paused.
+		/// Get the names of all <see cref="Trigger" /> groups that are paused.
 		/// </summary>
 		/// <returns>
 		/// </returns>
@@ -237,46 +236,46 @@ namespace Quartz
 		ISet GetPausedTriggerGroups();
 
 		/// <summary>
-		/// Get the names of all registered <code>ICalendar</code>s.
+		/// Get the names of all registered <see cref="ICalendar" />s.
 		/// </summary>
 		string[] CalendarNames { get; }
 
 		/// <summary>
-		/// Get a List containing all of the <code>JobListener</code> s in
-		/// the <code>Scheduler</code>'s<i>global</i> list.
+		/// Get a List containing all of the <see cref="IJobListener" /> s in
+		/// the <see cref="IScheduler" />'s<i>global</i> list.
 		/// </summary>
 		IList GlobalJobListeners { get; }
 
 		/// <summary>
-		/// Get a Set containing the names of all the <i>non-global</i><code>JobListener</code>
-		/// s registered with the <code>Scheduler</code>.
+		/// Get a Set containing the names of all the <i>non-global</i><see cref="IJobListener" />
+		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
 		ISet JobListenerNames { get; }
 
 		/// <summary>
-		/// Get a List containing all of the <code>TriggerListener</code>
-		/// s in the <code>Scheduler</code>'s<i>global</i> list.
+		/// Get a List containing all of the <see cref="ITriggerListener" />
+		/// s in the <see cref="IScheduler" />'s<i>global</i> list.
 		/// </summary>
 		IList GlobalTriggerListeners { get; }
 
 		/// <summary>
-		/// Get a Set containing the names of all the <i>non-global</i><code>{@link TriggerListener}</code>
-		/// s registered with the <code>Scheduler</code>.
+		/// Get a Set containing the names of all the <i>non-global</i><see cref="ITriggerListener" />
+		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
 		ISet TriggerListenerNames { get; }
 
 		/// <summary>
-		/// Get a List containing all of the <code>SchedulerListener</code>
-		/// s registered with the <code>Scheduler</code>.
+		/// Get a List containing all of the <see cref="ISchedulerListener" />
+		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
 		IList SchedulerListeners { get; }
 
 
 		/// <summary>
-		/// Starts the <code>Scheduler</code>'s threads that fire <code>{@link Trigger}s</code>.
+		/// Starts the <see cref="IScheduler" />'s threads that fire <see cref="Trigger" />s.
 		/// When a scheduler is first created it is in "stand-by" mode, and will not
 		/// fire triggers.  The scheduler can also be put into stand-by mode by
-		/// calling the <code>standby()</code> method.
+		/// calling the <see cref="Standby" /> method.
 		/// <p>
 		/// The misfire/recovery process will be started, if it is the initial call
 		/// to this method on this scheduler instance.
@@ -288,12 +287,12 @@ namespace Quartz
 		void Start();
 
 		/// <summary>
-		/// Temporarily halts the <code>Scheduler</code>'s firing of <code>{@link Trigger}s</code>.
+		/// Temporarily halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s.
 		/// <p>
-		/// When <code>start()</code> is called (to bring the scheduler out of 
+		/// When <see cref="Start" /> is called (to bring the scheduler out of 
 		/// stand-by mode), trigger misfire instructions will NOT be applied
-		/// during the execution of the <code>start()</code> method - any misfires 
-		/// will be detected immediately afterward (by the <code>JobStore</code>'s 
+		/// during the execution of the <see cref="Start" /> method - any misfires 
+		/// will be detected immediately afterward (by the <see cref="IJobStore" />'s 
 		/// normal process).
 		/// </p>
 		/// <p>
@@ -306,9 +305,9 @@ namespace Quartz
 
 
 		/// <summary> 
-		/// Halts the <code>Scheduler</code>'s firing of <code>{@link Trigger}s</code>,
+		/// Halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s,
 		/// and cleans up all resources associated with the Scheduler. Equivalent to
-		/// <code>Shutdown(false)</code>.
+		/// <see cref="Shutdown(bool)" />.
 		/// <p>
 		/// The scheduler cannot be re-started.
 		/// </p>
@@ -317,7 +316,7 @@ namespace Quartz
 		void Shutdown();
 
 		/// <summary>
-		/// Halts the <code>Scheduler</code>'s firing of <code>{@link Trigger}s</code>,
+		/// Halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s,
 		/// and cleans up all resources associated with the Scheduler. 
 		/// <p>
 		/// The scheduler cannot be re-started.
@@ -325,7 +324,7 @@ namespace Quartz
 		/// 
 		/// </summary>
 		/// <param name="waitForJobsToComplete">
-		/// if <code>true</code> the scheduler will not allow this method
+		/// if <see langword="true" /> the scheduler will not allow this method
 		/// to return until all currently executing jobs have completed.
 		/// 
 		/// </param>
@@ -334,11 +333,11 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Add the given <code>{@link org.quartz.JobDetail}</code> to the
-		/// Scheduler, and associate the given <code>{@link Trigger}</code> with
+		/// Add the given <see cref="JobDetail" /> to the
+		/// Scheduler, and associate the given <see cref="Trigger" /> with
 		/// it.
 		/// <p>
-		/// If the given Trigger does not reference any <code>Job</code>, then it
+		/// If the given Trigger does not reference any <see cref="IJob" />, then it
 		/// will be set to reference the Job passed with it into this method.
 		/// </p>
 		/// 
@@ -350,8 +349,8 @@ namespace Quartz
 		DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger);
 
 		/// <summary> <p>
-		/// Schedule the given <code>Trigger</code> with the
-		/// <code>Job</code> identified by the <code>Trigger</code>'s settings.
+		/// Schedule the given <see cref="Trigger" /> with the
+		/// <see cref="IJob" /> identified by the <see cref="Trigger" />'s settings.
 		/// </p>
 		/// 
 		/// </summary>
@@ -363,26 +362,26 @@ namespace Quartz
 		DateTime ScheduleJob(Trigger trigger);
 
 		/// <summary>
-		/// Remove the indicated <code>Trigger</code> from the scheduler.
+		/// Remove the indicated <see cref="Trigger" /> from the scheduler.
 		/// </summary>
 		bool UnscheduleJob(string triggerName, string groupName);
 
 		/// <summary>
-		/// Remove (delete) the <code>Trigger</code> with the
+		/// Remove (delete) the <see cref="Trigger" /> with the
 		/// given name, and store the new given one - which must be associated
 		/// with the same job (the new trigger must have the job name &amp; group specified) 
 		/// - however, the new trigger need not have the same name as the old trigger.
 		/// </summary>
 		/// <param name="triggerName">
-		/// The name of the <code>Trigger</code> to be replaced.
+		/// The name of the <see cref="Trigger" /> to be replaced.
 		/// </param>
 		/// <param name="groupName">
-		/// The group name of the <code>Trigger</code> to be replaced.
+		/// The group name of the <see cref="Trigger" /> to be replaced.
 		/// </param>
 		/// <param name="newTrigger">
-		/// The new <code>Trigger</code> to be stored.
+		/// The new <see cref="Trigger" /> to be stored.
 		/// </param>
-		/// <returns> <code>null</code> if a <code>Trigger</code> with the given
+		/// <returns> <see langword="null" /> if a <see cref="Trigger" /> with the given
 		/// name and group was not found and removed from the store, otherwise
 		/// the first fire time of the newly scheduled trigger.
 		/// </returns>
@@ -390,26 +389,20 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Add the given <code>Job</code> to the Scheduler - with no associated
-		/// <code>Trigger</code>. The <code>Job</code> will be 'dormant' until
-		/// it is scheduled with a <code>Trigger</code>, or <code>Scheduler.triggerJob()</code>
+		/// Add the given <see cref="IJob" /> to the Scheduler - with no associated
+		/// <see cref="Trigger" />. The <see cref="IJob" /> will be 'dormant' until
+		/// it is scheduled with a <see cref="Trigger" />, or <see cref="IScheduler.TriggerJob(string, string)" />
 		/// is called for it.
 		/// <p>
-		/// The <code>Job</code> must by definition be 'durable', if it is not,
+		/// The <see cref="IJob" /> must by definition be 'durable', if it is not,
 		/// SchedulerException will be thrown.
 		/// </p>
-		/// 
-		/// </summary>
-		/// <throws>  SchedulerException </throws>
-		/// <summary>           if there is an internal Scheduler error, or if the Job is not
-		/// durable, or a Job with the same name already exists, and
-		/// <code>replace</code> is <code>false</code>.
 		/// </summary>
 		void AddJob(JobDetail jobDetail, bool replace);
 
 		/// <summary>
-		/// Delete the identified <code>Job</code> from the Scheduler - and any
-		/// associated <code>Trigger</code>s.
+		/// Delete the identified <see cref="IJob" /> from the Scheduler - and any
+		/// associated <see cref="Trigger" />s.
 		/// </summary>
 		/// <returns> true if the Job was found and deleted.
 		/// </returns>
@@ -417,46 +410,46 @@ namespace Quartz
 		bool DeleteJob(string jobName, string groupName);
 
 		/// <summary>
-		/// Trigger the identified <code>.JobDetail</code>
+		/// Trigger the identified <see cref="JobDetail" />
 		/// (Execute it now) - the generated trigger will be non-volatile.
 		/// </summary>
 		void TriggerJob(string jobName, string groupName);
 
 		/// <summary>
-		/// Trigger the identified <code>JobDetail</code>
+		/// Trigger the identified <see cref="JobDetail" />
 		/// (Execute it now) - the generated trigger will be volatile.
 		/// </summary>
 		void TriggerJobWithVolatileTrigger(string jobName, string groupName);
 
 		/// <summary>
-		/// Trigger the identified <code>{@link org.quartz.JobDetail}</code>
+		/// Trigger the identified <see cref="JobDetail" />
 		/// (Execute it now) - the generated trigger will be non-volatile.
 		/// </summary>
 		/// <param name="jobName">the name of the Job to trigger</param>
 		/// <param name="groupName">the group name of the Job to trigger</param>
-		/// <param name="data">the (possibly <code>null</code>) JobDataMap to be
+		/// <param name="data">the (possibly <see langword="null" />) JobDataMap to be
 		/// associated with the trigger that fires the job immediately.</param>
 		void TriggerJob(string jobName, string groupName, JobDataMap data);
 
 		/// <summary>
-		/// Trigger the identified <code>{@link org.quartz.JobDetail}</code>
+		/// Trigger the identified <see cref="JobDetail" />
 		/// (Execute it now) - the generated trigger will be volatile.
 		/// </summary>
 		/// <param name="jobName">the name of the Job to trigger</param>
 		/// <param name="groupName">the group name of the Job to trigger</param>
-		/// <param name="data">the (possibly <code>null</code>) JobDataMap to be
+		/// <param name="data">the (possibly <see langword="null" />) JobDataMap to be
 		/// associated with the trigger that fires the job immediately.</param>
 		void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data);
 
 		/// <summary>
-		/// Pause the <code>JobDetail</code> with the given
-		/// name - by pausing all of its current <code>Trigger</code>s.
+		/// Pause the <see cref="JobDetail" /> with the given
+		/// name - by pausing all of its current <see cref="Trigger" />s.
 		/// </summary>
 		void PauseJob(string jobName, string groupName);
 
 		/// <summary>
-		/// Pause all of the <code>JobDetail</code>s in the
-		/// given group - by pausing all of their <code>Trigger</code>s.
+		/// Pause all of the <see cref="JobDetail" />s in the
+		/// given group - by pausing all of their <see cref="Trigger" />s.
 		/// 
 		/// <p>
 		/// The Scheduler will "remember" that the group is paused, and impose the
@@ -468,12 +461,12 @@ namespace Quartz
 		void PauseJobGroup(string groupName);
 
 		/// <summary> 
-		/// Pause the <code>Trigger</code> with the given name.
+		/// Pause the <see cref="Trigger" /> with the given name.
 		/// </summary>
 		void PauseTrigger(string triggerName, string groupName);
 
 		/// <summary>
-		/// Pause all of the <code>Trigger</code>s in the given group.
+		/// Pause all of the <see cref="Trigger" />s in the given group.
 		/// <p>
 		/// The Scheduler will "remember" that the group is paused, and impose the
 		/// pause on any new triggers that are added to the group while the group is
@@ -484,11 +477,11 @@ namespace Quartz
 		void PauseTriggerGroup(string groupName);
 
 		/// <summary>
-		/// Resume (un-pause) the <code>{@link org.quartz.JobDetail}</code> with
+		/// Resume (un-pause) the <see cref="JobDetail" /> with
 		/// the given name.
 		/// <p>
-		/// If any of the <code>Job</code>'s<code>Trigger</code> s missed one
-		/// or more fire-times, then the <code>Trigger</code>'s misfire
+		/// If any of the <see cref="IJob" />'s<see cref="Trigger" /> s missed one
+		/// or more fire-times, then the <see cref="Trigger" />'s misfire
 		/// instruction will be applied.
 		/// </p>
 		/// 
@@ -496,13 +489,13 @@ namespace Quartz
 		void ResumeJob(string jobName, string groupName);
 
 		/// <summary> <p>
-		/// Resume (un-pause) all of the <code>{@link org.quartz.JobDetail}s</code>
+		/// Resume (un-pause) all of the <see cref="JobDetail" />s
 		/// in the given group.
 		/// </p>
 		/// 
 		/// <p>
-		/// If any of the <code>Job</code> s had <code>Trigger</code> s that
-		/// missed one or more fire-times, then the <code>Trigger</code>'s
+		/// If any of the <see cref="IJob" /> s had <see cref="Trigger" /> s that
+		/// missed one or more fire-times, then the <see cref="Trigger" />'s
 		/// misfire instruction will be applied.
 		/// </p>
 		/// 
@@ -512,26 +505,26 @@ namespace Quartz
 		void ResumeJobGroup(string groupName);
 
 		/// <summary> <p>
-		/// Resume (un-pause) the <code>{@link Trigger}</code> with the given
+		/// Resume (un-pause) the <see cref="Trigger" /> with the given
 		/// name.
 		/// </p>
 		/// 
 		/// <p>
-		/// If the <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
+		/// If the <see cref="Trigger" /> missed one or more fire-times, then the
+		/// <see cref="Trigger" />'s misfire instruction will be applied.
 		/// </p>
 		/// 
 		/// </summary>
 		void ResumeTrigger(string triggerName, string groupName);
 
 		/// <summary> <p>
-		/// Resume (un-pause) all of the <code>{@link Trigger}s</code> in the
+		/// Resume (un-pause) all of the <see cref="Trigger" />s in the
 		/// given group.
 		/// </p>
 		/// 
 		/// <p>
-		/// If any <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
+		/// If any <see cref="Trigger" /> missed one or more fire-times, then the
+		/// <see cref="Trigger" />'s misfire instruction will be applied.
 		/// </p>
 		/// 
 		/// </summary>
@@ -540,14 +533,14 @@ namespace Quartz
 		void ResumeTriggerGroup(string groupName);
 
 		/// <summary> <p>
-		/// Pause all triggers - similar to calling <code>PauseTriggerGroup(group)</code>
-		/// on every group, however, after using this method <code>ResumeAll()</code> 
+		/// Pause all triggers - similar to calling <see cref="PauseTriggerGroup(string)" />
+		/// on every group, however, after using this method <see cref="ResumeAll()" /> 
 		/// must be called to clear the scheduler's state of 'remembering' that all 
 		/// new triggers will be paused as they are added. 
 		/// </p>
 		/// 
 		/// <p>
-		/// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
+		/// When <see cref="ResumeAll()" /> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
 		/// </p>
 		/// 
@@ -560,58 +553,49 @@ namespace Quartz
 		/// </seealso>
 		void PauseAll();
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Resume (un-pause) all triggers - similar to calling 
-		/// <code>ResumeTriggerGroup(group)</code> on every group.
-		/// </p>
+		/// <see cref="ResumeTriggerGroup(string)" /> on every group.
 		/// 
 		/// <p>
-		/// If any <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
+		/// If any <see cref="Trigger" /> missed one or more fire-times, then the
+		/// <see cref="Trigger" />'s misfire instruction will be applied.
 		/// </p>
-		/// 
 		/// </summary>
-		/// <seealso cref="PauseAll()">
-		/// </seealso>
+		/// <seealso cref="PauseAll()" />
 		void ResumeAll();
 
-		/// <summary> <p>
-		/// Get the names of all the <code>{@link org.quartz.JobDetail}s</code>
-		/// in the given group.
-		/// </p>
+		/// <summary>
+		/// Get the names of all the <see cref="JobDetail" />s in the given group.
 		/// </summary>
 		string[] GetJobNames(string groupName);
-
-		/// <summary> <p>
-		/// Get all <code>{@link Trigger}</code> s that are associated with the
-		/// identified <code>{@link org.quartz.JobDetail}</code>.
-		/// </p>
+		
+		/// <summary>
+		/// Get all <see cref="Trigger" /> s that are associated with the
+		/// identified <see cref="JobDetail" />.
 		/// </summary>
 		Trigger[] GetTriggersOfJob(string jobName, string groupName);
 
-		/// <summary> <p>
-		/// Get the names of all the <code>{@link Trigger}s</code> in the given
+		/// <summary>
+		/// Get the names of all the <see cref="Trigger" />s in the given
 		/// group.
-		/// </p>
 		/// </summary>
 		string[] GetTriggerNames(string groupName);
 
-		/// <summary> <p>
-		/// Get the <code>{@link JobDetail}</code> for the <code>Job</code>
+		/// <summary>
+		/// Get the <see cref="JobDetail" /> for the <see cref="IJob" />
 		/// instance with the given name and group.
-		/// </p>
 		/// </summary>
 		JobDetail GetJobDetail(string jobName, string jobGroup);
 
-		/// <summary> <p>
-		/// Get the <code>{@link Trigger}</code> instance with the given name and
+		/// <summary>
+		/// Get the <see cref="Trigger" /> instance with the given name and
 		/// group.
-		/// </p>
 		/// </summary>
 		Trigger GetTrigger(string triggerName, string triggerGroup);
 
 		/// <summary>
-		/// Get the current state of the identified <code>{@link Trigger}</code>.
+		/// Get the current state of the identified <see cref="Trigger" />.
 		/// </summary>
 		/// <seealso cref="Trigger.STATE_NORMAL">
 		/// </seealso>
@@ -629,7 +613,7 @@ namespace Quartz
 
 		/// <summary>
 		/// 	<p>
-		/// Add (register) the given <code>Calendar</code> to the Scheduler.
+		/// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
 		/// </p>
 		/// </summary>
 		/// <param name="calName">Name of the calendar.</param>
@@ -642,7 +626,7 @@ namespace Quartz
 		void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
 		/// <summary>
-		/// Delete the identified <code>Calendar</code> from the Scheduler.
+		/// Delete the identified <see cref="ICalendar" /> from the Scheduler.
 		/// </summary>
 		/// <param name="calName">Name of the calendar.</param>
 		/// <returns>
@@ -652,30 +636,30 @@ namespace Quartz
 		bool DeleteCalendar(string calName);
 
 		/// <summary>
-		/// Get the <code>Calendar</code> instance with the given name.
+		/// Get the <see cref="ICalendar" /> instance with the given name.
 		/// </summary>
 		ICalendar GetCalendar(string calName);
 
 		/// <summary> <p>
 		/// Request the interruption of all currently executing instances of the 
-		/// identified <code>Job</code>, which must be an implementor of the 
-		/// <code>InterruptableJob</code> interface.
+		/// identified <see cref="IJob" />, which must be an implementor of the 
+		/// <see cref="IInterruptableJob" /> interface.
 		/// </p>
 		/// 
 		/// <p>
 		/// If more than one instance of the identified job is currently executing,
-		/// the <code>InterruptableJob#interrupt()</code> method will be called on
+		/// the <see cref="IInterruptableJob.Interrupt" /> method will be called on
 		/// each instance.  However, there is a limitation that in the case that  
-		/// <code>interrupt()</code> on one instances throws an exception, all 
+		/// <see cref="Interrupt" /> on one instances throws an exception, all 
 		/// remaining  instances (that have not yet been interrupted) will not have 
-		/// their <code>interrupt()</code> method called.
+		/// their <see cref="Interrupt" /> method called.
 		/// </p>
 		/// 
 		/// <p>
 		/// If you wish to interrupt a specific instance of a job (when more than
 		/// one is executing) you can do so by calling 
-		/// <code>{@link #getCurrentlyExecutingJobs()}</code> to obtain a handle 
-		/// to the job instance, and then invoke <code>interrupt()</code> on it
+		/// <see cref="GetCurrentlyExecutingJobs" /> to obtain a handle 
+		/// to the job instance, and then invoke <see cref="Interrupt" /> on it
 		/// yourself.
 		/// </p>
 		/// 
@@ -688,33 +672,32 @@ namespace Quartz
 		/// and interrupted.
 		/// </returns>
 		/// <throws>  UnableToInterruptJobException if the job does not implement </throws>
-		/// <summary> <code>InterruptableJob</code>, or there is an exception while 
+		/// <summary> <see cref="IInterruptableJob" />, or there is an exception while 
 		/// interrupting the job.
 		/// </summary>
 		/// <seealso cref="IInterruptableJob" />
 		/// <seealso cref="GetCurrentlyExecutingJobs" />
 		bool Interrupt(string jobName, string groupName);
 
-		/// <summary> <p>
-		/// Add the given <code>{@link JobListener}</code> to the <code>Scheduler</code>'s
+		/// <summary>
+		/// Add the given <see cref="IJobListener" /> to the <see cref="IScheduler" />'s
 		/// <i>global</i> list.
-		/// </p>
 		/// 
 		/// <p>
 		/// Listeners in the 'global' list receive notification of execution events
-		/// for ALL <code>{@link org.quartz.JobDetail}</code>s.
+		/// for ALL <see cref="JobDetail" />s.
 		/// </p>
 		/// </summary>
 		void AddGlobalJobListener(IJobListener jobListener);
 
 		/// <summary> 
-		/// Add the given <code>JobListener</code> to the <code>Scheduler</code>'s
-		/// list, of registered <code>JobListener</code>s.
+		/// Add the given <see cref="IJobListener" /> to the <see cref="IScheduler" />'s
+		/// list, of registered <see cref="IJobListener" />s.
 		/// </summary>
 		void AddJobListener(IJobListener jobListener);
 
 		/// <summary>
-		/// Remove the given <code>{@link JobListener}</code> from the <code>Scheduler</code>'s
+		/// Remove the given <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
 		/// list of <i>global</i> listeners.
 		/// </summary>
 		/// <returns> true if the identifed listener was found in the list, and
@@ -723,7 +706,7 @@ namespace Quartz
 		bool RemoveGlobalJobListener(IJobListener jobListener);
 
 		/// <summary> <p>
-		/// Remove the identifed <code>{@link JobListener}</code> from the <code>Scheduler</code>'s
+		/// Remove the identifed <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
 		/// list of registered listeners.
 		/// </p>
 		/// 
@@ -734,30 +717,30 @@ namespace Quartz
 		bool RemoveJobListener(string name);
 
 		/// <summary> <p>
-		/// Get the <i>non-global</i><code>{@link JobListener}</code> that has
+		/// Get the <i>non-global</i><see cref="IJobListener" /> that has
 		/// the given name.
 		/// </p>
 		/// </summary>
 		IJobListener GetJobListener(string name);
 
 		/// <summary>
-		/// Add the given <code>TriggerListener</code> to the <code>Scheduler</code>'s
+		/// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />'s
 		/// <i>global</i> list.
 		/// <p>
 		/// Listeners in the 'global' list receive notification of execution events
-		/// for ALL <code>Trigger</code>s.
+		/// for ALL <see cref="Trigger" />s.
 		/// </p>
 		/// </summary>
 		void AddGlobalTriggerListener(ITriggerListener triggerListener);
 
 		/// <summary>
-		/// Add the given <code>TriggerListener</code> to the <code>Scheduler</code>'s
-		/// list, of registered <code>TriggerListener</code>s.
+		/// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />'s
+		/// list, of registered <see cref="ITriggerListener" />s.
 		/// </summary>
 		void AddTriggerListener(ITriggerListener triggerListener);
 
 		/// <summary>
-		/// Remove the given <code>TriggerListener</code> from the <code>Scheduler</code>'s
+		/// Remove the given <see cref="ITriggerListener" /> from the <see cref="IScheduler" />'s
 		/// list of <i>global</i> listeners.
 		/// </summary>
 		/// <returns> true if the identifed listener was found in the list, and
@@ -765,11 +748,9 @@ namespace Quartz
 		/// </returns>
 		bool RemoveGlobalTriggerListener(ITriggerListener triggerListener);
 
-		/// <summary> <p>
-		/// Remove the identifed <code>{@link TriggerListener}</code> from the
-		/// <code>Scheduler</code>'s list of registered listeners.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Remove the identifed <see cref="ITriggerListener" /> from the
+		/// <see cref="IScheduler" />'s list of registered listeners.
 		/// </summary>
 		/// <returns> true if the identifed listener was found in the list, and
 		/// removed.
@@ -777,24 +758,21 @@ namespace Quartz
 		bool RemoveTriggerListener(string name);
 
 		/// <summary> <p>
-		/// Get the <i>non-global</i><code>{@link TriggerListener}</code> that
+		/// Get the <i>non-global</i><see cref="ITriggerListener" /> that
 		/// has the given name.
 		/// </p>
 		/// </summary>
 		ITriggerListener GetTriggerListener(string name);
 
-		/// <summary> <p>
-		/// Register the given <code>{@link SchedulerListener}</code> with the
-		/// <code>Scheduler</code>.
+		/// <summary>
+		/// Register the given <see cref="ISchedulerListener" /> with the
 		/// </p>
 		/// </summary>
 		void AddSchedulerListener(ISchedulerListener schedulerListener);
 
-		/// <summary> <p>
-		/// Remove the given <code>{@link SchedulerListener}</code> from the
-		/// <code>Scheduler</code>.
-		/// </p>
-		/// 
+		/// <summary> 
+		/// Remove the given <see cref="ISchedulerListener" /> from the
+		/// <see cref="IScheduler" />.
 		/// </summary>
 		/// <returns> true if the identifed listener was found in the list, and
 		/// removed.

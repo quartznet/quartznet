@@ -37,8 +37,8 @@ namespace Quartz
 	public class SchedulerContext : DirtyFlagMap
 	{
 		/// <summary> <p>
-		/// Tell the <code>SchedulerContext</code> that it should allow non-
-		/// <code>Serializable</code> data.
+		/// Tell the <see cref="SchedulerContext" /> that it should allow non-
+		/// <see cref="Serializable" /> data.
 		/// </p>
 		/// 
 		/// <p>
@@ -67,7 +67,7 @@ namespace Quartz
 		private bool allowsTransientData = false;
 
 		/// <summary> <p>
-		/// Create an empty <code>JobDataMap</code>.
+		/// Create an empty <see cref="JobDataMap" />.
 		/// </p>
 		/// </summary>
 		public SchedulerContext() : base(15)
@@ -75,7 +75,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Create a <code>JobDataMap</code> with the given data.
+		/// Create a <see cref="JobDataMap" /> with the given data.
 		/// </p>
 		/// </summary>
 		public SchedulerContext(IDictionary map) : this()
@@ -132,11 +132,11 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the name-value pairs in the given <code>Map</code> to the <code>SchedulerContext</code>.
+		/// Adds the name-value pairs in the given <see cref="Map" /> to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// 
 		/// <p>
-		/// All keys must be <code>String</code>s.
+		/// All keys must be <see cref="String" />s.
 		/// </p>
 		/// </summary>
 		public override void PutAll(IDictionary map)
@@ -149,7 +149,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the given <code>int</code> value to the <code>SchedulerContext</code>.
+		/// Adds the given <see cref="int" /> value to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// </summary>
 		public virtual void Put(string key, int value_Renamed)
@@ -158,7 +158,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the given <code>long</code> value to the <code>SchedulerContext</code>.
+		/// Adds the given <see cref="long" /> value to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// </summary>
 		public virtual void Put(string key, long value_Renamed)
@@ -167,7 +167,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the given <code>float</code> value to the <code>SchedulerContext</code>.
+		/// Adds the given <see cref="float" /> value to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// </summary>
 		public virtual void Put(string key, float value_Renamed)
@@ -176,7 +176,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the given <code>double</code> value to the <code>SchedulerContext</code>.
+		/// Adds the given <see cref="double" /> value to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// </summary>
 		public virtual void Put(string key, double value_Renamed)
@@ -185,7 +185,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the given <code>boolean</code> value to the <code>SchedulerContext</code>.
+		/// Adds the given <see cref="boolean" /> value to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// </summary>
 		public virtual void Put(string key, bool value_Renamed)
@@ -194,7 +194,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the given <code>char</code> value to the <code>SchedulerContext</code>.
+		/// Adds the given <see cref="char" /> value to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// </summary>
 		public virtual void Put(string key, char value_Renamed)
@@ -203,7 +203,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the given <code>String</code> value to the <code>SchedulerContext</code>.
+		/// Adds the given <see cref="String" /> value to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// </summary>
 		public virtual void Put(string key, string value_Renamed)
@@ -212,7 +212,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Adds the given <code>object</code> value to the <code>SchedulerContext</code>.
+		/// Adds the given <see cref="object" /> value to the <see cref="SchedulerContext" />.
 		/// </p>
 		/// </summary>
 		public override object Put(object key, object value_Renamed)
@@ -226,7 +226,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Retrieve the identified <code>int</code> value from the <code>SchedulerContext</code>.
+		/// Retrieve the identified <see cref="int" /> value from the <see cref="SchedulerContext" />.
 		/// </p>
 		/// 
 		/// </summary>
@@ -248,7 +248,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Retrieve the identified <code>long</code> value from the <code>SchedulerContext</code>.
+		/// Retrieve the identified <see cref="long" /> value from the <see cref="SchedulerContext" />.
 		/// </p>
 		/// 
 		/// </summary>
@@ -270,7 +270,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Retrieve the identified <code>float</code> value from the <code>SchedulerContext</code>.
+		/// Retrieve the identified <see cref="float" /> value from the <see cref="SchedulerContext" />.
 		/// </p>
 		/// 
 		/// </summary>
@@ -292,7 +292,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Retrieve the identified <code>double</code> value from the <code>SchedulerContext</code>.
+		/// Retrieve the identified <see cref="double" /> value from the <see cref="SchedulerContext" />.
 		/// </p>
 		/// 
 		/// </summary>
@@ -314,7 +314,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Retrieve the identified <code>boolean</code> value from the <code>SchedulerContext</code>.
+		/// Retrieve the identified <see cref="boolean" /> value from the <see cref="SchedulerContext" />.
 		/// </p>
 		/// 
 		/// </summary>
@@ -336,7 +336,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Retrieve the identified <code>char</code> value from the <code>SchedulerContext</code>.
+		/// Retrieve the identified <see cref="char" /> value from the <see cref="SchedulerContext" />.
 		/// </p>
 		/// 
 		/// </summary>
@@ -358,7 +358,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Retrieve the identified <code>String</code> value from the <code>SchedulerContext</code>.
+		/// Retrieve the identified <see cref="String" /> value from the <see cref="SchedulerContext" />.
 		/// </p>
 		/// 
 		/// </summary>

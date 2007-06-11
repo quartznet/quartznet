@@ -23,11 +23,11 @@ using Quartz.Core;
 namespace Quartz.Impl
 {
 	/// <summary> 
-	/// Responsible for creating the instances of <code>JobRunShell</code>
-	/// to be used within the <code>QuartzScheduler</code> instance.
+	/// Responsible for creating the instances of <see cref="JobRunShell" />
+	/// to be used within the <see cref="QuartzScheduler" /> instance.
 	/// <p>
 	/// This implementation does not re-use any objects, it simply makes a new
-	/// JobRunShell each time <code>BorrowJobRunShell()</code> is called.
+	/// JobRunShell each time <see cref="BorrowJobRunShell()" /> is called.
 	/// </p>
 	/// </summary>
 	/// <author>James House</author>
@@ -37,11 +37,11 @@ namespace Quartz.Impl
 		private SchedulingContext schedCtxt;
 
 		/// <summary>
-		/// Initialize the factory, providing a handle to the <code>Scheduler</code>
-		/// that should be made available within the <code>JobRunShell</code> and
-		/// the <code>JobExecutionCOntext</code> s within it, and a handle to the
-		/// <code>SchedulingContext</code> that the shell will use in its own
-		/// operations with the <code>JobStore</code>.
+		/// Initialize the factory, providing a handle to the <see cref="IScheduler" />
+		/// that should be made available within the <see cref="JobRunShell" /> and
+		/// the <see cref="JobExecutionCOntext" /> s within it, and a handle to the
+		/// <see cref="SchedulingContext" /> that the shell will use in its own
+		/// operations with the <see cref="IJobStore" />.
 		/// </summary>
 		public virtual void Initialize(IScheduler sched, SchedulingContext ctx)
 		{
@@ -50,8 +50,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Called by the <code>QuartzSchedulerThread
-		/// </code> to obtain instances of <code>IJobRunShell</code>.
+		/// Called by the <see cref="QuartzSchedulerThread
+		/// " /> to obtain instances of <see cref="IJobRunShell" />.
 		/// </summary>
 		public virtual JobRunShell BorrowJobRunShell()
 		{
@@ -59,8 +59,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Called by the <code>QuartzSchedulerThread</code> to return instances of <code>
-		/// JobRunShell</code>.
+		/// Called by the <see cref="QuartzSchedulerThread" /> to return instances of <see cref="
+		/// JobRunShell" />.
 		/// </summary>
 		public virtual void ReturnJobRunShell(JobRunShell jobRunShell)
 		{

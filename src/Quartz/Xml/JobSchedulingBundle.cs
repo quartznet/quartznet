@@ -25,7 +25,7 @@ using System.Collections;
 namespace Quartz.Xml
 {
 	/// <summary> 
-	/// Wraps a <code>JobDetail</code> and <code>Trigger</code>.
+	/// Wraps a <see cref="JobDetail" /> and <see cref="Trigger" />.
 	/// </summary>
 	/// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	/// <author>James House</author>

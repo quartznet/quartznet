@@ -24,16 +24,16 @@ using Quartz.Util;
 namespace Quartz.Xml
 {
 	/// <summary> 
-	/// Wraps a <code>ICalendar</code>.
+	/// Wraps a <see cref="ICalendar" />.
 	/// </summary>
 	/// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	[Serializable]
 	public class CalendarBundle : ICalendar
 	{
-		protected internal string calendarName;
-		protected internal string typeName;
-		protected internal ICalendar calendar;
-		protected internal bool replace;
+		private string calendarName;
+		private string typeName;
+		private ICalendar calendar;
+		private bool replace;
 
 		/// <summary>
 		/// Gets or sets the name of the calendar.
@@ -76,7 +76,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Gets or sets a description for the <code>Calendar</code> instance - may be
+		/// Gets or sets a description for the <see cref="ICalendar" /> instance - may be
 		/// useful for remembering/displaying the purpose of the calendar, though
 		/// the description has no meaning to Quartz.
 		/// </summary>

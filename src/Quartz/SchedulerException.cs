@@ -23,10 +23,10 @@ using System;
 namespace Quartz
 {
 	/// <summary> 
-	/// Base class for exceptions thrown by the Quartz <code>Scheduler</code>.
+	/// Base class for exceptions thrown by the Quartz <see cref="IScheduler" />.
 	/// <p>
-	/// <code>SchedulerException</code> s may contain a reference to another
-	/// <code>Exception</code>, which was the underlying cause of the <code>SchedulerException</code>.
+	/// <see cref="SchedulerException" /> s may contain a reference to another
+	/// <see cref="Exception" />, which was the underlying cause of the <see cref="SchedulerException" />.
 	/// </p>
 	/// </summary>
 	/// <author>James House</author>
@@ -37,7 +37,7 @@ namespace Quartz
 		/// Return the exception that is the underlying cause of this exception.
 		/// This may be used to find more detail about the cause of the error.
 		/// </summary>
-		/// <returns> The underlying exception, or <code>null</code> if there is not
+		/// <returns> The underlying exception, or <see langword="null" /> if there is not
 		/// one.
 		/// </returns>
 		public virtual Exception UnderlyingException
@@ -59,7 +59,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Determine if the specified error code is in the <code>'ERR_PERSISTENCE'</code>
+		/// Determine if the specified error code is in the <see cref="ERR_PERSISTENCE" />
 		/// category of errors.
 		/// </p>
 		/// </summary>
@@ -69,7 +69,7 @@ namespace Quartz
 		}
 
 		/// <summary> <p>
-		/// Determine if the specified error code is in the <code>'ERR_THREAD_POOL'</code>
+		/// Determine if the specified error code is in the <see cref="ERR_THREAD_POOL" />
 		/// category of errors.
 		/// </p>
 		/// </summary>
@@ -78,40 +78,36 @@ namespace Quartz
 			get { return (errorCode >= ERR_THREAD_POOL && errorCode <= ERR_THREAD_POOL + 99); }
 		}
 
-		/// <summary> <p>
-		/// Determine if the specified error code is in the <code>'ERR_JOB_LISTENER'</code>
+		/// <summary>
+		/// Determine if the specified error code is in the <see cref="ERR_JOB_LISTENER" />
 		/// category of errors.
-		/// </p>
 		/// </summary>
 		public virtual bool JobListenerError
 		{
 			get { return (errorCode >= ERR_JOB_LISTENER && errorCode <= ERR_JOB_LISTENER + 99); }
 		}
 
-		/// <summary> <p>
-		/// Determine if the specified error code is in the <code>'ERR_TRIGGER_LISTENER'</code>
+		/// <summary>
+		/// Determine if the specified error code is in the <see cref="ERR_TRIGGER_LISTENER" />
 		/// category of errors.
-		/// </p>
 		/// </summary>
 		public virtual bool TriggerListenerError
 		{
 			get { return (errorCode >= ERR_TRIGGER_LISTENER && errorCode <= ERR_TRIGGER_LISTENER + 99); }
 		}
 
-		/// <summary> <p>
-		/// Determine if the specified error code is in the <code>'ERR_CLIENT_ERROR'</code>
+		/// <summary>
+		/// Determine if the specified error code is in the <see cref="ERR_CLIENT_ERROR" />
 		/// category of errors.
-		/// </p>
 		/// </summary>
 		public virtual bool ClientError
 		{
 			get { return (errorCode >= ERR_CLIENT_ERROR && errorCode <= ERR_CLIENT_ERROR + 99); }
 		}
 
-		/// <summary> <p>
-		/// Determine if the specified error code is in the <code>'ERR_CLIENT_ERROR'</code>
+		/// <summary>
+		/// Determine if the specified error code is in the <see cref="ERR_CLIENT_ERROR" />
 		/// category of errors.
-		/// </p>
 		/// </summary>
 		public virtual bool ConfigurationError
 		{

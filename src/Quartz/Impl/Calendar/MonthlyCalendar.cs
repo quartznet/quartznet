@@ -34,6 +34,8 @@ namespace Quartz.Impl.Calendar
 	[Serializable]
 	public class MonthlyCalendar : BaseCalendar, ICalendar
 	{
+		private static readonly int MAX_DAYS_IN_MONTH = 31;
+
 		/// <summary>
 		/// Get or set the array which defines the exclude-value of each day of month
 		/// Setting will redefine the array of days excluded. The array must of size greater or
@@ -71,9 +73,8 @@ namespace Quartz.Impl.Calendar
 			Init();
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Constructor
-		/// </p>
 		/// </summary>
 		public MonthlyCalendar(ICalendar baseCalendar) : base(baseCalendar)
 		{
@@ -94,6 +95,11 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual bool IsDayExcluded(int day)
 		{
+			if ((day < 1) || (day > MAX_DAYS_IN_MONTH)) 
+			{
+				throw new ArgumentException(
+					"The day parameter must be in the range of 1 to " + MAX_DAYS_IN_MONTH);
+			}
 			return excludeDays[day - 1];
 		}
 
@@ -134,7 +140,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public override bool IsTimeIncluded(DateTime timeStamp)
 		{
-			if (excludeAll == true)
+			if (excludeAll)
 			{
 				return false;
 			}
@@ -161,7 +167,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public override DateTime GetNextIncludedTime(DateTime time)
 		{
-			if (excludeAll == true)
+			if (excludeAll)
 			{
 				return DateTime.MinValue;
 			}
@@ -185,7 +191,7 @@ namespace Quartz.Impl.Calendar
 			while (IsDayExcluded(day))
 			{
 				newTimeStamp = newTimeStamp.AddDays(1);
-				day = (int) newTimeStamp.DayOfWeek;
+				day = (int) newTimeStamp.DayOfWeek + 1;
 			}
 
 			return newTimeStamp;

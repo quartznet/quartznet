@@ -25,8 +25,8 @@ using Quartz.Spi;
 namespace Quartz.Core
 {
 	/// <summary> 
-	/// An interface to be used by <code>JobStore</code> instances in order to
-	/// communicate signals back to the <code>QuartzScheduler</code>.
+	/// An interface to be used by <see cref="IJobStore" /> instances in order to
+	/// communicate signals back to the <see cref="QuartzScheduler" />.
 	/// </summary>
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>

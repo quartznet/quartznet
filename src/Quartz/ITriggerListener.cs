@@ -23,8 +23,8 @@ namespace Quartz
 {
 	/// <summary>
 	/// The interface to be implemented by classes that want to be informed when a
-	/// <code>Trigger</code> fires. In general, applications that use a
-	/// <code>Scheduler</code> will not have use for this mechanism.
+	/// <see cref="Trigger" /> fires. In general, applications that use a
+	/// <see cref="IScheduler" /> will not have use for this mechanism.
 	/// </summary>
 	/// <seealso cref="IScheduler" />
 	/// <seealso cref="Trigger" />
@@ -34,44 +34,44 @@ namespace Quartz
 	public interface ITriggerListener
 	{
 		/// <summary>
-		/// Get the name of the <code>TriggerListener</code>.
+		/// Get the name of the <see cref="ITriggerListener" />.
 		/// </summary>
 		string Name { get; }
 
 		/// <summary>
-		/// Called by the <code>IScheduler}</code> when a <code>Trigger</code>
-		/// has fired, and it's associated <code>JobDetail</code>
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// has fired, and it's associated <see cref="JobDetail" />
 		/// is about to be executed.
 		/// <p>
-		/// It is called before the <code>VetoJobExecution(..)</code> method of this
+		/// It is called before the <see cref="VetoJobExecution" /> method of this
 		/// interface.
 		/// </p>
 		/// </summary>
-		/// <param name="trigger">The <code>Trigger</code> that has fired.</param>
+		/// <param name="trigger">The <see cref="Trigger" /> that has fired.</param>
 		/// <param name="context">
-		///     The <code>JobExecutionContext</code> that will be passed to the <code>IJob</code>'s<code>Execute(xx)</code> method.
+		///     The <see cref="JobExecutionContext" /> that will be passed to the <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
 		/// </param>
 		void TriggerFired(Trigger trigger, JobExecutionContext context);
 
 		/// <summary>
-		/// Called by the <code>IScheduler</code> when a <code>Trigger</code>
-		/// has fired, and it's associated <code>JobDetail</code>
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// has fired, and it's associated <see cref="JobDetail" />
 		/// is about to be executed.
 		/// <p>
-		/// It is called after the <code>TriggerFired(..)</code> method of this
+		/// It is called after the <see cref="TriggerFired" /> method of this
 		/// interface.
 		/// </p>
 		/// </summary>
-		/// <param name="trigger">The <code>Trigger</code> that has fired.</param>
+		/// <param name="trigger">The <see cref="Trigger" /> that has fired.</param>
 		/// <param name="context">
-		/// The <code>JobExecutionContext</code> that will be passed to
-		/// the <code>Job</code>'s<code>Execute(xx)</code> method.
+		/// The <see cref="JobExecutionContext" /> that will be passed to
+		/// the <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
 		/// </param>
 		bool VetoJobExecution(Trigger trigger, JobExecutionContext context);
 
 
 		/// <summary>
-		/// Called by the <code>IScheduler</code> when a <code>Trigger</code>
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
 		/// has misfired.
 		/// <p>
 		/// Consideration should be given to how much time is spent in this method,
@@ -80,22 +80,22 @@ namespace Quartz
 		/// does a lot.
 		/// </p>
 		/// </summary>
-		/// <param name="trigger">The <code>Trigger</code> that has misfired.</param>
+		/// <param name="trigger">The <see cref="Trigger" /> that has misfired.</param>
 		void TriggerMisfired(Trigger trigger);
 
 		/// <summary>
-		/// Called by the <code>IScheduler</code> when a <code>Trigger</code>
-		/// has fired, it's associated <code>JobDetail</code>
-		/// has been executed, and it's <code>Triggered(xx)</code> method has been
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// has fired, it's associated <see cref="JobDetail" />
+		/// has been executed, and it's <see cref="Trigger.Triggered" /> method has been
 		/// called.
 		/// </summary>
-		/// <param name="trigger">The <code>Trigger</code> that was fired.</param>
+		/// <param name="trigger">The <see cref="Trigger" /> that was fired.</param>
 		/// <param name="context">
-		/// The <code>JobExecutionContext</code> that was passed to the
-		/// <code>Job</code>'s<code>Execute(xx)</code> method.
+		/// The <see cref="JobExecutionContext" /> that was passed to the
+		/// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
 		/// </param>
 		/// <param name="triggerInstructionCode">
-		/// The result of the call on the <code>Trigger</code>'s<code>triggered(xx)</code>  method.
+		/// The result of the call on the <see cref="Trigger" />'s<see cref="Trigger.Triggered" />  method.
 		/// </param>
 		void TriggerComplete(Trigger trigger, JobExecutionContext context, int triggerInstructionCode);
 	}

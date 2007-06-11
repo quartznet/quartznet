@@ -19,6 +19,8 @@ using System.Globalization;
 
 using Nullables;
 
+using Quartz.Spi;
+
 namespace Quartz
 {
 	/// <summary> 
@@ -26,17 +28,17 @@ namespace Quartz
 	/// ({@link #INTERVAL_TYPE_WEEKLY}, {@link #INTERVAL_TYPE_MONTHLY} or 
 	/// {@link #INTERVAL_TYPE_YEARLY}) that is <i>not</i> excluded by the associated
 	/// calendar. When determining what the N<sup>th</sup> day of the month or year
-	/// is, <code>NthIncludedDayTrigger</code> will skip excluded days on the 
+	/// is, <see cref="NthIncludedDayTrigger" /> will skip excluded days on the 
 	/// associated calendar. This would commonly be used in an N<sup>th</sup> 
 	/// business day situation, in which the user wishes to fire a particular job on
 	/// the N<sup>th</sup> business day (i.e. the 5<sup>th</sup> business day of
-	/// every month). Each <code>NthIncludedDayTrigger</code> also has an associated
-	/// <code>fireAtTime</code> which indicates at what time of day the trigger is
+	/// every month). Each <see cref="NthIncludedDayTrigger" /> also has an associated
+	/// <see cref="FireAtTime" /> which indicates at what time of day the trigger is
 	/// to fire.
 	/// <p>
-	/// All <code>NthIncludedDayTrigger</code>s default to a monthly interval type
+	/// All <see cref="NthIncludedDayTrigger" />s default to a monthly interval type
 	/// (fires on the N<SUP>th</SUP> day of every month) with N = 1 (first 
-	/// non-excluded day) and <code>fireAtTime</code> set to 12:00 PM (noon). These
+	/// non-excluded day) and <see cref="FireAtTime" /> set to 12:00 PM (noon). These
 	/// values can be changed using the {@link #setN}, {@link #setIntervalType}, and
 	/// {@link #setFireAtTime} methods. Users may also want to note the 
 	/// {@link #setNextFireCutoffInterval} and {@link #getNextFireCutoffInterval}
@@ -45,7 +47,7 @@ namespace Quartz
 	/// <p>
 	/// Take, for example, the following calendar:
 	/// </p>
-	/// <pre>
+	/// <c>
 	/// July                  August                September
 	/// Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
 	/// 1  W       1  2  3  4  5  W                1  2  W
@@ -54,11 +56,11 @@ namespace Quartz
 	/// W 18 19 20 21 22  W    W 22 23 24 25 26  W    W 19 20 21 22 23  W
 	/// W 25 26 27 28 29  W    W 29 30 31             W 26 27 28 29 30
 	/// W
-	/// </pre>
+	/// </c>
 	/// Where W's represent weekend days, and H's represent holidays, all of which
 	/// are excluded on a calendar associated with an 
-	/// <code>NthIncludedDayTrigger</code> with <code>n=5</code> and 
-	/// <code>intervalType=INTERVAL_TYPE_MONTHLY</code>. In this case, the trigger 
+	/// <see cref="NthIncludedDayTrigger" /> with n=5 and 
+	///  intervalType=INTERVAL_TYPE_MONTHLY. In this case, the trigger 
 	/// would fire on the 8<sup>th</sup> of July (because of the July 4 holiday), 
 	/// the 5<sup>th</sup> of August, and the 8<sup>th</sup> of September (because 
 	/// of Labor Day).
@@ -70,10 +72,10 @@ namespace Quartz
 	{
 		/// <summary> 
 		/// Returns the day of the interval on which the 
-		/// <code>NthIncludedDayTrigger</code> should fire.
+		/// <see cref="NthIncludedDayTrigger" /> should fire.
 		/// 
 		/// Sets the day of the interval on which the 
-		/// <code>NthIncludedDayTrigger</code> should fire. If the N<SUP>th</SUP>
+		/// <see cref="NthIncludedDayTrigger" /> should fire. If the N<SUP>th</SUP>
 		/// day of the interval does not exist (i.e. the 32<SUP>nd</SUP> of a 
 		/// month), the trigger simply will never fire. N may not be less than 1.
 		/// </summary>
@@ -95,9 +97,9 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Returns the interval type for the <code>NthIncludedDayTrigger</code>.
+		/// Returns the interval type for the <see cref="NthIncludedDayTrigger" />.
 		/// 
-		/// Sets the interval type for the <code>NthIncludedDayTrigger</code>. If
+		/// Sets the interval type for the <see cref="NthIncludedDayTrigger" />. If
 		/// {@link #INTERVAL_TYPE_MONTHLY}, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every month. If 
 		/// {@link #INTERVAL_TYPE_YEARLY}, the trigger will fire on the 
@@ -138,11 +140,11 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the fire time for the <code>NthIncludedDayTrigger</code> as a
+		/// Returns the fire time for the <see cref="NthIncludedDayTrigger" /> as a
 		/// string with the format &quot;HH:MM&quot;, with HH representing the 
 		/// 24-hour clock hour of the fire time.
 		///
-		/// Sets the fire time for the <code>NthIncludedDayTrigger</code>, which
+		/// Sets the fire time for the <see cref="NthIncludedDayTrigger" />, which
 		/// should be represented as a string with the format &quot;HH:MM&quot;, 
 		/// with HH representing the 24-hour clock hour of the fire time. Hours can
 		/// be represented as either a one-digit or two-digit number.
@@ -178,27 +180,25 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Returns the <code>nextFireCutoffInterval</code> for the 
-		/// <code>NthIncludedDayTrigger</code>.
+		/// Returns the <see cref="nextFireCutoffInterval" /> for the 
+		/// <see cref="NthIncludedDayTrigger" />.
 		/// <P>
-		/// Because of the conceptual design of <code>NthIncludedDayTrigger</code>,
+		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <I>never</I> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
 		/// {@link #setNextFireCutoffInterval(int)} and 
 		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
-		/// of the intervals specified by <code>{@link #getIntervalType()
-		/// intervalType}</code>.
+		/// of the intervals specified by <see cref="IntervalType"/> intervalType" />.
 		/// </P>
 		/// <p>
-		/// Because of the conceptual design of <code>NthIncludedDayTrigger</code>,
+		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <I>never</I> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
 		/// {@link #setNextFireCutoffInterval(int)} and 
 		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
-		/// of the intervals specified by <code>{@link #getIntervalType()
-		/// intervalType}</code>.
+		/// of the intervals specified by <see cref="IntervalType" /> intervalType".
 		/// </p>
 		/// <P>
 		/// In most cases, the default value of this setting (12) is sufficient (it
@@ -210,7 +210,7 @@ namespace Quartz
 		/// <P>
 		/// For example, if your trigger is associated with a calendar that excludes
 		/// a great many dates in the next 12 months, and hardly any following that,
-		/// it is possible (if <code>n</code> is large enough) that you could run 
+		/// it is possible (if <see cref="n" /> is large enough) that you could run 
 		/// into this situation.  
 		/// </P>
 		/// </summary>
@@ -222,9 +222,9 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Returns the last time the <code>NthIncludedDayTrigger</code> will fire.
-		/// If the trigger will not fire at any point between <code>startTime</code>
-		/// and <code>endTime</code>, <code>null</code> will be returned.
+		/// Returns the last time the <see cref="NthIncludedDayTrigger" /> will fire.
+		/// If the trigger will not fire at any point between <see name="startTime" />
+		/// and <see name="endTime" />, <see langword="null" /> will be returned.
 		/// </summary>
 		/// <returns> the last time the trigger will fire.
 		/// </returns>
@@ -256,16 +256,16 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Instructs the <code>Scheduler</code> that upon a mis-fire situation, the
-		/// <code>NthIncludedDayTrigger</code> wants to be fired now by the 
-		/// <code>Scheduler</code>
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
+		/// <see cref="NthIncludedDayTrigger" /> wants to be fired now by the 
+		/// <see cref="IScheduler" />
 		/// </summary>
 		public const int MISFIRE_INSTRUCTION_FIRE_ONCE_NOW = 1;
 
 		/// <summary> 
-		/// Instructs the <code>Scheduler</code> that upon a mis-fire situation, the
-		/// <code>NthIncludedDayTrigger</code> wants to have 
-		/// <code>nextFireTime</code> updated to the next time in the schedule after
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
+		/// <see cref="NthIncludedDayTrigger" /> wants to have 
+		/// <see cref="nextFireTime" /> updated to the next time in the schedule after
 		/// the current time, but it does not want to be fired now.
 		/// </summary>
 		public const int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
@@ -281,13 +281,14 @@ namespace Quartz
 		/// </summary>
 		public const int INTERVAL_TYPE_YEARLY = 2;
 
-		/// <summary> indicates a weekly trigger type (fires on the N<SUP>th</SUP> included
+		/// <summary>
+		/// Indicates a weekly trigger type (fires on the N<SUP>th</SUP> included
 		/// day of every week). When using this interval type, care must be taken
-		/// not to think of the value of <code>n</code> as an analog to 
-		/// <code>java.util.Calendar.DAY_OF_WEEK</code>. Such a comparison can only
+		/// not to think of the value of <see cref="n" /> as an analog to 
+		/// <see cref="DateTime.DayOfWeek" />. Such a comparison can only
 		/// be drawn when there are no calendars associated with the trigger. To 
-		/// illustrate, consider an <code>NthIncludedDayTrigger</code> with 
-		/// <code>n = 3</code> which is associated with a Calendar excluding
+		/// illustrate, consider an <see cref="NthIncludedDayTrigger" /> with 
+		/// n = 3 which is associated with a Calendar excluding
 		/// non-weekdays. The trigger would fire on the 3<SUP>rd</SUP> 
 		/// <I>included</I> day of the week, which would be 4<SUP>th</SUP> 
 		/// <I>actual</I> day of the week.
@@ -305,17 +306,17 @@ namespace Quartz
 		private int nextFireCutoffInterval = 12;
 
 		/// <summary> 
-		/// Create an <code>NthIncludedDayTrigger</code> with no specified name,
-		/// group, or <code>JobDetail</code>. This will result initially in a
+		/// Create an <see cref="NthIncludedDayTrigger" /> with no specified name,
+		/// group, or <see cref="JobDetail" />. This will result initially in a
 		/// default monthly trigger that fires on the first day of every month at
-		/// 12:00 PM (<code>n</code>=1, 
-		/// <code>intervalType={@link #INTERVAL_TYPE_MONTHLY}</code>, 
-		/// <code>fireAtTime="12:00"</code>).
+		/// 12:00 PM (n = 1, 
+		/// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
+		/// fireAtTime="12:00").
 		/// <p>
-		/// Note that <code>setName()</code>, <code>setGroup()</code>, 
-		/// <code>setJobName()</code>, and <code>setJobGroup()</code>, must be 
-		/// called before the <code>NthIncludedDayTrigger</code> can be placed into
-		/// a <code>Scheduler</code>.
+		/// Note that <see cref="Name" />, <see cref="Group" />, 
+		/// <see cref="JobName" />, and <see cref="JobGroup" />, must be 
+		/// called before the <see cref="NthIncludedDayTrigger" /> can be placed into
+		/// a <see cref="IScheduler" />.
 		/// </p>
 		/// </summary>
 		public NthIncludedDayTrigger() : base()
@@ -323,62 +324,55 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Create an <code>NthIncludedDayTrigger</code> with the given name and
-		/// group but no specified <code>JobDetail</code>. This will result 
+		/// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
+		/// group but no specified <see cref="JobDetail" />. This will result 
 		/// initially in a default monthly trigger that fires on the first day of 
-		/// every month at 12:00 PM (<code>n</code>=1, 
-		/// <code>intervalType={@link #INTERVAL_TYPE_MONTHLY}</code>, 
-		/// <code>fireAtTime="12:00"</code>).
+		/// every month at 12:00 PM (<see cref="n" />=1, 
+		/// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
+		/// fireAtTime=12:00").
 		/// <p>
-		/// Note that <code>setJobName()</code> and <code>setJobGroup()</code> must
-		/// be called before the <code>NthIncludedDayTrigger</code> can be placed 
-		/// into a <code>Scheduler</code>.
+		/// Note that <see cref="JobName" /> and <see cref="JobGroup" /> must
+		/// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
+		/// into a <see cref="IScheduler" />.
 		/// </p>
 		/// </summary>
-		/// <param name="name"> the name for the <code>NthIncludedDayTrigger</code>
+		/// <param name="name"> the name for the <see cref="NthIncludedDayTrigger" />
 		/// </param>
-		/// <param name="group">the group for the <code>NthIncludedDayTrigger</code>
+		/// <param name="group">the group for the <see cref="NthIncludedDayTrigger" />
 		/// </param>
 		public NthIncludedDayTrigger(string name, string group) : base(name, group)
 		{
 		}
 
-		/// <summary> Create an <code>NthIncludedDayTrigger</code> with the given name and
-		/// group and the specified <code>JobDetail</code>. This will result 
+		/// <summary> 
+		/// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
+		/// group and the specified <see cref="JobDetail" />. This will result 
 		/// initially in a default monthly trigger that fires on the first day of
-		/// every month at 12:00 PM (<code>n</code>=1, 
-		/// <code>intervalType={@link #INTERVAL_TYPE_MONTHLY}</code>, 
-		/// <code>fireAtTime="12:00"</code>).
-		/// 
+		/// every month at 12:00 PM (<see cref="n" />=1, 
+		/// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
+		/// fireAtTime="12:00").
 		/// </summary>
-		/// <param name="name">    the name for the <code>NthIncludedDayTrigger</code>
-		/// </param>
-		/// <param name="group">   the group for the <code>NthIncludedDayTrigger</code>
-		/// </param>
-		/// <param name="jobName"> the name of the job to associate with the 
-		/// <code>NthIncludedDayTrigger</code>
-		/// </param>
-		/// <param name="jobGroup">the group containing the job to associate with the 
-		/// <code>NthIncludedDayTrigger</code>
-		/// </param>
+		/// <param name="name">The name for the <see cref="NthIncludedDayTrigger" />.</param>
+		/// <param name="group">The group for the <see cref="NthIncludedDayTrigger" />.</param>
+		/// <param name="jobName">The name of the job to associate with the <see cref="NthIncludedDayTrigger" />.</param>
+		/// <param name="jobGroup">The group containing the job to associate with the <see cref="NthIncludedDayTrigger" />.</param>
 		public NthIncludedDayTrigger(string name, string group, string jobName, string jobGroup)
 			: base(name, group, jobName, jobGroup)
 		{
 		}
 
 		/// <summary> 
-		/// Returns the next time at which the <code>NthIncludedDayTrigger</code>
-		/// will fire. If the trigger will not fire again, <code>null</code> will be
+		/// Returns the next time at which the <see cref="NthIncludedDayTrigger" />
+		/// will fire. If the trigger will not fire again, <see langword="null" /> will be
 		/// returned. 
 		/// <p>
-		/// Because of the conceptual design of <code>NthIncludedDayTrigger</code>,
+		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <I>never</I> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
 		/// {@link #setNextFireCutoffInterval(int)} and 
 		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
-		/// of the intervals specified by <code>{@link #getIntervalType()
-		/// intervalType}</code>.
+		/// of the intervals specified by <see cref="IntervalType" /> intervalType.
 		/// </p>
 		/// <p>
 		/// The returned value is not guaranteed to be valid until after
@@ -395,8 +389,8 @@ namespace Quartz
 		}
 
 		/// <summary> Returns the previous time at which the 
-		/// <code>NthIncludedDayTrigger</code> fired. If the trigger has not yet 
-		/// fired, <code>null</code> will be returned.
+		/// <see cref="NthIncludedDayTrigger" /> fired. If the trigger has not yet 
+		/// fired, <see langword="null" /> will be returned.
 		/// 
 		/// </summary>
 		/// <returns> the previous fire time for the trigger
@@ -407,33 +401,32 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the first time the <code>NthIncludedDayTrigger</code> will fire
+		/// Returns the first time the <see cref="NthIncludedDayTrigger" /> will fire
 		/// after the specified date. 
 		/// <P> 
-		/// Because of the conceptual design of <code>NthIncludedDayTrigger</code>,
+		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <I>never</I> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
 		/// {@link #setNextFireCutoffInterval(int)} and 
 		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
-		/// of the intervals specified by <code>{@link #getIntervalType()
-		/// intervalType}</code>.
+		/// of the intervals specified by <see cref="IntervalType" /> intervalType.
 		/// </P>
 		/// <P>
-		/// Therefore, for triggers with <code>intervalType = 
+		/// Therefore, for triggers with intervalType = 
 		/// {@link NthIncludedDayTrigger#INTERVAL_TYPE_WEEKLY 
-		/// INTERVAL_TYPE_WEEKLY}</code>, if the trigger will not fire within 12
-		/// weeks after the given date/time, <code>null</code> will be returned. For
-		/// triggers with <code>intervalType = 
+		/// INTERVAL_TYPE_WEEKLY" />, if the trigger will not fire within 12
+		/// weeks after the given date/time, <see langword="null" /> will be returned. For
+		/// triggers with intervalType = 
 		/// {@link NthIncludedDayTrigger#INTERVAL_TYPE_MONTHLY
-		/// INTERVAL_TYPE_MONTHLY}</code>, if the trigger will not fire within 12 
-		/// months after the given date/time, <code>null</code> will be returned. 
-		/// For triggers with <code>intervalType = 
+		/// INTERVAL_TYPE_MONTHLY" />, if the trigger will not fire within 12 
+		/// months after the given date/time, <see langword="null" /> will be returned. 
+		/// For triggers with intervalType = 
 		/// {@link NthIncludedDayTrigger#INTERVAL_TYPE_YEARLY 
-		/// INTERVAL_TYPE_YEARLY}</code>, if the trigger will not fire within 12
-		/// years after the given date/time, <code>null</code> will be returned.  In 
-		/// all cases, if the trigger will not fire before <code>endTime</code>, 
-		/// <code>null</code> will be returned.
+		/// INTERVAL_TYPE_YEARLY" />, if the trigger will not fire within 12
+		/// years after the given date/time, <see langword="null" /> will be returned.  In 
+		/// all cases, if the trigger will not fire before <see field="endTime" />, 
+		/// <see langword="null" /> will be returned.
 		/// </P>
 		/// </summary>
 		/// <param name="afterTime">The time after which to find the nearest fire time.
@@ -475,9 +468,9 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Called when the <code>Scheduler</code> has decided to 'fire' the trigger
-		/// (Execute the associated <code>Job</code>), in order to give the 
-		/// <code>Trigger</code> a chance to update itself for its next triggering 
+		/// Called when the <see cref="IScheduler" /> has decided to 'fire' the trigger
+		/// (Execute the associated <see cref="IJob" />), in order to give the 
+		/// <see cref="Trigger" /> a chance to update itself for its next triggering 
 		/// (if any).
 		/// </summary>
 		public override void Triggered(ICalendar cal)
@@ -488,19 +481,19 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Called by the scheduler at the time a <code>Trigger</code> is first
-		/// added to the scheduler, in order to have the <code>Trigger</code>
+		/// Called by the scheduler at the time a <see cref="Trigger" /> is first
+		/// added to the scheduler, in order to have the <see cref="Trigger" />
 		/// compute its first fire time, based on any associated calendar.
 		/// <p>
-		/// After this method has been called, <code>getNextFireTime()</code>
+		/// After this method has been called, <see cref="GetNextFireTime()" />
 		/// should return a valid answer.
 		/// </p>
 		/// 
 		/// </summary>
-		/// <returns> the first time at which the <code>Trigger</code> will be fired
+		/// <returns> the first time at which the <see cref="Trigger" /> will be fired
 		/// by the scheduler, which is also the same value 
 		/// {@link #getNextFireTime()} will return (until after the first 
-		/// firing of the <code>Trigger</code>).
+		/// firing of the <see cref="Trigger" />).
 		/// </returns>
 		public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
 		{
@@ -512,17 +505,17 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Called after the <code>Scheduler</code> has executed the 
-		/// <code>JobDetail</code> associated with the <code>Trigger</code> in order
+		/// Called after the <see cref="IScheduler" /> has executed the 
+		/// <see cref="JobDetail" /> associated with the <see cref="Trigger" /> in order
 		/// to get the final instruction code from the trigger.
 		/// </summary>
 		/// <param name="jobCtx">
-		/// The <code>JobExecutionContext</code> that was used by the
-		/// <code>Job</code>'s <code>Execute()</code> method.
+		/// The <see cref="JobExecutionContext" /> that was used by the
+		/// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.
 		/// </param>
 		/// <param name="result">
-		/// The <code>JobExecutionException</code> thrown by the
-		/// <code>Job</code>, if any (may be <code>null</code>)
+		/// The <see cref="JobExecutionException" /> thrown by the
+		/// <see cref="IJob" />, if any (may be <see langword="null" />)
 		/// </param>
 		/// <returns> one of the Trigger.INSTRUCTION_XXX constants.
 		/// </returns>
@@ -552,16 +545,17 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Used by the <code>Scheduler</code> to determine whether or not it is
-		/// possible for this <code>Trigger</code> to fire again.
-		/// <P>
-		/// If the returned value is <code>false</code> then the 
-		/// <code>Scheduler</code> may remove the <code>Trigger</code> from the
-		/// <code>JobStore</code>
-		/// </P>
+		/// Used by the <see cref="IScheduler" /> to determine whether or not it is
+		/// possible for this <see cref="Trigger" /> to fire again.
+		/// <p>
+		/// If the returned value is <see langword="false" /> then the 
+		/// <see cref="IScheduler" /> may remove the <see cref="Trigger" /> from the
+		/// <see cref="IJobStore" />
+		/// </ö>
 		/// </summary>
-		/// <returns> a boolean indicator of whether the trigger could potentially fire
-		/// again
+		/// <returns>
+		/// A boolean indicator of whether the trigger could potentially fire
+		/// again.
 		/// </returns>
 		public override bool MayFireAgain()
 		{
@@ -569,12 +563,11 @@ namespace Quartz
 			return (d == null || !d.HasValue);
 		}
 
-		/// <summary> Indicates whether <code>misfireInstruction</code> is a valid misfire
-		/// instruction for this <code>Trigger</code>.
-		/// 
+		/// <summary> 
+		/// Indicates whether <param name="misfireInstruction" /> is a valid misfire
+		/// instruction for this <see cref="Trigger" />.
 		/// </summary>
-		/// <returns> whether <code>misfireInstruction</code> is valid.
-		/// </returns>
+		/// <returns>Whether <param name="misfireInstruction" /> is valid.</returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
 			if ((misfireInstruction == MISFIRE_INSTRUCTION_SMART_POLICY) ||
@@ -589,9 +582,9 @@ namespace Quartz
 			}
 		}
 
-		/// <summary> Updates the <code>NthIncludedDayTrigger</code>'s state based on the
+		/// <summary> Updates the <see cref="NthIncludedDayTrigger" />'s state based on the
 		/// MISFIRE_INSTRUCTION_XXX that was selected when the 
-		/// <code>NthIncludedDayTrigger</code> was created
+		/// <see cref="NthIncludedDayTrigger" /> was created
 		/// <P>
 		/// If the misfire instruction is set to MISFIRE_INSTRUCTION_SMART_POLICY,
 		/// then the instruction will be interpreted as 
@@ -622,8 +615,8 @@ namespace Quartz
 			}
 		}
 
-		/// <summary> Updates the <code>NthIncludedDayTrigger</code>'s state based on the 
-		/// given new version of the associated <code>Calendar</code>. 
+		/// <summary> Updates the <see cref="NthIncludedDayTrigger" />'s state based on the 
+		/// given new version of the associated <see cref="ICalendar" />. 
 		/// 
 		/// </summary>
 		/// <param name="cal">        a new or updated calendar to use for the trigger
@@ -650,11 +643,11 @@ namespace Quartz
 			}
 		}
 
-		/// <summary> Calculates the first time an <code>NthIncludedDayTrigger</code> with 
-		/// <code>intervalType = {@link #INTERVAL_TYPE_WEEKLY}</code> will fire 
-		/// after the specified date. See {@link #getNextFireTime} for more 
+		/// <summary> 
+		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
+		/// <c>intervalType = INTERVAL_TYPE_WEEKLY</c> will fire 
+		/// after the specified date. See <see cref="GetNextFireTime" /> for more 
 		/// information.
-		/// 
 		/// </summary>
 		/// <param name="afterDate">The time after which to find the nearest fire time.
 		/// This argument is treated as exclusive &#x8212; that is,
@@ -742,8 +735,8 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Calculates the first time an <code>NthIncludedDayTrigger</code> with 
-		/// <code>intervalType = {@link #INTERVAL_TYPE_MONTHLY}</code> will fire 
+		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
+		/// intervalType = {@link #INTERVAL_TYPE_MONTHLY" /> will fire 
 		/// after the specified date. See {@link #getNextFireTime} for more 
 		/// information.
 		/// </summary>
@@ -827,8 +820,8 @@ namespace Quartz
 			}
 		}
 
-		/// <summary> Calculates the first time an <code>NthIncludedDayTrigger</code> with 
-		/// <code>intervalType = {@link #INTERVAL_TYPE_YEARLY}</code> will fire 
+		/// <summary> Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
+		/// intervalType = {@link #INTERVAL_TYPE_YEARLY" /> will fire 
 		/// after the specified date. See {@link #getNextFireTime} for more 
 		/// information.
 		/// 

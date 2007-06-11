@@ -32,7 +32,7 @@ namespace Quartz
 	public class CriticalSchedulerException : SchedulerException
 	{
 		/// <summary>
-		/// Create a <code>CriticalSchedulerException</code> with the given message.
+		/// Create a <see cref="CriticalSchedulerException" /> with the given message.
 		/// </summary>
 		public CriticalSchedulerException(string msg, int errCode) : base(msg)
 		{

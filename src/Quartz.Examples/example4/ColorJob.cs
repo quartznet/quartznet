@@ -42,9 +42,9 @@ namespace Quartz.Examples.Example4
 		
 	
 		/// <summary>
-		/// Called by the <code>Scheduler</code> when a
-		/// <code>Trigger</code> fires that is associated with
-		/// the <code>Job</code>.
+		/// Called by the <see cref="IScheduler" /> when a
+		/// <see cref="Trigger" /> fires that is associated with
+		/// the <see cref="IJob" />.
 		/// </summary>
 		public virtual void Execute(JobExecutionContext context)
 		{
