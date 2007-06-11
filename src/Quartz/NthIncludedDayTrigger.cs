@@ -25,9 +25,12 @@ namespace Quartz
 {
 	/// <summary> 
 	/// A trigger which fires on the N<sup>th</sup> day of every interval type 
-	/// ({@link #INTERVAL_TYPE_WEEKLY}, {@link #INTERVAL_TYPE_MONTHLY} or 
-	/// {@link #INTERVAL_TYPE_YEARLY}) that is <i>not</i> excluded by the associated
-	/// calendar. When determining what the N<sup>th</sup> day of the month or year
+    /// <see cref="INTERVAL_TYPE_WEEKLY" />, <see cref="INTERVAL_TYPE_MONTHLY" /> or 
+    /// <see cref="INTERVAL_TYPE_YEARLY" /> that is <i>not</i> excluded by the associated
+	/// calendar. 
+	/// </summary>
+	/// <remarks>
+	/// When determining what the N<sup>th</sup> day of the month or year
 	/// is, <see cref="NthIncludedDayTrigger" /> will skip excluded days on the 
 	/// associated calendar. This would commonly be used in an N<sup>th</sup> 
 	/// business day situation, in which the user wishes to fire a particular job on
@@ -39,15 +42,15 @@ namespace Quartz
 	/// All <see cref="NthIncludedDayTrigger" />s default to a monthly interval type
 	/// (fires on the N<SUP>th</SUP> day of every month) with N = 1 (first 
 	/// non-excluded day) and <see cref="FireAtTime" /> set to 12:00 PM (noon). These
-	/// values can be changed using the {@link #setN}, {@link #setIntervalType}, and
-	/// {@link #setFireAtTime} methods. Users may also want to note the 
-	/// {@link #setNextFireCutoffInterval} and {@link #getNextFireCutoffInterval}
+    /// values can be changed using the <see cref="N" />, <see cref="IntervalType" />, and
+    /// <see cref="FireAtTime" /> methods. Users may also want to note the 
+    /// <see cref="NextFireCutoffInterval" /> and <see cref="NextFireCutoffInterval" />
 	/// methods.
 	/// </p>
 	/// <p>
 	/// Take, for example, the following calendar:
 	/// </p>
-	/// <c>
+	/// <code>
 	/// July                  August                September
 	/// Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
 	/// 1  W       1  2  3  4  5  W                1  2  W
@@ -56,7 +59,7 @@ namespace Quartz
 	/// W 18 19 20 21 22  W    W 22 23 24 25 26  W    W 19 20 21 22 23  W
 	/// W 25 26 27 28 29  W    W 29 30 31             W 26 27 28 29 30
 	/// W
-	/// </c>
+	/// </code>
 	/// Where W's represent weekend days, and H's represent holidays, all of which
 	/// are excluded on a calendar associated with an 
 	/// <see cref="NthIncludedDayTrigger" /> with n=5 and 
@@ -64,17 +67,13 @@ namespace Quartz
 	/// would fire on the 8<sup>th</sup> of July (because of the July 4 holiday), 
 	/// the 5<sup>th</sup> of August, and the 8<sup>th</sup> of September (because 
 	/// of Labor Day).
-	/// 
-	/// </summary>
+    /// </remarks>
 	/// <author>Aaron Craven</author>
 	[Serializable]
 	public class NthIncludedDayTrigger : Trigger
 	{
 		/// <summary> 
-		/// Returns the day of the interval on which the 
-		/// <see cref="NthIncludedDayTrigger" /> should fire.
-		/// 
-		/// Sets the day of the interval on which the 
+		/// Gets or sets the day of the interval on which the 
 		/// <see cref="NthIncludedDayTrigger" /> should fire. If the N<SUP>th</SUP>
 		/// day of the interval does not exist (i.e. the 32<SUP>nd</SUP> of a 
 		/// month), the trigger simply will never fire. N may not be less than 1.
@@ -82,7 +81,6 @@ namespace Quartz
 		public virtual int N
 		{
 			get { return n; }
-
 			set
 			{
 				if (value > 0)
@@ -167,7 +165,6 @@ namespace Quartz
 //						}
 //					}
 
-					int i = value.IndexOf(":");
 					int fireHour = Int32.Parse(components[0]);
 					int fireMinute = Int32.Parse(components[1]);
 
@@ -315,13 +312,13 @@ namespace Quartz
 		/// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
 		/// fireAtTime="12:00").
 		/// <p>
-		/// Note that <see cref="Name" />, <see cref="Group" />, 
-		/// <see cref="JobName" />, and <see cref="JobGroup" />, must be 
+        /// Note that <see cref="Trigger.Name" />, <see cref="Trigger.Group" />, 
+        /// <see cref="Trigger.JobName" />, and <see cref="Trigger.JobGroup" />, must be 
 		/// called before the <see cref="NthIncludedDayTrigger" /> can be placed into
 		/// a <see cref="IScheduler" />.
 		/// </p>
 		/// </summary>
-		public NthIncludedDayTrigger() : base()
+		public NthIncludedDayTrigger()
 		{
 		}
 
@@ -333,7 +330,7 @@ namespace Quartz
 		/// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
 		/// fireAtTime=12:00").
 		/// <p>
-		/// Note that <see cref="JobName" /> and <see cref="JobGroup" /> must
+        /// Note that <see cref="Trigger.JobName" /> and <see cref="Trigger.JobGroup" /> must
 		/// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
 		/// into a <see cref="IScheduler" />.
 		/// </p>
@@ -441,7 +438,7 @@ namespace Quartz
 		/// </returns>
 		public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
 		{
-			if (afterTime == null || !afterTime.HasValue)
+			if (!afterTime.HasValue)
 			{
 				afterTime = DateTime.Now;
 			}
@@ -562,7 +559,7 @@ namespace Quartz
 		public override bool MayFireAgain()
 		{
 			NullableDateTime d = GetNextFireTime();
-			return (d == null || !d.HasValue);
+			return !d.HasValue;
 		}
 
 		/// <summary> 
@@ -617,28 +614,25 @@ namespace Quartz
 			}
 		}
 
-		/// <summary> Updates the <see cref="NthIncludedDayTrigger" />'s state based on the 
+		/// <summary> 
+		/// Updates the <see cref="NthIncludedDayTrigger" />'s state based on the 
 		/// given new version of the associated <see cref="ICalendar" />. 
-		/// 
 		/// </summary>
-		/// <param name="cal">        a new or updated calendar to use for the trigger
-		/// </param>
+		/// <param name="cal">A new or updated calendar to use for the trigger</param>
 		/// <param name="misfireThreshold">the amount of time (in milliseconds) that must
 		/// be between &quot;now&quot; and the time the next
 		/// firing of the trigger is supposed to occur.
 		/// </param>
 		public override void UpdateWithNewCalendar(ICalendar cal, long misfireThreshold)
 		{
-			long diff;
-
-			calendar = cal;
+		    calendar = cal;
 			nextFireTime = GetFireTimeAfter(previousFireTime);
 
 			DateTime now = DateTime.Now;
-			if ((nextFireTime != null && nextFireTime.HasValue) && ((nextFireTime.Value < now)))
+			if ((nextFireTime.HasValue) && ((nextFireTime.Value < now)))
 			{
-				diff = (long) (now - nextFireTime.Value).TotalMilliseconds;
-				if (diff >= misfireThreshold)
+			    long diff = (long) (now - nextFireTime.Value).TotalMilliseconds;
+			    if (diff >= misfireThreshold)
 				{
 					nextFireTime = GetFireTimeAfter(nextFireTime);
 				}

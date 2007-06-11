@@ -27,13 +27,13 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// A context bundle containing handles to various environment information, that
 	/// is given to a <see cref="JobDetail" /> instance as it is
 	/// executed, and to a <see cref="Trigger" /> instance after the
 	/// execution completes.
-	/// </p>
-	/// 
+	/// </summary>
+	/// <remarks>
 	/// <p>
 	/// The <see cref="JobDataMap" /> found on this object (via the 
 	/// <see cref="MergedJobDataMap" /> method) serves as a convenience -
@@ -48,7 +48,7 @@ namespace Quartz
 	/// 
 	/// <p>
 	/// <see cref="JobExecutionContext" /> s are also returned from the 
-	/// <see cref="Scheduler.GetCurrentlyExecutingJobs()" />
+	/// <see cref="IScheduler.GetCurrentlyExecutingJobs()" />
 	/// method. These are the same instances as those past into the jobs that are
 	/// currently executing within the scheduler. The exception to this is when your
 	/// application is using Quartz remotely (i.e. via RMI) - in which case you get
@@ -57,8 +57,7 @@ namespace Quartz
 	/// clone of the <see cref="JobDetail" /> is still available - just not a handle
 	/// to the job instance that is running).
 	/// </p>
-	/// 
-	/// </summary>
+    /// </remarks>
 	/// <seealso cref="JobDetail" /> 
 	/// <seealso cref="IScheduler" />
 	/// <seealso cref="IJob" />
@@ -68,6 +67,51 @@ namespace Quartz
 	[Serializable]
 	public class JobExecutionContext
 	{
+        [NonSerialized]
+        private readonly IScheduler scheduler;
+        private readonly Trigger trigger;
+        private readonly JobDetail jobDetail;
+        private readonly JobDataMap jobDataMap;
+        [NonSerialized]
+        private readonly IJob job;
+
+        private readonly ICalendar calendar;
+        private readonly bool recovering = false;
+        private int numRefires = 0;
+        private readonly NullableDateTime fireTime;
+        private readonly NullableDateTime scheduledFireTime;
+        private readonly NullableDateTime prevFireTime;
+        private readonly NullableDateTime nextFireTime;
+        private long jobRunTime = -1;
+        private object result;
+
+        private readonly IDictionary data = new Hashtable();
+
+        /// <summary> <p>
+        /// Create a JobExcecutionContext with the given context data.
+        /// </p>
+        /// </summary>
+        public JobExecutionContext(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
+        {
+            this.scheduler = scheduler;
+            trigger = firedBundle.Trigger;
+            calendar = firedBundle.Calendar;
+            jobDetail = firedBundle.JobDetail;
+            this.job = job;
+            recovering = firedBundle.Recovering;
+            fireTime = firedBundle.FireTime;
+            scheduledFireTime = firedBundle.ScheduledFireTime;
+            prevFireTime = firedBundle.PrevFireTime;
+            nextFireTime = firedBundle.NextFireTime;
+
+            jobDataMap = new JobDataMap();
+            jobDataMap.PutAll(jobDetail.JobDataMap);
+            jobDataMap.PutAll(trigger.JobDataMap);
+
+            jobDataMap.Mutable = false;
+            trigger.JobDataMap.Mutable = false;
+        }
+
 		/// <summary>
 		/// Get a handle to the <see cref="IScheduler" /> instance that fired the
 		/// <see cref="IJob" />.
@@ -77,30 +121,27 @@ namespace Quartz
 			get { return scheduler; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get a handle to the <see cref="Trigger" /> instance that fired the
 		/// <see cref="IJob" />.
-		/// </p>
 		/// </summary>
 		public virtual Trigger Trigger
 		{
 			get { return trigger; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="Trigger" />
 		/// instance that fired the <see cref="IJob" />.
-		/// </p>
 		/// </summary>
 		public virtual ICalendar Calendar
 		{
 			get { return calendar; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// If the <see cref="IJob" /> is being re-executed because of a 'recovery'
 		/// situation, this method will return <see langword="true" />.
-		/// </p>
 		/// </summary>
 		public virtual bool Recovering
 		{
@@ -118,6 +159,8 @@ namespace Quartz
 
 		/// <summary>
 		/// Get the convenience <see cref="JobDataMap" /> of this execution context.
+		/// </summary>
+		/// <remarks>
 		/// <p>
 		/// The <see cref="JobDataMap" /> found on this object serves as a convenience -
 		/// it is a merge of the <see cref="JobDataMap" /> found on the 
@@ -133,29 +176,26 @@ namespace Quartz
 		/// 
 		/// <p>
 		/// Attempts to change the contents of this map typically result in an 
-		/// <see cref="IllegalStateException" />.
+		/// illegal state.
 		/// </p>
 		/// 
-		/// </summary>
+        /// </remarks>
 		public virtual JobDataMap MergedJobDataMap
 		{
 			get { return jobDataMap; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the <see cref="JobDetail" /> associated with the <see cref="IJob" />.
-		/// </p>
 		/// </summary>
 		public virtual JobDetail JobDetail
 		{
 			get { return jobDetail; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Get the instance of the <see cref="IJob" /> that was created for this
 		/// execution.
-		/// </p>
-		/// 
 		/// <p>
 		/// Note: The Job instance is not available through remote scheduler
 		/// interfaces.
@@ -166,30 +206,26 @@ namespace Quartz
 			get { return job; }
 		}
 
-		/// <summary> The actual time the trigger fired. For instance the scheduled time may
+		/// <summary>
+		/// The actual time the trigger fired. For instance the scheduled time may
 		/// have been 10:00:00 but the actual fire time may have been 10:00:03 if
 		/// the scheduler was too busy.
-		/// 
 		/// </summary>
-		/// <returns> Returns the fireTime.
-		/// </returns>
-		/// <seealso cref="ScheduledFireTime">
-		/// </seealso>
+		/// <returns> Returns the fireTime.</returns>
+		/// <seealso cref="ScheduledFireTime" />
 		public NullableDateTime FireTime
 		{
 			get { return fireTime; }
 		}
 
-		/// <summary> The scheduled time the trigger fired for. For instance the scheduled
+		/// <summary> 
+		/// The scheduled time the trigger fired for. For instance the scheduled
 		/// time may have been 10:00:00 but the actual fire time may have been
 		/// 10:00:03 if the scheduler was too busy.
-		/// 
 		/// </summary>
-		/// <returns> Returns the scheduledFireTime.
-		/// </returns>
-		/// <seealso cref="FireTime">
-		/// </seealso>
-		public NullableDateTime ScheduledFireTime
+		/// <returns> Returns the scheduledFireTime.</returns>
+		/// <seealso cref="FireTime" />
+        public NullableDateTime ScheduledFireTime
 		{
 			get { return scheduledFireTime; }
 		}
@@ -216,7 +252,8 @@ namespace Quartz
 		/// Returns the result (if any) that the <see cref="IJob" /> set before its 
 		/// execution completed (the type of object set as the result is entirely up 
 		/// to the particular job).
-		/// 
+		/// </summary>
+		/// <remarks>
 		/// <p>
 		/// The result itself is meaningless to Quartz, but may be informative
 		/// to <see cref="IJobListener" />s or 
@@ -233,16 +270,15 @@ namespace Quartz
 		/// <see cref="ITriggerListener" />s that are watching the job's 
 		/// execution.
 		/// </p> 
-		/// 
-		/// </summary>
+        /// </remarks>
 		public virtual object Result
 		{
 			get { return result; }
-
 			set { result = value; }
 		}
 
-		/// <summary> The amount of time the job ran for (in milliseconds).  The returned 
+		/// <summary> 
+		/// The amount of time the job ran for (in milliseconds).  The returned 
 		/// value will be -1 until the job has actually completed (or thrown an 
 		/// exception), and is therefore generally only useful to 
 		/// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
@@ -253,48 +289,7 @@ namespace Quartz
 			set { jobRunTime = value; }
 		}
 
-		[NonSerialized] private IScheduler scheduler;
-		private Trigger trigger;
-		private JobDetail jobDetail;
-		private JobDataMap jobDataMap;
-		[NonSerialized] private IJob job;
 
-		private ICalendar calendar;
-		private bool recovering = false;
-		private int numRefires = 0;
-		private NullableDateTime fireTime;
-		private NullableDateTime scheduledFireTime;
-		private NullableDateTime prevFireTime;
-		private NullableDateTime nextFireTime;
-		private long jobRunTime = - 1;
-		private object result;
-
-		private IDictionary data = new Hashtable();
-
-		/// <summary> <p>
-		/// Create a JobExcecutionContext with the given context data.
-		/// </p>
-		/// </summary>
-		public JobExecutionContext(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
-		{
-			this.scheduler = scheduler;
-			trigger = firedBundle.Trigger;
-			calendar = firedBundle.Calendar;
-			jobDetail = firedBundle.JobDetail;
-			this.job = job;
-			recovering = firedBundle.Recovering;
-			fireTime = firedBundle.FireTime;
-			scheduledFireTime = firedBundle.ScheduledFireTime;
-			prevFireTime = firedBundle.PrevFireTime;
-			nextFireTime = firedBundle.NextFireTime;
-
-			jobDataMap = new JobDataMap();
-			jobDataMap.PutAll(jobDetail.JobDataMap);
-			jobDataMap.PutAll(trigger.JobDataMap);
-
-			jobDataMap.Mutable = false;
-			trigger.JobDataMap.Mutable = false;
-		}
 
 		/*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

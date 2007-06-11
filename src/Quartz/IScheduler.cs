@@ -29,89 +29,8 @@ using Quartz.Spi;
 namespace Quartz
 {	
 	/// <summary>
-	/// This is the main interface of a Quartz Scheduler.
-	/// 
-	/// <p>
-	/// A <see cref="IScheduler" /> maintains a registery of <see cref="JobDetail" />
-	/// s and <see cref="Trigger" />s. Once registered, the <see cref="IScheduler" />
-	/// is responible for executing <see cref="IJob" /> s when their associated
-	/// <see cref="Trigger" /> s fire (when their scheduled time arrives).
-	/// </p>
-	/// 
-	/// <p>
-	/// <see cref="IScheduler" /> instances are produced by a <see cref="ISchedulerFactory" />.
-	/// A scheduler that has already been created/initialized can be found and used
-	/// through the same factory that produced it. After a <see cref="IScheduler" />
-	/// has been created, it is in "stand-by" mode, and must have its 
-	/// <see cref="IScheduler.Start" /> method called before it will fire any <see cref="IJob" />s.
-	/// </p>
-	/// 
-	/// <p>
-	/// <see cref="IJob" /> s are to be created by the 'client program', by defining
-	/// a class that implements the <see cref="IJob" />
-	/// interface. <see cref="JobDetail" /> objects are then created (also
-	/// by the client) to define a individual instances of the <see cref="IJob" />.
-	/// <see cref="JobDetail" /> instances can then be registered with the <see cref="IScheduler" />
-	/// via the <see cref="IScheduler.ScheduleJob(JobDetail, Trigger)" /> or 
-	/// <see cref="IScheduler.AddJob(JobDetail, bool)" />  method.
-	/// </p>
-	/// 
-	/// <p>
-	/// <see cref="Trigger" /> s can then be defined to fire individual <see cref="IJob" />
-	/// instances based on given schedules. <see cref="SimpleTrigger" /> s are most
-	/// useful for one-time firings, or firing at an exact moment in time, with N
-	/// repeats with a given delay between them. <see cref="CronTrigger" /> s allow
-	/// scheduling based on time of day, day of week, day of month, and month of
-	/// year.
-	/// </p>
-	/// 
-	/// <p>
-	/// <see cref="IJob" /> s and <see cref="Trigger" /> s have a name and group
-	/// associated with them, which should uniquely identify them within a single
-	/// <see cref="IScheduler" />. The 'group' feature may be useful for
-	/// creating logical groupings or categorizations of <see cref="IJob" />s and
-	/// <see cref="Trigger" />s. If you don't have need for assigning a group to a
-	/// given <see cref="IJob" />s of <see cref="Trigger" />s, then you can use the
-	/// <see cref="DEFAULT_GROUP" /> constant defined on this interface.
-	/// </p>
-	/// 
-	/// <p>
-	/// Stored <see cref="IJob" /> s can also be 'manually' triggered through the use
-	/// of the <see cref="IScheduler.TriggerJob(string, string)" /> function.
-	/// </p>
-	/// 
-	/// <p>
-	/// Client programs may also be interested in the 'listener' interfaces that are
-	/// available from Quartz. The <see cref="IJobListener" /> interface
-	/// provides notifications of <see cref="IJob" /> executions. The <see cref="ITriggerListener" />
-	/// interface provides notifications of <see cref="Trigger" /> firings. The
-	/// <see cref="ISchedulerListener" /> interface provides notifications of
-	/// <see cref="IScheduler" /> events and errors.
-	/// </p>
-	/// 
-	/// <p>
-	/// The setup/configuration of a <see cref="IScheduler" /> instance is very
-	/// customizable. Please consult the documentation distributed with Quartz.
-	/// </p>
-	/// 
+	/// Scheduler constants.
 	/// </summary>
-	/// <seealso cref="IJob">
-	/// </seealso>
-	/// <seealso cref="JobDetail">
-	/// </seealso>
-	/// <seealso cref="Trigger">
-	/// </seealso>
-	/// <seealso cref="IJobListener">
-	/// </seealso>
-	/// <seealso cref="ITriggerListener">
-	/// </seealso>
-	/// <seealso cref="ISchedulerListener">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
-	/// <author>  Sharada Jambula
-	/// </author>
 	public struct Scheduler_Fields
 	{
 		/// <summary> <p>
@@ -146,9 +65,82 @@ namespace Quartz
 		public static readonly string DEFAULT_FAIL_OVER_GROUP = "FAILED_OVER_JOBS";
 	}
 
-	/// <summary>
-	/// The scheduler interface.
-	/// </summary>
+    /// <summary>
+    /// This is the main interface of a Quartz Scheduler.
+    /// </summary>
+    /// <remarks>
+    /// <p>
+    /// A <see cref="IScheduler" /> maintains a registery of <see cref="JobDetail" />
+    /// s and <see cref="Trigger" />s. Once registered, the <see cref="IScheduler" />
+    /// is responible for executing <see cref="IJob" /> s when their associated
+    /// <see cref="Trigger" /> s fire (when their scheduled time arrives).
+    /// </p>
+    /// 
+    /// <p>
+    /// <see cref="IScheduler" /> instances are produced by a <see cref="ISchedulerFactory" />.
+    /// A scheduler that has already been created/initialized can be found and used
+    /// through the same factory that produced it. After a <see cref="IScheduler" />
+    /// has been created, it is in "stand-by" mode, and must have its 
+    /// <see cref="IScheduler.Start" /> method called before it will fire any <see cref="IJob" />s.
+    /// </p>
+    /// 
+    /// <p>
+    /// <see cref="IJob" /> s are to be created by the 'client program', by defining
+    /// a class that implements the <see cref="IJob" />
+    /// interface. <see cref="JobDetail" /> objects are then created (also
+    /// by the client) to define a individual instances of the <see cref="IJob" />.
+    /// <see cref="JobDetail" /> instances can then be registered with the <see cref="IScheduler" />
+    /// via the <see cref="IScheduler.ScheduleJob(JobDetail, Trigger)" /> or 
+    /// <see cref="IScheduler.AddJob(JobDetail, bool)" />  method.
+    /// </p>
+    /// 
+    /// <p>
+    /// <see cref="Trigger" /> s can then be defined to fire individual <see cref="IJob" />
+    /// instances based on given schedules. <see cref="SimpleTrigger" /> s are most
+    /// useful for one-time firings, or firing at an exact moment in time, with N
+    /// repeats with a given delay between them. <see cref="CronTrigger" /> s allow
+    /// scheduling based on time of day, day of week, day of month, and month of
+    /// year.
+    /// </p>
+    /// 
+    /// <p>
+    /// <see cref="IJob" /> s and <see cref="Trigger" /> s have a name and group
+    /// associated with them, which should uniquely identify them within a single
+    /// <see cref="IScheduler" />. The 'group' feature may be useful for
+    /// creating logical groupings or categorizations of <see cref="IJob" />s and
+    /// <see cref="Trigger" />s. If you don't have need for assigning a group to a
+    /// given <see cref="IJob" />s of <see cref="Trigger" />s, then you can use the
+    /// <see cref="Scheduler_Fields.DEFAULT_GROUP" /> constant defined on this interface.
+    /// </p>
+    /// 
+    /// <p>
+    /// Stored <see cref="IJob" /> s can also be 'manually' triggered through the use
+    /// of the <see cref="IScheduler.TriggerJob(string, string)" /> function.
+    /// </p>
+    /// 
+    /// <p>
+    /// Client programs may also be interested in the 'listener' interfaces that are
+    /// available from Quartz. The <see cref="IJobListener" /> interface
+    /// provides notifications of <see cref="IJob" /> executions. The <see cref="ITriggerListener" />
+    /// interface provides notifications of <see cref="Trigger" /> firings. The
+    /// <see cref="ISchedulerListener" /> interface provides notifications of
+    /// <see cref="IScheduler" /> events and errors.
+    /// </p>
+    /// 
+    /// <p>
+    /// The setup/configuration of a <see cref="IScheduler" /> instance is very
+    /// customizable. Please consult the documentation distributed with Quartz.
+    /// </p>
+    /// 
+    /// </remarks>
+    /// <seealso cref="IJob" />
+    /// <seealso cref="JobDetail" />
+    /// <seealso cref="Trigger" />
+    /// <seealso cref="IJobListener" />
+    /// <seealso cref="ITriggerListener" />
+    /// <seealso cref="ISchedulerListener" />
+    /// <author>James House</author>
+    /// <author>Sharada Jambula</author>
 	public interface IScheduler
 	{
 		/// <summary> 

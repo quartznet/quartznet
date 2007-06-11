@@ -24,11 +24,11 @@ namespace Quartz
 {
 	/// <summary> 
 	/// Base class for exceptions thrown by the Quartz <see cref="IScheduler" />.
-	/// <p>
-	/// <see cref="SchedulerException" /> s may contain a reference to another
-	/// <see cref="Exception" />, which was the underlying cause of the <see cref="SchedulerException" />.
-	/// </p>
 	/// </summary>
+	/// <remarks>
+	/// SchedulerExceptions may contain a reference to another
+	/// <see cref="Exception" />, which was the underlying cause of the SchedulerException.
+    /// </remarks>
 	/// <author>James House</author>
 	[Serializable]
 	public class SchedulerException : ApplicationException

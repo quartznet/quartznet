@@ -23,17 +23,18 @@ using System.Collections;
 using System.Runtime.Serialization;
 
 using Quartz.Collection;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz
 {
 	/// <summary>
 	/// Holds state information for <see cref="IJob" /> instances.
-	/// <p>
+	/// </summary>
+	/// <remarks>
 	/// <see cref="JobDataMap" /> instances are stored once when the <see cref="IJob" />
 	/// is added to a scheduler. They are also re-persisted after every execution of
-	/// <see cref="StatefulJob" /> instances.
-	/// </p>
+	/// <see cref="IStatefulJob" /> instances.
 	/// <p>
 	/// <see cref="JobDataMap" /> instances can also be stored with a 
 	/// <see cref="Trigger" />.  This can be useful in the case where you have a Job
@@ -47,26 +48,24 @@ namespace Quartz
 	/// of merging the contents of the trigger's JobDataMap (if any) over the
 	/// Job's JobDataMap (if any).  
 	/// </p>
-	/// </summary>
+    /// </remarks>
 	/// <seealso cref="IJob" />
 	/// <seealso cref="IStatefulJob" />
 	/// <seealso cref="Trigger" />
 	/// <seealso cref="JobExecutionContext" />
-	/// 
 	/// <author>James House</author>
 	[Serializable]
 	public class JobDataMap : DirtyFlagMap
 	{
 		/// <summary> 
-		/// Tell the <see cref="JobDataMap" /> that it should allow non- <see cref="Serializable" />
-		/// data.
-		/// <p>
-		/// If the <see cref="JobDataMap" /> does contain non- <see cref="Serializable" />
+		/// Tell the <see cref="JobDataMap" /> that it should allow non-serializable data.
+        /// </summary>
+        /// <remarks>
+		/// If the <see cref="JobDataMap" /> does contain non-Serializable
 		/// objects, and it belongs to a non-volatile <see cref="IJob" /> that is
 		/// stored in a <see cref="IJobStore" /> that supports persistence, then
 		/// those elements will be nulled-out during persistence.
-		/// </p>
-		/// </summary>
+        /// </remarks>
 		public virtual bool AllowsTransientData
 		{
 			get { return allowsTransientData; }
@@ -152,9 +151,9 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the name-value pairs in the given <see cref="Map" /> to the <see cref="JobDataMap" />.
+		/// Adds the name-value pairs in the given <see cref="IDictionary" /> to the <see cref="JobDataMap" />.
 		/// <p>
-		/// All keys must be <see cref="String" />s, and all values must be <see cref="Serializable" />.
+		/// All keys must be <see cref="String" />s, and all values must be serializable.
 		/// </p>
 		/// </summary>
 		public override void PutAll(IDictionary map)
@@ -166,7 +165,7 @@ namespace Quartz
 				object val = map[key];
 
 				Put(key, val);
-				// will throw IllegalArgumentException if value not serilizable
+				// will throw ArgumentException if value not serilizable
 			}
 		}
 
@@ -207,7 +206,7 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Adds the given <see cref="boolean" /> value to the <see cref="IJob" />'s
+		/// Adds the given <see cref="bool" /> value to the <see cref="IJob" />'s
 		/// data map.
 		/// </summary>
 		public virtual void Put(string key, bool value)
@@ -234,7 +233,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <see cref="boolean" /> value as a string version to the
+		/// Adds the given <see cref="bool" /> value as a string version to the
 		/// <see cref="IJob" />'s data map.
 		/// </summary>
 		public virtual void PutAsString(string key, bool value)
@@ -298,7 +297,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Adds the given <see cref="Serializable" /> object value to the <see cref="JobDataMap" />.
+		/// Adds the given serializable object value to the <see cref="JobDataMap" />.
 		/// </summary>
 		public override object Put(object key, object value)
 		{
@@ -378,7 +377,7 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Retrieve the identified <see cref="boolean" /> value from the <see cref="JobDataMap" />.
+		/// Retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual bool GetBoolean(string key)
 		{
@@ -466,7 +465,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <see cref="boolean" /> value from the <see cref="JobDataMap" />.
+		/// Retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual bool GetBooleanValueFromString(string key)
 		{
@@ -476,7 +475,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <see cref="boolean" /> value from the 
+		/// Retrieve the identified <see cref="bool" /> value from the 
 		/// <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual bool GetBooleanValue(string key)
@@ -575,7 +574,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Retrieve the identified <see cref="Float" /> value from the <see cref="JobDataMap" />.
+		/// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
 		/// </summary>
 		public virtual Single GetFloatFromString(string key)
 		{

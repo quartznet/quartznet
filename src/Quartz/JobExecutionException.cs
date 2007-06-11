@@ -28,13 +28,11 @@ namespace Quartz
 	/// occured while executing, and whether or not the <see cref="IJob" /> requests
 	/// to be re-fired immediately (using the same <see cref="JobExecutionContext" />,
 	/// or whether it wants to be unscheduled.
-	/// 
-	/// <p>
+    /// </summary>
+	/// <remarks>
 	/// Note that if the flag for 'refire immediately' is set, the flags for
 	/// unscheduling the Job are ignored.
-	/// </p>
-	/// 
-	/// </summary>
+	/// </remarks>
 	/// <seealso cref="IJob" />
 	/// <seealso cref="JobExecutionContext" />
 	/// <seealso cref="SchedulerException" />

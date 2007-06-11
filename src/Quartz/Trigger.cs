@@ -23,12 +23,16 @@ using System.Collections;
 
 using Nullables;
 
+using Quartz.Spi;
+
 namespace Quartz
 {
 	/// <summary>
-	/// The base abstract class to be extended by all <see cref="Trigger" />s.
+	/// The base abstract class to be extended by all triggers.
+	/// </summary>
+	/// <remarks>
 	/// <p>
-	/// <see cref="Triggers" /> s have a name and group associated with them, which
+	/// <see cref="Trigger" />s have a name and group associated with them, which
 	/// should uniquely identify them within a single <see cref="IScheduler" />.
 	/// </p>
 	/// 
@@ -42,7 +46,7 @@ namespace Quartz
 	/// Triggers can 'send' parameters/data to <see cref="IJob" />s by placing contents
 	/// into the <see cref="JobDataMap" /> on the <see cref="Trigger" />.
 	/// </p>
-	/// </summary>
+    /// </remarks>
 	/// <seealso cref="SimpleTrigger" />
     /// <seealso cref="CronTrigger" />
     /// <seealso cref="NthIncludedDayTrigger" />
@@ -71,7 +75,7 @@ namespace Quartz
 
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that the <see cref="Trigger" />
-        /// should be put in the <see cref="COMPLETE" /> state.
+        /// should be put in the <see cref="STATE_COMPLETE" /> state.
         /// </summary>
         public const int INSTRUCTION_SET_TRIGGER_COMPLETE = 2;
 
@@ -84,30 +88,30 @@ namespace Quartz
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that all <see cref="Trigger" />
         /// s referencing the same <see cref="JobDetail" /> as
-        /// this one should be put in the <see cref="COMPLETE" /> state.
+        /// this one should be put in the <see cref="STATE_COMPLETE" /> state.
         /// </summary>
         public const int INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE = 4;
 
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that all <see cref="Trigger" />
         /// s referencing the same <see cref="JobDetail" /> as
-        /// this one should be put in the <see cref="ERROR" /> state.
+        /// this one should be put in the <see cref="STATE_ERROR" /> state.
         /// </summary>
         public const int INSTRUCTION_SET_TRIGGER_ERROR = 5;
 
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that the <see cref="Trigger" />
-        /// should be put in the <see cref="ERROR" /> state.
+        /// should be put in the <see cref="STATE_ERROR" /> state.
         /// </summary>
         public const int INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR = 6;
 
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-        /// situation, the <see cref="updateAfterMisfire()" /> method will be called
+        /// situation, the <see cref="UpdateAfterMisfire" /> method will be called
         /// on the <see cref="Trigger" /> to determine the mis-fire instruction.
         /// <p>
         /// In order to see if this instruction fits your needs, you should look at
-        /// the documentation for the <see cref="getSmartMisfirePolicy()" /> method
+        /// the documentation for the GetSmartMisfirePolicy method
         /// on the particular <see cref="Trigger" /> implementation you are using.
         /// </p>
         /// </summary>
@@ -153,7 +157,7 @@ namespace Quartz
         /// Indicates that the <see cref="Trigger" /> is in the "blocked" state.
         /// <p>
         /// A <see cref="Trigger" /> arrives at the blocked state when the job that
-        /// it is associated with is a <see cref="StatefulJob" /> and it is 
+        /// it is associated with is a <see cref="IStatefulJob" /> and it is 
         /// currently executing.
         /// </p>
         /// </summary>
@@ -176,7 +180,7 @@ namespace Quartz
         private string calendarName = null;
         private string fireInstanceId = null;
         private int misfireInstruction = MISFIRE_INSTRUCTION_SMART_POLICY;
-        private ArrayList triggerListeners = new ArrayList();
+        private readonly ArrayList triggerListeners = new ArrayList();
         private NullableDateTime endTime;
         private DateTime startTime;
 
@@ -325,7 +329,7 @@ namespace Quartz
 		/// <see cref="Trigger" />.
 		/// <p>
 		/// Changes made to this map during job execution are not re-persisted, and
-		/// in fact typically result in an <see cref="IllegalStateException" />.
+		/// in fact typically result in an illegal state.
 		/// </p>
 		/// </summary>
 		public virtual JobDataMap JobDataMap
@@ -377,7 +381,7 @@ namespace Quartz
 		/// Get or set the instruction the <see cref="IScheduler" /> should be given for
 		/// handling misfire situations for this <see cref="Trigger" />- the
 		/// concrete <see cref="Trigger" /> type that you are using will have
-		/// defined a set of additional <see cref="MISFIRE_INSTRUCTION_XXX" />
+		/// defined a set of additional MISFIRE_INSTRUCTION_XXX
 		/// constants that may be passed to this method.
 		/// <p>
 		/// If not explicitly set, the default value is <see cref="MISFIRE_INSTRUCTION_SMART_POLICY" />.
@@ -581,14 +585,14 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// <p>
-		/// After this method has been called, <see cref="getNextFireTime()" />
+		/// After this method has been called, <see cref="GetNextFireTime()" />
 		/// should return a valid answer.
 		/// </p>
 		/// 
 		/// </summary>
 		/// <returns> 
 		/// The first time at which the <see cref="Trigger" /> will be fired
-		/// by the scheduler, which is also the same value <see cref="getNextFireTime()" />
+		/// by the scheduler, which is also the same value <see cref="GetNextFireTime()" />
 		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
 		public abstract NullableDateTime ComputeFirstFireTime(ICalendar cal);
@@ -602,7 +606,7 @@ namespace Quartz
         /// </p>
         /// </summary>
         /// <param name="context">is the <see cref="JobExecutionContext" /> that was used by the
-        /// <see cref="IJob" />'s<see cref="Execute(xx)" /> method.</param>
+        /// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.</param>
         /// <param name="result">is the <see cref="JobExecutionException" /> thrown by the
         /// <see cref="IJob" />, if any (may be null).</param>
         /// <returns>
@@ -620,7 +624,7 @@ namespace Quartz
 		/// it is possible for this <see cref="Trigger" /> to fire again.
 		/// <p>
 		/// If the returned value is <see langword="false" /> then the <see cref="IScheduler" />
-		/// may remove the <see cref="Trigger" /> from the <see cref="org.quartz.spi.JobStore" />.
+		/// may remove the <see cref="Trigger" /> from the <see cref="IJobStore" />.
 		/// </p>
 		/// </summary>
 		public abstract bool MayFireAgain();
@@ -713,7 +717,7 @@ namespace Quartz
 		{
 			return
 				string.Format(
-					"Trigger '{0}':  triggerClass: '{1} isVolatile: {2} calendar: '{3}' misfireInstruction: {4} nextFireTime: {5",
+					"Trigger '{0}':  triggerClass: '{1} isVolatile: {2} calendar: '{3}' misfireInstruction: {4} nextFireTime: {5}",
 					FullName, GetType().FullName, Volatile, CalendarName, MisfireInstruction, GetNextFireTime());
 		}
 

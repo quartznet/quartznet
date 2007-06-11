@@ -22,30 +22,25 @@ using System;
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// An exception that is thrown to indicate that there is a misconfiguration of
-	/// the <see cref="SchedulerFactory" />- or one of the components it
+	/// the <see cref="ISchedulerFactory" />- or one of the components it
 	/// configures.
-	/// </p>
-	/// 
 	/// </summary>
-	/// <author>  James House
-	/// </author>
+	/// <author>James House</author>
 	[Serializable]
 	public class SchedulerConfigException : SchedulerException
 	{
-		/// <summary> <p>
+		/// <summary>
 		/// Create a <see cref="JobPersistenceException" /> with the given message.
-		/// </p>
 		/// </summary>
 		public SchedulerConfigException(string msg) : base(msg, ERR_BAD_CONFIGURATION)
 		{
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Create a <see cref="JobPersistenceException" /> with the given message
 		/// and cause.
-		/// </p>
 		/// </summary>
 		public SchedulerConfigException(string msg, Exception cause) : base(msg, cause)
 		{

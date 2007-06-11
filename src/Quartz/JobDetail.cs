@@ -21,26 +21,26 @@
 using System;
 using System.Collections;
 
+using Quartz.Spi;
+
 namespace Quartz
 {
     /// <summary>
     /// Conveys the detail properties of a given <see cref="IJob" /> instance.
-    /// <p>
+    /// </summary>
+    /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
     /// instead allows you to define an instance of one, through the use of a <see cref="JobDetail" />.
-    /// </p>
-    /// 
     /// <p>
     /// <see cref="IJob" />s have a name and group associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
     /// </p>
-    /// 
     /// <p>
     /// <see cref="Trigger" /> s are the 'mechanism' by which <see cref="IJob" /> s
     /// are scheduled. Many <see cref="Trigger" /> s can point to the same <see cref="IJob" />,
     /// but a single <see cref="Trigger" /> can only point to one <see cref="IJob" />.
     /// </p>
-    /// </summary>
+    /// </remarks>
     /// <seealso cref="IJob" />
     /// <seealso cref="IStatefulJob"/>
     /// <seealso cref="JobDataMap"/>
@@ -213,6 +213,7 @@ namespace Quartz
         public bool RequestsRecovery
         {
             set { shouldRecover = value; }
+            get { return shouldRecover; }
         }
 
         /// <summary>
@@ -348,26 +349,10 @@ namespace Quartz
             }
         }
 
-        /// <summary> <p>
-        /// Instructs the <see cref="IScheduler" /> whether or not the <see cref="IJob" />
-        /// should be re-executed if a 'recovery' or 'fail-over' situation is
-        /// encountered.
-        /// </p>
-        /// 
-        /// <p>
-        /// If not explicitly set, the default value is <see langword="false" />.
-        /// </p>
-        /// 
-        /// </summary>
-        /// <seealso cref="JobExecutionContext.Recovering">
-        /// </seealso>
-        public virtual bool requestsRecovery()
-        {
-            return shouldRecover;
-        }
+
 
         /// <summary>
-        /// Add the specified name of a <see cref="JobListener" /> to the
+        /// Add the specified name of a <see cref="IJobListener" /> to the
         /// end of the <see cref="IJob" />'s list of listeners.
         /// </summary>
         public virtual void AddJobListener(string listenerName)
@@ -376,7 +361,7 @@ namespace Quartz
         }
 
         /// <summary> <p>
-        /// Remove the specified name of a <see cref="JobListener" /> from
+        /// Remove the specified name of a <see cref="IJobListener" /> from
         /// the <see cref="IJob" />'s list of listeners.
         /// </p>
         /// 
@@ -404,9 +389,8 @@ namespace Quartz
         {
             return
                 string.Format(
-                    "JobDetail '{0}':  jobType: '{1} isStateful: {2} isVolatile: {3} isDurable: {4} requestsRecovers: {5",
-                    FullName, ((JobType == null) ? null : JobType.FullName), Stateful, Volatile, Durable,
-                    requestsRecovery());
+                    "JobDetail '{0}':  jobType: '{1} isStateful: {2} isVolatile: {3} isDurable: {4} requestsRecovers: {5}",
+                    FullName, ((JobType == null) ? null : JobType.FullName), Stateful, Volatile, Durable, RequestsRecovery);
         }
 
         /// <summary>

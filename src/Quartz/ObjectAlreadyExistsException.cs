@@ -25,7 +25,7 @@ namespace Quartz
 	/// <summary>
 	/// An exception that is thrown to indicate that an attempt to store a new
 	/// object (i.e. <see cref="JobDetail" />,<see cref="Trigger" />
-	/// or <see cref="Calendar" />) in a <see cref="IScheduler" />
+	/// or <see cref="ICalendar" />) in a <see cref="IScheduler" />
 	/// failed, because one with the same name and group already exists.
 	/// </summary>
 	/// <author>James House</author>

@@ -24,7 +24,7 @@ namespace Quartz
 {
 	/// <summary>
 	/// An exception that is thrown to indicate that a call to 
-	/// InterruptableJob.interrupt() failed without interrupting the Job.
+	/// <see cref="IInterruptableJob.Interrupt" /> failed without interrupting the Job.
 	/// </summary>
 	/// <seealso cref="IInterruptableJob" />
 	/// <author>James House</author>

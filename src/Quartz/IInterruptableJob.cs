@@ -28,7 +28,8 @@ namespace Quartz
 	/// mechanism for having their execution interrupted.  It is NOT a requirment
 	/// for jobs to implement this interface - in fact, for most people, none of
 	/// their jobs will.
-	/// 
+	/// </summary>
+	/// <remarks>
 	/// <p>
 	/// The means of actually interrupting the Job must be implemented within the
 	/// <see cref="IJob" /> itself (the <see cref="Interrupt" /> method of this 
@@ -58,7 +59,7 @@ namespace Quartz
 	/// reference to the Thread when the Execute(..) method exits (preferrably in a
 	/// <see langword="finally" /> block.
 	/// </p>
-	/// </summary>
+    /// </remarks>
 	/// <seealso cref="IJob" />
 	/// <seealso cref="IStatefulJob" />
 	/// <author>James House</author>
