@@ -1,0 +1,121 @@
+/* 
+ * Copyright 2004-2006 OpenSymphony 
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+ * use this file except in compliance with the License. You may obtain a copy 
+ * of the License at 
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0 
+ *   
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+ * License for the specific language governing permissions and limitations 
+ * under the License.
+ */
+using System;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+
+using NUnit.Framework;
+
+namespace Quartz.Tests.Unit
+{
+	/// <summary>
+	/// Base class for unit tests that wish to verify 
+	/// backwards compatibily of serialization with earlier versions
+	/// of Quartz.
+	/// </summary>
+	[TestFixture]
+	public abstract class SerializationTestSupport
+	{
+		/// <summary>
+		/// Get the object to serialize when generating serialized file for future
+		/// tests, and against which to validate deserialized object.
+		/// </summary>
+		/// <returns></returns>
+		protected abstract object GetTargetObject();
+
+
+		/// <summary>
+		/// Get the Quartz versions for which we should verify
+		/// serialization backwards compatibility.
+		/// </summary>
+		/// <returns></returns>
+		protected abstract string[] GetVersions();
+
+		/// <summary>
+		/// Verify that the target object and the object we just deserialized 
+		/// match.
+		/// </summary>
+		/// <param name="target"></param>
+		/// <param name="deserialized"></param>
+		protected abstract void VerifyMatch(object target, object deserialized);
+
+
+		/// <summary>
+		/// Test that we can successfully deserialize our target
+		/// class for all of the given Quartz versions. 
+		/// </summary>
+		public void TestSerialization()
+		{
+			object targetObject = GetTargetObject();
+
+			for (int i = 0; i < GetVersions().Length; i++)
+			{
+				string version = GetVersions()[i];
+
+				VerifyMatch(targetObject, Deserialize(version, targetObject.GetType()));
+			}
+		}
+
+		/// <summary>
+		///  Deserialize the target object from disk.
+		/// </summary>
+		/// <param name="version"></param>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		protected object Deserialize(string version, Type type)
+		{
+			// should load from assembly
+			using (Stream input = null)
+			{
+				BinaryFormatter bf = new BinaryFormatter();
+				return bf.Deserialize(input);
+			}
+		}
+
+		/// <summary>
+		/// Use this method in the future to generate other versions of
+		/// of the serialized object file.
+		/// </summary>
+		/// <param name="version"></param>
+		public void WriteJobDataFile(string version)
+		{
+			object obj = GetTargetObject();
+
+			string fileName = GetSerializedFileName(version, obj.GetType());
+			using (FileStream fs = new FileStream(fileName, FileMode.Create))
+			{
+				BinaryFormatter bf = new BinaryFormatter();
+				bf.Serialize(fs, obj);
+			}
+		}
+
+
+		/// <summary>
+		/// Generate the expected name of the serialized object file.
+		/// </summary>
+		/// <param name="version"></param>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		private string GetSerializedFileName(string version, Type type)
+		{
+			string className = type.Name;
+			int index = className.LastIndexOf(".");
+			index = (index < 0) ? 0 : index + 1;
+
+			return className.Substring(index) + "-" + version + ".ser";
+		}
+	}
+}
