@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.2005", "src\Quartz\Q
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.2005", "src\Quartz.Examples\Quartz.Examples.2005.csproj", "{70A37974-17DE-474C-8A1C-19637622E75F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.2005", "src\Quartz.Tests\Quartz.Tests.2005.csproj", "{5587AF00-160F-4EC1-98A2-BEABA411256C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,6 +20,10 @@ Global
 		{70A37974-17DE-474C-8A1C-19637622E75F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{70A37974-17DE-474C-8A1C-19637622E75F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{70A37974-17DE-474C-8A1C-19637622E75F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
