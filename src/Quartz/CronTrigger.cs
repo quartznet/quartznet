@@ -23,14 +23,15 @@
 using System;
 using Nullables;
 
+using Quartz.Spi;
+
 namespace Quartz
 {
 	/// <summary>
-	/// <p>
-	/// A concrete <code>{@link Trigger}</code> that is used to fire a <code>{@link org.quartz.JobDetail}</code>
+	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetail" />
 	/// at given moments in time, defined with Unix 'cron-like' definitions.
-	/// </p>
-	/// 
+	/// </summary>
+	/// <remarks>
 	/// <p>
 	/// For those unfamiliar with "cron", this means being able to create a firing
 	/// schedule such as: "At 8:00am every Monday through Friday" or "At 1:30am
@@ -51,101 +52,101 @@ namespace Quartz
 	/// <th align="left">Meaning</th>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 0 12 * * ?"</code></td>
+	/// <td align="left">"0 0 12 * * ?"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 12pm (noon) every day</code></td>
+	/// <td align="left">Fire at 12pm (noon) every day" /></td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 ? * *"</code></td>
+	/// <td align="left">"0 15 10 ? * *"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am every day</code></td>
+	/// <td align="left">Fire at 10:15am every day" /></td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 * * ?"</code></td>
+	/// <td align="left">"0 15 10 * * ?"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am every day</code></td>
+	/// <td align="left">Fire at 10:15am every day" /></td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 * * ? *"</code></td>
+	/// <td align="left">"0 15 10 * * ? *"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am every day</code></td>
+	/// <td align="left">Fire at 10:15am every day" /></td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 * * ? 2005"</code></td>
+	/// <td align="left">"0 15 10 * * ? 2005"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am every day during the year 2005</code>
+	/// <td align="left">Fire at 10:15am every day during the year 2005" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 * 14 * * ?"</code></td>
+	/// <td align="left">"0 * 14 * * ?"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire every minute starting at 2pm and ending at 2:59pm, every day</code>
+	/// <td align="left">Fire every minute starting at 2pm and ending at 2:59pm, every day" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 0/5 14 * * ?"</code></td>
+	/// <td align="left">"0 0/5 14 * * ?"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire every 5 minutes starting at 2pm and ending at 2:55pm, every day</code>
+	/// <td align="left">Fire every 5 minutes starting at 2pm and ending at 2:55pm, every day" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 0/5 14,18 * * ?"</code></td>
+	/// <td align="left">"0 0/5 14,18 * * ?"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire every 5 minutes starting at 2pm and ending at 2:55pm, AND fire every 5 minutes starting at 6pm and ending at 6:55pm, every day</code>
+	/// <td align="left">Fire every 5 minutes starting at 2pm and ending at 2:55pm, AND fire every 5 minutes starting at 6pm and ending at 6:55pm, every day" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 0-5 14 * * ?"</code></td>
+	/// <td align="left">"0 0-5 14 * * ?"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire every minute starting at 2pm and ending at 2:05pm, every day</code>
+	/// <td align="left">Fire every minute starting at 2pm and ending at 2:05pm, every day" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 10,44 14 ? 3 WED"</code></td>
+	/// <td align="left">"0 10,44 14 ? 3 WED"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 2:10pm and at 2:44pm every Wednesday in the month of March.</code>
+	/// <td align="left">Fire at 2:10pm and at 2:44pm every Wednesday in the month of March." />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 ? * MON-FRI"</code></td>
+	/// <td align="left">"0 15 10 ? * MON-FRI"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am every Monday, Tuesday, Wednesday, Thursday and Friday</code>
+	/// <td align="left">Fire at 10:15am every Monday, Tuesday, Wednesday, Thursday and Friday" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 15 * ?"</code></td>
+	/// <td align="left">"0 15 10 15 * ?"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am on the 15th day of every month</code>
+	/// <td align="left">Fire at 10:15am on the 15th day of every month" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 L * ?"</code></td>
+	/// <td align="left">"0 15 10 L * ?"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am on the last day of every month</code>
+	/// <td align="left">Fire at 10:15am on the last day of every month" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 ? * 6L"</code></td>
+	/// <td align="left">"0 15 10 ? * 6L"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am on the last Friday of every month</code>
+	/// <td align="left">Fire at 10:15am on the last Friday of every month" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 ? * 6L"</code></td>
+	/// <td align="left">"0 15 10 ? * 6L"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am on the last Friday of every month</code>
+	/// <td align="left">Fire at 10:15am on the last Friday of every month" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 ? * 6L 2002-2005"</code></td>
+	/// <td align="left">"0 15 10 ? * 6L 2002-2005"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am on every last friday of every month during the years 2002, 2003, 2004 and 2005</code>
+	/// <td align="left">Fire at 10:15am on every last friday of every month during the years 2002, 2003, 2004 and 2005" />
 	/// </td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>"0 15 10 ? * 6#3"</code></td>
+	/// <td align="left">"0 15 10 ? * 6#3"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>Fire at 10:15am on the third Friday of every month</code>
+	/// <td align="left">Fire at 10:15am on the third Friday of every month" />
 	/// </td>
 	/// </tr>
 	/// </table>
@@ -167,34 +168,34 @@ namespace Quartz
 	/// time moves back or jumps forward.</li>
 	/// </ul>
 	/// </p>
-	/// 
+	/// </remarks>
 	/// <seealso cref="Trigger"/>
 	/// <seealso cref="SimpleTrigger"/>
 	/// <seealso cref="TriggerUtils"/>
 	/// <author>Sharada Jambula</author>
 	/// <author>James House</author>
 	/// <author>Contributions from Mads Henderson</author>
-	/// </summary>
 	public class CronTrigger : Trigger
 	{
 		private CronExpression cronEx = null;
 		private DateTime startTime = DateTime.MinValue;
+		private NullableDateTime endTime = null;
 		private NullableDateTime nextFireTime = null;
 		private NullableDateTime previousFireTime = null;
 		[NonSerialized] private TimeZone timeZone = null;
 
 		/// <summary>
-		/// Instructs the <code>{@link Scheduler}</code> that upon a mis-fire
-		/// situation, the <code>{@link CronTrigger}</code> wants to be fired now
-		/// by <code>Scheduler</code>.
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+		/// situation, the <see cref="CronTrigger" /> wants to be fired now
+		/// by <see cref="IScheduler" />.
 		/// </summary>
 		const int MISFIRE_INSTRUCTION_FIRE_ONCE_NOW = 1;
 
 		/// <summary>
-		/// Instructs the <code>{@link Scheduler}</code> that upon a mis-fire
-		/// situation, the <code>{@link CronTrigger}</code> wants to have it's
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+		/// situation, the <see cref="CronTrigger" /> wants to have it's
 		/// next-fire-time updated to the next time in the schedule after the
-		/// current time (taking into account any associated <code>{@link Calendar}</code>,
+		/// current time (taking into account any associated <see cref="ICalendar" />,
 		/// but it does not want to be fired now.
 		/// </summary>
 		const int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
@@ -202,7 +203,7 @@ namespace Quartz
 
 		/// <summary>
 		/// <p>
-		/// Create a <code>CronTrigger</code> with no settings.
+		/// Create a <see cref="CronTrigger" /> with no settings.
 		/// </p>
 		/// 
 		/// <p>
@@ -218,7 +219,7 @@ namespace Quartz
 
 		/// <summary>
 		/// <p>
-		/// Create a <code>CronTrigger</code> with the given name and group.
+		/// Create a <see cref="CronTrigger" /> with the given name and group.
 		/// </p>
 		/// 
 		/// <p>
@@ -237,7 +238,7 @@ namespace Quartz
 
 		/// <summary>
 		/// <p>
-		/// Create a <code>CronTrigger</code> with the given name, group and
+		/// Create a <see cref="CronTrigger" /> with the given name, group and
 		/// expression.
 		/// </p>
 		/// 
@@ -259,8 +260,8 @@ namespace Quartz
 
 		/// <summary>
 		/// <p>
-		/// Create a <code>CronTrigger</code> with the given name and group, and
-		/// associated with the identified <code>{@link org.quartz.JobDetail}</code>.
+		/// Create a <see cref="CronTrigger" /> with the given name and group, and
+		/// associated with the identified <see cref="JobDetail" />.
 		/// </p>
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
@@ -270,15 +271,15 @@ namespace Quartz
 		/// <param name="jobName">Name of the job.</param>
 		/// <param name="jobGroup">The job group.</param>
 		public CronTrigger(String name, string group, string jobName,
-		                   string jobGroup) : base(name, group, jobName, jobGroup)
+			string jobGroup) : base(name, group, jobName, jobGroup)
 		{
 			StartTime = DateTime.Now;
 			TimeZone = TimeZone.CurrentTimeZone;
 		}
 
 		/// <summary>
-		/// Create a <code>CronTrigger</code> with the given name and group,
-		/// associated with the identified <code>{@link org.quartz.JobDetail}</code>,
+		/// Create a <see cref="CronTrigger" /> with the given name and group,
+		/// associated with the identified <see cref="JobDetail" />,
 		/// and with the given "cron" expression.
 		/// <p>
 		/// The start-time will also be set to the current time, and the time zone
@@ -291,15 +292,15 @@ namespace Quartz
 		/// <param name="jobGroup">The job group.</param>
 		/// <param name="cronExpression">The cron expression.</param>
 		public CronTrigger(string name, string group, string jobName,
-		                   string jobGroup, string cronExpression)
+			string jobGroup, string cronExpression)
 			: this(name, group, jobName, jobGroup, DateTime.Now, null, cronExpression, TimeZone.CurrentTimeZone)
 		{
 		}
 
 		/// <summary>
-		/// Create a <code>CronTrigger</code> with the given name and group,
-		/// associated with the identified <code>{@link org.quartz.JobDetail}</code>,
-		/// and with the given "cron" expression resolved with respect to the <code>TimeZone</code>.
+		/// Create a <see cref="CronTrigger" /> with the given name and group,
+		/// associated with the identified <see cref="JobDetail" />,
+		/// and with the given "cron" expression resolved with respect to the <see cref="TimeZone" />.
 		/// </summary>
 		/// <param name="name">The name.</param>
 		/// <param name="group">The group.</param>
@@ -308,15 +309,15 @@ namespace Quartz
 		/// <param name="cronExpression">The cron expression.</param>
 		/// <param name="timeZone">The time zone.</param>
 		public CronTrigger(string name, string group, string jobName,
-		                   string jobGroup, string cronExpression, TimeZone timeZone)
+			string jobGroup, string cronExpression, TimeZone timeZone)
 			: this(name, group, jobName, jobGroup, DateTime.Now, null, cronExpression,
-			       timeZone)
+			timeZone)
 		{
 		}
 
 
 		/// <summary>
-		/// Create a <code>CronTrigger</code> that will occur at the given time,
+		/// Create a <see cref="CronTrigger" /> that will occur at the given time,
 		/// until the given end time.
 		/// <p>
 		/// If null, the start-time will also be set to the current time, the time
@@ -331,7 +332,7 @@ namespace Quartz
 		/// <param name="endTime">The end time.</param>
 		/// <param name="cronExpression">The cron expression.</param>
 		public CronTrigger(string name, string group, string jobName,
-		                   string jobGroup, DateTime startTime, NullableDateTime endTime, string cronExpression)
+			string jobGroup, DateTime startTime, NullableDateTime endTime, string cronExpression)
 			: base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
@@ -350,10 +351,10 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Create a <code>CronTrigger</code> with fire time dictated by the
-		/// <code>cronExpression</code> resolved with respect to the specified
-		/// <code>timeZone</code> occuring from the <code>startTime</code> until
-		/// the given <code>endTime</code>.
+		/// Create a <see cref="CronTrigger" /> with fire time dictated by the
+		/// <param name="cronExpression" /> resolved with respect to the specified
+		/// <param name="timeZone" /> occuring from the <see cref="startTime" /> until
+		/// the given <paran name="endTime" />.
 		/// </summary>
 		/// <param name="name">The name.</param>
 		/// <param name="group">The group.</param>
@@ -364,8 +365,8 @@ namespace Quartz
 		/// <param name="cronExpression">The cron expression.</param>
 		/// <param name="timeZone">The time zone.</param>
 		public CronTrigger(string name, string group, string jobName,
-		                   string jobGroup, DateTime startTime, NullableDateTime endTime,
-		                   string cronExpression, TimeZone timeZone) : base(name, group, jobName, jobGroup)
+			string jobGroup, DateTime startTime, NullableDateTime endTime,
+			string cronExpression, TimeZone timeZone) : base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
 
@@ -410,7 +411,7 @@ namespace Quartz
 				cronEx = new CronExpression(value);
 				cronEx.SetTimeZone(TimeZone);
 			}
-			get { return cronEx == null ? null : cronEx.getCronExpression(); }
+			get { return cronEx == null ? null : cronEx.CronExpressionString; }
 		}
 
 		/// <summary>
@@ -426,14 +427,61 @@ namespace Quartz
 			}
 		}
 
+		/// <summary>
+		/// Returns the date/time on which the trigger may begin firing. This
+		/// defines the initial boundary for trigger firings the trigger
+		/// will not fire prior to this date and time.
+		/// </summary>
+		/// <value></value>
+		public override DateTime StartTime
+		{
+			get
+			{
+				return startTime;
+			}
+			set
+			{
+				NullableDateTime eTime = EndTime;
+				if (eTime.HasValue && eTime.Value < value)
+				{
+					throw new ArgumentException("End time cannot be before start time");
+				}
+        
+				// round off millisecond...
+				DateTime dt = new DateTime(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second);
+				startTime = dt;
+			}
+		}
+
 
 		/// <summary>
-		/// 	<p>
-		/// Returns the next time at which the <code>Trigger</code> will fire. If
-		/// the trigger will not fire again, <code>null</code> will be returned.
-		/// The value returned is not guaranteed to be valid until after the <code>Trigger</code>
+		/// Get or sets the time at which the <c>CronTrigger</c> should quit
+		/// repeating - even if repeastCount isn't yet satisfied. 
+		/// </summary>
+		public override NullableDateTime EndTime
+		{
+			get
+			{
+				return endTime;
+			}
+			set
+			{
+				DateTime sTime = StartTime;
+				if (value.HasValue && sTime > value.Value)
+				{
+					throw new ArgumentException("End time cannot be before start time");
+				}
+
+				endTime = value;
+			}
+		}
+
+
+		/// <summary>
+		/// Returns the next time at which the <see cref="Trigger" /> will fire. If
+		/// the trigger will not fire again, <see langword="null" /> will be returned.
+		/// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
 		/// has been added to the scheduler.
-		/// </p>
 		/// </summary>
 		/// <returns></returns>
 		public override NullableDateTime GetNextFireTime()
@@ -442,8 +490,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the previous time at which the <code>Trigger</code> will fire.
-		/// If the trigger has not yet fired, <code>null</code> will be returned.
+		/// Returns the previous time at which the <see cref="Trigger" /> will fire.
+		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
 		/// <returns></returns>
 		public override NullableDateTime GetPreviousFireTime()
@@ -509,22 +557,22 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Returns the next time at which the <code>Trigger</code> will fire,
+		/// Returns the next time at which the <see cref="Trigger" /> will fire,
 		/// after the given time. If the trigger will not fire after the given time,
-		/// <code>null</code> will be returned.
+		/// <see langword="null" /> will be returned.
 		/// </summary>
 		/// <param name="afterTime"></param>
 		/// <returns></returns>
 		public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
 		{
-			if (afterTime == null)
+			if (!afterTime.HasValue)
 			{
 				afterTime = DateTime.Now;
 			}
 
 			if (StartTime > afterTime.Value)
 			{
-				afterTime = startTime.AddMilliseconds(1000L);
+				afterTime = startTime.AddSeconds(1);
 			}
 
 			NullableDateTime pot = GetTimeAfter(afterTime.Value);
@@ -537,7 +585,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the last time at which the <code>Trigger</code> will fire, if
+		/// Returns the last time at which the <see cref="Trigger" /> will fire, if
 		/// the Trigger will repeat indefinitely, null will be returned.
 		/// <p>
 		/// Note that the return time *may* be in the past.
@@ -569,11 +617,11 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Used by the <code>Scheduler</code> to determine whether or not
-		/// it is possible for this <code>Trigger</code> to fire again.
+		/// Used by the <see cref="IScheduler" /> to determine whether or not
+		/// it is possible for this <see cref="Trigger" /> to fire again.
 		/// <p>
-		/// If the returned value is <code>false</code> then the <code>Scheduler</code>
-		/// may remove the <code>Trigger</code> from the <code>JobStore</code>.
+		/// If the returned value is <see langword="false" /> then the <see cref="IScheduler" />
+		/// may remove the <see cref="Trigger" /> from the <see cref="IJobStore" />.
 		/// </p>
 		/// </summary>
 		/// <returns></returns>
@@ -609,8 +657,8 @@ namespace Quartz
 		/// To be implemented by the concrete classes that extend this class.
 		/// </p>
 		/// <p>
-		/// The implementation should update the <code>Trigger</code>'s state
-		/// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <code>Trigger</code>
+		/// The implementation should update the <see cref="Trigger" />'s state
+		/// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="Trigger" />
 		/// was created.
 		/// </p>
 		/// </summary>
@@ -648,7 +696,7 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// <p>
-		/// Equivalent to calling <code>willFireOn(cal, false)</code>.
+		/// Equivalent to calling <see cref="WillFireOn(DateTime, bool)" />.
 		/// </p>
 		/// </summary>
 		/// <param name="test">The date to compare.</param>
@@ -706,15 +754,15 @@ namespace Quartz
 
 		/// <summary>
 		/// <p>
-		/// Called after the <code>{@link Scheduler}</code> has executed the
-		/// <code>{@link org.quartz.JobDetail}</code> associated with the <code>Trigger</code>
+		/// Called after the <see cref="IScheduler" /> has executed the
+		/// <see cref="JobDetail" /> associated with the <see cref="Trigger" />
 		/// in order to get the final instruction code from the trigger.
 		/// </p>
 		/// </summary>
-		/// <param name="context">is the <code>JobExecutionContext</code> that was used by the
-		/// <code>Job</code>'s<code>Execute(xx)</code> method.</param>
-		/// <param name="result">is the <code>JobExecutionException</code> thrown by the
-		/// <code>Job</code>, if any (may be null).</param>
+		/// <param name="context">is the <see cref="JobExecutionContext" /> that was used by the
+		/// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
+		/// <param name="result">is the <see cref="JobExecutionException" /> thrown by the
+		/// <see cref="IJob" />, if any (may be null).</param>
 		/// <returns>
 		/// one of the Trigger.INSTRUCTION_XXX constants.
 		/// </returns>
@@ -750,9 +798,9 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Called when the <code>{@link Scheduler}</code> has decided to 'fire'
-		/// the trigger (Execute the associated <code>Job</code>), in order to
-		/// give the <code>Trigger</code> a chance to update itself for its next
+		/// Called when the <see cref="IScheduler" /> has decided to 'fire'
+		/// the trigger (Execute the associated <see cref="IJob" />), in order to
+		/// give the <see cref="Trigger" /> a chance to update itself for its next
 		/// triggering (if any).
 		/// </summary>
 		/// <param name="cal"></param>
@@ -801,26 +849,25 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Called by the scheduler at the time a <code>Trigger</code> is first
-		/// added to the scheduler, in order to have the <code>Trigger</code>
+		/// Called by the scheduler at the time a <see cref="Trigger" /> is first
+		/// added to the scheduler, in order to have the <see cref="Trigger" />
 		/// compute its first fire time, based on any associated calendar.
 		/// <p>
-		/// After this method has been called, <code>getNextFireTime()</code>
+		/// After this method has been called, <see cref="GetNextFireTime()" />
 		/// should return a valid answer.
 		/// </p>
 		/// </summary>
 		/// <param name="cal"></param>
 		/// <returns>
-		/// the first time at which the <code>Trigger</code> will be fired
-		/// by the scheduler, which is also the same value <code>getNextFireTime()</code>
-		/// will return (until after the first firing of the <code>Trigger</code>).
+		/// the first time at which the <see cref="Trigger" /> will be fired
+		/// by the scheduler, which is also the same value <see cref="GetNextFireTime()" />
+		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
 		public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
 		{
 			nextFireTime = GetFireTimeAfter(startTime.AddMilliseconds(1000));
 
-			while (nextFireTime != null && nextFireTime.HasValue && cal != null
-			       && !cal.IsTimeIncluded(nextFireTime.Value))
+			while (nextFireTime.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTime.Value))
 			{
 				nextFireTime = GetFireTimeAfter(nextFireTime);
 			}
@@ -834,7 +881,7 @@ namespace Quartz
 		/// <returns></returns>
 		public string GetExpressionSummary()
 		{
-			return cronEx == null ? null : cronEx.getExpressionSummary();
+			return cronEx == null ? null : cronEx.GetExpressionSummary();
 		}
 
 		////////////////////////////////////////////////////////////////////////////

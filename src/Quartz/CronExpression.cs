@@ -28,6 +28,8 @@ namespace Quartz
 	/// expressions provide the ability to specify complex time combinations such as
 	/// &quot;At 8:00am every Monday through Friday&quot; or &quot;At 1:30am every 
 	/// last Friday of the month&quot;. 
+	/// </summary>
+	/// <remarks>
 	/// <p>
 	/// Cron expressions are comprised of 6 required fields and one optional field
 	/// separated by white space. The fields respectively are described as follows:
@@ -41,53 +43,53 @@ namespace Quartz
 	/// <th align="left">Allowed Special Characters</th>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>Seconds</code></td>
+	/// <td align="left">Seconds</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>0-59</code></td>
+	/// <td align="left">0-59</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>, - /// /</code></td>
+	/// <td align="left">, - /// /</td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>Minutes</code></td>
+	/// <td align="left">Minutes</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>0-59</code></td>
+	/// <td align="left">0-59</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>, - /// /</code></td>
+	/// <td align="left">, - /// /</td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>Hours</code></td>
+	/// <td align="left">Hours</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>0-23</code></td>
+	/// <td align="left">0-23</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>, - /// /</code></td>
+	/// <td align="left">, - /// /</td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>Day-of-month</code></td>
+	/// <td align="left">Day-of-month</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>1-31</code></td>
+	/// <td align="left">1-31</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>, - /// ? / L W C</code></td>
+	/// <td align="left">, - /// ? / L W C</td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>Month</code></td>
+	/// <td align="left">Month</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>1-12 or JAN-DEC</code></td>
+	/// <td align="left">1-12 or JAN-DEC</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>, - /// /</code></td>
+	/// <td align="left">, - /// /</td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>Day-of-Week</code></td>
+	/// <td align="left">Day-of-Week</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>1-7 or SUN-SAT</code></td>
+	/// <td align="left">1-7 or SUN-SAT</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>, - /// ? / L #</code></td>
+	/// <td align="left">, - /// ? / L #</td>
 	/// </tr>
 	/// <tr>
-	/// <td align="left"><code>Year (Optional)</code></td>
+	/// <td align="left">Year (Optional)</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>empty, 1970-2099</code></td>
+	/// <td align="left">empty, 1970-2099</td>
 	/// <td align="left"> </td>
-	/// <td align="left"><code>, - /// /</code></td>
+	/// <td align="left">, - /// /</td>
 	/// </tr>
 	/// </table>
 	/// <p>
@@ -183,11 +185,11 @@ namespace Quartz
 	/// </li>
 	/// </ul>
 	/// </p>
+	/// </remarks>
 	/// <author>Sharada Jambula</author>
 	/// <author>James House</author>
 	/// <author>Contributions from Mads Henderson</author>
 	/// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
-	/// </summary>
 	[Serializable]
 	public class CronExpression : ICloneable
 	{
@@ -230,7 +232,7 @@ namespace Quartz
 			dayMap.Add("SAT", 7);
 		}
 
-		private string cronExpression = null;
+		private string cronExpressionString = null;
 		private TimeZone timeZone = null;
 
 		[NonSerialized] protected TreeSet seconds;
@@ -249,45 +251,47 @@ namespace Quartz
 		[NonSerialized] protected bool calendardayOfMonth = false;
 		[NonSerialized] protected bool expressionParsed = false;
 
-		/**
-		 /// Constructs a new <code>CronExpression</code> based on the specified 
-		 /// parameter.
-		 /// 
-		 /// @param cronExpression string representation of the cron expression the
-		 ///                       new object should represent
-		 /// @throws java.text.FormatException
-		 ///         if the string expression cannot be parsed into a valid 
-		 ///         <code>CronExpression</code>
-		 */
 
-		public CronExpression(String cronExpression)
+		 ///<summary>
+		 /// Constructs a new <see cref="CronExpressionString" /> based on the specified 
+		 /// parameter.
+		 /// </summary>
+		 /// <param name="cronExpression">
+		 /// String representation of the cron expression the new object should represent
+		 /// </param>
+		 /// <see cref="CronExpressionString" />
+		public CronExpression(string cronExpression)
 		{
 			if (cronExpression == null)
 			{
 				throw new ArgumentException("cronExpression cannot be null");
 			}
 
-			this.cronExpression = cronExpression;
-
-			buildExpression(cronExpression.ToUpper(CultureInfo.InvariantCulture));
+			cronExpressionString = cronExpression;
+			BuildExpression(cronExpression.ToUpper(CultureInfo.InvariantCulture));
 		}
 
 		/**
-		 /// Indicates whether the given date satisfies the cron expression. Note that
-		 /// milliseconds are ignored, so two Dates falling on different milliseconds
-		 /// of the same second will always have the same result here.
 		 /// 
-		 /// @param date the date to evaluate
-		 /// @return a boolean indicating whether the given date satisfies the cron
-		 ///         expression
+		 /// 
+		 /// @param date 
+		 /// @return 
 		 */
 
+		/// <summary>
+		/// Indicates whether the given date satisfies the cron expression. 
+		/// </summary>
+		/// <remarks>
+		/// Note that  milliseconds are ignored, so two Dates falling on different milliseconds
+		/// of the same second will always have the same result here.
+		/// </remarks>
+		/// <param name="date">The date to evaluate.</param>
+		/// <returns>a boolean indicating whether the given date satisfies the cron expression</returns>
 		public bool IsSatisfiedBy(DateTime date)
 		{
-			DateTime test = new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Millisecond, date.Second);
-			test = test.AddSeconds(-1);
+			DateTime test = date.AddSeconds(-1);
 
-			if (GetTimeAfter(test).Equals(test))
+			if (GetTimeAfter(test).Equals(date))
 			{
 				return true;
 			}
@@ -313,8 +317,8 @@ namespace Quartz
 
 		/**
 		 /// <p>
-		 /// Returns the time zone for which the <code>cronExpression</code> of
-		 /// this <code>CronTrigger</code> will be resolved.
+		 /// Returns the time zone for which the <see cref="cronExpression" /> of
+		 /// this <see cref="CronTrigger" /> will be resolved.
 		 /// </p>
 		 */
 
@@ -330,8 +334,8 @@ namespace Quartz
 
 		/**
 		 /// <p>
-		 /// Sets the time zone for which the <code>cronExpression</code> of this
-		 /// <code>CronTrigger</code> will be resolved.
+		 /// Sets the time zone for which the <see cref="cronExpression" /> of this
+		 /// <see cref="CronTrigger" /> will be resolved.
 		 /// </p>
 		 */
 
@@ -341,14 +345,14 @@ namespace Quartz
 		}
 
 		/**
-		 /// Returns the string representation of the <code>CronExpression</code>
+		 /// Returns the string representation of the <see cref="CronExpression" />
 		 /// 
-		 /// @return a string representation of the <code>CronExpression</code>
+		 /// @return a string representation of the <see cref="CronExpression" />
 		 */
 
 		public override string ToString()
 		{
-			return cronExpression;
+			return cronExpressionString;
 		}
 
 		/**
@@ -380,7 +384,7 @@ namespace Quartz
 		//
 		////////////////////////////////////////////////////////////////////////////
 
-		protected void buildExpression(String expression)
+		protected void BuildExpression(String expression)
 		{
 			expressionParsed = true;
 
@@ -692,7 +696,7 @@ namespace Quartz
 						val = vs.theValue;
 						i = vs.pos;
 					}
-					i = checkNext(i, s, val, type);
+					i = CheckNext(i, s, val, type);
 					return i;
 				}
 			}
@@ -704,7 +708,7 @@ namespace Quartz
 			return i;
 		}
 
-		protected int checkNext(int pos, string s, int val, int type)
+		protected int CheckNext(int pos, string s, int val, int type)
 		{
 			int end = -1;
 			int i = pos;
@@ -885,32 +889,32 @@ namespace Quartz
 			return i;
 		}
 
-		public string getCronExpression()
+		public string CronExpressionString
 		{
-			return cronExpression;
+			get { return cronExpressionString; }
 		}
 
-		public string getExpressionSummary()
+		public string GetExpressionSummary()
 		{
 			StringBuilder buf = new StringBuilder();
 
 			buf.Append("seconds: ");
-			buf.Append(getExpressionSetSummary(seconds));
+			buf.Append(GetExpressionSetSummary(seconds));
 			buf.Append("\n");
 			buf.Append("minutes: ");
-			buf.Append(getExpressionSetSummary(minutes));
+			buf.Append(GetExpressionSetSummary(minutes));
 			buf.Append("\n");
 			buf.Append("hours: ");
-			buf.Append(getExpressionSetSummary(hours));
+			buf.Append(GetExpressionSetSummary(hours));
 			buf.Append("\n");
 			buf.Append("daysOfMonth: ");
-			buf.Append(getExpressionSetSummary(daysOfMonth));
+			buf.Append(GetExpressionSetSummary(daysOfMonth));
 			buf.Append("\n");
 			buf.Append("months: ");
-			buf.Append(getExpressionSetSummary(months));
+			buf.Append(GetExpressionSetSummary(months));
 			buf.Append("\n");
 			buf.Append("daysOfWeek: ");
-			buf.Append(getExpressionSetSummary(daysOfWeek));
+			buf.Append(GetExpressionSetSummary(daysOfWeek));
 			buf.Append("\n");
 			buf.Append("lastdayOfWeek: ");
 			buf.Append(lastdayOfWeek);
@@ -931,13 +935,13 @@ namespace Quartz
 			buf.Append(calendardayOfMonth);
 			buf.Append("\n");
 			buf.Append("years: ");
-			buf.Append(getExpressionSetSummary(years));
+			buf.Append(GetExpressionSetSummary(years));
 			buf.Append("\n");
 
 			return buf.ToString();
 		}
 
-		protected string getExpressionSetSummary(ISet data)
+		protected string GetExpressionSetSummary(ISet data)
 		{
 			if (data.Contains(NO_SPEC))
 			{
@@ -966,7 +970,7 @@ namespace Quartz
 		}
 
 		/*
-		protected string getExpressionSetSummary(ArrayList list) {
+		protected string GetExpressionSetSummary(ArrayList list) {
 
 			if (list.Contains(NO_SPEC)) return "?";
 			if (list.Contains(ALL_SPEC)) return "*";
@@ -1488,15 +1492,15 @@ namespace Quartz
 						// the month?
 						int dow = ((int) daysOfWeek.First()); // desired
 						// d-o-w
-						DayOfWeek cDow = d.DayOfWeek; // current d-o-w
+						int cDow = ((int) d.DayOfWeek) + 1; // current d-o-w
 						int daysToAdd = 0;
-						if (cDow < (DayOfWeek) dow)
+						if (cDow < dow)
 						{
-							daysToAdd = dow - (int) cDow;
+							daysToAdd = dow - cDow;
 						}
-						if (cDow > (DayOfWeek) dow)
+						if (cDow > dow)
 						{
-							daysToAdd = dow + (7 - (int) cDow);
+							daysToAdd = dow + (7 - cDow);
 						}
 
 						int lDay = GetLastDayOfMonth(mon, d.Year);
@@ -1530,15 +1534,15 @@ namespace Quartz
 						// are we looking for the Nth XXX day in the month?
 						int dow = ((int) daysOfWeek.First()); // desired
 						// d-o-w
-						DayOfWeek cDow = d.DayOfWeek; // current d-o-w
+						int cDow = ((int) d.DayOfWeek) + 1; // current d-o-w
 						int daysToAdd = 0;
-						if (cDow < (DayOfWeek) dow)
+						if (cDow < dow)
 						{
-							daysToAdd = dow - (int) cDow;
+							daysToAdd = dow - cDow;
 						}
-						else if (cDow > (DayOfWeek) dow)
+						else if (cDow > dow)
 						{
-							daysToAdd = dow + (7 - (int) cDow);
+							daysToAdd = dow + (7 - cDow);
 						}
 
 						bool dayShifted = false;
@@ -1571,23 +1575,23 @@ namespace Quartz
 					}
 					else
 					{
-						DayOfWeek cDow = d.DayOfWeek; // current d-o-w
+						int cDow = ((int) d.DayOfWeek) + 1; // current d-o-w
 						int dow = ((int) daysOfWeek.First()); // desired
 						// d-o-w
-						st = daysOfWeek.TailSet((int)cDow);
+						st = daysOfWeek.TailSet(cDow);
 						if (st != null && st.Count > 0)
 						{
 							dow = ((int) st.First());
 						}
 
 						int daysToAdd = 0;
-						if (cDow < (DayOfWeek) dow)
+						if (cDow < dow)
 						{
-							daysToAdd = dow - (int) cDow;
+							daysToAdd = dow - cDow;
 						}
-						if (cDow > (DayOfWeek) dow)
+						if (cDow > dow)
 						{
-							daysToAdd = dow + (7 - (int) cDow);
+							daysToAdd = dow + (7 - cDow);
 						}
 
 						int lDay = GetLastDayOfMonth(mon, d.Year);
@@ -1693,10 +1697,15 @@ namespace Quartz
 		/// <returns></returns>
 		protected DateTime SetCalendarHour(DateTime date, int hour)
 		{
-			DateTime d = new DateTime(date.Year, date.Month, date.Day, hour, date.Minute, date.Second, date.Millisecond);
-			if (d.Hour != hour && hour != 24)
+			DateTime d;
+			if (hour == 24)
 			{
-				d = new DateTime(date.Year, date.Month, date.Day, hour + 1, date.Minute, date.Second, date.Millisecond);
+				// set hour to zero and then add one to keep datetime in synch
+				d = new DateTime(date.Year, date.Month, date.Day, 0, date.Minute, date.Second, date.Millisecond).AddHours(1);
+			}
+			else
+			{
+				d = new DateTime(date.Year, date.Month, date.Day, hour, date.Minute, date.Second, date.Millisecond);
 			}
 			return d;
 		}
@@ -1745,7 +1754,7 @@ namespace Quartz
 			CronExpression copy;
 			try
 			{
-				copy = new CronExpression(getCronExpression());
+				copy = new CronExpression(CronExpressionString);
 				copy.SetTimeZone(GetTimeZone());
 			}
 			catch (FormatException)
