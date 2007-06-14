@@ -1328,9 +1328,9 @@ namespace Quartz
 				{
 					sec = ((int) seconds.First());
 					min++;
+					d = new DateTime(d.Year, d.Month, d.Day, d.Hour, min, d.Second, d.Millisecond);
 				}
-
-				d = new DateTime(d.Year, d.Month, d.Day, d.Hour, min, sec, d.Millisecond);
+				d = new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, sec, d.Millisecond);
 
 				min = d.Minute;
 				int hr = d.Hour;
@@ -1404,8 +1404,10 @@ namespace Quartz
 							t = day;
 							day = GetLastDayOfMonth(mon, d.Year);
 
+							DateTime tcal = new DateTime(d.Year, mon, day, 0, 0, 0);
+
 							int ldom = GetLastDayOfMonth(mon, d.Year);
-							DayOfWeek dow = d.DayOfWeek;
+							DayOfWeek dow = tcal.DayOfWeek;
 
 							if (dow == DayOfWeek.Saturday && day == 1)
 							{
@@ -1424,7 +1426,7 @@ namespace Quartz
 								day += 1;
 							}
 
-							DateTime nTime = new DateTime(d.Year, mon, day, hr, min, sec, d.Millisecond);
+							DateTime nTime = new DateTime(tcal.Year, mon, day, hr, min, sec, d.Millisecond);
 							if (nTime < afterTime)
 							{
 								day = 1;
@@ -1459,7 +1461,7 @@ namespace Quartz
 							day += 1;
 						}
 
-						tcal = new DateTime(d.Year, mon, day, hr, min, sec);
+						tcal = new DateTime(tcal.Year, mon, day, hr, min, sec);
 						if (tcal < afterTime)
 						{
 							day = ((int) daysOfMonth.First());
@@ -1697,15 +1699,18 @@ namespace Quartz
 		/// <returns></returns>
 		protected DateTime SetCalendarHour(DateTime date, int hour)
 		{
-			DateTime d;
+			// Java version of Quartz uses lenient calendar
+			// so hour 24 creates day increment and zeroes hour
+			int hourToSet = hour;
+			if (hourToSet == 24)
+			{
+				hourToSet = 0;
+			}
+			DateTime d = new DateTime(date.Year, date.Month, date.Day, hourToSet, date.Minute, date.Second, date.Millisecond);
 			if (hour == 24)
 			{
-				// set hour to zero and then add one to keep datetime in synch
-				d = new DateTime(date.Year, date.Month, date.Day, 0, date.Minute, date.Second, date.Millisecond).AddHours(1);
-			}
-			else
-			{
-				d = new DateTime(date.Year, date.Month, date.Day, hour, date.Minute, date.Second, date.Millisecond);
+				// inrement day
+				d = d.AddDays(1);
 			}
 			return d;
 		}

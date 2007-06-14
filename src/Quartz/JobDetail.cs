@@ -19,8 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
-using System.Collections;
 
+using Quartz.Collection;
 using Quartz.Spi;
 
 namespace Quartz
@@ -59,7 +59,7 @@ namespace Quartz
         private bool durability = false;
         private bool shouldRecover = false;
 
-        private ArrayList jobListeners = new ArrayList(2);
+        private HashSet jobListeners = new HashSet();
 
         /// <summary>
         /// Get or sets the name of this <see cref="IJob" />.
@@ -357,7 +357,10 @@ namespace Quartz
         /// </summary>
         public virtual void AddJobListener(string listenerName)
         {
-            jobListeners.Add(listenerName);
+			if (!jobListeners.Add(listenerName)) 
+			{
+				throw new ArgumentException(string.Format("Job listener '{0}' is already registered for job detail: {1}", listenerName, FullName));
+			}
         }
 
         /// <summary> <p>
@@ -405,7 +408,7 @@ namespace Quartz
             try
             {
                 copy = (JobDetail) MemberwiseClone();
-                copy.jobListeners = (ArrayList) jobListeners.Clone();
+                copy.jobListeners = (HashSet) jobListeners.Clone();
                 if (jobDataMap != null)
                 {
                     copy.jobDataMap = (JobDataMap) jobDataMap.Clone();

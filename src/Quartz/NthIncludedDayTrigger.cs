@@ -73,6 +73,59 @@ namespace Quartz
 	public class NthIncludedDayTrigger : Trigger
 	{
 		/// <summary> 
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
+		/// <see cref="NthIncludedDayTrigger" /> wants to be fired now by the 
+		/// <see cref="IScheduler" />
+		/// </summary>
+		public const int MISFIRE_INSTRUCTION_FIRE_ONCE_NOW = 1;
+
+		/// <summary> 
+		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
+		/// <see cref="NthIncludedDayTrigger" /> wants to have 
+		/// <see cref="nextFireTime" /> updated to the next time in the schedule after
+		/// the current time, but it does not want to be fired now.
+		/// </summary>
+		public const int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
+
+		/// <summary> 
+		/// Indicates a monthly trigger type (fires on the N<SUP>th</SUP> included
+		/// day of every month).
+		/// </summary>
+		public const int INTERVAL_TYPE_MONTHLY = 1;
+
+		/// <summary> indicates a yearly trigger type (fires on the N<SUP>th</SUP> included 
+		/// day of every year).
+		/// </summary>
+		public const int INTERVAL_TYPE_YEARLY = 2;
+
+		/// <summary>
+		/// Indicates a weekly trigger type (fires on the N<SUP>th</SUP> included
+		/// day of every week). When using this interval type, care must be taken
+		/// not to think of the value of <see cref="n" /> as an analog to 
+		/// <see cref="DateTime.DayOfWeek" />. Such a comparison can only
+		/// be drawn when there are no calendars associated with the trigger. To 
+		/// illustrate, consider an <see cref="NthIncludedDayTrigger" /> with 
+		/// n = 3 which is associated with a Calendar excluding
+		/// non-weekdays. The trigger would fire on the 3<SUP>rd</SUP> 
+		/// <I>included</I> day of the week, which would be 4<SUP>th</SUP> 
+		/// <I>actual</I> day of the week.
+		/// </summary>
+		public const int INTERVAL_TYPE_WEEKLY = 3;
+
+		private NullableDateTime previousFireTime;
+		private NullableDateTime nextFireTime;
+		private ICalendar calendar;
+
+		private int n = 1;
+		private int intervalType = INTERVAL_TYPE_MONTHLY;
+		private int fireAtHour = 12;
+		private int fireAtMinute = 0;
+		private int nextFireCutoffInterval = 12;
+		private int fireAtSecond = 0;
+		private DayOfWeek triggerCalendarFirstDayOfWeek = DayOfWeek.Sunday;
+		private CalendarWeekRule triggerCalendarWeekRule = CalendarWeekRule.FirstFourDayWeek;
+
+		/// <summary> 
 		/// Gets or sets the day of the interval on which the 
 		/// <see cref="NthIncludedDayTrigger" /> should fire. If the N<SUP>th</SUP>
 		/// day of the interval does not exist (i.e. the 32<SUP>nd</SUP> of a 
@@ -138,18 +191,15 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the fire time for the <see cref="NthIncludedDayTrigger" /> as a
-		/// string with the format &quot;HH:MM&quot;, with HH representing the 
-		/// 24-hour clock hour of the fire time.
-		///
-		/// Sets the fire time for the <see cref="NthIncludedDayTrigger" />, which
-		/// should be represented as a string with the format &quot;HH:MM&quot;, 
-		/// with HH representing the 24-hour clock hour of the fire time. Hours can
-		/// be represented as either a one-digit or two-digit number.
+		/// Sets or gets the fire time for the <CODE>NthIncludedDayTrigger</CODE>, which
+		/// should be represented as a string with the format 
+		/// &quot;HH:MM[:SS]&quot;, with HH representing the 24-hour clock hour
+		/// of the fire time. Hours can be represented as either a one-digit or 
+		/// two-digit number. Seconds are optional.
 		/// </summary>
 		public virtual string FireAtTime
 		{
-			get { return fireAtHour.ToString("00") + ":" + fireAtMinute.ToString("00"); }
+			get { return string.Format("{0:00}:{1:00}:{2:00}", fireAtHour, fireAtMinute, fireAtSecond); }
 
 			set
 			{
@@ -157,19 +207,45 @@ namespace Quartz
 				{
 					string[] components = value.Split(':');
 
-//					foreach (string component in components)
-//					{
-//						if (component == null || component.Trim().Length != 2)
-//						{
-//							throw new ArgumentException("Time component '" + component + "' is malformed");
-//						}
-//					}
+					int newFireHour = Int32.Parse(components[0]);
+					if (components[1].Length != 2)
+					{
+						// minutes must be in two digit format
+						throw new Exception();
+					}
+					int newFireMinute = Int32.Parse(components[1]);
+					int newFireSecond = 0;
+					if (components.Length == 3)
+					{
+						if (components[2].Length != 2)
+						{
+							// seconds must be in two digit format
+							throw new Exception();
+						}
+						newFireSecond = Convert.ToInt32(components[2]);
+					}
 
-					int fireHour = Int32.Parse(components[0]);
-					int fireMinute = Int32.Parse(components[1]);
+					
+					// Check ranges
+					if ((newFireHour < 0) || (newFireHour > 23)) 
+					{
+						throw new ArgumentException(
+							string.Format("Could not parse time expression '{0}':fireAtHour must be between 0 and 23", value));
+					} 
+					else if ((newFireMinute < 0) || (newFireMinute > 59)) 
+					{
+						throw new ArgumentException(
+							string.Format("Could not parse time expression '{0}':fireAtMinute must be between 0 and 59", value));
+					} 
+					else if ((newFireSecond < 0) || (newFireSecond > 59)) 
+					{
+						throw new ArgumentException(
+							string.Format("Could not parse time expression '{0}':fireAtMinute must be between 0 and 59", value));
+					}
 
-					fireAtHour = fireHour;
-					fireAtMinute = fireMinute;
+					fireAtHour = newFireHour;
+					fireAtMinute = newFireMinute;
+					fireAtSecond = newFireSecond;
 				}
 				catch (Exception e)
 				{
@@ -181,15 +257,8 @@ namespace Quartz
 		/// <summary> 
 		/// Returns the <see cref="nextFireCutoffInterval" /> for the 
 		/// <see cref="NthIncludedDayTrigger" />.
-		/// <P>
-		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
-		/// it is not always possible to decide with certainty that the trigger
-		/// will <I>never</I> fire again. Therefore, it will search for the next 
-		/// fire time up to a given cutoff. These cutoffs can be changed by using the
-		/// {@link #setNextFireCutoffInterval(int)} and 
-		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
-		/// of the intervals specified by <see cref="IntervalType"/> intervalType" />.
-		/// </P>
+		/// </summary>
+		/// <remarks>
 		/// <p>
 		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
@@ -197,22 +266,30 @@ namespace Quartz
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
 		/// {@link #setNextFireCutoffInterval(int)} and 
 		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
+		/// of the intervals specified by <see cref="IntervalType"/> intervalType" />.
+		/// </p>
+		/// <p>
+		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
+		/// it is not always possible to decide with certainty that the trigger
+		/// will <I>never</I> fire again. Therefore, it will search for the next 
+		/// fire time up to a given cutoff. These cutoffs can be changed by using the
+		/// <see cref="NextFireCutoffInterval" /> method. The default cutoff is 12
 		/// of the intervals specified by <see cref="IntervalType" /> intervalType".
 		/// </p>
-		/// <P>
+		/// <p>
 		/// In most cases, the default value of this setting (12) is sufficient (it
 		/// is highly unlikely, for example, that you will need to look at more than
 		/// 12 months of dates to ensure that your trigger will never fire again).  
 		/// However, this setting is included to allow for the rare exceptions where
 		/// this might not be true.
-		/// </P>
-		/// <P>
+		/// </p>
+		/// <p>
 		/// For example, if your trigger is associated with a calendar that excludes
 		/// a great many dates in the next 12 months, and hardly any following that,
-		/// it is possible (if <see cref="n" /> is large enough) that you could run 
+		/// it is possible (if <see cref="N" /> is large enough) that you could run 
 		/// into this situation.  
-		/// </P>
-		/// </summary>
+		/// </p>
+		/// </remarks>
 		public virtual int NextFireCutoffInterval
 		{
 			get { return nextFireCutoffInterval; }
@@ -251,58 +328,10 @@ namespace Quartz
 		/// <value></value>
 		public override bool HasMillisecondPrecision
 		{
-			get { throw new NotImplementedException(); }
+			get { return false; }
 		}
 
-		/// <summary> 
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
-		/// <see cref="NthIncludedDayTrigger" /> wants to be fired now by the 
-		/// <see cref="IScheduler" />
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_FIRE_ONCE_NOW = 1;
 
-		/// <summary> 
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
-		/// <see cref="NthIncludedDayTrigger" /> wants to have 
-		/// <see cref="nextFireTime" /> updated to the next time in the schedule after
-		/// the current time, but it does not want to be fired now.
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
-
-		/// <summary> 
-		/// Indicates a monthly trigger type (fires on the N<SUP>th</SUP> included
-		/// day of every month).
-		/// </summary>
-		public const int INTERVAL_TYPE_MONTHLY = 1;
-
-		/// <summary> indicates a yearly trigger type (fires on the N<SUP>th</SUP> included 
-		/// day of every year).
-		/// </summary>
-		public const int INTERVAL_TYPE_YEARLY = 2;
-
-		/// <summary>
-		/// Indicates a weekly trigger type (fires on the N<SUP>th</SUP> included
-		/// day of every week). When using this interval type, care must be taken
-		/// not to think of the value of <see cref="n" /> as an analog to 
-		/// <see cref="DateTime.DayOfWeek" />. Such a comparison can only
-		/// be drawn when there are no calendars associated with the trigger. To 
-		/// illustrate, consider an <see cref="NthIncludedDayTrigger" /> with 
-		/// n = 3 which is associated with a Calendar excluding
-		/// non-weekdays. The trigger would fire on the 3<SUP>rd</SUP> 
-		/// <I>included</I> day of the week, which would be 4<SUP>th</SUP> 
-		/// <I>actual</I> day of the week.
-		/// </summary>
-		public const int INTERVAL_TYPE_WEEKLY = 3;
-
-		private NullableDateTime previousFireTime;
-		private NullableDateTime nextFireTime;
-		private ICalendar calendar;
-
-		private int n = 1;
-		private int intervalType = INTERVAL_TYPE_MONTHLY;
-		private int fireAtHour = 12;
-		private int fireAtMinute = 0;
-		private int nextFireCutoffInterval = 12;
 
 		/// <summary> 
 		/// Create an <see cref="NthIncludedDayTrigger" /> with no specified name,
@@ -535,7 +564,7 @@ namespace Quartz
 				return INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE;
 			}
 
-			if (!MayFireAgain())
+			if (!GetMayFireAgain())
 			{
 				return INSTRUCTION_DELETE_TRIGGER;
 			}
@@ -546,20 +575,22 @@ namespace Quartz
 		/// <summary> 
 		/// Used by the <see cref="IScheduler" /> to determine whether or not it is
 		/// possible for this <see cref="Trigger" /> to fire again.
+		/// </summary>'
+		/// <remarks>
 		/// <p>
 		/// If the returned value is <see langword="false" /> then the 
 		/// <see cref="IScheduler" /> may remove the <see cref="Trigger" /> from the
 		/// <see cref="IJobStore" />
-		/// </ö>
-		/// </summary>
+		/// </p>
+		/// </remarks>
 		/// <returns>
 		/// A boolean indicator of whether the trigger could potentially fire
 		/// again.
 		/// </returns>
-		public override bool MayFireAgain()
+		public override bool GetMayFireAgain()
 		{
 			NullableDateTime d = GetNextFireTime();
-			return !d.HasValue;
+			return d.HasValue;
 		}
 
 		/// <summary> 
@@ -663,9 +694,9 @@ namespace Quartz
 			bool gotOne = false;
 
 			//move to the first day of the week (SUNDAY)
-			currCal = currCal.AddDays(((int) afterCal.DayOfWeek - 1)*- 1);
+			currCal = currCal.AddDays(((int) afterCal.DayOfWeek)*- 1);
 
-			currCal = new DateTime(currCal.Year, currCal.Month, currCal.Day, fireAtHour, fireAtMinute, 0, 0);
+			currCal = new DateTime(currCal.Year, currCal.Month, currCal.Day, fireAtHour, fireAtMinute, fireAtSecond, 0);
 
 			currWeek = GetWeekOfYear(currCal);
 
@@ -673,7 +704,7 @@ namespace Quartz
 			{
 				while ((currN != n) && (weekCount < 12))
 				{
-					//if we move into a new month, reset the current "n" counter
+					//if we move into a new week, reset the current "n" counter
 					if (GetWeekOfYear(currCal) != currWeek)
 					{
 						currN = 0;
@@ -732,8 +763,8 @@ namespace Quartz
 
 		/// <summary> 
 		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
-		/// intervalType = {@link #INTERVAL_TYPE_MONTHLY" /> will fire 
-		/// after the specified date. See {@link #getNextFireTime} for more 
+		/// intervalType = <see cref="INTERVAL_TYPE_MONTHLY" /> will fire 
+		/// after the specified date. See <see cref="GetNextFireTime" /> for more 
 		/// information.
 		/// </summary>
 		/// <param name="afterDate">
@@ -747,7 +778,7 @@ namespace Quartz
 		{
 			int currN = 0;
 			DateTime afterCal = afterDate;
-			DateTime currCal = new DateTime(afterCal.Year, afterCal.Month, afterCal.Day, fireAtHour, fireAtMinute, 0, 0);
+			DateTime currCal = new DateTime(afterCal.Year, afterCal.Month, afterCal.Day, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currMonth;
 			int monthCount = 0;
 			bool gotOne = false;
@@ -816,13 +847,14 @@ namespace Quartz
 			}
 		}
 
-		/// <summary> Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
-		/// intervalType = {@link #INTERVAL_TYPE_YEARLY" /> will fire 
-		/// after the specified date. See {@link #getNextFireTime} for more 
+		/// <summary> 
+		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
+		/// intervalType = <see cref="INTERVAL_TYPE_YEARLY" /> will fire 
+		/// after the specified date. See <see cref="GetNextFireTime" /> for more 
 		/// information.
-		/// 
 		/// </summary>
-		/// <param name="afterDate">The time after which to find the nearest fire time.
+		/// <param name="afterDate">
+		/// The time after which to find the nearest fire time.
 		/// This argument is treated as exclusive &#x8212; that is,
 		/// if afterTime is a valid fire time for the trigger, it
 		/// will not be returned as the next fire time.
@@ -834,7 +866,7 @@ namespace Quartz
 		{
 			int currN = 0;
 			DateTime afterCal = afterDate.Value;
-			DateTime currCal = new DateTime(afterCal.Year, 1, 1, fireAtHour, fireAtMinute, 0, 0);
+			DateTime currCal = new DateTime(afterCal.Year, 1, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currYear;
 			int yearCount = 0;
 			bool gotOne = false;
@@ -906,7 +938,27 @@ namespace Quartz
 		{
 			GregorianCalendar gCal = new GregorianCalendar();
 			// TODO, it isn't always monday..
-			return gCal.GetWeekOfYear(date, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+			return gCal.GetWeekOfYear(date, TriggerCalendarWeekRule, TriggerCalendarFirstDayOfWeek);
+		}
+
+		/// <summary>
+		/// Gets or sets the trigger's calendar week rule.
+		/// </summary>
+		/// <value>The trigger calendar week rule.</value>
+		public CalendarWeekRule TriggerCalendarWeekRule
+		{
+			get { return triggerCalendarWeekRule ; }
+			set { triggerCalendarWeekRule = value; }
+		}
+
+		/// <summary>
+		/// Gets or sets the trigger's calendar first day of week rule.
+		/// </summary>
+		/// <value>The trigger calendar first day of week.</value>
+		public DayOfWeek TriggerCalendarFirstDayOfWeek
+		{
+			get { return triggerCalendarFirstDayOfWeek; }
+			set { triggerCalendarFirstDayOfWeek = value;}
 		}
 	}
 }

@@ -24,6 +24,7 @@ using System.Collections;
 using Nullables;
 
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -169,6 +170,10 @@ namespace Quartz
         /// </summary>
         public const int STATE_NONE = -1;
 
+		/// <summary>
+		/// The default value for priority.
+		/// </summary>
+		public const int DEFAULT_PRIORITY = 5;
 
         private string name;
         private string group = Scheduler_Fields.DEFAULT_GROUP;
@@ -180,9 +185,12 @@ namespace Quartz
         private string calendarName = null;
         private string fireInstanceId = null;
         private int misfireInstruction = MISFIRE_INSTRUCTION_SMART_POLICY;
-        private readonly ArrayList triggerListeners = new ArrayList();
+        private ArrayList triggerListeners = new ArrayList();
         private NullableDateTime endTime;
         private DateTime startTime;
+		private int priority = DEFAULT_PRIORITY;
+		[NonSerialized] 
+		private Key key = null;
 
 		/// <summary>
 		/// Get or sets the name of this <see cref="Trigger" />.
@@ -287,6 +295,23 @@ namespace Quartz
 		}
 
 		/// <summary>
+		/// Gets the key.
+		/// </summary>
+		/// <value>The key.</value>
+		public Key Key 
+		{
+			get
+			{
+				if(key == null) 
+				{
+					key = new Key(Name, Group);
+				}
+
+				return key;
+			}
+		}
+
+		/// <summary>
 		/// Returns the 'full name' of the <see cref="IJob" /> that the <see cref="Trigger" />
 		/// points to, in the format "group.name".
 		/// </summary>
@@ -367,6 +392,16 @@ namespace Quartz
 		{
 			get { return (string[]) triggerListeners.ToArray(typeof (string)); }
 		}
+
+		
+		/// <summary>
+		/// Remove all <see cref="ITriggerListener" />s from the <see cref="Trigger" />.
+		/// </summary>
+		public void ClearAllTriggerListeners() 
+		{
+			triggerListeners.Clear();
+		}
+
 		
 		/// <summary>
 		/// Returns the last time at which the <see cref="Trigger" /> will fire, if
@@ -537,14 +572,37 @@ namespace Quartz
 			JobGroup = jobGroup;
 		}
 
+		/// <summary>
+		/// The priority of a <code>Trigger</code> acts as a tiebreaker such that if 
+		/// two <code>Trigger</code>s have the same scheduled fire time, then the
+		/// one with the higher priority will get first access to a worker
+		/// thread.
+		/// </summary>
+		/// <remarks>
+		/// If not explicitly set, the default value is <code>5</code>.
+		/// </remarks>
+		/// <returns></returns>
+		/// <see cref="DEFAULT_PRIORITY" />
+		public int Priority
+		{
+			get { return priority; }
+			set { priority = value; }
+		}
 
-        /// <summary>
+
+		/// <summary>
         /// Add the specified name of a <see cref="ITriggerListener" /> to
         /// the end of the <see cref="Trigger" />'s list of listeners.
         /// </summary>
         /// <param name="listenerName">Name of the listener.</param>
 		public virtual void AddTriggerListener(string listenerName)
 		{
+			if (triggerListeners.Contains(listenerName)) 
+			{
+				throw new ArgumentException(
+					string.Format("Trigger listener '{0}' is already registered for trigger: {1}", listenerName, FullName));
+			}
+
 			triggerListeners.Add(listenerName);
 		}
 
@@ -627,7 +685,7 @@ namespace Quartz
 		/// may remove the <see cref="Trigger" /> from the <see cref="IJobStore" />.
 		/// </p>
 		/// </summary>
-		public abstract bool MayFireAgain();
+		public abstract bool GetMayFireAgain();
 
 		/// <summary>
 		/// Returns the next time at which the <see cref="Trigger" /> will fire. If
@@ -812,10 +870,20 @@ namespace Quartz
 			try
 			{
 				copy = (Trigger) MemberwiseClone();
+				
+				copy.triggerListeners = (ArrayList) triggerListeners.Clone();
+
+				// Shallow copy the jobDataMap.  Note that this means that if a user
+				// modifies a value object in this map from the cloned Trigger
+				// they will also be modifying this Trigger. 
+				if (jobDataMap != null) 
+				{
+					copy.jobDataMap = (JobDataMap)jobDataMap.Clone();
+				}
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
-				throw new Exception("Not Cloneable.");
+				throw new Exception("Not Cloneable.", ex);
 			}
 			return copy;
 		}

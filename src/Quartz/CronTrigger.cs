@@ -625,7 +625,7 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <returns></returns>
-		public override bool MayFireAgain()
+		public override bool GetMayFireAgain()
 		{
 			return (GetNextFireTime() != null);
 		}
@@ -789,7 +789,7 @@ namespace Quartz
 				return INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE;
 			}
 
-			if (!MayFireAgain())
+			if (!GetMayFireAgain())
 			{
 				return INSTRUCTION_DELETE_TRIGGER;
 			}

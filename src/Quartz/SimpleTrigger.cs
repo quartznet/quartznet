@@ -432,8 +432,16 @@ namespace Quartz
 					RepeatCount = RepeatCount - TimesTriggered;
 					TimesTriggered = 0;
 				}
-				StartTime = newFireTime;
-				SetNextFireTime(newFireTime);
+
+				if (EndTime.HasValue && EndTime.Value < newFireTime) 
+				{
+					SetNextFireTime(null); // We are past the end time
+				} 
+				else 
+				{
+					StartTime = newFireTime;
+					SetNextFireTime(newFireTime);
+				}
 			}
 			else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT)
 			{
@@ -451,13 +459,16 @@ namespace Quartz
 					TimesTriggered = 0;
 				}
 
-				if (EndTime.HasValue && EndTime.Value < newFireTime)
-				{
-					EndTime = newFireTime.AddMilliseconds(50);
-				}
 
-				StartTime = newFireTime;
-				SetNextFireTime(newFireTime);
+				if (EndTime.HasValue && EndTime.Value < newFireTime) 
+				{
+					SetNextFireTime(null); // We are past the end time
+				} 
+				else 
+				{
+					StartTime = newFireTime;
+					SetNextFireTime(newFireTime);
+				} 
 			}
 		}
 
@@ -574,7 +585,7 @@ namespace Quartz
 				return INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE;
 			}
 
-			if (!MayFireAgain())
+			if (!GetMayFireAgain())
 			{
 				return INSTRUCTION_DELETE_TRIGGER;
 			}
@@ -645,7 +656,7 @@ namespace Quartz
 
 			if (repeatCount == 0 && afterTime.CompareTo(StartTime) >= 0)
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 
 			DateTime startMillis = StartTime;
@@ -654,12 +665,7 @@ namespace Quartz
 
 			if (endMillis <= afterMillis)
 			{
-				return NullableDateTime.Default;
-			}
-
-			if (startMillis < afterMillis && repeatCount == 0)
-			{
-				return NullableDateTime.Default;
+				return null;
 			}
 
 			if (afterMillis < startMillis)
@@ -677,7 +683,7 @@ namespace Quartz
 			DateTime time = startMillis.AddMilliseconds(numberoftimesexecutedplusone*repeatInterval);
 			if (endMillis <= time)
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 
 			return time;
@@ -715,7 +721,7 @@ namespace Quartz
 		/// Determines whether or not the <see cref="SimpleTrigger" /> will occur
 		/// again.
 		/// </summary>
-		public override bool MayFireAgain()
+		public override bool GetMayFireAgain()
 		{
 			return GetNextFireTime().HasValue;
 		}
