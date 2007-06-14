@@ -152,3 +152,7 @@ this can be very useful for setting trigger start-times.
 Finally, triggers may have registered listeners, just as jobs may. Objects implementing the ITriggerListener interface 
 will receive notifications as a trigger is fired.
 </p>
+
+<p>
+<a href="tutorial_lesson_3.html">&laquo; Lesson 3</a> | <a href="tutorial_lesson_5.html">Lesson 5 &raquo;</a>  
+</p>

@@ -77,3 +77,7 @@ or
 Listeners are not used by most users of Quartz, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.
 <p>
+
+<p>
+<a href="tutorial_lesson_6.html">&laquo; Lesson 6</a> | <a href="tutorial_lesson_8.html">Lesson 8 &raquo;</a>  
+</p>

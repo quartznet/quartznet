@@ -4,7 +4,7 @@
 
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1"/>
-	<meta name="description" content="description"/>
+	<meta name="description" content="Quartz.NET is a port of Java Quartz which is an enterprise class job sheduling system. Quartz.NET is a free open source tool that you can use in your .NET applications."/>
 	<meta name="keywords" content="Quartz Scheduler Scheduling .NET C# cron timer free download open source"/> 
 	<meta name="author" content="Marko Lahma"/> 
 	<link rel="stylesheet" type="text/css" href="default.css" media="screen"/>

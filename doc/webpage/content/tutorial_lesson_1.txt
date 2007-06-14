@@ -40,3 +40,6 @@ Here's a quick snippet of code, that instantiates and starts a scheduler, and sc
 <p>
 As you can see, working with quartz is rather simple. In <a href="tutorial_lesson_2.html">Lesson 2</a> we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
 </p>
+<p>
+<a href="tutorial_lesson_2.html">Lesson 2 &raquo;</a>  
+</p>

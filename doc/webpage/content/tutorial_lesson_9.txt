@@ -102,3 +102,6 @@ If your Scheduler is very busy (i.e. nearly always executing the same number of 
 The "org.quartz.jobStore.useProperties" config parameter can be set to "true" (defaults to false) in order to instruct JDBCJobStore that all values in JobDataMaps will be Strings, and therefore can be stored as name-value pairs, rather than storing more complex objects in their serialized form in the BLOB column. This is much safer in the long term, as you avoid the class versioning issues that there are with serializing your non-String classes into a BLOB.
 
 -->
+<p>
+<a href="tutorial_lesson_8.html">&laquo; Lesson 8</a> | <a href="tutorial_lesson_10.html">Lesson 10 &raquo;</a>  
+</p>

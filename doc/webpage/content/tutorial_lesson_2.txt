@@ -70,3 +70,6 @@ You now have a general idea about what Jobs and Triggers are, you can learn more
 <a href="tutorial_lesson_3.html">Lesson 3: More About Jobs & JobDetails</a> and 
 <a href="tutorial_lesson_4.html">Lesson 4: More About Triggers</a>.
 </p> 
+<p>
+<a href="tutorial_lesson_1.html">&laquo; Lesson 1</a> | <a href="tutorial_lesson_3.html">Lesson 3 &raquo;</a>  
+</p>

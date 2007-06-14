@@ -39,3 +39,7 @@ SchedulerListeners are created and registered in much the same way as the other 
 except there is no distinction between global and non-global listeners. SchedulerListeners can be 
 virtually any object that implements the org.quartz.SchedulerListener interface.
 </p>
+
+<p>
+<a href="tutorial_lesson_7.html">&laquo; Lesson 7</a> | <a href="tutorial_lesson_9.html">Lesson 9 &raquo;</a>  
+</p>

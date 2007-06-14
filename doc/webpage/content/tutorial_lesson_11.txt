@@ -23,3 +23,7 @@ Jobs can also execute within a JTA transaction (UserTransaction) by setting the 
 
 Aside from Quartz automatically wrapping Job executions in JTA transactions, calls you make on the Scheduler interface also participate in transactions when using JobStoreCMT. Just make sure you've started a transaction before calling a method on the scheduler. You can do this either directly, through the use of UserTransaction, or by puting your code that uses the scheduler within a SessionBean that uses containter managed transactions.
 -->
+
+<p>
+<a href="tutorial_lesson_10.html">&laquo; Lesson 10</a> | <a href="tutorial_lesson_12.html">Lesson 12 &raquo;</a>  
+</p>

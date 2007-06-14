@@ -198,3 +198,7 @@ that you are allowed to throw from the execute method is the JobExecutionExcepti
 contents of the execute method with a 'try-catch' block. You should also spend some time looking at the documentation for the 
 JobExecutionException, as your job can use it to provide the scheduler various directives as to how you want the exception to be handled.
 </p>
+
+<p>
+<a href="tutorial_lesson_2.html">&laquo; Lesson 2</a> | <a href="tutorial_lesson_4.html">Lesson 4 &raquo;</a>  
+</p>

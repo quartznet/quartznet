@@ -127,3 +127,6 @@ If the 'smart policy' instruction is used, SimpleTrigger dynamically chooses bet
 and state of the given SimpleTrigger instance. The documentation for the SimpleTrigger.UpdateAfterMisfire() method explains the exact details of 
 this dynamic behavior.
 </p>
+<p>
+<a href="tutorial_lesson_4.html">&laquo; Lesson 4</a> | <a href="tutorial_lesson_6.html">Lesson 6 &raquo;</a>  
+</p>

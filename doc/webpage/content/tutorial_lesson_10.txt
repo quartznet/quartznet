@@ -87,3 +87,7 @@ then only messages about serious problems while Jobs are executing. In order to 
 which is beyond the scope of this document.
 </p>
 -->
+
+<p>
+<a href="tutorial_lesson_9.html">&laquo; Lesson 9</a> | <a href="tutorial_lesson_11.html">Lesson 11 &raquo;</a>  
+</p>

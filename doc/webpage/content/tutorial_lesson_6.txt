@@ -105,3 +105,6 @@ Note that the trigger will NOT fire at 10:00 am, just at 8:00, 8:30, 9:00 and 9:
 Note that some scheduling requirements are too complicated to express with a single trigger - such as "every 5 minutes between 9:00 am 
 </p>
 
+<p>
+<a href="tutorial_lesson_5.html">&laquo; Lesson 5</a> | <a href="tutorial_lesson_7.html">Lesson 7 &raquo;</a>  
+</p>
