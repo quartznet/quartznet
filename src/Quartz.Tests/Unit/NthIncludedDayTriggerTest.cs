@@ -44,7 +44,7 @@ namespace Quartz.Tests.Unit
         
 			DateTime targetCalendar = new DateTime(2006, 1, 10, 14, 35, 15);
 			NullableDateTime nextFireTime = yearlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
-			Assert.AreEqual(targetCalendar, nextFireTime);
+			Assert.AreEqual(targetCalendar, nextFireTime.Value);
         
 			// Test monthly
 			NthIncludedDayTrigger monthlyTrigger = new NthIncludedDayTrigger();
@@ -55,7 +55,7 @@ namespace Quartz.Tests.Unit
         
 			targetCalendar = new DateTime(2005, 6, 5, 14, 35, 15);
 			nextFireTime = monthlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
-			Assert.AreEqual(targetCalendar, nextFireTime);
+			Assert.AreEqual(targetCalendar, nextFireTime.Value);
         
 			// Test weekly
 			NthIncludedDayTrigger weeklyTrigger = new NthIncludedDayTrigger();
@@ -66,7 +66,7 @@ namespace Quartz.Tests.Unit
 
 			targetCalendar = new DateTime(2005, 6, 7, 14, 35, 15);
 			nextFireTime = weeklyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
-			Assert.AreEqual(targetCalendar, nextFireTime);
+			Assert.AreEqual(targetCalendar, nextFireTime.Value);
 		}
     
 		[Test]
@@ -84,10 +84,10 @@ namespace Quartz.Tests.Unit
 			catch (ArgumentException) 
 			{
 			}
-			Assert.AreEqual("14:30", trigger.FireAtTime);
+			Assert.AreEqual("14:30:10", trigger.FireAtTime);
         
 			trigger.FireAtTime = "4:03:15";
-			Assert.AreEqual("04:03", trigger.FireAtTime);
+			Assert.AreEqual("04:03:15", trigger.FireAtTime);
         
 			try 
 			{
@@ -108,7 +108,7 @@ namespace Quartz.Tests.Unit
 			}
         
 			trigger.FireAtTime = ("23:17");
-			Assert.AreEqual("23:17", trigger.FireAtTime);
+			Assert.AreEqual("23:17:00", trigger.FireAtTime);
         
 			try 
 			{

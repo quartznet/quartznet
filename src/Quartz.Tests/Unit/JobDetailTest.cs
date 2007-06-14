@@ -45,8 +45,7 @@ namespace Quartz.Tests.Unit
 			}
 
 			// Make sure order was maintained
-			Assert.AreEqual(new ArrayList(listenerNames),
-				new ArrayList(jobDetail.JobListenerNames));
+			TestUtil.AssertCollectionEquality(new ArrayList(listenerNames), new ArrayList(jobDetail.JobListenerNames));
         
 			// Make sure uniqueness is enforced
 			for (int i = 0; i < listenerNames.Length; i++) 
@@ -69,7 +68,7 @@ namespace Quartz.Tests.Unit
 			jobDetail.AddJobListener("A");
         
 			JobDetail clonedJobDetail = (JobDetail)jobDetail.Clone();
-			Assert.AreEqual(new ArrayList(clonedJobDetail.JobListenerNames),
+			TestUtil.AssertCollectionEquality(new ArrayList(clonedJobDetail.JobListenerNames),
 				new ArrayList(jobDetail.JobListenerNames));
         
 			jobDetail.AddJobListener("B");
@@ -80,5 +79,7 @@ namespace Quartz.Tests.Unit
 			Assert.IsTrue(new ArrayList(clonedJobDetail.JobListenerNames).Contains("A"));
 			Assert.IsFalse(new ArrayList(clonedJobDetail.JobListenerNames).Contains("B"));
 		}
+
+
 	}
 }

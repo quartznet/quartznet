@@ -106,6 +106,7 @@
       <Link>AssemblyInfo.cs</Link>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TestUtil.cs" />
     <Compile Include="Unit\AnnualCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -148,7 +149,9 @@
     <Compile Include="Unit\Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
-    <None Include="Unit\Impl\Calendar\DailyCalendar-1.5.2.ser" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Integration\" />

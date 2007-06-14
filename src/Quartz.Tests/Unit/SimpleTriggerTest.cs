@@ -121,11 +121,10 @@ namespace Quartz.Tests.Unit
 			simpleTrigger.StartTime = (startTime);
 			simpleTrigger.EndTime = (endTime);
 
-			DateTime currentTime = DateTime.Now;
 			simpleTrigger.UpdateAfterMisfire(null);
 			Assert.AreEqual(startTime, simpleTrigger.StartTime);
-			Assert.AreEqual(endTime, simpleTrigger.EndTime);
-			Assert.IsNull(simpleTrigger.GetNextFireTime());
+			Assert.AreEqual(endTime, simpleTrigger.EndTime.Value);
+			Assert.IsTrue(!simpleTrigger.GetNextFireTime().HasValue);
 		}
 
 		[Test]
@@ -133,12 +132,14 @@ namespace Quartz.Tests.Unit
 		{
 			SimpleTrigger simpleTrigger = new SimpleTrigger();
 
-			simpleTrigger.StartTime = DateTime.Now;
+			DateTime startTime = TriggerUtils.GetEvenSecondDate(DateTime.Now);
+
+			simpleTrigger.StartTime = startTime;
 			simpleTrigger.RepeatInterval = 10;
 			simpleTrigger.RepeatCount = 4;
 
-			NullableDateTime fireTimeAfter = simpleTrigger.GetFireTimeAfter(DateTime.Now.AddMilliseconds(34));
-			Assert.AreEqual(40, fireTimeAfter);
+			NullableDateTime fireTimeAfter = simpleTrigger.GetFireTimeAfter(startTime.AddMilliseconds(34));
+			Assert.AreEqual(startTime.AddMilliseconds(40), fireTimeAfter.Value);
 		}
 
 		[Test]
@@ -158,7 +159,7 @@ namespace Quartz.Tests.Unit
 			}
 
 			// Make sure order was maintained
-			Assert.AreEqual(new ArrayList(listenerNames),
+			TestUtil.AssertCollectionEquality(new ArrayList(listenerNames),
 			                new ArrayList(simpleTrigger.TriggerListenerNames));
 
 			// Make sure uniqueness is enforced
@@ -192,7 +193,7 @@ namespace Quartz.Tests.Unit
 			simpleTrigger.JobDataMap.Put("K2", "V2");
 			clone = (Trigger) simpleTrigger.Clone();
 			Assert.AreEqual(2, clone.TriggerListenerNames.Length);
-			Assert.AreEqual(new ArrayList(new string[] {"L1", "L2"}), new ArrayList(clone.TriggerListenerNames));
+			TestUtil.AssertCollectionEquality(new ArrayList(new string[] {"L1", "L2"}), new ArrayList(clone.TriggerListenerNames));
 			Assert.AreEqual(2, clone.JobDataMap.Count);
 			Assert.AreEqual("V1", clone.JobDataMap.Get("K1"));
 			Assert.AreEqual("V2", clone.JobDataMap.Get("K2"));
@@ -201,12 +202,12 @@ namespace Quartz.Tests.Unit
 			// their modification does not change the source Trigger 
 			clone.RemoveTriggerListener("L2");
 			Assert.AreEqual(1, clone.TriggerListenerNames.Length);
-			Assert.AreEqual(new ArrayList(new string[] {"L1"}), new ArrayList(clone.TriggerListenerNames));
+			TestUtil.AssertCollectionEquality(new ArrayList(new string[] {"L1"}), new ArrayList(clone.TriggerListenerNames));
 			clone.JobDataMap.Remove("K1");
 			Assert.AreEqual(1, clone.JobDataMap.Count);
 
 			Assert.AreEqual(2, simpleTrigger.TriggerListenerNames.Length);
-			Assert.AreEqual(new ArrayList(new string[] {"L1", "L2"}), new ArrayList(simpleTrigger.TriggerListenerNames));
+			TestUtil.AssertCollectionEquality(new ArrayList(new string[] {"L1", "L2"}), new ArrayList(simpleTrigger.TriggerListenerNames));
 			Assert.AreEqual(2, simpleTrigger.JobDataMap.Count);
 			Assert.AreEqual("V1", simpleTrigger.JobDataMap.Get("K1"));
 			Assert.AreEqual("V2", simpleTrigger.JobDataMap.Get("K2"));

@@ -76,7 +76,7 @@
                 />
                 <Reference
                     Name = "System.XML"
-                    AssemblyName = "System.XML"
+                    AssemblyName = "System.Xml"
                     HintPath = "..\..\..\..\..\WINDOWS\Microsoft.NET\Framework\v1.1.4322\System.XML.dll"
                 />
                 <Reference
@@ -104,8 +104,17 @@
         <Files>
             <Include>
                 <File
+                    RelPath = "App.config"
+                    BuildAction = "Content"
+                />
+                <File
                     RelPath = "AssemblyInfo.cs"
                     Link = "..\AssemblyInfo.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "TestUtil.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
@@ -154,10 +163,6 @@
                     RelPath = "Unit\Impl\DirectSchedulerFactoryTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Impl\Calendar\DailyCalendar-1.5.2.ser"
-                    BuildAction = "None"
                 />
                 <File
                     RelPath = "Unit\Impl\Calendar\DailyCalendarTest.cs"

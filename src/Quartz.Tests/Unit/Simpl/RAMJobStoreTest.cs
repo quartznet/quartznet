@@ -49,18 +49,19 @@ namespace Quartz.Tests.Unit.Simpl
 		[Test]
 		public void TestAcquireNextTrigger()
 		{
+			DateTime d = TriggerUtils.GetEvenSecondDate(DateTime.Now);
 			Trigger trigger1 =
 				new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name,
-				                  fJobDetail.Group, DateTime.Now.AddMilliseconds(200000),
-				                  DateTime.Now.AddMilliseconds(200000), 2, 2000);
+				                  fJobDetail.Group, d.AddMilliseconds(200000),
+				                  d.AddMilliseconds(200000), 2, 2000);
 			Trigger trigger2 =
 				new SimpleTrigger("trigger2", "triggerGroup1", fJobDetail.Name,
-				                  fJobDetail.Group, DateTime.Now.AddMilliseconds(-100000),
-				                  DateTime.Now.AddMilliseconds(20000), 2, 2000);
+				                  fJobDetail.Group, d.AddMilliseconds(-100000),
+				                  d.AddMilliseconds(20000), 2, 2000);
 			Trigger trigger3 =
 				new SimpleTrigger("trigger1", "triggerGroup2", fJobDetail.Name,
-				                  fJobDetail.Group, DateTime.Now.AddMilliseconds(100000),
-				                  DateTime.Now.AddMilliseconds(200000), 2, 2000);
+				                  fJobDetail.Group, d.AddMilliseconds(100000),
+				                  d.AddMilliseconds(200000), 2, 2000);
 
 			trigger1.ComputeFirstFireTime(null);
 			trigger2.ComputeFirstFireTime(null);
@@ -69,7 +70,7 @@ namespace Quartz.Tests.Unit.Simpl
 			fJobStore.StoreTrigger(null, trigger2, false);
 			fJobStore.StoreTrigger(null, trigger3, false);
 
-			Assert.IsNull(fJobStore.AcquireNextTrigger(null, DateTime.Now.AddMilliseconds(10)));
+			Assert.IsNull(fJobStore.AcquireNextTrigger(null, d.AddMilliseconds(10)));
 			Assert.AreEqual(
 				trigger2,
 				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddMilliseconds(10000)));
