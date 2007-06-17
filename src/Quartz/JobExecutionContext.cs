@@ -107,9 +107,6 @@ namespace Quartz
             jobDataMap = new JobDataMap();
             jobDataMap.PutAll(jobDetail.JobDataMap);
             jobDataMap.PutAll(trigger.JobDataMap);
-
-            jobDataMap.Mutable = false;
-            trigger.JobDataMap.Mutable = false;
         }
 
 		/// <summary>

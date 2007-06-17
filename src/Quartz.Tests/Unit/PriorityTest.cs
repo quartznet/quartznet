@@ -71,10 +71,10 @@ namespace Quartz.Tests.Unit
 			DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
 
 			Trigger trig1 = new SimpleTrigger("T1", null, cal);
-			//trig1.Priority = 5;
+			trig1.Priority = 5;
 
 			Trigger trig2 = new SimpleTrigger("T2", null, cal);
-			//trig2.Priority = 10;
+			trig2.Priority = 10;
 
 			JobDetail jobDetail = new JobDetail("JD", null, typeof (TestJob));
 

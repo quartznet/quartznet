@@ -48,13 +48,13 @@ namespace Quartz.Core
 	/// <author>Marko Lahma (.NET)</author>
 	public class JobRunShell : IThreadRunnable
 	{
-		private static readonly ILog log = LogManager.GetLogger(typeof (JobRunShell));
+		private readonly ILog log;
 
 		private JobExecutionContext jec = null;
 		private QuartzScheduler qs = null;
-		private IScheduler scheduler = null;
-		private SchedulingContext schdCtxt = null;
-		private IJobRunShellFactory jobRunShellFactory = null;
+		private readonly IScheduler scheduler = null;
+		private readonly SchedulingContext schdCtxt = null;
+		private readonly IJobRunShellFactory jobRunShellFactory = null;
 		private bool shutdownRequested = false;
 
 
@@ -72,6 +72,7 @@ namespace Quartz.Core
 			this.jobRunShellFactory = jobRunShellFactory;
 			this.scheduler = scheduler;
 			this.schdCtxt = schdCtxt;
+            log = LogManager.GetLogger(GetType());
 		}
 
 		/// <summary>
@@ -93,7 +94,7 @@ namespace Quartz.Core
 			catch (SchedulerException se)
 			{
 				sched.NotifySchedulerListenersError("An error occured instantiating job to be executed. job= '" + jobDetail.FullName + "'", se);
-				throw se;
+				throw;
 			}
 			catch (Exception e)
 			{
@@ -121,8 +122,7 @@ namespace Quartz.Core
 		{
 			Trigger trigger = jec.Trigger;
 			JobDetail jobDetail = jec.JobDetail;
-
-			do
+		    do
 			{
 				JobExecutionException jobExEx = null;
 				IJob job = jec.JobInstance;
@@ -138,7 +138,8 @@ namespace Quartz.Core
 				}
 
 				// notify job & trigger listeners...
-				try
+			    int instCode;
+			    try
 				{
 					if (!NotifyListenersBeginning(jec))
 					{
@@ -149,6 +150,15 @@ namespace Quartz.Core
 				{
 					try
 					{
+                        instCode = trigger.ExecutionComplete(jec, null);
+                        try
+                        {
+                            qs.NotifyJobStoreJobVetoed(schdCtxt, trigger, jobDetail, instCode);
+                        }
+                        catch (JobPersistenceException)
+                        {
+                            VetoedJobRetryLoop(trigger, jobDetail, instCode);
+                        }
 						Complete(true);
 					}
 					catch (SchedulerException se)
@@ -194,7 +204,7 @@ namespace Quartz.Core
 					break;
 				}
 
-				int instCode = Trigger.INSTRUCTION_NOOP;
+				instCode = Trigger.INSTRUCTION_NOOP;
 
 				// update the trigger
 				try
@@ -409,11 +419,39 @@ namespace Quartz.Core
 			return false;
 		}
 
+		/// <summary>
+		/// Vetoeds the job retry loop.
+		/// </summary>
+		/// <param name="trigger">The trigger.</param>
+		/// <param name="jobDetail">The job detail.</param>
+		/// <param name="instCode">The inst code.</param>
+		/// <returns></returns>
+        public bool VetoedJobRetryLoop(Trigger trigger, JobDetail jobDetail, int instCode)
+        {
+            while (!shutdownRequested)
+            {
+                try
+                {
+                    Thread.Sleep(5 * 1000); // retry every 5 seconds (the db
+                    // connection must be failed)
+                    qs.NotifyJobStoreJobVetoed(schdCtxt, trigger, jobDetail, instCode);
+                    return true;
+                }
+                catch (JobPersistenceException jpe)
+                {
+                    qs.NotifySchedulerListenersError(
+                            "An error occured while marking executed job vetoed. job= '"
+                                    + jobDetail.FullName + "'", jpe);
+                }
+            }
+            return false;
+        }
+
 
 		[Serializable]
 		internal class VetoedException : Exception
 		{
-			private JobRunShell enclosingInstance;
+			private readonly JobRunShell enclosingInstance;
 
 			public JobRunShell EnclosingInstance
 			{

@@ -2,6 +2,27 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+Release 0.5, June 17, 2007
+-----------------------------
+Bug
+
+    * [QRTZNET-13] - CronExpressions don't handle time shift from 24th hour correctly
+    * [QRTZNET-14] - CronExpression does not handle weekdays correctly
+
+Improvement
+
+    * [QRTZNET-10] - Bring unit tests from Java side
+
+Task
+
+    * [QRTZNET-1] - Merge changes between 1.5.1 and 1.5.2
+    * [QRTZNET-12] - Fix API documentation, wrong usage of <code> tags makes MSDN doc look terrible
+    * [QRTZNET-15] - Bring changes from Quartz 1.6 to .NET side
+
+Other:
+
+Work around the code base to make it cleaner and more .NET like.
+
 
 
 Release 0.4.1, March 24, 2007

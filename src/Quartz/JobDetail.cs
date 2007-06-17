@@ -22,6 +22,7 @@ using System;
 
 using Quartz.Collection;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -60,6 +61,8 @@ namespace Quartz
         private bool shouldRecover = false;
 
         private HashSet jobListeners = new HashSet();
+        [NonSerialized]
+        private Key key = null;
 
         /// <summary>
         /// Get or sets the name of this <see cref="IJob" />.
@@ -118,15 +121,27 @@ namespace Quartz
             get { return group + "." + name; }
         }
 
+        public Key Key
+        {
+            get
+            {
+                if (key == null)
+                {
+                    key = new Key(Name, Group);
+                }
+
+                return key;
+            }
+        }
+
         /// <summary>
         /// Get or set the description given to the <see cref="IJob" /> instance by its
         /// creator (if any).
-        /// <p>
-        /// May be useful
-        /// for remembering/displaying the purpose of the job, though the
-        /// description has no meaning to Quartz.
-        /// </p>
         /// </summary>
+        /// <remarks>
+        /// May be useful for remembering/displaying the purpose of the job, though the
+        /// description has no meaning to Quartz.
+        /// </remarks>
         public virtual string Description
         {
             get { return description; }

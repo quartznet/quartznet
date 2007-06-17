@@ -379,6 +379,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal virtual ISemaphore LockHandler
 		{
 			get { return lockHandler; }
+            set { lockHandler = value; }
 		}
 
 		/*

@@ -24,112 +24,112 @@ using Common.Logging;
 
 using Quartz.Spi;
 
-namespace Quartz.Plugins.Management
+namespace Quartz.Plugin.Management
 {
-	/// <summary> 
-	/// This plugin catches the event of the VM terminating (such as upon a CRTL-C)
-	/// and tells the scheuler to Shutdown.
-	/// </summary>
-	/// <seealso cref="IScheduler.Shutdown(bool)" />
-	/// <author>James House</author>
-	public class ShutdownHookPlugin : ISchedulerPlugin
-	{
+    /// <summary> 
+    /// This plugin catches the event of the VM terminating (such as upon a CRTL-C)
+    /// and tells the scheuler to Shutdown.
+    /// </summary>
+    /// <seealso cref="IScheduler.Shutdown(bool)" />
+    /// <author>James House</author>
+    public class ShutdownHookPlugin : ISchedulerPlugin
+    {
         private string name;
         private IScheduler scheduler;
         private bool cleanShutdown = true;
 
-		private static readonly ILog Log = LogManager.GetLogger(typeof (ShutdownHookPlugin));
+        private static readonly ILog Log = LogManager.GetLogger(typeof (ShutdownHookPlugin));
 
-		private class AnonymousClassThread : QuartzThread
-		{
+        private class AnonymousClassThread : QuartzThread
+        {
             private IScheduler scheduler;
             private ShutdownHookPlugin encInstance;
 
-			private void InitBlock(IScheduler sched, ShutdownHookPlugin enclosingInstance)
-			{
-				scheduler = sched;
-				encInstance = enclosingInstance;
-			}
+            private void InitBlock(IScheduler sched, ShutdownHookPlugin enclosingInstance)
+            {
+                scheduler = sched;
+                encInstance = enclosingInstance;
+            }
 
 
 
-			public ShutdownHookPlugin EnclosingInstance
-			{
-				get { return encInstance; }
-			}
+            public ShutdownHookPlugin EnclosingInstance
+            {
+                get { return encInstance; }
+            }
 
-			internal AnonymousClassThread(IScheduler scheduler, ShutdownHookPlugin enclosingInstance, string Param1)
-				: base(Param1)
-			{
-				InitBlock(scheduler, enclosingInstance);
-			}
+            internal AnonymousClassThread(IScheduler scheduler, ShutdownHookPlugin enclosingInstance, string Param1)
+                : base(Param1)
+            {
+                InitBlock(scheduler, enclosingInstance);
+            }
 
-			public override void Run()
-			{
-				Log.Info("Shutting down Quartz...");
-				try
-				{
-					EnclosingInstance.scheduler.Shutdown(EnclosingInstance.CleanShutdown);
-				}
-				catch (SchedulerException e)
-				{
-					Log.Info("Error shutting down Quartz: " + e.Message, e);
-				}
-			}
-		}
+            public override void Run()
+            {
+                Log.Info("Shutting down Quartz...");
+                try
+                {
+                    EnclosingInstance.scheduler.Shutdown(EnclosingInstance.CleanShutdown);
+                }
+                catch (SchedulerException e)
+                {
+                    Log.Info("Error shutting down Quartz: " + e.Message, e);
+                }
+            }
+        }
 
-		/// <summary> 
-		/// Determine whether or not the plug-in is configured to cause a clean
-		/// Shutdown of the scheduler.
-		/// <p>
-		/// The default value is <see langword="true" />.
-		/// </p>
-		/// </summary>
-		/// <seealso cref="IScheduler.Shutdown(bool)" />
-		public virtual bool CleanShutdown
-		{
-			get { return cleanShutdown; }
-			set { cleanShutdown = value; }
-		}
+        /// <summary> 
+        /// Determine whether or not the plug-in is configured to cause a clean
+        /// Shutdown of the scheduler.
+        /// <p>
+        /// The default value is <see langword="true" />.
+        /// </p>
+        /// </summary>
+        /// <seealso cref="IScheduler.Shutdown(bool)" />
+        public virtual bool CleanShutdown
+        {
+            get { return cleanShutdown; }
+            set { cleanShutdown = value; }
+        }
 
 
-		/// <summary>
-		/// Called during creation of the <see cref="IScheduler" /> in order to give
-		/// the <see cref="SchedulerPlugin" /> a chance to Initialize.
-		/// </summary>
-		public virtual void Initialize(String pluginName, IScheduler sched)
-		{
-			name = pluginName;
-			scheduler = sched;
+        /// <summary>
+        /// Called during creation of the <see cref="IScheduler" /> in order to give
+        /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
+        /// </summary>
+        public virtual void Initialize(String pluginName, IScheduler sched)
+        {
+            name = pluginName;
+            scheduler = sched;
 
-			Log.Info(string.Format("Registering Quartz Shutdown hook '{0}.", pluginName));
+            Log.Info(string.Format("Registering Quartz Shutdown hook '{0}.", pluginName));
 
-			QuartzThread t =
-				new AnonymousClassThread(sched, this, "Quartz Shutdown-Hook " + sched.SchedulerName);
+            QuartzThread t =
+                new AnonymousClassThread(sched, this, "Quartz Shutdown-Hook " + sched.SchedulerName);
 
-			// TODO
-			//Process.GetCurrentProcess().addShutdownHook(t.Instance);
-		}
+            // TODO
+            //Process.GetCurrentProcess().addShutdownHook(t.Instance);
+        }
 
         /// <summary>
         /// Called when the associated <see cref="IScheduler" /> is started, in order
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-		public virtual void Start()
-		{
-			// do nothing.
-		}
+        public virtual void Start()
+        {
+            // do nothing.
+        }
 
-		/// <summary>
-		/// Called in order to inform the <see cref="SchedulerPlugin" /> that it
-		/// should free up all of it's resources because the scheduler is shutting
-		/// down.
-		/// </summary>
-		public virtual void Shutdown()
-		{
-			// nothing to do in this case (since the scheduler is already shutting
-			// down)
-		}
-	}
+        /// <summary>
+        /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
+        /// should free up all of it's resources because the scheduler is shutting
+        /// down.
+        /// </summary>
+        public virtual void Shutdown()
+        {
+            // nothing to do in this case (since the scheduler is already shutting
+            // down)
+        }
+    }
 }

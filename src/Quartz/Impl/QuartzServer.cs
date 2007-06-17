@@ -21,6 +21,8 @@
 using System;
 using System.Threading;
 
+using Quartz.Listener;
+
 namespace Quartz.Impl
 {
 	/// <summary>
@@ -45,7 +47,7 @@ namespace Quartz.Impl
 	/// </summary>
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
-	public class QuartzServer : ISchedulerListener
+    public class QuartzServer : SchedulerListenerSupport
 	{
 		private IScheduler sched = null;
 
@@ -59,13 +61,7 @@ namespace Quartz.Impl
 
 			sched.Start();
 
-			try
-			{
-				Thread.Sleep(3000);
-			}
-			catch (Exception)
-			{
-			}
+			Thread.Sleep(3000);
 
 			Console.Out.WriteLine("\n*** The scheduler successfully started.");
 
@@ -91,79 +87,6 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
-		/// is scheduled.
-		/// </summary>
-		public virtual void JobScheduled(Trigger trigger)
-		{
-		}
-
-		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
-		/// is unscheduled.
-		/// </summary>
-		public virtual void JobUnscheduled(string triggerName, string triggerGroup)
-		{
-		}
-
-		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
-		/// has reached the condition in which it will never fire again.
-		/// </summary>
-		public virtual void TriggerFinalized(Trigger trigger)
-		{
-		}
-
-		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
-		/// or group of <code>Trigger</code>s has been paused.
-		/// <p>
-		/// If a group was paused, then the <code>triggerName</code> parameter
-		/// will be null.
-		/// </p>
-		/// </summary>
-		public virtual void TriggersPaused(string triggerName, string triggerGroup)
-		{
-		}
-
-		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>Trigger</code>
-		/// or group of <code>Trigger</code>s has been un-paused.
-		/// <p>
-		/// If a group was resumed, then the <code>triggerName</code> parameter
-		/// will be null.
-		/// </p>
-		/// </summary>
-		public virtual void TriggersResumed(string triggerName, string triggerGroup)
-		{
-		}
-
-		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
-		/// or group of <code>JobDetail</code>s has been
-		/// paused.
-		/// <p>
-		/// If a group was paused, then the <code>jobName</code> parameter will be
-		/// null.
-		/// </p>
-		/// </summary>
-		public virtual void JobsPaused(string jobName, string jobGroup)
-		{
-		}
-
-		/// <summary>
-		/// Called by the <code>Scheduler</code> when a <code>JobDetail</code>
-		/// or group of <code>JobDetail</code>s has been un-paused.
-		/// <p>
-		/// If a group was paused, then the <code>jobName</code> parameter will be
-		/// null.
-		/// </p>
-		/// </summary>
-		public virtual void JobsResumed(string jobName, string jobGroup)
-		{
-		}
-
-		/// <summary>
 		/// Called by the <code>Scheduler</code> when a serious error has
 		/// occured within the scheduler - such as repeated failures in the <code>JobStore</code>,
 		/// or the inability to instantiate a <code>Job</code> instance when its
@@ -174,7 +97,7 @@ namespace Quartz.Impl
 		/// error that was encountered.
 		/// </p>
 		/// </summary>
-		public virtual void SchedulerError(string msg, SchedulerException cause)
+		public override void SchedulerError(string msg, SchedulerException cause)
 		{
 			Console.Error.WriteLine("*** " + msg);
 			Console.Error.WriteLine(cause.ToString());
@@ -184,7 +107,7 @@ namespace Quartz.Impl
 		/// Called by the <code>Scheduler</code> to inform the listener
 		/// that it has Shutdown.
 		/// </summary>
-		public virtual void SchedulerShutdown()
+		public override void SchedulerShutdown()
 		{
 			Console.Out.WriteLine("\n*** The scheduler is now Shutdown.");
 			sched = null;

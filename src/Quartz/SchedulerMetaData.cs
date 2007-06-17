@@ -20,8 +20,11 @@
 */
 using System;
 using System.Text;
+using System.Threading;
 
 using Nullables;
+
+using Quartz.Spi;
 
 namespace Quartz
 {
@@ -78,8 +81,8 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// <p>
-		/// Note: <see cref="isStarted()" /> may return <see langword="true" /> even if
-		/// <see cref="isPaused()" /> returns <see langword="true" />.
+		/// Note: <see cref="Started" /> may return <see langword="true" /> even if
+        /// <see cref="InStandbyMode" /> returns <see langword="true" />.
 		/// </p>
 		/// </summary>
 		public virtual bool Started
@@ -87,18 +90,16 @@ namespace Quartz
 			get { return started; }
 		}
 
-		/// <summary> <p>
-		/// Reports whether the <see cref="IScheduler" /> is paused.
-		/// </p>
-		/// 
+		/// <summary>
+        /// Reports whether the <see cref="IScheduler" /> is in standby mode.
 		/// <p>
-		/// Note: <see cref="isStarted()" /> may return <see langword="true" /> even if
-		/// <see cref="isPaused()" /> returns <see langword="true" />.
+		/// Note: <see cref="Started" /> may return <see langword="true" /> even if
+		/// <see cref="InStandbyMode" /> returns <see langword="true" />.
 		/// </p>
 		/// </summary>
-		public virtual bool Paused
+        public virtual bool InStandbyMode
 		{
-			get { return paused; }
+			get { return isInStandbyMode; }
 		}
 
 		/// <summary> <p>
@@ -204,14 +205,15 @@ namespace Quartz
 					}
 					str.Append("\n");
 
-					if (Paused)
-					{
-						str.Append("  Currently PAUSED.");
-					}
-					else
-					{
-						str.Append("  Not currently paused.");
-					}
+
+                    if (InStandbyMode)
+                    {
+                        str.Append("  Currently in standby mode.");
+                    }
+                    else
+                    {
+                        str.Append("  Not currently in standby mode.");
+                    }
 				}
 				else
 				{
@@ -252,7 +254,7 @@ namespace Quartz
 		private Type schedClass;
 		private bool isRemote;
 		private bool started;
-		private bool paused;
+        private bool isInStandbyMode;
 		private bool shutdown;
 		private NullableDateTime startTime;
 		private int numJobsExec;
@@ -263,7 +265,7 @@ namespace Quartz
 		private string version;
 
 
-		public SchedulerMetaData(string schedName, string schedInst, Type schedClass, bool isRemote, bool started, bool paused,
+        public SchedulerMetaData(string schedName, string schedInst, Type schedClass, bool isRemote, bool started, bool isInStandbyMode,
 		                         bool shutdown, NullableDateTime startTime, int numJobsExec, Type jsClass, bool jsPersistent,
 		                         Type tpClass, int tpSize, string version)
 		{
@@ -272,7 +274,7 @@ namespace Quartz
 			this.schedClass = schedClass;
 			this.isRemote = isRemote;
 			this.started = started;
-			this.paused = paused;
+            this.isInStandbyMode = isInStandbyMode;
 			this.shutdown = shutdown;
 			this.startTime = startTime;
 			this.numJobsExec = numJobsExec;

@@ -60,7 +60,6 @@ namespace Quartz.Tests.Unit
 
 			Assert.IsNotNull(deserializedMap);
 			Assert.AreEqual(targetMap.WrappedMap, deserializedMap.WrappedMap);
-			Assert.AreEqual(targetMap.AllowsTransientData, deserializedMap.AllowsTransientData);
 			Assert.AreEqual(targetMap.Dirty, deserializedMap.Dirty);
 		}
 	}

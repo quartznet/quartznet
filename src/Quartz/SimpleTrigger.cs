@@ -153,13 +153,13 @@ namespace Quartz
 		/// </summary>
 		public const int MISFIRE_INSTRUCTION_FIRE_NOW = 1;
 
-		/// <summary> <p>
+		/// <summary>
 		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
 		/// situation, the <see cref="SimpleTrigger" /> wants to be
 		/// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
-		/// excludes 'now') with the repeat count left as-is.
-		/// </p>
-		/// 
+		/// excludes 'now') with the repeat count left as-is.   This does obey the
+        /// <see cref="Trigger" /> end-time however, so if 'now' is after the
+        /// end-time the <code>Trigger</code> will not fire again.
 		/// <p>
 		/// <i>NOTE:</i> Use of this instruction causes the trigger to 'forget'
 		/// the start-time and repeat-count that it was originally setup with (this
@@ -175,14 +175,15 @@ namespace Quartz
 		/// </summary>
 		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT = 2;
 
-		/// <summary> <p>
+		/// <summary>
 		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
 		/// situation, the <see cref="SimpleTrigger" /> wants to be
 		/// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
 		/// excludes 'now') with the repeat count set to what it would be, if it had
-		/// not missed any firings.
-		/// </p>
-		/// 
+        /// not missed any firings. This does obey the <see cref="Trigger" /> end-time 
+        /// however, so if 'now' is after the end-time the <see cref="Trigger" /> will 
+        /// not fire again.
+        /// 
 		/// <p>
 		/// <i>NOTE:</i> Use of this instruction causes the trigger to 'forget'
 		/// the start-time and repeat-count that it was originally setup with (this
@@ -198,19 +199,17 @@ namespace Quartz
 		/// </summary>
 		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT = 3;
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
 		/// situation, the <see cref="SimpleTrigger" /> wants to be
 		/// re-scheduled to the next scheduled time after 'now' - taking into
 		/// account any associated <see cref="ICalendar" />, and with the
 		/// repeat count set to what it would be, if it had not missed any firings.
-		/// </p>
-		/// 
-		/// <p>
+        /// </summary>
+        /// <remarks>
 		/// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="Trigger" />
 		/// to go directly to the 'COMPLETE' state if all fire-times where missed.
-		/// </p>
-		/// </summary>
+        /// </remarks>
 		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT = 4;
 
 		/// <summary>
@@ -641,12 +640,12 @@ namespace Quartz
 		{
 			if (complete)
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 
 			if ((timesTriggered > repeatCount) && (repeatCount != REPEAT_INDEFINITELY))
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 
 			if (!afterTime.HasValue)
@@ -663,28 +662,32 @@ namespace Quartz
 			DateTime afterMillis = afterTime.Value;
 			DateTime endMillis = !EndTime.HasValue ? DateTime.MaxValue : EndTime.Value;
 
-			if (endMillis <= afterMillis)
+
+			if (endMillis <= afterMillis) 
 			{
 				return null;
 			}
 
-			if (afterMillis < startMillis)
+			if (afterMillis < startMillis) 
 			{
 				return startMillis;
 			}
 
-			long numberoftimesexecutedplusone = (((long) (afterMillis - startMillis).TotalMilliseconds)/repeatInterval) + 1;
+			long numberOfTimesExecuted = ((long) (afterMillis - startMillis).TotalMilliseconds / repeatInterval) + 1;
 
-			if ((numberoftimesexecutedplusone > repeatCount) && (repeatCount != REPEAT_INDEFINITELY))
-			{
-				return NullableDateTime.Default;
-			}
-
-			DateTime time = startMillis.AddMilliseconds(numberoftimesexecutedplusone*repeatInterval);
-			if (endMillis <= time)
+			if ((numberOfTimesExecuted > repeatCount) && 
+				(repeatCount != REPEAT_INDEFINITELY)) 
 			{
 				return null;
 			}
+
+			DateTime time = startMillis.AddMilliseconds(numberOfTimesExecuted * repeatInterval);
+
+			if (endMillis <= time) 
+			{
+				return null;
+			}
+
 
 			return time;
 		}

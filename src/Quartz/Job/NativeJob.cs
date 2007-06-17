@@ -86,15 +86,15 @@ namespace Quartz.Job
 		/// The implementation may wish to set a  result object on the
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to
-		/// <see cref="JobListeners" /> or
-		/// <see cref="TriggerListeners" /> that are watching the job's
+		/// <see cref="IJobListener" />s or
+		/// <see cref="ITriggerListener" />s that are watching the job's
 		/// execution.
 		/// </p>
 		/// </summary>
 		/// <param name="context"></param>
 		public virtual void Execute(JobExecutionContext context)
 		{
-			JobDataMap data = context.JobDetail.JobDataMap;
+			JobDataMap data = context.MergedJobDataMap;
 
 			String command = data.GetString(PROP_COMMAND);
 
@@ -116,15 +116,17 @@ namespace Quartz.Job
 				consumeStreams = data.GetBooleanValue(PROP_CONSUME_STREAMS);
 			}
 
-			RunNativeCommand(command, parameters, wait, consumeStreams);
+			int exitCode = RunNativeCommand(command, parameters, wait, consumeStreams);
+		    context.Result = exitCode;
 		}
 
-		private void RunNativeCommand(String command, string parameters, bool wait, bool consumeStreams)
+		private int RunNativeCommand(String command, string parameters, bool wait, bool consumeStreams)
 		{
 			string[] cmd = null;
 			string[] args = new string[2];
 			args[0] = command;
 			args[1] = parameters;
+		    int result = -1;
 
 			try
 			{
@@ -253,13 +255,16 @@ namespace Quartz.Job
 				if (wait)
 				{
 					proc.WaitForExit();
+                    result = proc.ExitCode;
 				}
 				// any error message?
+			    
 			}
 			catch (Exception x)
 			{
 				throw new JobExecutionException("Error launching native command: ", x, false);
 			}
+            return result;
 		}
 
 		/// <summary> 

@@ -33,36 +33,61 @@ namespace Quartz
 	/// </summary>
 	public struct Scheduler_Fields
 	{
-		/// <summary> <p>
+		/// <summary>
 		/// A (possibly) usefull constant that can be used for specifying the group
 		/// that <see cref="IJob" /> and <see cref="Trigger" /> instances belong to.
-		/// </p>
 		/// </summary>
 		public static readonly string DEFAULT_GROUP = "DEFAULT";
 
-		/// <summary> <p>
+		/// <summary>
 		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
 		/// ("MANUAL_TRIGGER") for thename of a <see cref="Trigger" />'s group.
-		/// </p>
 		/// </summary>
 		public static readonly string DEFAULT_MANUAL_TRIGGERS = "MANUAL_TRIGGER";
 
-		/// <summary> <p>
+		/// <summary>
 		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
 		/// ("RECOVERING_JOBS") for thename of a <see cref="Trigger" />'s group.
-		/// </p>
 		/// </summary>
 		public static readonly string DEFAULT_RECOVERY_GROUP = "RECOVERING_JOBS";
 
-		/// <summary> <p>
+		/// <summary>
 		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
 		/// ("FAILED_OVER_JOBS") for thename of a <see cref="Trigger" />'s group.
-		/// </p>
 		/// </summary>
 		public static readonly string DEFAULT_FAIL_OVER_GROUP = "FAILED_OVER_JOBS";
+
+
+        /// <summary>
+        ///  A constant <see cref="JobDataMap" /> key that can be used to retrieve the
+        /// name of the original <see cref="Trigger" /> from a recovery trigger's
+        /// data map in the case of a job recovering after a failed scheduler
+        /// instance.
+        /// </summary>
+        /// <seealso cref="JobDetail.RequestsRecovery" />
+        public static readonly string FAILED_JOB_ORIGINAL_TRIGGER_NAME = "QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME";
+
+        /// <summary>
+        /// A constant <see cref="JobDataMap" /> key that can be used to retrieve the
+        /// group of the original <see cref="Trigger" /> from a recovery trigger's
+        /// data map in the case of a job recovering after a failed scheduler
+        /// instance.
+        /// </summary>
+        /// <seealso cref="JobDetail.RequestsRecovery" />
+        public static readonly string FAILED_JOB_ORIGINAL_TRIGGER_GROUP = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
+
+        /// <summary>
+        ///  A constant <see cref="JobDataMap" /> key that can be used to retrieve the
+        /// scheduled fire time of the original <see cref="Trigger" /> from a recovery
+         /// trigger's data map in the case of a job recovering after a failed scheduler
+         /// instance.
+        /// </summary>
+        /// <seealso cref="JobDetail.RequestsRecovery" />
+        public static readonly string FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING";
+
 	}
 
     /// <summary>
@@ -181,16 +206,22 @@ namespace Quartz
 		SchedulerMetaData GetMetaData();
 
 		/// <summary>
-		/// Return a list of <see cref="JobExecutionContext" /> objects that
-		/// represent all currently executing Jobs.
+        /// Return a list of <see cref="JobExecutionContext" /> objects that
+        /// represent all currently executing Jobs in this Scheduler instance.
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// This method is not cluster aware.  That is, it will only return Jobs
+        /// currently executing in this Scheduler instance, not across the entire
+        /// cluster.
+        /// </p>
 		/// <p>
 		/// Note that the list returned is an 'instantaneous' snap-shot, and that as
 		/// soon as it's returned, the true list of executing jobs may be different.
 		/// Also please read the doc associated with <see cref="JobExecutionContext" />-
 		/// especially if you're using remoting.
 		/// </p>
-		/// 
-		/// </summary>
+        /// </remarks>
 		/// <seealso cref="JobExecutionContext" />
 		IList GetCurrentlyExecutingJobs();
 
@@ -222,9 +253,6 @@ namespace Quartz
 		/// <summary> 
 		/// Get the names of all <see cref="Trigger" /> groups that are paused.
 		/// </summary>
-		/// <returns>
-		/// </returns>
-		/// <throws>  SchedulerException </throws>
 		ISet GetPausedTriggerGroups();
 
 		/// <summary>
@@ -243,6 +271,22 @@ namespace Quartz
 		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
 		ISet JobListenerNames { get; }
+
+        /// <summary>
+        /// Get the <i>global</i><see cref="IJobListener" /> that has
+        /// the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        IJobListener GetGlobalJobListener(string name);
+
+        /// <summary>
+        /// Get the <i>global</i><see cref="ITriggerListener" /> that
+        /// has the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        ITriggerListener GetGlobalTriggerListener(string name);
 
 		/// <summary>
 		/// Get a List containing all of the <see cref="ITriggerListener" />
@@ -277,6 +321,24 @@ namespace Quartz
 		/// <seealso cref="Standby"/>
 		/// <seealso cref="Shutdown(bool)"/>
 		void Start();
+
+ 
+        /// <summary>
+        /// Whether the scheduler has been started.  
+        /// </summary>
+        /// <remarks>
+        /// Note: This only reflects whether <see cref="Start" /> has ever
+        /// been called on this Scheduler, so it will return <code>true</code> even 
+        /// if the <code>Scheduler</code> is currently in standby mode or has been 
+        /// since shutdown.
+        /// </remarks>
+        /// <seealso cref="Start" />
+        /// <seealso cref="IsShutdown" />
+        /// <seealso cref="InStandbyMode" />
+        bool IsStarted
+        { 
+            get;
+        }
 
 		/// <summary>
 		/// Temporarily halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s.
@@ -632,12 +694,12 @@ namespace Quartz
 		/// </summary>
 		ICalendar GetCalendar(string calName);
 
-		/// <summary> <p>
-		/// Request the interruption of all currently executing instances of the 
-		/// identified <see cref="IJob" />, which must be an implementor of the 
-		/// <see cref="IInterruptableJob" /> interface.
-		/// </p>
-		/// 
+		/// <summary>
+		/// Request the interruption, within this Scheduler instance, of all 
+        /// currently executing instances of the identified <code>Job</code>, which 
+        /// must be an implementor of the <see cref="IInterruptableJob" /> interface.
+		/// </summary>
+		/// <remarks>
 		/// <p>
 		/// If more than one instance of the identified job is currently executing,
 		/// the <see cref="IInterruptableJob.Interrupt" /> method will be called on
@@ -654,12 +716,14 @@ namespace Quartz
 		/// to the job instance, and then invoke <see cref="Interrupt" /> on it
 		/// yourself.
 		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="jobName">
-		/// </param>
-		/// <param name="groupName">
-		/// </param>
+		/// <p>
+        /// This method is not cluster aware.  That is, it will only interrupt 
+        /// instances of the identified InterruptableJob currently executing in this 
+        /// Scheduler instance, not across the entire cluster.
+        /// </p>
+        /// </remarks>
+		/// <param name="jobName"> </param>
+		/// <param name="groupName"> </param>
 		/// <returns> true is at least one instance of the identified job was found
 		/// and interrupted.
 		/// </returns>
@@ -696,6 +760,14 @@ namespace Quartz
 		/// removed.
 		/// </returns>
 		bool RemoveGlobalJobListener(IJobListener jobListener);
+
+        /// <summary>
+        /// Remove the identifed <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
+        /// list of <i>global</i> listeners.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns>true if the identifed listener was found in the list, and removed</returns>
+        bool RemoveGlobalJobListener(string name);
 
 		/// <summary> <p>
 		/// Remove the identifed <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
@@ -740,6 +812,15 @@ namespace Quartz
 		/// </returns>
 		bool RemoveGlobalTriggerListener(ITriggerListener triggerListener);
 
+
+        /// <summary>
+        /// Remove the identifed <see cref="ITriggerListener" /> from the <see cref="IScheduler" />'s
+        /// list of <i>global</i> listeners.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns>true if the identifed listener was found in the list, and removed.</returns>
+        bool RemoveGlobalTriggerListener(string name);
+        
 		/// <summary>
 		/// Remove the identifed <see cref="ITriggerListener" /> from the
 		/// <see cref="IScheduler" />'s list of registered listeners.
@@ -758,7 +839,6 @@ namespace Quartz
 
 		/// <summary>
 		/// Register the given <see cref="ISchedulerListener" /> with the
-		/// </p>
 		/// </summary>
 		void AddSchedulerListener(ISchedulerListener schedulerListener);
 

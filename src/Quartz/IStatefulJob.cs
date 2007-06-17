@@ -33,7 +33,6 @@ namespace Quartz
 	/// other difference is that stateful jobs are not allowed to Execute
 	/// concurrently, which means new triggers that occur before the completion of
 	/// the <see cref="IJob.Execute" /> method will be delayed.
-	/// </p>
 	/// </remarks>
 	/// <seealso cref="IJob" />
 	/// <seealso cref="JobDetail" />

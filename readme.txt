@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, release 0.4.2, June 11 2007
+QUARTZ JOB SCHEDULER .NET, release 0.5, June 17 2007
 -----------------------------------------------------------------
 
 http://quartznet.sourceforge.net/
@@ -33,7 +33,6 @@ Lots of funtionality still missing.
 3. RELEASE INFO
 ----------------
 
-This is a bug fix release addressing the issues found especially in cron related
-functionality. Also code base has had some cleanup.
-
+Work in progress version. Some bug fixes and migration to
+Quartz 1.6 core features.
 

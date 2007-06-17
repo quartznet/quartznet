@@ -54,16 +54,22 @@ namespace Quartz.Simpl
 		private TreeSet timeTriggers = new TreeSet(new TriggerComparator());
 		private IDictionary calendarsByName = new Hashtable(25);
 		private ArrayList triggers = new ArrayList(1000);
-		private object jobLock = new object();
-		private object triggerLock = new object();
+		private readonly object jobLock = new object();
+		private readonly object triggerLock = new object();
 		private HashSet pausedTriggerGroups = new HashSet();
 		private HashSet blockedJobs = new HashSet();
 		private long misfireThreshold = 5000L;
 		private ISchedulerSignaler signaler;
 		
-		private static ILog Log = LogManager.GetLogger(typeof (RAMJobStore));
+		private readonly ILog log;
 
-		/// <summary> 
+
+	    public RAMJobStore()
+	    {
+	        log = LogManager.GetLogger(GetType());
+	    }
+
+	    /// <summary> 
 		/// The the number of milliseconds by which a trigger must have missed its
 		/// next-fire-time, in order for it to be considered "misfired" and thus
 		/// have its misfire instruction applied.
@@ -134,7 +140,12 @@ namespace Quartz.Simpl
 	        get { return false; }
 	    }
 
-		/// <summary>
+	    protected ILog Log
+	    {
+	        get { return log; }
+	    }
+
+	    /// <summary>
 		/// Store the given <see cref="JobDetail" /> and <see cref="Trigger" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
@@ -156,7 +167,7 @@ namespace Quartz.Simpl
 		/// over-written.</param>
 		public virtual void StoreJob(SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
 		{
-			JobWrapper jw = new JobWrapper(newJob);
+            JobWrapper jw = new JobWrapper((JobDetail)newJob.Clone());
 
 			bool repl = false;
 
@@ -189,7 +200,7 @@ namespace Quartz.Simpl
 				{
 					// update job detail
 					JobWrapper orig = (JobWrapper) jobsByFQN[jw.key];
-					orig.jobDetail = newJob;
+                    orig.jobDetail = jw.jobDetail;
 				}
 			}
 		}
@@ -252,7 +263,7 @@ namespace Quartz.Simpl
 		/// be over-written.</param>
 		public virtual void StoreTrigger(SchedulingContext ctxt, Trigger newTrigger, bool replaceExisting)
 		{
-			TriggerWrapper tw = new TriggerWrapper(newTrigger);
+            TriggerWrapper tw = new TriggerWrapper((Trigger)newTrigger.Clone());
 
 			if (triggersByFQN[tw.key] != null)
 			{
@@ -451,12 +462,7 @@ namespace Quartz.Simpl
 		public virtual JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			JobWrapper jw = (JobWrapper) jobsByFQN[JobWrapper.GetJobNameKey(jobName, groupName)];
-			if (jw != null)
-			{
-				return jw.jobDetail;
-			}
-
-			return null;
+            return (jw != null) ? (JobDetail) jw.jobDetail.Clone() : null;
 		}
 
 		/// <summary>
@@ -471,12 +477,7 @@ namespace Quartz.Simpl
 		public virtual Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			TriggerWrapper tw = (TriggerWrapper) triggersByFQN[TriggerWrapper.GetTriggerNameKey(triggerName, groupName)];
-			if (tw != null)
-			{
-				return tw.Trigger;
-			}
-
-			return null;
+            return (tw != null) ? (Trigger)tw.Trigger.Clone() : null;
 		}
 
 		/// <summary>
@@ -1354,7 +1355,8 @@ namespace Quartz.Simpl
 						JobDataMap newData = jobDetail.JobDataMap;
 						if (newData != null)
 						{
-							newData.ClearDirtyFlag();
+                            newData = (JobDataMap)newData.Clone();
+                            newData.ClearDirtyFlag();
 						}
 						jd.JobDataMap = newData;
 						blockedJobs.Remove(JobWrapper.GetJobNameKey(jd));
@@ -1496,15 +1498,32 @@ namespace Quartz.Simpl
 			TriggerWrapper trig1 = (TriggerWrapper) obj1;
 			TriggerWrapper trig2 = (TriggerWrapper) obj2;
 
-			int comp = trig1.trigger.CompareTo(trig2.trigger);
+            int comp = trig1.trigger.CompareTo(trig2.trigger);
+            if (comp != 0)
+            {
+                return comp;
+            }
 
-			if (comp == 0)
-			{
-				return String.CompareOrdinal(trig1.trigger.FullName, trig2.trigger.FullName);
-			}
+            comp = trig2.trigger.Priority - trig1.trigger.Priority;
+            if (comp != 0)
+            {
+                return comp;
+            }
 
-			return comp;
+            return trig1.trigger.FullName.CompareTo(trig2.trigger.FullName);
 		}
+
+
+	    public override bool Equals(object obj)
+	    {
+	        return (obj is TriggerComparator);
+	    }
+
+
+	    public override int GetHashCode()
+	    {
+	        return base.GetHashCode();
+	    }
 	}
 
 	internal class JobWrapper

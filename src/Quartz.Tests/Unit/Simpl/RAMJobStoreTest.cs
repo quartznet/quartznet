@@ -49,7 +49,7 @@ namespace Quartz.Tests.Unit.Simpl
 		[Test]
 		public void TestAcquireNextTrigger()
 		{
-			DateTime d = TriggerUtils.GetEvenSecondDate(DateTime.Now);
+			DateTime d = DateTime.Now;
 			Trigger trigger1 =
 				new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name,
 				                  fJobDetail.Group, d.AddMilliseconds(200000),
@@ -70,7 +70,8 @@ namespace Quartz.Tests.Unit.Simpl
 			fJobStore.StoreTrigger(null, trigger2, false);
 			fJobStore.StoreTrigger(null, trigger3, false);
 
-			Assert.IsNull(fJobStore.AcquireNextTrigger(null, d.AddMilliseconds(10)));
+			Trigger t = fJobStore.AcquireNextTrigger(null, d.AddMilliseconds(10));
+			Assert.IsNull(t);
 			Assert.AreEqual(
 				trigger2,
 				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddMilliseconds(10000)));

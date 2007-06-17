@@ -34,15 +34,14 @@ namespace Quartz.Impl
 	/// </summary>
 	/// <remarks>
 	/// Here are some examples of using this class:
-	/// </p>
 	/// <p>
 	/// To create a scheduler that does not write anything to the database (is not
 	/// persistent), you can call <see cref="CreateVolatileScheduler" />:
 	/// </p>
 	/// <pre>
-	/// DirectSchedulerFactory.getInstance().createVolatileScheduler(10); // 10 threads 
+	/// DirectSchedulerFactory.Instance.CreateVolatileScheduler(10); // 10 threads 
 	/// // don't forget to start the scheduler: 
-	/// DirectSchedulerFactory.getInstance().getScheduler().start();
+	/// DirectSchedulerFactory.Instance.GetScheduler().Start();
 	/// </pre>
 	/// <p>
 	/// Several create methods are provided for convenience. All create methods
@@ -62,33 +61,34 @@ namespace Quartz.Impl
 	/// JobStore jobStore = new RAMJobStore(); 
 	/// jobStore.Initialize();
 	/// 
-	/// DirectSchedulerFactory.getInstance().createScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore, "localhost", 1099); 
+	/// DirectSchedulerFactory.Instance.CreateScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore, "localhost", 1099); 
 	/// // don't forget to start the scheduler: 
-	/// DirectSchedulerFactory.getInstance().getScheduler("My Quartz Scheduler", "My Instance").start();
+	/// DirectSchedulerFactory.Instance.GetScheduler("My Quartz Scheduler", "My Instance").start();
 	/// </pre>
-	/// <p>
-	/// You can also use a JDBCJobStore instead of the RAMJobStore:
-	/// </p>
-	/// <pre>
-	/// DBConnectionManager.getInstance().addConnectionProvider("someDatasource", new JNDIConnectionProvider("someDatasourceJNDIName"));
-	/// 
-	/// JDBCJobStore jdbcJobStore = new JDBCJobStore(); jdbcJobStore.setDataSource("someDatasource"); 
-	/// jdbcJobStore.setPostgresStyleBlobs(true); 
-	/// jdbcJobStore.setTablePrefix("QRTZ_"); 
-	/// jdbcJobStore.setInstanceId("My Instance"); 
-	/// jdbcJobStore.Initialize();
-	/// </pre>
-	/// </</remarks>>
+	/// </remarks>>
 	/// <author>Mohammad Rezaei</author>
 	/// <author>James House</author>
 	/// <seealso cref="IJobStore" />
 	/// <seealso cref="ThreadPool" />
 	public class DirectSchedulerFactory : ISchedulerFactory
 	{
-		private static readonly ILog Log = LogManager.GetLogger(typeof (DirectSchedulerFactory));
+		private readonly ILog log;
+        public const string DEFAULT_INSTANCE_ID = "SIMPLE_NON_CLUSTERED";
+        public const string DEFAULT_SCHEDULER_NAME = "SimpleQuartzScheduler";
 
+        private bool initialized = false;
+        private static readonly DirectSchedulerFactory instance = new DirectSchedulerFactory();
 
-		/// <summary>
+        /// <summary>
+        /// Gets the log.
+        /// </summary>
+        /// <value>The log.</value>
+	    public ILog Log
+	    {
+	        get { return log; }
+	    }
+
+	    /// <summary>
 		/// Gets the instance.
 		/// </summary>
 		/// <value>The instance.</value>
@@ -107,17 +107,15 @@ namespace Quartz.Impl
 			get { return SchedulerRepository.Instance.LookupAll(); }
 		}
 
-		public const string DEFAULT_INSTANCE_ID = "SIMPLE_NON_CLUSTERED";
-		public const string DEFAULT_SCHEDULER_NAME = "SimpleQuartzScheduler";
 
-		private bool initialized = false;
-		private static DirectSchedulerFactory instance = new DirectSchedulerFactory();
 
-		/// <summary>
-		/// Constructor
-		/// </summary>
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
+        /// </summary>
 		protected internal DirectSchedulerFactory()
 		{
+		    log = LogManager.GetLogger(GetType());
 		}
 
 		/// <summary>
@@ -127,7 +125,7 @@ namespace Quartz.Impl
 		/// <param name="maxThreads">The number of threads in the thread pool</param>
 		public virtual void CreateVolatileScheduler(int maxThreads)
 		{
-			SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, (int) ThreadPriority.Normal);
+			SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, ThreadPriority.Normal);
 			threadPool.Initialize();
 			IJobStore jobStore = new RAMJobStore();
 			CreateScheduler(threadPool, jobStore);
@@ -206,7 +204,25 @@ namespace Quartz.Impl
 			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, - 1, - 1);
 		}
 
-		/// <summary>
+        		/// <summary>
+		/// Creates a scheduler using the specified thread pool and job store and
+		/// binds it to RMI.
+		/// </summary>
+		/// <param name="schedulerName">The name for the scheduler.</param>
+		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+		/// <param name="threadPool">The thread pool for executing jobs</param>
+		/// <param name="jobStore">The type of job store</param>
+		/// <param name="idleWaitTime">The idle wait time in milliseconds. You can specify "-1" for
+		/// the default value, which is currently 30000 ms.</param>
+		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
+        public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+                                            IJobStore jobStore, long idleWaitTime,
+                                            int dbFailureRetryInterval)
+        {
+            CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime, dbFailureRetryInterval);
+        }
+
+	    /// <summary>
 		/// Creates a scheduler using the specified thread pool and job store and
 		/// binds it to RMI.
 		/// </summary>
@@ -218,7 +234,7 @@ namespace Quartz.Impl
 		/// the default value, which is currently 30000 ms.</param>
 		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
 		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-		                                    IJobStore jobStore, long idleWaitTime,
+                                            IJobStore jobStore, IDictionary schedulerPluginMap, long idleWaitTime,
 		                                    int dbFailureRetryInterval)
 		{
 			// Currently only one run-shell factory is available...
@@ -237,6 +253,16 @@ namespace Quartz.Impl
 			qrs.ThreadPool = threadPool;
 			qrs.JobStore = jobStore;
 
+
+            // add plugins
+            if (schedulerPluginMap != null)
+            {
+                foreach (ISchedulerPlugin plugin in schedulerPluginMap.Values)
+                {
+                    qrs.AddSchedulerPlugin(plugin);
+                }
+            }
+
 			QuartzScheduler qs = new QuartzScheduler(qrs, schedCtxt, idleWaitTime, dbFailureRetryInterval);
 
 			IClassLoadHelper cch = new CascadingClassLoadHelper();
@@ -245,6 +271,16 @@ namespace Quartz.Impl
 			jobStore.Initialize(cch, qs.SchedulerSignaler);
 
 			IScheduler scheduler = new StdScheduler(qs, schedCtxt);
+
+            // Initialize plugins now that we have a Scheduler instance.
+            if (schedulerPluginMap != null)
+            {
+                foreach (DictionaryEntry pluginEntry in schedulerPluginMap)
+                {
+                    ((ISchedulerPlugin)pluginEntry.Value).Initialize(
+                            (string) pluginEntry.Key, scheduler);
+                }
+            }
 
 			jrsf.Initialize(scheduler, schedCtxt);
 

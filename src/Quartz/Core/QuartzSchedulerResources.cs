@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Collections;
 
 using Quartz.Spi;
 
@@ -33,6 +34,15 @@ namespace Quartz.Core
 	/// <author>Marko Lahma (.NET)</author>
 	public class QuartzSchedulerResources
 	{
+        private string name;
+        private string instanceId;
+        private string threadName;
+        private IThreadPool threadPool;
+        private IJobStore jobStore;
+        private IJobRunShellFactory jobRunShellFactory;
+        private readonly ArrayList schedulerPlugins = new ArrayList(10);
+        private bool makeSchedulerThreadDaemon = false;
+
 		/// <summary>
 		/// Get or set the name for the <see cref="QuartzScheduler" />.
 		/// </summary>
@@ -169,18 +179,6 @@ namespace Quartz.Core
 			}
 		}
 
-		private string name;
-
-		private string instanceId;
-
-		private string threadName;
-
-		private IThreadPool threadPool;
-
-		private IJobStore jobStore;
-
-		private IJobRunShellFactory jobRunShellFactory;
-
 		/// <summary>
 		/// Gets the unique identifier.
 		/// </summary>
@@ -200,5 +198,41 @@ namespace Quartz.Core
 		{
 			return GetUniqueIdentifier(name, instanceId);
 		}
+
+        /// <summary>
+        /// Add the given <see cref="ISchedulerPlugin" /> for the 
+        /// <see cref="QuartzScheduler" /> to use. This method expects the plugin's
+         /// "initialize" method to be invoked externally (either before or after
+        /// this method is called).
+        /// </summary>
+        /// <param name="plugin"></param>
+        public void AddSchedulerPlugin(ISchedulerPlugin plugin)
+        {
+            schedulerPlugins.Add(plugin);
+        }
+
+	    /// <summary>
+        /// Get the <see cref="IList" /> of all 
+        /// <see cref="ISchedulerPlugin" />s for the 
+        /// <see cref="QuartzScheduler" /> to use.
+	    /// </summary>
+	    /// <returns></returns>
+	    public IList SchedulerPlugins
+	    {
+	        get { return schedulerPlugins; }
+	    }
+
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to make scheduler thread daemon.
+        /// </summary>
+        /// <value>
+        /// 	<c>true</c> if scheduler should be thread daemon; otherwise, <c>false</c>.
+        /// </value>
+	    public bool MakeSchedulerThreadDaemon
+	    {
+	        get { return makeSchedulerThreadDaemon; }
+	        set { makeSchedulerThreadDaemon = value; }
+	    }
 	}
 }

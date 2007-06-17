@@ -322,9 +322,6 @@
     <Compile Include="Simpl\SimpleThreadPool.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Simpl\SimpleTimeBroker.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="SPI\IClassLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -344,9 +341,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SPI\IThreadPool.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SPI\ITimeBroker.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SPI\TriggerFiredBundle.cs">
@@ -385,6 +379,18 @@
     <Compile Include="Util\TriggerStatus.cs">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Listener\BroadcastSchedulerListener.cs" />
+    <Compile Include="Listener\FilterAndBroadcastJobListener.cs" />
+    <Compile Include="Listener\FilterAndBroadcastTriggerListener.cs" />
+    <Compile Include="Listener\JobChainingJobListener.cs" />
+    <Compile Include="Listener\JobListenerSupport.cs" />
+    <Compile Include="Listener\SchedulerListenerSupport.cs" />
+    <Compile Include="Listener\TriggerListenerSupport.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

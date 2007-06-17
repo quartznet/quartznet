@@ -359,7 +359,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 5, job.Durable);
                 AddCommandParameter(cmd, 6, job.Volatile);
                 AddCommandParameter(cmd, 7, job.Stateful);
-                AddCommandParameter(cmd, 8, job.requestsRecovery());
+                AddCommandParameter(cmd, 8, job.RequestsRecovery);
                 AddCommandParameter(cmd, 9, baos);
 
                 insertResult = cmd.ExecuteNonQuery();
@@ -395,7 +395,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 3, job.Durable);
                 AddCommandParameter(cmd, 4, job.Volatile);
                 AddCommandParameter(cmd, 5, job.Stateful);
-                AddCommandParameter(cmd, 6, job.requestsRecovery());
+                AddCommandParameter(cmd, 6, job.RequestsRecovery);
                 AddCommandParameter(cmd, 7, baos);
                 AddCommandParameter(cmd, 8, job.Name);
                 AddCommandParameter(cmd, 9, job.Group);

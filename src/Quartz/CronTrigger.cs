@@ -362,8 +362,6 @@ namespace Quartz
 		/// <param name="jobGroup">The job group.</param>
 		/// <param name="startTime">The start time.</param>
 		/// <param name="endTime">The end time.</param>
-		/// <param name="cronExpression">The cron expression.</param>
-		/// <param name="timeZone">The time zone.</param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, DateTime startTime, NullableDateTime endTime,
 			string cronExpression, TimeZone timeZone) : base(name, group, jobName, jobGroup)
@@ -572,13 +570,18 @@ namespace Quartz
 
 			if (StartTime > afterTime.Value)
 			{
-				afterTime = startTime.AddSeconds(1);
+				afterTime = startTime.AddSeconds(-1);
 			}
 
+            if (EndTime.HasValue && (afterTime.CompareTo(EndTime.Value) >= 0))
+            {
+                return null;
+            }
+
 			NullableDateTime pot = GetTimeAfter(afterTime.Value);
-			if (EndTime.HasValue && pot != null && pot.Value > EndTime.Value)
+			if (EndTime.HasValue && pot.Value > EndTime.Value)
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 
 			return pot;
@@ -595,14 +598,22 @@ namespace Quartz
 		{
 			get
 			{
-				if (EndTime.HasValue)
-				{
-					return GetTimeBefore(EndTime);
-				}
-				else
-				{
-					return null;
-				}
+                NullableDateTime resultTime;
+                if (EndTime.HasValue)
+                {
+                    resultTime = GetTimeBefore(EndTime.Value.AddSeconds(1));
+                }
+                else
+                {
+                    resultTime = (cronEx == null) ? null : cronEx.GetFinalFireTime();
+                }
+
+                if (resultTime.HasValue && resultTime.Value < StartTime)
+                {
+                    return null;
+                }
+
+                return resultTime;
 			}
 		}
 
@@ -627,7 +638,7 @@ namespace Quartz
 		/// <returns></returns>
 		public override bool GetMayFireAgain()
 		{
-			return (GetNextFireTime() != null);
+			return GetNextFireTime().HasValue;
 		}
 
 		/// <summary>
@@ -865,7 +876,7 @@ namespace Quartz
 		/// </returns>
 		public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
 		{
-			nextFireTime = GetFireTimeAfter(startTime.AddMilliseconds(1000));
+			nextFireTime = GetFireTimeAfter(startTime.AddSeconds(-1));
 
 			while (nextFireTime.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTime.Value))
 			{
@@ -897,17 +908,25 @@ namespace Quartz
 		/// <returns></returns>
 		protected NullableDateTime GetTimeAfter(DateTime afterTime)
 		{
-			return cronEx.GetTimeAfter(afterTime);
+            if (cronEx != null)
+            {
+                return cronEx.GetTimeAfter(afterTime);
+            }
+            else
+            {
+                return null;
+            }
 		}
 
 		/// <summary>
-		/// Gets the time before.
+		/// NOT YET IMPLEMENTED: Returns the time before the given time
+        /// that this <code>CronTrigger</code> will fire.
 		/// </summary>
 		/// <param name="date">The date.</param>
 		/// <returns></returns>
 		protected NullableDateTime GetTimeBefore(NullableDateTime date)
 		{
-			return null;
+            return (cronEx == null) ? null : cronEx.GetTimeBefore(endTime);
 		}
 	}
 }

@@ -23,6 +23,8 @@ using System;
 using System.Collections;
 using System.Collections.Specialized;
 
+using Quartz.Collection;
+
 namespace Quartz.Util
 {
 	/// <summary>
@@ -105,36 +107,28 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual string[] GetStringArrayProperty(string name, string[] defaultValue)
 		{
-			string vals = GetStringProperty(name);
-			if (vals == null)
-			{
-				return defaultValue;
-			}
 
-			if (!vals.Trim().Equals(""))
-			{
-				string[] stok = vals.Split(',');
-				ArrayList strs = ArrayList.Synchronized(new ArrayList(10));
-				try
-				{
-					foreach (string s in stok)
-					{
-						strs.Add(s);
-					}
-					string[] outStrs = new string[strs.Count];
-					for (int i = 0; i < strs.Count; i++)
-					{
-						outStrs[i] = ((string) strs[i]);
-					}
-					return outStrs;
-				}
-				catch (Exception)
-				{
-					return defaultValue;
-				}
-			}
+            String vals = GetStringProperty(name);
+            if (vals == null)
+            {
+                return defaultValue;
+            }
 
-			return defaultValue;
+            String[] items = vals.Split(',');
+            ArrayList strs = new ArrayList();
+            try
+            {
+                foreach (string s in items)
+                {
+                    strs.Add(s.Trim());
+                }
+
+                return (string[]) strs.ToArray(typeof(string));
+            }
+            catch (Exception)
+            {
+                return defaultValue;
+            }
 		}
 
         /// <summary>
@@ -559,7 +553,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual string[] GetPropertyGroups(string prefix)
 		{
-			IDictionary groups = new Hashtable(10);
+            HashSet groups = new HashSet(10);
 
 			if (!prefix.EndsWith("."))
 			{
@@ -571,12 +565,11 @@ namespace Quartz.Util
 				if (key.StartsWith(prefix))
 				{
 					string groupName = key.Substring(prefix.Length, (key.IndexOf('.', prefix.Length)) - (prefix.Length));
-					groups[groupName] = groupName;
+					groups.Add(groupName);
 				}
 			}
 
-			ArrayList a = new ArrayList(groups.Values);
-			return (string[]) a.ToArray(typeof (string));
+            return (string[]) groups.ToArray(typeof (string));
 		}
 
         /// <summary>
@@ -597,29 +590,57 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix)
 		{
-			NameValueCollection group = new NameValueCollection();
-
-			if (!prefix.EndsWith("."))
-			{
-				prefix += ".";
-			}
-
-			foreach (string key in props.Keys)
-			{
-				if (key.StartsWith(prefix))
-				{
-					if (stripPrefix)
-					{
-						group[key.Substring(prefix.Length)] = props.Get(key);
-					}
-					else
-					{
-						group[key] = props.Get(key);
-					}
-				}
-			}
-
-			return group;
+			return GetPropertyGroup(prefix, stripPrefix, null);
 		}
+
+
+        /// <summary>
+        /// Get all properties that start with the given prefix.  
+        /// </summary>
+        /// <param name="prefix">The prefix for which to search.  If it does not end in a "." then one will be added to it for search purposes.</param>
+        /// <param name="stripPrefix">Whether to strip off the given <code>prefix</code> in the result's keys.</param>
+        /// <param name="excludedPrefixes">Optional array of fully qualified prefixes to exclude.  For example if <code>prefix</code> is "a.b.c", then <code>excludedPrefixes</code> might be "a.b.c.ignore".</param>
+        /// <returns>Group of <code>Properties</code> that start with the given prefix, optionally have that prefix removed, and do not include properties that start with one of the given excluded prefixes.</returns>
+        public virtual NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix, string[] excludedPrefixes)
+        {
+            NameValueCollection group = new NameValueCollection();
+
+            if (!prefix.EndsWith("."))
+            {
+                prefix += ".";
+            }
+
+            foreach (string key in props.Keys)
+            {
+                if (key.StartsWith(prefix))
+                {
+
+                    bool exclude = false;
+                    if (excludedPrefixes != null)
+                    {
+                        for (int i = 0; (i < excludedPrefixes.Length) && (exclude == false); i++)
+                        {
+                            exclude = key.StartsWith(excludedPrefixes[i]);
+                        }
+                    }
+
+                    if (exclude == false)
+                    {
+                        String value = GetStringProperty(key, "");
+
+                        if (stripPrefix)
+                        {
+                            group[key.Substring(prefix.Length)] = value;
+                        }
+                        else
+                        {
+                            group[key] = value;
+                        }
+                    }
+                }
+            }
+
+            return group;
+        }
 	}
 }

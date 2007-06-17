@@ -28,13 +28,12 @@ namespace Quartz
 	/// <summary>
 	/// Convenience and utility methods for simplifying the construction and
 	/// configuration of <see cref="Trigger" />s.
-	/// <p>
+	/// </summary>
+	/// <remarks>
 	/// Please submit suggestions for additional convenience methods to either the
 	/// Quartz user forum or the developer's mail list at
 	/// <a href="http://www.sourceforge.net/projects/quartz">source forge</a>.
-	/// </p>
-	/// 
-	/// </summary>
+    /// </remarks>
 	/// <seealso cref="CronTrigger" />
 	/// <seealso cref="SimpleTrigger" />
 	/// <author>James House</author>
@@ -55,7 +54,15 @@ namespace Quartz
 		public const long SECONDS_IN_DAY = 24L*60L*60L;
 		public const long MILLISECONDS_IN_DAY = SECONDS_IN_DAY*1000L;
 
-		private static void ValidateDayOfWeek(int dayOfWeek)
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TriggerUtils"/> class.
+        /// </summary>
+	    private TriggerUtils()
+	    {
+	    }
+
+	    private static void ValidateDayOfWeek(int dayOfWeek)
 		{
 			if (dayOfWeek < SUNDAY || dayOfWeek > SATURDAY)
 			{
@@ -326,13 +333,11 @@ namespace Quartz
 		/// <summary>
 		/// Make a trigger that will fire <param name="repeatCount" /> times, waiting
 		/// <param name="repeatInterval" /> milliseconds between each fire.
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
-		/// </p>
-		/// </summary>
-		/// <param name="repeatCount">the number of times to fire the trigger</param>
-		/// <param name="repeatInterval">the number of milliseconds to wait between fires</param>
+        /// </remarks>
 		/// <returns>the newly created trigger</returns>
 		public static Trigger MakeImmediateTrigger(int repeatCount, long repeatInterval)
 		{
@@ -352,8 +357,6 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <param name="trigName">the trigger's name</param>
-		/// <param name="repeatCount">the number of times to fire the trigger</param>
-		/// <param name="repeatInterval">the number of milliseconds to wait between fires</param>
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeImmediateTrigger(string trigName, int repeatCount, long repeatInterval)
 		{
@@ -421,6 +424,7 @@ namespace Quartz
 
 			trig.RepeatInterval = intervalInSeconds*1000L;
 			trig.RepeatCount = repeatCount;
+            trig.StartTime = new DateTime();
 
 			return trig;
 		}

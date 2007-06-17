@@ -77,16 +77,24 @@ namespace Quartz.Impl
 			}
 		}
 
+        /// <summary>
+        /// Get a <see cref="SchedulerMetaData"/> object describiing the settings
+        /// and capabilities of the scheduler instance.
+        /// <p>
+        /// Note that the data returned is an 'instantaneous' snap-shot, and that as
+        /// soon as it's returned, the meta data values may be different.
+        /// </p>
+        /// </summary>
+        /// <returns></returns>
 		public SchedulerMetaData GetMetaData()
 		{
 			try
 			{
 				IRemotableQuartzScheduler sched = GetRemoteScheduler();
-				NullableDateTime tempAux = sched.RunningSince;
 
 				return
-					new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), true, sched.RunningSince != null, IsPaused,
-					                      IsShutdown, tempAux, sched.NumJobsExecuted, sched.JobStoreClass,
+					new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), true, IsStarted, InStandbyMode,
+                                          IsShutdown, sched.RunningSince, sched.NumJobsExecuted, sched.JobStoreClass,
 					                      sched.SupportsPersistence, sched.ThreadPoolClass, sched.ThreadPoolSize, sched.Version);
 			}
 			catch (RemotingException re)
@@ -257,7 +265,22 @@ namespace Quartz.Impl
 			}
 		}
 
-		/// <summary>
+	    public IJobListener GetGlobalJobListener(string name)
+	    {
+
+            throw new SchedulerException(
+                    "Operation not supported for remote schedulers.",
+                    SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+	    }
+
+	    public ITriggerListener GetGlobalTriggerListener(string name)
+	    {
+            throw new SchedulerException(
+        "Operation not supported for remote schedulers.",
+        SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+	    }
+
+	    /// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual IList GlobalTriggerListeners
@@ -332,23 +355,23 @@ namespace Quartz.Impl
 
 
 		private IRemotableQuartzScheduler rsched;
-		private SchedulingContext schedCtxt;
-		private string schedId;
-		private string rmiHost;
-		private int rmiPort;
+		private readonly SchedulingContext schedCtxt;
+		private readonly string schedId;
+		//private string rmiHost;
+		//private int rmiPort;
 
 
 		/// <summary>
 		/// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
-		/// <see cref="RemoteableQuartzScheduler" /> instance, and with the given
+		/// RemoteableQuartzScheduler instance, and with the given
 		/// <see cref="SchedulingContext" />.
 		/// </summary>
 		public RemoteScheduler(SchedulingContext schedCtxt, string schedId, string host, int port)
 		{
 			this.schedCtxt = schedCtxt;
 			this.schedId = schedId;
-			rmiHost = host;
-			rmiPort = port;
+			//rmiHost = host;
+			//rmiPort = port;
 		}
 
 		protected internal IRemotableQuartzScheduler GetRemoteScheduler()
@@ -399,7 +422,36 @@ namespace Quartz.Impl
 			}
 		}
 
-		/// <summary>
+        /// <summary>
+        /// Whether the scheduler has been started.
+        /// </summary>
+        /// <value></value>
+        /// <remarks>
+        /// Note: This only reflects whether <see cref="Start"/> has ever
+        /// been called on this Scheduler, so it will return <code>true</code> even
+        /// if the <code>Scheduler</code> is currently in standby mode or has been
+        /// since shutdown.
+        /// </remarks>
+        /// <seealso cref="Start"/>
+        /// <seealso cref="IsShutdown"/>
+        /// <seealso cref="InStandbyMode"/>
+	    public bool IsStarted
+	    {
+            get
+            {
+                try
+                {
+                    return GetRemoteScheduler().RunningSince.HasValue;
+                }
+                catch (Exception re)
+                {
+                    throw invalidateHandleCreateException(
+                            "Error communicating with remote scheduler.", re);
+                }
+            }
+	    }
+
+	    /// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void Standby()
@@ -422,7 +474,9 @@ namespace Quartz.Impl
 		{
 			try
 			{
-				GetRemoteScheduler().Shutdown();
+                string schedulerName = SchedulerName;
+                GetRemoteScheduler().Shutdown();
+                SchedulerRepository.Instance.Remove(schedulerName);
 			}
 			catch (RemotingException re)
 			{
@@ -957,7 +1011,14 @@ namespace Quartz.Impl
 			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
 		}
 
-		/// <summary>
+	    public bool RemoveGlobalJobListener(string name)
+	    {
+            throw new SchedulerException(
+                    "Operation not supported for remote schedulers.",
+                    SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+	    }
+
+	    /// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
@@ -1004,7 +1065,15 @@ namespace Quartz.Impl
 			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
 		}
 
-		/// <summary>
+	    public bool RemoveGlobalTriggerListener(string name)
+	    {
+
+            throw new SchedulerException(
+                    "Operation not supported for remote schedulers.",
+                    SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+	    }
+
+	    /// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual bool RemoveTriggerListener(string name)

@@ -19,6 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
+using Quartz.Spi;
+
 namespace Quartz
 {
 	/// <summary>
@@ -50,40 +52,46 @@ namespace Quartz
 		void TriggerFinalized(Trigger trigger);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
-		/// or group of <see cref="Trigger" />s has been paused.
+		/// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
+		/// or group of <see cref="Trigger"/>s has been paused.
 		/// <p>
-		/// If a group was paused, then the <see cref="triggerName" /> parameter
+		/// If a group was paused, then the <see param="triggerName"/> parameter
 		/// will be null.
 		/// </p>
 		/// </summary>
+		/// <param name="triggerName">Name of the trigger.</param>
+		/// <param name="triggerGroup">The trigger group.</param>
 		void TriggersPaused(string triggerName, string triggerGroup);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
-		/// or group of <see cref="Trigger" />s has been un-paused.
+		/// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
+		/// or group of <see cref="Trigger"/>s has been un-paused.
 		/// <p>
-		/// If a group was resumed, then the <see cref="triggerName" /> parameter
+		/// If a group was resumed, then the <see param="triggerName"/> parameter
 		/// will be null.
 		/// </p>
 		/// </summary>
+		/// <param name="triggerName">Name of the trigger.</param>
+		/// <param name="triggerGroup">The trigger group.</param>
 		void TriggersResumed(string triggerName, string triggerGroup);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
-		/// or group of <see cref="JobDetail" />s has been  paused.
+		/// Called by the <see cref="IScheduler"/> when a <see cref="JobDetail"/>
+		/// or group of <see cref="JobDetail"/>s has been  paused.
 		/// <p>
-		/// If a group was paused, then the <see cref="jobName" /> parameter will be
+		/// If a group was paused, then the <see param="jobName"/> parameter will be
 		/// null. If all jobs were paused, then both parameters will be null.
 		/// </p>
 		/// </summary>
+		/// <param name="jobName">Name of the job.</param>
+		/// <param name="jobGroup">The job group.</param>
 		void JobsPaused(string jobName, string jobGroup);
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
 		/// or group of <see cref="JobDetail" />s has been  un-paused.
 		/// <p>
-		/// If a group was resumed, then the <see cref="jobName" /> parameter will
+		/// If a group was resumed, then the <param name="jobName" /> parameter will
 		/// be null. If all jobs were paused, then both parameters will be null.
 		/// </p>
 		/// </summary>
@@ -95,7 +103,7 @@ namespace Quartz
 		/// or the inability to instantiate a <see cref="IJob" /> instance when its
 		/// <see cref="Trigger" /> has fired.
 		/// <p>
-		/// The <see cref="ErrorCode" /> property of the given SchedulerException
+		/// The <see cref="SchedulerException.ErrorCode" /> property of the given SchedulerException
 		/// can be used to determine more specific information about the type of
 		/// error that was encountered.
 		/// </p>

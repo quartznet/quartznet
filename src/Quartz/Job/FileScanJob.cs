@@ -29,7 +29,7 @@ namespace Quartz.Job
 	/// Inspects a file and compares whether it's "last modified date" has changed
 	/// since the last time it was inspected.  If the file has been updated, the
 	/// job invokes a "call-back" method on an identified 
-	/// <see cref="FileScanListener" /> that can be found in the 
+	/// <see cref="IFileScanListener" /> that can be found in the 
 	/// <see cref="SchedulerContext" />.
 	/// </summary>
 	/// <author>James House</author>
@@ -48,8 +48,8 @@ namespace Quartz.Job
 		/// The implementation may wish to set a  result object on the
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to
-		/// <see cref="JobListeners" /> or
-		/// <see cref="TriggerListeners" /> that are watching the job's
+		/// <see cref="IJobListener" />s or
+		/// <see cref="ITriggerListener" />s that are watching the job's
 		/// execution.
 		/// </p>
 		/// </summary>
@@ -58,7 +58,7 @@ namespace Quartz.Job
 		/// </seealso>
 		public virtual void Execute(JobExecutionContext context)
 		{
-			JobDataMap data = context.JobDetail.JobDataMap;
+			JobDataMap data = context.MergedJobDataMap;
 			SchedulerContext schedCtxt;
 			try
 			{

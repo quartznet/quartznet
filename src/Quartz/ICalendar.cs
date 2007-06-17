@@ -21,13 +21,23 @@
 
 using System;
 
+using Quartz.Impl.Calendar;
+
 namespace Quartz
 {
 	/// <summary> 
-	/// An interface to be implemented by objects that define spaces of time that
-	/// should be included or excluded from a <see cref="Trigger" />'s
-	/// normal 'firing' schedule.
-	/// </summary>
+	///  An interface to be implemented by objects that define spaces of time during 
+    /// which an associated <see cref="Trigger" /> may fire. 
+    /// </summary>
+    /// <remarks>
+    /// Calendars do not  define actual fire times, but rather are used to limit a 
+    /// <see cref="Trigger" />  from firing on its normal schedule if necessary. Most 
+    /// Calendars include all  times by default and allow the user to specify times to
+    /// exclude. As such, it  is often useful to think of Calendars as being used to
+    /// <i>exclude</i> a block of time, as opposed to <i>include</i> 
+    /// a block of time. (i.e. the  schedule &quot;fire every five minutes except on Sundays&quot; could be 
+    /// implemented with a <see cref="SimpleTrigger" /> and a <see cref="WeeklyCalendar" /> which excludes Sundays)
+    /// </remarks>
 	/// <author>James House</author>
 	/// <author>Juergen Donnerstag</author>
 	public interface ICalendar

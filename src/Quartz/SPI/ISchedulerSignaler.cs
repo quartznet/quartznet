@@ -19,6 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
+using Quartz.Core;
+
 namespace Quartz.Spi
 {
 	/// <summary> 

@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using Quartz.Core;
+using Quartz.Spi;
 
 namespace Quartz.Impl
 {
@@ -39,7 +40,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Initialize the factory, providing a handle to the <see cref="IScheduler" />
 		/// that should be made available within the <see cref="JobRunShell" /> and
-		/// the <see cref="JobExecutionCOntext" /> s within it, and a handle to the
+		/// the <see cref="JobExecutionContext" /> s within it, and a handle to the
 		/// <see cref="SchedulingContext" /> that the shell will use in its own
 		/// operations with the <see cref="IJobStore" />.
 		/// </summary>
@@ -50,8 +51,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Called by the <see cref="QuartzSchedulerThread
-		/// " /> to obtain instances of <see cref="IJobRunShell" />.
+		/// Called by the <see cref="QuartzSchedulerThread" /> to obtain instances of 
+		/// <see cref="JobRunShell" />.
 		/// </summary>
 		public virtual JobRunShell BorrowJobRunShell()
 		{
@@ -59,8 +60,8 @@ namespace Quartz.Impl
 		}
 
 		/// <summary>
-		/// Called by the <see cref="QuartzSchedulerThread" /> to return instances of <see cref="
-		/// JobRunShell" />.
+		/// Called by the <see cref="QuartzSchedulerThread" /> to return instances of 
+		/// <see cref="JobRunShell" />.
 		/// </summary>
 		public virtual void ReturnJobRunShell(JobRunShell jobRunShell)
 		{

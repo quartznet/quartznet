@@ -423,6 +423,41 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Listener\BroadcastSchedulerListener.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Listener\FilterAndBroadcastJobListener.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Listener\FilterAndBroadcastTriggerListener.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Listener\JobChainingJobListener.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Listener\JobListenerSupport.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Listener\SchedulerListenerSupport.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Listener\TriggerListenerSupport.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Plugin\History\LoggingJobHistoryPlugin.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -488,11 +523,6 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Simpl\SimpleTimeBroker.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
                     RelPath = "SPI\IClassLoadHelper.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -524,11 +554,6 @@
                 />
                 <File
                     RelPath = "SPI\IThreadPool.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "SPI\ITimeBroker.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
@@ -574,6 +599,11 @@
                 />
                 <File
                     RelPath = "Util\PropertiesParser.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Util\StringKeyDirtyFlagMap.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

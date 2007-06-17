@@ -42,7 +42,7 @@ namespace Quartz
 	/// abort the performance of the rest of the job's work.  An example of 
 	/// interrupting a job can be found in the java source for the  class 
 	/// Quartz.Examples.Example2.DumbInterruptableJob.  It is legal to use
-	/// some combination of <see cref="wait()" /> and <see cref="notify()" /> 
+	/// some combination of <see cref="Monitor.Wait(object)" /> and <see cref="Monitor.Pulse" /> 
 	/// synchronization within <see cref="Thread.Interrupt" /> and <see cref="IJob.Execute" />
 	/// in order to have the <see cref="Thread.Interrupt" /> method block until the
 	/// <see cref="IJob.Execute" /> signals that it has noticed the set flag.

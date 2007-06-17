@@ -79,8 +79,6 @@ namespace Quartz.Impl.Calendar
         /// </ul>
         /// </summary>
         /// <param name="name">The name for this calendar.</param>
-        /// <param name="rangeStartingTime">The range starting time.</param>
-        /// <param name="rangeEndingTime">The range ending time.</param>
         public DailyCalendar(string name,
                              string rangeStartingTime,
                              string rangeEndingTime)
@@ -128,11 +126,6 @@ namespace Quartz.Impl.Calendar
         /// The base calendar for this calendar instance see BaseCalendar for more 
         /// information on base calendar functionality.
         /// </param>
-        /// <param name="rangeStartingTime">
-        /// A string representing the starting time for the time range.
-        /// </param>
-        /// <param name="rangeEndingTime">
-        /// a String representing the ending time for the time range.</param>
         public DailyCalendar(string name,
                              ICalendar baseCalendar,
                              string rangeStartingTime,
@@ -211,7 +204,6 @@ namespace Quartz.Impl.Calendar
         ///	</ul> 
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="baseCalendar">The base calendar.</param>
         /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
         /// <param name="rangeStartingMinute">The range starting minute.</param>
         /// <param name="rangeStartingSecond">The range starting second.</param>
@@ -296,7 +288,6 @@ namespace Quartz.Impl.Calendar
         /// </ul> 
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="baseCalendar">The base calendar.</param>
         /// <param name="rangeStartingCalendar">The range starting calendar.</param>
         /// <param name="rangeEndingCalendar">The range ending calendar.</param>
         public DailyCalendar(string name,
@@ -358,7 +349,6 @@ namespace Quartz.Impl.Calendar
         /// </ul>
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="baseCalendar">The base calendar.</param>
         /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
         /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
         public DailyCalendar(string name,
@@ -514,10 +504,6 @@ namespace Quartz.Impl.Calendar
         /// Returns the start time of the time range of the day 
         /// specified in <param name="time" />.
         /// </summary>
-        /// <param name="time">
-        /// a time containing the desired date for the starting
-        /// time of the time range.
-        /// </param>
         /// <returns>
         ///     a DateTime representing the start time of the
         ///     time range for the specified date.
@@ -534,7 +520,6 @@ namespace Quartz.Impl.Calendar
         /// Returns the end time of the time range of the day
         /// specified in <param name="time" />
         /// </summary>
-        /// <param name="time">The time.</param>
         /// <returns>
         /// A DateTime representing the end time of the
         /// time range for the specified date.

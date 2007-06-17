@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations 
  * under the License.
  */
+
 using System;
 using System.Collections;
 
@@ -22,148 +23,150 @@ using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {
-	[TestFixture]
-	public class CronExpressionTest
-	{
-		private static string[] VERSIONS = new String[] {"1.5.2"};
+    [TestFixture]
+    public class CronExpressionTest
+    {
+        private static readonly string[] VERSIONS = new String[] {"1.5.2"};
 
-		private static TimeZone EST_TIME_ZONE = TimeZone.CurrentTimeZone;
+        private static TimeZone EST_TIME_ZONE = TimeZone.CurrentTimeZone;
 
-		/// <summary>
-		/// Get the object to serialize when generating serialized file for future
-		/// tests, and against which to validate deserialized object.
-		/// </summary>
-		/// <returns></returns>
-		protected object GetTargetObject()
-		{
-			CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
-			//cronExpression.TimeZone = EST_TIME_ZONE);
+        /// <summary>
+        /// Get the object to serialize when generating serialized file for future
+        /// tests, and against which to validate deserialized object.
+        /// </summary>
+        /// <returns></returns>
+        protected object GetTargetObject()
+        {
+            CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
+            //cronExpression.TimeZone = EST_TIME_ZONE);
 
-			return cronExpression;
-		}
+            return cronExpression;
+        }
 
-		/// <summary>
-		/// Get the Quartz versions for which we should verify
-		/// serialization backwards compatibility.
-		/// </summary>
-		/// <returns></returns>
-		protected string[] GetVersions()
-		{
-			return VERSIONS;
-		}
+        /// <summary>
+        /// Get the Quartz versions for which we should verify
+        /// serialization backwards compatibility.
+        /// </summary>
+        /// <returns></returns>
+        protected string[] GetVersions()
+        {
+            return VERSIONS;
+        }
 
-		/// <summary>
-		/// Verify that the target object and the object we just deserialized 
-		/// match.
-		/// </summary>
-		/// <param name="target"></param>
-		/// <param name="deserialized"></param>
-		protected void VerifyMatch(object target, object deserialized)
-		{
-			CronExpression targetCronExpression = (CronExpression) target;
-			CronExpression deserializedCronExpression = (CronExpression) deserialized;
+        /// <summary>
+        /// Verify that the target object and the object we just deserialized 
+        /// match.
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="deserialized"></param>
+        protected void VerifyMatch(object target, object deserialized)
+        {
+            CronExpression targetCronExpression = (CronExpression) target;
+            CronExpression deserializedCronExpression = (CronExpression) deserialized;
 
-			Assert.IsNotNull(deserializedCronExpression);
-			Assert.AreEqual(targetCronExpression.CronExpressionString, deserializedCronExpression.CronExpressionString);
-			//Assert.AreEqual(targetCronExpression.getTimeZone(), deserializedCronExpression.getTimeZone());
-		}
+            Assert.IsNotNull(deserializedCronExpression);
+            Assert.AreEqual(targetCronExpression.CronExpressionString, deserializedCronExpression.CronExpressionString);
+            //Assert.AreEqual(targetCronExpression.getTimeZone(), deserializedCronExpression.getTimeZone());
+        }
 
-		/// <summary>
-		/// Test method for 'CronExpression.IsSatisfiedBy(DateTime)'.
-		/// </summary>
-		[Test]
-		public void TestIsSatisfiedBy()
-		{
-			CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
+        /// <summary>
+        /// Test method for 'CronExpression.IsSatisfiedBy(DateTime)'.
+        /// </summary>
+        [Test]
+        public void TestIsSatisfiedBy()
+        {
+            CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
 
-			DateTime cal = new DateTime(2005, 6, 1, 10, 15, 0);
-			Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+            DateTime cal = new DateTime(2005, 6, 1, 10, 15, 0);
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
 
-			cal = cal.AddYears(1);
-			Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
+            cal = cal.AddYears(1);
+            Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
 
-			cal = new DateTime(2005, 6, 1, 10, 16, 0);
-			Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
+            cal = new DateTime(2005, 6, 1, 10, 16, 0);
+            Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
 
-			cal = new DateTime(2005, 6, 1, 10, 14, 0);
-			Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
+            cal = new DateTime(2005, 6, 1, 10, 14, 0);
+            Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
 
-			cronExpression = new CronExpression("0 15 10 ? * MON-FRI");
+            cronExpression = new CronExpression("0 15 10 ? * MON-FRI");
 
-			// weekends
-			cal = new DateTime(2007, 6, 9, 10, 15, 0);
-			Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
-			Assert.IsFalse(cronExpression.IsSatisfiedBy(cal.AddDays(1)));
-		}
+            // weekends
+            cal = new DateTime(2007, 6, 9, 10, 15, 0);
+            Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
+            Assert.IsFalse(cronExpression.IsSatisfiedBy(cal.AddDays(1)));
+        }
 
-		[Test]
-		public void TestCronExpressionPassingMidnight()
-		{
-			CronExpression cronExpression = new CronExpression("0 15 23 * * ?");
-			DateTime cal = new DateTime(2005, 6, 1, 23, 16, 0);
-			DateTime nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0);
-			NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
-			Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
-		}
+        [Test]
+        public void TestCronExpressionPassingMidnight()
+        {
+            CronExpression cronExpression = new CronExpression("0 15 23 * * ?");
+            DateTime cal = new DateTime(2005, 6, 1, 23, 16, 0);
+            DateTime nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0);
+            NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
+            Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
+        }
 
 
-		[Test]
-		public void TestCronExpressionWeekdaysMonFri()
-		{
-			CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
-			int[] arrJuneDaysThatShouldFire =
-				new int[] {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
-			ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
+        [Test]
+        public void TestCronExpressionWeekdaysMonFri()
+        {
+            CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
+            int[] arrJuneDaysThatShouldFire =
+                new int[] {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
+            ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
 
-			TestCorrectWeekFireDays(cronExpression, juneDays);
-		}
+            TestCorrectWeekFireDays(cronExpression, juneDays);
+        }
 
-		[Test]
-		public void TestCronExpressionWeekdaysFriday()
-		{
-			CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
-			int[] arrJuneDaysThatShouldFire =
-				new int[] {1, 8, 15, 22, 29};
-			ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
+        [Test]
+        public void TestCronExpressionWeekdaysFriday()
+        {
+            CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
+            int[] arrJuneDaysThatShouldFire =
+                new int[] {1, 8, 15, 22, 29};
+            ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
 
-			TestCorrectWeekFireDays(cronExpression, juneDays);
-		}
+            TestCorrectWeekFireDays(cronExpression, juneDays);
+        }
 
-		[Test]
-		public void TestCronExpressionLastDayOfMonth()
-		{
-			CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
-			int[] arrJuneDaysThatShouldFire = new int[] {30};
-			ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
+        [Test]
+        public void TestCronExpressionLastDayOfMonth()
+        {
+            CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
+            int[] arrJuneDaysThatShouldFire = new int[] {30};
+            ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
 
-			TestCorrectWeekFireDays(cronExpression, juneDays);
-		}
+            TestCorrectWeekFireDays(cronExpression, juneDays);
+        }
 
-		private static void TestCorrectWeekFireDays(CronExpression cronExpression, ArrayList correctFireDays)
-		{
-			ArrayList fireDays = new ArrayList();
+        private static void TestCorrectWeekFireDays(CronExpression cronExpression, ArrayList correctFireDays)
+        {
+            ArrayList fireDays = new ArrayList();
 
-			DateTime cal = new DateTime(2007, 6, 1, 11, 0, 0);
-			for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
-			{
-				NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
-				if (!fireDays.Contains(nextFireTime.Value.Day) && nextFireTime.Value.Month == 6)
-				{
-					// next fire day may be monday for several days..
-					fireDays.Add(nextFireTime.Value.Day);
-				}
-				cal = cal.AddDays(1);
-			}
-			// check rite dates fired
-			for (int i = 0; i < fireDays.Count; ++i)
-			{
-				int idx = correctFireDays.IndexOf(fireDays[i]);
-				Assert.Greater(idx, -1, "CronExpression evaluated true for " + fireDays[i] + " even when it shouldn't have");
-				correctFireDays.RemoveAt(idx);
-			}
+            DateTime cal = new DateTime(2007, 6, 1, 11, 0, 0);
+            for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
+            {
+                NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
+                if (!fireDays.Contains(nextFireTime.Value.Day) && nextFireTime.Value.Month == 6)
+                {
+                    // next fire day may be monday for several days..
+                    fireDays.Add(nextFireTime.Value.Day);
+                }
+                cal = cal.AddDays(1);
+            }
+            // check rite dates fired
+            for (int i = 0; i < fireDays.Count; ++i)
+            {
+                int idx = correctFireDays.IndexOf(fireDays[i]);
+                Assert.Greater(idx, -1,
+                               "CronExpression evaluated true for " + fireDays[i] + " even when it shouldn't have");
+                correctFireDays.RemoveAt(idx);
+            }
 
-			// check that all fired
-			Assert.IsEmpty(correctFireDays, "CronExpression did evaluate true for all june days (count: " + correctFireDays.Count + ").");
-		}
-	}
+            // check that all fired
+            Assert.IsEmpty(correctFireDays,
+                           "CronExpression did evaluate true for all june days (count: " + correctFireDays.Count + ").");
+        }
+    }
 }

@@ -21,47 +21,31 @@ namespace Quartz.Impl.Calendar
 	/// <author>Aaron Craven</author>
 	public class CronCalendar : BaseCalendar
 	{
-		private String name;
 		CronExpression cronExpression;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="CronCalendar"/> class.
 		/// </summary>
-		/// <param name="name">the name for the DailyCalendar</param>
 		/// <param name="expression">a String representation of the desired cron expression</param>
-		public CronCalendar(String name, String expression) : base()
+		public CronCalendar(string expression)
 		{
-			this.name = name;
 			cronExpression = new CronExpression(expression);
 		}
-
-
 
 		/// <summary>
 		/// Create a <CODE>CronCalendar</CODE> with the given cron exprssion and 
 		/// <CODE>baseCalendar</CODE>. 
 		/// </summary>
-		/// <param name="name"> the name for the <CODE>DailyCalendar</CODE></param>
 		/// <param name="baseCalendar">
 		/// the base calendar for this calendar instance 
 		/// see BaseCalendar for more information on base
 		/// calendar functionality
 		/// </param>
 		/// <param name="expression">a String representation of the desired cron expression</param>
-		public CronCalendar(String name, ICalendar baseCalendar,
-		                    String expression) : base(baseCalendar)
+		public CronCalendar( ICalendar baseCalendar,
+		                    string expression) : base(baseCalendar)
 		{
-			this.name = name;
-			cronExpression = new CronExpression(expression);
-		}
-
-		/// <summary>
-		/// Gets the name.
-		/// </summary>
-		/// <returns></returns>
-		public string Name
-		{
-			get { return name; }
+            cronExpression = new CronExpression(expression);
 		}
 
 		/// <summary>
@@ -130,8 +114,7 @@ namespace Quartz.Impl.Calendar
 		public override string ToString()
 		{
 			StringBuilder buffer = new StringBuilder();
-			buffer.Append(Name);
-			buffer.Append(": base calendar: [");
+			buffer.Append("base calendar: [");
 			if (GetBaseCalendar() != null)
 			{
 				buffer.Append(GetBaseCalendar().ToString());

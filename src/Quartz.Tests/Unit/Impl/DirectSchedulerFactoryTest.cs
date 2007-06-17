@@ -15,6 +15,7 @@
  */
 using System.Collections;
 using System.Text;
+using System.Threading;
 
 using NUnit.Framework;
 
@@ -35,13 +36,13 @@ namespace Quartz.Tests.Unit.Impl
 			IDictionary data = new Hashtable();
 			data["TestPlugin"] = new TestPlugin(result);
 
-			IThreadPool threadPool = new SimpleThreadPool(1, 5);
+			IThreadPool threadPool = new SimpleThreadPool(1, ThreadPriority.Normal);
 			threadPool.Initialize();
-			/*DirectSchedulerFactory.Instance.CreateScheduler(
+			DirectSchedulerFactory.Instance.CreateScheduler(
 				"MyScheduler", "Instance1", threadPool,
 				new RAMJobStore(), data, 
-				null, -1, 0, 0);
-            */
+				0, 0);
+            
 
 			IScheduler scheduler = DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");
 			scheduler.Start();
@@ -51,7 +52,8 @@ namespace Quartz.Tests.Unit.Impl
 		}
 
 		class TestPlugin : ISchedulerPlugin
-		{			StringBuilder result;
+		{
+			StringBuilder result;
 
 			public TestPlugin(StringBuilder result)
 			{

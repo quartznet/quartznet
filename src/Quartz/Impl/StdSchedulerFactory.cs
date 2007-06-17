@@ -53,7 +53,7 @@ namespace Quartz.Impl
 	/// 
 	/// <p>
 	/// Alternativly, you can explicitly Initialize the factory by calling one of
-	/// the <see cref="Initialize" /> methods before calling <see cref="GetScheduler()" />.
+	/// the <see cref="Initialize()" /> methods before calling <see cref="GetScheduler()" />.
 	/// </p>
 	/// 
 	/// <p>
@@ -75,6 +75,60 @@ namespace Quartz.Impl
 	/// <author>Marko Lahma (.NET)</author>
 	public class StdSchedulerFactory : ISchedulerFactory
 	{
+        public const string PROPERTIES_FILE = "quartz.properties";
+        public const string PROP_SCHED_INSTANCE_NAME = "quartz.scheduler.instanceName";
+        public const string PROP_SCHED_INSTANCE_ID = "quartz.scheduler.instanceId";
+        public const string PROP_SCHED_INSTANCE_ID_GENERATOR_PREFIX = "org.quartz.scheduler.instanceIdGenerator";
+        public const string PROP_SCHED_INSTANCE_ID_GENERATOR_CLASS = PROP_SCHED_INSTANCE_ID_GENERATOR_PREFIX + ".class";
+        public const string PROP_SCHED_THREAD_NAME = "quartz.scheduler.threadName";
+        public const string PROP_SCHED_RMI_EXPORT = "quartz.scheduler.rmi.export";
+        public const string PROP_SCHED_RMI_PROXY = "quartz.scheduler.rmi.proxy";
+        public const string PROP_SCHED_RMI_HOST = "quartz.scheduler.rmi.registryHost";
+        public const string PROP_SCHED_RMI_PORT = "quartz.scheduler.rmi.registryPort";
+        public const string PROP_SCHED_RMI_SERVER_PORT = "quartz.scheduler.rmi.serverPort";
+        public const string PROP_SCHED_RMI_CREATE_REGISTRY = "quartz.scheduler.rmi.createRegistry";
+        public const string PROP_SCHED_WRAP_JOB_IN_USER_TX = "quartz.scheduler.wrapJobExecutionInUserTransaction";
+        public const string PROP_SCHED_USER_TX_URL = "quartz.scheduler.userTransactionURL";
+        public const string PROP_SCHED_IDLE_WAIT_TIME = "quartz.scheduler.idleWaitTime";
+        public const string PROP_SCHED_DB_FAILURE_RETRY_INTERVAL = "quartz.scheduler.dbFailureRetryInterval";
+        public const string PROP_SCHED_MAKE_SCHEDULER_THREAD_DAEMON = "org.quartz.scheduler.makeSchedulerThreadDaemon";
+        public const string PROP_SCHED_CLASS_LOAD_HELPER_CLASS = "quartz.scheduler.classLoadHelper.class";
+        public const string PROP_SCHED_JOB_FACTORY_CLASS = "quartz.scheduler.jobFactory.class";
+        public const string PROP_SCHED_JOB_FACTORY_PREFIX = "quartz.scheduler.jobFactory";
+        public const string PROP_SCHED_CONTEXT_PREFIX = "quartz.context.key";
+        public const string PROP_THREAD_POOL_PREFIX = "quartz.threadPool";
+        public const string PROP_THREAD_POOL_CLASS = "quartz.threadPool.class";
+        public const string PROP_JOB_STORE_PREFIX = "quartz.jobStore";
+        public const string PROP_JOB_STORE_LOCK_HANDLER_PREFIX = PROP_JOB_STORE_PREFIX + ".lockHandler";
+        public const string PROP_JOB_STORE_LOCK_HANDLER_CLASS = PROP_JOB_STORE_LOCK_HANDLER_PREFIX + ".class";
+        public const string PROP_TABLE_PREFIX = "tablePrefix";
+        public const string PROP_JOB_STORE_CLASS = "quartz.jobStore.class";
+        public const string PROP_JOB_STORE_USE_PROP = "quartz.jobStore.useProperties";
+        public const string PROP_DATASOURCE_PREFIX = "quartz.dataSource";
+        public const string PROP_CONNECTION_PROVIDER_CLASS = "connectionProvider.class";
+        public const string PROP_DATASOURCE_DRIVER = "driver";
+        public const string PROP_DATASOURCE_URL = "URL";
+        public const string PROP_DATASOURCE_USER = "user";
+        public const string PROP_DATASOURCE_PASSWORD = "password";
+        public const string PROP_DATASOURCE_MAX_CONNECTIONS = "maxConnections";
+        public const string PROP_DATASOURCE_VALIDATION_QUERY = "validationQuery";
+        public const string PROP_DATASOURCE_JNDI_URL = "jndiURL";
+        public const string PROP_DATASOURCE_JNDI_ALWAYS_LOOKUP = "jndiAlwaysLookup";
+        public const string PROP_DATASOURCE_JNDI_INITIAL = "java.naming.factory.initial";
+        public const string PROP_DATASOURCE_JNDI_PROVDER = "java.naming.provider.url";
+        public const string PROP_DATASOURCE_JNDI_PRINCIPAL = "java.naming.security.principal";
+        public const string PROP_DATASOURCE_JNDI_CREDENTIALS = "java.naming.security.credentials";
+        public const string PROP_PLUGIN_PREFIX = "quartz.plugin";
+        public const string PROP_PLUGIN_CLASS = "class";
+        public const string PROP_JOB_LISTENER_PREFIX = "quartz.jobListener";
+        public const string PROP_TRIGGER_LISTENER_PREFIX = "quartz.triggerListener";
+        public const string PROP_LISTENER_CLASS = "class";
+        public const string DEFAULT_INSTANCE_ID = "NON_CLUSTERED";
+        public const string AUTO_GENERATE_INSTANCE_ID = "AUTO";
+        private SchedulerException initException = null;
+
+        private PropertiesParser cfg;
+
 		private static readonly ILog Log = LogManager.GetLogger(typeof (StdSchedulerFactory));
 
 		private string SchedulerName
@@ -112,56 +166,6 @@ namespace Quartz.Impl
 		{
 			get { return SchedulerRepository.Instance.LookupAll(); }
 		}
-
-
-		public const string PROPERTIES_FILE = "quartz.properties";
-		public const string PROP_SCHED_INSTANCE_NAME = "quartz.scheduler.instanceName";
-		public const string PROP_SCHED_INSTANCE_ID = "quartz.scheduler.instanceId";
-		public const string PROP_SCHED_INSTANCE_ID_GENERATOR_CLASS = "quartz.scheduler.instanceIdGenerator.class";
-		public const string PROP_SCHED_THREAD_NAME = "quartz.scheduler.threadName";
-		public const string PROP_SCHED_RMI_EXPORT = "quartz.scheduler.rmi.export";
-		public const string PROP_SCHED_RMI_PROXY = "quartz.scheduler.rmi.proxy";
-		public const string PROP_SCHED_RMI_HOST = "quartz.scheduler.rmi.registryHost";
-		public const string PROP_SCHED_RMI_PORT = "quartz.scheduler.rmi.registryPort";
-		public const string PROP_SCHED_RMI_SERVER_PORT = "quartz.scheduler.rmi.serverPort";
-		public const string PROP_SCHED_RMI_CREATE_REGISTRY = "quartz.scheduler.rmi.createRegistry";
-		public const string PROP_SCHED_WRAP_JOB_IN_USER_TX = "quartz.scheduler.wrapJobExecutionInUserTransaction";
-		public const string PROP_SCHED_USER_TX_URL = "quartz.scheduler.userTransactionURL";
-		public const string PROP_SCHED_IDLE_WAIT_TIME = "quartz.scheduler.idleWaitTime";
-		public const string PROP_SCHED_DB_FAILURE_RETRY_INTERVAL = "quartz.scheduler.dbFailureRetryInterval";
-		public const string PROP_SCHED_CLASS_LOAD_HELPER_CLASS = "quartz.scheduler.classLoadHelper.class";
-		public const string PROP_SCHED_JOB_FACTORY_CLASS = "quartz.scheduler.jobFactory.class";
-		public const string PROP_SCHED_JOB_FACTORY_PREFIX = "quartz.scheduler.jobFactory";
-		public const string PROP_SCHED_CONTEXT_PREFIX = "quartz.context.key";
-		public const string PROP_THREAD_POOL_PREFIX = "quartz.threadPool";
-		public const string PROP_THREAD_POOL_CLASS = "quartz.threadPool.class";
-		public const string PROP_JOB_STORE_PREFIX = "quartz.jobStore";
-		public const string PROP_JOB_STORE_CLASS = "quartz.jobStore.class";
-		public const string PROP_JOB_STORE_USE_PROP = "quartz.jobStore.useProperties";
-		public const string PROP_DATASOURCE_PREFIX = "quartz.dataSource";
-		public const string PROP_CONNECTION_PROVIDER_CLASS = "connectionProvider.class";
-		public const string PROP_DATASOURCE_DRIVER = "driver";
-		public const string PROP_DATASOURCE_URL = "URL";
-		public const string PROP_DATASOURCE_USER = "user";
-		public const string PROP_DATASOURCE_PASSWORD = "password";
-		public const string PROP_DATASOURCE_MAX_CONNECTIONS = "maxConnections";
-		public const string PROP_DATASOURCE_VALIDATION_QUERY = "validationQuery";
-		public const string PROP_DATASOURCE_JNDI_URL = "jndiURL";
-		public const string PROP_DATASOURCE_JNDI_ALWAYS_LOOKUP = "jndiAlwaysLookup";
-		public const string PROP_DATASOURCE_JNDI_INITIAL = "java.naming.factory.initial";
-		public const string PROP_DATASOURCE_JNDI_PROVDER = "java.naming.provider.url";
-		public const string PROP_DATASOURCE_JNDI_PRINCIPAL = "java.naming.security.principal";
-		public const string PROP_DATASOURCE_JNDI_CREDENTIALS = "java.naming.security.credentials";
-		public const string PROP_PLUGIN_PREFIX = "quartz.plugin";
-		public const string PROP_PLUGIN_CLASS = "class";
-		public const string PROP_JOB_LISTENER_PREFIX = "quartz.jobListener";
-		public const string PROP_TRIGGER_LISTENER_PREFIX = "quartz.triggerListener";
-		public const string PROP_LISTENER_CLASS = "class";
-		public const string DEFAULT_INSTANCE_ID = "NON_CLUSTERED";
-		public const string AUTO_GENERATE_INSTANCE_ID = "AUTO";
-		private SchedulerException initException = null;
-
-		private PropertiesParser cfg;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StdSchedulerFactory"/> class.
@@ -352,7 +356,7 @@ namespace Quartz.Impl
 				}
 			}
 
-			IInstanceIdGenerator instanceIdGenerator = null;
+			IInstanceIdGenerator instanceIdGenerator;
 			if (instanceIdGeneratorClass != null)
 			{
 				try
@@ -364,6 +368,18 @@ namespace Quartz.Impl
 				{
 					throw new SchedulerConfigException("Unable to Instantiate InstanceIdGenerator class: " + e.Message, e);
 				}
+                tProps = cfg.GetPropertyGroup(PROP_SCHED_INSTANCE_ID_GENERATOR_PREFIX, true);
+                try
+                {
+                    ObjectUtils.SetObjectProperties(instanceIdGenerator, tProps);
+                }
+                catch (Exception e)
+                {
+                    initException = new SchedulerException("InstanceIdGenerator class '"
+                            + instanceIdGeneratorClass + "' props could not be configured.", e);
+                    initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
+                    throw initException;
+                }  
 			}
 
 			// Get ThreadPool Properties
@@ -420,7 +436,7 @@ namespace Quartz.Impl
 				initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
 				throw initException;
 			}
-			tProps = cfg.GetPropertyGroup(PROP_JOB_STORE_PREFIX, true);
+            tProps = cfg.GetPropertyGroup(PROP_JOB_STORE_PREFIX, true, new string[] { PROP_JOB_STORE_LOCK_HANDLER_PREFIX });
 			try
 			{
 				ObjectUtils.SetObjectProperties(js, tProps);
@@ -432,12 +448,45 @@ namespace Quartz.Impl
 				throw initException;
 			}
 
+            /* TODO
 			if (js is JobStoreSupport)
 			{
 				((JobStoreSupport) js).InstanceId = schedInstId;
 				((JobStoreSupport) js).InstanceName = schedName;
-			}
 
+                           // Install custom lock handler (Semaphore)
+            String lockHandlerClass = cfg.GetStringProperty(PROP_JOB_STORE_LOCK_HANDLER_CLASS);
+            if (lockHandlerClass != null) {
+                try {
+                    ISemaphore lockHandler = (ISemaphore) ObjectUtils.InstantiateType(loadHelper.LoadType(lockHandlerClass));
+                    
+                    tProps = cfg.GetPropertyGroup(PROP_JOB_STORE_LOCK_HANDLER_PREFIX, true);
+
+                    // If this lock handler requires the table prefix, add it to its properties.
+                    if (lockHandler is ITablePrefixAware) {
+                        tProps[PROP_TABLE_PREFIX] = ((JobStoreSupport)js).TablePrefix;
+                    }
+                    
+                    try {
+                        ObjectUtils.SetObjectProperties(lockHandler, tProps);
+                    } catch (Exception e) {
+                        initException = new SchedulerException("JobStore LockHandler class '" + lockHandlerClass
+                                + "' props could not be configured.", e);
+                        initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
+                        throw initException;
+                    }
+                    
+                    ((JobStoreSupport)js).LockHandler = lockHandler;
+                    Log.Info("Using custom data access locking (synchronization): " + lockHandlerClass);
+                } catch (Exception e) {
+                    initException = new SchedulerException("JobStore LockHandler class '" + lockHandlerClass
+                            + "' could not be instantiated.", e);
+                    initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
+                    throw initException;
+                }
+            }
+			}
+            */
 			// Set up any DataSources
 			// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -498,7 +547,7 @@ namespace Quartz.Impl
 
 					if (dsJndi != null)
 					{
-						NameValueCollection props = null;
+						NameValueCollection props;
 						if (null != dsJndiInitial || null != dsJndiProvider || null != dsJndiPrincipal || null != dsJndiCredentials)
 						{
 							props = new NameValueCollection();
@@ -719,13 +768,15 @@ namespace Quartz.Impl
 				try
 				{
 					schedInstId = DEFAULT_INSTANCE_ID;
-					if (js is JobStoreSupport)
+					/* TODO
+                    if (js is JobStoreSupport)
 					{
 						if (((JobStoreSupport) js).Clustered)
 						{
 							schedInstId = instanceIdGenerator.GenerateInstanceId();
 						}
 					}
+                    */
 				}
 				catch (Exception e)
 				{
@@ -734,19 +785,21 @@ namespace Quartz.Impl
 				}
 			}
 
+            /* TODO
 			if (js is JobStoreSupport)
 			{
 				JobStoreSupport jjs = (JobStoreSupport) js;
 				jjs.InstanceId = schedInstId;
 				jjs.DbRetryInterval = dbFailureRetry;
 			}
+            */
 
 			QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
 			rsrcs.Name = schedName;
 			rsrcs.ThreadName = threadName;
 			rsrcs.InstanceId = schedInstId;
 			rsrcs.JobRunShellFactory = jrsf;
-
+            // TODO rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
 			rsrcs.ThreadPool = tp;
 			if (tp is SimpleThreadPool)
 			{
@@ -755,6 +808,13 @@ namespace Quartz.Impl
 			tp.Initialize();
 
 			rsrcs.JobStore = js;
+
+            // add plugins
+            for (int i = 0; i < plugins.Length; i++)
+            {
+                rsrcs.AddSchedulerPlugin(plugins[i]);
+            }
+
 
 			schedCtxt = new SchedulingContext();
 			schedCtxt.InstanceId = rsrcs.InstanceId;
@@ -774,11 +834,10 @@ namespace Quartz.Impl
 				qs.JobFactory = jobFactory;
 			}
 
-			// add plugins
+			// Initialize plugins now that we have a Scheduler instance.
 			for (int i = 0; i < plugins.Length; i++)
 			{
 				plugins[i].Initialize(pluginNames[i], sched);
-				qs.AddSchedulerPlugin(plugins[i]);
 			}
 
 			// add listeners
@@ -844,7 +903,7 @@ namespace Quartz.Impl
 		/// </p>
 		/// 
 		/// <p>
-		/// If one of the <see cref="Initialize" /> methods has not be previously
+		/// If one of the <see cref="Initialize()" /> methods has not be previously
 		/// called, then the default (no-arg) <see cref="Initialize()" /> method
 		/// will be called by this method.
 		/// </p>
@@ -888,35 +947,5 @@ namespace Quartz.Impl
 		}
 	}
 
-	internal class JobStoreSupport
-	{
-		public string InstanceId
-		{
-			get { return null; }
-			set
-			{
-			}
-		}
 
-		public string InstanceName
-		{
-			get { return null; }
-			set
-			{
-			}
-		}
-
-		public bool Clustered
-		{
-			get { throw new NotImplementedException(); }
-		}
-
-		public long DbRetryInterval
-		{
-			get { return -1; }
-			set
-			{
-			}
-		}
-	}
 }

@@ -27,10 +27,10 @@ namespace Quartz.Simpl
 {
 	/// <summary> 
 	/// A JobFactory that instantiates the Job instance (using the default no-arg
-	/// constructor, or more specifically: <see cref="Activator.CreateInstance(string)" />), and
+	/// constructor, or more specifically: <see cref="Activator.CreateInstance(Type)" />), and
 	/// then attempts to set all values in the <see cref="JobExecutionContext" />'s
 	/// <see cref="JobDataMap" /> onto bean properties of the <see cref="IJob" />.
-	/// </summary
+	/// </summary>
 	/// <seealso cref="IJobFactory" />
 	/// <seealso cref="SimpleJobFactory" />
 	/// <seealso cref="JobExecutionContext.MergedJobDataMap" />

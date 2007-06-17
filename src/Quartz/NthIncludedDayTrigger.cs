@@ -597,7 +597,7 @@ namespace Quartz
 		/// Indicates whether <param name="misfireInstruction" /> is a valid misfire
 		/// instruction for this <see cref="Trigger" />.
 		/// </summary>
-		/// <returns>Whether <param name="misfireInstruction" /> is valid.</returns>
+        /// <returns>Whether <see param="misfireInstruction" /> is valid.</returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
 			if ((misfireInstruction == MISFIRE_INSTRUCTION_SMART_POLICY) ||

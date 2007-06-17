@@ -19,62 +19,56 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
-using System;
-
 namespace Quartz.Util
 {
-	/// <summary> <p>
-	/// Utility class for storing two pieces of information together.
-	/// </p>
-	/// 
-	/// </summary>
-	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a>
-	/// </author>
-	public class Pair
-	{
-		/// <summary> 
-		/// Get or sets the first object in the pair.
-		/// </summary>
-		public virtual object First
-		{
-			get { return first; }
+    /// <summary>
+    /// Utility class for storing two pieces of information together.
+    /// </summary>
+    /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+    public class Pair
+    {
+        private object first;
+        private object second;
 
-			set { first = value; }
-		}
+        /// <summary> 
+        /// Get or sets the first object in the pair.
+        /// </summary>
+        public virtual object First
+        {
+            get { return first; }
+            set { first = value; }
+        }
 
-		/// <summary> 
-		/// Get or sets the second object in the pair.
-		/// </summary>
-		public virtual object Second
-		{
-			get { return second; }
-			set { second = value; }
-		}
+        /// <summary> 
+        /// Get or sets the second object in the pair.
+        /// </summary>
+        public virtual object Second
+        {
+            get { return second; }
+            set { second = value; }
+        }
 
-		private object first;
-		private object second;
-
-		/// <summary>
-		/// Test equality of this object with that.
-		/// </summary>
-		/// <param name="that">object to compare </param>
-		/// <returns> true if objects are equal, false otherwise</returns>
-		public override bool Equals(object that)
-		{
-			if (this == that)
-			{
-				return true;
-			}
-			if (that is Pair)
-			{
-				Pair other = (Pair) that;
-				return (first.Equals(other.first) && second.Equals(other.second));
-			}
-			else
-			{
-				return false;
-			}
-		}
+        /// <summary>
+        /// Test equality of this object with that.
+        /// </summary>
+        /// <param name="that">object to compare </param>
+        /// <returns> true if objects are equal, false otherwise</returns>
+        public override bool Equals(object that)
+        {
+            if (this == that)
+            {
+                return true;
+            }
+            if (that is Pair)
+            {
+                Pair other = (Pair) that;
+                return (first.Equals(other.first) && second.Equals(other.second));
+            }
+            else
+            {
+                return false;
+            }
+        }
 
         /// <summary>
         /// Serves as a hash function for a particular type. <see cref="M:System.Object.GetHashCode"></see> is suitable for use in hashing algorithms and data structures like a hash table.
@@ -82,9 +76,9 @@ namespace Quartz.Util
         /// <returns>
         /// A hash code for the current <see cref="T:System.Object"></see>.
         /// </returns>
-		public override int GetHashCode()
-		{
-			return (first != null ? first.GetHashCode() : 0) + 29*(second != null ? second.GetHashCode() : 0);
-		}
-	}
+        public override int GetHashCode()
+        {
+            return (17*first.GetHashCode()) + second.GetHashCode();
+        }
+    }
 }

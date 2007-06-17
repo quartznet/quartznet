@@ -22,439 +22,439 @@ using System;
 using Common.Logging;
 using Quartz.Spi;
 
-namespace Quartz.Plugins.History
+namespace Quartz.Plugin.History
 {
-	/// <summary>
-	///  Logs a history of all job executions (and execution vetos) via log4net.
-	/// 
-	/// <p>
-	/// The logged message is customizable by setting one of the following message
-	/// properties to a string that conforms to the syntax of <see cref="java.util.MessageFormat" />.
-	/// </p>
-	/// 
-	/// <p>
-	/// JobToBeFiredMessage - available message data are: <table>
-	/// <tr>
-	/// <th>Element</th>
-	/// <th>Data Type</th>
-	/// <th>Description</th>
-	/// </tr>
-	/// <tr>
-	/// <td>0</td>
-	/// <td>String</td>
-	/// <td>The Job's Name.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>1</td>
-	/// <td>String</td>
-	/// <td>The Job's Group.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>2</td>
-	/// <td>Date</td>
-	/// <td>The current time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>3</td>
-	/// <td>String</td>
-	/// <td>The Trigger's name.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>4</td>
-	/// <td>String</td>
-	/// <td>The Triggers's group.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>5</td>
-	/// <td>Date</td>
-	/// <td>The scheduled fire time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>6</td>
-	/// <td>Date</td>
-	/// <td>The next scheduled fire time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>7</td>
-	/// <td>Integer</td>
-	/// <td>The re-fire count from the JobExecutionContext.</td>
-	/// </tr>
-	/// </table>
-	/// 
-	/// The default message text is <i>"Job {1}.{0} fired (by trigger {4}.{3}) at:
-	/// {2, date, HH:mm:ss MM/dd/yyyy"</i>
-	/// </p>
-	/// 
-	/// 
-	/// <p>
-	/// JobSuccessMessage - available message data are: <table>
-	/// <tr>
-	/// <th>Element</th>
-	/// <th>Data Type</th>
-	/// <th>Description</th>
-	/// </tr>
-	/// <tr>
-	/// <td>0</td>
-	/// <td>String</td>
-	/// <td>The Job's Name.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>1</td>
-	/// <td>String</td>
-	/// <td>The Job's Group.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>2</td>
-	/// <td>Date</td>
-	/// <td>The current time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>3</td>
-	/// <td>String</td>
-	/// <td>The Trigger's name.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>4</td>
-	/// <td>String</td>
-	/// <td>The Triggers's group.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>5</td>
-	/// <td>Date</td>
-	/// <td>The scheduled fire time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>6</td>
-	/// <td>Date</td>
-	/// <td>The next scheduled fire time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>7</td>
-	/// <td>Integer</td>
-	/// <td>The re-fire count from the JobExecutionContext.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>8</td>
-	/// <td>Object</td>
-	/// <td>The string value (toString() having been called) of the result (if any) 
-	/// that the Job set on the JobExecutionContext, with on it.  "NULL" if no 
-	/// result was set.</td>
-	/// </tr>
-	/// </table>
-	/// 
-	/// The default message text is <i>"Job {1}.{0} execution complete at {2, date,
-	/// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
-	/// </p>
-	/// 
-	/// <p>
-	/// JobFailedMessage - available message data are: <table>
-	/// <tr>
-	/// <th>Element</th>
-	/// <th>Data Type</th>
-	/// <th>Description</th>
-	/// </tr>
-	/// <tr>
-	/// <td>0</td>
-	/// <td>String</td>
-	/// <td>The Job's Name.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>1</td>
-	/// <td>String</td>
-	/// <td>The Job's Group.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>2</td>
-	/// <td>Date</td>
-	/// <td>The current time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>3</td>
-	/// <td>String</td>
-	/// <td>The Trigger's name.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>4</td>
-	/// <td>String</td>
-	/// <td>The Triggers's group.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>5</td>
-	/// <td>Date</td>
-	/// <td>The scheduled fire time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>6</td>
-	/// <td>Date</td>
-	/// <td>The next scheduled fire time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>7</td>
-	/// <td>Integer</td>
-	/// <td>The re-fire count from the JobExecutionContext.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>8</td>
-	/// <td>String</td>
-	/// <td>The message from the thrown JobExecution Exception.
-	/// </td>
-	/// </tr>
-	/// </table>
-	/// 
-	/// The default message text is <i>"Job {1}.{0} execution failed at {2, date,
-	/// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
-	/// </p>
-	/// 
-	/// 
-	/// <p>
-	/// JobWasVetoedMessage - available message data are: <table>
-	/// <tr>
-	/// <th>Element</th>
-	/// <th>Data Type</th>
-	/// <th>Description</th>
-	/// </tr>
-	/// <tr>
-	/// <td>0</td>
-	/// <td>String</td>
-	/// <td>The Job's Name.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>1</td>
-	/// <td>String</td>
-	/// <td>The Job's Group.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>2</td>
-	/// <td>Date</td>
-	/// <td>The current time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>3</td>
-	/// <td>String</td>
-	/// <td>The Trigger's name.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>4</td>
-	/// <td>String</td>
-	/// <td>The Triggers's group.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>5</td>
-	/// <td>Date</td>
-	/// <td>The scheduled fire time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>6</td>
-	/// <td>Date</td>
-	/// <td>The next scheduled fire time.</td>
-	/// </tr>
-	/// <tr>
-	/// <td>7</td>
-	/// <td>Integer</td>
-	/// <td>The re-fire count from the JobExecutionContext.</td>
-	/// </tr>
-	/// </table>
-	/// 
-	/// The default message text is <i>"Job {1}.{0} was vetoed.  It was to be fired 
-	/// (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy"</i>
-	/// </p>
-	/// </summary>
-	/// <author>James House</author>
-	public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
-	{
-		private string name;
-		private string jobToBeFiredMessage = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy";
-		private string jobSuccessMessage = "Job {1}.{0} execution complete at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8";
-		private string jobFailedMessage = "Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8";
+    /// <summary>
+    ///  Logs a history of all job executions (and execution vetos) via log4net.
+    /// 
+    /// <p>
+    /// The logged message is customizable by setting one of the following message
+    /// properties to a string that conforms to the syntax of <see cref="string.Format(string,object)" />.
+    /// </p>
+    /// 
+    /// <p>
+    /// JobToBeFiredMessage - available message data are: <table>
+    /// <tr>
+    /// <th>Element</th>
+    /// <th>Data Type</th>
+    /// <th>Description</th>
+    /// </tr>
+    /// <tr>
+    /// <td>0</td>
+    /// <td>String</td>
+    /// <td>The Job's Name.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>1</td>
+    /// <td>String</td>
+    /// <td>The Job's Group.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>2</td>
+    /// <td>Date</td>
+    /// <td>The current time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>3</td>
+    /// <td>String</td>
+    /// <td>The Trigger's name.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>4</td>
+    /// <td>String</td>
+    /// <td>The Triggers's group.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>5</td>
+    /// <td>Date</td>
+    /// <td>The scheduled fire time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>6</td>
+    /// <td>Date</td>
+    /// <td>The next scheduled fire time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>7</td>
+    /// <td>Integer</td>
+    /// <td>The re-fire count from the JobExecutionContext.</td>
+    /// </tr>
+    /// </table>
+    /// 
+    /// The default message text is <i>"Job {1}.{0} fired (by trigger {4}.{3}) at:
+    /// {2, date, HH:mm:ss MM/dd/yyyy"</i>
+    /// </p>
+    /// 
+    /// 
+    /// <p>
+    /// JobSuccessMessage - available message data are: <table>
+    /// <tr>
+    /// <th>Element</th>
+    /// <th>Data Type</th>
+    /// <th>Description</th>
+    /// </tr>
+    /// <tr>
+    /// <td>0</td>
+    /// <td>String</td>
+    /// <td>The Job's Name.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>1</td>
+    /// <td>String</td>
+    /// <td>The Job's Group.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>2</td>
+    /// <td>Date</td>
+    /// <td>The current time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>3</td>
+    /// <td>String</td>
+    /// <td>The Trigger's name.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>4</td>
+    /// <td>String</td>
+    /// <td>The Triggers's group.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>5</td>
+    /// <td>Date</td>
+    /// <td>The scheduled fire time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>6</td>
+    /// <td>Date</td>
+    /// <td>The next scheduled fire time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>7</td>
+    /// <td>Integer</td>
+    /// <td>The re-fire count from the JobExecutionContext.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>8</td>
+    /// <td>Object</td>
+    /// <td>The string value (toString() having been called) of the result (if any) 
+    /// that the Job set on the JobExecutionContext, with on it.  "NULL" if no 
+    /// result was set.</td>
+    /// </tr>
+    /// </table>
+    /// 
+    /// The default message text is <i>"Job {1}.{0} execution complete at {2, date,
+    /// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
+    /// </p>
+    /// 
+    /// <p>
+    /// JobFailedMessage - available message data are: <table>
+    /// <tr>
+    /// <th>Element</th>
+    /// <th>Data Type</th>
+    /// <th>Description</th>
+    /// </tr>
+    /// <tr>
+    /// <td>0</td>
+    /// <td>String</td>
+    /// <td>The Job's Name.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>1</td>
+    /// <td>String</td>
+    /// <td>The Job's Group.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>2</td>
+    /// <td>Date</td>
+    /// <td>The current time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>3</td>
+    /// <td>String</td>
+    /// <td>The Trigger's name.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>4</td>
+    /// <td>String</td>
+    /// <td>The Triggers's group.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>5</td>
+    /// <td>Date</td>
+    /// <td>The scheduled fire time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>6</td>
+    /// <td>Date</td>
+    /// <td>The next scheduled fire time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>7</td>
+    /// <td>Integer</td>
+    /// <td>The re-fire count from the JobExecutionContext.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>8</td>
+    /// <td>String</td>
+    /// <td>The message from the thrown JobExecution Exception.
+    /// </td>
+    /// </tr>
+    /// </table>
+    /// 
+    /// The default message text is <i>"Job {1}.{0} execution failed at {2, date,
+    /// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
+    /// </p>
+    /// 
+    /// 
+    /// <p>
+    /// JobWasVetoedMessage - available message data are: <table>
+    /// <tr>
+    /// <th>Element</th>
+    /// <th>Data Type</th>
+    /// <th>Description</th>
+    /// </tr>
+    /// <tr>
+    /// <td>0</td>
+    /// <td>String</td>
+    /// <td>The Job's Name.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>1</td>
+    /// <td>String</td>
+    /// <td>The Job's Group.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>2</td>
+    /// <td>Date</td>
+    /// <td>The current time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>3</td>
+    /// <td>String</td>
+    /// <td>The Trigger's name.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>4</td>
+    /// <td>String</td>
+    /// <td>The Triggers's group.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>5</td>
+    /// <td>Date</td>
+    /// <td>The scheduled fire time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>6</td>
+    /// <td>Date</td>
+    /// <td>The next scheduled fire time.</td>
+    /// </tr>
+    /// <tr>
+    /// <td>7</td>
+    /// <td>Integer</td>
+    /// <td>The re-fire count from the JobExecutionContext.</td>
+    /// </tr>
+    /// </table>
+    /// 
+    /// The default message text is <i>"Job {1}.{0} was vetoed.  It was to be fired 
+    /// (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy"</i>
+    /// </p>
+    /// </summary>
+    /// <author>James House</author>
+    public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
+    {
+        private string name;
+        private string jobToBeFiredMessage = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy";
+        private string jobSuccessMessage = "Job {1}.{0} execution complete at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8";
+        private string jobFailedMessage = "Job {1}.{0} execution failed at {2, date, HH:mm:ss MM/dd/yyyy} and reports: {8";
 
-		private string jobWasVetoedMessage =
-			"Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy";
+        private string jobWasVetoedMessage =
+            "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy";
 
-		private static readonly ILog Log = LogManager.GetLogger(typeof (LoggingJobHistoryPlugin));
+        private static readonly ILog Log = LogManager.GetLogger(typeof (LoggingJobHistoryPlugin));
 
-		/// <summary> 
-		/// Get or sets the message that is logged when a Job successfully completes its 
-		/// execution.
-		/// </summary>
-		public virtual string JobSuccessMessage
-		{
-			get { return jobSuccessMessage; }
-			set { jobSuccessMessage = value; }
-		}
+        /// <summary> 
+        /// Get or sets the message that is logged when a Job successfully completes its 
+        /// execution.
+        /// </summary>
+        public virtual string JobSuccessMessage
+        {
+            get { return jobSuccessMessage; }
+            set { jobSuccessMessage = value; }
+        }
 
-		/// <summary> 
-		/// Get or sets the message that is logged when a Job fails its 
-		/// execution.
-		/// </summary>
-		public virtual string JobFailedMessage
-		{
-			get { return jobFailedMessage; }
-			set { jobFailedMessage = value; }
-		}
+        /// <summary> 
+        /// Get or sets the message that is logged when a Job fails its 
+        /// execution.
+        /// </summary>
+        public virtual string JobFailedMessage
+        {
+            get { return jobFailedMessage; }
+            set { jobFailedMessage = value; }
+        }
 
-		/// <summary> 
-		/// Gets or sets the message that is logged when a Job is about to Execute.
-		/// </summary>
-		public virtual string JobToBeFiredMessage
-		{
-			get { return jobToBeFiredMessage; }
-			set { jobToBeFiredMessage = value; }
-		}
+        /// <summary> 
+        /// Gets or sets the message that is logged when a Job is about to Execute.
+        /// </summary>
+        public virtual string JobToBeFiredMessage
+        {
+            get { return jobToBeFiredMessage; }
+            set { jobToBeFiredMessage = value; }
+        }
 
-		/// <summary> 
-		/// Gets or sets the message that is logged when a Job execution is vetoed by a
-		/// trigger listener.
-		/// </summary>
-		public virtual string JobWasVetoedMessage
-		{
-			get { return jobWasVetoedMessage; }
-			set { jobWasVetoedMessage = value; }
-		}
+        /// <summary> 
+        /// Gets or sets the message that is logged when a Job execution is vetoed by a
+        /// trigger listener.
+        /// </summary>
+        public virtual string JobWasVetoedMessage
+        {
+            get { return jobWasVetoedMessage; }
+            set { jobWasVetoedMessage = value; }
+        }
 
-		/// <summary>
-		/// Get the name of the <see cref="IJobListener" />.
-		/// </summary>
-		/// <value></value>
-		public virtual string Name
-		{
-			get { return name; }
-		}
+        /// <summary>
+        /// Get the name of the <see cref="IJobListener" />.
+        /// </summary>
+        /// <value></value>
+        public virtual string Name
+        {
+            get { return name; }
+        }
 
-		/// <summary>
-		/// Called during creation of the <see cref="IScheduler" /> in order to give
-		/// the <see cref="SchedulerPlugin" /> a chance to Initialize.
-		/// </summary>
-		public virtual void Initialize(String pluginName, IScheduler sched)
-		{
-			name = pluginName;
-			sched.AddGlobalJobListener(this);
-		}
+        /// <summary>
+        /// Called during creation of the <see cref="IScheduler" /> in order to give
+        /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
+        /// </summary>
+        public virtual void Initialize(String pluginName, IScheduler sched)
+        {
+            name = pluginName;
+            sched.AddGlobalJobListener(this);
+        }
 
-		/// <summary>
-		/// Called when the associated <see cref="IScheduler" /> is started, in order
-		/// to let the plug-in know it can now make calls into the scheduler if it
-		/// needs to.
-		/// </summary>
-		public virtual void Start()
-		{
-			// do nothing...
-		}
+        /// <summary>
+        /// Called when the associated <see cref="IScheduler" /> is started, in order
+        /// to let the plug-in know it can now make calls into the scheduler if it
+        /// needs to.
+        /// </summary>
+        public virtual void Start()
+        {
+            // do nothing...
+        }
 
-		/// <summary> 
-		/// Called in order to inform the <see cref="SchedulerPlugin" /> that it
-		/// should free up all of it's resources because the scheduler is shutting
-		/// down.
-		/// </summary>
-		public virtual void Shutdown()
-		{
-			// nothing to do...
-		}
+        /// <summary> 
+        /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
+        /// should free up all of it's resources because the scheduler is shutting
+        /// down.
+        /// </summary>
+        public virtual void Shutdown()
+        {
+            // nothing to do...
+        }
 
-		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
-		/// is about to be executed (an associated <see cref="Trigger" />
-		/// has occured).
-		/// <p>
-		/// This method will not be invoked if the execution of the Job was vetoed
-		/// by a <see cref="ITriggerListener" />.
-		/// </p>
-		/// </summary>
-		/// <param name="context"></param>
-		/// <seealso cref="JobExecutionVetoed(JobExecutionContext)"/>
-		public virtual void JobToBeExecuted(JobExecutionContext context)
-		{
-			if (!Log.IsInfoEnabled)
-			{
-				return;
-			}
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// is about to be executed (an associated <see cref="Trigger" />
+        /// has occured).
+        /// <p>
+        /// This method will not be invoked if the execution of the Job was vetoed
+        /// by a <see cref="ITriggerListener" />.
+        /// </p>
+        /// </summary>
+        /// <param name="context"></param>
+        /// <seealso cref="JobExecutionVetoed(JobExecutionContext)"/>
+        public virtual void JobToBeExecuted(JobExecutionContext context)
+        {
+            if (!Log.IsInfoEnabled)
+            {
+                return;
+            }
 
-			Trigger trigger = context.Trigger;
+            Trigger trigger = context.Trigger;
 
-			object[] args =
-				new object[]
-					{
-						context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
-						trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount
-					};
+            object[] args =
+                new object[]
+                    {
+                        context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
+                        trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount
+                    };
 
-			Log.Info(String.Format(JobToBeFiredMessage, args));
-		}
+            Log.Info(String.Format(JobToBeFiredMessage, args));
+        }
 
 
-		/// <summary>
-		/// Called by the <see cref="IScheduler" /> after a <see cref="JobDetail" />
-		/// has been executed, and be for the associated <see cref="Trigger" />'s
-		/// <see cref="Triggered(xx)" /> method has been called.
-		/// </summary>
-		/// <param name="context"></param>
-		/// <param name="jobException"></param>
-		public virtual void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
-		{
-			Trigger trigger = context.Trigger;
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> after a <see cref="JobDetail" />
+        /// has been executed, and be for the associated <see cref="Trigger" />'s
+        /// <see cref="Trigger.Triggered" /> method has been called.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="jobException"></param>
+        public virtual void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
+        {
+            Trigger trigger = context.Trigger;
 
-			object[] args;
+            object[] args;
 
-			if (jobException != null)
-			{
-				if (!Log.IsWarnEnabled)
-				{
-					return;
-				}
+            if (jobException != null)
+            {
+                if (!Log.IsWarnEnabled)
+                {
+                    return;
+                }
 
-				string errMsg = jobException.Message;
-				args =
-					new object[]
-						{
-							context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
-							trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount, errMsg
-						};
+                string errMsg = jobException.Message;
+                args =
+                    new object[]
+                        {
+                            context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
+                            trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount, errMsg
+                        };
 
-				Log.Warn(String.Format(JobFailedMessage, args), jobException);
-			}
-			else
-			{
-				if (!Log.IsInfoEnabled)
-				{
-					return;
-				}
+                Log.Warn(String.Format(JobFailedMessage, args), jobException);
+            }
+            else
+            {
+                if (!Log.IsInfoEnabled)
+                {
+                    return;
+                }
 
-				string result = Convert.ToString(context.Result);
-				args =
-					new object[]
-						{
-							context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
-							trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount, result
-						};
+                string result = Convert.ToString(context.Result);
+                args =
+                    new object[]
+                        {
+                            context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
+                            trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount, result
+                        };
 
-				Log.Info(String.Format(JobSuccessMessage, args));
-			}
-		}
+                Log.Info(String.Format(JobSuccessMessage, args));
+            }
+        }
 
-		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
-		/// was about to be executed (an associated <see cref="Trigger" />
-		/// has occured), but a <see cref="ITriggerListener" /> vetoed it's
-		/// execution.
-		/// </summary>
-		/// <param name="context"></param>
-		/// <seealso cref="JobToBeExecuted(JobExecutionContext)"/>
-		public virtual void JobExecutionVetoed(JobExecutionContext context)
-		{
-			if (!Log.IsInfoEnabled)
-			{
-				return;
-			}
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// was about to be executed (an associated <see cref="Trigger" />
+        /// has occured), but a <see cref="ITriggerListener" /> vetoed it's
+        /// execution.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <seealso cref="JobToBeExecuted(JobExecutionContext)"/>
+        public virtual void JobExecutionVetoed(JobExecutionContext context)
+        {
+            if (!Log.IsInfoEnabled)
+            {
+                return;
+            }
 
-			Trigger trigger = context.Trigger;
+            Trigger trigger = context.Trigger;
 
-			object[] args =
-				new object[]
-					{
-						context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
-						trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount
-					};
+            object[] args =
+                new object[]
+                    {
+                        context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
+                        trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount
+                    };
 
-			Log.Info(String.Format(JobWasVetoedMessage, args));
-		}
-	}
+            Log.Info(String.Format(JobWasVetoedMessage, args));
+        }
+    }
 }
