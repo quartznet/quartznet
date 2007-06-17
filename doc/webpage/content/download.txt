@@ -2,7 +2,7 @@
 <div class="descr"></div>
 <br />
 <p>
-	Latest version of Quartz.NET is 0.4.1, grap it from 
-	<a href="http://sourceforge.net/project/showfiles.php?group_id=174134&package_id=199615">Source Forge</a>.
+	Latest version of Quartz.NET is 0.5, grap it from 
+	<a href="http://sourceforge.net/project/showfiles.php?group_id=174134&package_id=199615&release_id=516844">Source Forge</a>.
 </p>
 		

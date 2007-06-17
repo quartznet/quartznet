@@ -12,6 +12,21 @@
 	Quart.NET is still very much work in progress, all feedback and suggestions are greatly welcome.
 </p>
 
+<h1>Quartz.NET 0.5 Released</h1>
+<div class="descr">June 17, 2007 by Marko Lahma</div>
+<p>
+	Quartz.NET 0.5 has been released. 
+</p>
+<p>
+	Version 0.5 is a feature and a bug fix release. Release adds functionality
+	from Java Quartz 1.6 (excluding XML and database job stores). All users
+	are advised to upgrade because this release fixes problems found in cron
+	scheduling and other minor problems.
+</p>
+<p>
+	Grap it from <a href="download.html">downloads page</a>.
+</p>
+
 <h1>Quartz.NET 0.4.1 Released</h1>
 <div class="descr">March 24, 2007 by Marko Lahma</div>
 <p>
