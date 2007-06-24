@@ -64,6 +64,7 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.IsTrue(dirtyFlagMap.Dirty);
 		}
     
+		[Ignore]
 		public void TestEntrySetRemove() 
 		{
 			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
@@ -106,6 +107,7 @@ namespace Quartz.Tests.Unit.Simpl
 //			Assert.IsTrue(dirtyFlagMap.Dirty);
 //		}
     
+		[Ignore]
 		public void TestEntrySetClear() 
 		{
 			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
@@ -118,6 +120,7 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.IsTrue(dirtyFlagMap.Dirty);
 		}        
 
+		[Ignore]
 		public void TestEntrySetIterator() 
 		{
 			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
@@ -139,6 +142,7 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
 		}
 
+		[Ignore]
 		public void TestEntrySetToArray() 
 		{
 			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
@@ -155,6 +159,7 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
 		}
 
+		[Ignore]
 		public void TestEntrySetToArrayWithArg() 
 		{
 			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
@@ -171,6 +176,7 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
 		}
     
+		[Ignore]
 		public void TestKeySetClear() 
 		{
 			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
@@ -183,7 +189,8 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.IsTrue(dirtyFlagMap.Dirty);
 			Assert.AreEqual(0, dirtyFlagMap.Count);
 		}    
-        
+		
+        [Ignore]
 		public void TestValuesClear() 
 		{
 			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();

@@ -57,6 +57,7 @@ namespace Quartz.Tests.Unit
 		/// Test that we can successfully deserialize our target
 		/// class for all of the given Quartz versions. 
 		/// </summary>
+		[Ignore]
 		public void TestSerialization()
 		{
 			object targetObject = GetTargetObject();
