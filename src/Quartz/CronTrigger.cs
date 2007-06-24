@@ -40,7 +40,7 @@ namespace Quartz
 	/// 
 	/// <p>
 	/// The format of a "Cron-Expression" string is documented on the 
-	/// {@link org.quartz.CronExpression} class.
+	/// <see cref="CronExpression" /> class.
 	/// </p>
 	/// 
 	/// <p>
@@ -189,7 +189,7 @@ namespace Quartz
 		/// situation, the <see cref="CronTrigger" /> wants to be fired now
 		/// by <see cref="IScheduler" />.
 		/// </summary>
-		const int MISFIRE_INSTRUCTION_FIRE_ONCE_NOW = 1;
+		public const int MISFIRE_INSTRUCTION_FIRE_ONCE_NOW = 1;
 
 		/// <summary>
 		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
@@ -198,35 +198,29 @@ namespace Quartz
 		/// current time (taking into account any associated <see cref="ICalendar" />,
 		/// but it does not want to be fired now.
 		/// </summary>
-		const int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
+		public const int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
 
 
 		/// <summary>
-		/// <p>
 		/// Create a <see cref="CronTrigger" /> with no settings.
-		/// </p>
-		/// 
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
-		/// </p>
-		/// </summary>
-		public CronTrigger() : base()
+        /// </remarks>
+		public CronTrigger()
 		{
 			StartTime = DateTime.Now;
 			TimeZone = TimeZone.CurrentTimeZone;
 		}
 
 		/// <summary>
-		/// <p>
 		/// Create a <see cref="CronTrigger" /> with the given name and group.
-		/// </p>
-		/// 
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
-		/// </p>
-		/// </summary>
+        /// </remarks>
 		/// <param name="name">The name.</param>
 		/// <param name="group">The group.</param>
 		public CronTrigger(string name, string group) : base(name, group)
@@ -237,16 +231,13 @@ namespace Quartz
 
 
 		/// <summary>
-		/// <p>
 		/// Create a <see cref="CronTrigger" /> with the given name, group and
 		/// expression.
-		/// </p>
-		/// 
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
-		/// </p>
-		/// </summary>
+        /// </remarks>
 		/// <param name="name">The name.</param>
 		/// <param name="group">The group.</param>
 		/// <param name="cronExpression">The cron expression.</param>
@@ -259,13 +250,13 @@ namespace Quartz
 
 
 		/// <summary>
-		/// <p>
 		/// Create a <see cref="CronTrigger" /> with the given name and group, and
 		/// associated with the identified <see cref="JobDetail" />.
-		/// </p>
+		/// </summary>
+		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
-		/// </summary>
+		/// </remarks>
 		/// <param name="name">The name.</param>
 		/// <param name="group">The group.</param>
 		/// <param name="jobName">Name of the job.</param>
@@ -281,11 +272,11 @@ namespace Quartz
 		/// Create a <see cref="CronTrigger" /> with the given name and group,
 		/// associated with the identified <see cref="JobDetail" />,
 		/// and with the given "cron" expression.
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
-		/// </p>
-		/// </summary>
+        /// </remarks>
 		/// <param name="name">The name.</param>
 		/// <param name="group">The group.</param>
 		/// <param name="jobName">Name of the job.</param>
@@ -342,7 +333,7 @@ namespace Quartz
 				startTime = DateTime.Now;
 			}
 			StartTime = startTime;
-			if (endTime != null && endTime.HasValue)
+			if (endTime.HasValue)
 			{
 				EndTime = endTime;
 			}
@@ -373,7 +364,7 @@ namespace Quartz
 				startTime = DateTime.Now;
 			}
 			StartTime = startTime;
-			if (endTime != null && endTime.HasValue)
+			if (endTime.HasValue)
 			{
 				EndTime = endTime;
 			}
@@ -686,7 +677,7 @@ namespace Quartz
 			if (instr == MISFIRE_INSTRUCTION_DO_NOTHING)
 			{
 				NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
-				while (newFireTime != null && cal != null
+				while (newFireTime.HasValue && cal != null
 				       && !cal.IsTimeIncluded(newFireTime.Value))
 				{
 					newFireTime = GetFireTimeAfter(newFireTime);
@@ -821,7 +812,7 @@ namespace Quartz
 			previousFireTime = nextFireTime;
 			nextFireTime = GetFireTimeAfter(nextFireTime);
 
-			while (nextFireTime != null && cal != null
+			while (nextFireTime.HasValue && cal != null
 			       && !cal.IsTimeIncluded(nextFireTime.Value))
 			{
 				nextFireTime = GetFireTimeAfter(nextFireTime);
@@ -840,13 +831,13 @@ namespace Quartz
 			DateTime now = DateTime.Now;
 			do
 			{
-				while (nextFireTime != null && calendar != null
+				while (nextFireTime.HasValue && calendar != null
 				       && !calendar.IsTimeIncluded(nextFireTime.Value))
 				{
 					nextFireTime = GetFireTimeAfter(nextFireTime);
 				}
 
-				if (nextFireTime != null && nextFireTime.Value < (now))
+				if (nextFireTime.HasValue && nextFireTime.Value < (now))
 				{
 					long diff = (long) (now - nextFireTime.Value).TotalMilliseconds;
 					if (diff >= misfireThreshold)
