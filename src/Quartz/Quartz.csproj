@@ -228,6 +228,10 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "quartz.properties"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
                     RelPath = "QuartzThread.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

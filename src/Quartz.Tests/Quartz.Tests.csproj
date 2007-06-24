@@ -104,10 +104,6 @@
         <Files>
             <Include>
                 <File
-                    RelPath = "App.config"
-                    BuildAction = "None"
-                />
-                <File
                     RelPath = "AssemblyInfo.cs"
                     Link = "..\AssemblyInfo.cs"
                     SubType = "Code"

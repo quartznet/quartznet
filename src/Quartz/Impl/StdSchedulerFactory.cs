@@ -24,6 +24,7 @@ using System.Collections;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Data.OleDb;
+using System.IO;
 using System.Reflection;
 using Common.Logging;
 using Quartz.Collection;
@@ -112,12 +113,6 @@ namespace Quartz.Impl
         public const string PROP_DATASOURCE_PASSWORD = "password";
         public const string PROP_DATASOURCE_MAX_CONNECTIONS = "maxConnections";
         public const string PROP_DATASOURCE_VALIDATION_QUERY = "validationQuery";
-        public const string PROP_DATASOURCE_JNDI_URL = "jndiURL";
-        public const string PROP_DATASOURCE_JNDI_ALWAYS_LOOKUP = "jndiAlwaysLookup";
-        public const string PROP_DATASOURCE_JNDI_INITIAL = "java.naming.factory.initial";
-        public const string PROP_DATASOURCE_JNDI_PROVDER = "java.naming.provider.url";
-        public const string PROP_DATASOURCE_JNDI_PRINCIPAL = "java.naming.security.principal";
-        public const string PROP_DATASOURCE_JNDI_CREDENTIALS = "java.naming.security.credentials";
         public const string PROP_PLUGIN_PREFIX = "quartz.plugin";
         public const string PROP_PLUGIN_CLASS = "class";
         public const string PROP_JOB_LISTENER_PREFIX = "quartz.jobListener";
@@ -221,9 +216,43 @@ namespace Quartz.Impl
 #endif
 			if (props == null)
 			{
-				throw new SchedulerConfigException("Could not find <quartz> configuration section from your application config. Please add it to correctly Initialize Quartz.");
+				// read from assembly
+                try
+                {
+                    using (
+                        StreamReader sr =
+                            new StreamReader(
+                                GetType().Assembly.GetManifestResourceStream("Quartz.quartz.properties")))
+                    {
+                        props = new NameValueCollection();
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (line.TrimStart().StartsWith("#"))
+                            {
+                                // comment line 
+                                continue;
+                            }
+                            string[] lineItems = line.Split('=');
+                            if (lineItems.Length == 2)
+                            {
+                                props[lineItems[0].Trim()] = lineItems[1].Trim();
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Could not load default properties for Quartz from Quartz assembly: " + ex.Message, ex);
+                }
 			}
-			Initialize(OverrideWithSysProps(props));
+            if (props == null)
+            {
+                throw new SchedulerConfigException(
+@"Could not find <quartz> configuration section from your application config or load default configuration from assembly.
+Please add configuration to your application config file to correctly initialize Quartz.");
+            }
+		    Initialize(OverrideWithSysProps(props));
 		}
 
 		/// <summary>
@@ -534,41 +563,15 @@ namespace Quartz.Impl
 				{
 					string dsDriver = pp.GetStringProperty(PROP_DATASOURCE_DRIVER, null);
                     string dsURL = pp.GetStringProperty(PROP_DATASOURCE_URL, null);
-					bool dsAlwaysLookup = pp.GetBooleanProperty(PROP_DATASOURCE_JNDI_ALWAYS_LOOKUP, false);
                     string dsUser = pp.GetStringProperty(PROP_DATASOURCE_USER, "");
                     string dsPass = pp.GetStringProperty(PROP_DATASOURCE_PASSWORD, "");
 					int dsCnt = pp.GetIntProperty(PROP_DATASOURCE_MAX_CONNECTIONS, 10);
-                    string dsJndi = pp.GetStringProperty(PROP_DATASOURCE_JNDI_URL, null);
-                    string dsJndiInitial = pp.GetStringProperty(PROP_DATASOURCE_JNDI_INITIAL, null);
-                    string dsJndiProvider = pp.GetStringProperty(PROP_DATASOURCE_JNDI_PROVDER, null);
-                    string dsJndiPrincipal = pp.GetStringProperty(PROP_DATASOURCE_JNDI_PRINCIPAL, null);
-                    string dsJndiCredentials = pp.GetStringProperty(PROP_DATASOURCE_JNDI_CREDENTIALS, null);
                     string dsValidation = pp.GetStringProperty(PROP_DATASOURCE_VALIDATION_QUERY, null);
 
-					if (dsJndi != null)
+					if (false)
 					{
+                        // JNDI
 						NameValueCollection props;
-						if (null != dsJndiInitial || null != dsJndiProvider || null != dsJndiPrincipal || null != dsJndiCredentials)
-						{
-							props = new NameValueCollection();
-							if (dsJndiInitial != null)
-							{
-								props[PROP_DATASOURCE_JNDI_INITIAL] = dsJndiInitial;
-							}
-							if (dsJndiProvider != null)
-							{
-								props[PROP_DATASOURCE_JNDI_PROVDER] = dsJndiProvider;
-							}
-							if (dsJndiPrincipal != null)
-							{
-								props[PROP_DATASOURCE_JNDI_PRINCIPAL] = dsJndiPrincipal;
-							}
-							if (dsJndiCredentials != null)
-							{
-								props[PROP_DATASOURCE_JNDI_CREDENTIALS] = dsJndiCredentials;
-							}
-						}
-						// TODO JNDIConnectionProvider cp = new JNDIConnectionProvider(dsJndi, props, dsAlwaysLookup);
 						dbMgr = DBConnectionManager.Instance;
 						dbMgr.AddConnectionProvider(dsNames[i], null); //cp);
 					}

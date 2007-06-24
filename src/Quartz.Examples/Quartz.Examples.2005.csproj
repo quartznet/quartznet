@@ -169,7 +169,6 @@
     <Compile Include="IExample.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Content Include="quartz.properties" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.2005.csproj">

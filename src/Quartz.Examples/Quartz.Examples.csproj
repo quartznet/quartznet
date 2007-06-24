@@ -119,10 +119,6 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "quartz.properties"
-                    BuildAction = "Content"
-                />
-                <File
                     RelPath = "example1\HelloJob.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

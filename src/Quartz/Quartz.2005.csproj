@@ -392,6 +392,9 @@
   <ItemGroup>
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="quartz.properties" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>
