@@ -59,6 +59,11 @@ namespace Quartz.Util
 					{
 						newValue = typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
 					}
+					if (requiredType == typeof(int) && newValue.GetType() == typeof(long))
+					{
+						// automatically doesn't work, try with converter
+						newValue = Convert.ToInt32(newValue);
+					}
 					else if (requiredType == typeof(short) && (newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
 					{
 						// automatically doesn't work, try with converter
