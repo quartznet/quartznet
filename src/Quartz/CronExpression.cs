@@ -195,20 +195,63 @@ namespace Quartz
     [Serializable]
     public class CronExpression : ICloneable
     {
+		/// <summary>
+		/// Field specification for second.
+		/// </summary>
         protected const int SECOND = 0;
-        protected const int MINUTE = 1;
-        protected const int HOUR = 2;
-        protected const int DAY_OF_MONTH = 3;
-        protected const int MONTH = 4;
-        protected const int DAY_OF_WEEK = 5;
-        protected const int YEAR = 6;
-        protected const int ALL_SPEC_INT = 99; // '*'
-        protected const int NO_SPEC_INT = 98; // '?'
-        protected const int ALL_SPEC = ALL_SPEC_INT;
-        protected const int NO_SPEC = NO_SPEC_INT;
 
-        protected static Hashtable monthMap = new Hashtable(20);
-        protected static Hashtable dayMap = new Hashtable(60);
+		/// <summary>
+		/// Field specification for minute.
+		/// </summary>
+		protected const int MINUTE = 1;
+        
+		/// <summary>
+		/// Field specification for hour.
+		/// </summary>
+		protected const int HOUR = 2;
+        
+		/// <summary>
+		/// Field specification for day of month.
+		/// </summary>
+		protected const int DAY_OF_MONTH = 3;
+        
+		/// <summary>
+		/// Field specification for month.
+		/// </summary>
+		protected const int MONTH = 4;
+        
+		/// <summary>
+		/// Field specification for day of week.
+		/// </summary>
+		protected const int DAY_OF_WEEK = 5;
+        
+		/// <summary>
+		/// Field specification for year.
+		/// </summary>
+		protected const int YEAR = 6;
+        
+		/// <summary>
+		/// Field specification for all wildcard value '*'.
+		/// </summary>
+		protected const int ALL_SPEC_INT = 99; // '*'
+        
+		/// <summary>
+		/// Field specification for not specified value '?'.
+		/// </summary>
+		protected const int NO_SPEC_INT = 98; // '?'
+        
+		/// <summary>
+		/// Field specification for wildcard '*'.
+		/// </summary>
+		protected const int ALL_SPEC = ALL_SPEC_INT;
+		
+		/// <summary>
+		/// Field specification for no specification at all '?'.
+		/// </summary>
+		protected const int NO_SPEC = NO_SPEC_INT;
+
+        private static Hashtable monthMap = new Hashtable(20);
+        private static Hashtable dayMap = new Hashtable(60);
 
         static CronExpression()
         {
@@ -237,21 +280,63 @@ namespace Quartz
         private string cronExpressionString = null;
         private TimeZone timeZone = null;
 
+		/// <summary>
+		/// Seconds.
+		/// </summary>
         [NonSerialized] protected TreeSet seconds;
-        [NonSerialized] protected TreeSet minutes;
-        [NonSerialized] protected TreeSet hours;
-        [NonSerialized] protected TreeSet daysOfMonth;
-        [NonSerialized] protected TreeSet months;
-        [NonSerialized] protected TreeSet daysOfWeek;
-        [NonSerialized] protected TreeSet years;
+		/// <summary>
+		/// minutes.
+		/// </summary>
+		[NonSerialized] protected TreeSet minutes;
+		/// <summary>
+		/// Hours.
+		/// </summary>
+		[NonSerialized] protected TreeSet hours;
+		/// <summary>
+		/// Days of month.
+		/// </summary>
+		[NonSerialized] protected TreeSet daysOfMonth;
+		/// <summary>
+		/// Months.
+		/// </summary>
+		[NonSerialized] protected TreeSet months;
+		/// <summary>
+		/// Days of week.
+		/// </summary>
+		[NonSerialized] protected TreeSet daysOfWeek;
+		/// <summary>
+		/// Years.
+		/// </summary>
+		[NonSerialized] protected TreeSet years;
 
-        [NonSerialized] protected bool lastdayOfWeek = false;
-        [NonSerialized] protected int nthdayOfWeek = 0;
-        [NonSerialized] protected bool lastdayOfMonth = false;
-        [NonSerialized] protected bool nearestWeekday = false;
-        [NonSerialized] protected bool calendardayOfWeek = false;
-        [NonSerialized] protected bool calendardayOfMonth = false;
-        [NonSerialized] protected bool expressionParsed = false;
+		/// <summary>
+		/// Last day of week.
+		/// </summary>
+		[NonSerialized] protected bool lastdayOfWeek = false;
+		/// <summary>
+		/// Nth day of week.
+		/// </summary>
+		[NonSerialized] protected int nthdayOfWeek = 0;
+		/// <summary>
+		/// Last day of month.
+		/// </summary>
+		[NonSerialized] protected bool lastdayOfMonth = false;
+		/// <summary>
+		/// Nearest weekday.
+		/// </summary>
+		[NonSerialized] protected bool nearestWeekday = false;
+		/// <summary>
+		/// Calendar day of week.
+		/// </summary>
+		[NonSerialized] protected bool calendardayOfWeek = false;
+		/// <summary>
+		/// Calendar day of month.
+		/// </summary>
+		[NonSerialized] protected bool calendardayOfMonth = false;
+		/// <summary>
+		/// Expression parsed.
+		/// </summary>
+		[NonSerialized] protected bool expressionParsed = false;
 
 
         ///<summary>
@@ -412,6 +497,10 @@ namespace Quartz
         //
         ////////////////////////////////////////////////////////////////////////////
 
+		/// <summary>
+		/// Builds the expression.
+		/// </summary>
+		/// <param name="expression">The expression.</param>
         protected void BuildExpression(String expression)
         {
             expressionParsed = true;
@@ -487,6 +576,13 @@ namespace Quartz
             }
         }
 
+		/// <summary>
+		/// Stores the expression values.
+		/// </summary>
+		/// <param name="pos">The position.</param>
+		/// <param name="s">The string to traverse.</param>
+		/// <param name="type">The type of value.</param>
+		/// <returns></returns>
         protected int StoreExpressionVals(int pos, string s, int type)
         {
             int incr = 0;
@@ -499,7 +595,7 @@ namespace Quartz
             if ((c >= 'A') && (c <= 'Z') && (!s.Equals("L")) && (!s.Equals("LW")))
             {
                 String sub = s.Substring(i, 3);
-                int sval = -1;
+                int sval;
                 int eval = -1;
                 if (type == MONTH)
                 {
@@ -736,6 +832,14 @@ namespace Quartz
             return i;
         }
 
+		/// <summary>
+		/// Checks the next value.
+		/// </summary>
+		/// <param name="pos">The position.</param>
+		/// <param name="s">The string to check.</param>
+		/// <param name="val">The value.</param>
+		/// <param name="type">The type to search.</param>
+		/// <returns></returns>
         protected int CheckNext(int pos, string s, int val, int type)
         {
             int end = -1;
@@ -917,11 +1021,19 @@ namespace Quartz
             return i;
         }
 
+		/// <summary>
+		/// Gets the cron expression string.
+		/// </summary>
+		/// <value>The cron expression string.</value>
         public string CronExpressionString
         {
             get { return cronExpressionString; }
         }
 
+		/// <summary>
+		/// Gets the expression summary.
+		/// </summary>
+		/// <returns></returns>
         public string GetExpressionSummary()
         {
             StringBuilder buf = new StringBuilder();
@@ -969,6 +1081,11 @@ namespace Quartz
             return buf.ToString();
         }
 
+		/// <summary>
+		/// Gets the expression set summary.
+		/// </summary>
+		/// <param name="data">The data.</param>
+		/// <returns></returns>
         protected string GetExpressionSetSummary(ISet data)
         {
             if (data.Contains(NO_SPEC))
@@ -997,26 +1114,12 @@ namespace Quartz
             return buf.ToString();
         }
 
-        /*
-		protected string GetExpressionSetSummary(ArrayList list) {
-
-			if (list.Contains(NO_SPEC)) return "?";
-			if (list.Contains(ALL_SPEC)) return "*";
-
-			StringBuilder buf = new StringBuilder();
-
-			bool first = true;
-			foreach (int val in list)
-			{
-				if (!first) buf.Append(",");
-				buf.Append(val);
-				first = false;
-			}
-
-			return buf.ToString();
-		}
-	*/
-
+		/// <summary>
+		/// Skips the white space.
+		/// </summary>
+		/// <param name="i">The i.</param>
+		/// <param name="s">The s.</param>
+		/// <returns></returns>
         protected int SkipWhiteSpace(int i, string s)
         {
             for (; i < s.Length && (s[i] == ' ' || s[i] == '\t'); i++)
@@ -1192,6 +1295,11 @@ namespace Quartz
             }
         }
 
+		/// <summary>
+		/// Gets the set of given type.
+		/// </summary>
+		/// <param name="type">The type of set to get.</param>
+		/// <returns></returns>
         protected TreeSet GetSet(int type)
         {
             switch (type)
@@ -1296,6 +1404,15 @@ namespace Quartz
             }
         }
 
+		/// <summary>
+		/// Gets the time from given time parts.
+		/// </summary>
+		/// <param name="sc">The seconds.</param>
+		/// <param name="mn">The minutes.</param>
+		/// <param name="hr">The hours.</param>
+		/// <param name="dayofmn">The day of month.</param>
+		/// <param name="mon">The month.</param>
+		/// <returns></returns>
         protected NullableDateTime GetTime(int sc, int mn, int hr, int dayofmn, int mon)
         {
             try
@@ -1328,6 +1445,11 @@ namespace Quartz
             }
         }
 
+		/// <summary>
+		/// Gets the next fire time after the given time.
+		/// </summary>
+		/// <param name="afterTime">The time to start searching from.</param>
+		/// <returns></returns>
         public NullableDateTime GetTimeAfter(DateTime afterTime)
         {
             // move ahead one second, since we're computing the time *after/// the
@@ -1341,8 +1463,8 @@ namespace Quartz
             // loop until we've computed the next time, or we've past the endTime
             while (!gotOne)
             {
-                ISortedSet st = null;
-                int t = 0;
+                ISortedSet st;
+                int t;
                 int sec = d.Second;
                 int min = d.Minute;
 
@@ -1812,9 +1934,19 @@ namespace Quartz
         }
     }
 
+	/// <summary>
+	/// Helper class for cron expression handling.
+	/// </summary>
     public class ValueSet
     {
+		/// <summary>
+		/// The value.
+		/// </summary>
         public int theValue;
-        public int pos;
+
+		/// <summary>
+		/// The position.
+		/// </summary>
+		public int pos;
     }
 }

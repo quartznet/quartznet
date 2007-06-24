@@ -121,6 +121,10 @@ namespace Quartz
             get { return group + "." + name; }
         }
 
+		/// <summary>
+		/// Gets the key.
+		/// </summary>
+		/// <value>The key.</value>
         public Key Key
         {
             get

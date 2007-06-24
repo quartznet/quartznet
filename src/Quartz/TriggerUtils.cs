@@ -39,20 +39,30 @@ namespace Quartz
 	/// <author>James House</author>
 	public class TriggerUtils
 	{
-		public const int SUNDAY = 1;
-		public const int MONDAY = 2;
-		public const int TUESDAY = 3;
-		public const int WEDNESDAY = 4;
-		public const int THURSDAY = 5;
-		public const int FRIDAY = 6;
-		public const int SATURDAY = 7;
+		/// <summary>
+		/// Constant indicating last day of month.
+		/// </summary>
+		public const int LAST_DAY_OF_MONTH = -1;
 
-		public const int LAST_DAY_OF_MONTH = - 1;
+		/// <summary>
+		/// Milliseconds in minute.
+		/// </summary>
+		public const long MILLISECONDS_IN_MINUTE = 60 * 1000;
 
-		public const long MILLISECONDS_IN_MINUTE = 60L*1000L;
-		public const long MILLISECONDS_IN_HOUR = 60L*60L*1000L;
-		public const long SECONDS_IN_DAY = 24L*60L*60L;
-		public const long MILLISECONDS_IN_DAY = SECONDS_IN_DAY*1000L;
+		/// <summary>
+		/// Milliseconds in hour.
+		/// </summary>
+		public const long MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
+		
+		/// <summary>
+		/// Seconds in day.
+		/// </summary>
+		public const long SECONDS_IN_DAY = 24 * 60 * 60;
+
+		/// <summary>
+		/// Milliseconds in day.
+		/// </summary>
+		public const long MILLISECONDS_IN_DAY = SECONDS_IN_DAY * 1000;
 
 
         /// <summary>
@@ -61,14 +71,6 @@ namespace Quartz
 	    private TriggerUtils()
 	    {
 	    }
-
-	    private static void ValidateDayOfWeek(int dayOfWeek)
-		{
-			if (dayOfWeek < SUNDAY || dayOfWeek > SATURDAY)
-			{
-				throw new ArgumentException("Invalid day of week.");
-			}
-		}
 
 		private static void ValidateHour(int hour)
 		{
@@ -202,16 +204,8 @@ namespace Quartz
 		/// <param name="hour">the hour (0-23) upon which to fire</param>
 		/// <param name="minute">the minute (0-59) upon which to fire</param>
 		/// <returns>the new trigger</returns>
-		/// <seealso cref="SUNDAY" />
-		/// <seealso cref="MONDAY" />
-		/// <seealso cref="TUESDAY" />
-		/// <seealso cref="WEDNESDAY" />
-		/// <seealso cref="THURSDAY" />
-		/// <seealso cref="FRIDAY" />
-		/// <seealso cref="SATURDAY" />
-		public static Trigger MakeWeeklyTrigger(int dayOfWeek, int hour, int minute)
+		public static Trigger MakeWeeklyTrigger(DayOfWeek dayOfWeek, int hour, int minute)
 		{
-			ValidateDayOfWeek(dayOfWeek);
 			ValidateHour(hour);
 			ValidateMinute(minute);
 
@@ -219,7 +213,7 @@ namespace Quartz
 
 			try
 			{
-				trig.CronExpressionString = "0 " + minute + " " + hour + " ? * " + dayOfWeek;
+				trig.CronExpressionString = "0 " + minute + " " + hour + " ? * " + ((int) dayOfWeek + 1);
 			}
 			catch (Exception)
 			{
@@ -239,18 +233,11 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <param name="trigName">the trigger's name</param>
-		/// <param name="dayOfWeek">(1-7) the day of week upon which to fire</param>
+		/// <param name="dayOfWeek">the day of week upon which to fire</param>
 		/// <param name="hour">the hour (0-23) upon which to fire</param>
 		/// <param name="minute">the minute (0-59) upon which to fire</param>
 		/// <returns>the newly created trigger</returns>
-		/// <seealso cref="SUNDAY" />
-		/// <seealso cref="MONDAY" />
-		/// <seealso cref="TUESDAY" />
-		/// <seealso cref="WEDNESDAY" />
-		/// <seealso cref="THURSDAY" />
-		/// <seealso cref="FRIDAY" />
-		/// <seealso cref="SATURDAY" />
-		public static Trigger MakeWeeklyTrigger(string trigName, int dayOfWeek, int hour, int minute)
+		public static Trigger MakeWeeklyTrigger(string trigName, DayOfWeek dayOfWeek, int hour, int minute)
 		{
 			Trigger trig = MakeWeeklyTrigger(dayOfWeek, hour, minute);
 			trig.Name = trigName;

@@ -1581,28 +1581,64 @@ namespace Quartz.Simpl
 			get { return trigger; }
 		}
 
+		/// <summary>
+		/// The key used.
+		/// </summary>
 		public string key;
 
+		/// <summary>
+		/// Job's key.
+		/// </summary>
 		public string jobKey;
 
+		/// <summary>
+		/// The trigger.
+		/// </summary>
 		public Trigger trigger;
 
+		/// <summary>
+		/// Current state.
+		/// </summary>
 		public int state = STATE_WAITING;
 
+		/// <summary>
+		/// Waiting.
+		/// </summary>
 		public const int STATE_WAITING = 0;
 
+		/// <summary>
+		/// Acquired.
+		/// </summary>
 		public const int STATE_ACQUIRED = 1;
 
+		/// <summary>
+		/// Executing.
+		/// </summary>
 		public const int STATE_EXECUTING = 2;
 
+		/// <summary>
+		/// Complete.
+		/// </summary>
 		public const int STATE_COMPLETE = 3;
 
+		/// <summary>
+		/// Paused-
+		/// </summary>
 		public const int STATE_PAUSED = 4;
 
+		/// <summary>
+		/// Blocked.
+		/// </summary>
 		public const int STATE_BLOCKED = 5;
 
+		/// <summary>
+		/// Paused-blocked.
+		/// </summary>
 		public const int STATE_PAUSED_BLOCKED = 6;
 
+		/// <summary>
+		/// Error.
+		/// </summary>
 		public const int STATE_ERROR = 7;
 
 		internal TriggerWrapper(Trigger trigger)

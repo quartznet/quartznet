@@ -28,63 +28,105 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// Describes the settings and capabilities of a given <see cref="IScheduler" />
 	/// instance.
-	/// </p>
-	/// 
 	/// </summary>
-	/// <author>  James House
-	/// </author>
+	/// <author>James House</author>
 	[Serializable]
 	public class SchedulerMetaData
 	{
-		/// <summary> <p>
+		private string schedName;
+		private string schedInst;
+		private Type schedType;
+		private bool isRemote;
+		private bool started;
+		private bool isInStandbyMode;
+		private bool shutdown;
+		private NullableDateTime startTime;
+		private int numJobsExec;
+		private Type jsType;
+		private bool jsPersistent;
+		private Type tpType;
+		private int tpSize;
+		private string version;
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
+		/// </summary>
+		/// <param name="schedName">Name of the scheduler.</param>
+		/// <param name="schedInst">The scheduler instance.</param>
+		/// <param name="schedType">The scheduler type.</param>
+		/// <param name="isRemote">if set to <c>true</c>, scheduler is a remote scheduler.</param>
+		/// <param name="started">if set to <c>true</c>, scheduler is started.</param>
+		/// <param name="isInStandbyMode">if set to <c>true</c>, scheduler is in standby mode.</param>
+		/// <param name="shutdown">if set to <c>true</c>, scheduler is shutdown.</param>
+		/// <param name="startTime">The start time.</param>
+		/// <param name="numJobsExec">The number of jobs executed.</param>
+		/// <param name="jsType">The job store type.</param>
+		/// <param name="jsPersistent">if set to <c>true</c>, job store is persistent.</param>
+		/// <param name="tpType">The thread pool type.</param>
+		/// <param name="tpSize">Size of the thread pool.</param>
+		/// <param name="version">The version string.</param>
+		public SchedulerMetaData(string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
+			bool shutdown, NullableDateTime startTime, int numJobsExec, Type jsType, bool jsPersistent,
+			Type tpType, int tpSize, string version)
+		{
+			this.schedName = schedName;
+			this.schedInst = schedInst;
+			this.schedType = schedType;
+			this.isRemote = isRemote;
+			this.started = started;
+			this.isInStandbyMode = isInStandbyMode;
+			this.shutdown = shutdown;
+			this.startTime = startTime;
+			this.numJobsExec = numJobsExec;
+			this.jsType = jsType;
+			this.jsPersistent = jsPersistent;
+			this.tpType = tpType;
+			this.tpSize = tpSize;
+			this.version = version;
+		}
+
+		/// <summary>
 		/// Returns the name of the <see cref="IScheduler" />.
-		/// </p>
 		/// </summary>
 		public virtual string SchedulerName
 		{
 			get { return schedName; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns the instance Id of the <see cref="IScheduler" />.
-		/// </p>
 		/// </summary>
 		public virtual string SchedulerInstanceId
 		{
 			get { return schedInst; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns the class-name of the <see cref="IScheduler" /> instance.
-		/// </p>
 		/// </summary>
-		public virtual Type SchedulerClass
+		public virtual Type SchedulerType
 		{
-			get { return schedClass; }
+			get { return schedType; }
 		}
 
-		/// <summary> <p>
-		/// Returns whether the <see cref="IScheduler" /> is being used remotely (via
-		/// RMI).
-		/// </p>
+		/// <summary>
+		/// Returns whether the <see cref="IScheduler" /> is being used remotely (via remoting).
 		/// </summary>
 		public virtual bool SchedulerRemote
 		{
 			get { return isRemote; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns whether the scheduler has been started.
-		/// </p>
-		/// 
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// Note: <see cref="Started" /> may return <see langword="true" /> even if
         /// <see cref="InStandbyMode" /> returns <see langword="true" />.
-		/// </p>
-		/// </summary>
+		/// </remarks>
 		public virtual bool Started
 		{
 			get { return started; }
@@ -92,203 +134,152 @@ namespace Quartz
 
 		/// <summary>
         /// Reports whether the <see cref="IScheduler" /> is in standby mode.
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// Note: <see cref="Started" /> may return <see langword="true" /> even if
 		/// <see cref="InStandbyMode" /> returns <see langword="true" />.
-		/// </p>
-		/// </summary>
+		/// </remarks>
         public virtual bool InStandbyMode
 		{
 			get { return isInStandbyMode; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Reports whether the <see cref="IScheduler" /> has been Shutdown.
-		/// </p>
 		/// </summary>
 		public virtual bool Shutdown
 		{
 			get { return shutdown; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns the class-name of the <see cref="IJobStore" /> instance that is
 		/// being used by the <see cref="IScheduler" />.
-		/// </p>
 		/// </summary>
-		public virtual Type JobStoreClass
+		public virtual Type JobStoreType
 		{
-			get { return jsClass; }
+			get { return jsType; }
 		}
 
-		/// <summary> <p>
-		/// Returns the class-name of the <see cref="ThreadPool" /> instance that is
+		/// <summary>
+		/// Returns the type name of the <see cref="ThreadPool" /> instance that is
 		/// being used by the <see cref="IScheduler" />.
-		/// </p>
 		/// </summary>
-		public virtual Type ThreadPoolClass
+		public virtual Type ThreadPoolType
 		{
-			get { return tpClass; }
+			get { return tpType; }
 		}
 
-		/// <summary> <p>
+		/// <summary> 
 		/// Returns the number of threads currently in the <see cref="IScheduler" />'s
-		/// <see cref="ThreadPool" />.
-		/// </p>
 		/// </summary>
 		public virtual int ThreadPoolSize
 		{
 			get { return tpSize; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns the version of Quartz that is running.
-		/// </p>
 		/// </summary>
 		public virtual string Version
 		{
 			get { return version; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns a formatted (human readable) string describing all the <see cref="IScheduler" />'s
 		/// meta-data values.
-		/// </p>
-		/// 
+		/// </summary>
+		/// <remarks>
 		/// <p>
 		/// The format of the string looks something like this:
-		/// 
 		/// <pre>
-		/// 
-		/// 
-		/// Quartz Scheduler 'SchedulerName' with instanceId 'SchedulerInstanceId' Scheduler class: 'org.quartz.impl.StdScheduler' - running locally. Running since: '11:33am on Jul 19, 2002' Not currently paused. Number of Triggers fired: '123' Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with '8' threads Using job-store 'org.quartz.impl.JDBCJobStore' - which supports persistence.
+		/// Quartz Scheduler 'SchedulerName' with instanceId 'SchedulerInstanceId' Scheduler class: 'Quartz.Impl.StdScheduler' - running locally. Running since: '11:33am on Jul 19, 2002' Not currently paused. Number of Triggers fired: '123' Using thread pool 'Quartz.Simpl.SimpleThreadPool' - with '8' threads Using job-store 'Quartz.Impl.JobStore' - which supports persistence.
 		/// </pre>
-		/// 
 		/// </p>
-		/// </summary>
-		public virtual string Summary
+		/// </remarks>
+		public string GetSummary()
 		{
-			get
+			StringBuilder str = new StringBuilder("Quartz Scheduler (v");
+			str.Append(Version);
+			str.Append(") '");
+
+			str.Append(SchedulerName);
+			str.Append("' with instanceId '");
+			str.Append(SchedulerInstanceId);
+			str.Append("'\n");
+
+			str.Append("  Scheduler class: '");
+			str.Append(SchedulerType.FullName);
+			str.Append("'");
+			if (SchedulerRemote)
 			{
-				StringBuilder str = new StringBuilder("Quartz Scheduler (v");
-				str.Append(Version);
-				str.Append(") '");
-
-				str.Append(SchedulerName);
-				str.Append("' with instanceId '");
-				str.Append(SchedulerInstanceId);
-				str.Append("'\n");
-
-				str.Append("  Scheduler class: '");
-				str.Append(SchedulerClass.FullName);
-				str.Append("'");
-				if (SchedulerRemote)
-				{
-					str.Append(" - access via RMI.");
-				}
-				else
-				{
-					str.Append(" - running locally.");
-				}
-				str.Append("\n");
-
-				if (!Shutdown)
-				{
-					if (RunningSince.HasValue)
-					{
-						str.Append("  Running since: ");
-						str.Append(RunningSince);
-					}
-					else
-					{
-						str.Append("NOT STARTED.");
-					}
-					str.Append("\n");
-
-
-                    if (InStandbyMode)
-                    {
-                        str.Append("  Currently in standby mode.");
-                    }
-                    else
-                    {
-                        str.Append("  Not currently in standby mode.");
-                    }
-				}
-				else
-				{
-					str.Append("  Scheduler has been SHUTDOWN.");
-				}
-				str.Append("\n");
-
-				str.Append("  Number of jobs executed: ");
-				str.Append(NumJobsExecuted);
-				str.Append("\n");
-
-				str.Append("  Using thread pool '");
-				str.Append(ThreadPoolClass.FullName);
-				str.Append("' - with ");
-				str.Append(ThreadPoolSize);
-				str.Append(" threads.");
-				str.Append("\n");
-
-				str.Append("  Using job-store '");
-				str.Append(JobStoreClass.FullName);
-				str.Append("' - which ");
-				if (JobStoreSupportsPersistence)
-				{
-					str.Append("supports persistence.");
-				}
-				else
-				{
-					str.Append("does not support persistence.");
-				}
-				str.Append("\n");
-
-				return str.ToString();
+				str.Append(" - access via RMI.");
 			}
+			else
+			{
+				str.Append(" - running locally.");
+			}
+			str.Append("\n");
+
+			if (!Shutdown)
+			{
+				if (RunningSince.HasValue)
+				{
+					str.Append("  Running since: ");
+					str.Append(RunningSince);
+				}
+				else
+				{
+					str.Append("NOT STARTED.");
+				}
+				str.Append("\n");
+
+
+				if (InStandbyMode)
+				{
+					str.Append("  Currently in standby mode.");
+				}
+				else
+				{
+					str.Append("  Not currently in standby mode.");
+				}
+			}
+			else
+			{
+				str.Append("  Scheduler has been SHUTDOWN.");
+			}
+			str.Append("\n");
+
+			str.Append("  Number of jobs executed: ");
+			str.Append(NumJobsExecuted);
+			str.Append("\n");
+
+			str.Append("  Using thread pool '");
+			str.Append(ThreadPoolType.FullName);
+			str.Append("' - with ");
+			str.Append(ThreadPoolSize);
+			str.Append(" threads.");
+			str.Append("\n");
+
+			str.Append("  Using job-store '");
+			str.Append(JobStoreType.FullName);
+			str.Append("' - which ");
+			if (JobStoreSupportsPersistence)
+			{
+				str.Append("supports persistence.");
+			}
+			else
+			{
+				str.Append("does not support persistence.");
+			}
+			str.Append("\n");
+
+			return str.ToString();
 		}
 
-		private string schedName;
-		private string schedInst;
-		private Type schedClass;
-		private bool isRemote;
-		private bool started;
-        private bool isInStandbyMode;
-		private bool shutdown;
-		private NullableDateTime startTime;
-		private int numJobsExec;
-		private Type jsClass;
-		private bool jsPersistent;
-		private Type tpClass;
-		private int tpSize;
-		private string version;
-
-
-        public SchedulerMetaData(string schedName, string schedInst, Type schedClass, bool isRemote, bool started, bool isInStandbyMode,
-		                         bool shutdown, NullableDateTime startTime, int numJobsExec, Type jsClass, bool jsPersistent,
-		                         Type tpClass, int tpSize, string version)
-		{
-			this.schedName = schedName;
-			this.schedInst = schedInst;
-			this.schedClass = schedClass;
-			this.isRemote = isRemote;
-			this.started = started;
-            this.isInStandbyMode = isInStandbyMode;
-			this.shutdown = shutdown;
-			this.startTime = startTime;
-			this.numJobsExec = numJobsExec;
-			this.jsClass = jsClass;
-			this.jsPersistent = jsPersistent;
-			this.tpClass = tpClass;
-			this.tpSize = tpSize;
-			this.version = version;
-		}
-
-		/// <summary> <p>
+		/// <summary> 
 		/// Returns the <see cref="DateTime" /> at which the Scheduler started running.
-		/// </p>
-		/// 
 		/// </summary>
 		/// <returns> null if the scheduler has not been started.
 		/// </returns>
@@ -297,35 +288,32 @@ namespace Quartz
 			get { return startTime; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns the number of jobs executed since the <see cref="IScheduler" />
 		/// started..
-		/// </p>
 		/// </summary>
 		public virtual int NumJobsExecuted
 		{
 			get { return numJobsExec; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Returns whether or not the <see cref="IScheduler" />'s<see cref="IJobStore" />
 		/// instance supports persistence.
-		/// </p>
 		/// </summary>
 		public virtual bool JobStoreSupportsPersistence
 		{
 			get { return jsPersistent; }
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Return a simple string representation of this object.
-		/// </p>
 		/// </summary>
 		public override string ToString()
 		{
 			try
 			{
-				return Summary;
+				return GetSummary();
 			}
 			catch (SchedulerException)
 			{
