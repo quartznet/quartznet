@@ -37,7 +37,7 @@ fire before the end-time arrives).
 SimpleTrigger has a few different constructors, but we'll examine this one, and use it in the few examples that follow:
 </p>
 
-<strong>One of SimpleTrigger's Constructors</strong
+<strong>One of SimpleTrigger's Constructors</strong>
 <div class='code'>
 public&nbsp;SimpleTrigger(string&nbsp;name,&nbsp;<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;string&nbsp;group,&nbsp;<br />
