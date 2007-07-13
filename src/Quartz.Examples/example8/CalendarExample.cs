@@ -84,7 +84,7 @@ namespace Quartz.Examples.Example8
 			// print out the first execution date.
 			// Note:  Since Halloween (Oct 31) is a holiday, then
 			// we will not run unti the next day! (Nov 1)
-			log.Info(job.FullName + " will run at: " + firstRunTime.ToString("r") + " and repeat: " + trigger.RepeatCount + " times, every " + (trigger.RepeatInterval / 1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, firstRunTime.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
 			
 			// All of the jobs have been added to the scheduler, but none of the jobs
 			// will run until the scheduler has been started
@@ -111,7 +111,7 @@ namespace Quartz.Examples.Example8
 			log.Info("------- Shutdown Complete -----------------");
 			
 			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info("Executed " + metaData.NumJobsExecuted+ " jobs.");
+			log.Info(string.Format("Executed {0} jobs.", metaData.NumJobsExecuted));
 		}
 		
 	}

@@ -58,14 +58,14 @@ namespace Quartz.Simpl
 			{
 				if (Log.IsDebugEnabled)
 				{
-					Log.Debug("Producing instance of Job '" + jobDetail.FullName + "', class=" + jobType.FullName);
+					Log.Debug(string.Format("Producing instance of Job '{0}', class={1}", jobDetail.FullName, jobType.FullName));
 				}
 
 				return (IJob) ObjectUtils.InstantiateType(jobType);
 			}
 			catch (Exception e)
 			{
-				SchedulerException se = new SchedulerException("Problem instantiating class '" + jobDetail.JobType.FullName + "'", e);
+				SchedulerException se = new SchedulerException(string.Format("Problem instantiating class '{0}'", jobDetail.JobType.FullName), e);
 				throw se;
 			}
 		}

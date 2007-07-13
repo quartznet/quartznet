@@ -62,7 +62,7 @@ namespace Quartz.Examples.Example4
 			
 			// schedule the job to run
 			DateTime scheduleTime1 = sched.ScheduleJob(job1, trigger1);
-			log.Info(job1.FullName + " will run at: " + scheduleTime1.ToString("r") + " and repeat: " + trigger1.RepeatCount + " times, every " + (trigger1.RepeatInterval / 1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job1.FullName, scheduleTime1.ToString("r"), trigger1.RepeatCount, (trigger1.RepeatInterval / 1000)));
 			
 			// job2 will also run 5 times, every 10 seconds
 			JobDetail job2 = new JobDetail("job2", "group1", typeof(ColorJob));
@@ -74,7 +74,7 @@ namespace Quartz.Examples.Example4
 			
 			// schedule the job to run
 			DateTime scheduleTime2 = sched.ScheduleJob(job2, trigger2);
-			log.Info(job1.FullName + " will run at: " + scheduleTime1.ToString("r") + " and repeat: " + trigger1.RepeatCount + " times, every " + (trigger1.RepeatInterval / 1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job1.FullName, scheduleTime1.ToString("r"), trigger1.RepeatCount, (trigger1.RepeatInterval / 1000)));
 			
 			
 			
@@ -104,7 +104,7 @@ namespace Quartz.Examples.Example4
 			log.Info("------- Shutdown Complete -----------------");
 			
 			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info("Executed " + metaData.NumJobsExecuted + " jobs.");
+			log.Info(string.Format("Executed {0} jobs.", metaData.NumJobsExecuted));
 		}
 		
 	}

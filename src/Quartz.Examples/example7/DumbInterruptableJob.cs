@@ -47,7 +47,7 @@ namespace Quartz.Examples.Example7
 		public virtual void  Execute(JobExecutionContext context)
 		{
 			_jobName = context.JobDetail.FullName;
-			_log.Info("---- " + _jobName + " executing at " + System.DateTime.Now.ToString("r"));
+			_log.Info(string.Format("---- {0} executing at {1}", _jobName, System.DateTime.Now.ToString("r")));
 			
 			try
 			{
@@ -68,7 +68,7 @@ namespace Quartz.Examples.Example7
 					// periodically check if we've been interrupted...
 					if (_interrupted)
 					{
-						_log.Info("--- " + _jobName + "  -- Interrupted... bailing out!");
+						_log.Info(string.Format("--- {0}  -- Interrupted... bailing out!", _jobName));
 						return ; // could also choose to throw a JobExecutionException 
 						// if that made for sense based on the particular  
 						// job's responsibilities/behaviors
@@ -77,7 +77,7 @@ namespace Quartz.Examples.Example7
 			}
 			finally
 			{
-				_log.Info("---- " + _jobName + " completed at " + System.DateTime.Now.ToString("r"));
+				_log.Info(string.Format("---- {0} completed at {1}", _jobName, System.DateTime.Now.ToString("r")));
 			}
 		}
 		
@@ -87,7 +87,7 @@ namespace Quartz.Examples.Example7
 		/// </summary>
 		public virtual void  Interrupt()
 		{
-			_log.Info("---" + "  -- INTERRUPTING --");
+			_log.Info("---  -- INTERRUPTING --");
 			_interrupted = true;
 		}
 

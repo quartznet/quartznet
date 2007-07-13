@@ -285,8 +285,7 @@ namespace Quartz.Core
                                         ctxt, trigger);
                             } catch (JobPersistenceException jpe) {
                                 qs.NotifySchedulerListenersError(
-                                        "An error occured while releasing trigger '"
-                                                + trigger.FullName + "'",
+                                        string.Format("An error occured while releasing trigger '{0}'", trigger.FullName),
                                         jpe);
                                 // db connection must have failed... keep
                                 // retrying until it's up...
@@ -313,12 +312,10 @@ namespace Quartz.Core
                                             trigger);
                                 } catch (SchedulerException se) {
                                     qs.NotifySchedulerListenersError(
-                                            "An error occured while firing trigger '"
-                                                    + trigger.FullName + "'", se);
+                                            string.Format("An error occured while firing trigger '{0}'", trigger.FullName), se);
                                 } catch (Exception e) {
                                     Log.Error(
-                                        "RuntimeException while firing trigger " +
-                                        trigger.FullName, e);
+                                        string.Format("RuntimeException while firing trigger {0}", trigger.FullName), e);
                                     // db connection must have failed... keep
                                     // retrying until it's up...
                                     ReleaseTriggerRetryLoop(trigger);
@@ -334,8 +331,7 @@ namespace Quartz.Core
                                             trigger);
                                 } catch (SchedulerException se) {
                                     qs.NotifySchedulerListenersError(
-                                            "An error occured while releasing trigger '"
-                                                    + trigger.FullName + "'", se);
+                                            string.Format("An error occured while releasing trigger '{0}'", trigger.FullName), se);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ReleaseTriggerRetryLoop(trigger);
@@ -361,8 +357,7 @@ namespace Quartz.Core
                                             trigger, bndle.JobDetail, Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR);
                                 } catch (SchedulerException se2) {
                                     qs.NotifySchedulerListenersError(
-                                            "An error occured while placing job's triggers in error state '"
-                                                    + trigger.FullName + "'", se2);
+                                            string.Format("An error occured while placing job's triggers in error state '{0}'", trigger.FullName), se2);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ErrorTriggerRetryLoop(bndle);
@@ -381,8 +376,7 @@ namespace Quartz.Core
                                             trigger, bndle.JobDetail, Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR);
                                 } catch (SchedulerException se2) {
                                     qs.NotifySchedulerListenersError(
-                                            "An error occured while placing job's triggers in error state '"
-                                                    + trigger.FullName + "'", se2);
+                                            string.Format("An error occured while placing job's triggers in error state '{0}'", trigger.FullName), se2);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ReleaseTriggerRetryLoop(trigger);
@@ -457,16 +451,16 @@ namespace Quartz.Core
 					{
 						if (retryCount%4 == 0)
 						{
-							qs.NotifySchedulerListenersError("An error occured while releasing trigger '" + bndle.Trigger.FullName + "'", jpe);
+							qs.NotifySchedulerListenersError(string.Format("An error occured while releasing trigger '{0}'", bndle.Trigger.FullName), jpe);
 						}
 					}
 					catch (ThreadInterruptedException e)
 					{
-						Log.Error("ReleaseTriggerRetryLoop: InterruptedException " + e.Message, e);
+						Log.Error(string.Format("ReleaseTriggerRetryLoop: InterruptedException {0}", e.Message), e);
 					}
 					catch (Exception e)
 					{
-						Log.Error("ReleaseTriggerRetryLoop: Exception " + e.Message, e);
+						Log.Error(string.Format("ReleaseTriggerRetryLoop: Exception {0}", e.Message), e);
 					}
 				}
 			}
@@ -503,16 +497,16 @@ namespace Quartz.Core
 					{
 						if (retryCount%4 == 0)
 						{
-							qs.NotifySchedulerListenersError("An error occured while releasing trigger '" + trigger.FullName + "'", jpe);
+							qs.NotifySchedulerListenersError(string.Format("An error occured while releasing trigger '{0}'", trigger.FullName), jpe);
 						}
 					}
 					catch (ThreadInterruptedException e)
 					{
-						Log.Error("ReleaseTriggerRetryLoop: InterruptedException " + e.Message, e);
+						Log.Error(string.Format("ReleaseTriggerRetryLoop: InterruptedException {0}", e.Message), e);
 					}
 					catch (Exception e)
 					{
-						Log.Error("ReleaseTriggerRetryLoop: Exception " + e.Message, e);
+						Log.Error(string.Format("ReleaseTriggerRetryLoop: Exception {0}", e.Message), e);
 					}
 				}
 			}

@@ -1,6 +1,5 @@
-using System;
-
 using Nullables;
+
 /* 
 * Copyright 2004-2005 OpenSymphony 
 * 
@@ -24,73 +23,73 @@ using Nullables;
 
 namespace Quartz.Util
 {
-	/// <summary> 
-	/// Object representing a job or trigger key.
-	/// </summary>
-	/// <author>James House</author>
-	public class TriggerStatus : Pair
-	{
-		/// <summary>
-		/// Gets or sets the job key.
-		/// </summary>
-		/// <value>The job key.</value>
-		public virtual Key JobKey
-		{
-			get { return jobKey; }
-			set { jobKey = value; }
-		}
+    /// <summary> 
+    /// Object representing a job or trigger key.
+    /// </summary>
+    /// <author>James House</author>
+    public class TriggerStatus : Pair
+    {
+        private Key jobKey;
+        private Key key;
+
+        /// <summary> 
+        /// Construct a new TriggerStatus with the status name and nextFireTime.
+        /// </summary>
+        /// <param name="status">The trigger's status</param>
+        /// <param name="nextFireTime">The next time the trigger will fire</param>
+        public TriggerStatus(string status, NullableDateTime nextFireTime)
+        {
+            base.First = status;
+            base.Second = nextFireTime;
+        }
+
+        /// <summary>
+        /// Gets or sets the job key.
+        /// </summary>
+        /// <value>The job key.</value>
+        public virtual Key JobKey
+        {
+            get { return jobKey; }
+            set { jobKey = value; }
+        }
 
 
-		/// <summary>
-		/// Gets or sets the key.
-		/// </summary>
-		/// <value>The key.</value>
-		public virtual Key Key
-		{
-			get { return key; }
-			set { key = value; }
-		}
+        /// <summary>
+        /// Gets or sets the key.
+        /// </summary>
+        /// <value>The key.</value>
+        public virtual Key Key
+        {
+            get { return key; }
+            set { key = value; }
+        }
 
-		/// <summary>
-		/// Get the name portion of the key.
-		/// </summary>
-		/// <returns> the name </returns>
-		public virtual string Status
-		{
-			get { return (string) First; }
-		}
+        /// <summary>
+        /// Get the name portion of the key.
+        /// </summary>
+        /// <returns> the name </returns>
+        public virtual string Status
+        {
+            get { return (string) First; }
+        }
 
-		/// <summary>
-		/// Get the group portion of the key.
-		/// </summary>
-		/// <returns> the group </returns>
-		public virtual NullableDateTime NextFireTime
-		{
-			get { return (NullableDateTime) Second; }
-		}
+        /// <summary>
+        /// Get the group portion of the key.
+        /// </summary>
+        /// <returns> the group </returns>
+        public virtual NullableDateTime NextFireTime
+        {
+            get { return (NullableDateTime) Second; }
+        }
 
-		// TODO: Repackage under spi or root pkg ?, put status constants here.
+        // TODO: Repackage under spi or root pkg ?, put status constants here.
 
-		private Key key;
-		private Key jobKey;
-
-		/// <summary> 
-		/// Construct a new TriggerStatus with the status name and nextFireTime.
-		/// </summary>
-		/// <param name="status">The trigger's status</param>
-		/// <param name="nextFireTime">The next time the trigger will fire</param>
-		public TriggerStatus(string status, NullableDateTime nextFireTime) : base()
-		{
-			base.First = status;
-			base.Second = nextFireTime;
-		}
-
-		/// <summary>
-		/// Return the string representation of the TriggerStatus.
-		/// </summary>
-		public override string ToString()
-		{
-			return "status: " + Status + ", next Fire = " + NextFireTime.Value.ToString("r");
-		}
-	}
+        /// <summary>
+        /// Return the string representation of the TriggerStatus.
+        /// </summary>
+        public override string ToString()
+        {
+            return string.Format("status: {0}, next fire = {1}", Status, NextFireTime.Value.ToString("r"));
+        }
+    }
 }

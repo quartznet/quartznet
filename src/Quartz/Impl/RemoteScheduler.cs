@@ -391,7 +391,7 @@ namespace Quartz.Impl
 			catch (Exception e)
 			{
 				SchedulerException initException =
-					new SchedulerException("Could not get handle to remote scheduler: " + e.Message, e);
+					new SchedulerException(string.Format("Could not get handle to remote scheduler: {0}", e.Message), e);
 				initException.ErrorCode = SchedulerException.ERR_COMMUNICATION_FAILURE;
 				throw initException;
 			}

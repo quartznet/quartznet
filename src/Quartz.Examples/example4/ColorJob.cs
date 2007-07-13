@@ -57,7 +57,8 @@ namespace Quartz.Examples.Example4
 			JobDataMap data = context.JobDetail.JobDataMap;
 			string favoriteColor = data.GetString(FAVORITE_COLOR);
 			int count = data.GetInt(EXECUTION_COUNT);
-			_log.Info("ColorJob: " + jobName + " executing at " + DateTime.Now.ToString("r") + "\n" + "  favorite color is " + favoriteColor + "\n" + "  execution count (from job map) is " + count + "\n" + "  execution count (from job member variable) is " + _counter);
+			_log.Info(string.Format("ColorJob: {0} executing at {1}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}", 
+                jobName, DateTime.Now.ToString("r"), favoriteColor, count, _counter));
 			
 			// increment the count and store it back into the 
 			// job map so that job state can be properly maintained

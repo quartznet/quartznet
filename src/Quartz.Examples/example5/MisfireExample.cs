@@ -80,7 +80,7 @@ namespace Quartz.Examples.Example5
 			
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.REPEAT_INDEFINITELY, 3000L);
 			DateTime ft = sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount + " times, every " + (trigger.RepeatInterval / 1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
 			
 			// statefulJob2 will run every three seconds
 			// (but it will delay for ten seconds)
@@ -91,7 +91,7 @@ namespace Quartz.Examples.Example5
 			trigger.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT;
 			ft = sched.ScheduleJob(job, trigger);
 
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount + " times, every " + (trigger.RepeatInterval / 1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
 			
 			log.Info("------- Starting Scheduler ----------------");
 			
@@ -116,7 +116,7 @@ namespace Quartz.Examples.Example5
 			log.Info("------- Shutdown Complete -----------------");
 			
 			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info("Executed " + metaData.NumJobsExecuted + " jobs.");
+			log.Info(string.Format("Executed {0} jobs.", metaData.NumJobsExecuted));
 		}
 		
 	}

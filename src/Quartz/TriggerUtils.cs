@@ -163,7 +163,7 @@ namespace Quartz
 
 			try
 			{
-				trig.CronExpressionString = "0 " + minute + " " + hour + " ? * *";
+				trig.CronExpressionString = string.Format("0 {0} {1} ? * *", minute, hour);
 			}
 			catch (Exception)
 			{
@@ -213,7 +213,7 @@ namespace Quartz
 
 			try
 			{
-				trig.CronExpressionString = "0 " + minute + " " + hour + " ? * " + ((int) dayOfWeek + 1);
+				trig.CronExpressionString = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) dayOfWeek + 1));
 			}
 			catch (Exception)
 			{
@@ -274,11 +274,11 @@ namespace Quartz
 			{
 				if (dayOfMonth != LAST_DAY_OF_MONTH)
 				{
-					trig.CronExpressionString = "0 " + minute + " " + hour + " " + dayOfMonth + " * ?";
+					trig.CronExpressionString = string.Format("0 {0} {1} {2} * ?", minute, hour, dayOfMonth);
 				}
 				else
 				{
-					trig.CronExpressionString = "0 " + minute + " " + hour + " L * ?";
+					trig.CronExpressionString = string.Format("0 {0} {1} L * ?", minute, hour);
 				}
 			}
 			catch (Exception)

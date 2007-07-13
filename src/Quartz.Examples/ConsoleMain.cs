@@ -26,7 +26,7 @@ namespace Quartz.Examples
 				{
 					if (new ArrayList(t.GetInterfaces()).Contains(typeof(IExample)))
 					{
-						Console.WriteLine("[" + counter + "] " + t.Name);
+						Console.WriteLine("[{0}] {1}", counter, t.Name);
 						typeMap.Add(counter++, t);
 					}
 				}

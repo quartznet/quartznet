@@ -60,45 +60,45 @@ namespace Quartz.Examples.Example2
 
 			// schedule it to run!
 			DateTime ft = sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount +
-			         " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 
+                job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval/1000)));
 
 			// job2 will only fire once at date/time "ts"
 			job = new JobDetail("job2", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger2", "group1", "job2", "group1", ts, null, 0, 0);
 			ft = sched.ScheduleJob((job), trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount +
-			         " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 
+                job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval/1000)));
 
 			// job3 will run 11 times (run once and repeat 10 more times)
 			// job3 will repeat every 10 seconds (10000 ms)
 			job = new JobDetail("job3", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger3", "group1", "job3", "group1", ts, null, 10, 10000L);
 			ft = sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount +
-			         " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 
+                job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval/1000)));
 
 			// the same job (job3) will be scheduled by a another trigger
 			// this time will only run every 70 seocnds (70000 ms)
 			trigger = new SimpleTrigger("trigger3", "group2", "job3", "group1", ts, null, 2, 70000L);
 			ft = sched.ScheduleJob(trigger);
-			log.Info(job.FullName + " will [also] run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount +
-			         " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+			log.Info(string.Format("{0} will [also] run at: {1} and repeat: {2} times, every {3} seconds", 
+                job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval/1000)));
 
 			// job4 will run 6 times (run once and repeat 5 more times)
 			// job4 will repeat every 10 seconds (10000 ms)
 			job = new JobDetail("job4", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger4", "group1", "job4", "group1", ts, null, 5, 10000L);
 			ft = sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount +
-			         " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 
+                job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval/1000)));
 
 			// job5 will run once, five minutes past "ts" (300 seconds past "ts")
 			job = new JobDetail("job5", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger5", "group1", "job5", "group1", ts.AddMilliseconds(300*1000), null, 0, 0);
 			ft = sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount +
-			         " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 
+                job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval/1000)));
 
 			// job6 will run indefinitely, every 50 seconds
 			job = new JobDetail("job6", "group1", typeof (SimpleJob));
@@ -106,8 +106,8 @@ namespace Quartz.Examples.Example2
 				new SimpleTrigger("trigger6", "group1", "job6", "group1", ts, null, SimpleTrigger.REPEAT_INDEFINITELY,
 				                  50000L);
 			ft = sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount +
-			         " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 
+                job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval/1000)));
 
 			log.Info("------- Starting Scheduler ----------------");
 
@@ -122,8 +122,8 @@ namespace Quartz.Examples.Example2
 			job = new JobDetail("job7", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger7", "group1", "job7", "group1", ts, null, 20, 300000);
 			ft = sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount +
-			         " times, every " + (trigger.RepeatInterval/1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 
+                job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval/1000)));
 
 			// jobs can be fired directly... (rather than waiting for a trigger)
 			job = new JobDetail("job8", "group1", typeof (SimpleJob));
@@ -177,7 +177,7 @@ namespace Quartz.Examples.Example2
 
 			// display some stats about the schedule that just ran
 			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info("Executed " + metaData.NumJobsExecuted + " jobs.");
+			log.Info(string.Format("Executed {0} jobs.", metaData.NumJobsExecuted));
 		}
 	}
 }

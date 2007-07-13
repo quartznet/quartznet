@@ -284,9 +284,9 @@ namespace Quartz.Impl
 
 			jrsf.Initialize(scheduler, schedCtxt);
 
-			Log.Info("Quartz scheduler '" + scheduler.SchedulerName);
+			Log.Info(string.Format("Quartz scheduler '{0}", scheduler.SchedulerName));
 
-			Log.Info("Quartz scheduler version: " + qs.Version);
+			Log.Info(string.Format("Quartz scheduler version: {0}", qs.Version));
 
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 

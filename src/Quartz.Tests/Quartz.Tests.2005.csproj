@@ -110,6 +110,7 @@
     <Compile Include="Unit\AnnualCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Unit\CollectionUtilTest.cs" />
     <Compile Include="Unit\CronExpressionTest.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -146,6 +147,7 @@
     <Compile Include="Unit\Utils\DirtyFlagMapTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Unit\Utils\ObjectUtilsTest.cs" />
     <Compile Include="Unit\Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>

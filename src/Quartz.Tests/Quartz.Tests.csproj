@@ -121,6 +121,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Unit\CollectionUtilTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Unit\CronExpressionTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

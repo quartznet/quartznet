@@ -65,7 +65,7 @@ namespace Quartz.Core
 				if (threadName == null)
 				{
 					// thread name not already set, use default thread name
-					ThreadName = value + "_QuartzSchedulerThread";
+					ThreadName = string.Format("{0}_QuartzSchedulerThread", value);
 				}
 			}
 		}
@@ -187,7 +187,7 @@ namespace Quartz.Core
 		/// <returns></returns>
 		public static string GetUniqueIdentifier(string schedName, string schedInstId)
 		{
-			return schedName + "_$_" + schedInstId;
+			return string.Format("{0}_$_{1}", schedName, schedInstId);
 		}
 
 		/// <summary>

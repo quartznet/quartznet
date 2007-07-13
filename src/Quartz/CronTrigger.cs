@@ -398,7 +398,7 @@ namespace Quartz
 			set
 			{
 				cronEx = new CronExpression(value);
-				cronEx.SetTimeZone(TimeZone);
+				cronEx.TimeZone = TimeZone;
 			}
 			get { return cronEx == null ? null : cronEx.CronExpressionString; }
 		}
@@ -412,7 +412,7 @@ namespace Quartz
 			set
 			{
 				cronEx = value;
-				timeZone = value.GetTimeZone();
+				timeZone = value.TimeZone;
 			}
 		}
 
@@ -525,7 +525,7 @@ namespace Quartz
 			{
 				if (cronEx != null)
 				{
-					return cronEx.GetTimeZone();
+					return cronEx.TimeZone;
 				}
 
 				if (timeZone == null)
@@ -538,7 +538,7 @@ namespace Quartz
 			{
 				if (cronEx != null)
 				{
-					cronEx.SetTimeZone(value);
+					cronEx.TimeZone = value;
 				}
 				timeZone = value;
 			}

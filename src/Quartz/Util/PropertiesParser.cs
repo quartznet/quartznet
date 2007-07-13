@@ -183,7 +183,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -207,7 +207,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -273,7 +273,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -297,7 +297,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -320,7 +320,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -344,7 +344,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -367,7 +367,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -391,7 +391,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -433,7 +433,7 @@ namespace Quartz.Util
 						}
 						catch (FormatException)
 						{
-							throw new FormatException(" '" + vals + "'");
+							throw new FormatException(string.Format(" '{0}'", vals));
 						}
 					}
 					int[] outInts = new int[ints.Count];
@@ -471,7 +471,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -495,7 +495,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -518,7 +518,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 
@@ -542,7 +542,7 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(" '" + val + "'");
+				throw new FormatException(string.Format(" '{0}'", val));
 			}
 		}
 

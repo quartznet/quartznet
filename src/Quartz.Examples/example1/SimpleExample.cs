@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example1
 			
 			// Tell quartz to schedule the job using our trigger
 			sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + runTime.ToString("r"));
+			log.Info(string.Format("{0} will run at: {1}", job.FullName, runTime.ToString("r")));
 			
 			// Start up the scheduler (nothing can actually run until the 
 			// scheduler has been started)

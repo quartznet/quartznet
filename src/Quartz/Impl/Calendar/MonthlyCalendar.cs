@@ -98,7 +98,7 @@ namespace Quartz.Impl.Calendar
 			if ((day < 1) || (day > MAX_DAYS_IN_MONTH)) 
 			{
 				throw new ArgumentException(
-					"The day parameter must be in the range of 1 to " + MAX_DAYS_IN_MONTH);
+					string.Format("The day parameter must be in the range of 1 to {0}", MAX_DAYS_IN_MONTH));
 			}
 			return excludeDays[day - 1];
 		}

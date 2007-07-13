@@ -160,13 +160,13 @@ namespace Quartz.Tests.Unit
             {
                 int idx = correctFireDays.IndexOf(fireDays[i]);
                 Assert.Greater(idx, -1,
-                               "CronExpression evaluated true for " + fireDays[i] + " even when it shouldn't have");
+                               string.Format("CronExpression evaluated true for {0} even when it shouldn't have", fireDays[i]));
                 correctFireDays.RemoveAt(idx);
             }
 
             // check that all fired
             Assert.IsEmpty(correctFireDays,
-                           "CronExpression did evaluate true for all june days (count: " + correctFireDays.Count + ").");
+                           string.Format("CronExpression did evaluate true for all june days (count: {0}).", correctFireDays.Count));
         }
     }
 }

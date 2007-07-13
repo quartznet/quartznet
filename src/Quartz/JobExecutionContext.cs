@@ -20,7 +20,7 @@
 */
 using System;
 using System.Collections;
-
+using System.Text;
 using Nullables;
 
 using Quartz.Spi;
@@ -313,15 +313,10 @@ namespace Quartz
 		public override string ToString()
 		{
 			return
-				"JobExecutionContext:" + " trigger: '" + Trigger.FullName + " job: " + JobDetail.FullName + " fireTime: '" +
-				FireTime.Value.ToString("r") + " scheduledFireTime: " + ScheduledFireTime.Value.ToString("r") +
-				" previousFireTime: '" +
-				PreviousFireTime.Value.ToString("r") + " nextFireTime: " + NextFireTime.Value.ToString("r") + " isRecovering: " +
-				Recovering +
-				" refireCount: " + RefireCount;
+				string.Format("JobExecutionContext: trigger: '{0} job: {1} fireTime: '{2} scheduledFireTime: {3} previousFireTime: '{4} nextFireTime: {5} recovering: {6} refireCount: {7}", Trigger.FullName, JobDetail.FullName, FireTime.Value.ToString("r"), ScheduledFireTime.Value.ToString("r"), PreviousFireTime.Value.ToString("r"), NextFireTime.Value.ToString("r"), Recovering, RefireCount);
 		}
 
-		/// <summary> 
+	    /// <summary> 
 		/// Put the specified value into the context's data map with the given key.
 		/// Possibly useful for sharing data between listeners and jobs.
 		/// <p>

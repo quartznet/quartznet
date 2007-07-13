@@ -38,7 +38,7 @@ namespace Quartz.Examples.Example5
 		/// </summary>
 		public virtual void  Execute(JobExecutionContext context)
 		{
-			Console.Error.WriteLine("---" + context.JobDetail.FullName + " executing.[" + DateTime.Now.ToString("r") + "]");
+			Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.FullName, DateTime.Now.ToString("r"));
 			
 			JobDataMap map = context.JobDetail.JobDataMap;
 			
@@ -62,7 +62,7 @@ namespace Quartz.Examples.Example5
 			{
 			}
 			
-			Console.Error.WriteLine("  -" + context.JobDetail.FullName + " complete (" + executeCount + ").");
+			Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.FullName, executeCount);
 		}
 	}
 }

@@ -236,7 +236,7 @@ namespace Quartz.Job
 					}
 					else
 					{
-						temp = temp + " " + cmd[i];
+						temp = string.Format("{0} {1}", temp, cmd[i]);
 					}
 				}
 
@@ -314,17 +314,17 @@ namespace Quartz.Job
 					{
 						if (type.ToUpper().Equals("stderr".ToUpper()))
 						{
-							NativeJob.Log.Warn(type + ">" + line);
+							NativeJob.Log.Warn(string.Format("{0}>{1}", type, line));
 						}
 						else
 						{
-							NativeJob.Log.Info(type + ">" + line);
+							NativeJob.Log.Info(string.Format("{0}>{1}", type, line));
 						}
 					}
 				}
 				catch (IOException ioe)
 				{
-					NativeJob.Log.Error("Error consuming " + type + " stream of spawned process.", ioe);
+					NativeJob.Log.Error(string.Format("Error consuming {0} stream of spawned process.", type), ioe);
 				}
 				finally
 				{

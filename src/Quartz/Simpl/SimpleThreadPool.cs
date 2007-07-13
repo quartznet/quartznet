@@ -198,7 +198,7 @@ namespace Quartz.Simpl
                         WorkerThread wt = (WorkerThread)busyWorkers[0];
                         try
                         {
-                            Log.Debug("Waiting for thread " + wt.Name + " to shut down");
+                            Log.Debug(string.Format("Waiting for thread {0} to shut down", wt.Name));
 
                             // note: with waiting infinite time the
                             // application may appear to 'hang'.
@@ -322,7 +322,7 @@ namespace Quartz.Simpl
             {
                 WorkerThread wt = new WorkerThread(
                     this,
-                    ThreadNamePrefix + "-" + i,
+                    string.Format("{0}-{1}", ThreadNamePrefix, i),
                     ThreadPriority,
                     MakeThreadsDaemons);
 

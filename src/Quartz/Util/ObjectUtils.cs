@@ -137,7 +137,7 @@ namespace Quartz.Util
 				{
 					if (pi == null)
 					{
-						throw new MethodAccessException("No property '" + propertyName + "'");
+						throw new MethodAccessException(string.Format("No property '{0}'", propertyName));
 					}
 					
 					MethodInfo mi = pi.GetSetMethod();
@@ -150,8 +150,7 @@ namespace Quartz.Util
 				}
 				catch (Exception nfe)
 				{
-					throw new SchedulerConfigException("Could not parse property '" + name + "' into correct data type: " +
-													   nfe.ToString());
+					throw new SchedulerConfigException(string.Format("Could not parse property '{0}' into correct data type: {1}", name, nfe.ToString()));
 				}
 			}
 			

@@ -74,18 +74,18 @@ namespace Quartz.Job
 
 			if (fileName == null)
 			{
-				throw new JobExecutionException("Required parameter '" + FILE_NAME + "' not found in JobDataMap");
+				throw new JobExecutionException(string.Format("Required parameter '{0}' not found in JobDataMap", FILE_NAME));
 			}
 			if (listenerName == null)
 			{
-				throw new JobExecutionException("Required parameter '" + FILE_SCAN_LISTENER_NAME + "' not found in JobDataMap");
+				throw new JobExecutionException(string.Format("Required parameter '{0}' not found in JobDataMap", FILE_SCAN_LISTENER_NAME));
 			}
 
 			IFileScanListener listener = (IFileScanListener) schedCtxt[listenerName];
 
 			if (listener == null)
 			{
-				throw new JobExecutionException("FileScanListener named '" + listenerName + "' not found in SchedulerContext");
+				throw new JobExecutionException(string.Format("FileScanListener named '{0}' not found in SchedulerContext", listenerName));
 			}
 
 			DateTime lastDate = DateTime.MinValue;
@@ -98,19 +98,19 @@ namespace Quartz.Job
 
 			if (newDate == DateTime.MinValue)
 			{
-				Log.Warn("File '" + fileName + "' does not exist.");
+				Log.Warn(string.Format("File '{0}' does not exist.", fileName));
 				return;
 			}
 
 			if (lastDate != DateTime.MinValue && (newDate != lastDate))
 			{
 				// notify call back...
-				Log.Info("File '" + fileName + "' updated, notifying listener.");
+				Log.Info(string.Format("File '{0}' updated, notifying listener.", fileName));
 				listener.FileUpdated(fileName);
 			}
 			else
 			{
-				Log.Debug("File '" + fileName + "' unchanged.");
+				Log.Debug(string.Format("File '{0}' unchanged.", fileName));
 			}
 
 			data.Put(LAST_MODIFIED_TIME, newDate);

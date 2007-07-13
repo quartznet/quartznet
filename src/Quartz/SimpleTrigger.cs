@@ -51,7 +51,7 @@ namespace Quartz
 			{
 				if (value < 0 && value != REPEAT_INDEFINITELY)
 				{
-					throw new ArgumentException("Repeat count must be >= 0, use the " + "constant REPEAT_INDEFINITELY for infinite.");
+					throw new ArgumentException("Repeat count must be >= 0, use the constant REPEAT_INDEFINITELY for infinite.");
 				}
 
 				repeatCount = value;

@@ -539,7 +539,7 @@ namespace Quartz.Simpl
 
 			if (obj != null && replaceExisting == false)
 			{
-				throw new ObjectAlreadyExistsException("Calendar with name '" + name + "' already exists.");
+				throw new ObjectAlreadyExistsException(string.Format("Calendar with name '{0}' already exists.", name));
 			}
 			else if (obj != null)
 			{
@@ -1409,12 +1409,12 @@ namespace Quartz.Simpl
 					}
 					else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_ERROR)
 					{
-						Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
+						Log.Info(string.Format("Trigger {0} set to ERROR state.", trigger.FullName));
 						tw.state = TriggerWrapper.STATE_ERROR;
 					}
 					else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR)
 					{
-						Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
+						Log.Info(string.Format("All triggers of Job {0} set to ERROR state.", trigger.FullJobName));
 						SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, TriggerWrapper.STATE_ERROR);
 					}
 					else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE)

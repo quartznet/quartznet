@@ -95,7 +95,7 @@ namespace Quartz.Listener
                 return;
             }
 
-            Log.Info("Job '" + context.JobDetail.FullName + "' will now chain to Job '" + sj + "'");
+            Log.Info(string.Format("Job '{0}' will now chain to Job '{1}'", context.JobDetail.FullName, sj));
 
             try
             {
@@ -110,7 +110,7 @@ namespace Quartz.Listener
             }
             catch (SchedulerException se)
             {
-                Log.Error("Error encountered during chaining to Job '" + sj + "'", se);
+                Log.Error(string.Format("Error encountered during chaining to Job '{0}'", sj), se);
             }
         }
     }

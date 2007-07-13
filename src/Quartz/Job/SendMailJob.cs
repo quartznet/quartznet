@@ -109,9 +109,9 @@ namespace Quartz.Job
 				replyTo = null;
 			}
 
-			string mailDesc = "'" + subject + "' to: " + to;
+			string mailDesc = string.Format("'{0}' to: {1}", subject, to);
 
-			Log.Info("Sending message " + mailDesc);
+			Log.Info(string.Format("Sending message {0}", mailDesc));
 
 			try
 			{
@@ -119,7 +119,7 @@ namespace Quartz.Job
 			}
 			catch (Exception ex)
 			{
-				throw new JobExecutionException("Unable to send mail: " + mailDesc, ex, false);
+				throw new JobExecutionException(string.Format("Unable to send mail: {0}", mailDesc), ex, false);
 			}
 		}
 

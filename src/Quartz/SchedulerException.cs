@@ -232,7 +232,7 @@ namespace Quartz
 			}
 			else
 			{
-				return base.ToString() + " [See nested exception: " + cause + "]";
+				return string.Format("{0} [See nested exception: {1}]", base.ToString(), cause);
 			}
 		}
 

@@ -75,7 +75,7 @@ namespace Quartz.Examples.Example7
 			JobDetail job = new JobDetail("interruptableJob1", "group1", typeof(DumbInterruptableJob));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.REPEAT_INDEFINITELY, 5000L);
 			System.DateTime ft = sched.ScheduleJob(job, trigger);
-			log.Info(job.FullName + " will run at: " + ft.ToString("r") + " and repeat: " + trigger.RepeatCount + " times, every " + (trigger.RepeatInterval / 1000) + " seconds");
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
 			
 			// start up the scheduler (jobs do not start to fire until
 			// the scheduler has been started)
@@ -103,7 +103,7 @@ namespace Quartz.Examples.Example7
 			
 			log.Info("------- Shutdown Complete -----------------");
 			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info("Executed " + metaData.NumJobsExecuted + " jobs.");
+			log.Info(string.Format("Executed {0} jobs.", metaData.NumJobsExecuted));
 		}
 
 	}

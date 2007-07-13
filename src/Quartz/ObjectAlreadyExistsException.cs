@@ -53,8 +53,7 @@ namespace Quartz
 		/// </summary>
 		public ObjectAlreadyExistsException(JobDetail offendingJob)
 			: base(
-				"Unable to store Job with name: '" + offendingJob.Name + "' and group: '" + offendingJob.Group +
-				"', because one already exists with this identification.")
+				string.Format("Unable to store Job with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingJob.Name, offendingJob.Group))
 		{
 		}
 
@@ -70,8 +69,7 @@ namespace Quartz
 		/// </summary>
 		public ObjectAlreadyExistsException(Trigger offendingTrigger)
 			: base(
-				"Unable to store Trigger with name: '" + offendingTrigger.Name + "' and group: '" + offendingTrigger.Group +
-				"', because one already exists with this identification.")
+				string.Format("Unable to store Trigger with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingTrigger.Name, offendingTrigger.Group))
 		{
 		}
 	}

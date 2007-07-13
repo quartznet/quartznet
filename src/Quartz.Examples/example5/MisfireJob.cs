@@ -49,7 +49,7 @@ namespace Quartz.Examples.Example5
 		public virtual void  Execute(JobExecutionContext context)
 		{
 			string jobName = context.JobDetail.FullName;
-			_log.Info("---" + jobName + " executing at " + DateTime.Now.ToString("r"));
+			_log.Info(string.Format("---{0} executing at {1}", jobName, DateTime.Now.ToString("r")));
 			
 			// default delay to five seconds
 			int delay = 5;
@@ -69,7 +69,7 @@ namespace Quartz.Examples.Example5
 			{
 			}
 			
-			_log.Info("---" + jobName + " completed at " + DateTime.Now.ToString("r"));
+			_log.Info(string.Format("---{0} completed at {1}", jobName, DateTime.Now.ToString("r")));
 		}
 
 	}

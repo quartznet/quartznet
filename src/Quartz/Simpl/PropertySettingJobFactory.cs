@@ -112,7 +112,7 @@ namespace Quartz.Simpl
 				{
 					if (prop == null)
 					{
-						HandleError("No property on Job class " + obj.GetType() + " for property '" + name + "'");
+						HandleError(string.Format("No property on Job class {0} for property '{1}'", obj.GetType(), name));
 						continue;
 					}
 
@@ -121,12 +121,12 @@ namespace Quartz.Simpl
 					if (o == null && (paramType.IsPrimitive || paramType.IsEnum))
 					{
 						// cannot set null to these
-						HandleError("Cannot set null to property on Job class " + obj.GetType() + " for property '" + name + "'");
+						HandleError(string.Format("Cannot set null to property on Job class {0} for property '{1}'", obj.GetType(), name));
 					}
 					if (paramType == typeof(char) && o!= null && o is string && ((string) o).Length != 1)
 					{
 						// handle special case
-						HandleError("Cannot set empty string to char property on Job class " + obj.GetType() + " for property '" + name + "'");
+						HandleError(string.Format("Cannot set empty string to char property on Job class {0} for property '{1}'", obj.GetType(), name));
 					}
 					
 					object goodValue = ObjectUtils.ConvertValueIfNecessary(paramType, o);
@@ -135,36 +135,33 @@ namespace Quartz.Simpl
 				catch (FormatException nfe)
 				{
 					HandleError(
-							"The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
-							" but was given " + o, nfe);
+							string.Format("The setter on Job class {0} for property '{1}' expects a {2} but was given {3}", obj.GetType(), name, paramType, o), nfe);
 
 					continue;
 				}
 				catch (MethodAccessException)
 				{
-					HandleError("The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
-						         " but was given a " + o.GetType());
+					HandleError(string.Format("The setter on Job class {0} for property '{1}' expects a {2} but was given a {3}", obj.GetType(), name, paramType, o.GetType()));
 
 					continue;
 				}
 				catch (ArgumentException e)
 				{
 					HandleError(
-							"The setter on Job class " + obj.GetType() + " for property '" + name + "' expects a " + paramType +
-							" but was given " + o.GetType(), e);
+							string.Format("The setter on Job class {0} for property '{1}' expects a {2} but was given {3}", obj.GetType(), name, paramType, o.GetType()), e);
 
 					continue;
 				}
 				catch (UnauthorizedAccessException e)
 				{
 					HandleError(
-							"The setter on Job class " + obj.GetType() + " for property '" + name + "' could not be accessed.", e);
+							string.Format("The setter on Job class {0} for property '{1}' could not be accessed.", obj.GetType(), name), e);
 					continue;
 				}
 				catch (TargetInvocationException e)
 				{
 					HandleError(
-							"The setter on Job class " + obj.GetType() + " for property '" + name + "' could not be accessed.", e);
+							string.Format("The setter on Job class {0} for property '{1}' could not be accessed.", obj.GetType(), name), e);
 					
 					continue;
 				}

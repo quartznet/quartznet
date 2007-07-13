@@ -84,7 +84,7 @@ namespace Quartz.Util
 			IConnectionProvider provider = (IConnectionProvider) providers[dsName];
 			if (provider == null)
 			{
-				throw new Exception("There is no DataSource named '" + dsName + "'");
+				throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
 			}
 
 			return provider.Connection;
@@ -105,7 +105,7 @@ namespace Quartz.Util
 			IConnectionProvider provider = (IConnectionProvider) providers[dsName];
 			if (provider == null)
 			{
-				throw new Exception("There is no DataSource named '" + dsName + "'");
+				throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
 			}
 			provider.Shutdown();
 		}

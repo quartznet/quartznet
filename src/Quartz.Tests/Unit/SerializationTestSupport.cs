@@ -116,7 +116,7 @@ namespace Quartz.Tests.Unit
 			int index = className.LastIndexOf(".");
 			index = (index < 0) ? 0 : index + 1;
 
-			return className.Substring(index) + "-" + version + ".ser";
+			return string.Format("{0}-{1}.ser", className.Substring(index), version);
 		}
 	}
 }

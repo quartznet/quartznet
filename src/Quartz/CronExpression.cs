@@ -406,7 +406,7 @@ namespace Quartz
         /// </summary>
         /// <param name="date">the date/time at which to begin the search for the next invalid date/time</param>
         /// <returns>the next valid date/time</returns>
-        public NullableDateTime getNextInvalidTimeAfter(DateTime date)
+        public NullableDateTime GetNextInvalidTimeAfter(DateTime date)
         {
             long difference = 1000;
 
@@ -437,28 +437,21 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Returns the time zone for which the <see cref="CronExpression" /> of
-        /// this <see cref="CronTrigger" /> will be resolved.
-        /// </summary>
-        /// <returns></returns>
-        public TimeZone GetTimeZone()
-        {
-            if (timeZone == null)
-            {
-                timeZone = TimeZone.CurrentTimeZone;
-            }
-
-            return timeZone;
-        }
-
-       /// <summary>
-        /// Sets the time zone for which the <see cref="CronExpression" /> of this
+        /// Sets or gets the time zone for which the <see cref="CronExpression" /> of this
         /// <see cref="CronTrigger" /> will be resolved.
         /// </summary>
-        /// <param name="t"></param>
-        public void SetTimeZone(TimeZone t)
+        public TimeZone TimeZone
         {
-            timeZone = t;
+            set { timeZone = value; }
+            get
+            {
+                if (timeZone == null)
+                {
+                    timeZone = TimeZone.CurrentTimeZone;
+                }
+
+                return timeZone;
+            }
         }
 
         /// <summary>
@@ -571,8 +564,7 @@ namespace Quartz
             }
             catch (Exception e)
             {
-                throw new FormatException("Illegal cron expression format ("
-                                          + e.ToString() + ")");
+                throw new FormatException(string.Format("Illegal cron expression format ({0})", e));
             }
         }
 
@@ -602,8 +594,7 @@ namespace Quartz
                     sval = GetMonthNumber(sub) + 1;
                     if (sval < 0)
                     {
-                        throw new FormatException("Invalid Month value: '" + sub
-                                                  + "'");
+                        throw new FormatException(string.Format("Invalid Month value: '{0}'", sub));
                     }
                     if (s.Length > i + 3)
                     {
@@ -616,7 +607,7 @@ namespace Quartz
                             if (eval < 0)
                             {
                                 throw new FormatException(
-                                    "Invalid Month value: '" + sub + "'");
+                                    string.Format("Invalid Month value: '{0}'", sub));
                             }
                         }
                     }
@@ -626,8 +617,7 @@ namespace Quartz
                     sval = GetDayOfWeekNumber(sub);
                     if (sval < 0)
                     {
-                        throw new FormatException("Invalid Day-of-Week value: '"
-                                                  + sub + "'");
+                        throw new FormatException(string.Format("Invalid Day-of-Week value: '{0}'", sub));
                     }
                     if (s.Length > i + 3)
                     {
@@ -640,14 +630,12 @@ namespace Quartz
                             if (eval < 0)
                             {
                                 throw new FormatException(
-                                    "Invalid Day-of-Week value: '" + sub
-                                    + "'");
+                                    string.Format("Invalid Day-of-Week value: '{0}'", sub));
                             }
                             if (sval > eval)
                             {
                                 throw new FormatException(
-                                    "Invalid Day-of-Week sequence: " + sval
-                                    + " > " + eval);
+                                    string.Format("Invalid Day-of-Week sequence: {0} > {1}", sval, eval));
                             }
                         }
                         else if (c == '#')
@@ -677,7 +665,7 @@ namespace Quartz
                 else
                 {
                     throw new FormatException(
-                        "Illegal characters for this position: '" + sub + "'");
+                        string.Format("Illegal characters for this position: '{0}'", sub));
                 }
                 if (eval != -1)
                 {
@@ -751,26 +739,26 @@ namespace Quartz
                     if (incr > 59 && (type == SECOND || type == MINUTE))
                     {
                         throw new FormatException(
-                            "Increment > 60 : " + incr);
+                            string.Format("Increment > 60 : {0}", incr));
                     }
                     else if (incr > 23 && (type == HOUR))
                     {
                         throw new FormatException(
-                            "Increment > 24 : " + incr);
+                            string.Format("Increment > 24 : {0}", incr));
                     }
                     else if (incr > 31 && (type == DAY_OF_MONTH))
                     {
                         throw new FormatException(
-                            "Increment > 31 : " + incr);
+                            string.Format("Increment > 31 : {0}", incr));
                     }
                     else if (incr > 7 && (type == DAY_OF_WEEK))
                     {
                         throw new FormatException(
-                            "Increment > 7 : " + incr);
+                            string.Format("Increment > 7 : {0}", incr));
                     }
                     else if (incr > 12 && (type == MONTH))
                     {
-                        throw new FormatException("Increment > 12 : " + incr);
+                        throw new FormatException(string.Format("Increment > 12 : {0}", incr));
                     }
                 }
                 else
@@ -826,7 +814,7 @@ namespace Quartz
             }
             else
             {
-                throw new FormatException("Unexpected character: " + c);
+                throw new FormatException(string.Format("Unexpected character: {0}", c));
             }
 
             return i;
@@ -861,8 +849,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException("'L' option is not valid here. (pos="
-                                              + i + ")");
+                    throw new FormatException(string.Format("'L' option is not valid here. (pos={0})", i));
                 }
                 TreeSet data = GetSet(type);
                 data.Add(val);
@@ -878,8 +865,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException("'W' option is not valid here. (pos="
-                                              + i + ")");
+                    throw new FormatException(string.Format("'W' option is not valid here. (pos={0})", i));
                 }
                 TreeSet data = GetSet(type);
                 data.Add(val);
@@ -892,7 +878,7 @@ namespace Quartz
                 if (type != DAY_OF_WEEK)
                 {
                     throw new FormatException(
-                        "'#' option is not valid here. (pos=" + i + ")");
+                        string.Format("'#' option is not valid here. (pos={0})", i));
                 }
                 i++;
                 try
@@ -927,8 +913,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException("'C' option is not valid here. (pos="
-                                              + i + ")");
+                    throw new FormatException(string.Format("'C' option is not valid here. (pos={0})", i));
                 }
                 TreeSet data = GetSet(type);
                 data.Add(val);
@@ -1011,8 +996,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException("Unexpected character '" + c
-                                              + "' after '/'");
+                    throw new FormatException(string.Format("Unexpected character '{0}' after '/'", c));
                 }
             }
 
@@ -1834,7 +1818,7 @@ namespace Quartz
         /// </summary>
         /// <param name="time">The time.</param>
         /// <returns></returns>
-        private DateTime CreateDateTimeWithoutMillis(NullableDateTime time)
+        private static DateTime CreateDateTimeWithoutMillis(NullableDateTime time)
         {
             DateTime d = time.Value;
             return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second);
@@ -1848,7 +1832,7 @@ namespace Quartz
         /// <param name="date">The date.</param>
         /// <param name="hour">The hour.</param>
         /// <returns></returns>
-        protected DateTime SetCalendarHour(DateTime date, int hour)
+        protected static DateTime SetCalendarHour(DateTime date, int hour)
         {
             // Java version of Quartz uses lenient calendar
             // so hour 24 creates day increment and zeroes hour
@@ -1923,7 +1907,7 @@ namespace Quartz
             try
             {
                 copy = new CronExpression(CronExpressionString);
-                copy.SetTimeZone(GetTimeZone());
+                copy.TimeZone = TimeZone;
             }
             catch (FormatException)
             {
