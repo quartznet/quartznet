@@ -494,7 +494,7 @@ namespace Quartz
 		/// Builds the expression.
 		/// </summary>
 		/// <param name="expression">The expression.</param>
-        protected void BuildExpression(String expression)
+        protected void BuildExpression(string expression)
         {
             expressionParsed = true;
 
@@ -531,7 +531,7 @@ namespace Quartz
 
                 int exprOn = SECOND;
 
-                string[] exprsTok = expression.Split(' ', '\t');
+                string[] exprsTok = expression.Trim().Split(' ', '\t');
 
                 foreach (string expr in exprsTok)
                 {

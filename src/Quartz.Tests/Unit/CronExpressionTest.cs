@@ -152,6 +152,16 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
         }
 
+        [Test]
+        [ExpectedException(typeof(FormatException), "Day-of-Week values must be between 1 and 7")]
+        public void TestCronExpressionParsingIncorrectDayOfWeek()
+        {
+            // test failed before because of improper trimming
+            string expr = string.Format(" * * * * * {0}", DateTime.Now.Year);
+            CronExpression ce = new CronExpression(expr);
+            ce.IsSatisfiedBy(DateTime.Now.AddMinutes(2));
+        }
+
         private static void TestCorrectWeekFireDays(CronExpression cronExpression, ArrayList correctFireDays)
         {
             ArrayList fireDays = new ArrayList();
