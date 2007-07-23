@@ -616,6 +616,11 @@ namespace Quartz.Core
             if (trigger.CalendarName != null)
             {
                 cal = resources.JobStore.RetrieveCalendar(ctxt, trigger.CalendarName);
+                if (cal == null)
+                {
+                    throw new SchedulerException(string.Format("Calendar not found: {0}", trigger.CalendarName),
+                                                 SchedulerException.ERR_PERSISTENCE_CALENDAR_DOES_NOT_EXIST);
+                }
             }
             NullableDateTime ft = trigger.ComputeFirstFireTime(cal);
 

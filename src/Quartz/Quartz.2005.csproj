@@ -75,9 +75,6 @@
       <Name>Common.Logging</Name>
       <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
     </Reference>
-    <Reference Include="mscorlib">
-      <Name>mscorlib</Name>
-    </Reference>
     <Reference Include="Nullables">
       <Name>Nullables</Name>
       <HintPath>..\..\lib\1.1\Nullables.dll</HintPath>
@@ -88,30 +85,6 @@
     <Reference Include="System.configuration" />
     <Reference Include="System.Data">
       <Name>System.Data</Name>
-    </Reference>
-    <Reference Include="System.Design">
-      <Name>System.Design</Name>
-    </Reference>
-    <Reference Include="System.DirectoryServices">
-      <Name>System.DirectoryServices</Name>
-    </Reference>
-    <Reference Include="System.Drawing">
-      <Name>System.Drawing</Name>
-    </Reference>
-    <Reference Include="System.EnterpriseServices">
-      <Name>System.EnterpriseServices</Name>
-    </Reference>
-    <Reference Include="System.Management">
-      <Name>System.Management</Name>
-    </Reference>
-    <Reference Include="System.Runtime.Remoting">
-      <Name>System.Runtime.Remoting</Name>
-    </Reference>
-    <Reference Include="System.Web">
-      <Name>System.Web</Name>
-    </Reference>
-    <Reference Include="System.Windows.Forms">
-      <Name>System.Windows.Forms</Name>
     </Reference>
     <Reference Include="System.Xml">
       <Name>System.Xml</Name>
@@ -390,6 +363,25 @@
     <Compile Include="Listener\TriggerListenerSupport.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
+    <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
+    <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
+    <Compile Include="Impl\AdoJobStore\FiredTriggerRecord.cs" />
+    <Compile Include="Impl\AdoJobStore\IDriverDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\InvalidConfigurationException.cs" />
+    <Compile Include="Impl\AdoJobStore\ISemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\ITablePrefixAware.cs" />
+    <Compile Include="Impl\AdoJobStore\JobStoreSupport.cs" />
+    <Compile Include="Impl\AdoJobStore\JobStoreTX.cs" />
+    <Compile Include="Impl\AdoJobStore\LockException.cs" />
+    <Compile Include="Impl\AdoJobStore\MSSQLDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\NoSuchDelegateException.cs" />
+    <Compile Include="Impl\AdoJobStore\SchedulerStateRecord.cs" />
+    <Compile Include="Impl\AdoJobStore\SimpleSemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\StdAdoConstants.cs" />
+    <Compile Include="Impl\AdoJobStore\StdAdoDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\StdRowLockSemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\Util.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
   </ItemGroup>
   <ItemGroup>

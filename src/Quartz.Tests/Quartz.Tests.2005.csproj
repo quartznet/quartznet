@@ -111,9 +111,11 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Unit\CollectionUtilTest.cs" />
+    <Compile Include="Unit\Core\QuartzSchedulerTest.cs" />
     <Compile Include="Unit\CronExpressionTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Unit\Impl\Calendar\CronCalendarTest.cs" />
     <Compile Include="Unit\Impl\Calendar\DailyCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>
