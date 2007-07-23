@@ -13,6 +13,8 @@
  * License for the specific language governing permissions and limitations 
  * under the License.
  */
+using System;
+
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
@@ -36,6 +38,21 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 			dailyCalendar = new DailyCalendar("TestCal", "1:20:1:456", "14:50:15:2");
 			Assert.IsTrue(dailyCalendar.ToString().IndexOf("01:20:01:456 - 14:50:15:002") > 0);
 		}
+
+        [Test]
+        public void TestStartEndTimes()
+        {
+            // Grafit found a copy-paste problem from ending time, it was the same as starting time
+
+            DateTime d = DateTime.Now;
+            DailyCalendar dailyCalendar = new DailyCalendar("TestCal", "1:20", "14:50");
+            DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
+            DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
+
+            Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTime(d));
+            Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTime(d));
+        }
+
 
 		[Test]
 		public void TestStringInvertTimeRange()

@@ -510,9 +510,9 @@ namespace Quartz.Impl.Calendar
         /// </returns>
         public DateTime GetTimeRangeStartingTime(DateTime time)
         {
-            DateTime rangeStartingTime =
-                new DateTime(time.Year, time.Month, time.Day, rangeStartingHourOfDay, rangeStartingMinute,
-                             rangeStartingSecond, rangeStartingMillis);
+            DateTime rangeStartingTime = new DateTime(time.Year, time.Month, time.Day,
+                                                      rangeStartingHourOfDay, rangeStartingMinute,
+                                                      rangeStartingSecond, rangeStartingMillis);
             return rangeStartingTime;
         }
 
@@ -526,9 +526,9 @@ namespace Quartz.Impl.Calendar
         /// </returns>
         public DateTime GetTimeRangeEndingTime(DateTime time)
         {
-            DateTime rangeEndingTime =
-                new DateTime(time.Year, time.Month, time.Day, rangeStartingHourOfDay, rangeStartingMinute,
-                             rangeStartingSecond, rangeStartingMillis);
+            DateTime rangeEndingTime = new DateTime(time.Year, time.Month, time.Day,
+                                                    rangeEndingHourOfDay, rangeEndingMinute,
+                                                    rangeEndingSecond, rangeEndingMillis);
             return rangeEndingTime;
         }
 
@@ -563,9 +563,9 @@ namespace Quartz.Impl.Calendar
             {
                 buffer.Append("null");
             }
-            
-			const string THREE_DIGIT_FORMAT = "000";
-			const string TWO_DIGIT_FORMAT = "00";
+
+            const string THREE_DIGIT_FORMAT = "000";
+            const string TWO_DIGIT_FORMAT = "00";
 
             buffer.Append("], time range: '");
             buffer.Append(rangeStartingHourOfDay.ToString(TWO_DIGIT_FORMAT));
@@ -716,11 +716,11 @@ namespace Quartz.Impl.Calendar
 
             if (! (startCal < endCal))
             {
-                throw new ArgumentException(string.Format("{0}{1}:{2}:{3}:{4}{5}{6}:{7}:{8}:{9}", 
-                    invalidTimeRange, rangeStartingHourOfDay, rangeStartingMinute, 
-                    rangeStartingSecond, rangeStartingMillis, separator, 
-                    rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond, 
-                    rangeEndingMillis));
+                throw new ArgumentException(string.Format("{0}{1}:{2}:{3}:{4}{5}{6}:{7}:{8}:{9}",
+                                                          invalidTimeRange, rangeStartingHourOfDay, rangeStartingMinute,
+                                                          rangeStartingSecond, rangeStartingMillis, separator,
+                                                          rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond,
+                                                          rangeEndingMillis));
             }
 
             this.rangeStartingHourOfDay = rangeStartingHourOfDay;
