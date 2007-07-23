@@ -22,14 +22,25 @@ namespace Quartz.Examples
 				int counter = 1;
 			
 				Console.WriteLine("Select example to run: ");
+                ArrayList typeList = new ArrayList();
 				foreach (Type t in types)
 				{
 					if (new ArrayList(t.GetInterfaces()).Contains(typeof(IExample)))
 					{
-						Console.WriteLine("[{0}] {1}", counter, t.Name);
-						typeMap.Add(counter++, t);
+					    typeList.Add(t);
 					}
 				}
+
+                // sort for easier readability
+                typeList.Sort(new TypeNameComparer());
+
+			    foreach (Type t in typeList)
+			    {
+                    string counterString = string.Format("[{0}]", counter).PadRight(4);
+                    Console.WriteLine("{0} {1} {2}", counterString, t.Namespace.Substring(t.Namespace.LastIndexOf(".") + 1), t.Name);
+                    typeMap.Add(counter++, t);
+                }
+
 				Console.WriteLine();
 				Console.Write("> ");
 				int num = Convert.ToInt32(Console.ReadLine());
@@ -45,6 +56,21 @@ namespace Quartz.Examples
 				
 			}
 			Console.Read();
-		}	
+		}
+
+	    public class TypeNameComparer : IComparer
+	    {
+	        public int Compare(object x, object y)
+	        {
+	            Type t1 = (Type) x;
+	            Type t2 = (Type) y;
+                if (t1.Namespace.Length < t2.Namespace.Length)
+                {
+                    return -1;
+                }
+
+                return t1.Namespace.CompareTo(t2.Namespace);
+	        }
+	    }
 	}
 }

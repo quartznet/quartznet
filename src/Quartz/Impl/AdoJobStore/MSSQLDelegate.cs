@@ -30,25 +30,22 @@ namespace Quartz.Impl.AdoJobStore
 	/// <summary>
 	/// This is a driver delegate for the MSSQL ADO.NET driver.
 	/// </summary>
-	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+	/// <author>Marko Lahma</author>
 	public class MSSQLDelegate : StdAdoDelegate
 	{
-		/// <summary> <p>
-		/// Create new MSSQLDelegate instance.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="">logger
-		/// the logger to use during execution
-		/// </param>
-		/// <param name="">tablePrefix
-		/// the prefix of all table names
-		/// </param>
-		public MSSQLDelegate(ILog log, String tablePrefix, String instanceId) : base(log, tablePrefix, instanceId)
+        /// <summary>
+        /// Create new MSSQLDelegate instance.
+        /// </summary>
+        /// <param name="log">The log.</param>
+        /// <param name="tablePrefix">The table prefix.</param>
+        /// <param name="instanceId">The instance id.</param>
+        public MSSQLDelegate(ILog log, string tablePrefix, string instanceId)
+            : base(log, tablePrefix, instanceId)
 		{
 		}
 
-		public MSSQLDelegate(ILog log, String tablePrefix, String instanceId, ref Boolean useProperties) : base(log, tablePrefix, instanceId, useProperties)
+        public MSSQLDelegate(ILog log, string tablePrefix, string instanceId, bool useProperties)
+            : base(log, tablePrefix, instanceId, useProperties)
 		{
 		}
 

@@ -26,6 +26,7 @@ using System.Configuration;
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
 using Common.Logging;
@@ -637,11 +638,11 @@ namespace Quartz.Impl.AdoJobStore
                         IDictionary map;
                         if (CanUseProperties)
                         {
-                            map = GetMapFromProperties(rs);
+                            map = GetMapFromProperties(rs, 9);
                         }
                         else
                         {
-                            map = (IDictionary) GetObjectFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
+                            map = (IDictionary) GetObjectFromBlob(rs, 9);
                         }
 
                         if (null != map)
@@ -656,10 +657,10 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary> build Map from java.util.Properties encoding.</summary>
-        private IDictionary GetMapFromProperties(IDataReader rs)
+        private IDictionary GetMapFromProperties(IDataReader rs, int idx)
         {
             IDictionary map;
-            Stream stream = (Stream) GetJobDetailFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
+            Stream stream = (Stream) GetJobDetailFromBlob(rs, idx);
             if (stream == null)
             {
                 return null;
@@ -1591,11 +1592,11 @@ namespace Quartz.Impl.AdoJobStore
                 IDictionary map;
                 if (CanUseProperties)
                 {
-                    map = GetMapFromProperties(rs);
+                    map = GetMapFromProperties(rs, 16);
                 }
                 else
                 {
-                    map = (IDictionary) GetObjectFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
+                    map = (IDictionary) GetObjectFromBlob(rs, 16);
                 }
 
                 NullableDateTime nft = null;
@@ -1705,7 +1706,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (rs.Read())
                     {
-                        trigger = (Trigger) GetObjectFromBlob(rs, AdoConstants.COL_BLOB);
+                        trigger = (Trigger) GetObjectFromBlob(rs, 3);
                     }
                 }
                 else
@@ -1742,11 +1743,11 @@ namespace Quartz.Impl.AdoJobStore
                         IDictionary map;
                         if (CanUseProperties)
                         {
-                            map = GetMapFromProperties(rs);
+                            map = GetMapFromProperties(rs, 1);
                         }
                         else
                         {
-                            map = (IDictionary) GetObjectFromBlob(rs, AdoConstants.COL_JOB_DATAMAP);
+                            map = (IDictionary) GetObjectFromBlob(rs, 1);
                         }
 
                         if (null != map)
@@ -2084,7 +2085,7 @@ namespace Quartz.Impl.AdoJobStore
                     ICalendar cal = null;
                     if (rs.Read())
                     {
-                        cal = (ICalendar) GetObjectFromBlob(rs, AdoConstants.COL_CALENDAR);
+                        cal = (ICalendar) GetObjectFromBlob(rs, 2);
                     }
                     if (null == cal)
                     {
@@ -2271,7 +2272,7 @@ namespace Quartz.Impl.AdoJobStore
                     AddCommandParameter(cmd, 8, trigger.JobName);
                     AddCommandParameter(cmd, 9, trigger.JobGroup);
                     AddCommandParameter(cmd, 10, job.Stateful);
-                    AddCommandParameter(cmd, 11, job.requestsRecovery());
+                    AddCommandParameter(cmd, 11, job.RequestsRecovery);
                 }
                 else
                 {
@@ -2632,16 +2633,40 @@ namespace Quartz.Impl.AdoJobStore
                 return SerializeProperties(data);
             }
 
-            if (null != data)
+            try
             {
-                data.RemoveTransientData();
                 return SerializeObject(data);
             }
-            else
+            catch (SerializationException e)
             {
-                return SerializeObject(null);
+                throw new SerializationException(
+                    "Unable to serialize JobDataMap for insertion into " +
+                    "database because the value of property '" +
+                    GetKeyOfNonSerializableValue(data) +
+                    "' is not serializable: " + e.Message);
             }
         }
+
+
+        protected object GetKeyOfNonSerializableValue(IDictionary data)
+        {
+            foreach (DictionaryEntry entry in data)
+            {
+                try
+                {
+                    SerializeObject(entry.Value);
+                }
+                catch (Exception)
+                {
+                    return entry.Key;
+                }
+            }
+
+            // As long as it is true that the Map was not serializable, we should
+            // not hit this case.
+            return null;
+        }
+    
 
         /// <summary>
         /// serialize
@@ -2827,11 +2852,11 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (CanUseProperties)
             {
-                if (rs.IsDBNull(colIndex))
+                if (!rs.IsDBNull(colIndex))
                 {
-                    byte[] buffer = new byte[8192];
-                    Stream binaryInput = blobLocator.getBinaryStream();
-                    return binaryInput;
+                    // TODO
+
+                    return null;
                 }
                 else
                 {
@@ -2839,7 +2864,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
 
-            return GetObjectFromBlob(rs, colName);
+            return GetObjectFromBlob(rs, colIndex);
         }
 
 

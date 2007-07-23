@@ -21,7 +21,6 @@
 using System;
 using System.Collections;
 using System.Data;
-using System.Data.OleDb;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -37,14 +36,36 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary> <p>
-	/// Contains base functionality for JDBC-based JobStore implementations.
-	/// </p>
-	/// 
+    public class ConnectionAndTransactionHolder
+    {
+        private IDbConnection connection;
+        private IDbTransaction transaction;
+
+        public ConnectionAndTransactionHolder(IDbConnection connection, IDbTransaction transaction)
+        {
+            this.connection = connection;
+            this.transaction = transaction;
+        }
+
+        public IDbConnection Connection
+        {
+            get { return connection; }
+            set { connection = value; }
+        }
+
+        public IDbTransaction Transaction
+        {
+            get { return transaction; }
+            set { transaction = value; }
+        }
+    }
+
+	/// <summary>
+	/// Contains base functionality for ADO.NET-based JobStore implementations.
 	/// </summary>
-	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a>
-	/// </author>
+	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 	/// <author>James House</author>
+	/// <author>Marko Lahma (.NET)</author>
 	public abstract class JobStoreSupport : AdoConstants, IJobStore
 	{
 		public ILog Log = LogManager.GetLogger(typeof (JobStoreSupport));
@@ -54,22 +75,16 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
 		public JobStoreSupport()
 		{
-			InitBlock();
-		}
-
-		private void InitBlock()
-		{
-			delegateType = typeof (StdAdoDelegate);
+            delegateType = typeof(StdAdoDelegate);
 		}
 
 		/// <summary> 
-		/// Get or set the name of the <code>DataSource</code> that should be used for
-		/// performing database functions.
+		/// Get or set the ADO.NET connection string.
 		/// </summary>
-		public virtual string DataSource
+		public virtual string ConnectionString
 		{
-			get { return dsName; }
-			set { dsName = value; }
+			get { return connectionString; }
+			set { connectionString = value; }
 		}
 
 		/// <summary> 
@@ -258,15 +273,16 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal IDbConnection GetGetConnection()
+		protected internal ConnectionAndTransactionHolder GetConnection()
 		{
 			try
 			{
-				IDbConnection conn = DBConnectionManager.Instance.GetConnection(DataSource);
+				IDbConnection conn = DBConnectionManager.Instance.GetConnection(ConnectionString);
+                IDbTransaction tx;
 
 				if (conn == null)
 				{
-					throw new JobPersistenceException("Could not get connection from DataSource '" + DataSource + "'");
+					throw new JobPersistenceException("Could not get connection from DataSource '" + ConnectionString + "'");
 				}
 
 				try
@@ -276,10 +292,15 @@ namespace Quartz.Impl.AdoJobStore
 						// TODO SupportClass.TransactionManager.manager.SetAutoCommit(conn, false);
 					}
 
+				    
 					if (TxIsolationLevelSerializable)
 					{
-						//UPGRADE_TODO: The equivalent in .NET for field 'java.sql.Connection.TRANSACTION_SERIALIZABLE' may return a different value. 'ms-help://MS.VSCC.2003/commoner/redir/redirect.htm?keyword="jlca1043_3"'
-						// TODO SupportClass.TransactionManager.manager.SetTransactionIsolation(conn, (int) IsolationLevel.Serializable);
+					    tx = conn.BeginTransaction(IsolationLevel.Serializable);
+					}
+                    else
+					{
+					    // default
+					    tx = conn.BeginTransaction();
 					}
 				}
 				catch (Exception e)
@@ -290,22 +311,18 @@ namespace Quartz.Impl.AdoJobStore
 					}
 					catch
 					{
+					    ;
 					}
 					throw new JobPersistenceException(
 						"Failure setting up connection.", e);
 				}
 
-				return conn;
-			}
-			catch (OleDbException sqle)
-			{
-				throw new JobPersistenceException(
-					"Failed to obtain DB connection from data source '" + DataSource + "': " + sqle, sqle);
+				return new ConnectionAndTransactionHolder(conn, tx);
 			}
 			catch (Exception e)
 			{
 				throw new JobPersistenceException(
-					"Failed to obtain DB connection from data source '" + DataSource + "': " + e, e,
+					"Failed to obtain DB connection from data source '" + ConnectionString + "': " + e, e,
 					JobPersistenceException.ERR_PERSISTENCE_CRITICAL_FAILURE);
 			}
 		}
@@ -408,7 +425,7 @@ namespace Quartz.Impl.AdoJobStore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-		protected internal string dsName;
+		protected internal string connectionString;
 
 		protected internal string tablePrefix = DEFAULT_TABLE_PREFIX;
 
@@ -478,7 +495,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
 		{
-			if (dsName == null)
+			if (connectionString == null)
 			{
 				throw new SchedulerConfigException("DataSource name not set.");
 			}
@@ -554,9 +571,9 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				DBConnectionManager.Instance.Shutdown(DataSource);
+				DBConnectionManager.Instance.Shutdown(ConnectionString);
 			}
-			catch (OleDbException sqle)
+			catch (Exception sqle)
 			{
 				Log.Warn("Database connection Shutdown unsuccessful.", sqle);
 			}
@@ -572,13 +589,13 @@ namespace Quartz.Impl.AdoJobStore
 		//---------------------------------------------------------------------------
 
 
-		protected internal virtual void ReleaseLock(IDbConnection conn, string lockName, bool doIt)
+		protected internal virtual void ReleaseLock(ConnectionAndTransactionHolder cth, string lockName, bool doIt)
 		{
-			if (doIt && conn != null)
+			if (doIt && cth != null)
 			{
 				try
 				{
-					LockHandler.ReleaseLock(conn, lockName);
+					LockHandler.ReleaseLock(cth.Connection, lockName);
 				}
 				catch (LockException le)
 				{
@@ -587,10 +604,8 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		/// <summary> <p>
-		/// Removes all volatile data
-		/// </p>
-		/// 
+		/// <summary>
+		/// Removes all volatile data.
 		/// </summary>
 		/// <throws>  JobPersistenceException </throws>
 		/// <summary>           if jobs could not be recovered
@@ -645,14 +660,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		protected internal abstract void RecoverJobs();
 
-		/// <summary> <p>
+		/// <summary>
 		/// Will recover any failed or misfired jobs and clean up the data store as
 		/// appropriate.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <throws>  JobPersistenceException </throws>
-		/// <summary>           if jobs could not be recovered
 		/// </summary>
 		protected internal virtual void RecoverJobs(IDbConnection conn)
 		{
@@ -697,9 +707,12 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					RemoveTrigger(conn, null, ct[i].Name, ct[i].Group);
 				}
-				Log.Info("Removed " + ct.Length + " 'complete' triggers.");
+			    if (ct != null)
+			    {
+			        Log.Info(string.Format("Removed {0} 'complete' triggers.", ct.Length));
+			    }
 
-				// clean up any fired trigger entries
+			    // clean up any fired trigger entries
 				int n = Delegate.DeleteFiredTriggers(conn);
 				Log.Info("Removed " + n + " stale fired job entries.");
 			}
@@ -855,7 +868,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				throw new JobPersistenceException("Couldn't store job: " + e.Message, e);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't store job: " + e.Message, e);
 			}
@@ -871,7 +884,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				return Delegate.JobExists(conn, jobName, groupName);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException(
 					"Couldn't determine job existence (" + groupName + "." + jobName + "): " + e.Message, e);
@@ -895,11 +908,9 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				bool shouldBepaused;
-
-				if (!forceState)
+			    if (!forceState)
 				{
-					shouldBepaused = Delegate.IsTriggerGroupPaused(conn, newTrigger.Group);
+					bool shouldBepaused = Delegate.IsTriggerGroupPaused(conn, newTrigger.Group);
 
 					if (!shouldBepaused)
 					{
@@ -998,7 +1009,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				return Delegate.TriggerExists(conn, triggerName, groupName);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException(
 					"Couldn't determine trigger existence (" + groupName + "." + triggerName + "): " + e.Message, e);
@@ -1032,7 +1043,7 @@ namespace Quartz.Impl.AdoJobStore
 					return false;
 				}
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't remove job: " + e.Message, e);
 			}
@@ -1210,7 +1221,7 @@ namespace Quartz.Impl.AdoJobStore
 
 				return Trigger.STATE_NORMAL;
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException(
 					"Couldn't determine state of trigger (" + groupName + "." + triggerName + "): " + e.Message, e);
@@ -1294,7 +1305,7 @@ namespace Quartz.Impl.AdoJobStore
 
 				return (Delegate.DeleteCalendar(conn, calName) > 0);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't remove calendar: " + e.Message, e);
 			}
@@ -1335,7 +1346,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				return Delegate.SelectNumJobs(conn);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't obtain number of jobs: " + e.Message, e);
 			}
@@ -1348,7 +1359,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				return Delegate.SelectNumTriggers(conn);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't obtain number of triggers: " + e.Message, e);
 			}
@@ -1361,7 +1372,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				return Delegate.SelectNumCalendars(conn);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't obtain number of calendars: " + e.Message, e);
 			}
@@ -1376,7 +1387,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				jobNames = Delegate.SelectJobsInGroup(conn, groupName);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't obtain job names: " + e.Message, e);
 			}
@@ -1393,7 +1404,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
 			}
@@ -1410,7 +1421,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				groupNames = Delegate.SelectJobGroups(conn);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't obtain job groups: " + e.Message, e);
 			}
@@ -1427,7 +1438,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				groupNames = Delegate.SelectTriggerGroups(conn);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
 			}
@@ -1442,7 +1453,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				return Delegate.SelectCalendars(conn);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
 			}
@@ -1485,7 +1496,7 @@ namespace Quartz.Impl.AdoJobStore
 					Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED_BLOCKED);
 				}
 			}
-			catch (OleDbException e)
+			catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't pause trigger '" + groupName + "." + triggerName + "': " + e.Message, e);
 			}
@@ -1515,7 +1526,7 @@ namespace Quartz.Impl.AdoJobStore
 
 				return newState;
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException(
 					"Couldn't determine new state in order to resume trigger '" + status.Key.Group + "." + status.Key.Name + "': " +
@@ -1547,7 +1558,7 @@ namespace Quartz.Impl.AdoJobStore
 
 				return newState;
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't determine state for new trigger: " + e.Message, e);
 			}
@@ -1629,7 +1640,7 @@ namespace Quartz.Impl.AdoJobStore
 					}
 				}
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't resume trigger '" + groupName + "." + triggerName + "': " + e.Message, e);
 			}
@@ -1655,7 +1666,7 @@ namespace Quartz.Impl.AdoJobStore
 					Delegate.InsertPausedTriggerGroup(conn, groupName);
 				}
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't pause trigger group '" + groupName + "': " + e.Message, e);
 			}
@@ -1672,7 +1683,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				return Delegate.SelectPausedTriggerGroups(conn);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't determine paused trigger groups: " + e.Message, e);
 			}
@@ -1733,7 +1744,7 @@ namespace Quartz.Impl.AdoJobStore
 				* misfires[i].getName(), misfires[i].getGroup(), newState, true); } }
 				*/
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't pause trigger group '" + groupName + "': " + e.Message, e);
 			}
@@ -1765,7 +1776,7 @@ namespace Quartz.Impl.AdoJobStore
 					Delegate.InsertPausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
 				}
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't pause all trigger groups: " + e.Message, e);
 			}
@@ -1793,7 +1804,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				Delegate.DeletePausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't resume all trigger groups: " + e.Message, e);
 			}
@@ -1872,7 +1883,7 @@ namespace Quartz.Impl.AdoJobStore
 				                                          STATE_ACQUIRED);
 				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
 			}
@@ -1895,7 +1906,7 @@ namespace Quartz.Impl.AdoJobStore
 					return null;
 				}
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't select trigger state: " + e.Message, e);
 			}
@@ -1915,7 +1926,7 @@ namespace Quartz.Impl.AdoJobStore
 					Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
 					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
 				}
-				catch (OleDbException sqle)
+                catch (Exception sqle)
 				{
 					Log.Error("Unable to set trigger state to ERROR.", sqle);
 				}
@@ -1936,7 +1947,7 @@ namespace Quartz.Impl.AdoJobStore
 				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
 				Delegate.InsertFiredTrigger(conn, trigger, STATE_EXECUTING, job);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
 			}
@@ -1962,7 +1973,7 @@ namespace Quartz.Impl.AdoJobStore
 					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_PAUSED_BLOCKED,
 					                                                 STATE_PAUSED);
 				}
-				catch (OleDbException e)
+                catch (Exception e)
 				{
 					throw new JobPersistenceException("Couldn't update states of blocked triggers: " + e.Message, e);
 				}
@@ -2049,13 +2060,13 @@ namespace Quartz.Impl.AdoJobStore
 					{
 						throw new JobPersistenceException("Couldn't serialize job data: " + e.Message, e);
 					}
-					catch (OleDbException e)
+                    catch (Exception e)
 					{
 						throw new JobPersistenceException("Couldn't update job data: " + e.Message, e);
 					}
 				}
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't update trigger state(s): " + e.Message, e);
 			}
@@ -2064,7 +2075,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
 			}
-			catch (OleDbException e)
+            catch (Exception e)
 			{
 				throw new JobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
 			}
@@ -2343,22 +2354,22 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> Closes the supplied connection
 		/// 
 		/// </summary>
-		/// <param name="conn">(Optional)
+		/// <param name="cth">(Optional)
 		/// </param>
 		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
 		/// <summary> connection is closed
 		/// </summary>
-		protected internal virtual void CloseConnection(IDbConnection conn)
+		protected internal virtual void CloseConnection(ConnectionAndTransactionHolder cth)
 		{
-			if (conn != null)
+			if (cth.Connection != null)
 			{
 				try
 				{
-					conn.Close();
+					cth.Connection.Close();
 				}
 				catch (Exception ex)
 				{
-					throw new JobPersistenceException("Couldn't close jdbc connection. " + ex.Message, ex);
+					throw new JobPersistenceException("Couldn't close ADO.NET connection. " + ex.Message, ex);
 				}
 			}
 		}
@@ -2366,22 +2377,22 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary>
 		/// Rollback the supplied connection.
 		/// </summary>
-		/// <param name="conn">(Optional)
+        /// <param name="cth">(Optional)
 		/// </param>
 		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
 		/// <summary> connection is rolled back
 		/// </summary>
-		protected internal virtual void RollbackConnection(IDbConnection conn)
+        protected internal virtual void RollbackConnection(ConnectionAndTransactionHolder cth)
 		{
-			if (conn != null)
+            if (cth.Transaction != null)
 			{
 				try
 				{
-					// TODO SupportClass.TransactionManager.manager.RollBack(conn);
+					cth.Transaction.Rollback();
 				}
-				catch (OleDbException e)
+				catch (Exception e)
 				{
-					throw new JobPersistenceException("Couldn't rollback jdbc connection. " + e.Message, e);
+					throw new JobPersistenceException("Couldn't rollback ADO.NET transaction. " + e.Message, e);
 				}
 			}
 		}
@@ -2389,19 +2400,19 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> 
 		/// Commit the supplied connection.
 		/// </summary>
-		/// <param name="conn"></param>
+        /// <param name="cth"></param>
 		/// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
-		protected internal virtual void CommitConnection(IDbConnection conn)
+		protected internal virtual void CommitConnection(ConnectionAndTransactionHolder cth)
 		{
-			if (conn != null)
+			if (cth.Transaction != null)
 			{
 				try
 				{
-					// TODO SupportClass.TransactionManager.manager.Commit(conn);
+					cth.Transaction.Commit();
 				}
-				catch (OleDbException e)
+				catch (Exception e)
 				{
-					throw new JobPersistenceException("Couldn't commit jdbc connection. " + e.Message, e);
+					throw new JobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
 				}
 			}
 		}

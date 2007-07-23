@@ -18,14 +18,12 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
+
 using System;
 using System.Collections;
-using System.Data;
 
-using Quartz;
 using Quartz.Collection;
 using Quartz.Core;
-using Quartz.Impl.AdoJobStore;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
@@ -52,31 +50,31 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal override void RecoverJobs()
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder cth = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(cth.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				RecoverJobs(conn);
-				CommitConnection(conn);
+                RecoverJobs(cth.Connection);
+                CommitConnection(cth);
 			}
 			catch (JobPersistenceException)
 			{
-				RollbackConnection(conn);
+                RollbackConnection(cth);
 				throw;
 			}
 			finally
 			{
 				try
 				{
-					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+                    ReleaseLock(cth, LOCK_TRIGGER_ACCESS, transOwner);
 				}
 				finally
 				{
-					CloseConnection(conn);
+                    CloseConnection(cth);
 				}
 			}
 		}
@@ -84,15 +82,15 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal override void CleanVolatileTriggerAndJobs()
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				CleanVolatileTriggerAndJobs(conn);
+				CleanVolatileTriggerAndJobs(conn.Connection);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -127,13 +125,13 @@ namespace Quartz.Impl.AdoJobStore
 		public override void StoreJobAndTrigger(SchedulingContext ctxt, JobDetail newJob, Trigger newTrigger)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder cth = GetConnection();
 			bool transOwner = false;
 			try
 			{
 				if (LockOnInsert)
 				{
-					LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+					LockHandler.ObtainLock(cth.Connection, LOCK_TRIGGER_ACCESS);
 					transOwner = true;
 					//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 				}
@@ -146,24 +144,24 @@ namespace Quartz.Impl.AdoJobStore
 					throw jpe;
 				}
 
-				StoreJob(conn, ctxt, newJob, false);
-				StoreTrigger(conn, ctxt, newTrigger, newJob, false, STATE_WAITING, false, false);
-				CommitConnection(conn);
+                StoreJob(cth.Connection, ctxt, newJob, false);
+                StoreTrigger(cth.Connection, ctxt, newTrigger, newJob, false, STATE_WAITING, false, false);
+                CommitConnection(cth);
 			}
 			catch (JobPersistenceException)
 			{
-				RollbackConnection(conn);
+				RollbackConnection(cth);
 				throw;
 			}
 			finally
 			{
 				try
 				{
-					ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+                    ReleaseLock(cth, LOCK_TRIGGER_ACCESS, transOwner);
 				}
 				finally
 				{
-					CloseConnection(conn);
+                    CloseConnection(cth);
 				}
 			}
 		}
@@ -178,18 +176,18 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		public override void StoreJob(SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
 		{
-			IDbConnection conn = GetGetConnection();
+            ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
 				if (LockOnInsert || replaceExisting)
 				{
-					LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+					LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 					transOwner = true;
 					//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 				}
 
-				StoreJob(conn, ctxt, newJob, replaceExisting);
+				StoreJob(conn.Connection, ctxt, newJob, replaceExisting);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -228,15 +226,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </returns>
 		public override bool RemoveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
-			IDbConnection conn = GetGetConnection();
+            ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				bool removed = RemoveJob(conn, ctxt, jobName, groupName, true);
+				bool removed = RemoveJob(conn.Connection, ctxt, jobName, groupName, true);
 				CommitConnection(conn);
 				return removed;
 			}
@@ -269,11 +267,11 @@ namespace Quartz.Impl.AdoJobStore
         /// </returns>
 		public override JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
-			IDbConnection conn = GetGetConnection();
+            ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				JobDetail job = RetrieveJob(conn, ctxt, jobName, groupName);
+				JobDetail job = RetrieveJob(conn.Connection, ctxt, jobName, groupName);
 				CommitConnection(conn);
 				return job;
 			}
@@ -299,18 +297,18 @@ namespace Quartz.Impl.AdoJobStore
 		/// </param>
 		public override void StoreTrigger(SchedulingContext ctxt, Trigger newTrigger, bool replaceExisting)
 		{
-			IDbConnection conn = GetGetConnection();
+            ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
 				if (LockOnInsert || replaceExisting)
 				{
-					LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+					LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 					transOwner = true;
 					//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 				}
 
-				StoreTrigger(conn, ctxt, newTrigger, null, replaceExisting, STATE_WAITING, false, false);
+				StoreTrigger(conn.Connection, ctxt, newTrigger, null, replaceExisting, STATE_WAITING, false, false);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -354,15 +352,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// </returns>
 		public override bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				bool removed = RemoveTrigger(conn, ctxt, triggerName, groupName);
+				bool removed = RemoveTrigger(conn.Connection, ctxt, triggerName, groupName);
 				CommitConnection(conn);
 				return removed;
 			}
@@ -387,15 +385,15 @@ namespace Quartz.Impl.AdoJobStore
 		public override bool ReplaceTrigger(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				bool removed = ReplaceTrigger(conn, ctxt, triggerName, groupName, newTrigger);
+				bool removed = ReplaceTrigger(conn.Connection, ctxt, triggerName, groupName, newTrigger);
 				CommitConnection(conn);
 				return removed;
 			}
@@ -429,11 +427,11 @@ namespace Quartz.Impl.AdoJobStore
         /// </returns>
 		public override Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				Trigger trigger = RetrieveTrigger(conn, ctxt, triggerName, groupName);
+				Trigger trigger = RetrieveTrigger(conn.Connection, ctxt, triggerName, groupName);
 				CommitConnection(conn);
 				return trigger;
 			}
@@ -461,17 +459,17 @@ namespace Quartz.Impl.AdoJobStore
 		public override void StoreCalendar(SchedulingContext ctxt, string calName, ICalendar calendar, bool replaceExisting,
 		                                   bool updateTriggers)
 		{
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool lockOwner = false;
 			try
 			{
 				if (LockOnInsert || updateTriggers)
 				{
-					LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+					LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 					lockOwner = true;
 				}
 
-				StoreCalendar(conn, ctxt, calName, calendar, replaceExisting, updateTriggers);
+				StoreCalendar(conn.Connection, ctxt, calName, calendar, replaceExisting, updateTriggers);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -508,14 +506,14 @@ namespace Quartz.Impl.AdoJobStore
         /// </returns>
 		public override bool RemoveCalendar(SchedulingContext ctxt, string calName)
 		{
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool lockOwner = false;
 			try 
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				lockOwner = true;
 
-				bool removed = RemoveCalendar(conn, ctxt, calName);
+				bool removed = RemoveCalendar(conn.Connection, ctxt, calName);
 				CommitConnection(conn);
 				return removed;
 			} 
@@ -545,11 +543,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The desired <code>Calendar</code>, or null if there is no match.</returns>
 		public override ICalendar RetrieveCalendar(SchedulingContext ctxt, string calName)
 		{
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				ICalendar cal = RetrieveCalendar(conn, ctxt, calName);
+				ICalendar cal = RetrieveCalendar(conn.Connection, ctxt, calName);
 				CommitConnection(conn);
 				return cal;
 			}
@@ -576,11 +574,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override int GetNumberOfJobs(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				int numJobs = GetNumberOfJobs(conn, ctxt);
+				int numJobs = GetNumberOfJobs(conn.Connection, ctxt);
 				CommitConnection(conn);
 				return numJobs;
 			}
@@ -603,11 +601,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override int GetNumberOfTriggers(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				int numTriggers = GetNumberOfTriggers(conn, ctxt);
+				int numTriggers = GetNumberOfTriggers(conn.Connection, ctxt);
 				CommitConnection(conn);
 				return numTriggers;
 			}
@@ -630,11 +628,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override int GetNumberOfCalendars(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				int numCals = GetNumberOfCalendars(conn, ctxt);
+				int numCals = GetNumberOfCalendars(conn.Connection, ctxt);
 				CommitConnection(conn);
 				return numCals;
 			}
@@ -653,11 +651,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override ISet GetPausedTriggerGroups(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				ISet groups = GetPausedTriggerGroups(conn, ctxt);
+				ISet groups = GetPausedTriggerGroups(conn.Connection, ctxt);
 				CommitConnection(conn);
 				return groups;
 			}
@@ -685,11 +683,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetJobNames(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				string[] jobNames = GetJobNames(conn, ctxt, groupName);
+				string[] jobNames = GetJobNames(conn.Connection, ctxt, groupName);
 				CommitConnection(conn);
 				return jobNames;
 			}
@@ -717,11 +715,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				string[] triggerNames = GetTriggerNames(conn, ctxt, groupName);
+				string[] triggerNames = GetTriggerNames(conn.Connection, ctxt, groupName);
 				CommitConnection(conn);
 				return triggerNames;
 			}
@@ -749,11 +747,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetJobGroupNames(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				string[] groupNames = GetJobGroupNames(conn, ctxt);
+				string[] groupNames = GetJobGroupNames(conn.Connection, ctxt);
 				CommitConnection(conn);
 				return groupNames;
 			}
@@ -781,11 +779,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetTriggerGroupNames(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				string[] triggerGroups = GetTriggerGroupNames(conn, ctxt);
+                string[] triggerGroups = GetTriggerGroupNames(conn.Connection, ctxt);
 				CommitConnection(conn);
 				return triggerGroups;
 			}
@@ -813,11 +811,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override string[] GetCalendarNames(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				string[] calNames = GetCalendarNames(conn, ctxt);
+                string[] calNames = GetCalendarNames(conn.Connection, ctxt);
 				CommitConnection(conn);
 				return calNames;
 			}
@@ -843,11 +841,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override Trigger[] GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				return GetTriggersForJob(conn, ctxt, jobName, groupName);
+                return GetTriggersForJob(conn.Connection, ctxt, jobName, groupName);
 			}
 			catch (JobPersistenceException)
 			{
@@ -876,11 +874,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override int GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			try
 			{
 				// no locks necessary for read...
-				return GetTriggerState(conn, ctxt, triggerName, groupName);
+                return GetTriggerState(conn.Connection, ctxt, triggerName, groupName);
 			}
 			catch (JobPersistenceException)
 			{
@@ -903,15 +901,15 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				PauseTrigger(conn, ctxt, triggerName, groupName);
+                PauseTrigger(conn.Connection, ctxt, triggerName, groupName);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -938,15 +936,15 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseTriggerGroup(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				PauseTriggerGroup(conn, ctxt, groupName);
+                PauseTriggerGroup(conn.Connection, ctxt, groupName);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -973,18 +971,18 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		public override void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
 		{			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				Trigger[] triggers = GetTriggersForJob(conn, ctxt, jobName, groupName);
+                Trigger[] triggers = GetTriggersForJob(conn.Connection, ctxt, jobName, groupName);
 				for (int j = 0; j < triggers.Length; j++)
 				{
-					PauseTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                    PauseTrigger(conn.Connection, ctxt, triggers[j].Name, triggers[j].Group);
 				}
 
 				CommitConnection(conn);
@@ -1014,22 +1012,22 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseJobGroup(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				string[] jobNames = GetJobNames(conn, ctxt, groupName);
+                string[] jobNames = GetJobNames(conn.Connection, ctxt, groupName);
 
 				for (int i = 0; i < jobNames.Length; i++)
 				{
-					Trigger[] triggers = GetTriggersForJob(conn, ctxt, jobNames[i], groupName);
+                    Trigger[] triggers = GetTriggersForJob(conn.Connection, ctxt, jobNames[i], groupName);
 					for (int j = 0; j < triggers.Length; j++)
 					{
-						PauseTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                        PauseTrigger(conn.Connection, ctxt, triggers[j].Name, triggers[j].Group);
 					}
 				}
 
@@ -1064,15 +1062,15 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				ResumeTrigger(conn, ctxt, triggerName, groupName);
+                ResumeTrigger(conn.Connection, ctxt, triggerName, groupName);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -1104,15 +1102,15 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeTriggerGroup(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				ResumeTriggerGroup(conn, ctxt, groupName);
+                ResumeTriggerGroup(conn.Connection, ctxt, groupName);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -1145,18 +1143,18 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				Trigger[] triggers = GetTriggersForJob(conn, ctxt, jobName, groupName);
+                Trigger[] triggers = GetTriggersForJob(conn.Connection, ctxt, jobName, groupName);
 				for (int j = 0; j < triggers.Length; j++)
 				{
-					ResumeTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                    ResumeTrigger(conn.Connection, ctxt, triggers[j].Name, triggers[j].Group);
 				}
 
 				CommitConnection(conn);
@@ -1191,22 +1189,22 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeJobGroup(SchedulingContext ctxt, string groupName)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				string[] jobNames = GetJobNames(conn, ctxt, groupName);
+                string[] jobNames = GetJobNames(conn.Connection, ctxt, groupName);
 
 				for (int i = 0; i < jobNames.Length; i++)
 				{
-					Trigger[] triggers = GetTriggersForJob(conn, ctxt, jobNames[i], groupName);
+                    Trigger[] triggers = GetTriggersForJob(conn.Connection, ctxt, jobNames[i], groupName);
 					for (int j = 0; j < triggers.Length; j++)
 					{
-						ResumeTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                        ResumeTrigger(conn.Connection, ctxt, triggers[j].Name, triggers[j].Group);
 					}
 				}
 				CommitConnection(conn);
@@ -1242,15 +1240,15 @@ namespace Quartz.Impl.AdoJobStore
 		public override void PauseAll(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				PauseAll(conn, ctxt);
+                PauseAll(conn.Connection, ctxt);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -1283,15 +1281,15 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ResumeAll(SchedulingContext ctxt)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				ResumeAll(conn, ctxt);
+                ResumeAll(conn.Connection, ctxt);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -1324,15 +1322,15 @@ namespace Quartz.Impl.AdoJobStore
         public override Trigger AcquireNextTrigger(SchedulingContext ctxt, DateTime noLaterThan)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				Trigger trigger = AcquireNextTrigger(conn, ctxt, noLaterThan);
+                Trigger trigger = AcquireNextTrigger(conn.Connection, ctxt, noLaterThan);
 				CommitConnection(conn);
 				return trigger;
 			}
@@ -1363,15 +1361,15 @@ namespace Quartz.Impl.AdoJobStore
 		public override void ReleaseAcquiredTrigger(SchedulingContext ctxt, Trigger trigger)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				ReleaseAcquiredTrigger(conn, ctxt, trigger);
+                ReleaseAcquiredTrigger(conn.Connection, ctxt, trigger);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -1406,11 +1404,11 @@ namespace Quartz.Impl.AdoJobStore
 		public override TriggerFiredBundle TriggerFired(SchedulingContext ctxt, Trigger trigger)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1418,7 +1416,7 @@ namespace Quartz.Impl.AdoJobStore
 				JobPersistenceException err = null;
 				try
 				{
-					tfb = TriggerFired(conn, ctxt, trigger);
+                    tfb = TriggerFired(conn.Connection, ctxt, trigger);
 				}
 				catch (JobPersistenceException jpe)
 				{
@@ -1466,15 +1464,15 @@ namespace Quartz.Impl.AdoJobStore
 		                                          int triggerInstCode)
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
-				TriggeredJobComplete(conn, ctxt, trigger, jobDetail, triggerInstCode);
+                TriggeredJobComplete(conn.Connection, ctxt, trigger, jobDetail, triggerInstCode);
 				CommitConnection(conn);
 			}
 			catch (JobPersistenceException)
@@ -1498,18 +1496,18 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal override bool DoRecoverMisfires()
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 			bool transOwner = false;
 			bool moreToDo;
 			try
 			{
-				LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
 				try
 				{
-					moreToDo = RecoverMisfiredJobs(conn, false);
+                    moreToDo = RecoverMisfiredJobs(conn.Connection, false);
 				}
 				catch (Exception e)
 				{
@@ -1542,7 +1540,7 @@ namespace Quartz.Impl.AdoJobStore
 		protected internal override bool DoCheckin()
 		{
 			
-			IDbConnection conn = GetGetConnection();
+			ConnectionAndTransactionHolder conn = GetConnection();
 
 			bool transOwner = false;
 			bool transStateOwner = false;
@@ -1553,24 +1551,24 @@ namespace Quartz.Impl.AdoJobStore
 				// Other than the first time, always checkin first to make sure there is 
 				// work to be done before we aquire / the lock (since that is expensive, 
 				// and is almost never necessary)
-				IList failedRecords = (firstCheckIn) ? null : ClusterCheckIn(conn);
+                IList failedRecords = (firstCheckIn) ? null : ClusterCheckIn(conn.Connection);
             
 				if (firstCheckIn || (failedRecords != null && failedRecords.Count > 0)) 
 				{
-					LockHandler.ObtainLock(conn, LOCK_STATE_ACCESS);
+                    LockHandler.ObtainLock(conn.Connection, LOCK_STATE_ACCESS);
 					transStateOwner = true;
     
 					// Now that we own the lock, make sure we still have work to do. 
 					// The first time through, we also need to make sure we update/create our state record
-					failedRecords = (firstCheckIn) ? ClusterCheckIn(conn) : FindFailedInstances(conn);
+                    failedRecords = (firstCheckIn) ? ClusterCheckIn(conn.Connection) : FindFailedInstances(conn.Connection);
     
 					if (failedRecords.Count > 0) 
 					{
-						LockHandler.ObtainLock(conn, LOCK_TRIGGER_ACCESS);
+                        LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
 						//getLockHandler().obtainLock(conn, LOCK_JOB_ACCESS);
 						transOwner = true;
-    
-						ClusterRecover(conn, failedRecords);
+
+                        ClusterRecover(conn.Connection, failedRecords);
 						recovered = true;
 					}
 				}
