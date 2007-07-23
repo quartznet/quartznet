@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 * and Juergen Donnerstag (c) 2002, EDS 2002
 */
+
 using System;
 using System.Collections;
 
@@ -36,37 +37,15 @@ namespace Quartz.Impl.Calendar
 	[Serializable]
 	public class AnnualCalendar : BaseCalendar, ICalendar
 	{
-		/// <summary> 
-		/// Get or the array which defines the exclude-value of each day of month.
-		/// Setting will redefine the array of days excluded. The array must of size greater or
-		/// equal 31.
-		/// </summary>
-		public virtual ArrayList DaysExcluded
-		{
-			get { return excludeDays; }
-
-			set
-			{
-				if (value == null)
-				{
-					excludeDays = new ArrayList();
-				}
-
-				excludeDays = value;
-				dataSorted = false;
-			}
-		}
-
-		private ArrayList excludeDays = new ArrayList();
+        private ArrayList excludeDays = new ArrayList();
 
 		// true, if excludeDays is sorted
 		private bool dataSorted = false;
 
-		/// <summary> <p>
-		/// Constructor
-		/// </p>
-		/// </summary>
-		public AnnualCalendar() : base()
+        /// <summary>
+        /// Constructor
+        /// </summary>
+		public AnnualCalendar()
 		{
 		}
 
@@ -78,60 +57,95 @@ namespace Quartz.Impl.Calendar
 		{
 		}
 
+        /// <summary> 
+        /// Get or the array which defines the exclude-value of each day of month.
+        /// Setting will redefine the array of days excluded. The array must of size greater or
+        /// equal 31.
+        /// </summary>
+        public virtual IList DaysExcluded
+        {
+            get { return excludeDays; }
+
+            set
+            {
+                if (value == null)
+                {
+                    excludeDays = new ArrayList();
+                }
+
+                excludeDays = new ArrayList(value);
+                dataSorted = false;
+            }
+        }
+
 		/// <summary>
 		/// Return true, if day is defined to be exluded.
 		/// </summary>
-		public virtual bool IsDayExcluded(NullableDateTime day)
+		public virtual bool IsDayExcluded(DateTime day)
 		{
-			if (day == null || !day.HasValue)
-			{
-				throw new ArgumentException("Parameter day must not be null");
-			}
+		    NullableDateTime d = FindExcludedDateByMonthAndDay(day);
 
-			int dmonth = day.Value.Month;
-			int dday = day.Value.Day;
-
-			if (!dataSorted)
-			{
-				excludeDays.Sort();
-				dataSorted = true;
-			}
-
-			foreach (NullableDateTime cl in excludeDays)
-			{
-				// remember, the list is sorted
-				if (dmonth < cl.Value.Month)
-				{
-					return false;
-				}
-
-				if (dday != cl.Value.Day)
-				{
-					continue;
-				}
-
-				if (dmonth != cl.Value.Month)
-				{
-					continue;
-				}
-
-				return true;
-			}
-
-			return false;
+			return d.HasValue;
 		}
+
+        protected virtual NullableDateTime FindExcludedDateByMonthAndDay(DateTime day)
+        {
+            int dmonth = day.Month;
+            int dday = day.Day;
+
+            if (!dataSorted)
+            {
+                excludeDays.Sort();
+                dataSorted = true;
+            } 
+            
+            foreach (DateTime cl in excludeDays)
+            {
+                // remember, the list is sorted
+                if (dmonth < cl.Month)
+                {
+                    return null;
+                }
+
+                if (dday != cl.Day)
+                {
+                    continue;
+                }
+
+                if (dmonth != cl.Month)
+                {
+                    continue;
+                }
+
+                return cl;
+            }
+
+            // not found
+            return null;
+        }
 
 		/// <summary>
 		/// Redefine a certain day to be excluded (true) or included (false).
 		/// </summary>
-		public virtual void SetDayExcluded(NullableDateTime day, bool exclude)
+		public virtual void SetDayExcluded(DateTime day, bool exclude)
 		{
-			if (IsDayExcluded(day))
+            if (exclude)
 			{
-				return;
+				if (!IsDayExcluded(day))
+				{
+                    excludeDays.Add(day.Date);
+				}
 			}
-
-			excludeDays.Add(day);
+            else
+            {
+                // include
+                // find first, year may vary
+                NullableDateTime d = FindExcludedDateByMonthAndDay(day);
+                if (d.HasValue)
+                {
+                     excludeDays.Remove(d.Value);
+                }
+            }
 			dataSorted = false;
 		}
 

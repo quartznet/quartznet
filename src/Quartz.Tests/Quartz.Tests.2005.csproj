@@ -107,14 +107,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TestUtil.cs" />
-    <Compile Include="Unit\AnnualCalendarTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Unit\CollectionUtilTest.cs" />
     <Compile Include="Unit\Core\QuartzSchedulerTest.cs" />
     <Compile Include="Unit\CronExpressionTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Unit\Impl\Calendar\AnnualCalendarTest.cs" />
     <Compile Include="Unit\Impl\Calendar\DailyCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -139,9 +137,7 @@
     <Compile Include="Unit\SimpleTriggerTest.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Unit\Simpl\PropertySettingJobFactoryTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
+    <Compile Include="Unit\Simpl\PropertySettingJobFactoryTest.cs" />
     <Compile Include="Unit\Simpl\RAMJobStoreTest.cs">
       <SubType>Code</SubType>
     </Compile>
