@@ -106,9 +106,13 @@ one most convenient to what you want to accomplish.
 
 <h2>SimpleTrigger Misfire Instructions</h2>
 <p>
-SimpleTrigger has several instructions that can be used to inform Quartz what it should do when a misfire occurs. (Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined as constants on SimpleTrigger itself (including JavaDOC describing their behavior). The instructions include:
-Misfire Instruction Constants of SimpleTrigger
+SimpleTrigger has several instructions that can be used to inform Quartz what it should do when a misfire occurs. 
+(Misfire situations were introduced in the More About Triggers section of this tutorial). 
+These instructions are defined as constants on SimpleTrigger itself (including API documentation describing their behavior). 
+The instructions include: 
 </p>
+
+<strong>Misfire Instruction Constants of SimpleTrigger</strong>
 
 <div class="code">
 MISFIRE_INSTRUCTION_FIRE_NOW

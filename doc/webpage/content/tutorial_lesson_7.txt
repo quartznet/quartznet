@@ -67,14 +67,14 @@ need to be re-registered with the scheduler.
 
 <strong>Adding a JobListener to the Scheduler</strong>
 
-<code>scheduler.addGlobalJobListener(myJobListener);</code>
+<code>scheduler.AddGlobalJobListener(myJobListener);</code>
 
 or
 
 <code>scheduler.AddJobListener(myJobListener);</code>
 
 <p>
-Listeners are not used by most users of Quartz, but are handy when application requirements create the need
+Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.
 <p>
 

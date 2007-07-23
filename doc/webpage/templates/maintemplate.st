@@ -66,10 +66,17 @@
 			<h1>Related</h1>
 			<ul>
 				<li><a href="http://sourceforge.net/projects/quartznet">Source Forge Project</a></li>
-				<li><a href="http://quartznet.svn.sourceforge.net/viewvc/quartznet/">Source Code</a></li>
+				<li><a href="http://fisheye3.cenqua.com/browse/quartznet">FishEye Source Code Browsing</a></li>
 				<li><a href="http://jira.opensymphony.com/browse/QRTZNET">JIRA Issue Tracking</a></li>
 			</ul>
 
+			<p align="center">
+				<br />
+				<br />
+				<a href="http://www.cenqua.com"><img src="http://www.cenqua.com/images/cenquad1.gif" width="89" height="33" border="0" alt="Supported by Cenqua"/></a> 
+			</p>
+
+			
 			<p align="right">
 				<br />
 				<br />

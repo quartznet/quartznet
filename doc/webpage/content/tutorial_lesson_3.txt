@@ -1,15 +1,22 @@
 <h1>Lesson 3: More About Jobs & JobDetails</h1>
 <p>
-As you've seen, Jobs are rather easy to implement. There are just a few more things that you need to understand about the nature of jobs, about the Execute(..) method of the IJob interface, and about JobDetails.
+As you've seen, jobs are rather easy to implement. There are just a few more things that you need to understand about 
+the nature of jobs, about the Execute(..) method of the IJob interface, and about JobDetails.
 </p>
 <p>
-While a class that you implement is the actual "job", Quartz needs to be informed about various attributes that you may wish the job to have. This is done via the JobDetail class, which was mentioned briefly in the previous section. Software 'archaeologists' may be interested to know that in an older incarnation of Quartz, the implementation of the functionality of JobDetail was imposed upon the implementor of each Job class by having all of JobDetail's 'getter' methods on the Job interface itself. This forced a cumbersome job of re-implementing virtually identical code on every Job class - which was really dumb... thus we created the JobDetail class.
+While a class that you implement is the actual "job", Quartz needs to be informed about various attributes 
+that you may wish the job to have. This is done via the JobDetail class, which was mentioned briefly in the previous section.
+Software 'archaeologists' may be interested to know that in an older incarnation of Quartz for Java, the implementation of the
+functionality of JobDetail was imposed upon the implementor of each Job class by having all of JobDetail's 'getter' methods on
+the Job interface itself. This forced a cumbersome job of re-implementing virtually identical code on every Job class - 
+which was really dumb... thus JobDetail class was created.
 </p>
 <p>
-Let's take a moment now to discuss a bit about the 'nature' of Jobs and the life-cycle of job instances within Quartz. First lets take a look back at some of that snippet of code we saw in Lesson 1:
+Let's take a moment now to discuss a bit about the 'nature' of jobs and the life-cycle of job instances within Quartz.NET. 
+First lets take a look back at some of that snippet of code we saw in Lesson 1:
 </p>
 <p>
-<strong>Using Quartz</strong>
+<strong>Using Quartz.NET</strong>
 <div class='code'>
 	<font color='darkgreen'>//&nbsp;construct&nbsp;a&nbsp;scheduler&nbsp;factory<br />
 	</font><font color='black'>ISchedulerFactory&nbsp;schedFact&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>StdSchedulerFactory()</font><font color='blue'>;<br />
@@ -63,7 +70,7 @@ which is part of the JobDetail object.
 <h2>JobDataMap</h2>
 <p>
 The JobDataMap can be used to hold any number of (serializable) objects which you wish to have made available 
-to the job instance when it executes. JobDataMap is an implementation of the Java Map interface, and has some added convenience methods for storing and retreiving data of primitive types.
+to the job instance when it executes. JobDataMap is an implementation of the IDictionary interface, and has some added convenience methods for storing and retreiving data of primitive types.
 </p>
 
 <p>
@@ -104,7 +111,7 @@ Here's a quick example of getting data from the JobDataMap during the job's exec
 <p>
 If you use a persistent JobStore (discussed in the JobStore section of this tutorial) you should use some care
 in deciding what you place in the JobDataMap, because the object in it will be serialized, and they therefore 
-become prone to class-versioning problems. Obviously standard Java types should be very safe, but beyond that, 
+become prone to class-versioning problems. Obviously standard .NET types should be very safe, but beyond that, 
 anytime someone changes the definition of a class for which you have serialized instances, care has to be taken
 not to break compatibility. Optionally, you can put AdoJobStore and JobDataMap into a mode where only primitives 
 and strings can be stored in the map, thus eliminating any possibility of later serialization problems.
@@ -193,7 +200,7 @@ Here's a quick summary of the other properties which can be defined for a job in
 <h2>The Job.Execute(..) Method</h2>
 
 <p>
-Finally, we need to inform you of a few details of the Job.execute(..) method. The only type of exception (including RuntimeExceptions) 
+Finally, we need to inform you of a few details of the IJob.Execute(..) method. The only type of exception
 that you are allowed to throw from the execute method is the JobExecutionException. Because of this, you should generally wrap the entire
 contents of the execute method with a 'try-catch' block. You should also spend some time looking at the documentation for the 
 JobExecutionException, as your job can use it to provide the scheduler various directives as to how you want the exception to be handled.

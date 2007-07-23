@@ -2,7 +2,7 @@
 
 <p>
 Like jobs, triggers are relatively easy to work with, but do contain a variety of customizable options that you need to
-be aware of and understand before you can make full use of Quartz. Also, as noted earlier, there are different types of triggers, 
+be aware of and understand before you can make full use of Quartz.NET. Also, as noted earlier, there are different types of triggers, 
 that you can select to meet different scheduling needs.
 </p>
 
@@ -41,7 +41,7 @@ This means that calendars can 'block out' sections of time as narrow as a millis
 
 <p>
 Calendars must be instantiated and registered with the scheduler via the AddCalendar(..) method. If you use HolidayCalendar, 
-after instantiating it, you should use its addExcludedDate(Date date) method in order to populate it with the days you wish 
+after instantiating it, you should use its AddExcludedDate(DateTime date) method in order to populate it with the days you wish 
 to have excluded from scheduling. The same calendar instance can be used with multiple triggers such as this:
 </p>
 
@@ -82,45 +82,49 @@ occurred during the period excluded by the calendar will be skipped.
 <h2>Priority</h2>
 
 <p>
-<strong>This feature is not yet implemented</strong>
+Sometimes, when you have many Triggers (or few worker threads in your Quartz.NET thread pool), Quartz.NET may not have enough resources to 
+immediately fire all of the Triggers that are scheduled to fire at the same time.  In this case, you may want to control 
+which of your Triggers get first crack at the available Quartz.NET worker threads.  For this purpose, you can set the priority property on a Trigger.
+If N Triggers are to fire at the same time, but there are only Z worker threads currently available, then the first Z Triggers with the highest priority will get first dibs.
+If you do not set a priority on a Trigger, then it will use the default priority of 5. 
+Any integer value is allowed for priority, positive or negative.
 </p>
 
-<!-- TODO
-Sometimes, when you have many Triggers (or few worker threads in your Quartz thread pool), Quartz may not have enough resources to immediately fire all of the Triggers that are scheduled to fire at the same time.  In this case, you may want to control which of your Triggers get first crack at the available Quartz worker threads.  For this purpose, you can set the priority property on a Trigger.  If N Triggers are to fire at the same time, but there are only Z worker threads currently available, then the first Z Triggers with the highest priority will get first dibs.  If you do not set a priority on a Trigger, then it will use the default priority of 5.  Any integer value is allowed for priority, positive or negative.
-
+<p>
 Note: When a Trigger is detected to require recovery, its recovery is scheduled with the same priority as the original Trigger.
-Priority Example
+</p>
 
-// All three Triggers will be scheduled to fire 5 minutes from now.
- Calendar cal = Calendar.getInstance();
- cal.add(Calendar.MINUTE, 5);
+<strong>Priority Example</strong>
 
- Trigger trig1 = new SimpleTrigger("T1", "MyGroup", cal.getTime());
- Trigger trig2 = new SimpleTrigger("T2", "MyGroup", cal.getTime());
- Trigger trig3 = new SimpleTrigger("T3", "MyGroup", cal.getTime());
+<div class='code'>
+<font color='darkgreen'>//&nbsp;All&nbsp;three&nbsp;Triggers&nbsp;will&nbsp;be&nbsp;scheduled&nbsp;to&nbsp;fire&nbsp;5&nbsp;minutes&nbsp;from&nbsp;now.<br />
+</font><font color='black'>DateTime&nbsp;d&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>DateTime.Now.AddMinutes(</font><font color='maroon'>5</font><font color='black'>)</font><font color='blue'>;<br />
+<br />
+</font><font color='black'>Trigger&nbsp;trig1&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>SimpleTrigger(</font><font color='#808080'>"T1"</font><font color='black'>,&nbsp;</font><font color='#808080'>"MyGroup"</font><font color='black'>,&nbsp;d)</font><font color='blue'>;<br />
+</font><font color='black'>Trigger&nbsp;trig2&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>SimpleTrigger(</font><font color='#808080'>"T2"</font><font color='black'>,&nbsp;</font><font color='#808080'>"MyGroup"</font><font color='black'>,&nbsp;d)</font><font color='blue'>;<br />
+</font><font color='black'>Trigger&nbsp;trig3&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>SimpleTrigger(</font><font color='#808080'>"T3"</font><font color='black'>,&nbsp;</font><font color='#808080'>"MyGroup"</font><font color='black'>,&nbsp;d)</font><font color='blue'>;<br />
+<br />
+</font><font color='black'>JobDetail&nbsp;jobDetail&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>JobDetail(</font><font color='#808080'>"MyJob"</font><font color='black'>,&nbsp;</font><font color='#808080'>"MyGroup"</font><font color='black'>,&nbsp;</font><font color='blue'>typeof</font><font color='black'>(NoOpJob))</font><font color='blue'>;<br />
+<br />
+</font><font color='darkgreen'>//&nbsp;Trigger1&nbsp;does&nbsp;not&nbsp;have&nbsp;its&nbsp;priority&nbsp;set,&nbsp;so&nbsp;it&nbsp;defaults&nbsp;to&nbsp;5<br />
+</font><font color='black'>sched.ScheduleJob(jobDetail,&nbsp;trig1)</font><font color='blue'>;<br />
+<br />
+</font><font color='darkgreen'>//&nbsp;Trigger2&nbsp;has&nbsp;its&nbsp;priority&nbsp;set&nbsp;to&nbsp;10<br />
+</font><font color='black'>trig2.JobName&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>jobDetail.Name</font><font color='blue'>;<br />
+</font><font color='black'>trig2.Priority&nbsp;</font><font color='blue'>=&nbsp;</font><font color='maroon'>10</font><font color='blue'>;<br />
+</font><font color='black'>sched.ScheduleJob(trig2)</font><font color='blue'>;<br />
+<br />
+</font><font color='darkgreen'>//&nbsp;Trigger2&nbsp;has&nbsp;its&nbsp;priority&nbsp;set&nbsp;to&nbsp;-40<br />
+</font><font color='black'>trig3.JobName&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>jobDetail.Name</font><font color='blue'>;<br />
+</font><font color='black'>trig2.Priority&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>-</font><font color='maroon'>40</font><font color='blue'>;<br />
+</font><font color='black'>sched.ScheduleJob(trig3)</font><font color='blue'>;<br />
+<br />
+</font><font color='darkgreen'>//&nbsp;Five&nbsp;minutes&nbsp;from&nbsp;now,&nbsp;when&nbsp;the&nbsp;scheduler&nbsp;invokes&nbsp;these&nbsp;three&nbsp;triggers<br />
+//&nbsp;they&nbsp;will&nbsp;be&nbsp;allocated&nbsp;worker&nbsp;threads&nbsp;in&nbsp;decreasing&nbsp;order&nbsp;of&nbsp;their<br />
+//&nbsp;priority:&nbsp;Trigger2(10),&nbsp;Trigger1(5),&nbsp;Trigger3(-40)</font>
+</div>
 
- JobDetail jobDetail = new JobDetail("MyJob", "MyGroup", NoOpJob.class);
 
- // Trigger1 does not have its priority set, so it defaults to 5
- sched.scheduleJob(jobDetail, trig1);
-
- // Trigger2 has its priority set to 10
- trig2.setJobName(jobDetail.getName());
- trig2.setPriority(10);
- sched.scheduleJob(trig2);
-
- // Trigger2 has its priority set to -40
- trig3.setJobName(jobDetail.getName());
- trig2.setPriority(-40);
- sched.scheduleJob(trig3);
-
- // Five minutes from now, when the scheduler invokes these three triggers
- // they will be allocated worker threads in decreasing order of their
- // priority: Trigger2(10), Trigger1(5), Trigger3(-40)
-
- -->
-
- 
 <h2>Misfire Instructions</h2>
 
 <p>
@@ -141,13 +145,13 @@ using the MisfireInstruction property.
 <h2>TriggerUtils - Triggers Made Easy</h2>
 
 <p>
-The TriggerUtils class (in the org.quartz package) contains conveniences to help you create triggers and dates without 
+The TriggerUtils class contains conveniences to help you create triggers and dates without 
 having to monkey around with DateTime objects. Use this class to easily make triggers that fire every minute, 
 hour, day, week, month, etc. Also use this class to generate dates that are rounded to the nearest second, minute or hour - 
 this can be very useful for setting trigger start-times.
 </p>
 
-<h2>TriggerListeners</h2>
+<h2>Trigger Listeners</h2>
 <p>
 Finally, triggers may have registered listeners, just as jobs may. Objects implementing the ITriggerListener interface 
 will receive notifications as a trigger is fired.

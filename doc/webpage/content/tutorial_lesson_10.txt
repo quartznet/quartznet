@@ -35,9 +35,9 @@ there is no available thread for the duration of the scheduler's configured "mis
 </p>
 
 <p>
-A ThreadPool interface is defined in the org.quartz.spi package, and you can create a ThreadPool implementation in any way you like. 
-Quartz ships with a simple (but very satisfactory) thread pool named org.quartz.simpl.SimpleThreadPool. 
-This ThreadPool simply maintains a fixed set of threads in its pool - never grows, never shrinks. 
+A IThreadPool interface is defined in the Quartz.Spi namespace, and you can create a IThreadPool implementation in any way you like. 
+Quartz ships with a simple (but very satisfactory) thread pool named Quartz.Simpl.SimpleThreadPool. 
+This IThreadPool implementation simply maintains a fixed set of threads in its pool - never grows, never shrinks. 
 But it is otherwise quite robust and is very well tested - as nearly everyone using Quartz uses this pool.
 </p>
 
@@ -46,17 +46,15 @@ JobStores and DataSrouces were discussed in Lesson 9 of this tutorial. Worth not
 implement the IJobStore interface - and that if one of the bundled JobStores does not fit your needs, then you can make your own.
 </p>
 <p>
-Finally, you need to create your Scheduler instance. The Scheduler itself needs to be given a name, told its RMI settings, and handed 
-instances of a JobStore and ThreadPool. The RMI settings include whether the Scheduler should create itself as an RMI server object 
-(make itself available to remote connections), what host and port to use, etc.. StdSchedulerFactory (discussed below) can also produce 
-Scheduler instances that are actually proxies (RMI stubs) to Schedulers created in remote processes.
+Finally, you need to create your Scheduler instance. The Scheduler itself needs to be given a name and handed 
+instances of a JobStore and ThreadPool.
 </p>
 
 <h2>StdSchedulerFactory</h2>
 <p>
-StdSchedulerFactory is an implementation of the org.quartz.SchedulerFactory interface. 
-It uses a set of properties (java.util.Properties) to create and initialize a Quartz Scheduler. 
-¨The properties are generally stored in and loaded from a file, but can also be created by your program and handed directly to the factory. 
+StdSchedulerFactory is an implementation of the ISchedulerFactory interface. 
+It uses a set of properties (NameValueCollection) to create and initialize a Quartz Scheduler. 
+The properties are generally stored in and loaded from a file, but can also be created by your program and handed directly to the factory. 
 Simply calling getScheduler() on the factory will produce the scheduler, initialize it (and its ThreadPool, JobStore and DataSources), 
 and return a handle to its public interface.
 </p>
@@ -77,16 +75,14 @@ configuration - or in other words, you end up hard-coding all of the scheduler's
 
 
 <h2>Logging</h2>
-TODO
-<!--
+
 <p>
-Quartz uses the org.apache.commons.logging framework for all of its logging needs. 
+Quartz.NET uses the <a href="http://netcommon.sourceforge.net/">Common.Logging framework</a> for all of its logging needs. 
 Quartz does not produce much logging information - generally just some information during initialization, and 
 then only messages about serious problems while Jobs are executing. In order to "tune" the logging settings 
-(such as the amount of output, and where the output goes), you need to understand the Jakarta Commons Logging framework, 
-which is beyond the scope of this document.
+(such as the amount of output, and where the output goes), you need to understand the Commmon.Logging framework, 
+which is beyond the scope of this document, please refer to <a href="http://netcommon.sourceforge.net/documentation.html">Common.Logging Documentation</a>.
 </p>
--->
 
 <p>
 <a href="tutorial_lesson_9.html">&laquo; Lesson 9</a> | <a href="tutorial_lesson_11.html">Lesson 11 &raquo;</a>  

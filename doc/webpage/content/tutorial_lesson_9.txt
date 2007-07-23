@@ -3,7 +3,7 @@
 
 <p>
 JobStore's are responsible for keeping track of all the "work data" that you give to the scheduler: 
-jobs, triggers, calendars, etc. Selecting the appropriate JobStore for your Quartz scheduler instance is an important step. 
+jobs, triggers, calendars, etc. Selecting the appropriate IJobStore implementation for your Quartz scheduler instance is an important step. 
 Luckily, the choice should be a very easy one once you understand the differences between them. 
 You declare which JobStore your scheduler should use (and it's configuration settings) in the properties file (or object) that
 you provide to the SchedulerFactory that you use to produce your scheduler instance.
@@ -23,15 +23,8 @@ the scheduling information is lost - this means RAMJobStore cannot honor the set
 For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disasterous.
 </p>
 <p>
-To use RAMJobStore (and assuming you're using StdSchedulerFactory) simply specify the class name RAMJobStore as the JobStore 
-class property that you use to configure quartz:
-
-<strong>Configuring Quartz to use RAMJobStore</strong>
-
-org.quartz.jobStore.class = org.quartz.simpl.RAMJobStore
-
-<p>
-There are no other settings you need to worry about.
+To use RAMJobStore (and assuming you're using StdSchedulerFactory) you don't need to do anything special. Default configuration
+of Quartz.NET uses RAMJobStore as job store implementation.
 </p>
 
 <h2>AdoobStore</h2>

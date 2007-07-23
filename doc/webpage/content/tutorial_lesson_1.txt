@@ -2,7 +2,7 @@
 
 <p>
 Before you can use the scheduler, it needs to be instantiated (who'd have guessed?). 
-To do this, you use a SchedulerFactory. 
+To do this, you use an implementor of ISchedulerFactory. 
 </p>
 <p>
 Once a scheduler is instantiated, it can be started, placed in stand-by mode, and shutdown.
@@ -15,7 +15,7 @@ in the paused state.
 Here's a quick snippet of code, that instantiates and starts a scheduler, and schedules a job for execution:
 </p>
 <p>
-<strong>Using Quartz</strong>
+<strong>Using Quartz.NET</strong>
 <div class='code'>
 	<font color='darkgreen'>//&nbsp;construct&nbsp;a&nbsp;scheduler&nbsp;factory<br />
 	</font><font color='black'>ISchedulerFactory&nbsp;schedFact&nbsp;</font><font color='blue'>=&nbsp;new&nbsp;</font><font color='black'>StdSchedulerFactory()</font><font color='blue'>;<br />
@@ -38,7 +38,7 @@ Here's a quick snippet of code, that instantiates and starts a scheduler, and sc
 
 </p>
 <p>
-As you can see, working with quartz is rather simple. In <a href="tutorial_lesson_2.html">Lesson 2</a> we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
+As you can see, working with Quartz.NET is rather simple. In <a href="tutorial_lesson_2.html">Lesson 2</a> we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
 </p>
 <p>
 <a href="tutorial_lesson_2.html">Lesson 2 &raquo;</a>  

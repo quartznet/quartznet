@@ -2,11 +2,11 @@
 
 <p> 
 As mentioned previously, you can make .NET component executable by the scheduler simply by making it
-implement the Job interface. Here is the interface:
+implement the IJob interface. Here is the interface:
 </p>
 
 <p>
-	<strong>Job Interface</strong>
+	<strong>IJob Interface</strong>
 	<div class='code'>
 		<font color='blue'>namespace&nbsp;</font><font color='black'>Quartz<br />
 		{<br />
@@ -19,7 +19,7 @@ implement the Job interface. Here is the interface:
 </p>
 
 <p> 
-In case you couldn't guess, when the Job's trigger fires (more on that in a moment), the Execute(..) method
+In case you couldn't guess, when the job's trigger fires (more on that in a moment), the Execute(..) method
 is invoked by the scheduler. The JobExecutionContext object that is passed to this method provides 
 the job instance with information about its "run-time" environment - a handle to the IScheduler that executed it,
 a handle to the Trigger that triggered the execution, the job's JobDetail object, and a few other items.
@@ -46,12 +46,12 @@ at noon" or "at 10:15 on the 10th day of every month."
 <p> 
 Many job schedulers do not have separate notions of jobs and triggers. Some define a 'job' as simply an 
 execution time (or schedule) along with some small job identifier. Others are much like the union 
-of Quartz.NET's job and trigger objects. While developing Quartz.NET, we decided that it made sense to create 
+of Quartz.NET's job and trigger objects. While developing Quartz for Java, Quartz team decided that it made sense to create 
 a separation between the schedule and the work to be performed on that schedule. This has (in our opinion) 
 many benefits.
 </p> 
 <p> 
-For example, Jobs can be created and stored in the job scheduler independent of a trigger, and many triggers 
+For example, jobs can be created and stored in the job scheduler independent of a trigger, and many triggers 
 can be associated with the same job. Another benefit of this loose-coupling is the ability to configure jobs 
 that remain in the scheduler after their associated triggers have expired, so that that it can be rescheduled 
 later, without having to re-define it. It also allows you to modify or replace a trigger without having to 

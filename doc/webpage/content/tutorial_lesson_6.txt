@@ -57,7 +57,7 @@ starting at minute three' - or in other words it is the same as specifying '3,23
 <p>
 The '?' character is allowed for the day-of-month and day-of-week fields. It is used to specify "no specific value". 
 This is useful when you need to specify something in one of the two fields, but not the other. 
-See the examples below (and CronTrigger JavaDOC) for clarification.
+See the examples below (and CronTrigger API documentation) for clarification.
 </p>
 <p>
 The 'L' character is allowed for the day-of-month and day-of-week fields. This character is short-hand for "last", 
@@ -77,7 +77,7 @@ The '#' is used to specify "the nth" XXX weekday of the month. For example, the 
 <h2>Example Cron Expressions</h2>
 
 <p>
-Here are a few more examples of expressions and their meanings - you can find even more in the JavaDOC for CronTrigger
+Here are a few more examples of expressions and their meanings - you can find even more in the API documentation for CronTrigger
 </p>
 
 <strong>CronTrigger Example 1 - an expression to create a trigger that simply fires every 5 minutes</strong>
