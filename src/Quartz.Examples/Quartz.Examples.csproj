@@ -179,6 +179,16 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "example14\PriorityExample.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "example14\TriggerEchoJob.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "example2\SimpleJob.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

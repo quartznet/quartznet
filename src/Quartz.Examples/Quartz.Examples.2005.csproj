@@ -100,6 +100,16 @@
     <Compile Include="ConsoleMain.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="example10\PlugInExample.cs" />
+    <Compile Include="example10\SimpleJob.cs" />
+    <Compile Include="example11\LoadExample.cs" />
+    <Compile Include="example11\SimpleJob.cs" />
+    <Compile Include="example12\RemoteClientExample.cs" />
+    <Compile Include="example12\RemoteServerExample.cs" />
+    <Compile Include="example12\SimpleJob.cs" />
+    <Compile Include="example13\ClusterExample.cs" />
+    <Compile Include="example13\SimpleRecoveryJob.cs" />
+    <Compile Include="example13\SimpleRecoveryStatefulJob.cs" />
     <Compile Include="example1\HelloJob.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -175,6 +185,10 @@
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
       <Name>Quartz.2005</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="example14\PriorityExample.cs" />
+    <Compile Include="example14\TriggerEchoJob.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

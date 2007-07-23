@@ -161,6 +161,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Unit\Core\QuartzSchedulerTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Unit\Impl\DirectSchedulerFactoryTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
