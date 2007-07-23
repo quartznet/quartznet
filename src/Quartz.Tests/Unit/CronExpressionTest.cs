@@ -140,6 +140,18 @@ namespace Quartz.Tests.Unit
             TestCorrectWeekFireDays(cronExpression, juneDays);
         }
 
+        [Test]
+        public void TestHourShift()
+        {
+            // Grafit reported a problem
+            // cronexpression that fires every 5 seconds
+            CronExpression cronExpression = new CronExpression("0/5 * * * * ?");
+            DateTime cal = new DateTime(2005, 6, 1, 1, 59, 55);
+            DateTime nextExpectedFireTime = new DateTime(2005, 6, 1, 2, 0, 0);
+            NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
+            Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
+        }
+
         private static void TestCorrectWeekFireDays(CronExpression cronExpression, ArrayList correctFireDays)
         {
             ArrayList fireDays = new ArrayList();

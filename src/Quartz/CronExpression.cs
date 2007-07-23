@@ -1450,7 +1450,6 @@ namespace Quartz
                 ISortedSet st;
                 int t;
                 int sec = d.Second;
-                int min = d.Minute;
 
                 // get second.................................................
                 st = seconds.TailSet(sec);
@@ -1461,12 +1460,11 @@ namespace Quartz
                 else
                 {
                     sec = ((int) seconds.First());
-                    min++;
-                    d = new DateTime(d.Year, d.Month, d.Day, d.Hour, min, d.Second, d.Millisecond);
+                    d = d.AddMinutes(1);
                 }
                 d = new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, sec, d.Millisecond);
 
-                min = d.Minute;
+                int min = d.Minute;
                 int hr = d.Hour;
                 t = -1;
 
