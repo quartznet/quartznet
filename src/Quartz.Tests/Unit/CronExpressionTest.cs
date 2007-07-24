@@ -162,6 +162,15 @@ namespace Quartz.Tests.Unit
             ce.IsSatisfiedBy(DateTime.Now.AddMinutes(2));
         }
 
+        [Test]
+        public void TestCronExpressionWithExtraWhiteSpace()
+        {
+            // test failed before because of improper trimming
+            string expr = " 30 *   * * * * *  ";
+            CronExpression calendar = new CronExpression(expr);
+            Assert.IsFalse(calendar.IsSatisfiedBy(DateTime.Now.AddMinutes(2)), "Time was included");
+        }
+
         private static void TestCorrectWeekFireDays(CronExpression cronExpression, ArrayList correctFireDays)
         {
             ArrayList fireDays = new ArrayList();

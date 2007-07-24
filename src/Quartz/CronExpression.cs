@@ -531,7 +531,7 @@ namespace Quartz
 
                 int exprOn = SECOND;
 
-                string[] exprsTok = expression.Trim().Split(' ', '\t');
+                string[] exprsTok = expression.Trim().Split(new char[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (string expr in exprsTok)
                 {
