@@ -22,6 +22,7 @@
 using System;
 using System.Collections;
 using System.Collections.Specialized;
+using System.IO;
 
 using Quartz.Collection;
 
@@ -641,6 +642,42 @@ namespace Quartz.Util
             }
 
             return group;
+        }
+
+
+         /// <summary>
+        /// Reads the file from assembly (embedded resource).
+        /// </summary>
+        /// <param name="resourceName">The file name to read resources from.</param>
+        /// <returns></returns>
+        public static PropertiesParser ReadFromEmbeddedAssemblyResource(string resourceName)
+        {
+            NameValueCollection props = new NameValueCollection();
+            using (StreamReader sr = new StreamReader(typeof(IScheduler).Assembly.GetManifestResourceStream(resourceName)))
+            {
+                string line;
+                while ((line = sr.ReadLine()) != null)
+                {
+                    line = line.TrimStart();
+
+                    if (line.StartsWith("#"))
+                    {
+                        // comment line 
+                        continue;
+                    }
+                    if (line.StartsWith("!END"))
+                    {
+                        // special end condition
+                        break;
+                    }
+                    string[] lineItems = line.Split(new char[] { '=' }, 2);
+                    if (lineItems.Length == 2)
+                    {
+                        props[lineItems[0].Trim()] = lineItems[1].Trim();
+                    }
+                }
+            }
+            return new PropertiesParser(props);
         }
 	}
 }

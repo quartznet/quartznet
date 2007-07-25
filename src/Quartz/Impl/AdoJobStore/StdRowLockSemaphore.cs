@@ -26,6 +26,7 @@ using System.Threading;
 using Common.Logging;
 
 using Quartz.Collection;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -47,8 +48,8 @@ namespace Quartz.Impl.AdoJobStore
 		*/
 
         public static readonly string SELECT_FOR_LOCK =
-            string.Format("SELECT * FROM {0}{1} WHERE {2} = ? FOR UPDATE", TABLE_PREFIX_SUBST, AdoConstants.TABLE_LOCKS,
-                          AdoConstants.COL_LOCK_NAME);
+            string.Format("SELECT * FROM {0}{1} WHERE {2} = {3} FOR UPDATE", TABLE_PREFIX_SUBST, AdoConstants.TABLE_LOCKS,
+                          AdoConstants.COL_LOCK_NAME, "{0}");
 
         /*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,7 +111,7 @@ namespace Quartz.Impl.AdoJobStore
         /// until it is available).
         /// </summary>
         /// <returns> true if the lock was obtained.</returns>
-        public virtual bool ObtainLock(IDbConnection conn, string lockName)
+        public virtual bool ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
         {
             lockName = String.Intern(lockName);
 
@@ -121,11 +122,18 @@ namespace Quartz.Impl.AdoJobStore
             if (!IsLockOwner(conn, lockName))
             {
                 
-                using (IDbCommand ps =conn.CreateCommand())
+                using (IDbCommand ps = conn.Connection.CreateCommand())
                 {
-                    ps.CommandText = selectWithLockSQL;
+                    ps.CommandText = string.Format(selectWithLockSQL, metadata.GetParameterName("lockName"));
                     ps.CommandType = CommandType.Text;
-                    ps.Parameters.Add(lockName);
+                    IDbDataParameter param =  ps.CreateParameter();
+                    param.Value = lockName;
+                    param.ParameterName = metadata.GetParameterName("lockName");
+                    ps.Parameters.Add(param);
+                    if (conn.Transaction != null)
+                    {
+                        ps.Transaction = conn.Transaction;
+                    }
 
                     try
                     {
@@ -175,7 +183,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary> Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
-        public virtual void ReleaseLock(IDbConnection conn, string lockName)
+        public virtual void ReleaseLock(ConnectionAndTransactionHolder conn, string lockName)
         {
             lockName = String.Intern(lockName);
 
@@ -201,7 +209,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Determine whether the calling thread owns a lock on the identified
         /// resource.
         /// </summary>
-        public virtual bool IsLockOwner(IDbConnection conn, string lockName)
+        public virtual bool IsLockOwner(ConnectionAndTransactionHolder conn, string lockName)
         {
             lockName = String.Intern(lockName);
 

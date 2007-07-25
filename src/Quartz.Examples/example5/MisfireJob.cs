@@ -38,7 +38,7 @@ namespace Quartz.Examples.Example5
 		
 	
 		/// <summary> <p>
-		/// Called by the <see cref="org.quartz.Scheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// </p>
 		/// 

@@ -30,7 +30,7 @@ namespace Quartz.Examples.Example10
 		private static ILog _log = LogManager.GetLogger(typeof(SimpleJob));
 
 		/// <summary>
-		/// Called by the <see cref="org.quartz.Scheduler" /> when a
+		/// Called by the <see cref="IScheduler" /> when a
 		/// <see cref="Trigger" /> fires that is associated with
 		/// the <see cref="IJob" />.
 		/// </summary>

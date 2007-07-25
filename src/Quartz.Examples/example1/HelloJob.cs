@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example1
 		}
 		
 		/// <summary> 
-		/// Called by the <see cref="org.quartz.Scheduler" /> when a
+		/// Called by the <see cref="IScheduler" /> when a
 		/// <see cref="Trigger" /> fires that is associated with
 		/// the <see cref="IJob" />.
 		/// </summary>
@@ -48,7 +48,7 @@ namespace Quartz.Examples.Example1
 		{
 			
 			// Say Hello to the World and display the date/time
-			_log.Info(string.Format("Hello World! - {0", System.DateTime.Now.ToString("r")));
+			_log.Info(string.Format("Hello World! - {0}", System.DateTime.Now.ToString("r")));
 		}
 
 	}

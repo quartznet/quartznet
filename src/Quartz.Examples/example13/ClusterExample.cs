@@ -23,8 +23,9 @@ using Quartz.Impl;
 namespace Quartz.Examples.Example13
 {
 	/// <summary> 
-	/// Used to test/show the clustering features of JDBCJobStore (JobStoreTX or
-	/// JobStoreCMT).
+	/// Used to test/show the clustering features of AdoJobStore.
+	/// </summary>
+	/// <remarks>
 	/// 
 	/// <p>
 	/// All instances MUST use a different properties file, because their instance
@@ -51,15 +52,14 @@ namespace Quartz.Examples.Example13
 	/// 
 	/// <p>
 	/// Also try running it with/without the shutdown-hook plugin registered with
-	/// the scheduler. (org.quartz.plugins.management.ShutdownHookPlugin).
+	/// the scheduler. (quartz.plugins.management.ShutdownHookPlugin).
 	/// </p>
 	/// 
 	/// <p>
 	/// <i>Note:</i> Never run clustering on separate machines, unless their
 	/// clocks are synchronized using some form of time-sync service (daemon).
 	/// </p>
-	/// 
-	/// </summary>
+    /// </remarks>
 	/// <author>James House</author>
 	public class ClusterExample : IExample
 	{
@@ -101,9 +101,12 @@ namespace Quartz.Examples.Example13
             properties["quartz.jobStore.class"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MSSQLDelegate, Quartz";
             properties["quartz.jobStore.useProperties"] = "false";
-		    properties["quartz.jobStore.connectionString"] = "";
+            properties["quartz.jobStore.dataSource"] = "default";
 		    properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
 		    properties["quartz.jobStore.clustered"] = "true";
+
+            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
+            properties["quartz.dataSource.default.provider"] = "SqlServer-11";
 
 			// First we must get a reference to a scheduler
 			ISchedulerFactory sf = new StdSchedulerFactory(properties);
@@ -190,13 +193,9 @@ namespace Quartz.Examples.Example13
 			_log.Info("------- Started Scheduler ----------------");
 
 			_log.Info("------- Waiting for one hour... ----------");
-			try
-			{
-				Thread.Sleep(new TimeSpan(10000*3600L*1000L));
-			}
-			catch
-			{
-			}
+
+			Thread.Sleep(TimeSpan.FromHours(1));
+
 
 			_log.Info("------- Shutting Down --------------------");
 			sched.Shutdown();

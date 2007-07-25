@@ -21,13 +21,10 @@ using Quartz;
 
 namespace Quartz.Examples.Example7
 {
-	
-	
 	/// <summary>
 	/// A dumb implementation of an InterruptableJob, for unittesting purposes.
 	/// </summary>
-	/// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a>
-	/// </author>
+	/// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	/// <author>Bill Kratzer</author>
 	public class DumbInterruptableJob : IInterruptableJob
 	{
@@ -41,7 +38,7 @@ namespace Quartz.Examples.Example7
 		
 		
 		/// <summary>
-		/// Called by the <see cref="org.quartz.Scheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// </summary>
 		public virtual void  Execute(JobExecutionContext context)

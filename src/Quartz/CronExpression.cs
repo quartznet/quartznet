@@ -531,10 +531,17 @@ namespace Quartz
 
                 int exprOn = SECOND;
 
+#if NET_20
                 string[] exprsTok = expression.Trim().Split(new char[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
+#else
+				string[] exprsTok = expression.Trim().Split(new char[] { ' ', '\t', '\r', '\n' });
+#endif
                 foreach (string expr in exprsTok)
                 {
+					if (expr.Trim().Length == 0)
+					{
+						continue;
+					}
                     if (exprOn > YEAR)
                     {
                         break;

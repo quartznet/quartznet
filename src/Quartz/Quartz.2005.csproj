@@ -334,9 +334,6 @@
     <Compile Include="Util\DirtyFlagMap.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Util\IConnectionProvider.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Util\Key.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -364,6 +361,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
+    <Compile Include="Impl\AdoJobStore\Common\DbMetadata.cs" />
+    <Compile Include="Impl\AdoJobStore\Common\DbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\FiredTriggerRecord.cs" />
@@ -386,6 +385,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="quartz.properties" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.properties" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

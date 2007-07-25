@@ -31,7 +31,7 @@ namespace Quartz.Examples.Example11
 		public const string DELAY_TIME = "delay time";
 
 		/// <summary> 
-		/// Called by the <see cref="org.quartz.Scheduler" /> when a
+		/// Called by the <see cref="IScheduler" /> when a
 		/// <see cref="Trigger" /> fires that is associated with
 		/// the <see cref="IJob" />.
 		/// </summary>

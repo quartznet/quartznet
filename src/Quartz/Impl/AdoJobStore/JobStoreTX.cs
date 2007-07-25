@@ -54,7 +54,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(cth.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, cth, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -86,7 +86,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -131,7 +131,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				if (LockOnInsert)
 				{
-					LockHandler.ObtainLock(cth.Connection, LOCK_TRIGGER_ACCESS);
+					LockHandler.ObtainLock(DbMetadata, cth, LOCK_TRIGGER_ACCESS);
 					transOwner = true;
 					//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 				}
@@ -182,7 +182,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				if (LockOnInsert || replaceExisting)
 				{
-					LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+					LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 					transOwner = true;
 					//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 				}
@@ -230,7 +230,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -303,7 +303,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				if (LockOnInsert || replaceExisting)
 				{
-					LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+					LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 					transOwner = true;
 					//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 				}
@@ -356,7 +356,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -389,7 +389,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -465,7 +465,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				if (LockOnInsert || updateTriggers)
 				{
-					LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+					LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 					lockOwner = true;
 				}
 
@@ -510,7 +510,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool lockOwner = false;
 			try 
 			{
-				LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+				LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				lockOwner = true;
 
 				bool removed = RemoveCalendar(conn.Connection, ctxt, calName);
@@ -905,7 +905,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -940,7 +940,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -975,7 +975,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1016,7 +1016,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1066,7 +1066,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1106,7 +1106,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1147,7 +1147,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1193,7 +1193,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1244,7 +1244,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1285,7 +1285,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1326,7 +1326,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1365,7 +1365,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1408,7 +1408,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1468,7 +1468,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool transOwner = false;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1501,7 +1501,7 @@ namespace Quartz.Impl.AdoJobStore
 			bool moreToDo;
 			try
 			{
-                LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 				transOwner = true;
 				//getLockHandler().ObtainLock(conn, LOCK_JOB_ACCESS);
 
@@ -1555,7 +1555,7 @@ namespace Quartz.Impl.AdoJobStore
             
 				if (firstCheckIn || (failedRecords != null && failedRecords.Count > 0)) 
 				{
-                    LockHandler.ObtainLock(conn.Connection, LOCK_STATE_ACCESS);
+                    LockHandler.ObtainLock(DbMetadata, conn, LOCK_STATE_ACCESS);
 					transStateOwner = true;
     
 					// Now that we own the lock, make sure we still have work to do. 
@@ -1564,7 +1564,7 @@ namespace Quartz.Impl.AdoJobStore
     
 					if (failedRecords.Count > 0) 
 					{
-                        LockHandler.ObtainLock(conn.Connection, LOCK_TRIGGER_ACCESS);
+                        LockHandler.ObtainLock(DbMetadata, conn, LOCK_TRIGGER_ACCESS);
 						//getLockHandler().obtainLock(conn, LOCK_JOB_ACCESS);
 						transOwner = true;
 

@@ -367,6 +367,115 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Impl\AdoJobStore\AdoConstants.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\FiredTriggerRecord.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\IDriverDelegate.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\InvalidConfigurationException.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\ISemaphore.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\ITablePrefixAware.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\JobStoreSupport.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\JobStoreTX.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\LockException.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\MSSQLDelegate.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\NoSuchDelegateException.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\SchedulerStateRecord.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\SimpleSemaphore.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\StdAdoConstants.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\StdAdoDelegate.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\StdRowLockSemaphore.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\Util.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\Common\DbMetadata.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\Common\DbProvider.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\Common\DbProviderFactory.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\Common\dbproviders.properties"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\Common\IDbProvider.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Impl\Calendar\AnnualCalendar.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -573,11 +682,6 @@
                 />
                 <File
                     RelPath = "Util\DirtyFlagMap.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Util\IConnectionProvider.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

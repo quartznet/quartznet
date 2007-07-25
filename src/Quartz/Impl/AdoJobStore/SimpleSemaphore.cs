@@ -27,6 +27,7 @@ using System.Threading;
 using Common.Logging;
 
 using Quartz.Collection;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -56,12 +57,12 @@ namespace Quartz.Impl.AdoJobStore
 
 		}
 
-		/// <summary> Grants a lock on the identified resource to the calling thread (blocking
+		/// <summary> 
+		/// Grants a lock on the identified resource to the calling thread (blocking
 		/// until it is available).
-		/// 
 		/// </summary>
 		/// <returns>True if the lock was obtained.</returns>
-		public virtual bool ObtainLock(IDbConnection conn, string lockName)
+		public virtual bool ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
 		{
 			lock (this)
 			{
@@ -111,7 +112,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		public virtual void ReleaseLock(IDbConnection conn, String lockName)
+		public virtual void ReleaseLock(ConnectionAndTransactionHolder conn, string lockName)
 		{
 			lock (this)
 			{
@@ -138,7 +139,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Determine whether the calling thread owns a lock on the identified
 		/// resource.
 		/// </summary>
-		public virtual bool IsLockOwner(IDbConnection conn, String lockName)
+		public virtual bool IsLockOwner(ConnectionAndTransactionHolder conn, String lockName)
 		{
 			lock (this)
 			{
@@ -149,7 +150,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 		
-		public virtual void init(IDbConnection conn, IList listOfLocks)
+		public virtual void Init(IDbConnection conn, IList listOfLocks)
 		{
 			// nothing to do...
 		}

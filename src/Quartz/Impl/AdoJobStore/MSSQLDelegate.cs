@@ -19,10 +19,6 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
-using System;
-using System.Data.OleDb;
-using System.IO;
-
 using Common.Logging;
 
 namespace Quartz.Impl.AdoJobStore

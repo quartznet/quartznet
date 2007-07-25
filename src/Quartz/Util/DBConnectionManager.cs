@@ -23,15 +23,16 @@ using System;
 using System.Collections;
 using System.Data;
 
+using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
+
 namespace Quartz.Util
 {
 	/// <summary>
-	/// Manages a collection of ConnectionProviders, and provides transparent access
-	/// to their connections.
-	/// 
+	/// Manages a collection of IDbProviders, and provides transparent access
+	/// to their database.
 	/// </summary>
-	/// <seealso cref="IConnectionProvider">
-	/// </seealso>
+	/// <seealso cref="IDbProvider" />
 	/// <author>James House</author>
 	/// <author>Sharada Jambula</author>
 	/// <author>Mohammad Rezaei</author>
@@ -52,7 +53,7 @@ namespace Quartz.Util
 			}
 		}
 
-		public const string DB_PROPS_PREFIX = "org.quartz.db.";
+		public const string DB_PROPS_PREFIX = "quartz.db.";
 		private static readonly DBConnectionManager instance = new DBConnectionManager();
 
 		private IDictionary providers = new Hashtable();
@@ -65,49 +66,55 @@ namespace Quartz.Util
 		{
 		}
 
-		public virtual void AddConnectionProvider(string dataSourceName, IConnectionProvider provider)
+        /// <summary>
+        /// Adds the connection provider.
+        /// </summary>
+        /// <param name="dataSourceName">Name of the data source.</param>
+        /// <param name="provider">The provider.</param>
+        public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
 		{
 			providers[dataSourceName] = provider;
 		}
 
-		/// <summary> Get a database connection from the DataSource with the given name.
-		/// 
+		/// <summary>
+		/// Get a database connection from the DataSource with the given name.
 		/// </summary>
-		/// <returns> a database connection
-		/// </returns>
-		/// <exception cref="Exception"> 
-		/// if an error occurs, or there is no DataSource with the
-		/// given name.
-		/// </exception>
+		/// <returns> a database connection </returns>
 		public virtual IDbConnection GetConnection(string dsName)
 		{
-			IConnectionProvider provider = (IConnectionProvider) providers[dsName];
+            IDbProvider provider = (IDbProvider)providers[dsName];
 			if (provider == null)
 			{
 				throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
 			}
 
-			return provider.Connection;
+			return provider.CreateConnection();
 		}
 
-		/// <summary> Shuts down database connections from the DataSource with the given name,
+		/// <summary> 
+		/// Shuts down database connections from the DataSource with the given name,
 		/// if applicable for the underlying provider.
-		/// 
 		/// </summary>
-		/// <returns> a database connection
-		/// </returns>
-		/// <exception cref="Exception"> 
-		/// if an error occurs, or there is no DataSource with the
-		/// given name.
-		/// </exception>
+		/// <returns> a database connection </returns>
 		public virtual void Shutdown(string dsName)
 		{
-			IConnectionProvider provider = (IConnectionProvider) providers[dsName];
+            IDbProvider provider = (IDbProvider)providers[dsName];
 			if (provider == null)
 			{
 				throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
 			}
 			provider.Shutdown();
 		}
+
+	    public DbMetadata GetDbMetadata(string dsName)
+	    {
+            IDbProvider provider = (IDbProvider)providers[dsName];
+            if (provider == null)
+            {
+                throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
+            }
+
+            return provider.Metadata;
+        }
 	}
 }

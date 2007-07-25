@@ -31,20 +31,20 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 			StdAdoDelegate del = new StdAdoDelegate(LogManager.GetLogger(GetType()), "QRTZ_", "INSTANCE");
 
 			JobDataMap jdm = new JobDataMap();
-			del.serializeJobData(jdm).close();
+			del.SerializeJobData(jdm);
 
 			jdm.Clear();
 			jdm.Put("key", "value");
 			jdm.Put("key2", null);
-			del.serializeJobData(jdm).close();
+			del.SerializeJobData(jdm);
 
 			jdm.Clear();
 			jdm.Put("key1", "value");
 			jdm.Put("key2", null);
-			jdm.Put("key3", new object());
+			jdm.Put("key3", new NonSerializableTestClass());
 			try
 			{
-				del.serializeJobData(jdm);
+				del.SerializeJobData(jdm);
 				Assert.Fail();
 			}
 			catch (SerializationException e)
@@ -52,5 +52,10 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 				Assert.IsTrue(e.Message.IndexOf("key3") >= 0);
 			}
 		}
+
+        class NonSerializableTestClass
+        {
+            
+        }
 	}
 }

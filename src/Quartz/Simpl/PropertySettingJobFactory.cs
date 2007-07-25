@@ -27,7 +27,7 @@ namespace Quartz.Simpl
 {
 	/// <summary> 
 	/// A JobFactory that instantiates the Job instance (using the default no-arg
-	/// constructor, or more specifically: <see cref="Activator.CreateInstance(Type)" />), and
+	/// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType" />), and
 	/// then attempts to set all values in the <see cref="JobExecutionContext" />'s
 	/// <see cref="JobDataMap" /> onto bean properties of the <see cref="IJob" />.
 	/// </summary>
@@ -37,6 +37,7 @@ namespace Quartz.Simpl
 	/// <seealso cref="WarnIfPropertyNotFound" />
 	/// <seealso cref="ThrowIfPropertyNotFound" />
 	/// <author>James Houser</author>
+	/// <author>Marko Lahma (.NET)</author>
 	public class PropertySettingJobFactory : SimpleJobFactory
 	{
 		private static readonly ILog Log = LogManager.GetLogger(typeof (PropertySettingJobFactory));

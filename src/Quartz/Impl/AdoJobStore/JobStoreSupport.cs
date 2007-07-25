@@ -31,28 +31,45 @@ using Nullables;
 
 using Quartz.Collection;
 using Quartz.Core;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class ConnectionAndTransactionHolder
     {
         private IDbConnection connection;
         private IDbTransaction transaction;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class.
+        /// </summary>
+        /// <param name="connection">The connection.</param>
+        /// <param name="transaction">The transaction.</param>
         public ConnectionAndTransactionHolder(IDbConnection connection, IDbTransaction transaction)
         {
             this.connection = connection;
             this.transaction = transaction;
         }
 
+        /// <summary>
+        /// Gets or sets the connection.
+        /// </summary>
+        /// <value>The connection.</value>
         public IDbConnection Connection
         {
             get { return connection; }
             set { connection = value; }
         }
 
+        /// <summary>
+        /// Gets or sets the transaction.
+        /// </summary>
+        /// <value>The transaction.</value>
         public IDbTransaction Transaction
         {
             get { return transaction; }
@@ -79,12 +96,12 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 		/// <summary> 
-		/// Get or set the ADO.NET connection string.
+		/// Get or set the datasource name.
 		/// </summary>
-		public virtual string ConnectionString
+		public virtual string DataSource
 		{
-			get { return connectionString; }
-			set { connectionString = value; }
+			get { return dataSource; }
+			set { dataSource = value; }
 		}
 
 		/// <summary> 
@@ -272,57 +289,59 @@ namespace Quartz.Impl.AdoJobStore
 			get { return classLoadHelper; }
 		}
 
+	    protected DbMetadata DbMetadata
+	    {
+	        get
+	        {
+	            return DBConnectionManager.Instance.GetDbMetadata(DataSource);
+	        }
+	    }
 
 		protected internal ConnectionAndTransactionHolder GetConnection()
 		{
 			try
 			{
-				IDbConnection conn = DBConnectionManager.Instance.GetConnection(ConnectionString);
+				IDbConnection conn = DBConnectionManager.Instance.GetConnection(DataSource);
                 IDbTransaction tx;
 
 				if (conn == null)
 				{
-					throw new JobPersistenceException("Could not get connection from DataSource '" + ConnectionString + "'");
+					throw new JobPersistenceException("Could not get connection from DataSource '" + DataSource + "'");
 				}
 
-				try
-				{
-					if (!DontSetAutoCommitFalse)
-					{
-						// TODO SupportClass.TransactionManager.manager.SetAutoCommit(conn, false);
-					}
+                try
+                {
+                    conn.Open();
 
-				    
-					if (TxIsolationLevelSerializable)
-					{
-					    tx = conn.BeginTransaction(IsolationLevel.Serializable);
-					}
+                    if (!DontSetAutoCommitFalse)
+                    {
+                        // TODO SupportClass.TransactionManager.manager.SetAutoCommit(conn, false);
+                    }
+
+
+                    if (TxIsolationLevelSerializable)
+                    {
+                        tx = conn.BeginTransaction(IsolationLevel.Serializable);
+                    }
                     else
-					{
-					    // default
-					    tx = conn.BeginTransaction();
-					}
-				}
-				catch (Exception e)
-				{
-					try
-					{
-						conn.Close();
-					}
-					catch
-					{
-					    ;
-					}
-					throw new JobPersistenceException(
-						"Failure setting up connection.", e);
-				}
+                    {
+                        // default
+                        tx = conn.BeginTransaction();
+                    }
+                }
+                catch (Exception e)
+                {
+                    conn.Close();
+                    throw new JobPersistenceException(
+                        "Failure setting up connection.", e);
+                }
 
-				return new ConnectionAndTransactionHolder(conn, tx);
+			    return new ConnectionAndTransactionHolder(conn, tx);
 			}
 			catch (Exception e)
 			{
 				throw new JobPersistenceException(
-					"Failed to obtain DB connection from data source '" + ConnectionString + "': " + e, e,
+					"Failed to obtain DB connection from data source '" + DataSource + "': " + e, e,
 					JobPersistenceException.ERR_PERSISTENCE_CRITICAL_FAILURE);
 			}
 		}
@@ -385,7 +404,7 @@ namespace Quartz.Impl.AdoJobStore
 					}
 					catch (Exception e)
 					{
-						throw new NoSuchDelegateException("Couldn't load delegate class: " + e.Message, e);
+						throw new NoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
 					}
 				}
 
@@ -425,7 +444,7 @@ namespace Quartz.Impl.AdoJobStore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-		protected internal string connectionString;
+		protected internal string dataSource;
 
 		protected internal string tablePrefix = DEFAULT_TABLE_PREFIX;
 
@@ -495,7 +514,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
 		{
-			if (connectionString == null)
+			if (dataSource == null)
 			{
 				throw new SchedulerConfigException("DataSource name not set.");
 			}
@@ -533,7 +552,7 @@ namespace Quartz.Impl.AdoJobStore
 			if (Clustered)
 			{
 				clusterManagementThread = new ClusterManager(this, this);
-				clusterManagementThread.initialize();
+				clusterManagementThread.Initialize();
 			}
 			else
 			{
@@ -548,20 +567,19 @@ namespace Quartz.Impl.AdoJobStore
 			}
 
 			misfireHandler = new MisfireHandler(this, this);
-			misfireHandler.initialize();
+			misfireHandler.Initialize();
 		}
 
-		/// <summary> <p>
+		/// <summary>
 		/// Called by the QuartzScheduler to inform the <code>JobStore</code> that
 		/// it should free up all of it's resources because the scheduler is
 		/// shutting down.
-		/// </p>
 		/// </summary>
 		public virtual void Shutdown()
 		{
 			if (clusterManagementThread != null)
 			{
-				clusterManagementThread.shutdown();
+				clusterManagementThread.Shutdown();
 			}
 
 			if (misfireHandler != null)
@@ -571,7 +589,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			try
 			{
-				DBConnectionManager.Instance.Shutdown(ConnectionString);
+				DBConnectionManager.Instance.Shutdown(DataSource);
 			}
 			catch (Exception sqle)
 			{
@@ -579,6 +597,11 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
+        /// <summary>
+        /// Indicates whether this job store supports persistence.
+        /// </summary>
+        /// <value></value>
+        /// <returns></returns>
 		public virtual bool SupportsPersistence
 		{
 			get { return true; }
@@ -595,7 +618,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				try
 				{
-					LockHandler.ReleaseLock(cth.Connection, lockName);
+					LockHandler.ReleaseLock(cth, lockName);
 				}
 				catch (LockException le)
 				{
@@ -1593,14 +1616,14 @@ namespace Quartz.Impl.AdoJobStore
 		*/
 
 		/// <summary>
-		/// Resume (un-pause) the <code>{@link org.quartz.Trigger}</code> with the
+		/// Resume (un-pause) the <see cref="Trigger" /> with the
 		/// given name.
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// If the <code>Trigger</code> missed one or more fire-times, then the
 		/// <code>Trigger</code>'s misfire instruction will be applied.
-		/// </p>
-		/// </summary>
-		/// <seealso cref="SchedulingContext()"/>
+        /// </remarks>
+		/// <seealso cref="SchedulingContext"/>
 		public virtual void ResumeTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
@@ -1690,7 +1713,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 		/// <summary>
-		/// Resume (un-pause) all of the <code>{@link org.quartz.Trigger}s</code>
+		/// Resume (un-pause) all of the <see cref="Trigger" />s
 		/// in the given group.
 		/// <p>
 		/// If any <code>Trigger</code> missed one or more fire-times, then the
@@ -2424,46 +2447,33 @@ namespace Quartz.Impl.AdoJobStore
 		/////////////////////////////////////////////////////////////////////////////
 		internal class ClusterManager : QuartzThread
 		{
-			private void InitBlock(JobStoreSupport enclosingInstanceParam)
-			{
-				enclosingInstance = enclosingInstanceParam;
-			}
-
-			private JobStoreSupport enclosingInstance;
-
-			public JobStoreSupport Enclosing_Instance
-			{
-				get { return enclosingInstance; }
-			}
-
-			private bool shutdown_Renamed_Field = false;
-
+	        private JobStoreSupport jobStoreSupport;
+			private bool shutdown = false;
 			private readonly JobStoreSupport js;
-
 			private int numFails = 0;
 
-			internal ClusterManager(JobStoreSupport enclosingInstance, JobStoreSupport js)
+			internal ClusterManager(JobStoreSupport jobStoreSupport, JobStoreSupport js)
 			{
-				InitBlock(enclosingInstance);
+                this.jobStoreSupport = jobStoreSupport;
 				this.js = js;
 				Priority = ThreadPriority.AboveNormal;
-				Name = "QuartzScheduler_" + Enclosing_Instance.instanceName + "-" + Enclosing_Instance.instanceId +
+				Name = "QuartzScheduler_" + jobStoreSupport.instanceName + "-" + jobStoreSupport.instanceId +
 				       "_ClusterManager";
 			}
 
-			public virtual void initialize()
+			public virtual void Initialize()
 			{
-				manage();
+				Manage();
 				Start();
 			}
 
-			public virtual void shutdown()
+			public virtual void Shutdown()
 			{
-				shutdown_Renamed_Field = true;
+				shutdown = true;
 				Interrupt();
 			}
 
-			private bool manage()
+			private bool Manage()
 			{
 				bool res = false;
 				try
@@ -2471,13 +2481,13 @@ namespace Quartz.Impl.AdoJobStore
 					res = js.DoCheckin();
 
 					numFails = 0;
-					Enclosing_Instance.Log.Debug("ClusterManager: Check-in complete.");
+					jobStoreSupport.Log.Debug("ClusterManager: Check-in complete.");
 				}
 				catch (Exception e)
 				{
 					if (numFails%4 == 0)
 					{
-						Enclosing_Instance.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
+						jobStoreSupport.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
 					}
 					numFails++;
 				}
@@ -2486,12 +2496,12 @@ namespace Quartz.Impl.AdoJobStore
 
 			public override void Run()
 			{
-				while (!shutdown_Renamed_Field)
+				while (!shutdown)
 				{
-					if (!shutdown_Renamed_Field)
+					if (!shutdown)
 					{
-						long timeToSleep = Enclosing_Instance.ClusterCheckinInterval;
-						long transpiredTime = ((DateTime.Now.Ticks - 621355968000000000)/10000 - Enclosing_Instance.lastCheckin);
+						long timeToSleep = jobStoreSupport.ClusterCheckinInterval;
+						long transpiredTime = ((DateTime.Now.Ticks - 621355968000000000)/10000 - jobStoreSupport.lastCheckin);
 						timeToSleep = timeToSleep - transpiredTime;
 						if (timeToSleep <= 0)
 						{
@@ -2500,16 +2510,16 @@ namespace Quartz.Impl.AdoJobStore
 
 						if (numFails > 0)
 						{
-							timeToSleep = Math.Max(Enclosing_Instance.DbRetryInterval, timeToSleep);
+							timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
 						}
 
-						Thread.Sleep(new TimeSpan(10000*timeToSleep));
+						Thread.Sleep((int) timeToSleep);
 						
 					}
 
-					if (!shutdown_Renamed_Field && manage())
+					if (!shutdown && Manage())
 					{
-						Enclosing_Instance.SignalSchedulingChange();
+						jobStoreSupport.SignalSchedulingChange();
 					}
 				} //while !Shutdown
 			}
@@ -2522,34 +2532,19 @@ namespace Quartz.Impl.AdoJobStore
 		/////////////////////////////////////////////////////////////////////////////
 		internal class MisfireHandler : QuartzThread
 		{
-			private JobStoreSupport enclosingInstance;
-
-			private void InitBlock(JobStoreSupport instance)
-			{
-				enclosingInstance = instance;
-			}
-
-			public JobStoreSupport Enclosing_Instance
-			{
-				get { return enclosingInstance; }
-			}
-
-			private bool shutdown_Renamed_Field = false;
-
+			private JobStoreSupport jobStoreSupport;
+			private bool shutdown = false;
 			private readonly JobStoreSupport js;
-
 			private int numFails = 0;
 
-
-			internal MisfireHandler(JobStoreSupport enclosingInstance, JobStoreSupport js)
+			internal MisfireHandler(JobStoreSupport jobStoreSupport, JobStoreSupport js)
 			{
-				InitBlock(enclosingInstance);
+                this.jobStoreSupport = jobStoreSupport; 
 				this.js = js;
-				Name = "QuartzScheduler_" + Enclosing_Instance.instanceName + "-" + Enclosing_Instance.instanceId +
-				       "_MisfireHandler";
+				Name = string.Format("QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName, jobStoreSupport.instanceId);
 			}
 
-			public virtual void initialize()
+			public virtual void Initialize()
 			{
 				//this.Manage();
 				Start();
@@ -2557,7 +2552,7 @@ namespace Quartz.Impl.AdoJobStore
 
 			public virtual void Shutdown()
 			{
-				shutdown_Renamed_Field = true;
+				shutdown = true;
 				Interrupt();
 			}
 
@@ -2565,7 +2560,7 @@ namespace Quartz.Impl.AdoJobStore
 			{
 				try
 				{
-					Enclosing_Instance.Log.Debug("MisfireHandler: scanning for misfires...");
+					jobStoreSupport.Log.Debug("MisfireHandler: scanning for misfires...");
 
 					bool res = js.DoRecoverMisfires();
 					numFails = 0;
@@ -2575,7 +2570,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					if (numFails%4 == 0)
 					{
-						Enclosing_Instance.Log.Error("MisfireHandler: Error handling misfires: " + e.Message, e);
+						jobStoreSupport.Log.Error("MisfireHandler: Error handling misfires: " + e.Message, e);
 					}
 					numFails++;
 				}
@@ -2584,22 +2579,22 @@ namespace Quartz.Impl.AdoJobStore
 
 			public override void Run()
 			{
-				while (!shutdown_Renamed_Field)
+				while (!shutdown)
 				{
 					long sTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
 
 					bool moreToDo = Manage();
 
-					if (Enclosing_Instance.lastRecoverCount > 0)
+					if (jobStoreSupport.lastRecoverCount > 0)
 					{
-						Enclosing_Instance.SignalSchedulingChange();
+						jobStoreSupport.SignalSchedulingChange();
 					}
 
 					long spanTime = (DateTime.Now.Ticks - 621355968000000000)/10000 - sTime;
 
-					if (!shutdown_Renamed_Field && !moreToDo)
+					if (!shutdown && !moreToDo)
 					{
-						long timeToSleep = Enclosing_Instance.MisfireThreshold - spanTime;
+						long timeToSleep = jobStoreSupport.MisfireThreshold - spanTime;
 						if (timeToSleep <= 0)
 						{
 							timeToSleep = 50L;
@@ -2607,20 +2602,20 @@ namespace Quartz.Impl.AdoJobStore
 
 						if (numFails > 0)
 						{
-							timeToSleep = Math.Max(Enclosing_Instance.DbRetryInterval, timeToSleep);
+							timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
 						}
 
 						if (timeToSleep > 0)
 						{
 							// TODO
-						    Thread.Sleep(new TimeSpan(10000*timeToSleep));
+						    Thread.Sleep((int) timeToSleep);
 							
 						}
 					}
 					else if (moreToDo)
 					{
 						// short pause to help balance threads...
-						Thread.Sleep(new TimeSpan((Int64) 10000*50));
+						Thread.Sleep(50);
 					}
 				} //while !Shutdown
 			}

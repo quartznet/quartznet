@@ -2622,11 +2622,11 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Remove the transient data from and then create a serialized <code>MemoryStream</code>
-        /// version of a <code>JobDataMap</code>.
+        /// version of a <code>JobDataMap</code> and returns the underlying bytes.
         /// </summary>
         /// <param name="data">The data.</param>
-        /// <returns>the serialized stream</returns>
-        protected internal virtual byte[] SerializeJobData(JobDataMap data)
+        /// <returns>the serialized data as byte array</returns>
+        public virtual byte[] SerializeJobData(JobDataMap data)
         {
             if (CanUseProperties)
             {

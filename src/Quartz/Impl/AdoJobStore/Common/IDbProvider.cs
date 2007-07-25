@@ -17,6 +17,8 @@
 
 using System.Data;
 
+using Quartz.Impl.AdoJobStore.Common;
+
 namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary>
@@ -46,13 +48,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns>A new <see cref="IDbConnection"/></returns>
 		IDbConnection CreateConnection();
-
-
-		/// <summary>
-		/// Returns a new adapter objects for use with offline DataSets.
-		/// </summary>
-		/// <returns>A new <see cref="IDbDataAdapter"/></returns>
-		IDbDataAdapter CreateDataAdapter();
         
 		/// <summary>
 		/// Returns a new parameter object for binding values to parameter
@@ -69,7 +64,16 @@ namespace Quartz.Impl.AdoJobStore
 			set;
 			get;
 		}
-        
-        
+
+	    DbMetadata Metadata
+	    {
+	        get;
+	    }
+
+
+	    /// <summary>
+        /// Shutdowns this instance.
+        /// </summary>
+	    void Shutdown();
 	}
 }

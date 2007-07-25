@@ -112,6 +112,9 @@
     <Compile Include="Unit\CronExpressionTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Unit\Impl\AdoJobStore\Common\DbMetadataTest.cs" />
+    <Compile Include="Unit\Impl\AdoJobStore\Common\DbProviderTest.cs" />
+    <Compile Include="Unit\Impl\AdoJobStore\StdAdoDelegateTest.cs" />
     <Compile Include="Unit\Impl\Calendar\AnnualCalendarTest.cs" />
     <Compile Include="Unit\Impl\Calendar\DailyCalendarTest.cs">
       <SubType>Code</SubType>
