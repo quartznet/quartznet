@@ -3,7 +3,7 @@
 	<call target="init" />
 
 	<target name="init">
-	
+
 		<!-- what kind of build -->
 		<if test="${property::exists('configuration') == false}">
 			<property name="configuration" value="Debug" />
@@ -11,8 +11,8 @@
 		
 		<!-- Check target framework -->
 		<if test="${property::exists('target.framework') == false}">
-			<!-- 1.1 is the default -->
-			<property name="target.framework" value="1.1" />
+			<!-- 2.0 is the default -->
+			<property name="target.framework" value="2.0" />
 		</if>
 		
 		<!-- set global target framework -->
@@ -25,6 +25,10 @@
 		<property name="dir.deployment" value="deployment\${target.framework}" />
 		
 		<mkdir dir="${dir.build}" />
+
+    <property name="clover.home" value="C:\Program Files\Cenqua\Clover.NET 2.1 for .NET 2.0"/>
+    <loadtasks assembly="${clover.home}\CloverNAnt-0.85.dll"/>
+    
 	</target>
 	
 
@@ -33,24 +37,158 @@
 	</target>
 	
 	<target name="build-all" depends="init">
-		<property name="target.framework" value="1.1" />
-		<call target="build-1.1" />
-		<property name="target.framework" value="2.0" />
-		<property name="nant.settings.currentframework" value="net-${target.framework}" />
-		<call target="build-2.0" />
-	</target>
+    <call target="build-1.1" />
+    <call target="build-2.0" />
+  </target>
 
-	<target name="build-1.1" >
-		<solution configuration="${configuration}" solutionfile="Quartz.2003.sln" />
+  <target name="build-1.1" >
+    <property name="target.framework" value="1.1" />
+    <solution configuration="${configuration}" solutionfile="Quartz.2003.sln" />
 	</target>
 
 	<target name="build-2.0">
+    <property name="target.framework" value="2.0" />
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+    <call target="build-all-csc" />
+    <!--
 		<msbuild project="Quartz.2005.sln" verbosity="minimal" />		
+      -->
+
 	</target>
-	
-	<target name="clean">
+
+  <target name="build-quartz" >
+
+    <mkdir dir="build\${target.framework}\${configuration}\Quartz\" /> 
+    
+    <csc target="library" output="build\${target.framework}\${configuration}\Quartz\Quartz.dll" debug="true">
+      <nowarn>
+        <!-- do not report warnings for missing XML comments -->
+        <warning number="0162" />
+        <warning number="0168" />
+        <!--<warning number="0246" />-->
+        <warning number="0618" />
+      </nowarn>
+      <sources>
+        <include name="src/Quartz/**/*.cs" />
+        <exclude name="**/JNDIConnectionProvider.cs" />
+        <exclude name="**/RemotingInvokerJob.cs" />
+      </sources>
+      <resources dynamicprefix="false" prefix="Quartz">
+        <include name="src/Quartz/quartz.properties" />
+      </resources>
+      <references>
+        <include name="System.dll" />
+        <include name="System.Data.dll" />
+        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\1.1\Nullables.dll" />
+        
+      </references>
+    </csc>
+
+    <copy todir="build\${target.framework}\${configuration}\Quartz.Tests\" flatten="true" >
+      <fileset>
+        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\1.1\Nullables.dll" />
+      </fileset>
+    </copy>
+
+
+  </target>
+
+  <target name="build-examples" depends="build-quartz">
+
+    <mkdir dir="build\${target.framework}\${configuration}\Quartz.Examples\" />
+    
+    <csc target="exe" output="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe" debug="true">
+      <nowarn>
+        <!-- do not report warnings for missing XML comments -->
+        <warning number="0162" />
+        <warning number="0168" />
+        <!--<warning number="0246" />-->
+        <warning number="0618" />
+      </nowarn>
+      <sources>
+        <include name="src/Quartz.Examples/**/*.cs" />
+      </sources>
+      <references>
+        <include name="System.dll" />
+        <include name="System.Data.dll" />
+        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\1.1\Nullables.dll" />
+        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+      </references>
+    </csc>
+
+    <copy todir="build\${target.framework}\${configuration}\Quartz.Examples\" flatten="true" >
+      <fileset>
+        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\1.1\Nullables.dll" />
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="build-tests" depends="build-quartz">
+
+    <mkdir dir="build\${target.framework}\${configuration}\Quartz.Tests\" />
+
+    <csc target="library" output="build\${target.framework}\${configuration}\Quartz.Tests\Quartz.Tests.dll" debug="true">
+      <nowarn>
+        <!-- do not report warnings for missing XML comments -->
+        <warning number="0162" />
+        <warning number="0168" />
+        <!--<warning number="0246" />-->
+        <warning number="0618" />
+      </nowarn>
+      <sources>
+        <include name="src/Quartz.Tests/**/*.cs" />
+        <exclude name="**/AdoJobStore/**" />
+      </sources>
+      <references>
+        <include name="System.dll" />
+        <include name="System.Data.dll" />
+        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\${target.framework}\nunit.framework.dll" />
+        <include name="lib\1.1\Nullables.dll" />
+        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+      </references>
+    </csc>
+
+    <copy todir="build\${target.framework}\${configuration}\Quartz.Tests\" flatten="true" >
+      <fileset>
+        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\1.1\Nullables.dll" />
+      </fileset>
+    </copy>
+
+  </target>
+
+  <target name="nunit-2.0" depends="build-2.0">
+    <call target="nunit" />
+  </target>
+
+  <target name="nunit-1.1" depends="build-1.1">
+    <call target="nunit" />
+  </target>
+
+
+
+  <target name="nunit">
+    <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests\Quartz.Tests.dll" />
+    <echo message="Testing dll: ${test.dll}"  />
+    <nunit2 verbose="true" >
+      <formatter type="Plain" />
+      <test assemblyname="${test.dll}" />
+    </nunit2>
+  </target>
+
+
+  <target name="clean">
 		<echo message="Cleaning old compiled dlls..." />
 		<delete failonerror="false" dir="./build" />
+    <delete failonerror="false" dir="./CloverBuild" />
+    <delete failonerror="false" dir="./CloverReport" />
 		<echo message="Cleaning old temporary build files (obj and bin dirs)..." />
 		<delete>
 		    <fileset>
@@ -59,8 +197,34 @@
 		    </fileset>
 		</delete>
 	</target>
-	
-	
+
+  <target name="with-clover">
+    <clover-setup initstring="CloverBuild\clover.cdb"
+      builddir="CloverBuild"
+      flushinterval="5000"
+      flatten="true">
+      <fileset basedir="src">
+        <include name="**/*"/>
+        <exclude name="**/Quartz.Tests/**/*"/>
+        <exclude name="**/Quartz.Examples/**/*"/>
+      </fileset>
+    </clover-setup>
+  </target>
+
+  <target name="clover-report" depends="with-clover">
+    
+    <clover-report>
+      <current title="Quartz.NET Clover Report" output="CloverReport">
+        <format type="html" orderby="Alpha" />
+      </current>
+    </clover-report>
+    
+  </target>
+
+  <target name="clover" depends="with-clover, nunit-2.0, clover-report">
+    
+  </target>
+  
 	<target name="doc" depends="build">
 		
 		<mkdir dir="doc\apidoc" />
@@ -136,4 +300,10 @@
 		</zip>
 		
 	</target>
+	<target name="build-all-csc">
+    <call target="build-quartz" />
+    <call target="build-examples" />
+    <call target="build-tests" />
+
+  </target>
 </project>

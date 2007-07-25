@@ -6,6 +6,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.2005", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.2005", "src\Quartz.Tests\Quartz.Tests.2005.csproj", "{5587AF00-160F-4EC1-98A2-BEABA411256C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{69B269BD-CB8C-438A-A32E-4CB7CEA47BB2}"
+	ProjectSection(SolutionItems) = preProject
+		Quartz.build = Quartz.build
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -166,7 +166,7 @@ namespace Quartz.Tests.Unit
         public void TestCronExpressionWithExtraWhiteSpace()
         {
             // test failed before because of improper trimming
-            string expr = " 30 *   * * * * *  ";
+            string expr = " 30 *   * * * ?  ";
             CronExpression calendar = new CronExpression(expr);
             Assert.IsFalse(calendar.IsSatisfiedBy(DateTime.Now.AddMinutes(2)), "Time was included");
         }

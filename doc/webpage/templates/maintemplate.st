@@ -68,6 +68,7 @@
 				<li><a href="http://sourceforge.net/projects/quartznet">Source Forge Project</a></li>
 				<li><a href="http://fisheye3.cenqua.com/browse/quartznet">FishEye Source Code Browsing</a></li>
 				<li><a href="http://jira.opensymphony.com/browse/QRTZNET">JIRA Issue Tracking</a></li>
+				<li><a href="http://www.opensymphony.com/quartz/">Quartz (Java)</a></li>
 			</ul>
 
 			<p align="center">
