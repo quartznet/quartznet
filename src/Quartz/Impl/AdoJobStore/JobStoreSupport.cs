@@ -387,17 +387,18 @@ namespace Quartz.Impl.AdoJobStore
 
 						ConstructorInfo ctor;
 						Object[] ctorParams;
+					    IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(DataSource);
 						if (CanUseProperties)
 						{
-							Type[] ctorParamTypes = new Type[] {typeof (ILog), typeof (String), typeof (String), typeof (Boolean)};
+							Type[] ctorParamTypes = new Type[] {typeof (ILog), typeof (String), typeof (String), typeof(IDbProvider), typeof (Boolean)};
 							ctor = delegateType.GetConstructor(ctorParamTypes);
-							ctorParams = new Object[] {Log, tablePrefix, instanceId, CanUseProperties};
+							ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider, CanUseProperties};
 						}
 						else
 						{
-							Type[] ctorParamTypes = new Type[] {typeof (ILog), typeof (String), typeof (String)};
+							Type[] ctorParamTypes = new Type[] {typeof (ILog), typeof (String), typeof (String), typeof(IDbProvider)};
 							ctor = delegateType.GetConstructor(ctorParamTypes);
-							ctorParams = new Object[] {Log, tablePrefix, instanceId};
+							ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider}; 
 						}
 
 						driverDelegate = (IDriverDelegate) ctor.Invoke(ctorParams);
@@ -635,15 +636,10 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		protected internal abstract void CleanVolatileTriggerAndJobs();
 
-		/// <summary> <p>
+		/// <summary>
 		/// Removes all volatile data.
-		/// </p>
-		/// 
 		/// </summary>
-		/// <throws>  JobPersistenceException </throws>
-		/// <summary>           if jobs could not be recovered
-		/// </summary>
-		protected internal virtual void CleanVolatileTriggerAndJobs(IDbConnection conn)
+		protected internal virtual void CleanVolatileTriggerAndJobs(ConnectionAndTransactionHolder conn)
 		{
 			try
 			{
@@ -687,7 +683,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Will recover any failed or misfired jobs and clean up the data store as
 		/// appropriate.
 		/// </summary>
-		protected internal virtual void RecoverJobs(IDbConnection conn)
+        protected internal virtual void RecoverJobs(ConnectionAndTransactionHolder conn)
 		{
 			try
 			{
@@ -748,7 +744,7 @@ namespace Quartz.Impl.AdoJobStore
 		private int lastRecoverCount = 0;
 
 
-		protected internal virtual bool RecoverMisfiredJobs(IDbConnection conn, bool recovering)
+        protected internal virtual bool RecoverMisfiredJobs(ConnectionAndTransactionHolder conn, bool recovering)
 		{
 			Key[] misfiredTriggers = Delegate.SelectTriggersInState(conn, STATE_MISFIRED);
 
@@ -812,7 +808,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual bool UpdateMisfiredTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
+		protected internal virtual bool UpdateMisfiredTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
 		                                                      string groupName, string newStateIfNotComplete, bool forceState)
 		{
 			try
@@ -863,7 +859,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Insert or update a job.
 		/// </p>
 		/// </summary>
-		protected internal virtual void StoreJob(IDbConnection conn, SchedulingContext ctxt, JobDetail newJob,
+		protected internal virtual void StoreJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, JobDetail newJob,
 		                                         bool replaceExisting)
 		{
 			if (newJob.Volatile && Clustered)
@@ -901,7 +897,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Check existence of a given job.
 		/// </p>
 		/// </summary>
-		protected internal virtual bool JobExists(IDbConnection conn, string jobName, string groupName)
+        protected internal virtual bool JobExists(ConnectionAndTransactionHolder conn, string jobName, string groupName)
 		{
 			try
 			{
@@ -918,7 +914,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Insert or update a trigger.
 		/// </p>
 		/// </summary>
-		protected internal virtual void StoreTrigger(IDbConnection conn, SchedulingContext ctxt, Trigger newTrigger,
+        protected internal virtual void StoreTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, Trigger newTrigger,
 		                                             JobDetail job, bool replaceExisting, string state, bool forceState,
 		                                             bool recovering)
 		{
@@ -1026,7 +1022,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Check existence of a given trigger.
 		/// </p>
 		/// </summary>
-		protected internal virtual bool TriggerExists(IDbConnection conn, string triggerName, string groupName)
+		protected internal virtual bool TriggerExists(ConnectionAndTransactionHolder conn, string triggerName, string groupName)
 		{
 			try
 			{
@@ -1040,7 +1036,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual bool RemoveJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
+        protected internal virtual bool RemoveJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
 		                                          string groupName, bool activeDeleteSafe)
 		{
 			try
@@ -1073,7 +1069,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual JobDetail RetrieveJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
+		protected internal virtual JobDetail RetrieveJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
 		                                                 string groupName)
 		{
 			try
@@ -1100,7 +1096,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual bool RemoveTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
+		protected internal virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
 		                                              string groupName)
 		{
 			bool removedTrigger;
@@ -1133,7 +1129,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual bool ReplaceTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
+		protected internal virtual bool ReplaceTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
 		                                               string groupName, Trigger newTrigger)
 		{
 			bool removedTrigger;
@@ -1168,7 +1164,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual Trigger RetrieveTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName,
+		protected internal virtual Trigger RetrieveTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
 		                                                   string groupName)
 		{
 			try
@@ -1201,7 +1197,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">Name of the trigger.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns></returns>
-		public virtual int GetTriggerState(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
+		public virtual int GetTriggerState(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
 			{
@@ -1252,7 +1248,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual void StoreCalendar(IDbConnection conn, SchedulingContext ctxt, string calName,
+		protected internal virtual void StoreCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string calName,
 		                                              ICalendar calendar, bool replaceExisting, bool updateTriggers)
 		{
 			try
@@ -1302,7 +1298,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual bool CalendarExists(IDbConnection conn, string calName)
+		protected internal virtual bool CalendarExists(ConnectionAndTransactionHolder conn, string calName)
 		{
 			try
 			{
@@ -1315,7 +1311,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual bool RemoveCalendar(IDbConnection conn, SchedulingContext ctxt, string calName)
+		protected internal virtual bool RemoveCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string calName)
 		{
 			try
 			{
@@ -1335,7 +1331,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual ICalendar RetrieveCalendar(IDbConnection conn, SchedulingContext ctxt, string calName)
+		protected internal virtual ICalendar RetrieveCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string calName)
 		{
 			// all calendars are persistent, but we lazy-cache them during run
 			// time...
@@ -1363,7 +1359,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual int GetNumberOfJobs(IDbConnection conn, SchedulingContext ctxt)
+        protected internal virtual int GetNumberOfJobs(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			try
 			{
@@ -1376,7 +1372,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual int GetNumberOfTriggers(IDbConnection conn, SchedulingContext ctxt)
+        protected internal virtual int GetNumberOfTriggers(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			try
 			{
@@ -1389,7 +1385,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual int GetNumberOfCalendars(IDbConnection conn, SchedulingContext ctxt)
+        protected internal virtual int GetNumberOfCalendars(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			try
 			{
@@ -1402,7 +1398,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual String[] GetJobNames(IDbConnection conn, SchedulingContext ctxt, string groupName)
+        protected internal virtual String[] GetJobNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string groupName)
 		{
 			String[] jobNames;
 
@@ -1419,7 +1415,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual String[] GetTriggerNames(IDbConnection conn, SchedulingContext ctxt, string groupName)
+		protected internal virtual String[] GetTriggerNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string groupName)
 		{
 			String[] trigNames;
 
@@ -1436,7 +1432,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual String[] GetJobGroupNames(IDbConnection conn, SchedulingContext ctxt)
+		protected internal virtual String[] GetJobGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			String[] groupNames;
 
@@ -1453,7 +1449,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual String[] GetTriggerGroupNames(IDbConnection conn, SchedulingContext ctxt)
+		protected internal virtual String[] GetTriggerGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			String[] groupNames;
 
@@ -1470,7 +1466,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual String[] GetCalendarNames(IDbConnection conn, SchedulingContext ctxt)
+		protected internal virtual String[] GetCalendarNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			try
 			{
@@ -1483,7 +1479,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual Trigger[] GetTriggersForJob(IDbConnection conn, SchedulingContext ctxt, string jobName,
+		protected internal virtual Trigger[] GetTriggersForJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
 		                                                       string groupName)
 		{
 			Trigger[] array;
@@ -1504,7 +1500,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Pause the <code>Trigger</code> with the given name.
 		/// </summary>
 		/// <seealso cref="SchedulingContext()" />
-		public virtual void PauseTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
+		public virtual void PauseTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
 			{
@@ -1526,7 +1522,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual string GetStatusForResumedTrigger(IDbConnection conn, SchedulingContext ctxt,
+		protected internal virtual string GetStatusForResumedTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
 		                                                             TriggerStatus status)
 		{
 			try
@@ -1558,7 +1554,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual string GetNewStatusForTrigger(IDbConnection conn, SchedulingContext ctxt, string jobName,
+		protected internal virtual string GetNewStatusForTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
 		                                                         string groupName)
 		{
 			try
@@ -1624,7 +1620,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <code>Trigger</code>'s misfire instruction will be applied.
         /// </remarks>
 		/// <seealso cref="SchedulingContext"/>
-		public virtual void ResumeTrigger(IDbConnection conn, SchedulingContext ctxt, string triggerName, string groupName)
+		public virtual void ResumeTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			try
 			{
@@ -1673,7 +1669,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Pause all of the <code>Trigger</code>s in the given group.
 		/// </summary>
 		/// <seealso cref="SchedulingContext()" />
-		public virtual void PauseTriggerGroup(IDbConnection conn, SchedulingContext ctxt, string groupName)
+		public virtual void PauseTriggerGroup(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string groupName)
 		{
 			try
 			{
@@ -1700,7 +1696,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// given group.
 		/// </summary>
 		/// <seealso cref="SchedulingContext()" />
-		public virtual ISet GetPausedTriggerGroups(IDbConnection conn, SchedulingContext ctxt)
+		public virtual ISet GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			try
 			{
@@ -1721,7 +1717,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// </summary>
 		/// <seealso cref="SchedulingContext()" />
-		public virtual void ResumeTriggerGroup(IDbConnection conn, SchedulingContext ctxt, string groupName)
+		public virtual void ResumeTriggerGroup(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string groupName)
 		{
 			try
 			{
@@ -1783,7 +1779,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <seealso cref="ResumeAll(SchedulingContext)" />
 		/// <seealso cref="String" />
-		public virtual void PauseAll(IDbConnection conn, SchedulingContext ctxt)
+		public virtual void PauseAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			String[] names = GetTriggerGroupNames(conn, ctxt);
 
@@ -1814,7 +1810,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </p>
 		/// </summary>
 		/// <seealso cref="PauseAll(SchedulingContext)" />
-		public virtual void ResumeAll(IDbConnection conn, SchedulingContext ctxt)
+		public virtual void ResumeAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
 		{
 			String[] names = GetTriggerGroupNames(conn, ctxt);
 
@@ -1838,7 +1834,7 @@ namespace Quartz.Impl.AdoJobStore
 		// TODO: this really ought to return something like a FiredTriggerBundle,
 		// so that the fireInstanceId doesn't have to be on the trigger...
 
-		protected internal virtual Trigger AcquireNextTrigger(IDbConnection conn, SchedulingContext ctxt, DateTime noLaterThan)
+		protected internal virtual Trigger AcquireNextTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, DateTime noLaterThan)
 		{
 			Trigger nextTrigger = null;
 
@@ -1898,7 +1894,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual void ReleaseAcquiredTrigger(IDbConnection conn, SchedulingContext ctxt, Trigger trigger)
+        protected internal virtual void ReleaseAcquiredTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, Trigger trigger)
 		{
 			try
 			{
@@ -1913,7 +1909,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual TriggerFiredBundle TriggerFired(IDbConnection conn, SchedulingContext ctxt,
+        protected internal virtual TriggerFiredBundle TriggerFired(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
 		                                                           Trigger trigger)
 		{
 			JobDetail job;
@@ -2022,7 +2018,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual void TriggeredJobComplete(IDbConnection conn, SchedulingContext ctxt, Trigger trigger,
+		protected internal virtual void TriggeredJobComplete(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, Trigger trigger,
 		                                                     JobDetail jobDetail, int triggerInstCode)
 		{
 			try
@@ -2133,7 +2129,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <param name="conn"></param>
 		/// <returns></returns>
-		protected IList FindFailedInstances(IDbConnection conn)
+		protected IList FindFailedInstances(ConnectionAndTransactionHolder conn)
 		{
 			IList failedInstances = new ArrayList();
 			// TODO bool selfFailed = false;
@@ -2225,7 +2221,7 @@ namespace Quartz.Impl.AdoJobStore
 			       + 7500L;
 		}
 
-		protected internal virtual IList ClusterCheckIn(IDbConnection conn)
+		protected internal virtual IList ClusterCheckIn(ConnectionAndTransactionHolder conn)
 		{
 			IList failedInstances = FindFailedInstances(conn);
 			try 
@@ -2251,7 +2247,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
 
-		protected internal virtual void ClusterRecover(IDbConnection conn, IList failedInstances)
+		protected internal virtual void ClusterRecover(ConnectionAndTransactionHolder conn, IList failedInstances)
 		{
 			if (failedInstances.Count > 0)
 			{

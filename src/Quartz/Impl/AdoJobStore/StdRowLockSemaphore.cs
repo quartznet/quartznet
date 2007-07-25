@@ -87,7 +87,7 @@ namespace Quartz.Impl.AdoJobStore
                 this.selectWithLockSQL = selectWithLockSQL;
             }
 
-            this.selectWithLockSQL = Util.ReplaceTablePrefix(this.selectWithLockSQL, tablePrefix);
+            this.selectWithLockSQL = Util.ReplaceTablePrefix(this.selectWithLockSQL, tablePrefix).Replace("?", "{0}");
         }
 
         private HashSet ThreadLocks

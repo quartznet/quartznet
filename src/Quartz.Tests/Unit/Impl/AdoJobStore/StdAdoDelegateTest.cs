@@ -19,6 +19,7 @@ using System.Runtime.Serialization;
 using Common.Logging;
 using NUnit.Framework;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
@@ -28,7 +29,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 		[Test]
 		public void TestSerializeJobData()
 		{
-			StdAdoDelegate del = new StdAdoDelegate(LogManager.GetLogger(GetType()), "QRTZ_", "INSTANCE");
+			StdAdoDelegate del = new StdAdoDelegate(LogManager.GetLogger(GetType()), "QRTZ_", "INSTANCE", new DbProvider("SqlServer-11", ""));
 
 			JobDataMap jdm = new JobDataMap();
 			del.SerializeJobData(jdm);

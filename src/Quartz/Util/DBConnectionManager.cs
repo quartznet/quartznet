@@ -82,11 +82,7 @@ namespace Quartz.Util
 		/// <returns> a database connection </returns>
 		public virtual IDbConnection GetConnection(string dsName)
 		{
-            IDbProvider provider = (IDbProvider)providers[dsName];
-			if (provider == null)
-			{
-				throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
-			}
+		    IDbProvider provider = GetDbProvider(dsName);
 
 			return provider.CreateConnection();
 		}
@@ -98,23 +94,28 @@ namespace Quartz.Util
 		/// <returns> a database connection </returns>
 		public virtual void Shutdown(string dsName)
 		{
-            IDbProvider provider = (IDbProvider)providers[dsName];
-			if (provider == null)
-			{
-				throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
-			}
+		    IDbProvider provider = GetDbProvider(dsName);
 			provider.Shutdown();
 		}
 
 	    public DbMetadata GetDbMetadata(string dsName)
+	    {
+            return GetDbProvider(dsName).Metadata;
+        }
+
+        /// <summary>
+        /// Gets the db provider.
+        /// </summary>
+        /// <param name="dsName">Name of the ds.</param>
+        /// <returns></returns>
+	    public IDbProvider GetDbProvider(string dsName)
 	    {
             IDbProvider provider = (IDbProvider)providers[dsName];
             if (provider == null)
             {
                 throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
             }
-
-            return provider.Metadata;
+	        return provider;
         }
 	}
 }

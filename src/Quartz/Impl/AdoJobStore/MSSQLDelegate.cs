@@ -35,13 +35,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="log">The log.</param>
         /// <param name="tablePrefix">The table prefix.</param>
         /// <param name="instanceId">The instance id.</param>
-        public MSSQLDelegate(ILog log, string tablePrefix, string instanceId)
-            : base(log, tablePrefix, instanceId)
+        public MSSQLDelegate(ILog log, string tablePrefix, string instanceId, IDbProvider dbProvider)
+            : base(log, tablePrefix, instanceId, dbProvider)
 		{
 		}
 
-        public MSSQLDelegate(ILog log, string tablePrefix, string instanceId, bool useProperties)
-            : base(log, tablePrefix, instanceId, useProperties)
+        public MSSQLDelegate(ILog log, string tablePrefix, string instanceId, IDbProvider dbProvider, bool useProperties)
+            : base(log, tablePrefix, instanceId, dbProvider, useProperties)
 		{
 		}
 

@@ -104,6 +104,8 @@ namespace Quartz.Examples.Example13
             properties["quartz.jobStore.dataSource"] = "default";
 		    properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
 		    properties["quartz.jobStore.clustered"] = "true";
+            // if running MS SQL Server we need this
+		    properties["quartz.jobStore.selectWithLockSQL"] = "SELECT * FROM {0}LOCKS UPDLOCK WHERE LOCK_NAME = ?";
 
             properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
             properties["quartz.dataSource.default.provider"] = "SqlServer-11";
