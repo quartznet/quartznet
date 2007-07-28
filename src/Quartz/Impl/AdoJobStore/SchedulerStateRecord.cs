@@ -32,8 +32,6 @@ namespace Quartz.Impl.AdoJobStore
 		private string schedulerInstanceId;
 		private long checkinTimestamp;
 		private long checkinInterval;
-		private string recoverer;
-
 
 		/// <summary>
 		/// Gets or sets the checkin interval.
@@ -53,16 +51,6 @@ namespace Quartz.Impl.AdoJobStore
 		{
 			get { return checkinTimestamp; }
 			set { checkinTimestamp = value; }
-		}
-
-		/// <summary>
-		/// Gets or sets the recoverer.
-		/// </summary>
-		/// <value>The recoverer.</value>
-		public virtual string Recoverer
-		{
-			get { return recoverer; }
-			set { recoverer = value; }
 		}
 
 		/// <summary>

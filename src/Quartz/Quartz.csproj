@@ -372,6 +372,16 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Impl\AdoJobStore\AdoUtil.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\DBSemaphore.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Impl\AdoJobStore\FiredTriggerRecord.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -443,6 +453,11 @@
                 />
                 <File
                     RelPath = "Impl\AdoJobStore\StdRowLockSemaphore.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\AdoJobStore\UpdateRowLockSemaphore.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

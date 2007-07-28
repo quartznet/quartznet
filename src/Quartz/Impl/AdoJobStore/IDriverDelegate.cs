@@ -22,8 +22,6 @@
 using System;
 using System.Collections;
 
-using Nullables;
-
 using Quartz.Collection;
 using Quartz.Spi;
 using Quartz.Util;
@@ -761,13 +759,6 @@ namespace Quartz.Impl.AdoJobStore
 		//---------------------------------------------------------------------------
 
 		/// <summary>
-		/// Select the next time that a trigger will be fired.
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-		/// <returns>The next fire time, or 0 if no trigger will be fired.</returns>
-		NullableDateTime SelectNextFireTime(ConnectionAndTransactionHolder conn);
-
-		/// <summary>
 		/// Select the trigger that will be fired at the given fire time.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
@@ -844,9 +835,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceId">The instance id.</param>
         /// <param name="checkInTime">The check in time.</param>
         /// <param name="interval">The interval.</param>
-        /// <param name="recoverer">The recoverer.</param>
         /// <returns>The number of inserted rows.</returns>
-		int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, long checkInTime, long interval, string recoverer);
+		int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, long checkInTime, long interval);
 
         /// <summary>
         /// Delete a scheduler-instance state record.
@@ -863,9 +853,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection</param>
 		/// <param name="instanceId">The instance id.</param>
 		/// <param name="checkInTime">The check in time.</param>
-		/// <param name="recoverer">The recoverer.</param>
 		/// <returns>The number of updated rows.</returns>
-		int UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, long checkInTime, string recoverer);
+		int UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, long checkInTime);
 
         /// <summary>
         /// A List of all current <code>SchedulerStateRecords</code>.
@@ -878,5 +867,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceId">The instance id.</param>
         /// <returns></returns>
 		IList SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string instanceId);
+
+        Key SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, long noEarlierThan);
+
+        ISet SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
+
+        int CountMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, long ts);
+
+        bool SelectMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, long ts, int count, IList resultList);
 	}
 }

@@ -28,7 +28,11 @@ namespace Quartz.Impl.AdoJobStore
 	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 	public sealed class Util
 	{
-		/// <summary>
+	    private Util()
+	    {
+	    }
+
+	    /// <summary>
 		/// Replace the table prefix in a query by replacing any occurrences of
 		/// "{0}" with the table prefix.
 		/// </summary>

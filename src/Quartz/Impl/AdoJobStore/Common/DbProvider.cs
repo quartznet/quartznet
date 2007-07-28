@@ -30,6 +30,7 @@ namespace Quartz.Impl.AdoJobStore.Common
                 DbMetadata metadata = new DbMetadata();
                 NameValueCollection props = pp.GetPropertyGroup(QUARTZ_PROPERTY_GROUP_DB_PROVIDER + "." + providerName, true);
                 ObjectUtils.SetObjectProperties(metadata, props);
+                metadata.Init();
                 dbMetadataLookup[providerName] = metadata;
             }
         }

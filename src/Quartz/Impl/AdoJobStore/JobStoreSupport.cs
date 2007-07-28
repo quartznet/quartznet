@@ -18,6 +18,7 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
+
 using System;
 using System.Collections;
 using System.Data;
@@ -77,1116 +78,1622 @@ namespace Quartz.Impl.AdoJobStore
         }
     }
 
-	/// <summary>
-	/// Contains base functionality for ADO.NET-based JobStore implementations.
-	/// </summary>
-	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	public abstract class JobStoreSupport : AdoConstants, IJobStore
-	{
-		public ILog Log = LogManager.GetLogger(typeof (JobStoreSupport));
-
+    /// <summary>
+    /// Contains base functionality for ADO.NET-based JobStore implementations.
+    /// </summary>
+    /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+    public abstract class JobStoreSupport : AdoConstants, IJobStore
+    {
         /// <summary>
         /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
         /// </summary>
-		public JobStoreSupport()
-		{
-            delegateType = typeof(StdAdoDelegate);
-		}
+        public JobStoreSupport()
+        {
+            log = LogManager.GetLogger(GetType());
+            delegateType = typeof (StdAdoDelegate);
+        }
 
-		/// <summary> 
-		/// Get or set the datasource name.
-		/// </summary>
-		public virtual string DataSource
-		{
-			get { return dataSource; }
-			set { dataSource = value; }
-		}
+        /// <summary> 
+        /// Get or set the datasource name.
+        /// </summary>
+        public virtual string DataSource
+        {
+            get { return dataSource; }
+            set { dataSource = value; }
+        }
 
-		/// <summary> 
-		/// Get or sets the prefix that should be pre-pended to all table names.
-		/// </summary>
-		public virtual string TablePrefix
-		{
-			get { return tablePrefix; }
 
-			set
-			{
-				if (value == null)
-				{
-					value = "";
-				}
+        /// <summary>
+        /// Gets the log.
+        /// </summary>
+        /// <value>The log.</value>
+        protected ILog Log
+        {
+            get { return log; }
+        }
 
-				tablePrefix = value;
-			}
-		}
+        /// <summary> 
+        /// Get or sets the prefix that should be pre-pended to all table names.
+        /// </summary>
+        public virtual string TablePrefix
+        {
+            get { return tablePrefix; }
 
-		/// <summary> <p>
-		/// Set whether String-only properties will be handled in JobDataMaps.
-		/// </p>
-		/// </summary>
-		public virtual string UseProperties
-		{
-			set
-			{
-				if (value == null)
-				{
-					value = "false";
-				}
+            set
+            {
+                if (value == null)
+                {
+                    value = "";
+                }
 
-				useProperties = Boolean.Parse(value);
-			}
-		}
+                tablePrefix = value;
+            }
+        }
 
-		/// <summary>
-		/// Get or set the instance Id of the Scheduler (must be unique within a cluster).
-		/// </summary>
-		public virtual string InstanceId
-		{
-			get { return instanceId; }
-			set { instanceId = value; }
-		}
+        /// <summary> <p>
+        /// Set whether String-only properties will be handled in JobDataMaps.
+        /// </p>
+        /// </summary>
+        public virtual string UseProperties
+        {
+            set
+            {
+                if (value == null)
+                {
+                    value = "false";
+                }
 
-		/// <summary>
-		/// Get or set the instance Id of the Scheduler (must be unique within a cluster).
-		/// </summary>
-		public virtual string InstanceName
-		{
-			get { return instanceName; }
-			set { instanceName = value; }
-		}
+                useProperties = Boolean.Parse(value);
+            }
+        }
 
-		/// <summary> 
-		/// Get or set whether this instance is part of a cluster.
-		/// </summary>
-		public virtual bool Clustered
-		{
-			get { return clustered; }
-			set { clustered = value; }
-		}
+        /// <summary>
+        /// Get or set the instance Id of the Scheduler (must be unique within a cluster).
+        /// </summary>
+        public virtual string InstanceId
+        {
+            get { return instanceId; }
+            set { instanceId = value; }
+        }
 
-		/// <summary>
-		/// Get or set the frequency (in milliseconds) at which this instance "checks-in"
-		/// with the other instances of the cluster. -- Affects the rate of
-		/// detecting failed instances.
-		/// </summary>
-		public virtual long ClusterCheckinInterval
-		{
-			get { return clusterCheckinInterval; }
-			set { clusterCheckinInterval = value; }
-		}
+        /// <summary>
+        /// Get or set the instance Id of the Scheduler (must be unique within this server instance).
+        /// </summary>
+        public virtual string InstanceName
+        {
+            get { return instanceName; }
+            set { instanceName = value; }
+        }
 
-		/// <summary>
-		/// Get or set the maximum number of misfired triggers that the misfire handling
-		/// thread will try to recover at one time (within one transaction).  The
-		/// default is 20.
-		/// </summary>
-		public virtual int MaxMisfiresToHandleAtATime
-		{
-			get { return maxToRecoverAtATime; }
-			set { maxToRecoverAtATime = value; }
-		}
+        /// <summary> 
+        /// Get or set whether this instance is part of a cluster.
+        /// </summary>
+        public virtual bool Clustered
+        {
+            get { return clustered; }
+            set { clustered = value; }
+        }
 
-		/// <summary>
-		/// Gets or sets the database retry interval.
-		/// </summary>
-		/// <value>The db retry interval.</value>
-		public virtual long DbRetryInterval
-		{
-			get { return dbRetryInterval; }
-			set { dbRetryInterval = value; }
-		}
+        /// <summary>
+        /// Get or set the frequency (in milliseconds) at which this instance "checks-in"
+        /// with the other instances of the cluster. -- Affects the rate of
+        /// detecting failed instances.
+        /// </summary>
+        public virtual long ClusterCheckinInterval
+        {
+            get { return clusterCheckinInterval; }
+            set { clusterCheckinInterval = value; }
+        }
 
-		/// <summary>
-		/// Get or set whether this instance should use database-based thread
-		/// synchronization.
-		/// </summary>
-		public virtual bool UseDBLocks
-		{
-			get { return useDBLocks; }
-			set { useDBLocks = value; }
-		}
+        /// <summary>
+        /// Get or set the maximum number of misfired triggers that the misfire handling
+        /// thread will try to recover at one time (within one transaction).  The
+        /// default is 20.
+        /// </summary>
+        public virtual int MaxMisfiresToHandleAtATime
+        {
+            get { return maxToRecoverAtATime; }
+            set { maxToRecoverAtATime = value; }
+        }
 
-		/// <summary> 
-		/// Whether or not to obtain locks when inserting new jobs/triggers.  
-		/// Defaults to <code>true</code>, which is safest - some db's (such as 
-		/// MS SQLServer) seem to require this to avoid deadlocks under high load,
-		/// while others seem to do fine without.  
-		/// 
-		/// <p>
-		/// Setting this property to <code>false</code> will provide a 
-		/// significant performance increase during the addition of new jobs 
-		/// and triggers.
-		/// </p>
-		/// </summary>
-		public virtual bool LockOnInsert
-		{
-			get { return lockOnInsert; }
-			set { lockOnInsert = value; }
-		}
+        /// <summary>
+        /// Gets or sets the database retry interval.
+        /// </summary>
+        /// <value>The db retry interval.</value>
+        public virtual long DbRetryInterval
+        {
+            get { return dbRetryInterval; }
+            set { dbRetryInterval = value; }
+        }
 
-		/// <summary> 
-		/// The the number of milliseconds by which a trigger must have missed its
-		/// next-fire-time, in order for it to be considered "misfired" and thus
-		/// have its misfire instruction applied.
-		/// </summary>
-		public virtual long MisfireThreshold
-		{
-			get { return misfireThreshold; }
-			set
-			{
-				if (value < 1)
-				{
-					throw new ArgumentException("Misfirethreashold must be larger than 0");
-				}
-				misfireThreshold = value;
-			}
-		}
+        /// <summary>
+        /// Get or set whether this instance should use database-based thread
+        /// synchronization.
+        /// </summary>
+        public virtual bool UseDBLocks
+        {
+            get { return useDBLocks; }
+            set { useDBLocks = value; }
+        }
 
-		/// <summary> 
-		/// Don't call set autocommit(false) on connections obtained from the
-		/// DataSource. This can be helpfull in a few situations, such as if you
-		/// have a driver that complains if it is called when it is already off.
-		/// </summary>
-		public virtual bool DontSetAutoCommitFalse
-		{
-			get { return dontSetAutoCommitFalse; }
-			set { dontSetAutoCommitFalse = value; }
-		}
+        /// <summary> 
+        /// Whether or not to obtain locks when inserting new jobs/triggers.  
+        /// Defaults to <code>true</code>, which is safest - some db's (such as 
+        /// MS SQLServer) seem to require this to avoid deadlocks under high load,
+        /// while others seem to do fine without.  
+        /// 
+        /// <p>
+        /// Setting this property to <code>false</code> will provide a 
+        /// significant performance increase during the addition of new jobs 
+        /// and triggers.
+        /// </p>
+        /// </summary>
+        public virtual bool LockOnInsert
+        {
+            get { return lockOnInsert; }
+            set { lockOnInsert = value; }
+        }
 
-		/// <summary> 
-		/// Set the transaction isolation level of DB connections to sequential.
-		/// </summary>
-		public virtual bool TxIsolationLevelSerializable
-		{
-			get { return setTxIsolationLevelSequential; }
-			set { setTxIsolationLevelSequential = value; }
-		}
+        /// <summary> 
+        /// The the number of milliseconds by which a trigger must have missed its
+        /// next-fire-time, in order for it to be considered "misfired" and thus
+        /// have its misfire instruction applied.
+        /// </summary>
+        public virtual long MisfireThreshold
+        {
+            get { return misfireThreshold; }
+            set
+            {
+                if (value < 1)
+                {
+                    throw new ArgumentException("MisfireThreshold must be larger than 0");
+                }
+                misfireThreshold = value;
+            }
+        }
 
-		/// <summary> 
-		/// Get or set the ADO.NET driver delegate class name.
-		/// </summary>
-		public virtual string DriverDelegateType
-		{
-			get { return delegateTypeName; }
-			set { delegateTypeName = value; }
-		}
+        /// <summary> 
+        /// Don't call set autocommit(false) on connections obtained from the
+        /// DataSource. This can be helpfull in a few situations, such as if you
+        /// have a driver that complains if it is called when it is already off.
+        /// </summary>
+        public virtual bool DontSetAutoCommitFalse
+        {
+            get { return dontSetAutoCommitFalse; }
+            set { dontSetAutoCommitFalse = value; }
+        }
 
-		/// <summary>
-		/// set the SQL statement to use to select and lock a row in the "locks"
-		/// table.
-		/// </summary>
-		/// <seealso cref="StdRowLockSemaphore" />
-		public virtual string SelectWithLockSQL
-		{
-			get { return selectWithLockSQL; }
-			set { selectWithLockSQL = value; }
-		}
+        /// <summary> 
+        /// Set the transaction isolation level of DB connections to sequential.
+        /// </summary>
+        public virtual bool TxIsolationLevelSerializable
+        {
+            get { return setTxIsolationLevelSequential; }
+            set { setTxIsolationLevelSequential = value; }
+        }
 
-		protected internal virtual IClassLoadHelper ClassLoadHelper
-		{
-			get { return classLoadHelper; }
-		}
+        /// <summary> 
+        /// Get or set the ADO.NET driver delegate class name.
+        /// </summary>
+        public virtual string DriverDelegateType
+        {
+            get { return delegateTypeName; }
+            set { delegateTypeName = value; }
+        }
 
-	    protected DbMetadata DbMetadata
-	    {
-	        get
-	        {
-	            return DBConnectionManager.Instance.GetDbMetadata(DataSource);
-	        }
-	    }
+        /// <summary>
+        /// set the SQL statement to use to select and lock a row in the "locks"
+        /// table.
+        /// </summary>
+        /// <seealso cref="StdRowLockSemaphore" />
+        public virtual string SelectWithLockSQL
+        {
+            get { return selectWithLockSQL; }
+            set { selectWithLockSQL = value; }
+        }
 
-		protected internal ConnectionAndTransactionHolder GetConnection()
-		{
-			try
-			{
-				IDbConnection conn = DBConnectionManager.Instance.GetConnection(DataSource);
-                IDbTransaction tx;
+        protected internal virtual IClassLoadHelper ClassLoadHelper
+        {
+            get { return classLoadHelper; }
+        }
 
-				if (conn == null)
-				{
-					throw new JobPersistenceException("Could not get connection from DataSource '" + DataSource + "'");
-				}
+        /// <summary>
+        /// Get whether the threads spawned by this JobStore should be
+        /// marked as daemon.  Possible threads include the <see cref="MisfireHandler" /> 
+        /// and the <see cref="ClusterManager"/>.
+        /// </summary>
+        /// <returns></returns>
+        public bool MakeThreadsDaemons
+        {
+            get { return makeThreadsDaemons; }
+            set { makeThreadsDaemons = value; }
+        }
 
+
+        /// <summary>
+        /// Get whether to check to see if there are Triggers that have misfired
+        /// before actually acquiring the lock to recover them.  This should be 
+        /// set to false if the majority of the time, there are are misfired
+        /// Triggers.
+        /// </summary>
+        /// <returns></returns>
+        public bool DoubleCheckLockMisfireHandler
+        {
+            get { return doubleCheckLockMisfireHandler; }
+            set { doubleCheckLockMisfireHandler = value; }
+        }
+
+        protected DbMetadata DbMetadata
+        {
+            get { return DBConnectionManager.Instance.GetDbMetadata(DataSource); }
+        }
+
+
+        protected abstract ConnectionAndTransactionHolder GetNonManagedTXConnection();
+
+        protected internal ConnectionAndTransactionHolder GetConnection()
+        {
+            IDbConnection conn;
+            IDbTransaction tx;
+            try
+            {
+                conn = DBConnectionManager.Instance.GetConnection(DataSource);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException(
+                    "Failed to obtain DB connection from data source '" + DataSource + "': " + e, e,
+                    JobPersistenceException.ERR_PERSISTENCE_CRITICAL_FAILURE);
+            }
+            if (conn == null)
+            {
+                throw new JobPersistenceException("Could not get connection from DataSource '" + DataSource + "'");
+            }
+
+            try
+            {
+                conn.Open();
+
+                if (!DontSetAutoCommitFalse)
+                {
+                    // TODO SupportClass.TransactionManager.manager.SetAutoCommit(conn, false);
+                }
+
+                if (TxIsolationLevelSerializable)
+                {
+                    tx = conn.BeginTransaction(IsolationLevel.Serializable);
+                }
+                else
+                {
+                    // default
+                    tx = conn.BeginTransaction();
+                }
+            }
+            catch (Exception e)
+            {
+                conn.Close();
+                throw new JobPersistenceException("Failure setting up connection.", e);
+            }
+
+            return new ConnectionAndTransactionHolder(conn, tx);
+        }
+
+        protected internal virtual long MisfireTime
+        {
+            get
+            {
+                long misfireTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
+                if (MisfireThreshold > 0)
+                {
+                    misfireTime -= MisfireThreshold;
+                }
+
+                return (misfireTime > 0) ? misfireTime : 0;
+            }
+        }
+
+        protected internal virtual string FiredTriggerRecordId
+        {
+            get
+            {
+                Interlocked.Increment(ref ftrCtr);
+                return InstanceId + ftrCtr;
+            }
+        }
+
+        /// <summary>
+        /// Get the driver delegate for DB operations.
+        /// </summary>
+        protected internal virtual IDriverDelegate Delegate
+        {
+            get
+            {
+                if (null == driverDelegate)
+                {
+                    try
+                    {
+                        if (delegateTypeName != null)
+                        {
+                            delegateType = ClassLoadHelper.LoadType(delegateTypeName);
+                        }
+
+                        ConstructorInfo ctor;
+                        Object[] ctorParams;
+                        IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(DataSource);
+                        if (CanUseProperties)
+                        {
+                            Type[] ctorParamTypes =
+                                new Type[]
+                                    {
+                                        typeof (ILog), typeof (String), typeof (String), typeof (IDbProvider),
+                                        typeof (Boolean)
+                                    };
+                            ctor = delegateType.GetConstructor(ctorParamTypes);
+                            ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider, CanUseProperties};
+                        }
+                        else
+                        {
+                            Type[] ctorParamTypes =
+                                new Type[] {typeof (ILog), typeof (String), typeof (String), typeof (IDbProvider)};
+                            ctor = delegateType.GetConstructor(ctorParamTypes);
+                            ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider};
+                        }
+
+                        driverDelegate = (IDriverDelegate) ctor.Invoke(ctorParams);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new NoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
+                    }
+                }
+
+                return driverDelegate;
+            }
+        }
+
+        private IDbProvider DbProvider
+        {
+            get { return DBConnectionManager.Instance.GetDbProvider(DataSource); }
+        }
+
+        protected internal virtual ISemaphore LockHandler
+        {
+            get { return lockHandler; }
+            set { lockHandler = value; }
+        }
+
+        /*
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        * 
+        * Constants.
+        * 
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
+
+        protected internal static string LOCK_TRIGGER_ACCESS = "TRIGGER_ACCESS";
+
+        protected internal static string LOCK_JOB_ACCESS = "JOB_ACCESS";
+
+        protected internal static string LOCK_CALENDAR_ACCESS = "CALENDAR_ACCESS";
+
+        protected internal static string LOCK_STATE_ACCESS = "STATE_ACCESS";
+
+        protected internal static string LOCK_MISFIRE_ACCESS = "MISFIRE_ACCESS";
+
+        /*
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        * 
+        * Data members.
+        * 
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
+
+        protected internal string dataSource;
+
+        protected internal string tablePrefix = DEFAULT_TABLE_PREFIX;
+
+        protected internal bool useProperties = false;
+
+        protected internal string instanceId;
+
+        protected internal string instanceName;
+
+        protected internal string delegateTypeName;
+        protected internal Type delegateType;
+
+        protected internal Hashtable calendarCache = new Hashtable();
+
+        private IDriverDelegate driverDelegate;
+
+        private long misfireThreshold = 60000L; // one minute
+
+        private bool dontSetAutoCommitFalse = false;
+
+        private bool clustered = false;
+
+        private bool useDBLocks = false;
+
+        private bool lockOnInsert = true;
+
+        private ISemaphore lockHandler = null; // set in Initialize() method...
+
+        private string selectWithLockSQL = null;
+
+        private long clusterCheckinInterval = 7500L;
+
+        private ClusterManager clusterManagementThread = null;
+
+        private MisfireHandler misfireHandler = null;
+
+        private IClassLoadHelper classLoadHelper;
+
+        private ISchedulerSignaler signaler;
+
+        protected internal int maxToRecoverAtATime = 20;
+
+        private bool setTxIsolationLevelSequential = false;
+
+        private long dbRetryInterval = 10000;
+
+        private bool makeThreadsDaemons = false;
+
+        private bool doubleCheckLockMisfireHandler = true;
+
+        private readonly ILog log;
+
+        /*
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        * 
+        * Interface.
+        * 
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
+
+        /// <summary>
+        /// Get whether String-only properties will be handled in JobDataMaps.
+        /// </summary>
+        public virtual bool CanUseProperties
+        {
+            get { return useProperties; }
+        }
+
+        /// <summary>
+        /// Called by the QuartzScheduler before the <code>JobStore</code> is
+        /// used, in order to give it a chance to Initialize.
+        /// </summary>
+        public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
+        {
+            if (dataSource == null)
+            {
+                throw new SchedulerConfigException("DataSource name not set.");
+            }
+
+            classLoadHelper = loadHelper;
+            signaler = s;
+
+
+            // If the user hasn't specified an explicit lock handler, then 
+            // choose one based on CMT/Clustered/UseDBLocks.
+            if (LockHandler == null)
+            {
+                // If the user hasn't specified an explicit lock handler, 
+                // then we *must* use DB locks with clustering
+                if (Clustered)
+                {
+                    UseDBLocks = true;
+                }
+
+                if (UseDBLocks)
+                {
+                    Log.Info("Using db table-based data access locking (synchronization).");
+                    LockHandler = new StdRowLockSemaphore(TablePrefix, SelectWithLockSQL, DbProvider);
+                }
+                else
+                {
+                    Log.Info("Using thread monitor-based data access locking (synchronization).");
+                    LockHandler = new SimpleSemaphore();
+                }
+            }
+        }
+
+        /// <seealso cref="IJobStore.SchedulerStarted()" />
+        public virtual void SchedulerStarted()
+        {
+            if (Clustered)
+            {
+                clusterManagementThread = new ClusterManager(this);
+                clusterManagementThread.Initialize();
+            }
+            else
+            {
                 try
                 {
-                    conn.Open();
-
-                    if (!DontSetAutoCommitFalse)
-                    {
-                        // TODO SupportClass.TransactionManager.manager.SetAutoCommit(conn, false);
-                    }
-
-
-                    if (TxIsolationLevelSerializable)
-                    {
-                        tx = conn.BeginTransaction(IsolationLevel.Serializable);
-                    }
-                    else
-                    {
-                        // default
-                        tx = conn.BeginTransaction();
-                    }
+                    RecoverJobs();
                 }
-                catch (Exception e)
+                catch (SchedulerException se)
                 {
-                    conn.Close();
-                    throw new JobPersistenceException(
-                        "Failure setting up connection.", e);
+                    throw new SchedulerConfigException("Failure occured during job recovery.", se);
                 }
+            }
 
-			    return new ConnectionAndTransactionHolder(conn, tx);
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException(
-					"Failed to obtain DB connection from data source '" + DataSource + "': " + e, e,
-					JobPersistenceException.ERR_PERSISTENCE_CRITICAL_FAILURE);
-			}
-		}
+            misfireHandler = new MisfireHandler(this);
+            misfireHandler.Initialize();
+        }
 
-		protected internal virtual long MisfireTime
-		{
-			get
-			{
-				long misfireTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
-				if (MisfireThreshold > 0)
-				{
-					misfireTime -= MisfireThreshold;
-				}
+        /// <summary>
+        /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+        /// it should free up all of it's resources because the scheduler is
+        /// shutting down.
+        /// </summary>
+        public virtual void Shutdown()
+        {
+            if (clusterManagementThread != null)
+            {
+                clusterManagementThread.Shutdown();
+            }
 
-				return misfireTime;
-			}
-		}
+            if (misfireHandler != null)
+            {
+                misfireHandler.Shutdown();
+            }
 
-		protected internal virtual string FiredTriggerRecordId
-		{
-			get
-			{
-				Interlocked.Increment(ref ftrCtr);
-				return InstanceId + ftrCtr;
-			}
-		}
-
-		/// <summary>
-		/// Get the driver delegate for DB operations.
-		/// </summary>
-		protected internal virtual IDriverDelegate Delegate
-		{
-			get
-			{
-				if (null == driverDelegate)
-				{
-					try
-					{
-						if (delegateTypeName != null)
-						{
-							delegateType = ClassLoadHelper.LoadType(delegateTypeName);
-						}
-
-						ConstructorInfo ctor;
-						Object[] ctorParams;
-					    IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(DataSource);
-						if (CanUseProperties)
-						{
-							Type[] ctorParamTypes = new Type[] {typeof (ILog), typeof (String), typeof (String), typeof(IDbProvider), typeof (Boolean)};
-							ctor = delegateType.GetConstructor(ctorParamTypes);
-							ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider, CanUseProperties};
-						}
-						else
-						{
-							Type[] ctorParamTypes = new Type[] {typeof (ILog), typeof (String), typeof (String), typeof(IDbProvider)};
-							ctor = delegateType.GetConstructor(ctorParamTypes);
-							ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider}; 
-						}
-
-						driverDelegate = (IDriverDelegate) ctor.Invoke(ctorParams);
-					}
-					catch (Exception e)
-					{
-						throw new NoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
-					}
-				}
-
-				return driverDelegate;
-			}
-		}
-
-		protected internal virtual ISemaphore LockHandler
-		{
-			get { return lockHandler; }
-            set { lockHandler = value; }
-		}
-
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Constants.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
-		protected internal static string LOCK_TRIGGER_ACCESS = "TRIGGER_ACCESS";
-
-		protected internal static string LOCK_JOB_ACCESS = "JOB_ACCESS";
-
-		protected internal static string LOCK_CALENDAR_ACCESS = "CALENDAR_ACCESS";
-
-		protected internal static string LOCK_STATE_ACCESS = "STATE_ACCESS";
-
-		protected internal static string LOCK_MISFIRE_ACCESS = "MISFIRE_ACCESS";
-
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Data members.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
-		protected internal string dataSource;
-
-		protected internal string tablePrefix = DEFAULT_TABLE_PREFIX;
-
-		protected internal bool useProperties = false;
-
-		protected internal string instanceId;
-
-		protected internal string instanceName;
-
-		protected internal string delegateTypeName;
-		protected internal Type delegateType;
-
-		protected internal Hashtable calendarCache = new Hashtable();
-
-		private IDriverDelegate driverDelegate;
-
-		private long misfireThreshold = 60000L; // one minute
-
-		private bool dontSetAutoCommitFalse = false;
-
-		private bool clustered = false;
-
-		private bool useDBLocks = false;
-
-		private bool lockOnInsert = true;
-
-		private ISemaphore lockHandler = null; // set in Initialize() method...
-
-		private string selectWithLockSQL = null;
-
-		private long clusterCheckinInterval = 7500L;
-
-		private ClusterManager clusterManagementThread = null;
-
-		private MisfireHandler misfireHandler = null;
-
-		private IClassLoadHelper classLoadHelper;
-
-		private ISchedulerSignaler signaler;
-
-		protected internal int maxToRecoverAtATime = 20;
-
-		private bool setTxIsolationLevelSequential = false;
-
-		private long dbRetryInterval = 10000;
-
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Interface.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
-		/// <summary>
-		/// Get whether String-only properties will be handled in JobDataMaps.
-		/// </summary>
-		public virtual bool CanUseProperties
-		{
-			get { return useProperties; }
-		}
-
-		/// <summary> <p>
-		/// Called by the QuartzScheduler before the <code>JobStore</code> is
-		/// used, in order to give the it a chance to Initialize.
-		/// </p>
-		/// </summary>
-		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
-		{
-			if (dataSource == null)
-			{
-				throw new SchedulerConfigException("DataSource name not set.");
-			}
-
-			classLoadHelper = loadHelper;
-			signaler = s;
-
-			if (!UseDBLocks && !Clustered)
-			{
-				Log.Info("Using thread monitor-based data access locking (synchronization).");
-				lockHandler = new SimpleSemaphore();
-			}
-			else
-			{
-				Log.Info("Using db table-based data access locking (synchronization).");
-				lockHandler = new StdRowLockSemaphore(TablePrefix, SelectWithLockSQL);
-			}
-
-			if (!Clustered)
-			{
-				try
-				{
-					CleanVolatileTriggerAndJobs();
-				}
-				catch (SchedulerException se)
-				{
-					throw new SchedulerConfigException("Failure occured during job recovery.", se);
-				}
-			}
-		}
-
-		/// <seealso cref="IJobStore.SchedulerStarted()" />
-		public virtual void SchedulerStarted()
-		{
-			if (Clustered)
-			{
-				clusterManagementThread = new ClusterManager(this, this);
-				clusterManagementThread.Initialize();
-			}
-			else
-			{
-				try
-				{
-					RecoverJobs();
-				}
-				catch (SchedulerException se)
-				{
-					throw new SchedulerConfigException("Failure occured during job recovery.", se);
-				}
-			}
-
-			misfireHandler = new MisfireHandler(this, this);
-			misfireHandler.Initialize();
-		}
-
-		/// <summary>
-		/// Called by the QuartzScheduler to inform the <code>JobStore</code> that
-		/// it should free up all of it's resources because the scheduler is
-		/// shutting down.
-		/// </summary>
-		public virtual void Shutdown()
-		{
-			if (clusterManagementThread != null)
-			{
-				clusterManagementThread.Shutdown();
-			}
-
-			if (misfireHandler != null)
-			{
-				misfireHandler.Shutdown();
-			}
-
-			try
-			{
-				DBConnectionManager.Instance.Shutdown(DataSource);
-			}
-			catch (Exception sqle)
-			{
-				Log.Warn("Database connection Shutdown unsuccessful.", sqle);
-			}
-		}
+            try
+            {
+                DBConnectionManager.Instance.Shutdown(DataSource);
+            }
+            catch (Exception sqle)
+            {
+                Log.Warn("Database connection Shutdown unsuccessful.", sqle);
+            }
+        }
 
         /// <summary>
         /// Indicates whether this job store supports persistence.
         /// </summary>
         /// <value></value>
         /// <returns></returns>
-		public virtual bool SupportsPersistence
-		{
-			get { return true; }
-		}
+        public virtual bool SupportsPersistence
+        {
+            get { return true; }
+        }
 
-		//---------------------------------------------------------------------------
-		// helper methods for subclasses
-		//---------------------------------------------------------------------------
+        //---------------------------------------------------------------------------
+        // helper methods for subclasses
+        //---------------------------------------------------------------------------
 
 
-		protected internal virtual void ReleaseLock(ConnectionAndTransactionHolder cth, string lockName, bool doIt)
-		{
-			if (doIt && cth != null)
-			{
-				try
-				{
-					LockHandler.ReleaseLock(cth, lockName);
-				}
-				catch (LockException le)
-				{
-					Log.Error("Error returning lock: " + le.Message, le);
-				}
-			}
-		}
+        protected internal virtual void ReleaseLock(ConnectionAndTransactionHolder cth, string lockName, bool doIt)
+        {
+            if (doIt && cth != null)
+            {
+                try
+                {
+                    LockHandler.ReleaseLock(cth, lockName);
+                }
+                catch (LockException le)
+                {
+                    Log.Error("Error returning lock: " + le.Message, le);
+                }
+            }
+        }
 
-		/// <summary>
-		/// Removes all volatile data.
-		/// </summary>
-		/// <throws>  JobPersistenceException </throws>
-		/// <summary>           if jobs could not be recovered
-		/// </summary>
-		protected internal abstract void CleanVolatileTriggerAndJobs();
+        /// <summary>
+        /// Removes all volatile data.
+        /// </summary>
+        protected internal virtual void CleanVolatileTriggerAndJobs()
+        {
+            ExecuteInNonManagedTXLock(LOCK_TRIGGER_ACCESS, new CleanVolatileTriggerAndJobsCallback(this));
+        }
 
-		/// <summary>
-		/// Removes all volatile data.
-		/// </summary>
-		protected internal virtual void CleanVolatileTriggerAndJobs(ConnectionAndTransactionHolder conn)
-		{
-			try
-			{
-				// find volatile jobs & triggers...
-				Key[] volatileTriggers = Delegate.SelectVolatileTriggers(conn);
-				Key[] volatileJobs = Delegate.SelectVolatileJobs(conn);
+        protected class CleanVolatileTriggerAndJobsCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            public CleanVolatileTriggerAndJobsCallback(JobStoreSupport js)
+                : base(js)
+            {
+            }
 
-				for (int i = 0; i < volatileTriggers.Length; i++)
-				{
-					RemoveTrigger(conn, null, volatileTriggers[i].Name, volatileTriggers[i].Group);
-				}
-				Log.Info("Removed " + volatileTriggers.Length + " Volatile Trigger(s).");
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.CleanVolatileTriggerAndJobs(conn);
+            }
+        }
 
-				for (int i = 0; i < volatileJobs.Length; i++)
-				{
-					RemoveJob(conn, null, volatileJobs[i].Name, volatileJobs[i].Group, true);
-				}
-				Log.Info("Removed " + volatileJobs.Length + " Volatile Job(s).");
+        protected class CallbackSupport
+        {
+            protected JobStoreSupport js;
 
-				// clean up any fired trigger entries
-				Delegate.DeleteVolatileFiredTriggers(conn);
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't clean volatile data: " + e.Message, e);
-			}
-		}
 
-		/// <summary> <p>
-		/// Will recover any failed or misfired jobs and clean up the data store as
-		/// appropriate.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <throws>  JobPersistenceException </throws>
-		/// <summary>           if jobs could not be recovered
-		/// </summary>
-		protected internal abstract void RecoverJobs();
+            public CallbackSupport(JobStoreSupport js)
+            {
+                this.js = js;
+            }
+        }
 
-		/// <summary>
-		/// Will recover any failed or misfired jobs and clean up the data store as
-		/// appropriate.
-		/// </summary>
+
+        /// <summary>
+        /// Removes all volatile data.
+        /// </summary>
+        protected internal virtual void CleanVolatileTriggerAndJobs(ConnectionAndTransactionHolder conn)
+        {
+            try
+            {
+                // find volatile jobs & triggers...
+                Key[] volatileTriggers = Delegate.SelectVolatileTriggers(conn);
+                Key[] volatileJobs = Delegate.SelectVolatileJobs(conn);
+
+                for (int i = 0; i < volatileTriggers.Length; i++)
+                {
+                    RemoveTrigger(conn, null, volatileTriggers[i].Name, volatileTriggers[i].Group);
+                }
+                Log.Info("Removed " + volatileTriggers.Length + " Volatile Trigger(s).");
+
+                for (int i = 0; i < volatileJobs.Length; i++)
+                {
+                    RemoveJob(conn, null, volatileJobs[i].Name, volatileJobs[i].Group, true);
+                }
+                Log.Info("Removed " + volatileJobs.Length + " Volatile Job(s).");
+
+                // clean up any fired trigger entries
+                Delegate.DeleteVolatileFiredTriggers(conn);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't clean volatile data: " + e.Message, e);
+            }
+        }
+
+        /// <summary>
+        /// Will recover any failed or misfired jobs and clean up the data store as
+        /// appropriate.
+        /// </summary>
+        protected internal virtual void RecoverJobs()
+        {
+            ExecuteInNonManagedTXLock(LOCK_TRIGGER_ACCESS, new RecoverJobsCallback(this));
+        }
+
+        protected class RecoverJobsCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            public RecoverJobsCallback(JobStoreSupport js)
+                : base(js)
+            {
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.RecoverJobs(conn);
+            }
+        }
+
+        /// <summary>
+        /// Will recover any failed or misfired jobs and clean up the data store as
+        /// appropriate.
+        /// </summary>
         protected internal virtual void RecoverJobs(ConnectionAndTransactionHolder conn)
-		{
-			try
-			{
-				// update inconsistent job states
-				int rows =
-					Delegate.UpdateTriggerStatesFromOtherStates(conn, STATE_WAITING, STATE_ACQUIRED,
-					                                            STATE_BLOCKED);
+        {
+            try
+            {
+                // update inconsistent job states
+                int rows =
+                    Delegate.UpdateTriggerStatesFromOtherStates(conn, STATE_WAITING, STATE_ACQUIRED,
+                                                                STATE_BLOCKED);
 
-				rows +=
-					Delegate.UpdateTriggerStatesFromOtherStates(conn, STATE_PAUSED,
-					                                            STATE_PAUSED_BLOCKED,
-					                                            STATE_PAUSED_BLOCKED);
+                rows +=
+                    Delegate.UpdateTriggerStatesFromOtherStates(conn, STATE_PAUSED,
+                                                                STATE_PAUSED_BLOCKED,
+                                                                STATE_PAUSED_BLOCKED);
 
-				Log.Info("Freed " + rows + " triggers from 'acquired' / 'blocked' state.");
+                Log.Info("Freed " + rows + " triggers from 'acquired' / 'blocked' state.");
 
-				// clean up misfired jobs
-				Delegate.UpdateTriggerStateFromOtherStatesBeforeTime(conn, STATE_MISFIRED,
-				                                                     STATE_WAITING, STATE_WAITING,
-				                                                     MisfireTime); // only waiting
-				RecoverMisfiredJobs(conn, true);
+                // clean up misfired jobs
+                RecoverMisfiredJobs(conn, true);
 
-				// recover jobs marked for recovery that were not fully executed
-				Trigger[] recoveringJobTriggers = Delegate.SelectTriggersForRecoveringJobs(conn);
-				Log.Info("Recovering " + recoveringJobTriggers.Length +
-				         " jobs that were in-progress at the time of the last shut-down.");
+                // recover jobs marked for recovery that were not fully executed
+                Trigger[] recoveringJobTriggers = Delegate.SelectTriggersForRecoveringJobs(conn);
+                Log.Info("Recovering " + recoveringJobTriggers.Length +
+                         " jobs that were in-progress at the time of the last shut-down.");
 
-				for (int i = 0; i < recoveringJobTriggers.Length; ++i)
-				{
-					if (JobExists(conn, recoveringJobTriggers[i].JobName, recoveringJobTriggers[i].JobGroup))
-					{
-						recoveringJobTriggers[i].ComputeFirstFireTime(null);
-						StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, STATE_WAITING, false, true);
-					}
-				}
-				Log.Info("Recovery complete.");
+                for (int i = 0; i < recoveringJobTriggers.Length; ++i)
+                {
+                    if (JobExists(conn, recoveringJobTriggers[i].JobName, recoveringJobTriggers[i].JobGroup))
+                    {
+                        recoveringJobTriggers[i].ComputeFirstFireTime(null);
+                        StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, STATE_WAITING, false, true);
+                    }
+                }
+                Log.Info("Recovery complete.");
 
-				// remove lingering 'complete' triggers...
-				Key[] ct = Delegate.SelectTriggersInState(conn, STATE_COMPLETE);
-				for (int i = 0; ct != null && i < ct.Length; i++)
-				{
-					RemoveTrigger(conn, null, ct[i].Name, ct[i].Group);
-				}
-			    if (ct != null)
-			    {
-			        Log.Info(string.Format("Removed {0} 'complete' triggers.", ct.Length));
-			    }
+                // remove lingering 'complete' triggers...
+                Key[] ct = Delegate.SelectTriggersInState(conn, STATE_COMPLETE);
+                for (int i = 0; ct != null && i < ct.Length; i++)
+                {
+                    RemoveTrigger(conn, null, ct[i].Name, ct[i].Group);
+                }
+                if (ct != null)
+                {
+                    Log.Info(string.Format("Removed {0} 'complete' triggers.", ct.Length));
+                }
 
-			    // clean up any fired trigger entries
-				int n = Delegate.DeleteFiredTriggers(conn);
-				Log.Info("Removed " + n + " stale fired job entries.");
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't recover jobs: " + e.Message, e);
-			}
-		}
-
-		private int lastRecoverCount = 0;
-
-
-        protected internal virtual bool RecoverMisfiredJobs(ConnectionAndTransactionHolder conn, bool recovering)
-		{
-			Key[] misfiredTriggers = Delegate.SelectTriggersInState(conn, STATE_MISFIRED);
-
-			if (misfiredTriggers.Length > 0 && misfiredTriggers.Length > MaxMisfiresToHandleAtATime)
-			{
-				Log.Info("Handling " + MaxMisfiresToHandleAtATime + " of " + misfiredTriggers.Length +
-				         " triggers that missed their scheduled fire-time.");
-			}
-			else if (misfiredTriggers.Length > 0)
-			{
-				Log.Info("Handling " + misfiredTriggers.Length + " triggers that missed their scheduled fire-time.");
-			}
-			else
-			{
-				Log.Debug("Found 0 triggers that missed their scheduled fire-time.");
-			}
-
-			lastRecoverCount = misfiredTriggers.Length;
-
-			for (int i = 0; i < misfiredTriggers.Length && i < MaxMisfiresToHandleAtATime; i++)
-			{
-				Trigger trig = Delegate.SelectTrigger(conn, misfiredTriggers[i].Name, misfiredTriggers[i].Group);
-
-				if (trig == null)
-				{
-					continue;
-				}
-
-				ICalendar cal = null;
-				if (trig.CalendarName != null)
-				{
-					cal = RetrieveCalendar(conn, null, trig.CalendarName);
-				}
-
-				String[] listeners = Delegate.SelectTriggerListeners(conn, trig.Name, trig.Group);
-				for (int l = 0; l < listeners.Length; ++l)
-				{
-					trig.AddTriggerListener(listeners[l]);
-				}
-
-				signaler.NotifyTriggerListenersMisfired(trig);
-
-				trig.UpdateAfterMisfire(cal);
-
-				if (!trig.GetNextFireTime().HasValue)
-				{
-					StoreTrigger(conn, null, trig, null, true, STATE_COMPLETE, false, recovering);
-				}
-				else
-				{
-					StoreTrigger(conn, null, trig, null, true, STATE_WAITING, false, recovering);
-				}
-			}
-
-			if (misfiredTriggers.Length > MaxMisfiresToHandleAtATime)
-			{
-				return true;
-			}
-
-			return false;
-		}
-
-
-		protected internal virtual bool UpdateMisfiredTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
-		                                                      string groupName, string newStateIfNotComplete, bool forceState)
-		{
-			try
-			{
-				Trigger trig = Delegate.SelectTrigger(conn, triggerName, groupName);
-
-				// TODO
-				long misfireTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
-				if (MisfireThreshold > 0)
-				{
-					misfireTime -= MisfireThreshold;
-				}
-
-				if (trig.GetNextFireTime().Value.Ticks > misfireTime)
-				{
-					return false;
-				}
-
-				ICalendar cal = null;
-				if (trig.CalendarName != null)
-				{
-					cal = RetrieveCalendar(conn, ctxt, trig.CalendarName);
-				}
-
-				signaler.NotifyTriggerListenersMisfired(trig);
-
-				trig.UpdateAfterMisfire(cal);
-
-				if (!trig.GetNextFireTime().HasValue)
-				{
-					StoreTrigger(conn, ctxt, trig, null, true, STATE_COMPLETE, forceState, false);
-				}
-				else
-				{
-					StoreTrigger(conn, ctxt, trig, null, true, newStateIfNotComplete, forceState, false);
-				}
-
-				return true;
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException(
-					"Couldn't update misfired trigger '" + groupName + "." + triggerName + "': " + e.Message, e);
-			}
-		}
-
-		/// <summary> <p>
-		/// Insert or update a job.
-		/// </p>
-		/// </summary>
-		protected internal virtual void StoreJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, JobDetail newJob,
-		                                         bool replaceExisting)
-		{
-			if (newJob.Volatile && Clustered)
-			{
-				Log.Info("note: volatile jobs are effectively non-volatile in a clustered environment.");
-			}
-
-			bool existingJob = JobExists(conn, newJob.Name, newJob.Group);
-			try
-			{
-				if (existingJob)
-				{
-					if (!replaceExisting)
-					{
-						throw new ObjectAlreadyExistsException(newJob);
-					}
-					Delegate.UpdateJobDetail(conn, newJob);
-				}
-				else
-				{
-					Delegate.InsertJobDetail(conn, newJob);
-				}
-			}
-			catch (IOException e)
-			{
-				throw new JobPersistenceException("Couldn't store job: " + e.Message, e);
-			}
+                // clean up any fired trigger entries
+                int n = Delegate.DeleteFiredTriggers(conn);
+                Log.Info("Removed " + n + " stale fired job entries.");
+            }
+            catch (JobPersistenceException)
+            {
+                throw;
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't store job: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't recover jobs: " + e.Message, e);
+            }
+        }
 
-		/// <summary> <p>
-		/// Check existence of a given job.
-		/// </p>
-		/// </summary>
+        //private int lastRecoverCount = 0;
+
+
+        public virtual RecoverMisfiredJobsResult RecoverMisfiredJobs(ConnectionAndTransactionHolder conn,
+                                                                     bool recovering)
+        {
+            // If recovering, we want to handle all of the misfired
+            // triggers right away.
+            int maxMisfiresToHandleAtATime = (recovering) ? -1 : MaxMisfiresToHandleAtATime;
+
+            IList misfiredTriggers = new ArrayList();
+
+            // We must still look for the MISFIRED state in case triggers were left 
+            // in this state when upgrading to this version that does not support it. 
+            bool hasMoreMisfiredTriggers =
+                Delegate.SelectMisfiredTriggersInStates(conn, STATE_MISFIRED, STATE_WAITING, MisfireTime,
+                                                        maxMisfiresToHandleAtATime, misfiredTriggers);
+
+            if (hasMoreMisfiredTriggers)
+            {
+                Log.Info(
+                    "Handling the first " + misfiredTriggers.Count +
+                    " triggers that missed their scheduled fire-time.  " +
+                    "More misfired triggers remain to be processed.");
+            }
+            else if (misfiredTriggers.Count > 0)
+            {
+                Log.Info(
+                    "Handling " + misfiredTriggers.Count +
+                    " trigger(s) that missed their scheduled fire-time.");
+            }
+            else
+            {
+                Log.Debug(
+                    "Found 0 triggers that missed their scheduled fire-time.");
+                return RecoverMisfiredJobsResult.NO_OP;
+            }
+
+            foreach (Key triggerKey in misfiredTriggers)
+            {
+                Trigger trig = RetrieveTrigger(conn, triggerKey.Name, triggerKey.Group);
+
+                if (trig == null)
+                {
+                    continue;
+                }
+
+                DoUpdateOfMisfiredTrigger(conn, null, trig, false, STATE_WAITING, recovering);
+            }
+
+            return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count);
+        }
+
+
+        protected internal virtual bool UpdateMisfiredTrigger(ConnectionAndTransactionHolder conn,
+                                                              SchedulingContext ctxt, string triggerName,
+                                                              string groupName, string newStateIfNotComplete,
+                                                              bool forceState)
+        {
+            try
+            {
+                Trigger trig = Delegate.SelectTrigger(conn, triggerName, groupName);
+
+                long misfireTime = DateTime.Now.Ticks;
+                if (MisfireThreshold > 0)
+                {
+                    misfireTime -= MisfireThreshold;
+                }
+
+                if (trig.GetNextFireTime().Value.Ticks > misfireTime)
+                {
+                    return false;
+                }
+
+                DoUpdateOfMisfiredTrigger(conn, ctxt, trig, forceState, newStateIfNotComplete, false);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException(
+                    "Couldn't update misfired trigger '" + groupName + "."
+                    + triggerName + "': " + e.Message, e);
+            }
+        }
+
+
+        private void DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, Trigger trig,
+                                               bool forceState, string newStateIfNotComplete, bool recovering)
+        {
+            ICalendar cal = null;
+            if (trig.CalendarName != null)
+            {
+                cal = RetrieveCalendar(conn, ctxt, trig.CalendarName);
+            }
+
+            signaler.NotifyTriggerListenersMisfired(trig);
+
+            trig.UpdateAfterMisfire(cal);
+
+            if (!trig.GetNextFireTime().HasValue)
+            {
+                StoreTrigger(conn, ctxt, trig, null, true, STATE_COMPLETE, forceState, recovering);
+            }
+            else
+            {
+                StoreTrigger(conn, ctxt, trig, null, true, newStateIfNotComplete, forceState, false);
+            }
+        }
+
+        /// <summary>
+        /// Store the given <code>{@link org.quartz.JobDetail}</code> and <code>{@link org.quartz.Trigger}</code>.
+        /// </summary>
+        /// <param name="ctxt">SchedulingContext</param>
+        /// <param name="newJob">Job to be stored.</param>
+        /// <param name="newTrigger">Trigger to be stored.</param>
+        public void StoreJobAndTrigger(SchedulingContext ctxt, JobDetail newJob, Trigger newTrigger)
+        {
+            ExecuteInLock((LockOnInsert) ? LOCK_TRIGGER_ACCESS : null,
+                          new StoreJobAndTriggerCallback(this, newJob, newTrigger, ctxt));
+        }
+
+        protected class StoreJobAndTriggerCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private JobDetail newJob;
+            private Trigger newTrigger;
+            private SchedulingContext ctxt;
+
+            public StoreJobAndTriggerCallback(JobStoreSupport js, JobDetail newJob, Trigger newTrigger,
+                                              SchedulingContext ctxt)
+                : base(js)
+            {
+                this.newJob = newJob;
+                this.newTrigger = newTrigger;
+                this.ctxt = ctxt;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                if (newJob.Volatile && !newTrigger.Volatile)
+                {
+                    JobPersistenceException jpe =
+                        new JobPersistenceException(
+                            "Cannot associate non-volatile trigger with a volatile job!");
+                    jpe.ErrorCode = SchedulerException.ERR_CLIENT_ERROR;
+                    throw jpe;
+                }
+
+                js.StoreJob(conn, ctxt, newJob, false);
+                js.StoreTrigger(conn, ctxt, newTrigger, newJob, false,
+                                STATE_WAITING, false, false);
+            }
+        }
+
+
+        /// <summary>
+        /// Stores the given <see cref="JobDetail" />.
+        /// </summary>
+        /// <param name="ctxt"></param>
+        /// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
+        /// <param name="replaceExisting">If <see langword="true" />, any <see cref="IJob" /> existing in the
+        ///          <see cref="IJobStore" /> with the same name &amp; group should be
+        ///         over-written.
+        ///     </param>
+        public void StoreJob(SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
+        {
+            ExecuteInLock(
+                (LockOnInsert || replaceExisting) ? LOCK_TRIGGER_ACCESS : null,
+                new StoreJobCallback(this, ctxt, newJob, replaceExisting));
+        }
+
+        protected class StoreJobCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private JobDetail newJob;
+            private bool replaceExisting;
+
+            public StoreJobCallback(JobStoreSupport js, SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.newJob = newJob;
+                this.replaceExisting = replaceExisting;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.StoreJob(conn, ctxt, newJob, replaceExisting);
+            }
+        }
+
+        /// <summary> <p>
+        /// Insert or update a job.
+        /// </p>
+        /// </summary>
+        protected internal virtual void StoreJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                 JobDetail newJob,
+                                                 bool replaceExisting)
+        {
+            if (newJob.Volatile && Clustered)
+            {
+                Log.Info("note: volatile jobs are effectively non-volatile in a clustered environment.");
+            }
+
+            bool existingJob = JobExists(conn, newJob.Name, newJob.Group);
+            try
+            {
+                if (existingJob)
+                {
+                    if (!replaceExisting)
+                    {
+                        throw new ObjectAlreadyExistsException(newJob);
+                    }
+                    Delegate.UpdateJobDetail(conn, newJob);
+                }
+                else
+                {
+                    Delegate.InsertJobDetail(conn, newJob);
+                }
+            }
+            catch (IOException e)
+            {
+                throw new JobPersistenceException("Couldn't store job: " + e.Message, e);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't store job: " + e.Message, e);
+            }
+        }
+
+        /// <summary> <p>
+        /// Check existence of a given job.
+        /// </p>
+        /// </summary>
         protected internal virtual bool JobExists(ConnectionAndTransactionHolder conn, string jobName, string groupName)
-		{
-			try
-			{
-				return Delegate.JobExists(conn, jobName, groupName);
-			}
+        {
+            try
+            {
+                return Delegate.JobExists(conn, jobName, groupName);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException(
-					"Couldn't determine job existence (" + groupName + "." + jobName + "): " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException(
+                    "Couldn't determine job existence (" + groupName + "." + jobName + "): " + e.Message, e);
+            }
+        }
 
-		/// <summary> <p>
-		/// Insert or update a trigger.
-		/// </p>
-		/// </summary>
-        protected internal virtual void StoreTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, Trigger newTrigger,
-		                                             JobDetail job, bool replaceExisting, string state, bool forceState,
-		                                             bool recovering)
-		{
-			if (newTrigger.Volatile && Clustered)
-			{
-				Log.Info("note: volatile triggers are effectively non-volatile in a clustered environment.");
-			}
 
-			bool existingTrigger = TriggerExists(conn, newTrigger.Name, newTrigger.Group);
+        /**
+         * <p>
+         * Store the given <code>{@link org.quartz.Trigger}</code>.
+         * </p>
+         * 
+         * @param newTrigger
+         *          The <code>Trigger</code> to be stored.
+         * @param replaceExisting
+         *          If <code>true</code>, any <code>Trigger</code> existing in
+         *          the <code>JobStore</code> with the same name &amp; group should
+         *          be over-written.
+         * @throws ObjectAlreadyExistsException
+         *           if a <code>Trigger</code> with the same name/group already
+         *           exists, and replaceExisting is set to false.
+         */
 
-			try
-			{
-			    if (!forceState)
-				{
-					bool shouldBepaused = Delegate.IsTriggerGroupPaused(conn, newTrigger.Group);
+        public void StoreTrigger(SchedulingContext ctxt, Trigger newTrigger, bool replaceExisting)
+        {
+            ExecuteInLock(
+                (LockOnInsert || replaceExisting) ? LOCK_TRIGGER_ACCESS : null,
+                new StoreTriggerCallback(this, ctxt, newTrigger, replaceExisting));
+        }
 
-					if (!shouldBepaused)
-					{
-						shouldBepaused = Delegate.IsTriggerGroupPaused(conn, ALL_GROUPS_PAUSED);
+        protected class StoreTriggerCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private Trigger newTrigger;
+            private bool replaceExisting;
 
-						if (shouldBepaused)
-						{
-							Delegate.InsertPausedTriggerGroup(conn, newTrigger.Group);
-						}
-					}
+            public StoreTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger newTrigger,
+                                        bool replaceExisting)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.newTrigger = newTrigger;
+                this.replaceExisting = replaceExisting;
+            }
 
-					if (shouldBepaused &&
-					    (state.Equals(STATE_WAITING) || state.Equals(STATE_ACQUIRED)))
-					{
-						state = STATE_PAUSED;
-					}
-				}
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.StoreTrigger(conn, ctxt, newTrigger, null, replaceExisting, STATE_WAITING, false, false);
+            }
+        }
 
-				if (job == null)
-				{
-					job = Delegate.SelectJobDetail(conn, newTrigger.JobName, newTrigger.JobGroup, ClassLoadHelper);
-				}
-				if (job == null)
-				{
-					throw new JobPersistenceException("The job (" + newTrigger.FullJobName +
-					                                  ") referenced by the trigger does not exist.");
-				}
-				if (job.Volatile && !newTrigger.Volatile)
-				{
-					throw new JobPersistenceException("It does not make sense to " +
-					                                  "associate a non-volatile Trigger with a volatile Job!");
-				}
+        /// <summary> <p>
+        /// Insert or update a trigger.
+        /// </p>
+        /// </summary>
+        protected internal virtual void StoreTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                     Trigger newTrigger,
+                                                     JobDetail job, bool replaceExisting, string state, bool forceState,
+                                                     bool recovering)
+        {
+            if (newTrigger.Volatile && Clustered)
+            {
+                Log.Info("note: volatile triggers are effectively non-volatile in a clustered environment.");
+            }
 
-				if (job.Stateful && !recovering)
-				{
-					String bstate = GetNewStatusForTrigger(conn, ctxt, job.Name, job.Group);
-					if (STATE_BLOCKED.Equals(bstate) && STATE_WAITING.Equals(state))
-					{
-						state = STATE_BLOCKED;
-					}
-					if (STATE_BLOCKED.Equals(bstate) && STATE_PAUSED.Equals(state))
-					{
-						state = STATE_PAUSED_BLOCKED;
-					}
-				}
-				if (existingTrigger)
-				{
-					if (!replaceExisting)
-					{
-						throw new ObjectAlreadyExistsException(newTrigger);
-					}
-					if (newTrigger is SimpleTrigger)
-					{
-						Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger) newTrigger);
-					}
-					else if (newTrigger is CronTrigger)
-					{
-						Delegate.UpdateCronTrigger(conn, (CronTrigger) newTrigger);
-					}
-					else
-					{
-						Delegate.UpdateBlobTrigger(conn, newTrigger);
-					}
-					Delegate.UpdateTrigger(conn, newTrigger, state, job);
-				}
-				else
-				{
-					Delegate.InsertTrigger(conn, newTrigger, state, job);
-					if (newTrigger is SimpleTrigger)
-					{
-						Delegate.InsertSimpleTrigger(conn, (SimpleTrigger) newTrigger);
-					}
-					else if (newTrigger is CronTrigger)
-					{
-						Delegate.InsertCronTrigger(conn, (CronTrigger) newTrigger);
-					}
-					else
-					{
-						Delegate.InsertBlobTrigger(conn, newTrigger);
-					}
-				}
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't store trigger: " + e.Message, e);
-			}
-		}
+            bool existingTrigger = TriggerExists(conn, newTrigger.Name, newTrigger.Group);
 
-		/// <summary> <p>
-		/// Check existence of a given trigger.
-		/// </p>
-		/// </summary>
-		protected internal virtual bool TriggerExists(ConnectionAndTransactionHolder conn, string triggerName, string groupName)
-		{
-			try
-			{
-				return Delegate.TriggerExists(conn, triggerName, groupName);
-			}
+
+            if ((existingTrigger) && (!replaceExisting))
+            {
+                throw new ObjectAlreadyExistsException(newTrigger);
+            }
+
+            try
+            {
+                if (!forceState)
+                {
+                    bool shouldBepaused = Delegate.IsTriggerGroupPaused(conn, newTrigger.Group);
+
+                    if (!shouldBepaused)
+                    {
+                        shouldBepaused = Delegate.IsTriggerGroupPaused(conn, ALL_GROUPS_PAUSED);
+
+                        if (shouldBepaused)
+                        {
+                            Delegate.InsertPausedTriggerGroup(conn, newTrigger.Group);
+                        }
+                    }
+
+                    if (shouldBepaused &&
+                        (state.Equals(STATE_WAITING) || state.Equals(STATE_ACQUIRED)))
+                    {
+                        state = STATE_PAUSED;
+                    }
+                }
+
+                if (job == null)
+                {
+                    job = Delegate.SelectJobDetail(conn, newTrigger.JobName, newTrigger.JobGroup, ClassLoadHelper);
+                }
+                if (job == null)
+                {
+                    throw new JobPersistenceException("The job (" + newTrigger.FullJobName +
+                                                      ") referenced by the trigger does not exist.");
+                }
+                if (job.Volatile && !newTrigger.Volatile)
+                {
+                    throw new JobPersistenceException("It does not make sense to " +
+                                                      "associate a non-volatile Trigger with a volatile Job!");
+                }
+
+                if (job.Stateful && !recovering)
+                {
+                    state = CheckBlockedState(conn, ctxt, job.Name, job.Group, state);
+                }
+                if (existingTrigger)
+                {
+                    if (newTrigger.GetType() == typeof (SimpleTrigger))
+                    {
+                        Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger) newTrigger);
+                    }
+                    else if (newTrigger.GetType() == typeof (CronTrigger))
+                    {
+                        Delegate.UpdateCronTrigger(conn, (CronTrigger) newTrigger);
+                    }
+                    else
+                    {
+                        Delegate.UpdateBlobTrigger(conn, newTrigger);
+                    }
+                    Delegate.UpdateTrigger(conn, newTrigger, state, job);
+                }
+                else
+                {
+                    Delegate.InsertTrigger(conn, newTrigger, state, job);
+                    if (newTrigger.GetType() == typeof (SimpleTrigger))
+                    {
+                        Delegate.InsertSimpleTrigger(conn, (SimpleTrigger) newTrigger);
+                    }
+                    else if (newTrigger.GetType() == typeof (CronTrigger))
+                    {
+                        Delegate.InsertCronTrigger(conn, (CronTrigger) newTrigger);
+                    }
+                    else
+                    {
+                        Delegate.InsertBlobTrigger(conn, newTrigger);
+                    }
+                }
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException(
-					"Couldn't determine trigger existence (" + groupName + "." + triggerName + "): " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't store trigger: " + e.Message, e);
+            }
+        }
 
-
-        protected internal virtual bool RemoveJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
-		                                          string groupName, bool activeDeleteSafe)
-		{
-			try
-			{
-				Key[] jobTriggers = Delegate.SelectTriggerNamesForJob(conn, jobName, groupName);
-				for (int i = 0; i < jobTriggers.Length; ++i)
-				{
-					Delegate.DeleteSimpleTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-					Delegate.DeleteCronTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-					Delegate.DeleteBlobTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-					Delegate.DeleteTriggerListeners(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-					Delegate.DeleteTrigger(conn, jobTriggers[i].Name, jobTriggers[i].Group);
-				}
-
-				Delegate.DeleteJobListeners(conn, jobName, groupName);
-
-				if (Delegate.DeleteJobDetail(conn, jobName, groupName) > 0)
-				{
-					return true;
-				}
-				else
-				{
-					return false;
-				}
-			}
+        /// <summary> <p>
+        /// Check existence of a given trigger.
+        /// </p>
+        /// </summary>
+        protected internal virtual bool TriggerExists(ConnectionAndTransactionHolder conn, string triggerName,
+                                                      string groupName)
+        {
+            try
+            {
+                return Delegate.TriggerExists(conn, triggerName, groupName);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't remove job: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException(
+                    "Couldn't determine trigger existence (" + groupName + "." + triggerName + "): " + e.Message, e);
+            }
+        }
 
 
-		protected internal virtual JobDetail RetrieveJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
-		                                                 string groupName)
-		{
-			try
-			{
-				JobDetail job = Delegate.SelectJobDetail(conn, jobName, groupName, ClassLoadHelper);
-				String[] listeners = Delegate.SelectJobListeners(conn, jobName, groupName);
-				for (int i = 0; i < listeners.Length; ++i)
-				{
-					job.AddJobListener(listeners[i]);
-				}
+        /**
+         * <p>
+         * Remove (delete) the <code>{@link org.quartz.Job}</code> with the given
+         * name, and any <code>{@link org.quartz.Trigger}</code> s that reference
+         * it.
+         * </p>
+         * 
+         * <p>
+         * If removal of the <code>Job</code> results in an empty group, the
+         * group should be removed from the <code>JobStore</code>'s list of
+         * known group names.
+         * </p>
+         * 
+         * @param jobName
+         *          The name of the <code>Job</code> to be removed.
+         * @param groupName
+         *          The group name of the <code>Job</code> to be removed.
+         * @return <code>true</code> if a <code>Job</code> with the given name &amp;
+         *         group was found and removed from the store.
+         */
 
-				return job;
-			}
+        public bool RemoveJob(SchedulingContext ctxt, string jobName, string groupName)
+        {
+            return (bool) ExecuteInLock(
+                              LOCK_TRIGGER_ACCESS,
+                              new RemoveJobCallback(this, ctxt, jobName, groupName));
+        }
 
-			catch (IOException e)
-			{
-				throw new JobPersistenceException("Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e,
-				                                  SchedulerException.ERR_PERSISTENCE_JOB_DOES_NOT_EXIST);
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't retrieve job: " + e.Message, e);
-			}
-		}
-
-
-		protected internal virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
-		                                              string groupName)
-		{
-			bool removedTrigger;
-			try
-			{
-				// this must be called before we delete the trigger, obviously
-				JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
-
-				Delegate.DeleteSimpleTrigger(conn, triggerName, groupName);
-				Delegate.DeleteCronTrigger(conn, triggerName, groupName);
-				Delegate.DeleteBlobTrigger(conn, triggerName, groupName);
-				Delegate.DeleteTriggerListeners(conn, triggerName, groupName);
-				removedTrigger = (Delegate.DeleteTrigger(conn, triggerName, groupName) > 0);
-
-				if (null != job && !job.Durable)
-				{
-					int numTriggers = Delegate.SelectNumTriggersForJob(conn, job.Name, job.Group);
-					if (numTriggers == 0)
-					{
-						RemoveJob(conn, ctxt, job.Name, job.Group, true);
-					}
-				}
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
-			}
-
-			return removedTrigger;
-		}
+        protected class RemoveJobCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string jobName;
+            private string groupName;
 
 
-		protected internal virtual bool ReplaceTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
-		                                               string groupName, Trigger newTrigger)
-		{
-			bool removedTrigger;
-			try
-			{
-				// this must be called before we delete the trigger, obviously
-				JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
+            public RemoveJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.jobName = jobName;
+                this.groupName = groupName;
+            }
 
-				if (job == null)
-				{
-					return false;
-				}
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.RemoveJob(conn, ctxt, jobName, groupName, true);
+            }
+        }
 
-				if (!newTrigger.JobName.Equals(job.Name) || !newTrigger.JobGroup.Equals(job.Group))
-				{
-					throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
-				}
+        protected internal virtual bool RemoveJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                  string jobName,
+                                                  string groupName, bool activeDeleteSafe)
+        {
+            try
+            {
+                Key[] jobTriggers = Delegate.SelectTriggerNamesForJob(conn, jobName, groupName);
 
-				Delegate.DeleteSimpleTrigger(conn, triggerName, groupName);
-				Delegate.DeleteCronTrigger(conn, triggerName, groupName);
-				Delegate.DeleteBlobTrigger(conn, triggerName, groupName);
-				Delegate.DeleteTriggerListeners(conn, triggerName, groupName);
-				removedTrigger = (Delegate.DeleteTrigger(conn, triggerName, groupName) > 0);
+                for (int i = 0; i < jobTriggers.Length; ++i)
+                {
+                    DeleteTriggerAndChildren(conn, jobTriggers[i].Name, jobTriggers[i].Group);
+                }
 
-				StoreTrigger(conn, ctxt, newTrigger, job, false, STATE_WAITING, false, false);
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
-			}
-			return removedTrigger;
-		}
+                return DeleteJobAndChildren(conn, ctxt, jobName, groupName);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't remove job: " + e.Message, e);
+            }
+        }
 
 
-		protected internal virtual Trigger RetrieveTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
-		                                                   string groupName)
-		{
-			try
-			{
-				Trigger trigger = Delegate.SelectTrigger(conn, triggerName, groupName);
-				if (trigger == null)
-				{
-					return null;
-				}
-				String[] listeners = Delegate.SelectTriggerListeners(conn, triggerName, groupName);
-				for (int i = 0; i < listeners.Length; ++i)
-				{
-					trigger.AddTriggerListener(listeners[i]);
-				}
+        /**
+         * Delete a job and its listeners.
+         * 
+         * @see #removeJob(Connection, SchedulingContext, String, String, boolean)
+         * @see #removeTrigger(Connection, SchedulingContext, String, String)
+         */
 
-				return trigger;
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't retrieve trigger: " + e.Message, e);
-			}
-		}
+        private bool DeleteJobAndChildren(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
+                                          string groupName)
+        {
+            Delegate.DeleteJobListeners(conn, jobName, groupName);
+
+            return (Delegate.DeleteJobDetail(conn, jobName, groupName) > 0);
+        }
+
+        /**
+         * Delete a trigger, its listeners, and its Simple/Cron/BLOB sub-table entry.
+         * 
+         * @see #removeJob(Connection, SchedulingContext, String, String, boolean)
+         * @see #removeTrigger(Connection, SchedulingContext, String, String)
+         * @see #replaceTrigger(Connection, SchedulingContext, String, String, Trigger)
+         */
+
+        private bool DeleteTriggerAndChildren(ConnectionAndTransactionHolder conn, string triggerName,
+                                              string triggerGroupName)
+        {
+            IDriverDelegate del = Delegate;
+
+            // Once it succeeds in deleting one sub-table entry it will not try the others.
+            if ((del.DeleteSimpleTrigger(conn, triggerName, triggerGroupName) == 0) &&
+                (del.DeleteCronTrigger(conn, triggerName, triggerGroupName) == 0))
+            {
+                del.DeleteBlobTrigger(conn, triggerName, triggerGroupName);
+            }
+
+            del.DeleteTriggerListeners(conn, triggerName, triggerGroupName);
+
+            return (del.DeleteTrigger(conn, triggerName, triggerGroupName) > 0);
+        }
+
+        /**
+         * <p>
+         * Retrieve the <code>{@link org.quartz.JobDetail}</code> for the given
+         * <code>{@link org.quartz.Job}</code>.
+         * </p>
+         * 
+         * @param jobName
+         *          The name of the <code>Job</code> to be retrieved.
+         * @param groupName
+         *          The group name of the <code>Job</code> to be retrieved.
+         * @return The desired <code>Job</code>, or null if there is no match.
+         */
+
+        public JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
+        {
+            // no locks necessary for read...
+            return (JobDetail) ExecuteWithoutLock(new RetrieveJobCallback(this, ctxt, jobName, groupName));
+        }
+
+        protected class RetrieveJobCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string jobName;
+            private string groupName;
+
+
+            public RetrieveJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.jobName = jobName;
+                this.groupName = groupName;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.RetrieveJob(conn, ctxt, jobName, groupName);
+            }
+        }
+
+
+        protected internal virtual JobDetail RetrieveJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                         string jobName,
+                                                         string groupName)
+        {
+            try
+            {
+                JobDetail job = Delegate.SelectJobDetail(conn, jobName, groupName, ClassLoadHelper);
+                String[] listeners = Delegate.SelectJobListeners(conn, jobName, groupName);
+                for (int i = 0; i < listeners.Length; ++i)
+                {
+                    job.AddJobListener(listeners[i]);
+                }
+
+                return job;
+            }
+
+            catch (IOException e)
+            {
+                throw new JobPersistenceException(
+                    "Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e,
+                    SchedulerException.ERR_PERSISTENCE_JOB_DOES_NOT_EXIST);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve job: " + e.Message, e);
+            }
+        }
+
+
+        /**
+         * <p>
+         * Remove (delete) the <code>{@link org.quartz.Trigger}</code> with the
+         * given name.
+         * </p>
+         * 
+         * <p>
+         * If removal of the <code>Trigger</code> results in an empty group, the
+         * group should be removed from the <code>JobStore</code>'s list of
+         * known group names.
+         * </p>
+         * 
+         * <p>
+         * If removal of the <code>Trigger</code> results in an 'orphaned' <code>Job</code>
+         * that is not 'durable', then the <code>Job</code> should be deleted
+         * also.
+         * </p>
+         * 
+         * @param triggerName
+         *          The name of the <code>Trigger</code> to be removed.
+         * @param groupName
+         *          The group name of the <code>Trigger</code> to be removed.
+         * @return <code>true</code> if a <code>Trigger</code> with the given
+         *         name &amp; group was found and removed from the store.
+         */
+
+        public bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        {
+            return (bool) ExecuteInLock(
+                              LOCK_TRIGGER_ACCESS,
+                              new RemoveTriggerCallback(this, ctxt, triggerName, groupName));
+        }
+
+        protected class RemoveTriggerCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string triggerName;
+            private string groupName;
+
+
+            public RemoveTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+                                         string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.triggerName = triggerName;
+                this.groupName = groupName;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.RemoveTrigger(conn, ctxt, triggerName, groupName);
+            }
+        }
+
+        protected internal virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                      string triggerName,
+                                                      string groupName)
+        {
+            bool removedTrigger;
+            try
+            {
+                // this must be called before we delete the trigger, obviously
+                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
+
+                removedTrigger = DeleteTriggerAndChildren(conn, triggerName, groupName);
+
+                if (null != job && !job.Durable)
+                {
+                    int numTriggers = Delegate.SelectNumTriggersForJob(conn, job.Name, job.Group);
+                    if (numTriggers == 0)
+                    {
+                        // Don't call RemoveJob() because we don't want to check for
+                        // triggers again.
+                        DeleteJobAndChildren(conn, ctxt, job.Name, job.Group);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+            }
+
+            return removedTrigger;
+        }
+
+        /** 
+         * @see org.quartz.spi.JobStore#replaceTrigger(org.quartz.core.SchedulingContext, java.lang.String, java.lang.String, org.quartz.Trigger)
+         */
+
+        public bool ReplaceTrigger(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger)
+        {
+            return
+                (bool)
+                ExecuteInLock(LOCK_TRIGGER_ACCESS,
+                              new ReplaceTriggerCallback(this, ctxt, triggerName, groupName, newTrigger));
+        }
+
+        protected class ReplaceTriggerCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string triggerName;
+            private string groupName;
+            private Trigger newTrigger;
+
+
+            public ReplaceTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+                                          string groupName, Trigger newTrigger)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.triggerName = triggerName;
+                this.groupName = groupName;
+                this.newTrigger = newTrigger;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.ReplaceTrigger(conn, ctxt, triggerName, groupName, newTrigger);
+            }
+        }
+
+        protected internal virtual bool ReplaceTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                       string triggerName,
+                                                       string groupName, Trigger newTrigger)
+        {
+            try
+            {
+                // this must be called before we delete the trigger, obviously
+                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
+
+                if (job == null)
+                {
+                    return false;
+                }
+
+                if (!newTrigger.JobName.Equals(job.Name) || !newTrigger.JobGroup.Equals(job.Group))
+                {
+                    throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
+                }
+
+                bool removedTrigger = DeleteTriggerAndChildren(conn, triggerName, groupName);
+
+                StoreTrigger(conn, ctxt, newTrigger, job, false, STATE_WAITING, false, false);
+
+                return removedTrigger;
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+            }
+        }
+
+        /**
+         * <p>
+         * Retrieve the given <code>{@link org.quartz.Trigger}</code>.
+         * </p>
+         * 
+         * @param triggerName
+         *          The name of the <code>Trigger</code> to be retrieved.
+         * @param groupName
+         *          The group name of the <code>Trigger</code> to be retrieved.
+         * @return The desired <code>Trigger</code>, or null if there is no
+         *         match.
+         */
+
+        public Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        {
+            return (Trigger) ExecuteWithoutLock( // no locks necessary for read...
+                                 new RetrieveTriggerCallback(this, ctxt, triggerName, groupName));
+        }
+
+        protected class RetrieveTriggerCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string triggerName;
+            private string groupName;
+
+
+            public RetrieveTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+                                           string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.triggerName = triggerName;
+                this.groupName = groupName;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.RetrieveTrigger(conn, ctxt, triggerName, groupName);
+            }
+        }
+
+        protected internal virtual Trigger RetrieveTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                           string triggerName,
+                                                           string groupName)
+        {
+            return RetrieveTrigger(conn, triggerName, groupName);
+        }
+
+        protected internal virtual Trigger RetrieveTrigger(ConnectionAndTransactionHolder conn, string triggerName,
+                                                           string groupName)
+        {
+            try
+            {
+                Trigger trigger = Delegate.SelectTrigger(conn, triggerName, groupName);
+                if (trigger == null)
+                {
+                    return null;
+                }
+
+                // In case Trigger was BLOB, clear out any listeners that might 
+                // have been serialized.
+                trigger.ClearAllTriggerListeners();
+
+                String[] listeners = Delegate.SelectTriggerListeners(conn, triggerName, groupName);
+                for (int i = 0; i < listeners.Length; ++i)
+                {
+                    trigger.AddTriggerListener(listeners[i]);
+                }
+
+                return trigger;
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve trigger: " + e.Message, e);
+            }
+        }
+
+
+        /**
+         * <p>
+         * Get the current state of the identified <code>{@link Trigger}</code>.
+         * </p>
+         * 
+         * @see Trigger#STATE_NORMAL
+         * @see Trigger#STATE_PAUSED
+         * @see Trigger#STATE_COMPLETE
+         * @see Trigger#STATE_ERROR
+         * @see Trigger#STATE_NONE
+         */
+
+        public int GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
+        {
+            // no locks necessary for read...
+            return (int) ExecuteWithoutLock(new GetTriggerStateCallback(this, ctxt, triggerName, groupName));
+        }
+
+        protected class GetTriggerStateCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string triggerName;
+            private string groupName;
+
+
+            public GetTriggerStateCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+                                           string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.triggerName = triggerName;
+                this.groupName = groupName;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetTriggerState(conn, ctxt, triggerName, groupName);
+            }
+        }
 
 
         /// <summary>
@@ -1197,1498 +1704,2938 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">Name of the trigger.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns></returns>
-		public virtual int GetTriggerState(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName, string groupName)
-		{
-			try
-			{
-				String ts = Delegate.SelectTriggerState(conn, triggerName, groupName);
+        public virtual int GetTriggerState(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                           string triggerName, string groupName)
+        {
+            try
+            {
+                String ts = Delegate.SelectTriggerState(conn, triggerName, groupName);
 
-				if (ts == null)
-				{
-					return Trigger.STATE_NONE;
-				}
+                if (ts == null)
+                {
+                    return Trigger.STATE_NONE;
+                }
 
-				if (ts.Equals(STATE_DELETED))
-				{
-					return Trigger.STATE_NONE;
-				}
+                if (ts.Equals(STATE_DELETED))
+                {
+                    return Trigger.STATE_NONE;
+                }
 
-				if (ts.Equals(STATE_COMPLETE))
-				{
-					return Trigger.STATE_COMPLETE;
-				}
+                if (ts.Equals(STATE_COMPLETE))
+                {
+                    return Trigger.STATE_COMPLETE;
+                }
 
-				if (ts.Equals(STATE_PAUSED))
-				{
-					return Trigger.STATE_PAUSED;
-				}
+                if (ts.Equals(STATE_PAUSED))
+                {
+                    return Trigger.STATE_PAUSED;
+                }
 
-				if (ts.Equals(STATE_PAUSED_BLOCKED))
-				{
-					return Trigger.STATE_PAUSED;
-				}
+                if (ts.Equals(STATE_PAUSED_BLOCKED))
+                {
+                    return Trigger.STATE_PAUSED;
+                }
 
-				if (ts.Equals(STATE_ERROR))
-				{
-					return Trigger.STATE_ERROR;
-				}
+                if (ts.Equals(STATE_ERROR))
+                {
+                    return Trigger.STATE_ERROR;
+                }
 
-				if (ts.Equals(STATE_BLOCKED))
-				{
-					return Trigger.STATE_BLOCKED;
-				}
+                if (ts.Equals(STATE_BLOCKED))
+                {
+                    return Trigger.STATE_BLOCKED;
+                }
 
-				return Trigger.STATE_NORMAL;
-			}
+                return Trigger.STATE_NORMAL;
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException(
-					"Couldn't determine state of trigger (" + groupName + "." + triggerName + "): " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException(
+                    "Couldn't determine state of trigger (" + groupName + "." + triggerName + "): " + e.Message, e);
+            }
+        }
+
+        /**
+         * <p>
+         * Store the given <code>{@link org.quartz.Calendar}</code>.
+         * </p>
+         * 
+         * @param calName
+         *          The name of the calendar.
+         * @param calendar
+         *          The <code>Calendar</code> to be stored.
+         * @param replaceExisting
+         *          If <code>true</code>, any <code>Calendar</code> existing
+         *          in the <code>JobStore</code> with the same name &amp; group
+         *          should be over-written.
+         * @throws ObjectAlreadyExistsException
+         *           if a <code>Calendar</code> with the same name already
+         *           exists, and replaceExisting is set to false.
+         */
+
+        public void StoreCalendar(SchedulingContext ctxt, string calName, ICalendar calendar, bool replaceExisting,
+                                  bool updateTriggers)
+        {
+            ExecuteInLock(
+                (LockOnInsert || updateTriggers) ? LOCK_TRIGGER_ACCESS : null,
+                new StoreCalendarCallback(this, ctxt, calName, calendar, replaceExisting, updateTriggers));
+        }
+
+        protected class StoreCalendarCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string calName;
+            private ICalendar calendar;
+            private bool replaceExisting;
+            private bool updateTriggers;
 
 
-		protected internal virtual void StoreCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string calName,
-		                                              ICalendar calendar, bool replaceExisting, bool updateTriggers)
-		{
-			try
-			{
-				bool existingCal = CalendarExists(conn, calName);
-				if (existingCal && !replaceExisting)
-				{
-					throw new ObjectAlreadyExistsException("Calendar with name '" + calName + "' already exists.");
-				}
+            public StoreCalendarCallback(JobStoreSupport js, SchedulingContext ctxt, string calName, ICalendar calendar,
+                                         bool replaceExisting, bool updateTriggers)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.calName = calName;
+                this.calendar = calendar;
+                this.replaceExisting = replaceExisting;
+                this.updateTriggers = updateTriggers;
+            }
 
-				if (existingCal)
-				{
-					if (Delegate.UpdateCalendar(conn, calName, calendar) < 1)
-					{
-						throw new JobPersistenceException("Couldn't store calendar.  Update failed.");
-					}
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.StoreCalendar(conn, ctxt, calName, calendar, replaceExisting, updateTriggers);
+            }
+        }
 
-					if (updateTriggers)
-					{
-						Trigger[] trigs = Delegate.SelectTriggersForCalendar(conn, calName);
+        protected internal virtual void StoreCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                      string calName,
+                                                      ICalendar calendar, bool replaceExisting, bool updateTriggers)
+        {
+            try
+            {
+                bool existingCal = CalendarExists(conn, calName);
+                if (existingCal && !replaceExisting)
+                {
+                    throw new ObjectAlreadyExistsException("Calendar with name '" + calName + "' already exists.");
+                }
 
-						for (int i = 0; i < trigs.Length; i++)
-						{
-							trigs[i].UpdateWithNewCalendar(calendar, MisfireThreshold);
-							StoreTrigger(conn, ctxt, trigs[i], null, true, STATE_WAITING, false, false);
-						}
-					}
-				}
-				else
-				{
-					if (Delegate.InsertCalendar(conn, calName, calendar) < 1)
-					{
-						throw new JobPersistenceException("Couldn't store calendar.  Insert failed.");
-					}
-				}
+                if (existingCal)
+                {
+                    if (Delegate.UpdateCalendar(conn, calName, calendar) < 1)
+                    {
+                        throw new JobPersistenceException("Couldn't store calendar.  Update failed.");
+                    }
 
-				calendarCache[calName] = calendar; // lazy-cache
-			}
-			catch (IOException e)
-			{
-				throw new JobPersistenceException("Couldn't store calendar because the BLOB couldn't be serialized: " + e.Message, e);
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't store calendar: " + e.Message, e);
-			}
-		}
+                    if (updateTriggers)
+                    {
+                        Trigger[] trigs = Delegate.SelectTriggersForCalendar(conn, calName);
 
+                        for (int i = 0; i < trigs.Length; i++)
+                        {
+                            trigs[i].UpdateWithNewCalendar(calendar, MisfireThreshold);
+                            StoreTrigger(conn, ctxt, trigs[i], null, true, STATE_WAITING, false, false);
+                        }
+                    }
+                }
+                else
+                {
+                    if (Delegate.InsertCalendar(conn, calName, calendar) < 1)
+                    {
+                        throw new JobPersistenceException("Couldn't store calendar.  Insert failed.");
+                    }
+                }
 
-		protected internal virtual bool CalendarExists(ConnectionAndTransactionHolder conn, string calName)
-		{
-			try
-			{
-				return Delegate.CalendarExists(conn, calName);
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't determine calendar existence (" + calName + "): " + e.Message, e);
-			}
-		}
-
-
-		protected internal virtual bool RemoveCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string calName)
-		{
-			try
-			{
-				if (Delegate.CalendarIsReferenced(conn, calName))
-				{
-					throw new JobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
-				}
-
-				calendarCache.Remove(calName);
-
-				return (Delegate.DeleteCalendar(conn, calName) > 0);
-			}
+                if (!Clustered)
+                {
+                    calendarCache[calName] = calendar; // lazy-cache}
+                }
+            }
+            catch (IOException e)
+            {
+                throw new JobPersistenceException(
+                    "Couldn't store calendar because the BLOB couldn't be serialized: " + e.Message, e);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't remove calendar: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't store calendar: " + e.Message, e);
+            }
+        }
 
 
-		protected internal virtual ICalendar RetrieveCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string calName)
-		{
-			// all calendars are persistent, but we lazy-cache them during run
-			// time...
-			ICalendar cal = (ICalendar) calendarCache[calName];
-			if (cal != null)
-			{
-				return cal;
-			}
+        protected internal virtual bool CalendarExists(ConnectionAndTransactionHolder conn, string calName)
+        {
+            try
+            {
+                return Delegate.CalendarExists(conn, calName);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException(
+                    "Couldn't determine calendar existence (" + calName + "): " + e.Message, e);
+            }
+        }
 
-			try
-			{
-				cal = Delegate.SelectCalendar(conn, calName);
-				calendarCache[calName] = cal; // lazy-cache...
-				return cal;
-			}
-			catch (IOException e)
-			{
-				throw new JobPersistenceException(
-					"Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
-			}
-		}
 
+        /**
+         * <p>
+         * Remove (delete) the <code>{@link org.quartz.Calendar}</code> with the
+         * given name.
+         * </p>
+         * 
+         * <p>
+         * If removal of the <code>Calendar</code> would result in
+         * <code>Trigger</code>s pointing to non-existent calendars, then a
+         * <code>JobPersistenceException</code> will be thrown.</p>
+         *       *
+         * @param calName The name of the <code>Calendar</code> to be removed.
+         * @return <code>true</code> if a <code>Calendar</code> with the given name
+         * was found and removed from the store.
+         */
+
+        public bool RemoveCalendar(SchedulingContext ctxt, string calName)
+        {
+            return (bool) ExecuteInLock(LOCK_TRIGGER_ACCESS, new RemoveCalendarCallback(this, ctxt, calName));
+        }
+
+        protected class RemoveCalendarCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string calName;
+
+
+            public RemoveCalendarCallback(JobStoreSupport js, SchedulingContext ctxt, string calName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.calName = calName;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.RemoveCalendar(conn, ctxt, calName);
+            }
+        }
+
+        protected internal virtual bool RemoveCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                       string calName)
+        {
+            try
+            {
+                if (Delegate.CalendarIsReferenced(conn, calName))
+                {
+                    throw new JobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
+                }
+
+                if (!Clustered)
+                {
+                    calendarCache.Remove(calName);
+                }
+
+                return (Delegate.DeleteCalendar(conn, calName) > 0);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't remove calendar: " + e.Message, e);
+            }
+        }
+
+        /**
+         * <p>
+         * Retrieve the given <code>{@link org.quartz.Trigger}</code>.
+         * </p>
+         * 
+         * @param calName
+         *          The name of the <code>Calendar</code> to be retrieved.
+         * @return The desired <code>Calendar</code>, or null if there is no
+         *         match.
+         */
+
+        public ICalendar RetrieveCalendar(SchedulingContext ctxt, string calName)
+        {
+            return (ICalendar) ExecuteWithoutLock( // no locks necessary for read...
+                                   new RetrieveCalendarCallback(this, ctxt, calName));
+        }
+
+        protected class RetrieveCalendarCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string calName;
+
+
+            public RetrieveCalendarCallback(JobStoreSupport js, SchedulingContext ctxt, string calName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.calName = calName;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.RetrieveCalendar(conn, ctxt, calName);
+            }
+        }
+
+        protected internal virtual ICalendar RetrieveCalendar(ConnectionAndTransactionHolder conn,
+                                                              SchedulingContext ctxt, string calName)
+        {
+            // all calendars are persistent, but we lazy-cache them during run
+            // time as long as we aren't running clustered.
+            ICalendar cal = Clustered ? null : (ICalendar) calendarCache[calName];
+            if (cal != null)
+            {
+                return cal;
+            }
+
+            try
+            {
+                cal = Delegate.SelectCalendar(conn, calName);
+                if (!Clustered)
+                {
+                    calendarCache[calName] = cal; // lazy-cache...
+                }
+                return cal;
+            }
+            catch (IOException e)
+            {
+                throw new JobPersistenceException(
+                    "Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
+            }
+        }
+
+
+        /**
+         * <p>
+         * Get the number of <code>{@link org.quartz.Job}</code> s that are
+         * stored in the <code>JobStore</code>.
+         * </p>
+         */
+
+        public int GetNumberOfJobs(SchedulingContext ctxt)
+        {
+            // no locks necessary for read...
+            return (int) ExecuteWithoutLock(new GetNumberOfJobsCallback(this, ctxt));
+        }
+
+        protected class GetNumberOfJobsCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+
+            public GetNumberOfJobsCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetNumberOfJobs(conn, ctxt);
+            }
+        }
 
         protected internal virtual int GetNumberOfJobs(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			try
-			{
-				return Delegate.SelectNumJobs(conn);
-			}
+        {
+            try
+            {
+                return Delegate.SelectNumJobs(conn);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain number of jobs: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't obtain number of jobs: " + e.Message, e);
+            }
+        }
+
+        /**
+         * <p>
+         * Get the number of <code>{@link org.quartz.Trigger}</code> s that are
+         * stored in the <code>JobsStore</code>.
+         * </p>
+         */
+
+        public int GetNumberOfTriggers(SchedulingContext ctxt)
+        {
+            return (int) ExecuteWithoutLock( // no locks necessary for read...
+                             new GetNumberOfTriggersCallback(this, ctxt));
+        }
+
+        protected class GetNumberOfTriggersCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+
+
+            public GetNumberOfTriggersCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetNumberOfTriggers(conn, ctxt);
+            }
+        }
 
 
         protected internal virtual int GetNumberOfTriggers(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			try
-			{
-				return Delegate.SelectNumTriggers(conn);
-			}
+        {
+            try
+            {
+                return Delegate.SelectNumTriggers(conn);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain number of triggers: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't obtain number of triggers: " + e.Message, e);
+            }
+        }
 
+        /**
+         * <p>
+         * Get the number of <code>{@link org.quartz.Calendar}</code> s that are
+         * stored in the <code>JobsStore</code>.
+         * </p>
+         */
+
+        public int GetNumberOfCalendars(SchedulingContext ctxt)
+        {
+            // no locks necessary for read...
+            return (int) ExecuteWithoutLock(new GetNumberOfCalendarsCallback(this, ctxt));
+        }
+
+        protected class GetNumberOfCalendarsCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+
+            public GetNumberOfCalendarsCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetNumberOfCalendars(conn, ctxt);
+            }
+        }
 
         protected internal virtual int GetNumberOfCalendars(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			try
-			{
-				return Delegate.SelectNumCalendars(conn);
-			}
+        {
+            try
+            {
+                return Delegate.SelectNumCalendars(conn);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain number of calendars: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't obtain number of calendars: " + e.Message, e);
+            }
+        }
+
+        /**
+         * <p>
+         * Get the names of all of the <code>{@link org.quartz.Job}</code> s that
+         * have the given group name.
+         * </p>
+         * 
+         * <p>
+         * If there are no jobs in the given group name, the result should be a
+         * zero-length array (not <code>null</code>).
+         * </p>
+         */
+
+        public string[] GetJobNames(SchedulingContext ctxt, string groupName)
+        {
+            // no locks necessary for read...
+            return (string[]) ExecuteWithoutLock(new GetJobNamesCallback(this, ctxt, groupName));
+        }
+
+        protected class GetJobNamesCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string groupName;
 
 
-        protected internal virtual String[] GetJobNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string groupName)
-		{
-			String[] jobNames;
+            public GetJobNamesCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.groupName = groupName;
+            }
 
-			try
-			{
-				jobNames = Delegate.SelectJobsInGroup(conn, groupName);
-			}
+            public Object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetJobNames(conn, ctxt, groupName);
+            }
+        }
+
+        protected internal virtual String[] GetJobNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                        string groupName)
+        {
+            String[] jobNames;
+
+            try
+            {
+                jobNames = Delegate.SelectJobsInGroup(conn, groupName);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain job names: " + e.Message, e);
-			}
+            {
+                throw new JobPersistenceException("Couldn't obtain job names: " + e.Message, e);
+            }
 
-			return jobNames;
-		}
+            return jobNames;
+        }
 
 
-		protected internal virtual String[] GetTriggerNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string groupName)
-		{
-			String[] trigNames;
+        /**
+         * <p>
+         * Get the names of all of the <code>{@link org.quartz.Trigger}</code> s
+         * that have the given group name.
+         * </p>
+         * 
+         * <p>
+         * If there are no triggers in the given group name, the result should be a
+         * zero-length array (not <code>null</code>).
+         * </p>
+         */
 
-			try
-			{
-				trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
-			}
+        public string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
+        {
+            // no locks necessary for read...
+            return (string[]) ExecuteWithoutLock(new GetTriggerNamesCallback(this, ctxt, groupName));
+        }
+
+        protected class GetTriggerNamesCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string groupName;
+
+
+            public GetTriggerNamesCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.groupName = groupName;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetTriggerNames(conn, ctxt, groupName);
+            }
+        }
+
+        protected internal virtual string[] GetTriggerNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                            string groupName)
+        {
+            String[] trigNames;
+
+            try
+            {
+                trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
-			}
+            {
+                throw new JobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
+            }
 
-			return trigNames;
-		}
+            return trigNames;
+        }
 
 
-		protected internal virtual String[] GetJobGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			String[] groupNames;
+        /**
+         * <p>
+         * Get the names of all of the <code>{@link org.quartz.Job}</code>
+         * groups.
+         * </p>
+         * 
+         * <p>
+         * If there are no known group names, the result should be a zero-length
+         * array (not <code>null</code>).
+         * </p>
+         */
 
-			try
-			{
-				groupNames = Delegate.SelectJobGroups(conn);
-			}
+        public String[] GetJobGroupNames(SchedulingContext ctxt)
+        {
+            // no locks necessary for read...
+            return (string[]) ExecuteWithoutLock(new GetJobGroupNamesCallback(this, ctxt));
+        }
+
+        protected class GetJobGroupNamesCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+
+
+            public GetJobGroupNamesCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
+
+            public Object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetJobGroupNames(conn, ctxt);
+            }
+        }
+
+
+        protected internal virtual String[] GetJobGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        {
+            String[] groupNames;
+
+            try
+            {
+                groupNames = Delegate.SelectJobGroups(conn);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain job groups: " + e.Message, e);
-			}
+            {
+                throw new JobPersistenceException("Couldn't obtain job groups: " + e.Message, e);
+            }
 
-			return groupNames;
-		}
+            return groupNames;
+        }
+
+        /**
+         * <p>
+         * Get the names of all of the <code>{@link org.quartz.Trigger}</code>
+         * groups.
+         * </p>
+         * 
+         * <p>
+         * If there are no known group names, the result should be a zero-length
+         * array (not <code>null</code>).
+         * </p>
+         */
+
+        public String[] GetTriggerGroupNames(SchedulingContext ctxt)
+        {
+            // no locks necessary for read...
+            return (String[]) ExecuteWithoutLock(new GetTriggerGroupNamesCallback(this, ctxt));
+        }
+
+        protected class GetTriggerGroupNamesCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
 
 
-		protected internal virtual String[] GetTriggerGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			String[] groupNames;
+            public GetTriggerGroupNamesCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
 
-			try
-			{
-				groupNames = Delegate.SelectTriggerGroups(conn);
-			}
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetTriggerGroupNames(conn, ctxt);
+            }
+        }
+
+
+        protected internal virtual String[] GetTriggerGroupNames(ConnectionAndTransactionHolder conn,
+                                                                 SchedulingContext ctxt)
+        {
+            String[] groupNames;
+
+            try
+            {
+                groupNames = Delegate.SelectTriggerGroups(conn);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
-			}
+            {
+                throw new JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+            }
 
-			return groupNames;
-		}
+            return groupNames;
+        }
 
 
-		protected internal virtual String[] GetCalendarNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			try
-			{
-				return Delegate.SelectCalendars(conn);
-			}
+        /**
+         * <p>
+         * Get the names of all of the <code>{@link org.quartz.Calendar}</code> s
+         * in the <code>JobStore</code>.
+         * </p>
+         * 
+         * <p>
+         * If there are no Calendars in the given group name, the result should be
+         * a zero-length array (not <code>null</code>).
+         * </p>
+         */
+
+        public string[] GetCalendarNames(SchedulingContext ctxt)
+        {
+            // no locks necessary for read...
+            return (string[]) ExecuteWithoutLock(new GetCalendarNamesCallback(this, ctxt));
+        }
+
+        protected class GetCalendarNamesCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+
+
+            public GetCalendarNamesCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetCalendarNames(conn, ctxt);
+            }
+        }
+
+        protected internal virtual string[] GetCalendarNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        {
+            try
+            {
+                return Delegate.SelectCalendars(conn);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+            }
+        }
 
 
-		protected internal virtual Trigger[] GetTriggersForJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
-		                                                       string groupName)
-		{
-			Trigger[] array;
+        /**
+         * <p>
+         * Get all of the Triggers that are associated to the given Job.
+         * </p>
+         * 
+         * <p>
+         * If there are no matches, a zero-length array should be returned.
+         * </p>
+         */
 
-			try
-			{
-				array = Delegate.SelectTriggersForJob(conn, jobName, groupName);
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't obtain triggers for job: " + e.Message, e);
-			}
+        public Trigger[] GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
+        {
+            // no locks necessary for read...
+            return (Trigger[]) ExecuteWithoutLock(new GetTriggersForJobCallback(this, ctxt, jobName, groupName));
+        }
 
-			return array;
-		}
-
-		/// <summary>
-		/// Pause the <code>Trigger</code> with the given name.
-		/// </summary>
-		/// <seealso cref="SchedulingContext()" />
-		public virtual void PauseTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName, string groupName)
-		{
-			try
-			{
-				String oldState = Delegate.SelectTriggerState(conn, triggerName, groupName);
-
-				if (oldState.Equals(STATE_WAITING) || oldState.Equals(STATE_ACQUIRED))
-				{
-					Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED);
-				}
-				else if (oldState.Equals(STATE_BLOCKED))
-				{
-					Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED_BLOCKED);
-				}
-			}
-			catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't pause trigger '" + groupName + "." + triggerName + "': " + e.Message, e);
-			}
-		}
+        protected class GetTriggersForJobCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string jobName;
+            private string groupName;
 
 
-		protected internal virtual string GetStatusForResumedTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-		                                                             TriggerStatus status)
-		{
-			try
-			{
-				String newState = STATE_WAITING;
+            public GetTriggersForJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName,
+                                             string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.jobName = jobName;
+                this.groupName = groupName;
+            }
 
-				IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, status.JobKey.Name, status.JobKey.Group);
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+            }
+        }
 
-				if (lst.Count > 0)
-				{
-					FiredTriggerRecord rec = (FiredTriggerRecord) lst[0];
-					if (rec.JobIsStateful)
-					{
-						// TODO: worry about
-						// failed/recovering/volatile job
-						// states?
-						newState = STATE_BLOCKED;
-					}
-				}
 
-				return newState;
-			}
+        protected internal virtual Trigger[] GetTriggersForJob(ConnectionAndTransactionHolder conn,
+                                                               SchedulingContext ctxt, string jobName,
+                                                               string groupName)
+        {
+            Trigger[] array;
+
+            try
+            {
+                array = Delegate.SelectTriggersForJob(conn, jobName, groupName);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException(
-					"Couldn't determine new state in order to resume trigger '" + status.Key.Group + "." + status.Key.Name + "': " +
-					e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't obtain triggers for job: " + e.Message, e);
+            }
+
+            return array;
+        }
 
 
-		protected internal virtual string GetNewStatusForTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
-		                                                         string groupName)
-		{
-			try
-			{
-				String newState = STATE_WAITING;
+        /**
+         * <p>
+         * Pause the <code>{@link org.quartz.Trigger}</code> with the given name.
+         * </p>
+          * 
+         * @see #resumeTrigger(SchedulingContext, String, String)
+         */
 
-				IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, jobName, groupName);
+        public void PauseTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new PauseTriggerCallback(this, ctxt, triggerName, groupName));
+        }
 
-				if (lst.Count > 0)
-				{
-					FiredTriggerRecord rec = (FiredTriggerRecord) lst[0];
-					if (rec.JobIsStateful)
-					{
-						// TODO: worry about
-						// failed/recovering/volatile job
-						// states?
-						newState = STATE_BLOCKED;
-					}
-				}
+        protected class PauseTriggerCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string triggerName;
+            private string groupName;
 
-				return newState;
-			}
+
+            public PauseTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.triggerName = triggerName;
+                this.groupName = groupName;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.PauseTrigger(conn, ctxt, triggerName, groupName);
+            }
+        }
+
+        /// <summary>
+        /// Pause the <code>Trigger</code> with the given name.
+        /// </summary>
+        /// <seealso cref="SchedulingContext()" />
+        public virtual void PauseTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
+                                         string groupName)
+        {
+            try
+            {
+                String oldState = Delegate.SelectTriggerState(conn, triggerName, groupName);
+
+                if (oldState.Equals(STATE_WAITING) || oldState.Equals(STATE_ACQUIRED))
+                {
+                    Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED);
+                }
+                else if (oldState.Equals(STATE_BLOCKED))
+                {
+                    Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED_BLOCKED);
+                }
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't determine state for new trigger: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException(
+                    "Couldn't pause trigger '" + groupName + "." + triggerName + "': " + e.Message, e);
+            }
+        }
 
-		/*
-		* private List findTriggersToBeBlocked(Connection conn, SchedulingContext
-		* ctxt, string groupName) throws JobPersistenceException {
-		* 
-		* try { List blockList = new LinkedList();
-		* 
-		* List affectingJobs =
-		* getDelegate().SelectStatefulJobsOfTriggerGroup(conn, groupName);
-		* 
-		* Iterator itr = affectingJobs.iterator(); while(itr.hasNext()) { Key
-		* jobKey = (Key) itr.next();
-		* 
-		* List lst = getDelegate().SelectFiredTriggerRecordsByJob(conn,
-		* jobKey.getName(), jobKey.getGroup());
-		* 
-		* This logic is BROKEN...
-		* 
-		* if(lst.size() > 0) { FiredTriggerRecord rec =
-		* (FiredTriggerRecord)lst.get(0); if(rec.isJobIsStateful()) // TODO: worry
-		* about failed/recovering/volatile job states? blockList.add(
-		* rec.getTriggerKey() ); } }
-		* 
-		* 
-		* return blockList; } catch (SQLException e) { throw new
-		* JobPersistenceException ("Couldn't determine states of resumed triggers
-		* in group '" + groupName + "': " + e.getMessage(), e); } }
-		*/
 
-		/// <summary>
-		/// Resume (un-pause) the <see cref="Trigger" /> with the
-		/// given name.
-		/// </summary>
-		/// <remarks>
-		/// If the <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
+        /**
+         * <p>
+         * Pause the <code>{@link org.quartz.Job}</code> with the given name - by
+         * pausing all of its current <code>Trigger</code>s.
+         * </p>
+         * 
+         * @see #resumeJob(SchedulingContext, String, String)
+         */
+
+        public virtual void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new PauseJobCallback(this, ctxt, jobName, groupName));
+        }
+
+        protected class PauseJobCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string jobName;
+            private string groupName;
+
+
+            public PauseJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.jobName = jobName;
+                this.groupName = groupName;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                Trigger[] triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                for (int j = 0; j < triggers.Length; j++)
+                {
+                    js.PauseTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                }
+            }
+        }
+
+        /**
+         * <p>
+         * Pause all of the <code>{@link org.quartz.Job}s</code> in the given
+         * group - by pausing all of their <code>Trigger</code>s.
+         * </p>
+         * 
+         * @see #resumeJobGroup(SchedulingContext, String)
+         */
+
+        public virtual void PauseJobGroup(SchedulingContext ctxt, string groupName)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new PauseJobGroupCallback(this, ctxt, groupName));
+        }
+
+        protected class PauseJobGroupCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string groupName;
+
+
+            public PauseJobGroupCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.groupName = groupName;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                string[] jobNames = js.GetJobNames(conn, ctxt, groupName);
+
+                for (int i = 0; i < jobNames.Length; i++)
+                {
+                    Trigger[] triggers = js.GetTriggersForJob(conn, ctxt, jobNames[i], groupName);
+                    for (int j = 0; j < triggers.Length; j++)
+                    {
+                        js.PauseTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Determines if a Trigger for the given job should be blocked.  
+         * State can only transition to STATE_PAUSED_BLOCKED/STATE_BLOCKED from 
+         * STATE_PAUSED/STATE_WAITING respectively.
+         * 
+         * @return STATE_PAUSED_BLOCKED, STATE_BLOCKED, or the currentState. 
+         */
+
+        protected virtual string CheckBlockedState(
+            ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
+            string jobGroupName, string currentState)
+        {
+            // State can only transition to BLOCKED from PAUSED or WAITING.
+            if ((currentState.Equals(STATE_WAITING) == false) &&
+                (currentState.Equals(STATE_PAUSED) == false))
+            {
+                return currentState;
+            }
+
+            try
+            {
+                IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn,
+                                                                    jobName, jobGroupName);
+
+                if (lst.Count > 0)
+                {
+                    FiredTriggerRecord rec = (FiredTriggerRecord) lst[0];
+                    if (rec.JobIsStateful)
+                    {
+                        // TODO: worry about
+                        // failed/recovering/volatile job
+                        // states?
+                        return (STATE_PAUSED.Equals(currentState)) ? STATE_PAUSED_BLOCKED : STATE_BLOCKED;
+                    }
+                }
+
+                return currentState;
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException(
+                    "Couldn't determine if trigger should be in a blocked state '"
+                    + jobGroupName + "."
+                    + jobName + "': "
+                    + e.Message, e);
+            }
+        }
+
+
+        protected internal virtual string GetNewStatusForTrigger(ConnectionAndTransactionHolder conn,
+                                                                 SchedulingContext ctxt, string jobName,
+                                                                 string groupName)
+        {
+            try
+            {
+                String newState = STATE_WAITING;
+
+                IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, jobName, groupName);
+
+                if (lst.Count > 0)
+                {
+                    FiredTriggerRecord rec = (FiredTriggerRecord) lst[0];
+                    if (rec.JobIsStateful)
+                    {
+                        // TODO: worry about
+                        // failed/recovering/volatile job
+                        // states?
+                        newState = STATE_BLOCKED;
+                    }
+                }
+
+                return newState;
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't determine state for new trigger: " + e.Message, e);
+            }
+        }
+
+        /*
+        * private List findTriggersToBeBlocked(Connection conn, SchedulingContext
+        * ctxt, string groupName) throws JobPersistenceException {
+        * 
+        * try { List blockList = new LinkedList();
+        * 
+        * List affectingJobs =
+        * getDelegate().SelectStatefulJobsOfTriggerGroup(conn, groupName);
+        * 
+        * Iterator itr = affectingJobs.iterator(); while(itr.hasNext()) { Key
+        * jobKey = (Key) itr.next();
+        * 
+        * List lst = getDelegate().SelectFiredTriggerRecordsByJob(conn,
+        * jobKey.getName(), jobKey.getGroup());
+        * 
+        * This logic is BROKEN...
+        * 
+        * if(lst.size() > 0) { FiredTriggerRecord rec =
+        * (FiredTriggerRecord)lst.get(0); if(rec.isJobIsStateful()) // TODO: worry
+        * about failed/recovering/volatile job states? blockList.add(
+        * rec.getTriggerKey() ); } }
+        * 
+        * 
+        * return blockList; } catch (SQLException e) { throw new
+        * JobPersistenceException ("Couldn't determine states of resumed triggers
+        * in group '" + groupName + "': " + e.getMessage(), e); } }
+        */
+
+
+        public virtual void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new ResumeTriggerCallback(this, ctxt, triggerName, groupName));
+        }
+
+        protected class ResumeTriggerCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string triggerName;
+            private string groupName;
+
+
+            public ResumeTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+                                         string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.triggerName = triggerName;
+                this.groupName = groupName;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.ResumeTrigger(conn, ctxt, triggerName, groupName);
+            }
+        }
+
+        /// <summary>
+        /// Resume (un-pause) the <see cref="Trigger" /> with the
+        /// given name.
+        /// </summary>
+        /// <remarks>
+        /// If the <code>Trigger</code> missed one or more fire-times, then the
+        /// <code>Trigger</code>'s misfire instruction will be applied.
         /// </remarks>
-		/// <seealso cref="SchedulingContext"/>
-		public virtual void ResumeTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName, string groupName)
-		{
-			try
-			{
-				TriggerStatus status = Delegate.SelectTriggerStatus(conn, triggerName, groupName);
+        /// <seealso cref="SchedulingContext"/>
+        public virtual void ResumeTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                          string triggerName, string groupName)
+        {
+            try
+            {
+                TriggerStatus status = Delegate.SelectTriggerStatus(conn, triggerName, groupName);
 
-				if (status == null || !status.NextFireTime.HasValue || status.NextFireTime == DateTime.MinValue)
-				{
-					return;
-				}
+                if (status == null || !status.NextFireTime.HasValue || status.NextFireTime == DateTime.MinValue)
+                {
+                    return;
+                }
 
-				bool blocked = false;
-				if (STATE_PAUSED_BLOCKED.Equals(status.Status))
-				{
-					blocked = true;
-				}
+                bool blocked = false;
+                if (STATE_PAUSED_BLOCKED.Equals(status.Status))
+                {
+                    blocked = true;
+                }
 
-				String newState = GetStatusForResumedTrigger(conn, ctxt, status);
+                string newState = CheckBlockedState(conn, ctxt, status.JobKey.Name, status.JobKey.Group, STATE_WAITING);
 
-				bool misfired = false;
+                bool misfired = false;
 
-				if ((status.NextFireTime.Value < DateTime.Now))
-				{
-					misfired = UpdateMisfiredTrigger(conn, ctxt, triggerName, groupName, newState, true);
-				}
+                if ((status.NextFireTime.Value < DateTime.Now))
+                {
+                    misfired = UpdateMisfiredTrigger(conn, ctxt, triggerName, groupName, newState, true);
+                }
 
-				if (!misfired)
-				{
-					if (blocked)
-					{
-						Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState,
-						                                          STATE_PAUSED_BLOCKED);
-					}
-					else
-					{
-						Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState, STATE_PAUSED);
-					}
-				}
-			}
+                if (!misfired)
+                {
+                    if (blocked)
+                    {
+                        Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState,
+                                                                  STATE_PAUSED_BLOCKED);
+                    }
+                    else
+                    {
+                        Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState, STATE_PAUSED);
+                    }
+                }
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't resume trigger '" + groupName + "." + triggerName + "': " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException(
+                    "Couldn't resume trigger '" + groupName + "." + triggerName + "': " + e.Message, e);
+            }
+        }
 
-		/// <summary>
-		/// Pause all of the <code>Trigger</code>s in the given group.
-		/// </summary>
-		/// <seealso cref="SchedulingContext()" />
-		public virtual void PauseTriggerGroup(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string groupName)
-		{
-			try
-			{
-				Delegate.UpdateTriggerGroupStateFromOtherStates(conn, groupName, STATE_PAUSED,
-				                                                STATE_ACQUIRED, STATE_WAITING,
-				                                                STATE_WAITING);
 
-				Delegate.UpdateTriggerGroupStateFromOtherState(conn, groupName, STATE_PAUSED_BLOCKED,
-				                                               STATE_BLOCKED);
+        /**
+         * <p>
+         * Resume (un-pause) the <code>{@link org.quartz.Job}</code> with the
+         * given name.
+         * </p>
+         * 
+         * <p>
+         * If any of the <code>Job</code>'s<code>Trigger</code> s missed one
+         * or more fire-times, then the <code>Trigger</code>'s misfire
+         * instruction will be applied.
+         * </p>
+         * 
+         * @see #pauseJob(SchedulingContext, String, String)
+         */
 
-				if (!Delegate.IsTriggerGroupPaused(conn, groupName))
-				{
-					Delegate.InsertPausedTriggerGroup(conn, groupName);
-				}
-			}
+        public virtual void ResumeJob(SchedulingContext ctxt, string jobName, string groupName)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new ResumeJobCallback(this, ctxt, jobName, groupName));
+        }
+
+        protected class ResumeJobCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string jobName;
+            private string groupName;
+
+
+            public ResumeJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.jobName = jobName;
+                this.groupName = groupName;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                Trigger[] triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                for (int j = 0; j < triggers.Length; j++)
+                {
+                    js.ResumeTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                }
+            }
+        }
+
+        /**
+         * <p>
+         * Resume (un-pause) all of the <code>{@link org.quartz.Job}s</code> in
+         * the given group.
+         * </p>
+         * 
+         * <p>
+         * If any of the <code>Job</code> s had <code>Trigger</code> s that
+         * missed one or more fire-times, then the <code>Trigger</code>'s
+         * misfire instruction will be applied.
+         * </p>
+         * 
+         * @see #pauseJobGroup(SchedulingContext, String)
+         */
+
+        public virtual void ResumeJobGroup(SchedulingContext ctxt, string groupName)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new ResumeJobGroupCallback(this, ctxt, groupName));
+        }
+
+        protected class ResumeJobGroupCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string groupName;
+
+
+            public ResumeJobGroupCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.groupName = groupName;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                String[] jobNames = js.GetJobNames(conn, ctxt, groupName);
+
+                for (int i = 0; i < jobNames.Length; i++)
+                {
+                    Trigger[] triggers = js.GetTriggersForJob(conn, ctxt, jobNames[i], groupName);
+                    for (int j = 0; j < triggers.Length; j++)
+                    {
+                        js.ResumeTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                    }
+                }
+            }
+        }
+
+        /**
+         * <p>
+         * Pause all of the <code>{@link org.quartz.Trigger}s</code> in the
+         * given group.
+         * </p>
+         * 
+         * @see #resumeTriggerGroup(SchedulingContext, String)
+         */
+
+        public virtual void PauseTriggerGroup(SchedulingContext ctxt, string groupName)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new PauseTriggerGroupCallback(this, ctxt, groupName));
+        }
+
+
+        protected class PauseTriggerGroupCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string groupName;
+
+
+            public PauseTriggerGroupCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.groupName = groupName;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.PauseTriggerGroup(conn, ctxt, groupName);
+            }
+        }
+
+        /// <summary>
+        /// Pause all of the <code>Trigger</code>s in the given group.
+        /// </summary>
+        /// <seealso cref="SchedulingContext()" />
+        public virtual void PauseTriggerGroup(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                              string groupName)
+        {
+            try
+            {
+                Delegate.UpdateTriggerGroupStateFromOtherStates(conn, groupName, STATE_PAUSED,
+                                                                STATE_ACQUIRED, STATE_WAITING,
+                                                                STATE_WAITING);
+
+                Delegate.UpdateTriggerGroupStateFromOtherState(conn, groupName, STATE_PAUSED_BLOCKED,
+                                                               STATE_BLOCKED);
+
+                if (!Delegate.IsTriggerGroupPaused(conn, groupName))
+                {
+                    Delegate.InsertPausedTriggerGroup(conn, groupName);
+                }
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't pause trigger group '" + groupName + "': " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't pause trigger group '" + groupName + "': " + e.Message, e);
+            }
+        }
 
-		/// <summary> 
-		/// Pause all of the <code>Trigger</code>s in the
-		/// given group.
-		/// </summary>
-		/// <seealso cref="SchedulingContext()" />
-		public virtual ISet GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			try
-			{
-				return Delegate.SelectPausedTriggerGroups(conn);
-			}
+
+        public ISet GetPausedTriggerGroups(SchedulingContext ctxt)
+        {
+            // no locks necessary for read...
+            return (ISet) ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
+        }
+
+        protected class GetPausedTriggerGroupsCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+
+
+            public GetPausedTriggerGroupsCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
+
+            public Object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.GetPausedTriggerGroups(conn, ctxt);
+            }
+        }
+
+
+        /// <summary> 
+        /// Pause all of the <code>Trigger</code>s in the
+        /// given group.
+        /// </summary>
+        /// <seealso cref="SchedulingContext()" />
+        public virtual ISet GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        {
+            try
+            {
+                return Delegate.SelectPausedTriggerGroups(conn);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't determine paused trigger groups: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't determine paused trigger groups: " + e.Message, e);
+            }
+        }
 
-		/// <summary>
-		/// Resume (un-pause) all of the <see cref="Trigger" />s
-		/// in the given group.
-		/// <p>
-		/// If any <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
-		/// </p>
-		/// </summary>
-		/// <seealso cref="SchedulingContext()" />
-		public virtual void ResumeTriggerGroup(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string groupName)
-		{
-			try
-			{
-				Delegate.DeletePausedTriggerGroup(conn, groupName);
 
-				String[] trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
+        public virtual void ResumeTriggerGroup(SchedulingContext ctxt, string groupName)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new ResumeTriggerGroupCallback(this, ctxt, groupName));
+        }
 
-				for (int i = 0; i < trigNames.Length; i++)
-				{
-					ResumeTrigger(conn, ctxt, trigNames[i], groupName);
-				}
+        protected class ResumeTriggerGroupCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private string groupName;
 
-				// TODO: find an efficient way to resume triggers (better than the
-				// above)... logic below is broken because of
-				// findTriggersToBeBlocked()
-				/*
-				* int res =
-				* getDelegate().UpdateTriggerGroupStateFromOtherState(conn,
-				* groupName, STATE_WAITING, STATE_PAUSED);
-				* 
-				* if(res > 0) {
-				* 
-				* long misfireTime = System.currentTimeMillis();
-				* if(getMisfireThreshold() > 0) misfireTime -=
-				* getMisfireThreshold();
-				* 
-				* Key[] misfires =
-				* getDelegate().SelectMisfiredTriggersInGroupInState(conn,
-				* groupName, STATE_WAITING, misfireTime);
-				* 
-				* List blockedTriggers = findTriggersToBeBlocked(conn, ctxt,
-				* groupName);
-				* 
-				* Iterator itr = blockedTriggers.iterator(); while(itr.hasNext()) {
-				* Key key = (Key)itr.next();
-				* getDelegate().UpdateTriggerState(conn, key.getName(),
-				* key.getGroup(), STATE_BLOCKED); }
-				* 
-				* for(int i=0; i < misfires.length; i++) {               String
-				* newState = STATE_WAITING;
-				* if(blockedTriggers.contains(misfires[i])) newState =
-				* STATE_BLOCKED; UpdateMisfiredTrigger(conn, ctxt,
-				* misfires[i].getName(), misfires[i].getGroup(), newState, true); } }
-				*/
-			}
+
+            public ResumeTriggerGroupCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.groupName = groupName;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.ResumeTriggerGroup(conn, ctxt, groupName);
+            }
+        }
+
+
+        /// <summary>
+        /// Resume (un-pause) all of the <see cref="Trigger" />s
+        /// in the given group.
+        /// <p>
+        /// If any <code>Trigger</code> missed one or more fire-times, then the
+        /// <code>Trigger</code>'s misfire instruction will be applied.
+        /// </p>
+        /// </summary>
+        /// <seealso cref="SchedulingContext()" />
+        public virtual void ResumeTriggerGroup(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                               string groupName)
+        {
+            try
+            {
+                Delegate.DeletePausedTriggerGroup(conn, groupName);
+
+                String[] trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
+
+                for (int i = 0; i < trigNames.Length; i++)
+                {
+                    ResumeTrigger(conn, ctxt, trigNames[i], groupName);
+                }
+
+                // TODO: find an efficient way to resume triggers (better than the
+                // above)... logic below is broken because of
+                // findTriggersToBeBlocked()
+                /*
+                * int res =
+                * getDelegate().UpdateTriggerGroupStateFromOtherState(conn,
+                * groupName, STATE_WAITING, STATE_PAUSED);
+                * 
+                * if(res > 0) {
+                * 
+                * long misfireTime = System.currentTimeMillis();
+                * if(getMisfireThreshold() > 0) misfireTime -=
+                * getMisfireThreshold();
+                * 
+                * Key[] misfires =
+                * getDelegate().SelectMisfiredTriggersInGroupInState(conn,
+                * groupName, STATE_WAITING, misfireTime);
+                * 
+                * List blockedTriggers = findTriggersToBeBlocked(conn, ctxt,
+                * groupName);
+                * 
+                * Iterator itr = blockedTriggers.iterator(); while(itr.hasNext()) {
+                * Key key = (Key)itr.next();
+                * getDelegate().UpdateTriggerState(conn, key.getName(),
+                * key.getGroup(), STATE_BLOCKED); }
+                * 
+                * for(int i=0; i < misfires.length; i++) {               String
+                * newState = STATE_WAITING;
+                * if(blockedTriggers.contains(misfires[i])) newState =
+                * STATE_BLOCKED; UpdateMisfiredTrigger(conn, ctxt,
+                * misfires[i].getName(), misfires[i].getGroup(), newState, true); } }
+                */
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't pause trigger group '" + groupName + "': " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't pause trigger group '" + groupName + "': " + e.Message, e);
+            }
+        }
 
-		/// <summary>
-		/// Pause all triggers - equivalent of calling <code>PauseTriggerGroup(group)</code>
-		/// on every group.
-		/// <p>
-		/// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
-		/// instructions WILL be applied.
-		/// </p>
-		/// </summary>
-		/// <seealso cref="ResumeAll(SchedulingContext)" />
-		/// <seealso cref="String" />
-		public virtual void PauseAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			String[] names = GetTriggerGroupNames(conn, ctxt);
+        public virtual void PauseAll(SchedulingContext ctxt)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new PauseAllCallback(this, ctxt));
+        }
 
-			for (int i = 0; i < names.Length; i++)
-			{
-				PauseTriggerGroup(conn, ctxt, names[i]);
-			}
+        protected class PauseAllCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
 
-			try
-			{
-				if (!Delegate.IsTriggerGroupPaused(conn, ALL_GROUPS_PAUSED))
-				{
-					Delegate.InsertPausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
-				}
-			}
+
+            public PauseAllCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.PauseAll(conn, ctxt);
+            }
+        }
+
+        /// <summary>
+        /// Pause all triggers - equivalent of calling <code>PauseTriggerGroup(group)</code>
+        /// on every group.
+        /// <p>
+        /// When <code>ResumeAll()</code> is called (to un-pause), trigger misfire
+        /// instructions WILL be applied.
+        /// </p>
+        /// </summary>
+        /// <seealso cref="ResumeAll(SchedulingContext)" />
+        /// <seealso cref="String" />
+        public virtual void PauseAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        {
+            String[] names = GetTriggerGroupNames(conn, ctxt);
+
+            for (int i = 0; i < names.Length; i++)
+            {
+                PauseTriggerGroup(conn, ctxt, names[i]);
+            }
+
+            try
+            {
+                if (!Delegate.IsTriggerGroupPaused(conn, ALL_GROUPS_PAUSED))
+                {
+                    Delegate.InsertPausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
+                }
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't pause all trigger groups: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't pause all trigger groups: " + e.Message, e);
+            }
+        }
 
-		/// <summary>
-		/// Resume (un-pause) all triggers - equivalent of calling <code>ResumeTriggerGroup(group)</code>
-		/// on every group.
-		/// <p>
-		/// If any <code>Trigger</code> missed one or more fire-times, then the
-		/// <code>Trigger</code>'s misfire instruction will be applied.
-		/// </p>
-		/// </summary>
-		/// <seealso cref="PauseAll(SchedulingContext)" />
-		public virtual void ResumeAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
-		{
-			String[] names = GetTriggerGroupNames(conn, ctxt);
 
-			for (int i = 0; i < names.Length; i++)
-			{
-				ResumeTriggerGroup(conn, ctxt, names[i]);
-			}
+        /**
+         * <p>
+         * Resume (un-pause) all triggers - equivalent of calling <code>resumeTriggerGroup(group)</code>
+         * on every group.
+         * </p>
+         * 
+         * <p>
+         * If any <code>Trigger</code> missed one or more fire-times, then the
+         * <code>Trigger</code>'s misfire instruction will be applied.
+         * </p>
+         * 
+         * @see #pauseAll(SchedulingContext)
+         */
 
-			try
-			{
-				Delegate.DeletePausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
-			}
+        public virtual void ResumeAll(SchedulingContext ctxt)
+        {
+            ExecuteInLock(LOCK_TRIGGER_ACCESS, new ResumeAllCallback(this, ctxt));
+        }
+
+        protected class ResumeAllCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+
+
+            public ResumeAllCallback(JobStoreSupport js, SchedulingContext ctxt)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.ResumeAll(conn, ctxt);
+            }
+        }
+
+        /// <summary>
+        /// Resume (un-pause) all triggers - equivalent of calling <code>ResumeTriggerGroup(group)</code>
+        /// on every group.
+        /// <p>
+        /// If any <code>Trigger</code> missed one or more fire-times, then the
+        /// <code>Trigger</code>'s misfire instruction will be applied.
+        /// </p>
+        /// </summary>
+        /// <seealso cref="PauseAll(SchedulingContext)" />
+        public virtual void ResumeAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        {
+            String[] names = GetTriggerGroupNames(conn, ctxt);
+
+            for (int i = 0; i < names.Length; i++)
+            {
+                ResumeTriggerGroup(conn, ctxt, names[i]);
+            }
+
+            try
+            {
+                Delegate.DeletePausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't resume all trigger groups: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't resume all trigger groups: " + e.Message, e);
+            }
+        }
 
-		private static long ftrCtr = (DateTime.Now.Ticks - 621355968000000000)/10000;
-
-		// TODO: this really ought to return something like a FiredTriggerBundle,
-		// so that the fireInstanceId doesn't have to be on the trigger...
-
-		protected internal virtual Trigger AcquireNextTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, DateTime noLaterThan)
-		{
-			Trigger nextTrigger = null;
-
-			bool acquiredOne = false;
-
-			do
-			{
-				try
-				{
-					Delegate.UpdateTriggerStateFromOtherStatesBeforeTime(conn, STATE_MISFIRED,
-					                                                     STATE_WAITING, STATE_WAITING,
-					                                                     MisfireTime); // only waiting
-
-					NullableDateTime nextFireTime = Delegate.SelectNextFireTime(conn);
-
-					if (!nextFireTime.HasValue || nextFireTime.Value > noLaterThan)
-					{
-						return null;
-					}
-
-					Key triggerKey;
-					do
-					{
-						triggerKey = Delegate.SelectTriggerForFireTime(conn, nextFireTime.Value);
-						if (null != triggerKey)
-						{
-							int res =
-								Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey.Name, triggerKey.Group,
-								                                          STATE_ACQUIRED, STATE_WAITING);
-
-							if (res <= 0)
-							{
-								continue;
-							}
-
-							nextTrigger = RetrieveTrigger(conn, ctxt, triggerKey.Name, triggerKey.Group);
-
-							if (nextTrigger == null)
-							{
-								continue;
-							}
-
-							nextTrigger.FireInstanceId = FiredTriggerRecordId;
-							Delegate.InsertFiredTrigger(conn, nextTrigger, STATE_ACQUIRED, null);
-
-							acquiredOne = true;
-						}
-					} while (triggerKey != null && !acquiredOne);
-				}
-				catch (Exception e)
-				{
-					throw new JobPersistenceException("Couldn't acquire next trigger: " + e.Message, e);
-				}
-			} while (!acquiredOne);
-
-			return nextTrigger;
-		}
+        private static long ftrCtr = (DateTime.Now.Ticks - 621355968000000000)/10000;
 
 
-        protected internal virtual void ReleaseAcquiredTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, Trigger trigger)
-		{
-			try
-			{
-				Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Name, trigger.Group, STATE_WAITING,
-				                                          STATE_ACQUIRED);
-				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
-			}
-            catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
-			}
-		}
+        /**
+         * <p>
+         * Get a handle to the next N triggers to be fired, and mark them as 'reserved'
+         * by the calling scheduler.
+         * </p>
+         * 
+         * @see #releaseAcquiredTrigger(SchedulingContext, Trigger)
+         */
+
+        public virtual Trigger AcquireNextTrigger(SchedulingContext ctxt, DateTime noLaterThan)
+        {
+            return
+                (Trigger)
+                ExecuteInNonManagedTXLock(LOCK_TRIGGER_ACCESS, new AcquireNextTriggerCallback(this, ctxt, noLaterThan));
+        }
+
+        protected class AcquireNextTriggerCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private DateTime noLaterThan;
 
 
-        protected internal virtual TriggerFiredBundle TriggerFired(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-		                                                           Trigger trigger)
-		{
-			JobDetail job;
-			ICalendar cal = null;
+            public AcquireNextTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, DateTime noLaterThan)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.noLaterThan = noLaterThan;
+            }
 
-			// Make sure trigger wasn't deleted, paused, or completed...
-			try
-			{
-				// if trigger was deleted, state will be STATE_DELETED
-				String state = Delegate.SelectTriggerState(conn, trigger.Name, trigger.Group);
-				if (!state.Equals(STATE_ACQUIRED))
-				{
-					return null;
-				}
-			}
-            catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't select trigger state: " + e.Message, e);
-			}
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                return js.AcquireNextTrigger(conn, ctxt, noLaterThan);
+            }
+        }
 
-			try
-			{
-				job = RetrieveJob(conn, ctxt, trigger.JobName, trigger.JobGroup);
-				if (job == null)
-				{
-					return null;
-				}
-			}
-			catch (JobPersistenceException jpe)
-			{
-				try
-				{
-					Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
-					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
-				}
-                catch (Exception sqle)
-				{
-					Log.Error("Unable to set trigger state to ERROR.", sqle);
-				}
-				throw;
-			}
 
-			if (trigger.CalendarName != null)
-			{
-				cal = RetrieveCalendar(conn, ctxt, trigger.CalendarName);
-				if (cal == null)
-				{
-					return null;
-				}
-			}
+        // TODO: this really ought to return something like a FiredTriggerBundle,
+        // so that the fireInstanceId doesn't have to be on the trigger...
 
-			try
-			{
-				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
-				Delegate.InsertFiredTrigger(conn, trigger, STATE_EXECUTING, job);
-			}
-            catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
-			}
+        protected internal virtual Trigger AcquireNextTrigger(ConnectionAndTransactionHolder conn,
+                                                              SchedulingContext ctxt, DateTime noLaterThan)
+        {
+            do
+            {
+                try
+                {
+                    Key triggerKey = Delegate.SelectTriggerToAcquire(conn, noLaterThan, MisfireTime);
 
-			NullableDateTime prevFireTime = trigger.GetPreviousFireTime();
+                    // No trigger is ready to fire yet.
+                    if (triggerKey == null)
+                    {
+                        return null;
+                    }
 
-			// call triggered - to update the trigger's next-fire-time state...
-			trigger.Triggered(cal);
+                    int rowsUpdated = Delegate.UpdateTriggerStateFromOtherState(
+                        conn,
+                        triggerKey.Name, triggerKey.Group,
+                        STATE_ACQUIRED, STATE_WAITING);
 
-			String state2 = STATE_WAITING;
-			bool force = true;
+                    // If our trigger was no longer in the expected state, try a new one.
+                    if (rowsUpdated <= 0)
+                    {
+                        continue;
+                    }
 
-			if (job.Stateful)
-			{
-				state2 = STATE_BLOCKED;
-				force = false;
-				try
-				{
-					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_BLOCKED,
-					                                                 STATE_WAITING);
-					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_BLOCKED,
-					                                                 STATE_ACQUIRED);
-					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_PAUSED_BLOCKED,
-					                                                 STATE_PAUSED);
-				}
+                    Trigger nextTrigger = RetrieveTrigger(conn, ctxt, triggerKey.Name, triggerKey.Group);
+
+                    // If our trigger is no longer available, try a new one.
+                    if (nextTrigger == null)
+                    {
+                        continue;
+                    }
+
+                    nextTrigger.FireInstanceId = FiredTriggerRecordId;
+                    Delegate.InsertFiredTrigger(conn, nextTrigger, STATE_ACQUIRED, null);
+
+                    return nextTrigger;
+                }
                 catch (Exception e)
-				{
-					throw new JobPersistenceException("Couldn't update states of blocked triggers: " + e.Message, e);
-				}
-			}
-
-			if (!trigger.GetNextFireTime().HasValue)
-			{
-				state2 = STATE_COMPLETE;
-				force = true;
-			}
-
-			StoreTrigger(conn, ctxt, trigger, job, true, state2, force, false);
-
-			job.JobDataMap.ClearDirtyFlag();
-
-			DateTime tempAux = DateTime.Now;
-
-			NullableDateTime tempAux2 = trigger.GetPreviousFireTime();
-			NullableDateTime tempAux3 = trigger.GetNextFireTime();
-			return
-				new TriggerFiredBundle(job, trigger, cal, trigger.Group.Equals(Scheduler_Fields.DEFAULT_RECOVERY_GROUP), tempAux,
-				                       tempAux2, prevFireTime, tempAux3);
-		}
+                {
+                    throw new JobPersistenceException(
+                        "Couldn't acquire next trigger: " + e.Message, e);
+                }
+            } while (true);
+        }
 
 
-		protected internal virtual void TriggeredJobComplete(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, Trigger trigger,
-		                                                     JobDetail jobDetail, int triggerInstCode)
-		{
-			try
-			{
-				if (triggerInstCode == Trigger.INSTRUCTION_DELETE_TRIGGER)
-				{
-					if (!trigger.GetNextFireTime().HasValue)
-					{
-						// double check for possible reschedule within job 
-						// execution, which would cancel the need to delete...
-						TriggerStatus stat = Delegate.SelectTriggerStatus(conn, trigger.Name, trigger.Group);
-						if (stat != null && !stat.NextFireTime.HasValue)
-						{
-							RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
-						}
-					}
-					else
-					{
-						RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
-					}
-				}
-				else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_COMPLETE)
-				{
-					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_COMPLETE);
-				}
-				else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_ERROR)
-				{
-					Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
-					Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
-				}
-				else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE)
-				{
-					Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_COMPLETE);
-				}
-				else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR)
-				{
-					Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
-					Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_ERROR);
-				}
+        /**
+         * <p>
+         * Inform the <code>JobStore</code> that the scheduler no longer plans to
+         * fire the given <code>Trigger</code>, that it had previously acquired
+         * (reserved).
+         * </p>
+         */
 
-				if (jobDetail.Stateful)
-				{
-					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
-					                                                 STATE_WAITING, STATE_BLOCKED);
+        public void ReleaseAcquiredTrigger(SchedulingContext ctxt, Trigger trigger)
+        {
+            ExecuteInNonManagedTXLock(LOCK_TRIGGER_ACCESS, new ReleaseAcquiredTriggerCallback(this, ctxt, trigger));
+        }
 
-					Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
-					                                                 STATE_PAUSED,
-					                                                 STATE_PAUSED_BLOCKED);
+        protected class ReleaseAcquiredTriggerCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private Trigger trigger;
 
-					try
-					{
-						if (jobDetail.JobDataMap.Dirty)
-						{
-							Delegate.UpdateJobData(conn, jobDetail);
-						}
-					}
-					catch (IOException e)
-					{
-						throw new JobPersistenceException("Couldn't serialize job data: " + e.Message, e);
-					}
+
+            public ReleaseAcquiredTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger trigger)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.trigger = trigger;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.ReleaseAcquiredTrigger(conn, ctxt, trigger);
+            }
+        }
+
+        protected internal virtual void ReleaseAcquiredTrigger(ConnectionAndTransactionHolder conn,
+                                                               SchedulingContext ctxt, Trigger trigger)
+        {
+            try
+            {
+                Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Name, trigger.Group, STATE_WAITING,
+                                                          STATE_ACQUIRED);
+                Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
+            }
+        }
+
+
+        public virtual TriggerFiredBundle TriggerFired(SchedulingContext ctxt, Trigger trigger)
+        {
+            return
+                (TriggerFiredBundle)
+                ExecuteInNonManagedTXLock(LOCK_TRIGGER_ACCESS, new TriggerFiredCallback(this, ctxt, trigger));
+        }
+
+        protected class TriggerFiredCallback : CallbackSupport, ITransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private Trigger trigger;
+
+
+            public TriggerFiredCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger trigger)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.trigger = trigger;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                try
+                {
+                    return js.TriggerFired(conn, ctxt, trigger);
+                }
+                catch (JobPersistenceException jpe)
+                {
+                    // If job didn't exisit, we still want to commit our work and return null.
+                    if (jpe.ErrorCode == SchedulerException.ERR_PERSISTENCE_JOB_DOES_NOT_EXIST)
+                    {
+                        return null;
+                    }
+                    else
+                    {
+                        throw jpe;
+                    }
+                }
+            }
+        }
+
+
+        protected internal virtual TriggerFiredBundle TriggerFired(ConnectionAndTransactionHolder conn,
+                                                                   SchedulingContext ctxt,
+                                                                   Trigger trigger)
+        {
+            JobDetail job;
+            ICalendar cal = null;
+
+            // Make sure trigger wasn't deleted, paused, or completed...
+            try
+            {
+                // if trigger was deleted, state will be STATE_DELETED
+                String state = Delegate.SelectTriggerState(conn, trigger.Name, trigger.Group);
+                if (!state.Equals(STATE_ACQUIRED))
+                {
+                    return null;
+                }
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't select trigger state: " + e.Message, e);
+            }
+
+            try
+            {
+                job = RetrieveJob(conn, ctxt, trigger.JobName, trigger.JobGroup);
+                if (job == null)
+                {
+                    return null;
+                }
+            }
+            catch (JobPersistenceException jpe)
+            {
+                try
+                {
+                    Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
+                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
+                }
+                catch (Exception sqle)
+                {
+                    Log.Error("Unable to set trigger state to ERROR.", sqle);
+                }
+                throw;
+            }
+
+            if (trigger.CalendarName != null)
+            {
+                cal = RetrieveCalendar(conn, ctxt, trigger.CalendarName);
+                if (cal == null)
+                {
+                    return null;
+                }
+            }
+
+            try
+            {
+                Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
+                Delegate.InsertFiredTrigger(conn, trigger, STATE_EXECUTING, job);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
+            }
+
+            NullableDateTime prevFireTime = trigger.GetPreviousFireTime();
+
+            // call triggered - to update the trigger's next-fire-time state...
+            trigger.Triggered(cal);
+
+            String state2 = STATE_WAITING;
+            bool force = true;
+
+            if (job.Stateful)
+            {
+                state2 = STATE_BLOCKED;
+                force = false;
+                try
+                {
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_BLOCKED,
+                                                                     STATE_WAITING);
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_BLOCKED,
+                                                                     STATE_ACQUIRED);
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_PAUSED_BLOCKED,
+                                                                     STATE_PAUSED);
+                }
+                catch (Exception e)
+                {
+                    throw new JobPersistenceException("Couldn't update states of blocked triggers: " + e.Message, e);
+                }
+            }
+
+            if (!trigger.GetNextFireTime().HasValue)
+            {
+                state2 = STATE_COMPLETE;
+                force = true;
+            }
+
+            StoreTrigger(conn, ctxt, trigger, job, true, state2, force, false);
+
+            job.JobDataMap.ClearDirtyFlag();
+
+            DateTime tempAux = DateTime.Now;
+
+            NullableDateTime tempAux2 = trigger.GetPreviousFireTime();
+            NullableDateTime tempAux3 = trigger.GetNextFireTime();
+            return
+                new TriggerFiredBundle(job, trigger, cal, trigger.Group.Equals(Scheduler_Fields.DEFAULT_RECOVERY_GROUP),
+                                       tempAux,
+                                       tempAux2, prevFireTime, tempAux3);
+        }
+
+
+        /**
+         * <p>
+         * Inform the <code>JobStore</code> that the scheduler has completed the
+         * firing of the given <code>Trigger</code> (and the execution its
+         * associated <code>Job</code>), and that the <code>{@link org.quartz.JobDataMap}</code>
+         * in the given <code>JobDetail</code> should be updated if the <code>Job</code>
+         * is stateful.
+         * </p>
+         */
+
+        public virtual void TriggeredJobComplete(SchedulingContext ctxt, Trigger trigger, JobDetail jobDetail,
+                                                 int triggerInstCode)
+        {
+            ExecuteInNonManagedTXLock(LOCK_TRIGGER_ACCESS,
+                                      new TriggeredJobCompleteCallback(this, ctxt, trigger, triggerInstCode, jobDetail));
+        }
+
+        protected class TriggeredJobCompleteCallback : CallbackSupport, IVoidTransactionCallback
+        {
+            private SchedulingContext ctxt;
+            private Trigger trigger;
+            private int triggerInstCode;
+            private JobDetail jobDetail;
+
+
+            public TriggeredJobCompleteCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger trigger,
+                                                int triggerInstCode, JobDetail jobDetail)
+                : base(js)
+            {
+                this.ctxt = ctxt;
+                this.trigger = trigger;
+                this.triggerInstCode = triggerInstCode;
+                this.jobDetail = jobDetail;
+            }
+
+            public void Execute(ConnectionAndTransactionHolder conn)
+            {
+                js.TriggeredJobComplete(conn, ctxt, trigger, jobDetail, triggerInstCode);
+            }
+        }
+
+
+        protected internal virtual void TriggeredJobComplete(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+                                                             Trigger trigger,
+                                                             JobDetail jobDetail, int triggerInstCode)
+        {
+            try
+            {
+                if (triggerInstCode == Trigger.INSTRUCTION_DELETE_TRIGGER)
+                {
+                    if (!trigger.GetNextFireTime().HasValue)
+                    {
+                        // double check for possible reschedule within job 
+                        // execution, which would cancel the need to delete...
+                        TriggerStatus stat = Delegate.SelectTriggerStatus(conn, trigger.Name, trigger.Group);
+                        if (stat != null && !stat.NextFireTime.HasValue)
+                        {
+                            RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                        }
+                    }
+                    else
+                    {
+                        RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                    }
+                }
+                else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_COMPLETE)
+                {
+                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_COMPLETE);
+                }
+                else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_ERROR)
+                {
+                    Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
+                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
+                }
+                else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE)
+                {
+                    Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_COMPLETE);
+                }
+                else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR)
+                {
+                    Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
+                    Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_ERROR);
+                }
+
+                if (jobDetail.Stateful)
+                {
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
+                                                                     STATE_WAITING, STATE_BLOCKED);
+
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
+                                                                     STATE_PAUSED,
+                                                                     STATE_PAUSED_BLOCKED);
+
+                    try
+                    {
+                        if (jobDetail.JobDataMap.Dirty)
+                        {
+                            Delegate.UpdateJobData(conn, jobDetail);
+                        }
+                    }
+                    catch (IOException e)
+                    {
+                        throw new JobPersistenceException("Couldn't serialize job data: " + e.Message, e);
+                    }
                     catch (Exception e)
-					{
-						throw new JobPersistenceException("Couldn't update job data: " + e.Message, e);
-					}
-				}
-			}
+                    {
+                        throw new JobPersistenceException("Couldn't update job data: " + e.Message, e);
+                    }
+                }
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't update trigger state(s): " + e.Message, e);
-			}
+            {
+                throw new JobPersistenceException("Couldn't update trigger state(s): " + e.Message, e);
+            }
 
-			try
-			{
-				Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
-			}
+            try
+            {
+                Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
+            }
             catch (Exception e)
-			{
-				throw new JobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
-			}
-		}
+            {
+                throw new JobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
+            }
+        }
 
-		//---------------------------------------------------------------------------
-		// Management methods
-		//---------------------------------------------------------------------------
-
-		protected internal abstract bool DoRecoverMisfires();
-
-		protected internal virtual void SignalSchedulingChange()
-		{
-			signaler.SignalSchedulingChange();
-		}
-
-		//---------------------------------------------------------------------------
-		// Cluster management methods
-		//---------------------------------------------------------------------------
-
-		protected internal abstract bool DoCheckin();
-
-		protected internal bool firstCheckIn = true;
-
-		protected internal long lastCheckin = (DateTime.Now.Ticks - 621355968000000000)/10000;
+        //---------------------------------------------------------------------------
+        // Management methods
+        //---------------------------------------------------------------------------
 
 
-		/// <summary>
-		/// Get a list of all scheduler instances in the cluster that may have failed.
-		/// This includes this scheduler if it has no recoverer and is checking for the
-		/// first time.
-		/// </summary>
-		/// <param name="conn"></param>
-		/// <returns></returns>
-		protected IList FindFailedInstances(ConnectionAndTransactionHolder conn)
-		{
-			IList failedInstances = new ArrayList();
-			// TODO bool selfFailed = false;
+        protected RecoverMisfiredJobsResult DoRecoverMisfires()
+        {
+            bool transOwner = false;
+            ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
+            try
+            {
+                RecoverMisfiredJobsResult result = RecoverMisfiredJobsResult.NO_OP;
 
-			long timeNow = DateTime.Now.Ticks;
+                // Before we make the potentially expensive call to acquire the 
+                // trigger lock, peek ahead to see if it is likely we would find
+                // misfired triggers requiring recovery.
+                int misfireCount = (DoubleCheckLockMisfireHandler)
+                                       ?
+                                   Delegate.CountMisfiredTriggersInStates(conn, STATE_MISFIRED, STATE_WAITING,
+                                                                          MisfireTime)
+                                       :
+                                   Int32.MaxValue;
 
-			try
-			{
-				IList states = Delegate.SelectSchedulerStateRecords(conn, null);
-				// build map of states by Id...
-				Hashtable statesById = new Hashtable();
-				foreach (SchedulerStateRecord rec in states)
-				{
-					statesById.Add(rec.SchedulerInstanceId, rec);
-				}
+                if (misfireCount == 0)
+                {
+                    Log.Debug(
+                        "Found 0 triggers that missed their scheduled fire-time.");
+                }
+                else
+                {
+                    transOwner = LockHandler.ObtainLock(DbProvider.Metadata, conn, LOCK_TRIGGER_ACCESS);
 
-				foreach (SchedulerStateRecord rec in states)
-				{
-					// find own record...
-					if (rec.SchedulerInstanceId.Equals(InstanceId))
-					{
-						if (firstCheckIn)
-						{
-							if (rec.Recoverer == null)
-							{
-								failedInstances.Add(rec);
-							}
-							else
-							{
-								// make sure the recoverer hasn't died itself!
-								SchedulerStateRecord recOrec = (SchedulerStateRecord) statesById[rec.Recoverer];
+                    result = RecoverMisfiredJobs(conn, false);
+                }
 
-								long failedIfAfter = (recOrec == null) ? timeNow : CalcFailedIfAfter(recOrec);
-
-								// if it has failed, then let's become the recoverer
-								if (failedIfAfter < timeNow || recOrec == null)
-								{
-									failedInstances.Add(rec);
-								}
-							}
-						}
-						// TODO: revisit when handle self-failed-out impled (see TODO in clusterCheckIn() below)
-						// else if (rec.getRecoverer() != null) {
-						//     selfFailed = true;
-						// }
-					}
-					else
-					{
-						// find failed instances...
-						long failedIfAfter = CalcFailedIfAfter(rec);
-
-						if (rec.Recoverer == null)
-						{
-							if (failedIfAfter < timeNow)
-							{
-								failedInstances.Add(rec);
-							}
-						}
-						else
-						{
-							// make sure the recoverer hasn't died itself!
-							SchedulerStateRecord recOrec = (SchedulerStateRecord) statesById[rec.Recoverer];
-
-							failedIfAfter = (recOrec == null) ? timeNow : CalcFailedIfAfter(recOrec);
-
-							// if it has failed, then let's become the recoverer
-							if (failedIfAfter < timeNow || recOrec == null)
-							{
-								failedInstances.Add(rec);
-							}
-						}
-					}
-				}
-			}
-			catch (Exception e)
-			{
-				lastCheckin = DateTime.Now.Ticks;
-				throw new JobPersistenceException("Failure identifying failed instances when checking-in: "
-				                                  + e.Message, e);
-			}
-
-			return failedInstances;
-		}
-
-		protected long CalcFailedIfAfter(SchedulerStateRecord rec)
-		{
-			return rec.CheckinTimestamp +
-			       Math.Max(rec.CheckinInterval, (DateTime.Now.Ticks - lastCheckin))
-			       + 7500L;
-		}
-
-		protected internal virtual IList ClusterCheckIn(ConnectionAndTransactionHolder conn)
-		{
-			IList failedInstances = FindFailedInstances(conn);
-			try 
-			{
-				// TODO: handle self-failed-out
-
-				// check in...
-				lastCheckin = DateTime.Now.Ticks;
-				if(Delegate.UpdateSchedulerState(conn, InstanceId, lastCheckin, null) == 0) 
-				{
-					Delegate.InsertSchedulerState(conn, InstanceId,
-						lastCheckin, ClusterCheckinInterval, null);
-				}
-            
-			} 
-			catch (Exception e) 
-			{
-				throw new JobPersistenceException("Failure updating scheduler state when checking-in: "
-					+ e.Message, e);
-			}
-
-			return failedInstances;
-		}
+                CommitConnection(conn);
+                return result;
+            }
+            catch (JobPersistenceException)
+            {
+                RollbackConnection(conn);
+                throw;
+            }
+            catch (Exception e)
+            {
+                RollbackConnection(conn);
+                throw new JobPersistenceException("Database error recovering from misfires.", e);
+            }
+            finally
+            {
+                try
+                {
+                    ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+                }
+                finally
+                {
+                    CleanupConnection(conn);
+                }
+            }
+        }
 
 
-		protected internal virtual void ClusterRecover(ConnectionAndTransactionHolder conn, IList failedInstances)
-		{
-			if (failedInstances.Count > 0)
-			{
-				long recoverIds = (DateTime.Now.Ticks - 621355968000000000)/10000;
+        protected internal virtual void SignalSchedulingChange()
+        {
+            signaler.SignalSchedulingChange();
+        }
 
-				LogWarnIfNonZero(failedInstances.Count,
-				                 "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
-				try
-				{
-					foreach (SchedulerStateRecord rec in failedInstances)
-					{
-						Log.Info("ClusterManager: Scanning for instance \"" + rec.SchedulerInstanceId + "\"'s failed in-progress jobs.");
+        //---------------------------------------------------------------------------
+        // Cluster management methods
+        //---------------------------------------------------------------------------
 
-						IList firedTriggerRecs = Delegate.SelectInstancesFiredTriggerRecords(conn, rec.SchedulerInstanceId);
+        protected internal bool firstCheckIn = true;
 
-						int acquiredCount = 0;
-						int recoveredCount = 0;
-						int otherCount = 0;
+        protected internal long lastCheckin = DateTime.Now.Ticks;
 
-						foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
-						{
-							Key tKey = ftRec.TriggerKey;
-							Key jKey = ftRec.JobKey;
+        protected virtual bool DoCheckin()
+        {
+            bool transOwner = false;
+            bool transStateOwner = false;
+            bool recovered = false;
 
-							// release blocked triggers..
-							if (ftRec.FireInstanceState.Equals(STATE_BLOCKED))
-							{
-								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, STATE_WAITING,
-								                                                 STATE_BLOCKED);
-							}
-							if (ftRec.FireInstanceState.Equals(STATE_PAUSED_BLOCKED))
-							{
-								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, STATE_PAUSED,
-								                                                 STATE_PAUSED_BLOCKED);
-							}
+            ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
+            try
+            {
+                // Other than the first time, always checkin first to make sure there is 
+                // work to be done before we aquire the lock (since that is expensive, 
+                // and is almost never necessary).  This must be done in a separate
+                // transaction to prevent a deadlock under recovery conditions.
+                IList failedRecords = null;
+                if (firstCheckIn == false)
+                {
+                    bool succeeded = false;
+                    try
+                    {
+                        failedRecords = ClusterCheckIn(conn);
+                        CommitConnection(conn);
+                        succeeded = true;
+                    }
+                    catch (JobPersistenceException)
+                    {
+                        RollbackConnection(conn);
+                        throw;
+                    }
+                    finally
+                    {
+                        // Only cleanup the connection if we failed and are bailing
+                        // as we will otherwise continue to use it.
+                        if (succeeded == false)
+                        {
+                            CleanupConnection(conn);
+                        }
+                    }
+                }
 
-							// release acquired triggers..
-							if (ftRec.FireInstanceState.Equals(STATE_ACQUIRED))
-							{
-								Delegate.UpdateTriggerStateFromOtherState(conn, tKey.Name, tKey.Group, STATE_WAITING,
-								                                          STATE_ACQUIRED);
-								acquiredCount++;
-							}
-								// handle jobs marked for recovery that were not fully
-								// executed..
-							else if (ftRec.JobRequestsRecovery)
-							{
-								if (JobExists(conn, jKey.Name, jKey.Group))
-								{
-									DateTime tempAux = new DateTime(ftRec.FireTimestamp);
-									SimpleTrigger rcvryTrig =
-										new SimpleTrigger("recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++),
-										                  Scheduler_Fields.DEFAULT_RECOVERY_GROUP, tempAux);
-									rcvryTrig.JobName = jKey.Name;
-									rcvryTrig.JobGroup = jKey.Group;
-									rcvryTrig.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW;
-									JobDataMap jd = Delegate.SelectTriggerJobDataMap(conn, tKey.Name, tKey.Group);
-									jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME", tKey.Name);
-									jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP", tKey.Group);
-									jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING", Convert.ToString(ftRec.FireTimestamp));
-									rcvryTrig.JobDataMap = jd;
+                if (firstCheckIn || (failedRecords.Count > 0))
+                {
+                    LockHandler.ObtainLock(DbProvider.Metadata, conn, LOCK_STATE_ACCESS);
+                    transStateOwner = true;
 
-									rcvryTrig.ComputeFirstFireTime(null);
-									StoreTrigger(conn, null, rcvryTrig, null, false, STATE_WAITING, false, true);
-									recoveredCount++;
-								}
-								else
-								{
-									Log.Warn("ClusterManager: failed job '" + jKey + "' no longer exists, cannot schedule recovery.");
-									otherCount++;
-								}
-							}
-							else
-							{
-								otherCount++;
-							}
+                    // Now that we own the lock, make sure we still have work to do. 
+                    // The first time through, we also need to make sure we update/create our state record
+                    failedRecords = (firstCheckIn) ? ClusterCheckIn(conn) : FindFailedInstances(conn);
 
-							// free up stateful job's triggers
-							if (ftRec.JobIsStateful)
-							{
-								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, STATE_WAITING,
-								                                                 STATE_BLOCKED);
-								Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group, STATE_PAUSED,
-								                                                 STATE_PAUSED_BLOCKED);
-							}
-						}
+                    if (failedRecords.Count > 0)
+                    {
+                        LockHandler.ObtainLock(DbProvider.Metadata, conn, LOCK_TRIGGER_ACCESS);
+                        //getLockHandler().obtainLock(conn, LOCK_JOB_ACCESS);
+                        transOwner = true;
 
-						Delegate.DeleteFiredTriggers(conn, rec.SchedulerInstanceId);
+                        ClusterRecover(conn, failedRecords);
+                        recovered = true;
+                    }
+                }
 
-						LogWarnIfNonZero(acquiredCount, "ClusterManager: ......Freed " + acquiredCount + " acquired trigger(s).");
-						LogWarnIfNonZero(recoveredCount,
-						                 "ClusterManager: ......Scheduled " + recoveredCount + " recoverable job(s) for recovery.");
-						LogWarnIfNonZero(otherCount, "ClusterManager: ......Cleaned-up " + otherCount + " other failed job(s).");
+                CommitConnection(conn);
+            }
+            catch (JobPersistenceException)
+            {
+                RollbackConnection(conn);
+                throw;
+            }
+            finally
+            {
+                try
+                {
+                    ReleaseLock(conn, LOCK_TRIGGER_ACCESS, transOwner);
+                }
+                finally
+                {
+                    try
+                    {
+                        ReleaseLock(conn, LOCK_STATE_ACCESS, transStateOwner);
+                    }
+                    finally
+                    {
+                        CleanupConnection(conn);
+                    }
+                }
+            }
 
-						Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId);
+            firstCheckIn = false;
 
-						// update record to show that recovery was handled
-						if (rec.SchedulerInstanceId.Equals(InstanceId))
-						{
-							Delegate.InsertSchedulerState(conn, rec.SchedulerInstanceId, DateTime.Now.Ticks, rec.CheckinInterval, null);
-						}
-					}
-				}
-				catch (Exception e)
-				{
-					throw new JobPersistenceException("Failure recovering jobs: " + e.Message, e);
-				}
-			}
-		}
+            return recovered;
+        }
 
-		protected internal virtual void LogWarnIfNonZero(int val, string warning)
-		{
-			if (val > 0)
-			{
-				Log.Info(warning);
-			}
-			else
-			{
-				Log.Debug(warning);
-			}
-		}
+        /**
+             * Get a list of all scheduler instances in the cluster that may have failed.
+             * This includes this scheduler if it is checking in for the first time.
+             */
 
-		/// <summary> Closes the supplied connection
-		/// 
-		/// </summary>
-		/// <param name="cth">(Optional)
-		/// </param>
-		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
-		/// <summary> connection is closed
-		/// </summary>
-		protected internal virtual void CloseConnection(ConnectionAndTransactionHolder cth)
-		{
-			if (cth.Connection != null)
-			{
-				try
-				{
-					cth.Connection.Close();
-				}
-				catch (Exception ex)
-				{
-					throw new JobPersistenceException("Couldn't close ADO.NET connection. " + ex.Message, ex);
-				}
-			}
-		}
+        protected virtual IList FindFailedInstances(ConnectionAndTransactionHolder conn)
+        {
+            try
+            {
+                ArrayList failedInstances = new ArrayList();
+                bool foundThisScheduler = false;
+                long timeNow = DateTime.Now.Ticks;
 
-		/// <summary>
-		/// Rollback the supplied connection.
-		/// </summary>
+                IList states = Delegate.SelectSchedulerStateRecords(conn, null);
+
+                foreach (SchedulerStateRecord rec in states)
+                {
+                    // find own record...
+                    if (rec.SchedulerInstanceId.Equals(InstanceId))
+                    {
+                        foundThisScheduler = true;
+                        if (firstCheckIn)
+                        {
+                            failedInstances.Add(rec);
+                        }
+                    }
+                    else
+                    {
+                        // find failed instances...
+                        if (CalcFailedIfAfter(rec) < timeNow)
+                        {
+                            failedInstances.Add(rec);
+                        }
+                    }
+                }
+
+                // The first time through, also check for orphaned fired triggers.
+                if (firstCheckIn)
+                {
+                    failedInstances.AddRange(FindOrphanedFailedInstances(conn, states));
+                }
+
+                // If not the first time but we didn't find our own instance, then
+                // Someone must have done recovery for us.
+                if ((foundThisScheduler == false) && (firstCheckIn == false))
+                {
+                    // TODO: revisit when handle self-failed-out implied (see TODO in clusterCheckIn() below)
+                    Log.Warn(
+                        "This scheduler instance (" + InstanceId + ") is still " +
+                        "active but was recovered by another instance in the cluster.  " +
+                        "This may cause inconsistent behavior.");
+                }
+
+                return failedInstances;
+            }
+            catch (Exception e)
+            {
+                lastCheckin = DateTime.Now.Ticks;
+                throw new JobPersistenceException("Failure identifying failed instances when checking-in: "
+                                                  + e.Message, e);
+            }
+        }
+
+        /**
+             * Create dummy <code>SchedulerStateRecord</code> objects for fired triggers
+             * that have no scheduler state record.  Checkin timestamp and interval are
+             * left as zero on these dummy <code>SchedulerStateRecord</code> objects.
+             * 
+             * @param schedulerStateRecords List of all current <code>SchedulerStateRecords</code>
+             */
+
+        private IList FindOrphanedFailedInstances(ConnectionAndTransactionHolder conn, IList schedulerStateRecords)
+        {
+            IList orphanedInstances = new ArrayList();
+
+            ISet allFiredTriggerInstanceNames = Delegate.SelectFiredTriggerInstanceNames(conn);
+            if (allFiredTriggerInstanceNames.Count > 0)
+            {
+                foreach (SchedulerStateRecord rec in schedulerStateRecords)
+                {
+                    allFiredTriggerInstanceNames.Remove(rec.SchedulerInstanceId);
+                }
+
+                foreach (string name in allFiredTriggerInstanceNames)
+                {
+                    SchedulerStateRecord orphanedInstance = new SchedulerStateRecord();
+                    orphanedInstance.SchedulerInstanceId = name;
+
+                    orphanedInstances.Add(orphanedInstance);
+
+                    Log.Warn("Found orphaned fired triggers for instance: " + orphanedInstance.SchedulerInstanceId);
+                }
+            }
+
+            return orphanedInstances;
+        }
+
+        protected long CalcFailedIfAfter(SchedulerStateRecord rec)
+        {
+            return rec.CheckinTimestamp +
+                   Math.Max(rec.CheckinInterval, (DateTime.Now.Ticks - lastCheckin))
+                   + 7500L;
+        }
+
+        protected internal virtual IList ClusterCheckIn(ConnectionAndTransactionHolder conn)
+        {
+            IList failedInstances = FindFailedInstances(conn);
+            try
+            {
+                // TODO: handle self-failed-out
+
+
+                // check in...
+                lastCheckin = DateTime.Now.Ticks;
+                if (Delegate.UpdateSchedulerState(conn, InstanceId, lastCheckin) == 0)
+                {
+                    Delegate.InsertSchedulerState(conn, InstanceId, lastCheckin, ClusterCheckinInterval);
+                }
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Failure updating scheduler state when checking-in: "
+                                                  + e.Message, e);
+            }
+
+            return failedInstances;
+        }
+
+
+        protected internal virtual void ClusterRecover(ConnectionAndTransactionHolder conn, IList failedInstances)
+        {
+            if (failedInstances.Count > 0)
+            {
+                long recoverIds = (DateTime.Now.Ticks - 621355968000000000)/10000;
+
+                LogWarnIfNonZero(failedInstances.Count,
+                                 "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
+                try
+                {
+                    foreach (SchedulerStateRecord rec in failedInstances)
+                    {
+                        Log.Info("ClusterManager: Scanning for instance \"" + rec.SchedulerInstanceId +
+                                 "\"'s failed in-progress jobs.");
+
+                        IList firedTriggerRecs =
+                            Delegate.SelectInstancesFiredTriggerRecords(conn, rec.SchedulerInstanceId);
+
+                        int acquiredCount = 0;
+                        int recoveredCount = 0;
+                        int otherCount = 0;
+
+                        ISet triggerKeys = new HashSet();
+
+                        foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
+                        {
+                            Key tKey = ftRec.TriggerKey;
+                            Key jKey = ftRec.JobKey;
+
+                            triggerKeys.Add(tKey);
+
+                            // release blocked triggers..
+                            if (ftRec.FireInstanceState.Equals(STATE_BLOCKED))
+                            {
+                                Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group,
+                                                                                 STATE_WAITING,
+                                                                                 STATE_BLOCKED);
+                            }
+                            else if (ftRec.FireInstanceState.Equals(STATE_PAUSED_BLOCKED))
+                            {
+                                Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group,
+                                                                                 STATE_PAUSED,
+                                                                                 STATE_PAUSED_BLOCKED);
+                            }
+
+                            // release acquired triggers..
+                            if (ftRec.FireInstanceState.Equals(STATE_ACQUIRED))
+                            {
+                                Delegate.UpdateTriggerStateFromOtherState(conn, tKey.Name, tKey.Group, STATE_WAITING,
+                                                                          STATE_ACQUIRED);
+                                acquiredCount++;
+                            }
+                            else if (ftRec.JobRequestsRecovery)
+                            {
+                                // handle jobs marked for recovery that were not fully
+                                // executed..
+                                if (JobExists(conn, jKey.Name, jKey.Group))
+                                {
+                                    DateTime tempAux = new DateTime(ftRec.FireTimestamp);
+                                    SimpleTrigger rcvryTrig =
+                                        new SimpleTrigger(
+                                            "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++),
+                                            Scheduler_Fields.DEFAULT_RECOVERY_GROUP, tempAux);
+                                    rcvryTrig.JobName = jKey.Name;
+                                    rcvryTrig.JobGroup = jKey.Group;
+                                    rcvryTrig.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW;
+                                    rcvryTrig.Priority = ftRec.Priority;
+                                    JobDataMap jd = Delegate.SelectTriggerJobDataMap(conn, tKey.Name, tKey.Group);
+                                    jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME", tKey.Name);
+                                    jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP", tKey.Group);
+                                    jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS",
+                                           Convert.ToString(ftRec.FireTimestamp));
+                                    rcvryTrig.JobDataMap = jd;
+
+                                    rcvryTrig.ComputeFirstFireTime(null);
+                                    StoreTrigger(conn, null, rcvryTrig, null, false, STATE_WAITING, false, true);
+                                    recoveredCount++;
+                                }
+                                else
+                                {
+                                    Log.Warn("ClusterManager: failed job '" + jKey +
+                                             "' no longer exists, cannot schedule recovery.");
+                                    otherCount++;
+                                }
+                            }
+                            else
+                            {
+                                otherCount++;
+                            }
+
+                            // free up stateful job's triggers
+                            if (ftRec.JobIsStateful)
+                            {
+                                Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group,
+                                                                                 STATE_WAITING,
+                                                                                 STATE_BLOCKED);
+                                Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group,
+                                                                                 STATE_PAUSED,
+                                                                                 STATE_PAUSED_BLOCKED);
+                            }
+                        }
+
+                        Delegate.DeleteFiredTriggers(conn, rec.SchedulerInstanceId);
+
+
+                        // Check if any of the fired triggers we just deleted were the last fired trigger
+                        // records of a COMPLETE trigger.
+                        int completeCount = 0;
+                        foreach (Key triggerKey in triggerKeys)
+                        {
+                            if (
+                                Delegate.SelectTriggerState(conn, triggerKey.Name, triggerKey.Group).Equals(
+                                    STATE_COMPLETE))
+                            {
+                                IList firedTriggers =
+                                    Delegate.SelectFiredTriggerRecords(conn, triggerKey.Name, triggerKey.Group);
+                                if (firedTriggers.Count == 0)
+                                {
+                                    SchedulingContext schedulingContext = new SchedulingContext();
+                                    schedulingContext.InstanceId = instanceId;
+
+                                    if (RemoveTrigger(conn, schedulingContext, triggerKey.Name, triggerKey.Group))
+                                    {
+                                        completeCount++;
+                                    }
+                                }
+                            }
+                        }
+                        LogWarnIfNonZero(acquiredCount,
+                                         "ClusterManager: ......Freed " + acquiredCount + " acquired trigger(s).");
+                        LogWarnIfNonZero(completeCount,
+                                         "ClusterManager: ......Deleted " + completeCount + " complete triggers(s).");
+                        LogWarnIfNonZero(recoveredCount,
+                                         "ClusterManager: ......Scheduled " + recoveredCount +
+                                         " recoverable job(s) for recovery.");
+                        LogWarnIfNonZero(otherCount,
+                                         "ClusterManager: ......Cleaned-up " + otherCount + " other failed job(s).");
+
+
+                        if (rec.SchedulerInstanceId.Equals(InstanceId) == false)
+                        {
+                            Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId);
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    throw new JobPersistenceException("Failure recovering jobs: " + e.Message, e);
+                }
+            }
+        }
+
+        protected internal virtual void LogWarnIfNonZero(int val, string warning)
+        {
+            if (val > 0)
+            {
+                Log.Info(warning);
+            }
+            else
+            {
+                Log.Debug(warning);
+            }
+        }
+
+        /**
+         * <p>
+         * Cleanup the given database connection.  This means restoring
+         * any modified auto commit or transaction isolation connection
+         * attributes, and then closing the underlying connection.
+         * </p>
+         * 
+         * <p>
+         * This is separate from closeConnection() because the Spring 
+         * integration relies on being able to overload closeConnection() and
+         * expects the same connection back that it originally returned
+         * from the datasource. 
+         * </p>
+         * 
+         * @see #closeConnection(Connection)
+         */
+
+        protected virtual void CleanupConnection(ConnectionAndTransactionHolder conn)
+        {
+            if (conn != null)
+            {
+                /* TODO if (conn is Proxy) {
+                    Proxy connProxy = (Proxy)conn;
+                
+                    InvocationHandler invocationHandler = 
+                        Proxy.getInvocationHandler(connProxy);
+                    if (invocationHandler instanceof AttributeRestoringConnectionInvocationHandler) {
+                        AttributeRestoringConnectionInvocationHandler connHandler =
+                            (AttributeRestoringConnectionInvocationHandler)invocationHandler;
+                        
+                        connHandler.RestoreOriginalAtributes();
+                        CloseConnection(connHandler.WrappedConnection);
+                        return;
+                    }
+                }
+                */
+                // Wan't a Proxy, or was a Proxy, but wasn't ours.
+                CloseConnection(conn);
+            }
+        }
+
+        /// <summary> 
+        /// Closes the supplied connection.
+        /// </summary>
+        /// <param name="cth">(Optional)</param>
+        protected internal virtual void CloseConnection(ConnectionAndTransactionHolder cth)
+        {
+            if (cth.Connection != null)
+            {
+                try
+                {
+                    cth.Connection.Close();
+                }
+                catch (Exception e)
+                {
+                    Log.Error(
+                        "Unexpected exception closing Connection." +
+                        "  This is often due to a Connection being returned after or during shutdown.", e);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rollback the supplied connection.
+        /// </summary>
         /// <param name="cth">(Optional)
-		/// </param>
-		/// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
-		/// <summary> connection is rolled back
-		/// </summary>
+        /// </param>
+        /// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
+        /// <summary> connection is rolled back
+        /// </summary>
         protected internal virtual void RollbackConnection(ConnectionAndTransactionHolder cth)
-		{
+        {
             if (cth.Transaction != null)
-			{
-				try
-				{
-					cth.Transaction.Rollback();
-				}
-				catch (Exception e)
-				{
-					throw new JobPersistenceException("Couldn't rollback ADO.NET transaction. " + e.Message, e);
-				}
-			}
-		}
+            {
+                try
+                {
+                    cth.Transaction.Rollback();
+                }
+                catch (Exception e)
+                {
+                    Log.Error("Couldn't rollback ADO.NET connection. " + e.Message, e);
+                }
+            }
+        }
 
-		/// <summary> 
-		/// Commit the supplied connection.
-		/// </summary>
+        /// <summary> 
+        /// Commit the supplied connection.
+        /// </summary>
         /// <param name="cth"></param>
-		/// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
-		protected internal virtual void CommitConnection(ConnectionAndTransactionHolder cth)
-		{
-			if (cth.Transaction != null)
-			{
-				try
-				{
-					cth.Transaction.Commit();
-				}
-				catch (Exception e)
-				{
-					throw new JobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
-				}
-			}
-		}
+        /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
+        protected internal virtual void CommitConnection(ConnectionAndTransactionHolder cth)
+        {
+            if (cth.Transaction != null)
+            {
+                try
+                {
+                    cth.Transaction.Commit();
+                }
+                catch (Exception e)
+                {
+                    throw new JobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
+                }
+            }
+        }
 
-		/////////////////////////////////////////////////////////////////////////////
-		//
-		// ClusterManager Thread
-		//
-		/////////////////////////////////////////////////////////////////////////////
-		internal class ClusterManager : QuartzThread
-		{
-	        private JobStoreSupport jobStoreSupport;
-			private bool shutdown = false;
-			private readonly JobStoreSupport js;
-			private int numFails = 0;
 
-			internal ClusterManager(JobStoreSupport jobStoreSupport, JobStoreSupport js)
-			{
+        /**
+         * Implement this interface to provide the code to execute within
+         * the a transaction template.  If no return value is required, execute
+         * should just return null.
+         * 
+         * @see JobStoreSupport#executeInNonManagedTXLock(String, TransactionCallback)
+         * @see JobStoreSupport#executeInLock(String, TransactionCallback)
+         * @see JobStoreSupport#executeWithoutLock(TransactionCallback)
+         */
+
+        protected interface ITransactionCallback
+        {
+            object Execute(ConnectionAndTransactionHolder conn);
+        }
+
+        /**
+         * Implement this interface to provide the code to execute within
+         * the a transaction template that has no return value.
+         * 
+         * @see JobStoreSupport#executeInNonManagedTXLock(String, TransactionCallback)
+         */
+
+        protected interface IVoidTransactionCallback
+        {
+            void Execute(ConnectionAndTransactionHolder conn);
+        }
+
+        /**
+         * Execute the given callback in a transaction. Depending on the JobStore, 
+         * the surrounding transaction may be assumed to be already present 
+         * (managed).  
+         * 
+         * <p>
+         * This method just forwards to executeInLock() with a null lockName.
+         * </p>
+         * 
+         * @see #executeInLock(String, TransactionCallback)
+         */
+
+        protected object ExecuteWithoutLock(ITransactionCallback txCallback)
+        {
+            return ExecuteInLock(null, txCallback);
+        }
+
+        /**
+         * Execute the given callback having aquired the given lock.  
+         * Depending on the JobStore, the surrounding transaction may be 
+         * assumed to be already present (managed).  This version is just a 
+         * handy wrapper around executeInLock that doesn't require a return
+         * value.
+         * 
+         * @param lockName The name of the lock to aquire, for example 
+         * "TRIGGER_ACCESS".  If null, then no lock is aquired, but the
+         * lockCallback is still executed in a transaction. 
+         * 
+         * @see #executeInLock(String, TransactionCallback)
+         */
+
+        protected void ExecuteInLock(string lockName, IVoidTransactionCallback txCallback)
+        {
+            ExecuteInLock(lockName, new ExecuteInLockCallback(this, txCallback));
+        }
+
+        protected class ExecuteInLockCallback : CallbackSupport, ITransactionCallback
+        {
+            private IVoidTransactionCallback txCallback;
+
+            public ExecuteInLockCallback(JobStoreSupport js, IVoidTransactionCallback txCallback)
+                : base(js)
+            {
+                this.txCallback = txCallback;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                txCallback.Execute(conn);
+                return null;
+            }
+        }
+
+        /**
+         * Execute the given callback having aquired the given lock.  
+         * Depending on the JobStore, the surrounding transaction may be 
+         * assumed to be already present (managed).
+         * 
+         * @param lockName The name of the lock to aquire, for example 
+         * "TRIGGER_ACCESS".  If null, then no lock is aquired, but the
+         * lockCallback is still executed in a transaction. 
+         */
+
+        protected abstract object ExecuteInLock(string lockName, ITransactionCallback txCallback);
+
+        /**
+         * Execute the given callback having optionally aquired the given lock.
+         * This uses the non-managed transaction connection.  This version is just a 
+         * handy wrapper around executeInNonManagedTXLock that doesn't require a return
+         * value.
+         * 
+         * @param lockName The name of the lock to aquire, for example 
+         * "TRIGGER_ACCESS".  If null, then no lock is aquired, but the
+         * lockCallback is still executed in a non-managed transaction. 
+         * 
+         * @see #executeInNonManagedTXLock(String, TransactionCallback)
+         */
+
+        protected void ExecuteInNonManagedTXLock(string lockName, IVoidTransactionCallback txCallback)
+        {
+            ExecuteInNonManagedTXLock(lockName, new ExecuteInNonManagedTXLockCallback(this, txCallback));
+        }
+
+        protected class ExecuteInNonManagedTXLockCallback : CallbackSupport, ITransactionCallback
+        {
+            private IVoidTransactionCallback txCallback;
+
+
+            public ExecuteInNonManagedTXLockCallback(JobStoreSupport js, IVoidTransactionCallback txCallback)
+                : base(js)
+            {
+                this.txCallback = txCallback;
+            }
+
+            public object Execute(ConnectionAndTransactionHolder conn)
+            {
+                txCallback.Execute(conn);
+                return null;
+            }
+        }
+
+        /**
+         * Execute the given callback having optionally aquired the given lock.
+         * This uses the non-managed transaction connection.
+         * 
+         * @param lockName The name of the lock to aquire, for example 
+         * "TRIGGER_ACCESS".  If null, then no lock is aquired, but the
+         * lockCallback is still executed in a non-managed transaction. 
+         */
+
+        protected Object ExecuteInNonManagedTXLock(string lockName, ITransactionCallback txCallback)
+        {
+            bool transOwner = false;
+            ConnectionAndTransactionHolder conn = null;
+            try
+            {
+                if (lockName != null)
+                {
+                    // If we aren't using db locks, then delay getting DB connection 
+                    // until after aquiring the lock since it isn't needed.
+                    if (LockHandler.RequiresConnection)
+                    {
+                        conn = GetNonManagedTXConnection();
+                    }
+
+                    transOwner = LockHandler.ObtainLock(DbProvider.Metadata, conn, lockName);
+                }
+
+                if (conn == null)
+                {
+                    conn = GetNonManagedTXConnection();
+                }
+
+                object result = txCallback.Execute(conn);
+                CommitConnection(conn);
+                return result;
+            }
+            catch (JobPersistenceException)
+            {
+                RollbackConnection(conn);
+                throw;
+            }
+            catch (Exception e)
+            {
+                RollbackConnection(conn);
+                throw new JobPersistenceException("Unexpected runtime exception: " + e.Message, e);
+            }
+            finally
+            {
+                try
+                {
+                    ReleaseLock(conn, lockName, transOwner);
+                }
+                finally
+                {
+                    CleanupConnection(conn);
+                }
+            }
+        }
+
+
+        /////////////////////////////////////////////////////////////////////////////
+        //
+        // ClusterManager Thread
+        //
+        /////////////////////////////////////////////////////////////////////////////
+        internal class ClusterManager : QuartzThread
+        {
+            private JobStoreSupport jobStoreSupport;
+            private bool shutdown = false;
+            private int numFails = 0;
+
+            internal ClusterManager(JobStoreSupport jobStoreSupport)
+            {
                 this.jobStoreSupport = jobStoreSupport;
-				this.js = js;
-				Priority = ThreadPriority.AboveNormal;
-				Name = "QuartzScheduler_" + jobStoreSupport.instanceName + "-" + jobStoreSupport.instanceId +
-				       "_ClusterManager";
-			}
+                Priority = ThreadPriority.AboveNormal;
+                Name = "QuartzScheduler_" + jobStoreSupport.instanceName + "-" + jobStoreSupport.instanceId +
+                       "_ClusterManager";
+                IsBackground = jobStoreSupport.MakeThreadsDaemons;
+            }
 
-			public virtual void Initialize()
-			{
-				Manage();
-				Start();
-			}
+            public virtual void Initialize()
+            {
+                Manage();
+                Start();
+            }
 
-			public virtual void Shutdown()
-			{
-				shutdown = true;
-				Interrupt();
-			}
+            public virtual void Shutdown()
+            {
+                shutdown = true;
+                Interrupt();
+            }
 
-			private bool Manage()
-			{
-				bool res = false;
-				try
-				{
-					res = js.DoCheckin();
+            private bool Manage()
+            {
+                bool res = false;
+                try
+                {
+                    res = jobStoreSupport.DoCheckin();
 
-					numFails = 0;
-					jobStoreSupport.Log.Debug("ClusterManager: Check-in complete.");
-				}
-				catch (Exception e)
-				{
-					if (numFails%4 == 0)
-					{
-						jobStoreSupport.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
-					}
-					numFails++;
-				}
-				return res;
-			}
+                    numFails = 0;
+                    jobStoreSupport.Log.Debug("ClusterManager: Check-in complete.");
+                }
+                catch (Exception e)
+                {
+                    if (numFails%4 == 0)
+                    {
+                        jobStoreSupport.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
+                    }
+                    numFails++;
+                }
+                return res;
+            }
 
-			public override void Run()
-			{
-				while (!shutdown)
-				{
-					if (!shutdown)
-					{
-						long timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-						long transpiredTime = ((DateTime.Now.Ticks - 621355968000000000)/10000 - jobStoreSupport.lastCheckin);
-						timeToSleep = timeToSleep - transpiredTime;
-						if (timeToSleep <= 0)
-						{
-							timeToSleep = 100L;
-						}
+            public override void Run()
+            {
+                while (!shutdown)
+                {
+                    if (!shutdown)
+                    {
+                        long timeToSleep = jobStoreSupport.ClusterCheckinInterval;
+                        long transpiredTime = ((DateTime.Now.Ticks - 621355968000000000)/10000 -
+                                               jobStoreSupport.lastCheckin);
+                        timeToSleep = timeToSleep - transpiredTime;
+                        if (timeToSleep <= 0)
+                        {
+                            timeToSleep = 100L;
+                        }
 
-						if (numFails > 0)
-						{
-							timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
-						}
+                        if (numFails > 0)
+                        {
+                            timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
+                        }
 
-						Thread.Sleep((int) timeToSleep);
-						
-					}
+                        Thread.Sleep((int) timeToSleep);
+                    }
 
-					if (!shutdown && Manage())
-					{
-						jobStoreSupport.SignalSchedulingChange();
-					}
-				} //while !Shutdown
-			}
-		}
+                    if (!shutdown && Manage())
+                    {
+                        jobStoreSupport.SignalSchedulingChange();
+                    }
+                } //while !Shutdown
+            }
+        }
 
-		/////////////////////////////////////////////////////////////////////////////
-		//
-		// MisfireHandler Thread
-		//
-		/////////////////////////////////////////////////////////////////////////////
-		internal class MisfireHandler : QuartzThread
-		{
-			private JobStoreSupport jobStoreSupport;
-			private bool shutdown = false;
-			private readonly JobStoreSupport js;
-			private int numFails = 0;
+        /////////////////////////////////////////////////////////////////////////////
+        //
+        // MisfireHandler Thread
+        //
+        /////////////////////////////////////////////////////////////////////////////
+        internal class MisfireHandler : QuartzThread
+        {
+            private JobStoreSupport jobStoreSupport;
+            private bool shutdown = false;
+            private int numFails = 0;
 
-			internal MisfireHandler(JobStoreSupport jobStoreSupport, JobStoreSupport js)
-			{
-                this.jobStoreSupport = jobStoreSupport; 
-				this.js = js;
-				Name = string.Format("QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName, jobStoreSupport.instanceId);
-			}
+            internal MisfireHandler(JobStoreSupport jobStoreSupport)
+            {
+                this.jobStoreSupport = jobStoreSupport;
+                Name =
+                    string.Format("QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName,
+                                  jobStoreSupport.instanceId);
+                IsBackground = jobStoreSupport.MakeThreadsDaemons;
+            }
 
-			public virtual void Initialize()
-			{
-				//this.Manage();
-				Start();
-			}
+            public virtual void Initialize()
+            {
+                //this.Manage();
+                Start();
+            }
 
-			public virtual void Shutdown()
-			{
-				shutdown = true;
-				Interrupt();
-			}
+            public virtual void Shutdown()
+            {
+                shutdown = true;
+                Interrupt();
+            }
 
-			private bool Manage()
-			{
-				try
-				{
-					jobStoreSupport.Log.Debug("MisfireHandler: scanning for misfires...");
+            private RecoverMisfiredJobsResult Manage()
+            {
+                try
+                {
+                    jobStoreSupport.Log.Debug("MisfireHandler: scanning for misfires...");
 
-					bool res = js.DoRecoverMisfires();
-					numFails = 0;
-					return res;
-				}
-				catch (Exception e)
-				{
-					if (numFails%4 == 0)
-					{
-						jobStoreSupport.Log.Error("MisfireHandler: Error handling misfires: " + e.Message, e);
-					}
-					numFails++;
-				}
-				return false;
-			}
+                    RecoverMisfiredJobsResult res = jobStoreSupport.DoRecoverMisfires();
+                    numFails = 0;
+                    return res;
+                }
+                catch (Exception e)
+                {
+                    if (numFails%4 == 0)
+                    {
+                        jobStoreSupport.Log.Error(
+                            "MisfireHandler: Error handling misfires: "
+                            + e.Message, e);
+                    }
+                    numFails++;
+                }
+                return RecoverMisfiredJobsResult.NO_OP;
+            }
 
-			public override void Run()
-			{
-				while (!shutdown)
-				{
-					long sTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
+            public void run()
+            {
+                while (!shutdown)
+                {
+                    DateTime sTime = DateTime.Now;
 
-					bool moreToDo = Manage();
+                    RecoverMisfiredJobsResult recoverMisfiredJobsResult = Manage();
 
-					if (jobStoreSupport.lastRecoverCount > 0)
-					{
-						jobStoreSupport.SignalSchedulingChange();
-					}
+                    if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
+                    {
+                        jobStoreSupport.SignalSchedulingChange();
+                    }
 
-					long spanTime = (DateTime.Now.Ticks - 621355968000000000)/10000 - sTime;
+                    if (!shutdown)
+                    {
+                        long timeToSleep = 50L; // At least a short pause to help balance threads
+                        if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
+                        {
+                            timeToSleep = jobStoreSupport.MisfireThreshold -
+                                          (long) (DateTime.Now - sTime).TotalMilliseconds;
+                            if (timeToSleep <= 0)
+                            {
+                                timeToSleep = 50L;
+                            }
 
-					if (!shutdown && !moreToDo)
-					{
-						long timeToSleep = jobStoreSupport.MisfireThreshold - spanTime;
-						if (timeToSleep <= 0)
-						{
-							timeToSleep = 50L;
-						}
+                            if (numFails > 0)
+                            {
+                                timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
+                            }
+                        }
 
-						if (numFails > 0)
-						{
-							timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
-						}
+                        Thread.Sleep((int) timeToSleep);
+                    } //while !shutdown
+                }
+                //public abstract int GetNumberOfTriggers(SchedulingContext param1);
 
-						if (timeToSleep > 0)
-						{
-							// TODO
-						    Thread.Sleep((int) timeToSleep);
-							
-						}
-					}
-					else if (moreToDo)
-					{
-						// short pause to help balance threads...
-						Thread.Sleep(50);
-					}
-				} //while !Shutdown
-			}
-		}
+                //public abstract int GetTriggerState(SchedulingContext param1, string param2, string param3);
 
-		public abstract int GetNumberOfTriggers(SchedulingContext param1);
+                //public abstract bool RemoveTrigger(SchedulingContext param1, string param2, string param3);
 
-		public abstract int GetTriggerState(SchedulingContext param1, string param2, string param3);
+                //public abstract void StoreJobAndTrigger(SchedulingContext param1, JobDetail param2, Trigger param3);
 
-		public abstract bool RemoveTrigger(SchedulingContext param1, string param2, string param3);
+                //public abstract String[] GetCalendarNames(SchedulingContext param1);
 
-		public abstract void StoreJobAndTrigger(SchedulingContext param1, JobDetail param2, Trigger param3);
+                //public abstract int GetNumberOfCalendars(SchedulingContext param1);
 
-		public abstract String[] GetCalendarNames(SchedulingContext param1);
+                //public abstract void ResumeJobGroup(SchedulingContext param1, string param2);
 
-		public abstract int GetNumberOfCalendars(SchedulingContext param1);
+                //public abstract void StoreJob(SchedulingContext param1, JobDetail param2, bool param3);
 
-		public abstract void ResumeJobGroup(SchedulingContext param1, string param2);
+                //public abstract String[] GetJobNames(SchedulingContext param1, string param2);
 
-		public abstract void StoreJob(SchedulingContext param1, JobDetail param2, bool param3);
+                //public abstract TriggerFiredBundle TriggerFired(SchedulingContext param1, Trigger param2);
 
-		public abstract String[] GetJobNames(SchedulingContext param1, string param2);
+                //public abstract void TriggeredJobComplete(SchedulingContext param1, Trigger param2, JobDetail param3, int param4);
 
-		public abstract TriggerFiredBundle TriggerFired(SchedulingContext param1, Trigger param2);
+                //public abstract String[] GetTriggerGroupNames(SchedulingContext param1);
 
-		public abstract void TriggeredJobComplete(SchedulingContext param1, Trigger param2, JobDetail param3, int param4);
+                //public abstract void PauseTrigger(SchedulingContext param1, string param2, string param3);
 
-		public abstract String[] GetTriggerGroupNames(SchedulingContext param1);
+                //public abstract void ResumeAll(SchedulingContext param1);
 
-		public abstract void PauseTrigger(SchedulingContext param1, string param2, string param3);
+                //public abstract void StoreTrigger(SchedulingContext param1, Trigger param2, bool param3);
 
-		public abstract void ResumeAll(SchedulingContext param1);
+                //public abstract String[] GetJobGroupNames(SchedulingContext param1);
 
-		public abstract void StoreTrigger(SchedulingContext param1, Trigger param2, bool param3);
+                //public abstract String[] GetTriggerNames(SchedulingContext param1, string param2);
 
-		public abstract String[] GetJobGroupNames(SchedulingContext param1);
+                //public abstract void PauseAll(SchedulingContext param1);
 
-		public abstract String[] GetTriggerNames(SchedulingContext param1, string param2);
+                //public abstract void PauseJobGroup(SchedulingContext param1, string param2);
 
-		public abstract void PauseAll(SchedulingContext param1);
+                //public abstract void PauseTriggerGroup(SchedulingContext param1, string param2);
 
-		public abstract void PauseJobGroup(SchedulingContext param1, string param2);
+                //public abstract bool ReplaceTrigger(SchedulingContext param1, string param2, string param3, Trigger param4);
 
-		public abstract void PauseTriggerGroup(SchedulingContext param1, string param2);
+                //public abstract void ResumeJob(SchedulingContext param1, string param2, string param3);
 
-		public abstract bool ReplaceTrigger(SchedulingContext param1, string param2, string param3, Trigger param4);
+                //public abstract int GetNumberOfJobs(SchedulingContext param1);
 
-		public abstract void ResumeJob(SchedulingContext param1, string param2, string param3);
+                //public abstract void PauseJob(SchedulingContext param1, string param2, string param3);
 
-		public abstract int GetNumberOfJobs(SchedulingContext param1);
+                //public abstract void ReleaseAcquiredTrigger(SchedulingContext param1, Trigger param2);
 
-		public abstract void PauseJob(SchedulingContext param1, string param2, string param3);
+                //public abstract JobDetail RetrieveJob(SchedulingContext param1, string param2, string param3);
 
-		public abstract void ReleaseAcquiredTrigger(SchedulingContext param1, Trigger param2);
+                //public abstract bool RemoveJob(SchedulingContext param1, string param2, string param3);
 
-		public abstract JobDetail RetrieveJob(SchedulingContext param1, string param2, string param3);
+                //public abstract void ResumeTrigger(SchedulingContext param1, string param2, string param3);
 
-		public abstract bool RemoveJob(SchedulingContext param1, string param2, string param3);
+                //public abstract Trigger AcquireNextTrigger(SchedulingContext param1, DateTime param2);
 
-		public abstract void ResumeTrigger(SchedulingContext param1, string param2, string param3);
+                //public abstract Trigger[] GetTriggersForJob(SchedulingContext param1, string param2, string param3);
 
-		public abstract Trigger AcquireNextTrigger(SchedulingContext param1, DateTime param2);
+                //public abstract bool RemoveCalendar(SchedulingContext param1, string param2);
 
-		public abstract Trigger[] GetTriggersForJob(SchedulingContext param1, string param2, string param3);
+                //public abstract ICalendar RetrieveCalendar(SchedulingContext param1, string param2);
 
-		public abstract bool RemoveCalendar(SchedulingContext param1, string param2);
+                //public abstract Trigger RetrieveTrigger(SchedulingContext param1, string param2, string param3);
 
-		public abstract ICalendar RetrieveCalendar(SchedulingContext param1, string param2);
+                //public abstract void StoreCalendar(SchedulingContext param1, string param2, ICalendar param3, bool param4, bool param5);
 
-		public abstract Trigger RetrieveTrigger(SchedulingContext param1, string param2, string param3);
+                //public abstract ISet GetPausedTriggerGroups(SchedulingContext param1);
 
-		public abstract void StoreCalendar(SchedulingContext param1, string param2, ICalendar param3, bool param4, bool param5);
+                //public abstract void ResumeTriggerGroup(SchedulingContext param1, string param2);
+            }
 
-		public abstract ISet GetPausedTriggerGroups(SchedulingContext param1);
 
-		public abstract void ResumeTriggerGroup(SchedulingContext param1, string param2);
-	}
+            // EOF
+        }
 
-	// EOF
+        /// <summary>
+        /// Helper class for returning the composite result of trying
+        /// to recover misfired jobs.
+        /// </summary>
+        public class RecoverMisfiredJobsResult
+        {
+            public static readonly RecoverMisfiredJobsResult NO_OP = new RecoverMisfiredJobsResult(false, 0);
+
+            private bool _hasMoreMisfiredTriggers;
+            private int _processedMisfiredTriggerCount;
+
+            public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount)
+            {
+                _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
+                _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
+            }
+
+            public bool HasMoreMisfiredTriggers
+            {
+                get { return _hasMoreMisfiredTriggers; }
+            }
+
+            public int ProcessedMisfiredTriggerCount
+            {
+                get { return _processedMisfiredTriggerCount; }
+            }
+        }
+    }
 }

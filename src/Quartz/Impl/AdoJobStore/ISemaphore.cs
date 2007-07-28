@@ -19,8 +19,6 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
-using System.Data;
-
 using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Impl.AdoJobStore
@@ -50,5 +48,17 @@ namespace Quartz.Impl.AdoJobStore
 		/// resource.
 		/// </summary>
 		bool IsLockOwner(ConnectionAndTransactionHolder conn, string lockName);
+
+        /// <summary>
+        /// Whether this Semaphore implementation requires a database connection for
+        /// its lock management operations.
+        /// </summary>
+        /// <seealso cref="IsLockOwner" />
+        /// <seealso cref="ObtainLock" />
+        /// <seealso cref="ReleaseLock" />
+        bool RequiresConnection
+        { 
+            get;
+        }
 	}
 }

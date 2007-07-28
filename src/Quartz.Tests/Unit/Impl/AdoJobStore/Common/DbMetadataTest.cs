@@ -28,6 +28,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             Assert.IsNotNull(md.CommandType);
             Assert.IsNotNull(md.ConnectionType);
             Assert.IsNotNull(md.ParameterType);
+            Assert.IsNotNull(md.DbBinaryType);
         }
     }
 }

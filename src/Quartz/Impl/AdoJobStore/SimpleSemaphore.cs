@@ -20,41 +20,45 @@
 */
 
 using System;
-using System.Collections;
-using System.Data;
 using System.Threading;
 
 using Common.Logging;
 
 using Quartz.Collection;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary> 
-	/// An interface for providing thread/resource locking in order to protect
-	/// resources from being altered by multiple threads at the same time.
+	/// Internal in-memory lock handler for providing thread/resource locking in 
+    /// order to protect resources from being altered by multiple threads at the 
+    /// same time.
 	/// </summary>
 	/// <author>James House</author>
 	public class SimpleSemaphore : ISemaphore
 	{
+	    private const string KEY_THREAD_LOCK_OWNERS = "qrtz_ssemaphore_lock_owners";
+
 		private ILog log = LogManager.GetLogger(typeof(SimpleSemaphore));
-		internal LocalDataStoreSlot lockOwners = Thread.AllocateDataSlot();
-		internal HashSet locks = new HashSet();
-		
-		private HashSet ThreadLocks
+		private HashSet locks = new HashSet();
+
+        /// <summary>
+        /// Gets the thread locks.
+        /// </summary>
+        /// <value>The thread locks.</value>
+		private static HashSet ThreadLocks
 		{
 			get
 			{
-				HashSet threadLocks = (HashSet) Thread.GetData(lockOwners);
+				HashSet threadLocks = (HashSet) LogicalThreadContext.GetData(KEY_THREAD_LOCK_OWNERS);
 				if (threadLocks == null)
 				{
 					threadLocks = new HashSet();
-					Thread.SetData(lockOwners, threadLocks);
+					LogicalThreadContext.SetData(KEY_THREAD_LOCK_OWNERS, threadLocks);
 				}
 				return threadLocks;
 			}
-
 		}
 
 		/// <summary> 
@@ -149,10 +153,17 @@ namespace Quartz.Impl.AdoJobStore
 			}
 		}
 
-		
-		public virtual void Init(IDbConnection conn, IList listOfLocks)
-		{
-			// nothing to do...
-		}
+        /// <summary>
+        /// Whether this Semaphore implementation requires a database connection for
+        /// its lock management operations.
+        /// </summary>
+        /// <value></value>
+        /// <seealso cref="IsLockOwner"/>
+        /// <seealso cref="ObtainLock"/>
+        /// <seealso cref="ReleaseLock"/>
+	    public bool RequiresConnection
+	    {
+            get { return false; }
+	    }
 	}
 }
