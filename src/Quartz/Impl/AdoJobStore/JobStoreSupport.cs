@@ -340,6 +340,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 conn = DBConnectionManager.Instance.GetConnection(DataSource);
+				conn.Open();
             }
             catch (Exception e)
             {
@@ -354,8 +355,6 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                conn.Open();
-
                 if (!DontSetAutoCommitFalse)
                 {
                     // TODO SupportClass.TransactionManager.manager.SetAutoCommit(conn, false);
@@ -4134,7 +4133,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected internal virtual void RollbackConnection(ConnectionAndTransactionHolder cth)
         {
-            if (cth.Transaction != null)
+            if (cth != null && cth.Transaction != null)
             {
                 try
                 {

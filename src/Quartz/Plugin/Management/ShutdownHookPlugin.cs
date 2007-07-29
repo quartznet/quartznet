@@ -65,7 +65,7 @@ namespace Quartz.Plugin.Management
 
             Log.Info(string.Format("Registering Quartz Shutdown hook '{0}.", name));
 
-            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_OnProcessExit;
+            AppDomain.CurrentDomain.ProcessExit += new EventHandler(CurrentDomain_OnProcessExit);
         }
 
         private void CurrentDomain_OnProcessExit(object sender, EventArgs ea)
