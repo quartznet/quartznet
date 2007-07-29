@@ -387,7 +387,7 @@ namespace Quartz.Impl.AdoJobStore
                 DateTime misfireTime = DateTime.Now;
                 if (MisfireThreshold > 0)
                 {
-                    misfireTime.AddMilliseconds(-1 * MisfireThreshold);
+                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold);
                 }
 
                 return misfireTime;
@@ -895,7 +895,7 @@ namespace Quartz.Impl.AdoJobStore
                 DateTime misfireTime = DateTime.Now;
                 if (MisfireThreshold > 0)
                 {
-                    misfireTime.AddMilliseconds(-1 * MisfireThreshold);
+                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold);
                 }
 
                 if (trig.GetNextFireTime().Value > misfireTime)
@@ -3643,7 +3643,7 @@ namespace Quartz.Impl.AdoJobStore
                     result = RecoverMisfiredJobs(conn, false);
                 }
 
-                CommitConnection(conn);
+                CommitConnection(conn, false);
                 return result;
             }
             catch (JobPersistenceException)
@@ -3703,7 +3703,7 @@ namespace Quartz.Impl.AdoJobStore
                     try
                     {
                         failedRecords = ClusterCheckIn(conn);
-                        CommitConnection(conn);
+                        CommitConnection(conn, true);
                         succeeded = true;
                     }
                     catch (JobPersistenceException)
@@ -3742,7 +3742,7 @@ namespace Quartz.Impl.AdoJobStore
                     }
                 }
 
-                CommitConnection(conn);
+                CommitConnection(conn, false);
             }
             catch (JobPersistenceException)
             {
@@ -4147,12 +4147,13 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Commit the supplied connection.
         /// </summary>
-        /// <param name="cth"></param>
+        /// <param name="cth">The CTH.</param>
+        /// <param name="openNewTransaction">if set to <c>true</c> opens a new transaction.</param>
         /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
-        protected internal virtual void CommitConnection(ConnectionAndTransactionHolder cth)
+        protected internal virtual void CommitConnection(ConnectionAndTransactionHolder cth, bool openNewTransaction)
         {
             if (cth.Transaction != null)
             {
@@ -4160,8 +4161,11 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     IsolationLevel il = cth.Transaction.IsolationLevel;
                     cth.Transaction.Commit();
-                    // open new transaction to go with
-                    cth.Transaction  = cth.Connection.BeginTransaction(il);
+                    if (openNewTransaction)
+                    {
+                        // open new transaction to go with
+                        cth.Transaction = cth.Connection.BeginTransaction(il);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -4332,7 +4336,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
 
                 object result = txCallback.Execute(conn);
-                CommitConnection(conn);
+                CommitConnection(conn, false);
                 return result;
             }
             catch (JobPersistenceException)
