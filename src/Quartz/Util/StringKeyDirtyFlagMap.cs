@@ -29,14 +29,26 @@ namespace Quartz.Util
     [Serializable]
     public class StringKeyDirtyFlagMap : DirtyFlagMap
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
+        /// </summary>
         public StringKeyDirtyFlagMap()
         {
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
+        /// </summary>
+        /// <param name="initialCapacity">The initial capacity.</param>
         public StringKeyDirtyFlagMap(int initialCapacity) : base(initialCapacity)
         {
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
+        /// </summary>
+        /// <param name="initialCapacity">The initial capacity.</param>
+        /// <param name="loadFactor">The load factor.</param>
         public StringKeyDirtyFlagMap(int initialCapacity, float loadFactor) : base(initialCapacity, loadFactor)
         {
         }
@@ -67,6 +79,15 @@ namespace Quartz.Util
                 Put(key, val);
                 // will throw ArgumentException if value not serilizable
             }
+        }
+
+        /// <summary>
+        /// Adds the given <see cref="int" /> value to the <see cref="IJob" />'s
+        /// data map.
+        /// </summary>
+        public virtual void Put(string key, int value)
+        {
+            base.Put(key, value);
         }
 
         /// <summary>
