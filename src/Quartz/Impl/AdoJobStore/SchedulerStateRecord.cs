@@ -30,7 +30,7 @@ namespace Quartz.Impl.AdoJobStore
 	public class SchedulerStateRecord
 	{
 		private string schedulerInstanceId;
-		private long checkinTimestamp;
+        private DateTime checkinTimestamp;
 		private long checkinInterval;
 
 		/// <summary>
@@ -47,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Gets or sets the checkin timestamp.
 		/// </summary>
 		/// <value>The checkin timestamp.</value>
-		public virtual long CheckinTimestamp
+		public virtual DateTime CheckinTimestamp
 		{
 			get { return checkinTimestamp; }
 			set { checkinTimestamp = value; }

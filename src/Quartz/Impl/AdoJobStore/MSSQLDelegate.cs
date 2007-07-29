@@ -19,6 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
+using System;
+
 using Common.Logging;
 
 namespace Quartz.Impl.AdoJobStore
@@ -40,6 +42,14 @@ namespace Quartz.Impl.AdoJobStore
 		{
 		}
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MSSQLDelegate"/> class.
+        /// </summary>
+        /// <param name="log">The log.</param>
+        /// <param name="tablePrefix">The table prefix.</param>
+        /// <param name="instanceId">The instance id.</param>
+        /// <param name="dbProvider">The db provider.</param>
+        /// <param name="useProperties">if set to <c>true</c> [use properties].</param>
         public MSSQLDelegate(ILog log, string tablePrefix, string instanceId, IDbProvider dbProvider, bool useProperties)
             : base(log, tablePrefix, instanceId, dbProvider, useProperties)
 		{
@@ -49,6 +59,19 @@ namespace Quartz.Impl.AdoJobStore
 		// protected methods that can be overridden by subclasses
 		//---------------------------------------------------------------------------
 
+
+	    protected override bool GetBoolean(object columnValue)
+	    {
+            // SQL Server treats as ints (1 and 0)
+	        if (columnValue != null)
+	        {
+	            return Convert.ToInt32(columnValue) == 1;
+	        }
+            else
+	        {
+	            throw new ArgumentException("Value must be non-null.", "columnValue");
+	        }
+	    }
 	}
 
 	// EOF

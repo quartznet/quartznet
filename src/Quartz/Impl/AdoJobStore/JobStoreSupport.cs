@@ -380,17 +380,17 @@ namespace Quartz.Impl.AdoJobStore
             return new ConnectionAndTransactionHolder(conn, tx);
         }
 
-        protected internal virtual long MisfireTime
+        protected internal virtual DateTime MisfireTime
         {
             get
             {
-                long misfireTime = (DateTime.Now.Ticks - 621355968000000000)/10000;
+                DateTime misfireTime = DateTime.Now;
                 if (MisfireThreshold > 0)
                 {
-                    misfireTime -= MisfireThreshold;
+                    misfireTime.AddMilliseconds(-1 * MisfireThreshold);
                 }
 
-                return (misfireTime > 0) ? misfireTime : 0;
+                return misfireTime;
             }
         }
 
@@ -892,13 +892,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 Trigger trig = Delegate.SelectTrigger(conn, triggerName, groupName);
 
-                long misfireTime = DateTime.Now.Ticks;
+                DateTime misfireTime = DateTime.Now;
                 if (MisfireThreshold > 0)
                 {
-                    misfireTime -= MisfireThreshold;
+                    misfireTime.AddMilliseconds(-1 * MisfireThreshold);
                 }
 
-                if (trig.GetNextFireTime().Value.Ticks > misfireTime)
+                if (trig.GetNextFireTime().Value > misfireTime)
                 {
                     return false;
                 }
@@ -3192,7 +3192,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private static long ftrCtr = (DateTime.Now.Ticks - 621355968000000000)/10000;
+        private static long ftrCtr = DateTime.Now.Ticks;
 
 
         /**
@@ -3681,7 +3681,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected internal bool firstCheckIn = true;
 
-        protected internal long lastCheckin = DateTime.Now.Ticks;
+        protected internal DateTime lastCheckin = DateTime.Now;
 
         protected virtual bool DoCheckin()
         {
@@ -3784,7 +3784,6 @@ namespace Quartz.Impl.AdoJobStore
             {
                 ArrayList failedInstances = new ArrayList();
                 bool foundThisScheduler = false;
-                long timeNow = DateTime.Now.Ticks;
 
                 IList states = Delegate.SelectSchedulerStateRecords(conn, null);
 
@@ -3802,7 +3801,7 @@ namespace Quartz.Impl.AdoJobStore
                     else
                     {
                         // find failed instances...
-                        if (CalcFailedIfAfter(rec) < timeNow)
+                        if (CalcFailedIfAfter(rec) < DateTime.Now)
                         {
                             failedInstances.Add(rec);
                         }
@@ -3830,7 +3829,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                lastCheckin = DateTime.Now.Ticks;
+                lastCheckin = DateTime.Now;
                 throw new JobPersistenceException("Failure identifying failed instances when checking-in: "
                                                   + e.Message, e);
             }
@@ -3870,11 +3869,9 @@ namespace Quartz.Impl.AdoJobStore
             return orphanedInstances;
         }
 
-        protected long CalcFailedIfAfter(SchedulerStateRecord rec)
+        protected DateTime CalcFailedIfAfter(SchedulerStateRecord rec)
         {
-            return rec.CheckinTimestamp +
-                   Math.Max(rec.CheckinInterval, (DateTime.Now.Ticks - lastCheckin))
-                   + 7500L;
+            return rec.CheckinTimestamp.AddMilliseconds( Math.Max(rec.CheckinInterval, (long) (DateTime.Now - lastCheckin).TotalMilliseconds) + 7500L);
         }
 
         protected internal virtual IList ClusterCheckIn(ConnectionAndTransactionHolder conn)
@@ -3886,7 +3883,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
                 // check in...
-                lastCheckin = DateTime.Now.Ticks;
+                lastCheckin = DateTime.Now;
                 if (Delegate.UpdateSchedulerState(conn, InstanceId, lastCheckin) == 0)
                 {
                     Delegate.InsertSchedulerState(conn, InstanceId, lastCheckin, ClusterCheckinInterval);
@@ -3906,7 +3903,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (failedInstances.Count > 0)
             {
-                long recoverIds = (DateTime.Now.Ticks - 621355968000000000)/10000;
+                long recoverIds = DateTime.Now.Ticks;
 
                 LogWarnIfNonZero(failedInstances.Count,
                                  "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
@@ -4162,7 +4159,10 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
+                    IsolationLevel il = cth.Transaction.IsolationLevel;
                     cth.Transaction.Commit();
+                    // open new transaction to go with
+                    cth.Transaction  = cth.Connection.BeginTransaction(il);
                 }
                 catch (Exception e)
                 {
@@ -4420,8 +4420,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (!shutdown)
                     {
                         long timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-                        long transpiredTime = ((DateTime.Now.Ticks - 621355968000000000)/10000 -
-                                               jobStoreSupport.lastCheckin);
+                        long transpiredTime = (long) (DateTime.Now - jobStoreSupport.lastCheckin).TotalMilliseconds;
                         timeToSleep = timeToSleep - transpiredTime;
                         if (timeToSleep <= 0)
                         {
@@ -4499,7 +4498,7 @@ namespace Quartz.Impl.AdoJobStore
                 return RecoverMisfiredJobsResult.NO_OP;
             }
 
-            public void run()
+            public override void Run()
             {
                 while (!shutdown)
                 {
@@ -4533,80 +4532,7 @@ namespace Quartz.Impl.AdoJobStore
                         Thread.Sleep((int) timeToSleep);
                     } //while !shutdown
                 }
-                //public abstract int GetNumberOfTriggers(SchedulingContext param1);
-
-                //public abstract int GetTriggerState(SchedulingContext param1, string param2, string param3);
-
-                //public abstract bool RemoveTrigger(SchedulingContext param1, string param2, string param3);
-
-                //public abstract void StoreJobAndTrigger(SchedulingContext param1, JobDetail param2, Trigger param3);
-
-                //public abstract String[] GetCalendarNames(SchedulingContext param1);
-
-                //public abstract int GetNumberOfCalendars(SchedulingContext param1);
-
-                //public abstract void ResumeJobGroup(SchedulingContext param1, string param2);
-
-                //public abstract void StoreJob(SchedulingContext param1, JobDetail param2, bool param3);
-
-                //public abstract String[] GetJobNames(SchedulingContext param1, string param2);
-
-                //public abstract TriggerFiredBundle TriggerFired(SchedulingContext param1, Trigger param2);
-
-                //public abstract void TriggeredJobComplete(SchedulingContext param1, Trigger param2, JobDetail param3, int param4);
-
-                //public abstract String[] GetTriggerGroupNames(SchedulingContext param1);
-
-                //public abstract void PauseTrigger(SchedulingContext param1, string param2, string param3);
-
-                //public abstract void ResumeAll(SchedulingContext param1);
-
-                //public abstract void StoreTrigger(SchedulingContext param1, Trigger param2, bool param3);
-
-                //public abstract String[] GetJobGroupNames(SchedulingContext param1);
-
-                //public abstract String[] GetTriggerNames(SchedulingContext param1, string param2);
-
-                //public abstract void PauseAll(SchedulingContext param1);
-
-                //public abstract void PauseJobGroup(SchedulingContext param1, string param2);
-
-                //public abstract void PauseTriggerGroup(SchedulingContext param1, string param2);
-
-                //public abstract bool ReplaceTrigger(SchedulingContext param1, string param2, string param3, Trigger param4);
-
-                //public abstract void ResumeJob(SchedulingContext param1, string param2, string param3);
-
-                //public abstract int GetNumberOfJobs(SchedulingContext param1);
-
-                //public abstract void PauseJob(SchedulingContext param1, string param2, string param3);
-
-                //public abstract void ReleaseAcquiredTrigger(SchedulingContext param1, Trigger param2);
-
-                //public abstract JobDetail RetrieveJob(SchedulingContext param1, string param2, string param3);
-
-                //public abstract bool RemoveJob(SchedulingContext param1, string param2, string param3);
-
-                //public abstract void ResumeTrigger(SchedulingContext param1, string param2, string param3);
-
-                //public abstract Trigger AcquireNextTrigger(SchedulingContext param1, DateTime param2);
-
-                //public abstract Trigger[] GetTriggersForJob(SchedulingContext param1, string param2, string param3);
-
-                //public abstract bool RemoveCalendar(SchedulingContext param1, string param2);
-
-                //public abstract ICalendar RetrieveCalendar(SchedulingContext param1, string param2);
-
-                //public abstract Trigger RetrieveTrigger(SchedulingContext param1, string param2, string param3);
-
-                //public abstract void StoreCalendar(SchedulingContext param1, string param2, ICalendar param3, bool param4, bool param5);
-
-                //public abstract ISet GetPausedTriggerGroups(SchedulingContext param1);
-
-                //public abstract void ResumeTriggerGroup(SchedulingContext param1, string param2);
             }
-
-
             // EOF
         }
 
@@ -4621,17 +4547,32 @@ namespace Quartz.Impl.AdoJobStore
             private bool _hasMoreMisfiredTriggers;
             private int _processedMisfiredTriggerCount;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
+            /// </summary>
+            /// <param name="hasMoreMisfiredTriggers">if set to <c>true</c> [has more misfired triggers].</param>
+            /// <param name="processedMisfiredTriggerCount">The processed misfired trigger count.</param>
             public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount)
             {
                 _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
                 _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
             }
 
+            /// <summary>
+            /// Gets a value indicating whether this instance has more misfired triggers.
+            /// </summary>
+            /// <value>
+            /// 	<c>true</c> if this instance has more misfired triggers; otherwise, <c>false</c>.
+            /// </value>
             public bool HasMoreMisfiredTriggers
             {
                 get { return _hasMoreMisfiredTriggers; }
             }
 
+            /// <summary>
+            /// Gets the processed misfired trigger count.
+            /// </summary>
+            /// <value>The processed misfired trigger count.</value>
             public int ProcessedMisfiredTriggerCount
             {
                 get { return _processedMisfiredTriggerCount; }

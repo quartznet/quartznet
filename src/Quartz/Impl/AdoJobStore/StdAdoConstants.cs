@@ -82,7 +82,7 @@ namespace Quartz.Impl.AdoJobStore
                           COL_INSTANCE_NAME);
 
         public static readonly string DELETE_SIMPLE_TRIGGER =
-            string.Format("DELETE FROM {0}{1} WHERE {2} = @trigggerName AND {3} = @triggerGroup", TABLE_PREFIX_SUBST,
+            string.Format("DELETE FROM {0}{1} WHERE {2} = @triggerName AND {3} = @triggerGroup", TABLE_PREFIX_SUBST,
                           TABLE_SIMPLE_TRIGGERS, COL_TRIGGER_NAME,
                           COL_TRIGGER_GROUP);
 
@@ -121,7 +121,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string INSERT_FIRED_TRIGGER =
             string.Format(
-                "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}) VALUES(@triggerEntryId, @triggerName, @triggerGroup, @triggerVolatile, @triggerInstanceName, @triggerFiredTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerStateful, @triggerRequestsRecovery, @triggerPriority)",
+                "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}) VALUES(@triggerEntryId, @triggerName, @triggerGroup, @triggerVolatile, @triggerInstanceName, @triggerFireTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority)",
                 TABLE_PREFIX_SUBST, TABLE_FIRED_TRIGGERS, COL_ENTRY_ID,
                 COL_TRIGGER_NAME, COL_TRIGGER_GROUP, COL_IS_VOLATILE,
                 COL_INSTANCE_NAME, COL_FIRED_TIME, COL_ENTRY_STATE,
@@ -319,8 +319,8 @@ namespace Quartz.Impl.AdoJobStore
                           TABLE_TRIGGERS, COL_TRIGGER_STATE,
                           COL_NEXT_FIRE_TIME);
 
-        public static readonly string SELECT_NEXT_TRIGGER_TO_ACQUIRE = 
-            string.Format("SELECT {0}, {1}, {2} FROM {3}{4} WHERE {5} = @state AND {6} < @nextFireTime1 AND ({7} >= @nextFireTime2) ORDER BY {8} ASC, {9} DESC", 
+        public static readonly string SELECT_NEXT_TRIGGER_TO_ACQUIRE =
+            string.Format("SELECT {0}, {1}, {2} FROM {3}{4} WHERE {5} = @state AND {6} < @noLaterThan AND ({7} >= @noEarlierThan) ORDER BY {8} ASC, {9} DESC", 
             COL_TRIGGER_NAME, COL_TRIGGER_GROUP, COL_NEXT_FIRE_TIME, 
             TABLE_PREFIX_SUBST, TABLE_TRIGGERS, 
             COL_TRIGGER_STATE, COL_NEXT_FIRE_TIME, COL_NEXT_FIRE_TIME, COL_NEXT_FIRE_TIME, COL_PRIORITY);
@@ -506,7 +506,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string UPDATE_SIMPLE_TRIGGER =
             string.Format(
-                "UPDATE {0}{1} SET {2} = @repeatCount, {3} = @triggerRepeatInterval, {4} = @triggerTimeTriggered WHERE {5} = @triggerName AND {6} = @triggerGroup",
+                "UPDATE {0}{1} SET {2} = @triggerRepeatCount, {3} = @triggerRepeatInterval, {4} = @triggerTimesTriggered WHERE {5} = @triggerName AND {6} = @triggerGroup",
                 TABLE_PREFIX_SUBST, TABLE_SIMPLE_TRIGGERS, COL_REPEAT_COUNT,
                 COL_REPEAT_INTERVAL, COL_TIMES_TRIGGERED,
                 COL_TRIGGER_NAME, COL_TRIGGER_GROUP);

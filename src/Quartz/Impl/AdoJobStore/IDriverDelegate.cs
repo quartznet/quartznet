@@ -22,6 +22,7 @@
 using System;
 using System.Collections;
 
+using Quartz;
 using Quartz.Collection;
 using Quartz.Spi;
 using Quartz.Util;
@@ -558,7 +559,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Select the triggers for a calendar
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
-        /// <param name="calName">Name of the calebdar.</param>
+        /// <param name="calName">Name of the calendar.</param>
         /// <returns>
         /// An array of <code>Trigger</code> objects associated with a given job.
         /// </returns>
@@ -836,7 +837,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="checkInTime">The check in time.</param>
         /// <param name="interval">The interval.</param>
         /// <returns>The number of inserted rows.</returns>
-		int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, long checkInTime, long interval);
+		int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, DateTime checkInTime, long interval);
 
         /// <summary>
         /// Delete a scheduler-instance state record.
@@ -854,7 +855,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="instanceId">The instance id.</param>
 		/// <param name="checkInTime">The check in time.</param>
 		/// <returns>The number of updated rows.</returns>
-		int UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, long checkInTime);
+		int UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, DateTime checkInTime);
 
         /// <summary>
         /// A List of all current <code>SchedulerStateRecords</code>.
@@ -864,16 +865,51 @@ namespace Quartz.Impl.AdoJobStore
         /// </p>
         /// </summary>
         /// <param name="conn">The DB Connection</param>
-        /// <param name="instanceId">The instance id.</param>
+        /// <param name="instanceName">The instance id.</param>
         /// <returns></returns>
-		IList SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string instanceId);
+		IList SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string instanceName);
 
-        Key SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, long noEarlierThan);
+        /// <summary>
+        /// Select the next trigger which will fire to fire between the two given timestamps 
+        /// in ascending order of fire time, and then descending by priority.
+        /// </summary>
+        /// <param name="conn">The conn.</param>
+        /// <param name="noLaterThan">highest value of <see cref="Trigger.GetNextFireTime" /> of the triggers (exclusive)</param>
+        /// <param name="noEarlierThan">highest value of <see cref="Trigger.GetNextFireTime" /> of the triggers (inclusive)</param>
+        /// <returns>The next identifier of the next trigger to be fired.</returns>
+        Key SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, DateTime noEarlierThan);
 
+        /// <summary>
+        /// Select the distinct instance names of all fired-trigger records.
+        /// </summary>
+        /// <remarks>
+        /// This is useful when trying to identify orphaned fired triggers (a 
+        /// fired trigger without a scheduler state record.) 
+        /// </remarks>
+        /// <param name="conn">The conn.</param>
+        /// <returns></returns>
         ISet SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
 
-        int CountMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, long ts);
+        /// <summary>
+        /// Counts the misfired triggers in states.
+        /// </summary>
+        /// <param name="conn">The conn.</param>
+        /// <param name="state1">The state1.</param>
+        /// <param name="state2">The state2.</param>
+        /// <param name="ts">The ts.</param>
+        /// <returns></returns>
+        int CountMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, DateTime ts);
 
-        bool SelectMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, long ts, int count, IList resultList);
+        /// <summary>
+        /// Selects the misfired triggers in states.
+        /// </summary>
+        /// <param name="conn">The conn.</param>
+        /// <param name="state1">The state1.</param>
+        /// <param name="state2">The state2.</param>
+        /// <param name="ts">The ts.</param>
+        /// <param name="count">The count.</param>
+        /// <param name="resultList">The result list.</param>
+        /// <returns></returns>
+        bool SelectMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, DateTime ts, int count, IList resultList);
 	}
 }
