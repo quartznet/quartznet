@@ -272,7 +272,7 @@ namespace Quartz.Core
             { 
                 lock (globalTriggerListeners)
                 {
-                    return new ArrayList(globalTriggerListeners);
+                    return new ArrayList(globalTriggerListeners.Values);
                 } 
             }
         }

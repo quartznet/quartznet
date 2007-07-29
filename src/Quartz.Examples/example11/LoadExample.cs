@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example11
 				// the scheduler went down...
 				job.RequestsRecovery = true;
 				SimpleTrigger trigger = new SimpleTrigger("trigger_" + count, "group_1");
-				trigger.StartTime = (new DateTime((DateTime.Now.Ticks - 621355968000000000)/10000 + 10000L + (count*100)));
+				trigger.StartTime = DateTime.Now.AddMilliseconds(10000L).AddMilliseconds(count*100);
 				sched.ScheduleJob(job, trigger);
 				if (count%25 == 0)
 				{

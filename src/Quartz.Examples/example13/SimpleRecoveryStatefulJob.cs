@@ -15,18 +15,16 @@
 * 
 */
 
-using System;
 
 namespace Quartz.Examples.Example13
 {
 	
-	/// <summary> This job has the same functionality of SimpleRecoveryJob
-	/// except that this job implements the StatefulJob interface
-	/// 
+	/// <summary> 
+	/// This job has the same functionality of SimpleRecoveryJob
+	/// except that this job implements the IStatefulJob interface.
 	/// </summary>
-	/// <author>  Bill Kratzer
-	/// </author>
-	public class SimpleRecoveryStatefulJob:SimpleRecoveryJob, IStatefulJob
+	/// <author>Bill Kratzer</author>
+	public class SimpleRecoveryStatefulJob : SimpleRecoveryJob, IStatefulJob
 	{
 		
 	}

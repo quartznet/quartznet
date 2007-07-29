@@ -353,6 +353,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns> an array of <code>Trigger</code> objects</returns>
         public virtual Trigger[] SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn)
         {
+            ArrayList list = new ArrayList();
+
             using (
                 IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SELECT_INSTANCES_RECOVERABLE_FIRED_TRIGGERS)))
             {
@@ -362,40 +364,47 @@ namespace Quartz.Impl.AdoJobStore
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     long dumId = DateTime.Now.Ticks;
-                    ArrayList list = new ArrayList();
+                    
                     while (rs.Read())
                     {
                         string jobName = GetString(rs[COL_JOB_NAME]);
                         string jobGroup = GetString(rs[COL_JOB_GROUP]);
                         string trigName = GetString(rs[COL_TRIGGER_NAME]);
                         string trigGroup = GetString(rs[COL_TRIGGER_GROUP]);
-                        long firedTime = Convert.ToInt64(rs[COL_FIRED_TIME]);
+                        long firedTimeInTicks = Convert.ToInt64(rs[COL_FIRED_TIME]);
                         int priority = Convert.ToInt32(rs[COL_PRIORITY]);
-                        DateTime tempAux = new DateTime(firedTime);
+                        DateTime firedTime = new DateTime(firedTimeInTicks);
                         SimpleTrigger rcvryTrig =
                             new SimpleTrigger("recover_" + instanceId + "_" + Convert.ToString(dumId++),
-                                              Scheduler_Fields.DEFAULT_RECOVERY_GROUP, tempAux);
+                                              Scheduler_Fields.DEFAULT_RECOVERY_GROUP, firedTime);
                         rcvryTrig.JobName = jobName;
                         rcvryTrig.JobGroup = jobGroup;
                         rcvryTrig.Priority = priority;
                         rcvryTrig.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW;
 
-                        JobDataMap jd = SelectTriggerJobDataMap(conn, trigName, trigGroup);
-                        jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_NAME, trigName);
-                        jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, trigGroup);
-                        jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS,
-                               Convert.ToString(firedTime));
-
-                        rcvryTrig.JobDataMap = jd;
-
                         list.Add(rcvryTrig);
                     }
-                    object[] oArr = list.ToArray();
-                    Trigger[] tArr = new Trigger[oArr.Length];
-                    Array.Copy(oArr, 0, tArr, 0, oArr.Length);
-                    return tArr;
                 }
             }
+
+            // read JobDataMaps with different reader..
+            foreach (SimpleTrigger trigger in list)
+            {
+                JobDataMap jd = SelectTriggerJobDataMap(conn, trigger.Name, trigger.Group);
+                jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_NAME, trigger.Name);
+                jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, trigger.Group);
+                jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS,
+                       Convert.ToString(trigger.StartTime));
+
+                trigger.JobDataMap = jd;
+            }
+
+            object[] oArr = list.ToArray();
+            Trigger[] tArr = new Trigger[oArr.Length];
+            Array.Copy(oArr, 0, tArr, 0, oArr.Length);
+            return tArr;
+               
+           
         }
 
         /// <summary>
@@ -967,7 +976,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 AddCommandParameter(cmd, 1, "triggerName", trigger.Name);
                 AddCommandParameter(cmd, 2, "triggerGroup", trigger.Group);
-                AddCommandParameter(cmd, 3, "triggerCronExpressionString", trigger.CronExpressionString);
+                AddCommandParameter(cmd, 3, "triggerCronExpression", trigger.CronExpressionString);
                 AddCommandParameter(cmd, 4, "triggerTimeZone", trigger.TimeZone.StandardName);
 
                 return cmd.ExecuteNonQuery();
@@ -1138,7 +1147,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(UPDATE_CRON_TRIGGER)))
             {
-                AddCommandParameter(cmd, 1, "triggerCronExpressionString", trigger.CronExpressionString);
+                AddCommandParameter(cmd, 1, "triggerCronExpression", trigger.CronExpressionString);
                 AddCommandParameter(cmd, 2, "triggerName", trigger.Name);
                 AddCommandParameter(cmd, 3, "triggerGroup", trigger.Group);
 

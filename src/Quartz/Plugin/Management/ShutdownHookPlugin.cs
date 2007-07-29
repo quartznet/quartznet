@@ -40,44 +40,6 @@ namespace Quartz.Plugin.Management
 
         private static readonly ILog Log = LogManager.GetLogger(typeof (ShutdownHookPlugin));
 
-        private class AnonymousClassThread : QuartzThread
-        {
-            private IScheduler scheduler;
-            private ShutdownHookPlugin encInstance;
-
-            private void InitBlock(IScheduler sched, ShutdownHookPlugin enclosingInstance)
-            {
-                scheduler = sched;
-                encInstance = enclosingInstance;
-            }
-
-
-
-            public ShutdownHookPlugin EnclosingInstance
-            {
-                get { return encInstance; }
-            }
-
-            internal AnonymousClassThread(IScheduler scheduler, ShutdownHookPlugin enclosingInstance, string Param1)
-                : base(Param1)
-            {
-                InitBlock(scheduler, enclosingInstance);
-            }
-
-            public override void Run()
-            {
-                Log.Info("Shutting down Quartz...");
-                try
-                {
-                    EnclosingInstance.scheduler.Shutdown(EnclosingInstance.CleanShutdown);
-                }
-                catch (SchedulerException e)
-                {
-                    Log.Info("Error shutting down Quartz: " + e.Message, e);
-                }
-            }
-        }
-
         /// <summary> 
         /// Determine whether or not the plug-in is configured to cause a clean
         /// Shutdown of the scheduler.
@@ -92,23 +54,31 @@ namespace Quartz.Plugin.Management
             set { cleanShutdown = value; }
         }
 
-
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual void Initialize(String pluginName, IScheduler sched)
+        public virtual void Initialize(string pluginName, IScheduler sched)
         {
             name = pluginName;
             scheduler = sched;
 
-            Log.Info(string.Format("Registering Quartz Shutdown hook '{0}.", pluginName));
+            Log.Info(string.Format("Registering Quartz Shutdown hook '{0}.", name));
 
-            QuartzThread t =
-                new AnonymousClassThread(sched, this, "Quartz Shutdown-Hook " + sched.SchedulerName);
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_OnProcessExit;
+        }
 
-            // TODO
-            //Process.GetCurrentProcess().addShutdownHook(t.Instance);
+        private void CurrentDomain_OnProcessExit(object sender, EventArgs ea)
+        {
+            Log.Info("Shutting down Quartz...");
+            try
+            {
+                scheduler.Shutdown(CleanShutdown);
+            }
+            catch (SchedulerException e)
+            {
+                Log.Info("Error shutting down Quartz: " + e.Message, e);
+            }
         }
 
         /// <summary>

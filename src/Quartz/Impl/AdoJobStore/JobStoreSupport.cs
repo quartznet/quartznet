@@ -3967,10 +3967,9 @@ namespace Quartz.Impl.AdoJobStore
                                     rcvryTrig.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW;
                                     rcvryTrig.Priority = ftRec.Priority;
                                     JobDataMap jd = Delegate.SelectTriggerJobDataMap(conn, tKey.Name, tKey.Group);
-                                    jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME", tKey.Name);
-                                    jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP", tKey.Group);
-                                    jd.Put("QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS",
-                                           Convert.ToString(ftRec.FireTimestamp));
+                                    jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_NAME, tKey.Name);
+                                    jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, tKey.Group);
+                                    jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS, Convert.ToString(ftRec.FireTimestamp));
                                     rcvryTrig.JobDataMap = jd;
 
                                     rcvryTrig.ComputeFirstFireTime(null);

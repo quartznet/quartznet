@@ -514,7 +514,7 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string UPDATE_TRIGGER =
             string.Format(
                 @"UPDATE {0}{1} SET {2} = @triggerJobName, {3} = @triggerJobGroup, {4} = @triggerVolatile, {5} = @triggerDescription, {6} = @triggerNextFireTime, {7} = @triggerPreviousFireTime,
-                        {8} = @triggerState, {9} = @triggerType, {10} = @triggerStartTime, {11} = @triggerEndTime, {12} = @triggerCalendarName, {13} = triggerMisfireInstruction, {14} = @triggerPriority, {15} = triggerJobJobDataMap
+                        {8} = @triggerState, {9} = @triggerType, {10} = @triggerStartTime, {11} = @triggerEndTime, {12} = @triggerCalendarName, {13} = @triggerMisfireInstruction, {14} = @triggerPriority, {15} = @triggerJobJobDataMap
                         WHERE {16} = @triggerName AND {17} = @triggerGroup",
                 TABLE_PREFIX_SUBST, TABLE_TRIGGERS, COL_JOB_NAME,
                 COL_JOB_GROUP, COL_IS_VOLATILE, COL_DESCRIPTION,
