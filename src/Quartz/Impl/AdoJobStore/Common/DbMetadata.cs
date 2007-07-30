@@ -4,7 +4,9 @@ using System.Reflection;
 namespace Quartz.Impl.AdoJobStore.Common
 {
     /// <summary>
-    /// Metadata information about specific ADO.NET driver library.
+    /// Metadata information about specific ADO.NET driver library. Metadata is used to
+    /// create correct types of object instances to interact with the underlying
+    /// database.
     /// </summary>
     public class DbMetadata
     {
@@ -22,6 +24,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         private Type exceptionType;
         private bool bindByName;
+        private bool useParameterNamePrefixInParameterCollection;
 
         private Type commandBuilderType;
         private MethodInfo commandBuilderDeriveParametersMethod;
@@ -30,7 +33,8 @@ namespace Quartz.Impl.AdoJobStore.Common
 
 
         /// <summary>
-        /// Initializes this instance.
+        /// Initializes this instance. Parses information and initializes startup
+        /// values.
         /// </summary>
         public void Init()
         {
@@ -40,12 +44,14 @@ namespace Quartz.Impl.AdoJobStore.Common
                 // not inited yet
                 dbBinaryType = (Enum) Enum.Parse(parameterDbType, dbBinaryTypeName);
                 parameterDbTypeProperty = parameterType.GetProperty(parameterDbTypePropertyName);
+                if (parameterDbTypeProperty == null)
+                {
+                    throw new ArgumentException(string.Format("Couldn't parse parameter db type for database type '{0}'", productName));
+                }
             }
         }
 
-        /// <summary>
-        /// Gets or sets the name of the assembly.
-        /// </summary>
+        /// <summary>Gets or sets the name of the assembly that holds the connection library.</summary>
         /// <value>The name of the assembly.</value>
         public string AssemblyName
         {
@@ -104,9 +110,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             set { commandBuilderType = value;  }
         }
 
-        /// <summary>
-        /// Gets the command builder derive parameters method.
-        /// </summary>
+        /// <summary>Gets the command builder's derive parameters method.</summary>
         /// <value>The command builder derive parameters method.</value>
         public MethodInfo CommandBuilderDeriveParametersMethod
         {
@@ -125,7 +129,8 @@ namespace Quartz.Impl.AdoJobStore.Common
         }
 
         /// <summary>
-        /// Gets or sets the type of the exception.
+        /// Gets or sets the type of the exception that is thrown when using driver
+        /// library.
         /// </summary>
         /// <value>The type of the exception.</value>
         public Type ExceptionType
@@ -135,7 +140,8 @@ namespace Quartz.Impl.AdoJobStore.Common
         }
 
         /// <summary>
-        /// Gets or sets a value indicating whether parameters are bind by name.
+        /// Gets or sets a value indicating whether parameters are bind by name when using
+        /// ADO.NET parameters.
         /// </summary>
         /// <value><c>true</c> if parameters are bind by name; otherwise, <c>false</c>.</value>
         public bool BindByName
@@ -144,9 +150,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             set { bindByName = value; }
         }
 
-        /// <summary>
-        /// Gets or sets the type of the parameter db.
-        /// </summary>
+        /// <summary>Gets or sets the type of the database parameters.</summary>
         /// <value>The type of the parameter db.</value>
         public Type ParameterDbType
         {
@@ -175,7 +179,8 @@ namespace Quartz.Impl.AdoJobStore.Common
         }
 
         /// <summary>
-        /// Gets or sets the type of the db binary column.
+        /// Gets or sets the type of the db binary column. This is a string representation of
+        /// Enum element because this information is database driver specific.
         /// </summary>
         /// <value>The type of the db binary.</value>
         public string DbBinaryTypeName
@@ -183,9 +188,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             set { dbBinaryTypeName = value; }
         }
 
-        /// <summary>
-        /// Gets the type of the db binary.
-        /// </summary>
+        /// <summary>Gets the type of the db binary.</summary>
         /// <value>The type of the db binary.</value>
         public Enum DbBinaryType
         {
@@ -202,11 +205,24 @@ namespace Quartz.Impl.AdoJobStore.Common
             set { parameterDbTypePropertyName = value; }
         }
 
+
         /// <summary>
-        /// Gets the name of the parameter.
+        /// Gets or sets a value indicating whether [use parameter name prefix in parameter collection].
+        /// </summary>
+        /// <value>
+        /// 	<c>true</c> if [use parameter name prefix in parameter collection]; otherwise, <c>false</c>.
+        /// </value>
+        public bool UseParameterNamePrefixInParameterCollection
+        {
+            get { return useParameterNamePrefixInParameterCollection; }
+            set { useParameterNamePrefixInParameterCollection = value; }
+        }
+
+        /// <summary>
+        /// Gets the name of the parameter which includes the parameter prefix for this
+        /// database.
         /// </summary>
         /// <param name="parameterName">Name of the parameter.</param>
-        /// <returns></returns>
         public string GetParameterName(string parameterName)
         {
             return parameterNamePrefix + parameterName; 

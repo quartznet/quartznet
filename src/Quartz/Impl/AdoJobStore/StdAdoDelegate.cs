@@ -288,7 +288,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        return rs.GetInt32(0);
+                        return Convert.ToInt32(rs.GetValue(0));
                     }
                 }
 
@@ -359,7 +359,7 @@ namespace Quartz.Impl.AdoJobStore
                 IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SELECT_INSTANCES_RECOVERABLE_FIRED_TRIGGERS)))
             {
                 AddCommandParameter(cmd, 1, "instanceName", instanceId);
-                AddCommandParameter(cmd, 2, "requestsRecovery", true);
+                AddCommandParameter(cmd, 2, "requestsRecovery", GetDbBooleanValue(true));
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -458,10 +458,10 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 2, "jobGroup", job.Group);
                 AddCommandParameter(cmd, 3, "jobDescription", job.Description);
                 AddCommandParameter(cmd, 4, "jobType", GetStorableJobTypeName(job.JobType));
-                AddCommandParameter(cmd, 5, "jobDurable", job.Durable);
-                AddCommandParameter(cmd, 6, "jobVolatile", job.Volatile);
-                AddCommandParameter(cmd, 7, "jobStateful", job.Stateful);
-                AddCommandParameter(cmd, 8, "jobRequestsRecovery", job.RequestsRecovery);
+                AddCommandParameter(cmd, 5, "jobDurable", GetDbBooleanValue(job.Durable));
+                AddCommandParameter(cmd, 6, "jobVolatile", GetDbBooleanValue(job.Volatile));
+                AddCommandParameter(cmd, 7, "jobStateful", GetDbBooleanValue(job.Stateful));
+                AddCommandParameter(cmd, 8, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
                 AddCommandParameter(cmd, 9, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
 
                 insertResult = cmd.ExecuteNonQuery();
@@ -478,6 +478,16 @@ namespace Quartz.Impl.AdoJobStore
 
 
             return insertResult;
+        }
+
+        /// <summary>
+        /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.
+        /// </summary>
+        /// <param name="booleanValue">Value to map to database.</param>
+        /// <returns></returns>
+        protected virtual object GetDbBooleanValue(bool booleanValue)
+        {
+            return booleanValue;
         }
 
         protected virtual string GetStorableJobTypeName(Type jobType)
@@ -505,9 +515,9 @@ namespace Quartz.Impl.AdoJobStore
             {
                 AddCommandParameter(cmd, 1, "jobDescription", job.Description);
                 AddCommandParameter(cmd, 2, "jobType", GetStorableJobTypeName(job.JobType));
-                AddCommandParameter(cmd, 3, "jobDurable", job.Durable);
-                AddCommandParameter(cmd, 4, "jobVolatile", job.Volatile);
-                AddCommandParameter(cmd, 5, "jobStateFul", job.Stateful);
+                AddCommandParameter(cmd, 3, "jobDurable", GetDbBooleanValue(job.Durable));
+                AddCommandParameter(cmd, 4, "jobVolatile", GetDbBooleanValue(job.Volatile));
+                AddCommandParameter(cmd, 5, "jobStateFul", GetDbBooleanValue(job.Stateful));
                 AddCommandParameter(cmd, 6, "jobRequestsRecovery", job.RequestsRecovery);
                 AddCommandParameter(cmd, 7, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
                 AddCommandParameter(cmd, 8, "jobName", job.Name);
@@ -884,7 +894,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 2, "triggerGroup", trigger.Group);
                 AddCommandParameter(cmd, 3, "triggerJobName", trigger.JobName);
                 AddCommandParameter(cmd, 4, "triggerJobGroup", trigger.JobGroup);
-                AddCommandParameter(cmd, 5, "triggerVolatile", trigger.Volatile);
+                AddCommandParameter(cmd, 5, "triggerVolatile", GetDbBooleanValue(trigger.Volatile));
                 AddCommandParameter(cmd, 6, "triggerDescription", trigger.Description);
                 AddCommandParameter(cmd, 7, "triggerNextFireTime",
                                     Convert.ToDecimal(trigger.GetNextFireTime().Value.Ticks));
@@ -1037,7 +1047,7 @@ namespace Quartz.Impl.AdoJobStore
 
             AddCommandParameter(cmd, 1, "triggerJobName", trigger.JobName);
             AddCommandParameter(cmd, 2, "triggerJobGroup", trigger.JobGroup);
-            AddCommandParameter(cmd, 3, "triggerVolatile", trigger.Volatile);
+            AddCommandParameter(cmd, 3, "triggerVolatile", GetDbBooleanValue(trigger.Volatile));
             AddCommandParameter(cmd, 4, "triggerDescription", trigger.Description);
             long nextFireTime = - 1;
 
@@ -1562,7 +1572,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        return rs.GetInt32(0);
+                        return Convert.ToInt32(rs.GetValue(0));
                     }
                     else
                     {
@@ -1696,7 +1706,7 @@ namespace Quartz.Impl.AdoJobStore
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SELECT_STATEFUL_JOBS_OF_TRIGGER_GROUP)))
             {
                 AddCommandParameter(cmd, 1, "jobGroup", groupName);
-                AddCommandParameter(cmd, 2, "isStateful", true);
+                AddCommandParameter(cmd, 2, "isStateful", GetDbBooleanValue(true));
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     while (rs.Read())
@@ -2048,7 +2058,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        count = rs.GetInt32(1 - 1);
+                        count = Convert.ToInt32(rs.GetInt32(0));
                     }
                 }
 
@@ -2199,7 +2209,7 @@ namespace Quartz.Impl.AdoJobStore
                         return false;
                     }
 
-                    return (rs.GetInt32(1 - 1) > 0);
+                    return (Convert.ToInt32(rs.GetInt32(0)) > 0);
                 }
             }
         }
@@ -2362,7 +2372,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        count = rs.GetInt32(1 - 1);
+                        count = Convert.ToInt32(rs.GetValue(0));
                     }
 
                     return count;
@@ -2502,7 +2512,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 1, "triggerEntryId", trigger.FireInstanceId);
                 AddCommandParameter(cmd, 2, "triggerName", trigger.Name);
                 AddCommandParameter(cmd, 3, "triggerGroup", trigger.Group);
-                AddCommandParameter(cmd, 4, "triggerVolatile", trigger.Volatile);
+                AddCommandParameter(cmd, 4, "triggerVolatile", GetDbBooleanValue(trigger.Volatile));
                 AddCommandParameter(cmd, 5, "triggerInstanceName", instanceId);
                 AddCommandParameter(cmd, 6, "triggerFireTime",
                                     Convert.ToDecimal(trigger.GetNextFireTime().Value.Ticks));
@@ -2511,15 +2521,15 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     AddCommandParameter(cmd, 8, "triggerJobName", trigger.JobName);
                     AddCommandParameter(cmd, 9, "triggerJobGroup", trigger.JobGroup);
-                    AddCommandParameter(cmd, 10, "triggerJobStateful", job.Stateful);
-                    AddCommandParameter(cmd, 11, "triggerJobRequestsRecovery", job.RequestsRecovery);
+                    AddCommandParameter(cmd, 10, "triggerJobStateful", GetDbBooleanValue(job.Stateful));
+                    AddCommandParameter(cmd, 11, "triggerJobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
                 }
                 else
                 {
                     AddCommandParameter(cmd, 8, "triggerJobName", null);
                     AddCommandParameter(cmd, 9, "triggerJobGroup", null);
-                    AddCommandParameter(cmd, 10, "triggerJobStateful", false);
-                    AddCommandParameter(cmd, 11, "triggerJobRequestsRecovery", false);
+                    AddCommandParameter(cmd, 10, "triggerJobStateful", GetDbBooleanValue(false));
+                    AddCommandParameter(cmd, 11, "triggerJobRequestsRecovery", GetDbBooleanValue(false));
                 }
 
                 AddCommandParameter(cmd, 12, "triggerPriority", trigger.Priority);
@@ -2736,7 +2746,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        return rs.GetInt32(1 - 1);
+                        return Convert.ToInt32(rs.GetValue(0));
                     }
                     else
                     {
@@ -2775,7 +2785,7 @@ namespace Quartz.Impl.AdoJobStore
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(INSERT_SCHEDULER_STATE)))
             {
                 AddCommandParameter(cmd, 1, "instanceName", instanceName);
-                AddCommandParameter(cmd, 2, "lastCheckinTime", checkInTime);
+                AddCommandParameter(cmd, 2, "lastCheckinTime", checkInTime.Ticks);
                 AddCommandParameter(cmd, 3, "checkinInterval", interval);
 
                 return cmd.ExecuteNonQuery();
@@ -2811,7 +2821,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(UPDATE_SCHEDULER_STATE)))
             {
-                AddCommandParameter(cmd, 1, "lastCheckInTime", checkInTime.Ticks);
+                AddCommandParameter(cmd, 1, "lastCheckinTime", checkInTime.Ticks);
                 AddCommandParameter(cmd, 2, "instanceName", instanceName);
 
                 return cmd.ExecuteNonQuery();
@@ -3075,7 +3085,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SELECT_VOLATILE_TRIGGERS)))
             {
-                AddCommandParameter(cmd, 1, "isVolatile", true);
+                AddCommandParameter(cmd, 1, "isVolatile", GetDbBooleanValue(true));
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     ArrayList list = new ArrayList();
@@ -3103,7 +3113,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SELECT_VOLATILE_JOBS)))
             {
-                AddCommandParameter(cmd, 1, "isVolatile", true);
+                AddCommandParameter(cmd, 1, "isVolatile", GetDbBooleanValue(true));
                 using (IDataReader dr = cmd.ExecuteReader())
                 {
                     ArrayList list = new ArrayList();

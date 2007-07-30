@@ -367,7 +367,7 @@ namespace Quartz.Impl.AdoJobStore
                 else
                 {
                     // default
-                    tx = conn.BeginTransaction();
+                    tx = conn.BeginTransaction(IsolationLevel.ReadCommitted);
                 }
             }
             catch (Exception e)

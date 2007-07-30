@@ -42,8 +42,8 @@ namespace Quartz.Impl.AdoJobStore
 		*/
 
         public static readonly string SELECT_FOR_LOCK =
-            string.Format("SELECT * FROM {0}{1} WHERE {2} = {3} FOR UPDATE", TABLE_PREFIX_SUBST, TABLE_LOCKS,
-                          COL_LOCK_NAME, "{0}");
+            string.Format("SELECT * FROM {0}{1} WHERE {2} = @lockName FOR UPDATE", TABLE_PREFIX_SUBST, TABLE_LOCKS,
+                          COL_LOCK_NAME);
 
         /*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -19,6 +19,18 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             TestDbMetadata("SqlServer-20");
         }
 
+        [Test]
+        public void TestDbMetadataOracleClient20()
+        {
+            TestDbMetadata("OracleClient-20");
+        }
+
+        [Test]
+        public void TestDbMetadataOracleODP20()
+        {
+            TestDbMetadata("OracleODP-20");
+        }
+
         private static void TestDbMetadata(string dbname)
         {
             DbProvider dbp = new DbProvider(dbname, "foo");
@@ -29,6 +41,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             Assert.IsNotNull(md.ConnectionType);
             Assert.IsNotNull(md.ParameterType);
             Assert.IsNotNull(md.DbBinaryType);
+            Assert.IsNotNull(md.ParameterDbTypeProperty);
         }
     }
 }
