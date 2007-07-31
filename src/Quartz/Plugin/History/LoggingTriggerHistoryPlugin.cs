@@ -356,7 +356,7 @@ namespace Quartz.Plugin.History
         /// <param name="context">The <see cref="JobExecutionContext" /> that was passed to the
         /// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
         /// <param name="triggerInstructionCode">The result of the call on the <see cref="Trigger" />'s <see cref="Trigger.Triggered" />  method.</param>
-        public virtual void TriggerComplete(Trigger trigger, JobExecutionContext context, int triggerInstructionCode)
+        public virtual void TriggerComplete(Trigger trigger, JobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
             if (!Log.IsInfoEnabled)
             {
@@ -364,23 +364,23 @@ namespace Quartz.Plugin.History
             }
 
             String instrCode = "UNKNOWN";
-            if (triggerInstructionCode == Trigger.INSTRUCTION_DELETE_TRIGGER)
+            if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
             {
                 instrCode = "DELETE TRIGGER";
             }
-            else if (triggerInstructionCode == Trigger.INSTRUCTION_NOOP)
+            else if (triggerInstructionCode == SchedulerInstruction.NoInstruction)
             {
                 instrCode = "DO NOTHING";
             }
-            else if (triggerInstructionCode == Trigger.INSTRUCTION_RE_EXECUTE_JOB)
+            else if (triggerInstructionCode == SchedulerInstruction.ReExecuteJob)
             {
                 instrCode = "RE-EXECUTE JOB";
             }
-            else if (triggerInstructionCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE)
+            else if (triggerInstructionCode ==SchedulerInstruction.SetAllJobTriggersComplete)
             {
                 instrCode = "SET ALL OF JOB'S TRIGGERS COMPLETE";
             }
-            else if (triggerInstructionCode == Trigger.INSTRUCTION_SET_TRIGGER_COMPLETE)
+            else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
             {
                 instrCode = "SET THIS TRIGGER COMPLETE";
             }

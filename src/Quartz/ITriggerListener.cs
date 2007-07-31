@@ -97,6 +97,6 @@ namespace Quartz
 		/// <param name="triggerInstructionCode">
 		/// The result of the call on the <see cref="Trigger" />'s<see cref="Trigger.Triggered" />  method.
 		/// </param>
-		void TriggerComplete(Trigger trigger, JobExecutionContext context, int triggerInstructionCode);
+		void TriggerComplete(Trigger trigger, JobExecutionContext context, SchedulerInstruction triggerInstructionCode);
 	}
 }

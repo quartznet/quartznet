@@ -235,7 +235,7 @@ namespace Quartz.Listener
             }
         }
 
-        public void TriggerComplete(Trigger trigger, JobExecutionContext context, int triggerInstructionCode)
+        public void TriggerComplete(Trigger trigger, JobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
             if (!ShouldDispatch(trigger))
             {

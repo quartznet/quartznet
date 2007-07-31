@@ -103,7 +103,7 @@ namespace Quartz.Simpl
 
 		Trigger GetTrigger(SchedulingContext ctxt, string triggerName, string triggerGroup);
 
-		int GetTriggerState(SchedulingContext ctxt, string triggerName, string triggerGroup);
+		TriggerState GetTriggerState(SchedulingContext ctxt, string triggerName, string triggerGroup);
 
 		void AddCalendar(SchedulingContext ctxt, string calName, ICalendar calendar, bool replace, bool updateTriggers);
 

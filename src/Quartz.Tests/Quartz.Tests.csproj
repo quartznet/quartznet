@@ -114,7 +114,21 @@
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
-                <Folder RelPath = "Integration\" />
+                <File
+                    RelPath = "Integration\IntegrationTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Integration\TestJob.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Integration\Impl\Calendar\AnnualCalendarTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
                 <File
                     RelPath = "Unit\CollectionUtilTest.cs"
                     SubType = "Code"
@@ -177,6 +191,16 @@
                 />
                 <File
                     RelPath = "Unit\Impl\AdoJobStore\Common\DbProviderTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Unit\Impl\Calendar\AnnualCalendarTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Unit\Impl\Calendar\CronCalendarTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

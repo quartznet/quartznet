@@ -711,7 +711,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             return resources.JobStore.RemoveJob(ctxt, jobName, groupName);
@@ -727,7 +727,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             if (resources.JobStore.RemoveTrigger(ctxt, triggerName, groupName))
@@ -765,7 +765,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             newTrigger.Validate();
@@ -836,11 +836,11 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             Trigger trig =
-                new SimpleTrigger(NewTriggerId(), Scheduler_Fields.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.Now,
+                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.Now,
                                   NullableDateTime.Default, 0, 0);
             trig.Volatility = false;
             trig.ComputeFirstFireTime(null);
@@ -878,11 +878,11 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             Trigger trig =
-                new SimpleTrigger(NewTriggerId(), Scheduler_Fields.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.Now,
+                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.Now,
                                   NullableDateTime.Default, 0, 0);
             trig.Volatility = true;
             trig.ComputeFirstFireTime(null);
@@ -918,7 +918,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             resources.JobStore.PauseTrigger(ctxt, triggerName, groupName);
@@ -935,7 +935,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             resources.JobStore.PauseTriggerGroup(ctxt, groupName);
@@ -953,7 +953,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             resources.JobStore.PauseJob(ctxt, jobName, groupName);
@@ -971,7 +971,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             resources.JobStore.PauseJobGroup(ctxt, groupName);
@@ -993,7 +993,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             resources.JobStore.ResumeTrigger(ctxt, triggerName, groupName);
@@ -1015,7 +1015,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             resources.JobStore.ResumeTriggerGroup(ctxt, groupName);
@@ -1048,7 +1048,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             resources.JobStore.ResumeJob(ctxt, jobName, groupName);
@@ -1071,7 +1071,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             resources.JobStore.ResumeJobGroup(ctxt, groupName);
@@ -1136,7 +1136,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             return resources.JobStore.GetJobNames(ctxt, groupName);
@@ -1152,7 +1152,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             return resources.JobStore.GetTriggersForJob(ctxt, jobName, groupName);
@@ -1178,7 +1178,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             return resources.JobStore.GetTriggerNames(ctxt, groupName);
@@ -1194,7 +1194,7 @@ namespace Quartz.Core
 
             if (jobGroup == null)
             {
-                jobGroup = Scheduler_Fields.DEFAULT_GROUP;
+                jobGroup = SchedulerConstants.DEFAULT_GROUP;
             }
 
             return resources.JobStore.RetrieveJob(ctxt, jobName, jobGroup);
@@ -1210,26 +1210,26 @@ namespace Quartz.Core
 
             if (triggerGroup == null)
             {
-                triggerGroup = Scheduler_Fields.DEFAULT_GROUP;
+                triggerGroup = SchedulerConstants.DEFAULT_GROUP;
             }
 
             return resources.JobStore.RetrieveTrigger(ctxt, triggerName, triggerGroup);
         }
 
         /// <summary>
-        /// Get the current state of the identified <see cref="Trigger" />.
+        /// Get the current state of the identified <see cref="Trigger" />.  
         /// </summary>
-        /// <seealso cref="Trigger.STATE_NORMAL" />
-        /// <seealso cref="Trigger.STATE_PAUSED" />
-        /// <seealso cref="Trigger.STATE_COMPLETE" />
-        /// <seealso cref="Trigger.STATE_ERROR" />
-        public virtual int GetTriggerState(SchedulingContext ctxt, string triggerName, string triggerGroup)
+        /// <seealso cref="TriggerState.Normal" />
+        /// <seealso cref="TriggerState.Paused" />
+        /// <seealso cref="TriggerState.Complete" />
+        /// <seealso cref="TriggerState.Error" />      
+        public virtual TriggerState GetTriggerState(SchedulingContext ctxt, string triggerName, string triggerGroup)
         {
             ValidateState();
 
             if (triggerGroup == null)
             {
-                triggerGroup = Scheduler_Fields.DEFAULT_GROUP;
+                triggerGroup = SchedulerConstants.DEFAULT_GROUP;
             }
 
             return resources.JobStore.GetTriggerState(ctxt, triggerName, triggerGroup);
@@ -1530,7 +1530,7 @@ namespace Quartz.Core
 
 
         protected internal void NotifyJobStoreJobVetoed(SchedulingContext ctxt,
-                Trigger trigger, JobDetail detail, int instCode)
+                Trigger trigger, JobDetail detail, SchedulerInstruction instCode)
         {
 
             resources.JobStore.TriggeredJobComplete(ctxt, trigger, detail, instCode);
@@ -1544,7 +1544,7 @@ namespace Quartz.Core
         /// <param name="detail">The detail.</param>
         /// <param name="instCode">The instruction code.</param>
         protected internal virtual void NotifyJobStoreJobComplete(SchedulingContext ctxt, Trigger trigger, JobDetail detail,
-                                                                  int instCode)
+                                                                  SchedulerInstruction instCode)
         {
             resources.JobStore.TriggeredJobComplete(ctxt, trigger, detail, instCode);
         }
@@ -1668,7 +1668,7 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="jec">The job executution context.</param>
         /// <param name="instCode">The instruction code to report to triggers.</param>
-        public virtual void NotifyTriggerListenersComplete(JobExecutionContext jec, int instCode)
+        public virtual void NotifyTriggerListenersComplete(JobExecutionContext jec, SchedulerInstruction instCode)
         {
             // build a list of all trigger listeners that are to be notified...
             IList listeners = BuildTriggerListenerList(jec.Trigger.TriggerListenerNames);
@@ -1987,7 +1987,7 @@ namespace Quartz.Core
         {
             if (groupName == null)
             {
-                groupName = Scheduler_Fields.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DEFAULT_GROUP;
             }
 
             IList jobs = CurrentlyExecutingJobs;

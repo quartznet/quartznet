@@ -547,29 +547,29 @@ namespace Quartz
 		/// </param>
 		/// <returns> one of the Trigger.INSTRUCTION_XXX constants.
 		/// </returns>
-		public override int ExecutionComplete(JobExecutionContext jobCtx, JobExecutionException result)
+        public override SchedulerInstruction ExecutionComplete(JobExecutionContext jobCtx, JobExecutionException result)
 		{
 			if (result != null && result.RefireImmediately)
 			{
-				return INSTRUCTION_RE_EXECUTE_JOB;
+                return SchedulerInstruction.ReExecuteJob;
 			}
 
 			if (result != null && result.UnscheduleFiringTrigger)
 			{
-				return INSTRUCTION_SET_TRIGGER_COMPLETE;
+                return SchedulerInstruction.SetTriggerComplete;
 			}
 
 			if (result != null && result.UnscheduleAllTriggers)
 			{
-				return INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE;
+                return SchedulerInstruction.SetAllJobTriggersComplete;
 			}
 
 			if (!GetMayFireAgain())
 			{
-				return INSTRUCTION_DELETE_TRIGGER;
+                return SchedulerInstruction.DeleteTrigger;
 			}
 
-			return INSTRUCTION_NOOP;
+            return SchedulerInstruction.NoInstruction;
 		}
 
 		/// <summary> 

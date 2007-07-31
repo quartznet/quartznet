@@ -76,7 +76,7 @@ namespace Quartz.Listener
         public void TriggerComplete(
             Trigger trigger,
             JobExecutionContext context,
-            int triggerInstructionCode)
+            SchedulerInstruction triggerInstructionCode)
         {
         }
     }

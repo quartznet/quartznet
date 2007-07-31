@@ -59,126 +59,15 @@ namespace Quartz
 	[Serializable]
 	public abstract class Trigger : ICloneable, IComparable
 	{
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that the <see cref="Trigger" />
-        /// has no further instructions.
-        /// </summary>
-        public const int INSTRUCTION_NOOP = 0;
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that the <see cref="Trigger" />
-        /// wants the <see cref="JobDetail" /> to re-Execute
-        /// immediately. If not in a 'RECOVERING' or 'FAILED_OVER' situation, the
-        /// execution context will be re-used (giving the <see cref="IJob" /> the
-        /// abilitiy to 'see' anything placed in the context by its last execution).
-        /// </summary>
-        public const int INSTRUCTION_RE_EXECUTE_JOB = 1;
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that the <see cref="Trigger" />
-        /// should be put in the <see cref="STATE_COMPLETE" /> state.
-        /// </summary>
-        public const int INSTRUCTION_SET_TRIGGER_COMPLETE = 2;
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that the <see cref="Trigger" />
-        /// wants itself deleted.
-        /// </summary>
-        public const int INSTRUCTION_DELETE_TRIGGER = 3;
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that all <see cref="Trigger" />
-        /// s referencing the same <see cref="JobDetail" /> as
-        /// this one should be put in the <see cref="STATE_COMPLETE" /> state.
-        /// </summary>
-        public const int INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE = 4;
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that all <see cref="Trigger" />
-        /// s referencing the same <see cref="JobDetail" /> as
-        /// this one should be put in the <see cref="STATE_ERROR" /> state.
-        /// </summary>
-        public const int INSTRUCTION_SET_TRIGGER_ERROR = 5;
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that the <see cref="Trigger" />
-        /// should be put in the <see cref="STATE_ERROR" /> state.
-        /// </summary>
-        public const int INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR = 6;
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-        /// situation, the <see cref="UpdateAfterMisfire" /> method will be called
-        /// on the <see cref="Trigger" /> to determine the mis-fire instruction.
-        /// <p>
-        /// In order to see if this instruction fits your needs, you should look at
-        /// the documentation for the GetSmartMisfirePolicy method
-        /// on the particular <see cref="Trigger" /> implementation you are using.
-        /// </p>
-        /// </summary>
-        public const int MISFIRE_INSTRUCTION_SMART_POLICY = 0;
-
-        /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "normal" state.
-        /// </summary>
-        public const int STATE_NORMAL = 0;
-
-        /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "paused" state.
-        /// </summary>
-        public const int STATE_PAUSED = 1;
-
-        /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "complete" state.
-        /// <p>
-        /// "Complete" indicates that the trigger has not remaining fire-times in
-        /// its schedule.
-        /// </p>
-        /// </summary>
-        public const int STATE_COMPLETE = 2;
-
-        /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "error" state.
-        /// <p>
-        /// A <see cref="Trigger" /> arrives at the error state when the scheduler
-        /// attempts to fire it, but cannot due to an error creating and executing
-        /// its related job. Often this is due to the <see cref="IJob" />'s
-        /// class not existing in the classpath.
-        /// </p>
-        /// 
-        /// <p>
-        /// When the trigger is in the error state, the scheduler will make no
-        /// attempts to fire it.
-        /// </p>
-        /// </summary>
-        public const int STATE_ERROR = 3;
-
-
-        /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "blocked" state.
-        /// <p>
-        /// A <see cref="Trigger" /> arrives at the blocked state when the job that
-        /// it is associated with is a <see cref="IStatefulJob" /> and it is 
-        /// currently executing.
-        /// </p>
-        /// </summary>
-        /// <seealso cref="IStatefulJob" />
-        public const int STATE_BLOCKED = 4;
-
-        /// <summary>
-        /// Indicates that the <see cref="Trigger" /> does not exist.
-        /// </summary>
-        public const int STATE_NONE = -1;
-
 		/// <summary>
 		/// The default value for priority.
 		/// </summary>
 		public const int DEFAULT_PRIORITY = 5;
 
         private string name;
-        private string group = Scheduler_Fields.DEFAULT_GROUP;
+        private string group = SchedulerConstants.DEFAULT_GROUP;
         private string jobName;
-        private string jobGroup = Scheduler_Fields.DEFAULT_GROUP;
+        private string jobGroup = SchedulerConstants.DEFAULT_GROUP;
         private string description;
         private JobDataMap jobDataMap;
         private bool volatility = false;
@@ -191,6 +80,18 @@ namespace Quartz
 		private int priority = DEFAULT_PRIORITY;
 		[NonSerialized] 
 		private Key key = null;
+
+        /// <summary>
+        /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+        /// situation, the <see cref="UpdateAfterMisfire" /> method will be called
+        /// on the <see cref="Trigger" /> to determine the mis-fire instruction.
+        /// <p>
+        /// In order to see if this instruction fits your needs, you should look at
+        /// the documentation for the GetSmartMisfirePolicy method
+        /// on the particular <see cref="Trigger" /> implementation you are using.
+        /// </p>
+        /// </summary>
+        public const int MISFIRE_INSTRUCTION_SMART_POLICY = 0;
 
 		/// <summary>
 		/// Get or sets the name of this <see cref="Trigger" />.
@@ -230,7 +131,7 @@ namespace Quartz
 
 				if (value == null)
 				{
-					value = Scheduler_Fields.DEFAULT_GROUP;
+					value = SchedulerConstants.DEFAULT_GROUP;
 				}
 
 				group = value;
@@ -278,7 +179,7 @@ namespace Quartz
 
 				if (value == null)
 				{
-					value = Scheduler_Fields.DEFAULT_GROUP;
+					value = SchedulerConstants.DEFAULT_GROUP;
 				}
 
 				jobGroup = value;
@@ -657,25 +558,27 @@ namespace Quartz
 
         /// <summary>
         /// This method should not be used by the Quartz client.
-        /// <p>
+        /// </summary>
+        /// <remarks>
         /// Called after the <see cref="IScheduler" /> has executed the
         /// <see cref="JobDetail" /> associated with the <see cref="Trigger" />
         /// in order to get the final instruction code from the trigger.
-        /// </p>
-        /// </summary>
-        /// <param name="context">is the <see cref="JobExecutionContext" /> that was used by the
+        /// </remarks>
+        /// <param name="context">
+        /// is the <see cref="JobExecutionContext" /> that was used by the
         /// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.</param>
         /// <param name="result">is the <see cref="JobExecutionException" /> thrown by the
-        /// <see cref="IJob" />, if any (may be null).</param>
+        /// <see cref="IJob" />, if any (may be null).
+        /// </param>
         /// <returns>
-        /// one of the Trigger.INSTRUCTION_XXX constants.
+        /// One of the <see cref="SchedulerInstruction"/> constants.
         /// </returns>
-        /// <seealso cref="INSTRUCTION_NOOP" />
-        /// <seealso cref="INSTRUCTION_RE_EXECUTE_JOB" />
-        /// <seealso cref="INSTRUCTION_DELETE_TRIGGER" />
-        /// <seealso cref="INSTRUCTION_SET_TRIGGER_COMPLETE" />
+        /// <seealso cref="SchedulerInstruction.NoInstruction" />
+        /// <seealso cref="SchedulerInstruction.ReExecuteJob" />
+        /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
+        /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
         /// <seealso cref="Triggered" />
-		public abstract int ExecutionComplete(JobExecutionContext context, JobExecutionException result);
+        public abstract SchedulerInstruction ExecutionComplete(JobExecutionContext context, JobExecutionException result);
 
 		/// <summary> 
 		/// Used by the <see cref="IScheduler" /> to determine whether or not

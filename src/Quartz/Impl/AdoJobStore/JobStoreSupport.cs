@@ -1666,10 +1666,10 @@ namespace Quartz.Impl.AdoJobStore
          * @see Trigger#STATE_NONE
          */
 
-        public int GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
+        public TriggerState GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
         {
             // no locks necessary for read...
-            return (int) ExecuteWithoutLock(new GetTriggerStateCallback(this, ctxt, triggerName, groupName));
+            return (TriggerState)ExecuteWithoutLock(new GetTriggerStateCallback(this, ctxt, triggerName, groupName));
         }
 
         protected class GetTriggerStateCallback : CallbackSupport, ITransactionCallback
@@ -1703,7 +1703,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">Name of the trigger.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns></returns>
-        public virtual int GetTriggerState(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+        public virtual TriggerState GetTriggerState(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
                                            string triggerName, string groupName)
         {
             try
@@ -1712,40 +1712,40 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (ts == null)
                 {
-                    return Trigger.STATE_NONE;
+                    return TriggerState.None;
                 }
 
                 if (ts.Equals(STATE_DELETED))
                 {
-                    return Trigger.STATE_NONE;
+                    return TriggerState.None;
                 }
 
                 if (ts.Equals(STATE_COMPLETE))
                 {
-                    return Trigger.STATE_COMPLETE;
+                    return TriggerState.Complete;
                 }
 
                 if (ts.Equals(STATE_PAUSED))
                 {
-                    return Trigger.STATE_PAUSED;
+                    return TriggerState.Paused;
                 }
 
                 if (ts.Equals(STATE_PAUSED_BLOCKED))
                 {
-                    return Trigger.STATE_PAUSED;
+                    return TriggerState.Blocked;
                 }
 
                 if (ts.Equals(STATE_ERROR))
                 {
-                    return Trigger.STATE_ERROR;
+                    return TriggerState.Error;
                 }
 
                 if (ts.Equals(STATE_BLOCKED))
                 {
-                    return Trigger.STATE_BLOCKED;
+                    return TriggerState.Blocked;
                 }
 
-                return Trigger.STATE_NORMAL;
+                return TriggerState.Normal;
             }
             catch (Exception e)
             {
@@ -3476,7 +3476,7 @@ namespace Quartz.Impl.AdoJobStore
             NullableDateTime tempAux2 = trigger.GetPreviousFireTime();
             NullableDateTime tempAux3 = trigger.GetNextFireTime();
             return
-                new TriggerFiredBundle(job, trigger, cal, trigger.Group.Equals(Scheduler_Fields.DEFAULT_RECOVERY_GROUP),
+                new TriggerFiredBundle(job, trigger, cal, trigger.Group.Equals(SchedulerConstants.DEFAULT_RECOVERY_GROUP),
                                        tempAux,
                                        tempAux2, prevFireTime, tempAux3);
         }
@@ -3493,7 +3493,7 @@ namespace Quartz.Impl.AdoJobStore
          */
 
         public virtual void TriggeredJobComplete(SchedulingContext ctxt, Trigger trigger, JobDetail jobDetail,
-                                                 int triggerInstCode)
+                                                 SchedulerInstruction triggerInstCode)
         {
             ExecuteInNonManagedTXLock(LOCK_TRIGGER_ACCESS,
                                       new TriggeredJobCompleteCallback(this, ctxt, trigger, triggerInstCode, jobDetail));
@@ -3503,12 +3503,12 @@ namespace Quartz.Impl.AdoJobStore
         {
             private SchedulingContext ctxt;
             private Trigger trigger;
-            private int triggerInstCode;
+            private SchedulerInstruction triggerInstCode;
             private JobDetail jobDetail;
 
 
             public TriggeredJobCompleteCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger trigger,
-                                                int triggerInstCode, JobDetail jobDetail)
+                                                SchedulerInstruction triggerInstCode, JobDetail jobDetail)
                 : base(js)
             {
                 this.ctxt = ctxt;
@@ -3526,11 +3526,11 @@ namespace Quartz.Impl.AdoJobStore
 
         protected internal virtual void TriggeredJobComplete(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
                                                              Trigger trigger,
-                                                             JobDetail jobDetail, int triggerInstCode)
+                                                             JobDetail jobDetail, SchedulerInstruction triggerInstCode)
         {
             try
             {
-                if (triggerInstCode == Trigger.INSTRUCTION_DELETE_TRIGGER)
+                if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
                 {
                     if (!trigger.GetNextFireTime().HasValue)
                     {
@@ -3547,20 +3547,20 @@ namespace Quartz.Impl.AdoJobStore
                         RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
                     }
                 }
-                else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_COMPLETE)
+                else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_COMPLETE);
                 }
-                else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_ERROR)
+                else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
                     Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
                 }
-                else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE)
+                else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_COMPLETE);
                 }
-                else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR)
+                else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
                     Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_ERROR);
@@ -3960,15 +3960,15 @@ namespace Quartz.Impl.AdoJobStore
                                     SimpleTrigger rcvryTrig =
                                         new SimpleTrigger(
                                             "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++),
-                                            Scheduler_Fields.DEFAULT_RECOVERY_GROUP, tempAux);
+                                            SchedulerConstants.DEFAULT_RECOVERY_GROUP, tempAux);
                                     rcvryTrig.JobName = jKey.Name;
                                     rcvryTrig.JobGroup = jKey.Group;
                                     rcvryTrig.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW;
                                     rcvryTrig.Priority = ftRec.Priority;
                                     JobDataMap jd = Delegate.SelectTriggerJobDataMap(conn, tKey.Name, tKey.Group);
-                                    jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_NAME, tKey.Name);
-                                    jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, tKey.Group);
-                                    jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS, Convert.ToString(ftRec.FireTimestamp));
+                                    jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_NAME, tKey.Name);
+                                    jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, tKey.Group);
+                                    jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS, Convert.ToString(ftRec.FireTimestamp));
                                     rcvryTrig.JobDataMap = jd;
 
                                     rcvryTrig.ComputeFirstFireTime(null);

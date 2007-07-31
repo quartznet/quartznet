@@ -122,13 +122,13 @@ namespace Quartz
 
 		/// <summary>
 		/// Set the given <see cref="Trigger" />'s name to the given value, and its
-		/// group to the default group (<see cref="Scheduler_Fields.DEFAULT_GROUP" />).
+		/// group to the default group (<see cref="SchedulerConstants.DEFAULT_GROUP" />).
 		/// </summary>
 		/// <param name="trig">the tigger to change name to</param>
 		/// <param name="name">the new trigger name</param>
 		public static void SetTriggerIdentity(Trigger trig, string name)
 		{
-			SetTriggerIdentity(trig, name, Scheduler_Fields.DEFAULT_GROUP);
+			SetTriggerIdentity(trig, name, SchedulerConstants.DEFAULT_GROUP);
 		}
 
 		/// <summary>

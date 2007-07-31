@@ -252,6 +252,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "SchedulerInstruction.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "SchedulerMetaData.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -263,6 +268,11 @@
                 />
                 <File
                     RelPath = "Trigger.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "TriggerState.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

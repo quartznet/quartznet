@@ -354,7 +354,7 @@ namespace Quartz.Core
                             } catch (SchedulerException) {
                                 try {
                                     qsRsrcs.JobStore.TriggeredJobComplete(ctxt,
-                                            trigger, bndle.JobDetail, Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR);
+                                            trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError);
                                 } catch (SchedulerException se2) {
                                     qs.NotifySchedulerListenersError(
                                             string.Format("An error occured while placing job's triggers in error state '{0}'", trigger.FullName), se2);
@@ -373,7 +373,7 @@ namespace Quartz.Core
                                     // say not to do...
                                     Log.Error("ThreadPool.runInThread() return false!");
                                     qsRsrcs.JobStore.TriggeredJobComplete(ctxt,
-                                            trigger, bndle.JobDetail, Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR);
+                                            trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError);
                                 } catch (SchedulerException se2) {
                                     qs.NotifySchedulerListenersError(
                                             string.Format("An error occured while placing job's triggers in error state '{0}'", trigger.FullName), se2);
@@ -443,7 +443,7 @@ namespace Quartz.Core
 						// retry every N seconds (the db connection must be failed)
 						retryCount++;
 						qsRsrcs.JobStore.TriggeredJobComplete(ctxt, bndle.Trigger, bndle.JobDetail,
-						                                      Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR);
+                                                              SchedulerInstruction.SetAllJobTriggersError);
 						retryCount = 0;
 						break;
 					}

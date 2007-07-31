@@ -26,6 +26,7 @@ using Common.Logging;
 
 using Nullables;
 
+using Quartz;
 using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Spi;
@@ -64,6 +65,9 @@ namespace Quartz.Simpl
 		private readonly ILog log;
 
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
+        /// </summary>
 	    public RAMJobStore()
 	    {
 	        log = LogManager.GetLogger(GetType());
@@ -438,10 +442,10 @@ namespace Quartz.Simpl
 					{
 						StoreTrigger(ctxt, newTrigger, false);
 					}
-					catch (JobPersistenceException jpe)
+					catch (JobPersistenceException)
 					{
 						StoreTrigger(ctxt, tw.Trigger, false); // put previous trigger back...
-						throw jpe;
+						throw;
 					}
 				}
 			}
@@ -483,40 +487,40 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Get the current state of the identified <see cref="Trigger" />.
 		/// </summary>
-		/// <seealso cref="Trigger.STATE_NORMAL" />
-		/// <seealso cref="Trigger.STATE_PAUSED" />
-		/// <seealso cref="Trigger.STATE_COMPLETE" />
-		/// <seealso cref="Trigger.STATE_ERROR" />
-		/// <seealso cref="Trigger.STATE_BLOCKED" />
-		/// <seealso cref="Trigger.STATE_NONE"/>
-		public virtual int GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
+        /// <seealso cref="TriggerState.Normal" />
+        /// <seealso cref="TriggerState.Paused" />
+        /// <seealso cref="TriggerState.Complete" />
+        /// <seealso cref="TriggerState.Error" />
+        /// <seealso cref="TriggerState.Blocked" />
+        /// <seealso cref="TriggerState.None"/>
+		public virtual TriggerState GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			TriggerWrapper tw = (TriggerWrapper) triggersByFQN[TriggerWrapper.GetTriggerNameKey(triggerName, groupName)];
 			if (tw == null)
 			{
-				return Trigger.STATE_NONE;
+                return TriggerState.None;
 			}
 			if (tw.state == TriggerWrapper.STATE_COMPLETE)
 			{
-				return Trigger.STATE_COMPLETE;
+				return TriggerState.Complete;
 			}
 			if (tw.state == TriggerWrapper.STATE_PAUSED)
 			{
-				return Trigger.STATE_PAUSED;
+				return TriggerState.Paused;
 			}
 			if (tw.state == TriggerWrapper.STATE_PAUSED_BLOCKED)
 			{
-				return Trigger.STATE_PAUSED;
+				return TriggerState.Paused;
 			}
 			if (tw.state == TriggerWrapper.STATE_BLOCKED)
 			{
-				return Trigger.STATE_BLOCKED;
+				return TriggerState.Blocked;
 			}
 			if (tw.state == TriggerWrapper.STATE_ERROR)
 			{
-				return Trigger.STATE_ERROR;
+				return TriggerState.Error;
 			}
-			return Trigger.STATE_NORMAL;
+			return TriggerState.Normal;
 		}
 
 		/// <summary>
@@ -956,24 +960,25 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) the <see cref="Trigger" /> with the given
-		/// name.
-		/// <p>
+		/// Resume (un-pause) the <see cref="Trigger" /> with the given name.
+		/// </summary>
+		/// <remarks>
 		/// If the <see cref="Trigger" /> missed one or more fire-times, then the
 		/// <see cref="Trigger" />'s misfire instruction will be applied.
-		/// </p>
-		/// </summary>
+		/// </remarks>
 		public virtual void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
 			TriggerWrapper tw = (TriggerWrapper) triggersByFQN[TriggerWrapper.GetTriggerNameKey(triggerName, groupName)];
 
+            // does the trigger exist?
+            if (tw == null || tw.trigger == null)
+            {
+                return;
+            }
+
 			Trigger trig = tw.Trigger;
 
-			// does the trigger exist?
-			if (tw == null || tw.trigger == null)
-			{
-				return;
-			}
+
 			// if the trigger is not paused resuming it does not make sense...
 			if (tw.state != TriggerWrapper.STATE_PAUSED && tw.state != TriggerWrapper.STATE_PAUSED_BLOCKED)
 			{
@@ -1334,7 +1339,7 @@ namespace Quartz.Simpl
 		/// is stateful.
 		/// </summary>
 		public virtual void TriggeredJobComplete(SchedulingContext ctxt, Trigger trigger, JobDetail jobDetail,
-		                                         int triggerInstCode)
+                                                 SchedulerInstruction triggerInstCode)
 		{
 			lock (triggerLock)
 			{
@@ -1384,7 +1389,7 @@ namespace Quartz.Simpl
 				// check for trigger deleted during execution...
 				if (tw != null)
 				{
-					if (triggerInstCode == Trigger.INSTRUCTION_DELETE_TRIGGER)
+					if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
 					{
 						NullableDateTime d = trigger.GetNextFireTime();
 						if (!d.HasValue)
@@ -1402,22 +1407,22 @@ namespace Quartz.Simpl
 							RemoveTrigger(ctxt, trigger.Name, trigger.Group);
 						}
 					}
-					else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_COMPLETE)
+					else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
 					{
 						tw.state = TriggerWrapper.STATE_COMPLETE;
 						timeTriggers.Remove(tw);
 					}
-					else if (triggerInstCode == Trigger.INSTRUCTION_SET_TRIGGER_ERROR)
+                    else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
 					{
 						Log.Info(string.Format("Trigger {0} set to ERROR state.", trigger.FullName));
 						tw.state = TriggerWrapper.STATE_ERROR;
 					}
-					else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_ERROR)
+                    else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
 					{
 						Log.Info(string.Format("All triggers of Job {0} set to ERROR state.", trigger.FullJobName));
 						SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, TriggerWrapper.STATE_ERROR);
 					}
-					else if (triggerInstCode == Trigger.INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE)
+					else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
 					{
 						SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, TriggerWrapper.STATE_COMPLETE);
 					}
@@ -1574,8 +1579,15 @@ namespace Quartz.Simpl
 		}
 	}
 
+    /// <summary>
+    /// Helper wrapper class.
+    /// </summary>
 	public class TriggerWrapper
 	{
+        /// <summary>
+        /// Gets the trigger.
+        /// </summary>
+        /// <value>The trigger.</value>
 		public virtual Trigger Trigger
 		{
 			get { return trigger; }
@@ -1665,6 +1677,13 @@ namespace Quartz.Simpl
 			return groupName + "_$x$x$_" + triggerName;
 		}
 
+        /// <summary>
+        /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
+        /// </summary>
+        /// <param name="obj">The <see cref="T:System.Object"></see> to compare with the current <see cref="T:System.Object"></see>.</param>
+        /// <returns>
+        /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
+        /// </returns>
 		public override bool Equals(object obj)
 		{
 			if (obj is TriggerWrapper)
@@ -1679,6 +1698,12 @@ namespace Quartz.Simpl
 			return false;
 		}
 
+        /// <summary>
+        /// Serves as a hash function for a particular type. <see cref="M:System.Object.GetHashCode"></see> is suitable for use in hashing algorithms and data structures like a hash table.
+        /// </summary>
+        /// <returns>
+        /// A hash code for the current <see cref="T:System.Object"></see>.
+        /// </returns>
 		public override int GetHashCode()
 		{
 			return key.GetHashCode();

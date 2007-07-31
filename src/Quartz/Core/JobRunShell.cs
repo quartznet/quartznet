@@ -138,7 +138,7 @@ namespace Quartz.Core
 				}
 
 				// notify job & trigger listeners...
-			    int instCode;
+                SchedulerInstruction instCode;
 			    try
 				{
 					if (!NotifyListenersBeginning(jec))
@@ -204,7 +204,7 @@ namespace Quartz.Core
 					break;
 				}
 
-				instCode = Trigger.INSTRUCTION_NOOP;
+                instCode = SchedulerInstruction.NoInstruction;
 
 				// update the trigger
 				try
@@ -226,7 +226,7 @@ namespace Quartz.Core
 				}
 
 				// update job/trigger or re-Execute job
-				if (instCode == Trigger.INSTRUCTION_RE_EXECUTE_JOB)
+                if (instCode == SchedulerInstruction.ReExecuteJob)
 				{
 					jec.IncrementRefireCount();
 					try
@@ -362,7 +362,7 @@ namespace Quartz.Core
 			return true;
 		}
 
-		private bool NotifyTriggerListenersComplete(JobExecutionContext ctx, int instCode)
+		private bool NotifyTriggerListenersComplete(JobExecutionContext ctx, SchedulerInstruction instCode)
 		{
 			try
 			{
@@ -391,7 +391,7 @@ namespace Quartz.Core
 		/// <param name="jobDetail">The job detail.</param>
 		/// <param name="instCode">The inst code.</param>
 		/// <returns></returns>
-		public virtual bool CompleteTriggerRetryLoop(Trigger trigger, JobDetail jobDetail, int instCode)
+        public virtual bool CompleteTriggerRetryLoop(Trigger trigger, JobDetail jobDetail, SchedulerInstruction instCode)
 		{
 			while (!shutdownRequested)
 			{
@@ -421,7 +421,7 @@ namespace Quartz.Core
 		/// <param name="jobDetail">The job detail.</param>
 		/// <param name="instCode">The inst code.</param>
 		/// <returns></returns>
-        public bool VetoedJobRetryLoop(Trigger trigger, JobDetail jobDetail, int instCode)
+        public bool VetoedJobRetryLoop(Trigger trigger, JobDetail jobDetail, SchedulerInstruction instCode)
         {
             while (!shutdownRequested)
             {

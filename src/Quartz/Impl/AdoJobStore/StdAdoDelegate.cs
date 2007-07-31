@@ -376,7 +376,7 @@ namespace Quartz.Impl.AdoJobStore
                         DateTime firedTime = new DateTime(firedTimeInTicks);
                         SimpleTrigger rcvryTrig =
                             new SimpleTrigger("recover_" + instanceId + "_" + Convert.ToString(dumId++),
-                                              Scheduler_Fields.DEFAULT_RECOVERY_GROUP, firedTime);
+                                              SchedulerConstants.DEFAULT_RECOVERY_GROUP, firedTime);
                         rcvryTrig.JobName = jobName;
                         rcvryTrig.JobGroup = jobGroup;
                         rcvryTrig.Priority = priority;
@@ -391,9 +391,9 @@ namespace Quartz.Impl.AdoJobStore
             foreach (SimpleTrigger trigger in list)
             {
                 JobDataMap jd = SelectTriggerJobDataMap(conn, trigger.Name, trigger.Group);
-                jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_NAME, trigger.Name);
-                jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, trigger.Group);
-                jd.Put(Scheduler_Fields.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS,
+                jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_NAME, trigger.Name);
+                jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, trigger.Group);
+                jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS,
                        Convert.ToString(trigger.StartTime));
 
                 trigger.JobDataMap = jd;

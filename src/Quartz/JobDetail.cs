@@ -52,7 +52,7 @@ namespace Quartz
     public class JobDetail : ICloneable
     {
         private string name;
-        private string group = Scheduler_Fields.DEFAULT_GROUP;
+        private string group = SchedulerConstants.DEFAULT_GROUP;
         private string description;
         private Type jobType;
         private JobDataMap jobDataMap;
@@ -105,7 +105,7 @@ namespace Quartz
 
                 if (value == null)
                 {
-                    value = Scheduler_Fields.DEFAULT_GROUP;
+                    value = SchedulerConstants.DEFAULT_GROUP;
                 }
 
                 group = value;
@@ -439,6 +439,55 @@ namespace Quartz
             }
 
             return copy;
+        }
+
+
+		/// <summary>
+		/// Determines whether the specified detail is equal to this instance.
+		/// </summary>
+		/// <param name="detail">The detail to examine.</param>
+		/// <returns>
+		/// 	<c>true</c> if the specified detail is equal; otherwise, <c>false</c>.
+		/// </returns>
+        protected virtual bool IsEqual(JobDetail detail)
+        {
+			//doesn't consider job's saved data,
+			//durability etc
+            return (detail != null) && (detail.Name == Name) && (detail.Group == Group) &&
+                   (detail.JobType == JobType);
+        }
+        
+		/// <summary>
+		/// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
+		/// </summary>
+		/// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
+		/// <returns>
+		/// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
+		/// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
+		/// </returns>
+        public override bool Equals(object obj)
+        {
+            if ((obj == null) || (!obj.GetType().IsSubclassOf(typeof(JobDetail))))
+                return false;
+
+            return IsEqual((JobDetail)obj);
+        }
+
+        public bool Equals(JobDetail detail)
+        {
+            return IsEqual(detail);
+        }
+
+		/// <summary>
+		/// Serves as a hash function for a particular type, suitable
+		/// for use in hashing algorithms and data structures like a hash table.
+		/// </summary>
+		/// <returns>
+		/// A hash code for the current <see cref="T:System.Object"/>.
+		/// </returns>
+        public override int GetHashCode()
+        {
+            return string.Format("{0}_$x$x$_{1}", Group, Name).GetHashCode();
         }
     }
 }

@@ -562,34 +562,34 @@ namespace Quartz
 		/// <returns> 
 		/// One of the Trigger.INSTRUCTION_XXX constants.
 		/// </returns>
-		/// <seealso cref="Trigger.INSTRUCTION_NOOP" />
-		/// <seealso cref="Trigger.INSTRUCTION_RE_EXECUTE_JOB" />
-		/// <seealso cref="Trigger.INSTRUCTION_DELETE_TRIGGER" />
-		/// <seealso cref="Trigger.INSTRUCTION_SET_TRIGGER_COMPLETE" />
+		/// <seealso cref="SchedulerInstruction.NoInstruction" />
+        /// <seealso cref="SchedulerInstruction.ReExecuteJob" />
+        /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
+        /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
 		/// <seealso cref="Triggered(ICalendar)" />
-		public override int ExecutionComplete(JobExecutionContext context, JobExecutionException result)
+		public override SchedulerInstruction ExecutionComplete(JobExecutionContext context, JobExecutionException result)
 		{
 			if (result != null && result.RefireImmediately)
 			{
-				return INSTRUCTION_RE_EXECUTE_JOB;
+                return SchedulerInstruction.ReExecuteJob;
 			}
 
 			if (result != null && result.UnscheduleFiringTrigger)
 			{
-				return INSTRUCTION_SET_TRIGGER_COMPLETE;
+                return SchedulerInstruction.SetTriggerComplete;
 			}
 
 			if (result != null && result.UnscheduleAllTriggers)
 			{
-				return INSTRUCTION_SET_ALL_JOB_TRIGGERS_COMPLETE;
+                return SchedulerInstruction.SetAllJobTriggersComplete;
 			}
 
 			if (!GetMayFireAgain())
 			{
-				return INSTRUCTION_DELETE_TRIGGER;
+                return SchedulerInstruction.DeleteTrigger;
 			}
 
-			return INSTRUCTION_NOOP;
+            return SchedulerInstruction.NoInstruction;
 		}
 
 		/// <summary>

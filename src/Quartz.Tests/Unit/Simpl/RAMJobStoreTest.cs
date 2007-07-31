@@ -52,16 +52,16 @@ namespace Quartz.Tests.Unit.Simpl
 			DateTime d = DateTime.Now;
 			Trigger trigger1 =
 				new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name,
-				                  fJobDetail.Group, d.AddMilliseconds(200000),
-				                  d.AddMilliseconds(200000), 2, 2000);
+				                  fJobDetail.Group, d.AddSeconds(200),
+				                  d.AddSeconds(200), 2, 2000);
 			Trigger trigger2 =
 				new SimpleTrigger("trigger2", "triggerGroup1", fJobDetail.Name,
-				                  fJobDetail.Group, d.AddMilliseconds(-100000),
-				                  d.AddMilliseconds(20000), 2, 2000);
+				                  fJobDetail.Group, d.AddSeconds(-100),
+				                  d.AddSeconds(20), 2, 2000);
 			Trigger trigger3 =
 				new SimpleTrigger("trigger1", "triggerGroup2", fJobDetail.Name,
-				                  fJobDetail.Group, d.AddMilliseconds(100000),
-				                  d.AddMilliseconds(200000), 2, 2000);
+				                  fJobDetail.Group, d.AddSeconds(100),
+				                  d.AddSeconds(200), 2, 2000);
 
 			trigger1.ComputeFirstFireTime(null);
 			trigger2.ComputeFirstFireTime(null);
@@ -74,15 +74,15 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.IsNull(t);
 			Assert.AreEqual(
 				trigger2,
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddMilliseconds(10000)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
 			Assert.AreEqual(
 				trigger3,
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddMilliseconds(10000)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
 			Assert.AreEqual(
 				trigger1,
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddMilliseconds(10000)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
 			Assert.IsNull(
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddMilliseconds(10000)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
 
 			// because of trigger2
 			Assert.AreEqual(1, fSignaler.fMisfireCount);
@@ -91,7 +91,7 @@ namespace Quartz.Tests.Unit.Simpl
 			fJobStore.ReleaseAcquiredTrigger(null, trigger3);
 			Assert.AreEqual(
 				trigger3,
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddMilliseconds(10000)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
 		}
 
 		[Test]
@@ -99,28 +99,27 @@ namespace Quartz.Tests.Unit.Simpl
 		{
 			Trigger trigger =
 				new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
-				                  DateTime.Now.AddMilliseconds(100000), DateTime.Now.AddMilliseconds(200000), 2,
-				                  2000);
+				                  DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, 2000);
 			trigger.ComputeFirstFireTime(null);
-			Assert.AreEqual(Trigger.STATE_NONE, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
+			Assert.AreEqual(TriggerState.None, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
 			fJobStore.StoreTrigger(null, trigger, false);
-			Assert.AreEqual(Trigger.STATE_NORMAL, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
+			Assert.AreEqual(TriggerState.Normal, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
 
 			fJobStore.PauseTrigger(null, trigger.Name, trigger.Group);
-			Assert.AreEqual(Trigger.STATE_PAUSED, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
+			Assert.AreEqual(TriggerState.Paused , fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
 
 			fJobStore.ResumeTrigger(null, trigger.Name, trigger.Group);
-			Assert.AreEqual(Trigger.STATE_NORMAL, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
+			Assert.AreEqual(TriggerState.Normal, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
 
 			trigger = fJobStore.AcquireNextTrigger(null,
-			                                       trigger.GetNextFireTime().Value.AddMilliseconds(10000));
+			                                       trigger.GetNextFireTime().Value.AddSeconds(10));
 			Assert.IsNotNull(trigger);
 			fJobStore.ReleaseAcquiredTrigger(null, trigger);
 			trigger = fJobStore.AcquireNextTrigger(null,
-			                                       trigger.GetNextFireTime().Value.AddMilliseconds(10000));
+			                                       trigger.GetNextFireTime().Value.AddSeconds(10));
 			Assert.IsNotNull(trigger);
 			Assert.IsNull(fJobStore.AcquireNextTrigger(null,
-			                                       trigger.GetNextFireTime().Value.AddMilliseconds(10000)));
+			                                       trigger.GetNextFireTime().Value.AddSeconds(10)));
 		}
 
 		public class SampleSignaler : ISchedulerSignaler

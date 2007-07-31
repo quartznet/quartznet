@@ -31,7 +31,7 @@ namespace Quartz
 	/// <summary>
 	/// Scheduler constants.
 	/// </summary>
-	public struct Scheduler_Fields
+	public struct SchedulerConstants
 	{
 		/// <summary>
 		/// A (possibly) usefull constant that can be used for specifying the group
@@ -135,7 +135,7 @@ namespace Quartz
     /// creating logical groupings or categorizations of <see cref="IJob" />s and
     /// <see cref="Trigger" />s. If you don't have need for assigning a group to a
     /// given <see cref="IJob" />s of <see cref="Trigger" />s, then you can use the
-    /// <see cref="Scheduler_Fields.DEFAULT_GROUP" /> constant defined on this interface.
+    /// <see cref="SchedulerConstants.DEFAULT_GROUP" /> constant defined on this interface.
     /// </p>
     /// 
     /// <p>
@@ -651,19 +651,13 @@ namespace Quartz
 		/// <summary>
 		/// Get the current state of the identified <see cref="Trigger" />.
 		/// </summary>
-		/// <seealso cref="Trigger.STATE_NORMAL">
-		/// </seealso>
-		/// <seealso cref="Trigger.STATE_PAUSED">
-		/// </seealso>
-		/// <seealso cref="Trigger.STATE_COMPLETE">
-		/// </seealso>
-		/// <seealso cref="Trigger.STATE_ERROR">
-		/// </seealso>
-		/// <seealso cref="Trigger.STATE_BLOCKED">
-		/// </seealso>
-		/// <seealso cref="Trigger.STATE_NONE">
-		/// </seealso>
-		int GetTriggerState(string triggerName, string triggerGroup);
+        /// <seealso cref="TriggerState.Normal" />
+        /// <seealso cref="TriggerState.Paused" />
+        /// <seealso cref="TriggerState.Complete" />
+        /// <seealso cref="TriggerState.Blocked" />
+        /// <seealso cref="TriggerState.Error" />
+        /// <seealso cref="TriggerState.None" />
+		TriggerState GetTriggerState(string triggerName, string triggerGroup);
 
 		/// <summary>
 		/// 	<p>

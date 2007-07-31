@@ -106,6 +106,9 @@
       <Link>AssemblyInfo.cs</Link>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Integration\Impl\Calendar\AnnualCalendarTest.cs" />
+    <Compile Include="Integration\IntegrationTest.cs" />
+    <Compile Include="Integration\TestJob.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Unit\CollectionUtilTest.cs" />
     <Compile Include="Unit\Core\QuartzSchedulerTest.cs" />
@@ -116,6 +119,7 @@
     <Compile Include="Unit\Impl\AdoJobStore\Common\DbProviderTest.cs" />
     <Compile Include="Unit\Impl\AdoJobStore\StdAdoDelegateTest.cs" />
     <Compile Include="Unit\Impl\Calendar\AnnualCalendarTest.cs" />
+    <Compile Include="Unit\Impl\Calendar\CronCalendarTest.cs" />
     <Compile Include="Unit\Impl\Calendar\DailyCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -151,9 +155,6 @@
     <Compile Include="Unit\Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Integration\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

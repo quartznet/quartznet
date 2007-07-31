@@ -915,7 +915,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual int GetTriggerState(string triggerName, string triggerGroup)
+		public virtual TriggerState GetTriggerState(string triggerName, string triggerGroup)
 		{
 			try
 			{
