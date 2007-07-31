@@ -143,13 +143,24 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestHourShift()
         {
-            // Grafit reported a problem
             // cronexpression that fires every 5 seconds
             CronExpression cronExpression = new CronExpression("0/5 * * * * ?");
             DateTime cal = new DateTime(2005, 6, 1, 1, 59, 55);
             DateTime nextExpectedFireTime = new DateTime(2005, 6, 1, 2, 0, 0);
             NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
             Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
+        }
+
+        [Test]
+        public void TestMonthShift()
+        {
+            // QRTZNET-28
+            CronExpression cronExpression = new CronExpression("* * 1 * * ?");
+            DateTime cal = new DateTime(2005, 7, 31, 22, 59, 57);
+            DateTime nextExpectedFireTime = new DateTime(2005, 8, 1, 1, 0, 0);
+            NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
+            Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
+            
         }
 
         [Test]

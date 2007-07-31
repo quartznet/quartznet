@@ -1513,7 +1513,15 @@ namespace Quartz
                 }
                 if (hr != t)
                 {
-                    d = new DateTime(d.Year, d.Month, day, d.Hour, 0, 0, d.Millisecond);
+                    int daysInMonth = DateTime.DaysInMonth(d.Year, d.Month);
+                    if (day > daysInMonth)
+                    {
+                        d = new DateTime(d.Year, d.Month, daysInMonth, d.Hour, 0, 0, d.Millisecond).AddDays(day - daysInMonth);
+                    }
+                    else
+                    {
+                        d = new DateTime(d.Year, d.Month, day, d.Hour, 0, 0, d.Millisecond);
+                    }
                     d = SetCalendarHour(d, hr);
                     continue;
                 }
