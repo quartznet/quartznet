@@ -257,7 +257,23 @@ namespace Quartz.Simpl
 			return found;
 		}
 
-		/// <summary>
+        /// <summary>
+        /// Remove (delete) the <see cref="Trigger" /> with the
+        /// given name.
+        /// </summary>
+        /// <param name="ctxt">The scheduling context.</param>
+        /// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
+        /// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
+        /// <returns>
+        /// 	<see langword="true" /> if a <see cref="Trigger" /> with the given
+        /// name and group was found and removed from the store.
+        /// </returns>
+	    public bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+	    {
+	        return RemoveTrigger(ctxt, triggerName, groupName, true);
+	    }
+
+	    /// <summary>
 		/// Store the given <see cref="Trigger" />.
 		/// </summary>
 		/// <param name="ctxt">The scheduling context.</param>
@@ -276,7 +292,8 @@ namespace Quartz.Simpl
 					throw new ObjectAlreadyExistsException(newTrigger);
 				}
 
-				RemoveTrigger(ctxt, newTrigger.Name, newTrigger.Group);
+                // don't delete orphaned job, this trigger has the job anyways
+				RemoveTrigger(ctxt, newTrigger.Name, newTrigger.Group, false);
 			}
 
 			if (RetrieveJob(ctxt, newTrigger.JobName, newTrigger.JobGroup) == null)
@@ -334,7 +351,8 @@ namespace Quartz.Simpl
 		/// 	<see langword="true" /> if a <see cref="Trigger" /> with the given
 		/// name and group was found and removed from the store.
 		/// </returns>
-		public virtual bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+		/// <param name="deleteOrphanedJob">Whether to delete orpahaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
+		public virtual bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName, bool deleteOrphanedJob)
 		{
 			string key = TriggerWrapper.GetTriggerNameKey(triggerName, groupName);
 
@@ -374,7 +392,7 @@ namespace Quartz.Simpl
 
 					JobWrapper jw = (JobWrapper) jobsByFQN[JobWrapper.GetJobNameKey(tw.trigger.JobName, tw.trigger.JobGroup)];
 					Trigger[] trigs = GetTriggersForJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
-					if ((trigs == null || trigs.Length == 0) && !jw.jobDetail.Durable)
+					if ((trigs == null || trigs.Length == 0) && !jw.jobDetail.Durable && deleteOrphanedJob)
 					{
 						RemoveJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
 					}

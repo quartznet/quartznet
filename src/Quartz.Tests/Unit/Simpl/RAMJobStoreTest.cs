@@ -122,6 +122,42 @@ namespace Quartz.Tests.Unit.Simpl
 			                                       trigger.GetNextFireTime().Value.AddSeconds(10)));
 		}
 
+        [Test]
+        public void StoreTriggerReplacesTrigger()
+        {
+
+            string jobName = "StoreTriggerReplacesTrigger";
+            string jobGroup = "StoreTriggerReplacesTriggerGroup";
+            JobDetail detail = new JobDetail(jobName, jobGroup, typeof(NoOpJob));
+            fJobStore.StoreJob(null, detail, false);
+
+            string trName = "StoreTriggerReplacesTrigger";
+            string trGroup = "StoreTriggerReplacesTriggerGroup";
+            Trigger tr = new SimpleTrigger(trName, trGroup, DateTime.Now);
+            tr.JobGroup = jobGroup;
+            tr.JobName = jobName;
+            tr.CalendarName = null;
+
+            fJobStore.StoreTrigger(null, tr, false);
+            Assert.AreEqual(tr, fJobStore.RetrieveTrigger(null, trName, trGroup));
+
+            tr.CalendarName = "QQ";
+            fJobStore.StoreTrigger(null, tr, true); 
+            Assert.AreEqual(tr, fJobStore.RetrieveTrigger(null, trName, trGroup));
+            Assert.AreEqual("QQ", fJobStore.RetrieveTrigger(null, trName, trGroup).CalendarName, "StoreJob doesn't replace triggers");
+
+            bool exeptionRaised = false;
+            try
+            {
+                fJobStore.StoreTrigger(null, tr, false);
+            }
+            catch (ObjectAlreadyExistsException)
+            {
+                exeptionRaised = true;
+            }
+            Assert.IsTrue(exeptionRaised, "an attempt to store duplicate trigger succeeded");
+        }
+
 		public class SampleSignaler : ISchedulerSignaler
 		{
 			internal int fMisfireCount = 0;
