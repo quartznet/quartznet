@@ -156,7 +156,7 @@ namespace Quartz.Util
 				}
 				catch (Exception nfe)
 				{
-					throw new SchedulerConfigException(string.Format("Could not parse property '{0}' into correct data type: {1}", name, nfe.ToString()));
+					throw new SchedulerConfigException(string.Format("Could not parse property '{0}' into correct data type: {1}", name, nfe.Message    ), nfe);
 				}
 			}
 			

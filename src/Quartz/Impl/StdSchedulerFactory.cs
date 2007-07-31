@@ -23,8 +23,6 @@ using System;
 using System.Collections;
 using System.Collections.Specialized;
 using System.Configuration;
-using System.Data;
-using System.IO;
 using System.Reflection;
 
 using Common.Logging;
@@ -620,7 +618,7 @@ Please add configuration to your application config file to correctly initialize
                             SchedulerException.ERR_BAD_CONFIGURATION);
                     throw initException;
                 }
-                ISchedulerPlugin plugin = null;
+                ISchedulerPlugin plugin;
                 try
                 {
                     plugin = (ISchedulerPlugin) ObjectUtils.InstantiateType(LoadType(plugInClass));
@@ -652,7 +650,7 @@ Please add configuration to your application config file to correctly initialize
             // Set up any JobListeners
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            Type[] strArg = new Type[] {typeof (String)};
+            Type[] strArg = new Type[] {typeof (string)};
             string[] jobListenerNames = cfg.GetPropertyGroups(PROP_JOB_LISTENER_PREFIX);
             IJobListener[] jobListeners = new IJobListener[jobListenerNames.Length];
             for (int i = 0; i < jobListenerNames.Length; i++)
@@ -660,7 +658,7 @@ Please add configuration to your application config file to correctly initialize
                 NameValueCollection lp =
                     cfg.GetPropertyGroup(string.Format("{0}.{1}", PROP_JOB_LISTENER_PREFIX, jobListenerNames[i]), true);
 
-                String listenerClass = lp[PROP_LISTENER_CLASS] == null ? null : lp[PROP_LISTENER_CLASS];
+                string listenerClass = lp[PROP_LISTENER_CLASS] == null ? null : lp[PROP_LISTENER_CLASS];
 
                 if (listenerClass == null)
                 {

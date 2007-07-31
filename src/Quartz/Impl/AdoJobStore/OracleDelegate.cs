@@ -19,8 +19,6 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
-using System;
-
 using Common.Logging;
 
 namespace Quartz.Impl.AdoJobStore
@@ -59,21 +57,6 @@ namespace Quartz.Impl.AdoJobStore
 		//---------------------------------------------------------------------------
 		// protected methods that can be overridden by subclasses
 		//---------------------------------------------------------------------------
-
-
-	    protected override bool GetBoolean(object columnValue)
-	    {
-            // Oracle treats as ints (1 and 0)
-	        if (columnValue != null)
-	        {
-	            return Convert.ToInt32(columnValue) == 1;
-	        }
-            else
-	        {
-	            throw new ArgumentException("Value must be non-null.", "columnValue");
-	        }
-	    }
-
 
 	    protected override object GetDbBooleanValue(bool booleanValue)
 	    {

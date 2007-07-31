@@ -1921,9 +1921,16 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual bool GetBoolean(object columnValue)
         {
-            return Convert.ToBoolean(columnValue);
+            // default to treat values as ints
+            if (columnValue != null)
+            {
+                return Convert.ToInt32(columnValue) == 1;
+            }
+            else
+            {
+                throw new ArgumentException("Value must be non-null.", "columnValue");
+            }
         }
-
         /// <summary>
         /// Select a trigger's JobDataMap.
         /// </summary>

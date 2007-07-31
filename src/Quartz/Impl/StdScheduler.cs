@@ -59,6 +59,15 @@ namespace Quartz.Impl
 			get { return sched.SchedulerInstanceId; }
 		}
 
+        /// <summary>
+        /// Get a <see cref="SchedulerMetaData"/> object describiing the settings
+        /// and capabilities of the scheduler instance.
+        /// <p>
+        /// Note that the data returned is an 'instantaneous' snap-shot, and that as
+        /// soon as it's returned, the meta data values may be different.
+        /// </p>
+        /// </summary>
+        /// <returns></returns>
 		public SchedulerMetaData GetMetaData()
 		{
 			return new SchedulerMetaData(
@@ -86,6 +95,19 @@ namespace Quartz.Impl
 			get { return sched.SchedulerContext; }
 		}
 
+        /// <summary>
+        /// Whether the scheduler has been started.
+        /// </summary>
+        /// <value></value>
+        /// <remarks>
+        /// Note: This only reflects whether <see cref="Start"/> has ever
+        /// been called on this Scheduler, so it will return <code>true</code> even
+        /// if the <code>Scheduler</code> is currently in standby mode or has been
+        /// since shutdown.
+        /// </remarks>
+        /// <seealso cref="Start"/>
+        /// <seealso cref="IsShutdown"/>
+        /// <seealso cref="InStandbyMode"/>
 	    public bool IsStarted
 	    {
 	        get { return sched.RunningSince.HasValue; }
@@ -168,11 +190,23 @@ namespace Quartz.Impl
 			get { return sched.JobListenerNames; }
 		}
 
+        /// <summary>
+        /// Get the <i>global</i><see cref="IJobListener"/> that has
+        /// the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
 	    public IJobListener GetGlobalJobListener(string name)
 	    {
             return sched.GetGlobalJobListener(name);
 	    }
 
+        /// <summary>
+        /// Get the <i>global</i><see cref="ITriggerListener"/> that
+        /// has the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
 	    public ITriggerListener GetGlobalTriggerListener(string name)
 	    {
             return sched.GetGlobalTriggerListener(name);
@@ -569,6 +603,14 @@ namespace Quartz.Impl
 			
 		}
 
+        /// <summary>
+        /// Remove the identifed <see cref="IJobListener"/> from the <see cref="IScheduler"/>'s
+        /// list of <i>global</i> listeners.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns>
+        /// true if the identifed listener was found in the list, and removed
+        /// </returns>
 	    public bool RemoveGlobalJobListener(string name)
 	    {
             return sched.RemoveGlobalJobListener(name);
@@ -615,6 +657,14 @@ namespace Quartz.Impl
 
 		}
 
+        /// <summary>
+        /// Remove the identifed <see cref="ITriggerListener"/> from the <see cref="IScheduler"/>'s
+        /// list of <i>global</i> listeners.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns>
+        /// true if the identifed listener was found in the list, and removed.
+        /// </returns>
 	    public bool RemoveGlobalTriggerListener(string name)
 	    {
             return sched.RemoveGlobalTriggerListener(name);
@@ -652,6 +702,42 @@ namespace Quartz.Impl
 			return sched.RemoveSchedulerListener(schedulerListener);
 		}
 
+        /// <summary>
+        /// Request the interruption, within this Scheduler instance, of all
+        /// currently executing instances of the identified <code>Job</code>, which
+        /// must be an implementor of the <see cref="IInterruptableJob"/> interface.
+        /// </summary>
+        /// <param name="jobName"></param>
+        /// <param name="groupName"></param>
+        /// <returns>
+        /// true is at least one instance of the identified job was found
+        /// and interrupted.
+        /// </returns>
+        /// <remarks>
+        /// 	<p>
+        /// If more than one instance of the identified job is currently executing,
+        /// the <see cref="IInterruptableJob.Interrupt"/> method will be called on
+        /// each instance.  However, there is a limitation that in the case that
+        /// <see cref="Interrupt"/> on one instances throws an exception, all
+        /// remaining  instances (that have not yet been interrupted) will not have
+        /// their <see cref="Interrupt"/> method called.
+        /// </p>
+        /// 	<p>
+        /// If you wish to interrupt a specific instance of a job (when more than
+        /// one is executing) you can do so by calling
+        /// <see cref="GetCurrentlyExecutingJobs"/> to obtain a handle
+        /// to the job instance, and then invoke <see cref="Interrupt"/> on it
+        /// yourself.
+        /// </p>
+        /// 	<p>
+        /// This method is not cluster aware.  That is, it will only interrupt
+        /// instances of the identified InterruptableJob currently executing in this
+        /// Scheduler instance, not across the entire cluster.
+        /// </p>
+        /// </remarks>
+        /// <throws>  UnableToInterruptJobException if the job does not implement </throws>
+        /// <seealso cref="IInterruptableJob"/>
+        /// <seealso cref="GetCurrentlyExecutingJobs"/>
 		public virtual bool Interrupt(string jobName, string groupName)
 		{
 			return sched.Interrupt(schedCtxt, jobName, groupName);

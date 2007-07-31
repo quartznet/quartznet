@@ -31,6 +31,30 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             TestDbMetadata("OracleODP-20");
         }
 
+        [Test]
+        public void TestDbMetadataMySql50()
+        {
+            TestDbMetadata("MySql-50");
+        }
+
+        [Test]
+        public void TestDbMetadataMySql51()
+        {
+            TestDbMetadata("MySql-51");
+        }
+
+        [Test]
+        public void TestDbMetadataMySql10()
+        {
+            TestDbMetadata("MySql-10");
+        }
+
+        [Test]
+        public void TestDbMetadataMySql109()
+        {
+            TestDbMetadata("MySql-109");
+        }
+
         private static void TestDbMetadata(string dbname)
         {
             DbProvider dbp = new DbProvider(dbname, "foo");
