@@ -2,6 +2,22 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+
+Release 0.6, xxxxx xx, 2007
+-----------------------------
+Bug
+
+Improvement
+
+Task
+
+Other:
+
+Special thanks for Drew Burlingame for string concatenation and TreeSet performance patches
+and Anton Dvinskiy for hunting down bugs and patch for SchedulerState and TriggerState enumerations. 
+
+
+
 Release 0.5, June 17, 2007
 -----------------------------
 Bug
@@ -21,7 +37,8 @@ Task
 
 Other:
 
-Work around the code base to make it cleaner and more .NET like.
+Work around the code base to make it cleaner and more .NET like. 
+Special thanks to Radoslav Radivojevic for hunting CronExpression bugs.
 
 
 
