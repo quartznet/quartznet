@@ -3,26 +3,31 @@
 <h2>Clustering</h2>
 
 <p>
-<strong>This feature is still unimplemented</strong>
+<strong>Clustering is avaiable from version 0.6 onwards and is still experimental.</strong>
 </p>
-<!--
-Clustering currently only works with the JDBC-Jobstore (JobStoreTX or JobStoreCMT). Features include load-balancing and job fail-over (if the JobDetail's "request recovery" flag is set to true).
 
-Enable clustering by setting the "org.quartz.jobStore.isClustered" property to "true". Each instance in the cluster should use the same copy of the quartz.properties file. Exceptions of this would be to use properties files that are identical, with the following allowable exceptions: Different thread pool size, and different value for the "org.quartz.scheduler.instanceId" property. Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing "AUTO" as the value of this property.
-	
-Never run clustering on separate machines, unless their clocks are synchronized using some form of time-sync service (daemon) that runs very regularly (the clocks must be within a second of each other). See http://www.boulder.nist.gov/timefreq/service/its.htm if you are unfamiliar with how to do this.
-	
+<p>
+Clustering currently only works with the AdoJobstore (JobStoreTX). Features include load-balancing and job fail-over (if the JobDetail's "request recovery" flag is set to true).
+</p>
 
-Never fire-up a non-clustered instance against the same set of tables that any other instance is running against. You may get serious data corruption, and will definitely experience eratic behavior.
+<p>
+Enable clustering by setting the "quartz.jobStore.isClustered" property to "true". 
+Each instance in the cluster should use the same copy of the quartz properties. 
+Exceptions of this would be to use properties that are identical, with the following allowable exceptions: 
+Different thread pool size, and different value for the "quartz.scheduler.instanceId" property. 
+Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing "AUTO" as the value of this property.
+</p>
 
-JTA Transactions
+<p>
+Never run clustering on separate machines, unless their clocks are synchronized using some form of time-sync service (daemon) that runs very regularly
+(the clocks must be within a second of each other). See <a href="http://www.boulder.nist.gov/timefreq/service/its.htm">http://www.boulder.nist.gov/timefreq/service/its.htm</a>
+if you are unfamiliar with how to do this.
+</p>
 
-As explained in Lesson 9: JobStores, JobStoreCMT allows Quartz scheduling operations to be performed within larger JTA transactions.
-
-Jobs can also execute within a JTA transaction (UserTransaction) by setting the "org.quartz.scheduler.wrapJobExecutionInUserTransaction" property to "true". With this option set, a a JTA transaction will begin() just before the Job's execute method is called, and commit() just after the call to execute terminates.
-
-Aside from Quartz automatically wrapping Job executions in JTA transactions, calls you make on the Scheduler interface also participate in transactions when using JobStoreCMT. Just make sure you've started a transaction before calling a method on the scheduler. You can do this either directly, through the use of UserTransaction, or by puting your code that uses the scheduler within a SessionBean that uses containter managed transactions.
--->
+<p>
+Never fire-up a non-clustered instance against the same set of tables that any other instance is running against. 
+You may get serious data corruption, and will definitely experience eratic behavior.
+</p>
 
 <p>
 <a href="tutorial_lesson_10.html">&laquo; Lesson 10</a> | <a href="tutorial_lesson_12.html">Lesson 12 &raquo;</a>  
