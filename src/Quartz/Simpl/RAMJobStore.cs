@@ -615,8 +615,9 @@ namespace Quartz.Simpl
 
 			lock (triggerLock)
 			{
-				foreach (Trigger trigg in triggers)
+				foreach (TriggerWrapper triggerWrapper in triggers)
 				{
+                    Trigger trigg = triggerWrapper.Trigger;
 					if (trigg.CalendarName != null && trigg.CalendarName.Equals(calName))
 					{
 						numRefs++;

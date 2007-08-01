@@ -17,6 +17,7 @@ using System;
 
 using NUnit.Framework;
 
+using Quartz.Impl.Calendar;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -123,7 +124,22 @@ namespace Quartz.Tests.Unit.Simpl
 		}
 
         [Test]
-        public void StoreTriggerReplacesTrigger()
+        public void TestRemoveCalendarWhenTriggersPresent()
+        {
+            // QRTZNET-29
+
+            Trigger trigger = new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
+                                  DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, 2000);
+            trigger.ComputeFirstFireTime(null);
+            ICalendar cal = new MonthlyCalendar();
+            fJobStore.StoreTrigger(null, trigger, false);
+            fJobStore.StoreCalendar(null, "cal", cal, false, true);
+
+            fJobStore.RemoveCalendar(null, "cal");
+        }
+
+        [Test]
+        public void TestStoreTriggerReplacesTrigger()
         {
 
             string jobName = "StoreTriggerReplacesTrigger";
