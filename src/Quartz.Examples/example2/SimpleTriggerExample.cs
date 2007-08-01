@@ -140,7 +140,7 @@ namespace Quartz.Examples.Example2
 				Thread.Sleep(30*1000);
 				// executing...
 			}
-			catch (Exception)
+            catch (ThreadInterruptedException)
 			{
 			}
 
@@ -165,7 +165,7 @@ namespace Quartz.Examples.Example2
 				Thread.Sleep(2*1000);
 				// executing...
 			}
-			catch (Exception)
+            catch (ThreadInterruptedException)
 			{
 			}
 

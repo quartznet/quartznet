@@ -24,8 +24,8 @@ using Quartz.Impl;
 namespace Quartz.Examples.Example5
 {
 	
-	/// <summary> Demonstrates the behavior of <see cref="StatefulJob" />s, as well as how
-	/// misfire instructions affect the firings of triggers of <see cref="StatefulJob" />
+	/// <summary> Demonstrates the behavior of <see cref="IStatefulJob" />s, as well as how
+	/// misfire instructions affect the firings of triggers of <see cref="IStatefulJob" />
 	/// s - when the jobs take longer to execute that the frequency of the trigger's
 	/// repitition.
 	/// 
@@ -105,7 +105,7 @@ namespace Quartz.Examples.Example5
 				// sleep for ten minutes for triggers to file....
 				Thread.Sleep(600 * 1000);
 			}
-			catch (Exception)
+            catch (ThreadInterruptedException)
 			{
 			}
 			

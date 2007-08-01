@@ -76,7 +76,7 @@ namespace Quartz.Examples.Example9
 				Thread.Sleep(30 * 1000);
 				// executing...
 			}
-			catch (Exception)
+            catch (ThreadInterruptedException)
 			{
 			}
 			

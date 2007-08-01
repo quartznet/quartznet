@@ -106,8 +106,13 @@ namespace Quartz.Examples.Example14
             // fire the triggers
             log.Info("------- Waiting 30 seconds... -------------");
 
-            Thread.Sleep(30*1000);
-
+            try
+            {
+                Thread.Sleep(30*1000);
+            }
+            catch (ThreadInterruptedException)
+            {
+            }
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");

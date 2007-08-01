@@ -15,6 +15,8 @@
 * 
 */
 using System;
+using System.Threading;
+
 using Common.Logging;
 using Quartz.Impl;
 
@@ -58,9 +60,9 @@ namespace Quartz.Examples.Example12
 			// wait five minutes to give our jobs a chance to run
 			try
 			{
-				System.Threading.Thread.Sleep(1000 * 60 * 5);
+				Thread.Sleep(TimeSpan.FromMinutes(5));
 			}
-			catch 
+            catch (ThreadInterruptedException)
 			{
 			}
 			

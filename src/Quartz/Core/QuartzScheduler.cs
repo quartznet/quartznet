@@ -517,7 +517,7 @@ namespace Quartz.Core
                     {
                         Thread.Sleep(100);
                     }
-                    catch (Exception)
+                    catch (ThreadInterruptedException)
                     {
                     }
                 }

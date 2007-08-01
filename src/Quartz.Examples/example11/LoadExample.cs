@@ -82,9 +82,9 @@ namespace Quartz.Examples.Example11
 			// wait five minutes to give our jobs a chance to run
 			try
 			{
-				Thread.Sleep(new TimeSpan(10000*300L*1000L));
+				Thread.Sleep(TimeSpan.FromMinutes(5));
 			}
-			catch 
+            catch (ThreadInterruptedException)
 			{
 			}
 

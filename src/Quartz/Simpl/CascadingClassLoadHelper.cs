@@ -114,6 +114,11 @@ namespace Quartz.Simpl
 
 			if (clazz == null)
 			{
+                if (cnfe == null)
+                {
+                    cnfe = new Exception("Could not load requested type: " + name);
+                }
+
 				throw cnfe;
 			}
 

@@ -65,7 +65,7 @@ namespace Quartz.Examples.Example5
 			{
 				Thread.Sleep(1000 * delay);
 			}
-			catch (Exception)
+            catch (ThreadInterruptedException)
 			{
 			}
 			

@@ -15,6 +15,8 @@
 * 
 */
 using System;
+using System.Threading;
+
 using Common.Logging;
 
 namespace Quartz.Examples.Example13
@@ -53,9 +55,9 @@ namespace Quartz.Examples.Example13
 			int delay = 10 * 1000;
 			try
 			{
-				System.Threading.Thread.Sleep(delay);
+				Thread.Sleep(delay);
 			}
-			catch 
+            catch (ThreadInterruptedException)
 			{
 			}
 			

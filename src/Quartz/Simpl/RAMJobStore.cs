@@ -268,7 +268,7 @@ namespace Quartz.Simpl
         /// 	<see langword="true" /> if a <see cref="Trigger" /> with the given
         /// name and group was found and removed from the store.
         /// </returns>
-	    public bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+	    public virtual bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 	    {
 	        return RemoveTrigger(ctxt, triggerName, groupName, true);
 	    }

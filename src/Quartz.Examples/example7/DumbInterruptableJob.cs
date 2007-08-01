@@ -44,7 +44,7 @@ namespace Quartz.Examples.Example7
 		public virtual void  Execute(JobExecutionContext context)
 		{
 			_jobName = context.JobDetail.FullName;
-			_log.Info(string.Format("---- {0} executing at {1}", _jobName, System.DateTime.Now.ToString("r")));
+			_log.Info(string.Format("---- {0} executing at {1}", _jobName, DateTime.Now.ToString("r")));
 			
 			try
 			{
@@ -57,7 +57,7 @@ namespace Quartz.Examples.Example7
 					{
 						Thread.Sleep(10 * 1000);
 					}
-					catch (System.Exception ignore)
+					catch (Exception ignore)
 					{
 						Console.WriteLine(ignore.StackTrace);
 					}
@@ -74,7 +74,7 @@ namespace Quartz.Examples.Example7
 			}
 			finally
 			{
-				_log.Info(string.Format("---- {0} completed at {1}", _jobName, System.DateTime.Now.ToString("r")));
+				_log.Info(string.Format("---- {0} completed at {1}", _jobName, DateTime.Now.ToString("r")));
 			}
 		}
 		

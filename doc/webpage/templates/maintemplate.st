@@ -71,17 +71,19 @@
 				<li><a href="http://www.opensymphony.com/quartz/">Quartz (Java)</a></li>
 			</ul>
 
+			<h1>Project Supporters</h1>
 			<p align="center">
-				<br />
-				<br />
 				<a href="http://www.cenqua.com"><img src="http://www.cenqua.com/images/cenquad1.gif" width="89" height="33" border="0" alt="Supported by Cenqua"/></a> 
+				<br />
+				<br />
+				<a href="http://www.innovasys.com"><img src="img/innovasys.gif" border="0" alt="Supported by Innovasys"/></a> 
+				<br />
+				<br />
+				<a href="http://sourceforge.net"><img src="http://sflogo.sourceforge.net/sflogo.php?group_id=174134&amp;type=1" width="88" height="31" border="0" alt="SourceForge.net Logo" /></a>
 			</p>
 
 			
 			<p align="right">
-				<br />
-				<br />
-				<a href="http://sourceforge.net"><img src="http://sflogo.sourceforge.net/sflogo.php?group_id=174134&amp;type=1" width="88" height="31" border="0" alt="SourceForge.net Logo" /></a>
 			</p>
 		</div>
 	

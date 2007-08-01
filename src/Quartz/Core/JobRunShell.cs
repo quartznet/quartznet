@@ -437,6 +437,9 @@ namespace Quartz.Core
                     qs.NotifySchedulerListenersError(
                             string.Format("An error occured while marking executed job vetoed. job= '{0}'", jobDetail.FullName), jpe);
                 }
+                catch (ThreadInterruptedException)
+                {
+                }
             }
             return false;
         }

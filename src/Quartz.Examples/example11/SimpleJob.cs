@@ -49,7 +49,7 @@ namespace Quartz.Examples.Example11
 			{
 				Thread.Sleep(new TimeSpan(10000*delayTime));
 			}
-			catch
+            catch (ThreadInterruptedException)
 			{
 			}
 

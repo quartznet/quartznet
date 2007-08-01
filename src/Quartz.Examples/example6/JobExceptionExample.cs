@@ -15,6 +15,8 @@
 * 
 */
 using System;
+using System.Threading;
+
 using Common.Logging;
 using Quartz.Impl;
 
@@ -73,7 +75,13 @@ namespace Quartz.Examples.Example6
 			log.Info("------- Started Scheduler -----------------");
 
 			// sleep for 60 seconds
-			System.Threading.Thread.Sleep(60 * 1000);
+			try
+			{
+			    Thread.Sleep(60 * 1000);
+			}
+            catch (ThreadInterruptedException)
+            {
+            }
 			
 			log.Info("------- Shutting Down ---------------------");
 			
