@@ -1892,7 +1892,7 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             if (rs.Read())
                             {
-                                trigger = (Trigger) GetObjectFromBlob(rs, 3);
+                                trigger = (Trigger) GetObjectFromBlob(rs, 2);
                             }
                         }
                     }
@@ -3044,7 +3044,7 @@ namespace Quartz.Impl.AdoJobStore
             return obj;
         }
 
-        protected static byte[] ReadBytesFromBlob(IDataReader dr, int colIndex)
+        protected virtual byte[] ReadBytesFromBlob(IDataReader dr, int colIndex)
         {
             if (dr.IsDBNull(colIndex))
             {

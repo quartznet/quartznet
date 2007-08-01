@@ -92,7 +92,7 @@ namespace Quartz.Impl.AdoJobStore
         public JobStoreSupport()
         {
             log = LogManager.GetLogger(GetType());
-            delegateType = typeof (StdAdoDelegate);
+            delegateType = typeof(StdAdoDelegate);
         }
 
         /// <summary> 
@@ -340,7 +340,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 conn = DBConnectionManager.Instance.GetConnection(DataSource);
-				conn.Open();
+                conn.Open();
             }
             catch (Exception e)
             {
@@ -430,17 +430,17 @@ namespace Quartz.Impl.AdoJobStore
                                         typeof (Boolean)
                                     };
                             ctor = delegateType.GetConstructor(ctorParamTypes);
-                            ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider, CanUseProperties};
+                            ctorParams = new Object[] { Log, tablePrefix, instanceId, dbProvider, CanUseProperties };
                         }
                         else
                         {
                             Type[] ctorParamTypes =
-                                new Type[] {typeof (ILog), typeof (String), typeof (String), typeof (IDbProvider)};
+                                new Type[] { typeof(ILog), typeof(String), typeof(String), typeof(IDbProvider) };
                             ctor = delegateType.GetConstructor(ctorParamTypes);
-                            ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider};
+                            ctorParams = new Object[] { Log, tablePrefix, instanceId, dbProvider };
                         }
 
-                        driverDelegate = (IDriverDelegate) ctor.Invoke(ctorParams);
+                        driverDelegate = (IDriverDelegate)ctor.Invoke(ctorParams);
                     }
                     catch (Exception e)
                     {
@@ -1186,13 +1186,13 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 if (existingTrigger)
                 {
-                    if (newTrigger.GetType() == typeof (SimpleTrigger))
+                    if (newTrigger.GetType() == typeof(SimpleTrigger))
                     {
-                        Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger) newTrigger);
+                        Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger)newTrigger);
                     }
-                    else if (newTrigger.GetType() == typeof (CronTrigger))
+                    else if (newTrigger.GetType() == typeof(CronTrigger))
                     {
-                        Delegate.UpdateCronTrigger(conn, (CronTrigger) newTrigger);
+                        Delegate.UpdateCronTrigger(conn, (CronTrigger)newTrigger);
                     }
                     else
                     {
@@ -1203,13 +1203,13 @@ namespace Quartz.Impl.AdoJobStore
                 else
                 {
                     Delegate.InsertTrigger(conn, newTrigger, state, job);
-                    if (newTrigger.GetType() == typeof (SimpleTrigger))
+                    if (newTrigger.GetType() == typeof(SimpleTrigger))
                     {
-                        Delegate.InsertSimpleTrigger(conn, (SimpleTrigger) newTrigger);
+                        Delegate.InsertSimpleTrigger(conn, (SimpleTrigger)newTrigger);
                     }
-                    else if (newTrigger.GetType() == typeof (CronTrigger))
+                    else if (newTrigger.GetType() == typeof(CronTrigger))
                     {
-                        Delegate.InsertCronTrigger(conn, (CronTrigger) newTrigger);
+                        Delegate.InsertCronTrigger(conn, (CronTrigger)newTrigger);
                     }
                     else
                     {
@@ -1265,7 +1265,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public bool RemoveJob(SchedulingContext ctxt, string jobName, string groupName)
         {
-            return (bool) ExecuteInLock(
+            return (bool)ExecuteInLock(
                               LOCK_TRIGGER_ACCESS,
                               new RemoveJobCallback(this, ctxt, jobName, groupName));
         }
@@ -1369,7 +1369,7 @@ namespace Quartz.Impl.AdoJobStore
         public JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
         {
             // no locks necessary for read...
-            return (JobDetail) ExecuteWithoutLock(new RetrieveJobCallback(this, ctxt, jobName, groupName));
+            return (JobDetail)ExecuteWithoutLock(new RetrieveJobCallback(this, ctxt, jobName, groupName));
         }
 
         protected class RetrieveJobCallback : CallbackSupport, ITransactionCallback
@@ -1451,7 +1451,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
         {
-            return (bool) ExecuteInLock(
+            return (bool)ExecuteInLock(
                               LOCK_TRIGGER_ACCESS,
                               new RemoveTriggerCallback(this, ctxt, triggerName, groupName));
         }
@@ -1591,7 +1591,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
         {
-            return (Trigger) ExecuteWithoutLock( // no locks necessary for read...
+            return (Trigger)ExecuteWithoutLock( // no locks necessary for read...
                                  new RetrieveTriggerCallback(this, ctxt, triggerName, groupName));
         }
 
@@ -1893,7 +1893,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public bool RemoveCalendar(SchedulingContext ctxt, string calName)
         {
-            return (bool) ExecuteInLock(LOCK_TRIGGER_ACCESS, new RemoveCalendarCallback(this, ctxt, calName));
+            return (bool)ExecuteInLock(LOCK_TRIGGER_ACCESS, new RemoveCalendarCallback(this, ctxt, calName));
         }
 
         protected class RemoveCalendarCallback : CallbackSupport, ITransactionCallback
@@ -1951,7 +1951,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public ICalendar RetrieveCalendar(SchedulingContext ctxt, string calName)
         {
-            return (ICalendar) ExecuteWithoutLock( // no locks necessary for read...
+            return (ICalendar)ExecuteWithoutLock( // no locks necessary for read...
                                    new RetrieveCalendarCallback(this, ctxt, calName));
         }
 
@@ -1979,7 +1979,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             // all calendars are persistent, but we lazy-cache them during run
             // time as long as we aren't running clustered.
-            ICalendar cal = Clustered ? null : (ICalendar) calendarCache[calName];
+            ICalendar cal = Clustered ? null : (ICalendar)calendarCache[calName];
             if (cal != null)
             {
                 return cal;
@@ -2016,7 +2016,7 @@ namespace Quartz.Impl.AdoJobStore
         public int GetNumberOfJobs(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (int) ExecuteWithoutLock(new GetNumberOfJobsCallback(this, ctxt));
+            return (int)ExecuteWithoutLock(new GetNumberOfJobsCallback(this, ctxt));
         }
 
         protected class GetNumberOfJobsCallback : CallbackSupport, ITransactionCallback
@@ -2056,7 +2056,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public int GetNumberOfTriggers(SchedulingContext ctxt)
         {
-            return (int) ExecuteWithoutLock( // no locks necessary for read...
+            return (int)ExecuteWithoutLock( // no locks necessary for read...
                              new GetNumberOfTriggersCallback(this, ctxt));
         }
 
@@ -2100,7 +2100,7 @@ namespace Quartz.Impl.AdoJobStore
         public int GetNumberOfCalendars(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (int) ExecuteWithoutLock(new GetNumberOfCalendarsCallback(this, ctxt));
+            return (int)ExecuteWithoutLock(new GetNumberOfCalendarsCallback(this, ctxt));
         }
 
         protected class GetNumberOfCalendarsCallback : CallbackSupport, ITransactionCallback
@@ -2146,7 +2146,7 @@ namespace Quartz.Impl.AdoJobStore
         public string[] GetJobNames(SchedulingContext ctxt, string groupName)
         {
             // no locks necessary for read...
-            return (string[]) ExecuteWithoutLock(new GetJobNamesCallback(this, ctxt, groupName));
+            return (string[])ExecuteWithoutLock(new GetJobNamesCallback(this, ctxt, groupName));
         }
 
         protected class GetJobNamesCallback : CallbackSupport, ITransactionCallback
@@ -2201,7 +2201,7 @@ namespace Quartz.Impl.AdoJobStore
         public string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
         {
             // no locks necessary for read...
-            return (string[]) ExecuteWithoutLock(new GetTriggerNamesCallback(this, ctxt, groupName));
+            return (string[])ExecuteWithoutLock(new GetTriggerNamesCallback(this, ctxt, groupName));
         }
 
         protected class GetTriggerNamesCallback : CallbackSupport, ITransactionCallback
@@ -2256,7 +2256,7 @@ namespace Quartz.Impl.AdoJobStore
         public String[] GetJobGroupNames(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (string[]) ExecuteWithoutLock(new GetJobGroupNamesCallback(this, ctxt));
+            return (string[])ExecuteWithoutLock(new GetJobGroupNamesCallback(this, ctxt));
         }
 
         protected class GetJobGroupNamesCallback : CallbackSupport, ITransactionCallback
@@ -2308,7 +2308,7 @@ namespace Quartz.Impl.AdoJobStore
         public String[] GetTriggerGroupNames(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (String[]) ExecuteWithoutLock(new GetTriggerGroupNamesCallback(this, ctxt));
+            return (String[])ExecuteWithoutLock(new GetTriggerGroupNamesCallback(this, ctxt));
         }
 
         protected class GetTriggerGroupNamesCallback : CallbackSupport, ITransactionCallback
@@ -2362,7 +2362,7 @@ namespace Quartz.Impl.AdoJobStore
         public string[] GetCalendarNames(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (string[]) ExecuteWithoutLock(new GetCalendarNamesCallback(this, ctxt));
+            return (string[])ExecuteWithoutLock(new GetCalendarNamesCallback(this, ctxt));
         }
 
         protected class GetCalendarNamesCallback : CallbackSupport, ITransactionCallback
@@ -2408,7 +2408,7 @@ namespace Quartz.Impl.AdoJobStore
         public Trigger[] GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
         {
             // no locks necessary for read...
-            return (Trigger[]) ExecuteWithoutLock(new GetTriggersForJobCallback(this, ctxt, jobName, groupName));
+            return (Trigger[])ExecuteWithoutLock(new GetTriggersForJobCallback(this, ctxt, jobName, groupName));
         }
 
         protected class GetTriggersForJobCallback : CallbackSupport, ITransactionCallback
@@ -2622,7 +2622,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (lst.Count > 0)
                 {
-                    FiredTriggerRecord rec = (FiredTriggerRecord) lst[0];
+                    FiredTriggerRecord rec = (FiredTriggerRecord)lst[0];
                     if (rec.JobIsStateful)
                     {
                         // TODO: worry about
@@ -2657,7 +2657,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (lst.Count > 0)
                 {
-                    FiredTriggerRecord rec = (FiredTriggerRecord) lst[0];
+                    FiredTriggerRecord rec = (FiredTriggerRecord)lst[0];
                     if (rec.JobIsStateful)
                     {
                         // TODO: worry about
@@ -2946,7 +2946,7 @@ namespace Quartz.Impl.AdoJobStore
         public ISet GetPausedTriggerGroups(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (ISet) ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
+            return (ISet)ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
         }
 
         protected class GetPausedTriggerGroupsCallback : CallbackSupport, ITransactionCallback
@@ -3870,7 +3870,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected DateTime CalcFailedIfAfter(SchedulerStateRecord rec)
         {
-            return rec.CheckinTimestamp.AddMilliseconds( Math.Max(rec.CheckinInterval, (long) (DateTime.Now - lastCheckin).TotalMilliseconds) + 7500L);
+            return rec.CheckinTimestamp.AddMilliseconds(Math.Max(rec.CheckinInterval, (long)(DateTime.Now - lastCheckin).TotalMilliseconds) + 7500L);
         }
 
         protected internal virtual IList ClusterCheckIn(ConnectionAndTransactionHolder conn)
@@ -4406,7 +4406,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    if (numFails%4 == 0)
+                    if (numFails % 4 == 0)
                     {
                         jobStoreSupport.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
                     }
@@ -4422,7 +4422,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (!shutdown)
                     {
                         long timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-                        long transpiredTime = (long) (DateTime.Now - jobStoreSupport.lastCheckin).TotalMilliseconds;
+                        long transpiredTime = (long)(DateTime.Now - jobStoreSupport.lastCheckin).TotalMilliseconds;
                         timeToSleep = timeToSleep - transpiredTime;
                         if (timeToSleep <= 0)
                         {
@@ -4434,151 +4434,164 @@ namespace Quartz.Impl.AdoJobStore
                             timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
                         }
 
-                        Thread.Sleep((int) timeToSleep);
-                    }
-
-                    if (!shutdown && Manage())
-                    {
-                        jobStoreSupport.SignalSchedulingChange();
-                    }
-                } //while !Shutdown
-            }
-        }
-
-        /////////////////////////////////////////////////////////////////////////////
-        //
-        // MisfireHandler Thread
-        //
-        /////////////////////////////////////////////////////////////////////////////
-        internal class MisfireHandler : QuartzThread
-        {
-            private JobStoreSupport jobStoreSupport;
-            private bool shutdown = false;
-            private int numFails = 0;
-
-            internal MisfireHandler(JobStoreSupport jobStoreSupport)
-            {
-                this.jobStoreSupport = jobStoreSupport;
-                Name =
-                    string.Format("QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName,
-                                  jobStoreSupport.instanceId);
-                IsBackground = jobStoreSupport.MakeThreadsDaemons;
-            }
-
-            public virtual void Initialize()
-            {
-                //this.Manage();
-                Start();
-            }
-
-            public virtual void Shutdown()
-            {
-                shutdown = true;
-                Interrupt();
-            }
-
-            private RecoverMisfiredJobsResult Manage()
-            {
-                try
-                {
-                    jobStoreSupport.Log.Debug("MisfireHandler: scanning for misfires...");
-
-                    RecoverMisfiredJobsResult res = jobStoreSupport.DoRecoverMisfires();
-                    numFails = 0;
-                    return res;
-                }
-                catch (Exception e)
-                {
-                    if (numFails%4 == 0)
-                    {
-                        jobStoreSupport.Log.Error(
-                            "MisfireHandler: Error handling misfires: "
-                            + e.Message, e);
-                    }
-                    numFails++;
-                }
-                return RecoverMisfiredJobsResult.NO_OP;
-            }
-
-            public override void Run()
-            {
-                while (!shutdown)
-                {
-                    DateTime sTime = DateTime.Now;
-
-                    RecoverMisfiredJobsResult recoverMisfiredJobsResult = Manage();
-
-                    if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
-                    {
-                        jobStoreSupport.SignalSchedulingChange();
-                    }
-
-                    if (!shutdown)
-                    {
-                        long timeToSleep = 50L; // At least a short pause to help balance threads
-                        if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
+                        try
                         {
-                            timeToSleep = jobStoreSupport.MisfireThreshold -
-                                          (long) (DateTime.Now - sTime).TotalMilliseconds;
-                            if (timeToSleep <= 0)
-                            {
-                                timeToSleep = 50L;
-                            }
-
-                            if (numFails > 0)
-                            {
-                                timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
-                            }
+                            Thread.Sleep((int)timeToSleep);
+                        }
+                        catch (ThreadInterruptedException)
+                        {
                         }
 
-                        Thread.Sleep((int) timeToSleep);
-                    } //while !shutdown
+
+                        if (!shutdown && Manage())
+                        {
+                            jobStoreSupport.SignalSchedulingChange();
+                        }
+                    } //while !Shutdown
                 }
             }
-            // EOF
+
         }
-
-        /// <summary>
-        /// Helper class for returning the composite result of trying
-        /// to recover misfired jobs.
-        /// </summary>
-        public class RecoverMisfiredJobsResult
-        {
-            public static readonly RecoverMisfiredJobsResult NO_OP = new RecoverMisfiredJobsResult(false, 0);
-
-            private bool _hasMoreMisfiredTriggers;
-            private int _processedMisfiredTriggerCount;
-
-            /// <summary>
-            /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
-            /// </summary>
-            /// <param name="hasMoreMisfiredTriggers">if set to <c>true</c> [has more misfired triggers].</param>
-            /// <param name="processedMisfiredTriggerCount">The processed misfired trigger count.</param>
-            public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount)
+            /////////////////////////////////////////////////////////////////////////////
+            //
+            // MisfireHandler Thread
+            //
+            /////////////////////////////////////////////////////////////////////////////
+            internal class MisfireHandler : QuartzThread
             {
-                _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
-                _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
+                private JobStoreSupport jobStoreSupport;
+                private bool shutdown = false;
+                private int numFails = 0;
+
+                internal MisfireHandler(JobStoreSupport jobStoreSupport)
+                {
+                    this.jobStoreSupport = jobStoreSupport;
+                    Name =
+                        string.Format("QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName,
+                                      jobStoreSupport.instanceId);
+                    IsBackground = jobStoreSupport.MakeThreadsDaemons;
+                }
+
+                public virtual void Initialize()
+                {
+                    //this.Manage();
+                    Start();
+                }
+
+                public virtual void Shutdown()
+                {
+                    shutdown = true;
+                    Interrupt();
+                }
+
+                private RecoverMisfiredJobsResult Manage()
+                {
+                    try
+                    {
+                        jobStoreSupport.Log.Debug("MisfireHandler: scanning for misfires...");
+
+                        RecoverMisfiredJobsResult res = jobStoreSupport.DoRecoverMisfires();
+                        numFails = 0;
+                        return res;
+                    }
+                    catch (Exception e)
+                    {
+                        if (numFails % 4 == 0)
+                        {
+                            jobStoreSupport.Log.Error(
+                                "MisfireHandler: Error handling misfires: "
+                                + e.Message, e);
+                        }
+                        numFails++;
+                    }
+                    return RecoverMisfiredJobsResult.NO_OP;
+                }
+
+                public override void Run()
+                {
+                    while (!shutdown)
+                    {
+                        DateTime sTime = DateTime.Now;
+
+                        RecoverMisfiredJobsResult recoverMisfiredJobsResult = Manage();
+
+                        if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
+                        {
+                            jobStoreSupport.SignalSchedulingChange();
+                        }
+
+                        if (!shutdown)
+                        {
+                            long timeToSleep = 50L; // At least a short pause to help balance threads
+                            if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
+                            {
+                                timeToSleep = jobStoreSupport.MisfireThreshold -
+                                              (long)(DateTime.Now - sTime).TotalMilliseconds;
+                                if (timeToSleep <= 0)
+                                {
+                                    timeToSleep = 50L;
+                                }
+
+                                if (numFails > 0)
+                                {
+                                    timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
+                                }
+                            }
+
+                            try
+                            {
+                                Thread.Sleep((int)timeToSleep);
+                            }
+                            catch (ThreadInterruptedException)
+                            {
+                            }
+                        } //while !shutdown
+                    }
+                }
+                // EOF
             }
 
             /// <summary>
-            /// Gets a value indicating whether this instance has more misfired triggers.
+            /// Helper class for returning the composite result of trying
+            /// to recover misfired jobs.
             /// </summary>
-            /// <value>
-            /// 	<c>true</c> if this instance has more misfired triggers; otherwise, <c>false</c>.
-            /// </value>
-            public bool HasMoreMisfiredTriggers
+            public class RecoverMisfiredJobsResult
             {
-                get { return _hasMoreMisfiredTriggers; }
-            }
+                public static readonly RecoverMisfiredJobsResult NO_OP = new RecoverMisfiredJobsResult(false, 0);
 
-            /// <summary>
-            /// Gets the processed misfired trigger count.
-            /// </summary>
-            /// <value>The processed misfired trigger count.</value>
-            public int ProcessedMisfiredTriggerCount
-            {
-                get { return _processedMisfiredTriggerCount; }
+                private bool _hasMoreMisfiredTriggers;
+                private int _processedMisfiredTriggerCount;
+
+                /// <summary>
+                /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
+                /// </summary>
+                /// <param name="hasMoreMisfiredTriggers">if set to <c>true</c> [has more misfired triggers].</param>
+                /// <param name="processedMisfiredTriggerCount">The processed misfired trigger count.</param>
+                public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount)
+                {
+                    _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
+                    _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
+                }
+
+                /// <summary>
+                /// Gets a value indicating whether this instance has more misfired triggers.
+                /// </summary>
+                /// <value>
+                /// 	<c>true</c> if this instance has more misfired triggers; otherwise, <c>false</c>.
+                /// </value>
+                public bool HasMoreMisfiredTriggers
+                {
+                    get { return _hasMoreMisfiredTriggers; }
+                }
+
+                /// <summary>
+                /// Gets the processed misfired trigger count.
+                /// </summary>
+                /// <value>The processed misfired trigger count.</value>
+                public int ProcessedMisfiredTriggerCount
+                {
+                    get { return _processedMisfiredTriggerCount; }
+                }
             }
         }
     }
-}

@@ -20,20 +20,21 @@ using Quartz.Impl;
 
 namespace Quartz.Tests.Integration
 {
+    [Category("integration")]
     [TestFixture]
     public class IntegrationTest
     {
         protected IScheduler sched;
         
         [TestFixtureSetUp]
-        public void SetUp()
+        public virtual void SetUp()
         {
             ISchedulerFactory sf = new StdSchedulerFactory();
             sched = sf.GetScheduler();            
         }
         
         [TestFixtureTearDown]
-        public void TearDown()
+        public virtual void TearDown()
         {
             sched.Shutdown(true);
         }

@@ -95,6 +95,10 @@
     <Reference Include="System.XML">
       <Name>System.XML</Name>
     </Reference>
+    <ProjectReference Include="..\Quartz.Examples\Quartz.Examples.2005.csproj">
+      <Project>{70A37974-17DE-474C-8A1C-19637622E75F}</Project>
+      <Name>Quartz.Examples.2005</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Quartz\Quartz.2005.csproj">
       <Name>Quartz.2005</Name>
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
@@ -106,6 +110,7 @@
       <Link>AssemblyInfo.cs</Link>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Integration\Impl\AdoJobStore\AdoJobStoreSmokeTest.cs" />
     <Compile Include="Integration\Impl\Calendar\AnnualCalendarTest.cs" />
     <Compile Include="Integration\IntegrationTest.cs" />
     <Compile Include="Integration\TestJob.cs" />
