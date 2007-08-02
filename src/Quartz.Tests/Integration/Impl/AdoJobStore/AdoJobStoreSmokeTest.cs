@@ -9,11 +9,13 @@ using Quartz.Impl;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
+	[TestFixture]
     public class AdoJobStoreSmokeTest : IntegrationTest
     {
         private static readonly Hashtable dbConnectionStrings = new Hashtable();
         private bool clearJobs = true;
         private bool scheduleJobs = true;
+		private bool clustered = true;
 
         static AdoJobStoreSmokeTest()
         {
@@ -23,9 +25,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Protocol=3;SSL=false; Pooling=true;MinPoolSize=1;MaxPoolSize=20;Encoding=UTF8;Timeout=15;SslMode=Disable;";
             dbConnectionStrings[""] = "";
             dbConnectionStrings[""] = "";
-            dbConnectionStrings[""] = "";
-            dbConnectionStrings[""] = "";
-            dbConnectionStrings[""] = "";
         }
 
         [Test]
@@ -33,70 +32,70 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
-            RunAdoJobStoreTest("Npgsql-10", "PostgreSQL", false, properties);
+            RunAdoJobStoreTest("Npgsql-10", "PostgreSQL",  properties);
         }
 
         [Test]
         public void TestSqlServer11()
         {
-            RunAdoJobStoreTest("SqlServer-11", "SQLServer", false);
+            RunAdoJobStoreTest("SqlServer-11", "SQLServer");
         }
 
         [Test]
         public void TestSqlServer20()
         {
-            RunAdoJobStoreTest("SqlServer-20", "SQLServer", false);
+            RunAdoJobStoreTest("SqlServer-20", "SQLServer");
         }
 
         [Test]
         public void TestOracleClient20()
         {
-            RunAdoJobStoreTest("OracleClient-20", "Oracle", false);
+            RunAdoJobStoreTest("OracleClient-20", "Oracle");
         }
 
         [Test]
         public void TestOracleODP20()
         {
-            RunAdoJobStoreTest("OracleODP-20", "Oracle", false);
+            RunAdoJobStoreTest("OracleODP-20", "Oracle");
         }
 
         [Test]
         public void TestMySql50()
         {
-            RunAdoJobStoreTest("MySql-50", "MySQL", false);
+            RunAdoJobStoreTest("MySql-50", "MySQL");
         }
 
         [Test]
         public void TestMySql51()
         {
-            RunAdoJobStoreTest("MySql-51", "MySQL", false);
+            RunAdoJobStoreTest("MySql-51", "MySQL");
         }
 
         [Test]
         public void TestMySql10()
         {
-            RunAdoJobStoreTest("MySql-10", "MySQL", false);
+            RunAdoJobStoreTest("MySql-10", "MySQL");
         }
 
         [Test]
         public void TestMySql109()
         {
-            RunAdoJobStoreTest("MySql-109", "MySQL", false);
+            RunAdoJobStoreTest("MySql-109", "MySQL");
         }
 
-        private void RunAdoJobStoreTest(string dbProvider, string connectionStringId, bool clustered)
+        private void RunAdoJobStoreTest(string dbProvider, string connectionStringId)
         {
-            RunAdoJobStoreTest(dbProvider, connectionStringId, clustered, null);
+            RunAdoJobStoreTest(dbProvider, connectionStringId, null);
         }
 
-        private void RunAdoJobStoreTest(string dbProvider, string connectionStringId, bool clustered, NameValueCollection extraProperties)
+        private void RunAdoJobStoreTest(string dbProvider, string connectionStringId, NameValueCollection extraProperties)
         {
             NameValueCollection properties = new NameValueCollection();
 
             properties["quartz.scheduler.instanceName"] = "TestScheduler";
             properties["quartz.scheduler.instanceId"] = "instance_one";
             properties["quartz.threadPool.class"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "5";
+            properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.threadPool.threadPriority"] = "Normal";
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.class"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
@@ -125,7 +124,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            sched = sf.GetScheduler();
+            IScheduler sched = sf.GetScheduler();
 
             if (clearJobs)
             {
@@ -207,9 +206,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 sched.ScheduleJob(job, nt);
             }
 
-            sched.Start();
-            Thread.Sleep(TimeSpan.FromSeconds(30));
-            sched.Shutdown();
+			try
+			{
+	            sched.Start();
+	            Thread.Sleep(TimeSpan.FromSeconds(30));
+			}
+			finally
+			{
+				sched.Shutdown();
+			}
         }
 
         private static void CleanUp(IScheduler inScheduler)

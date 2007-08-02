@@ -76,6 +76,9 @@
       <resources dynamicprefix="false" prefix="Quartz">
         <include name="src/Quartz/quartz.properties" />
       </resources>
+      <resources dynamicprefix="false" prefix="Quartz.Impl.AdoJobStore.Common">
+		<include name="src/Quartz/Impl/AdoJobStore/Common/dbproviders.properties" />
+      </resources>
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
@@ -142,7 +145,6 @@
       </nowarn>
       <sources>
         <include name="src/Quartz.Tests/**/*.cs" />
-        <exclude name="**/AdoJobStore/**" />
       </sources>
       <references>
         <include name="System.dll" />
@@ -177,7 +179,7 @@
   <target name="nunit">
     <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests\Quartz.Tests.dll" />
     <echo message="Testing dll: ${test.dll}"  />
-    <nunit2 verbose="true" >
+    <nunit2 verbose="true" failonerror="false">
       <formatter type="Plain" />
       <test assemblyname="${test.dll}" />
     </nunit2>
