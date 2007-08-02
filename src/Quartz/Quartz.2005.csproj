@@ -391,12 +391,27 @@
     <Compile Include="TriggerState.cs" />
     <Compile Include="Util\LogicalThreadContext.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
+    <Compile Include="Xml\CalendarBundle.cs" />
+    <Compile Include="Xml\JobSchedulingBundle.cs" />
+    <Compile Include="Xml\JobSchedulingDataProcessor.cs" />
+    <Compile Include="Xml\job_scheduling_data.cs">
+      <DependentUpon>job_scheduling_data.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="Xml\ValidationException.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="quartz.properties" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.properties" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Xml\job_scheduling_data.xsd">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <None Include="Xml\job_scheduling_data.xsx">
+      <DependentUpon>job_scheduling_data.xsd</DependentUpon>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

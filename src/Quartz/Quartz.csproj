@@ -756,17 +756,17 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Xml\job_scheduling_data_1_5.cs"
+                    RelPath = "Xml\job_scheduling_data.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Xml\job_scheduling_data_1_5.xsd"
+                    RelPath = "Xml\job_scheduling_data.xsd"
                     BuildAction = "Content"
                 />
                 <File
-                    RelPath = "Xml\job_scheduling_data_1_5.xsx"
-                    DependentUpon = "job_scheduling_data_1_5.xsd"
+                    RelPath = "Xml\job_scheduling_data.xsx"
+                    DependentUpon = "job_scheduling_data.xsd"
                     BuildAction = "None"
                 />
                 <File

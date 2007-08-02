@@ -18,23 +18,23 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
+
 using System;
 using System.Collections;
 using System.IO;
-using System.Net;
-using System.Reflection;
-using System.Threading;
 using System.Xml;
 
 using Common.Logging;
 
+using Quartz;
 using Quartz.Util;
 
 namespace Quartz.Xml
 {
 	/// <summary> 
 	/// Parses an XML file that declares Jobs and their schedules (Triggers).
-	/// 
+	/// </summary>
+	/// <remarks>
 	/// <p>
 	/// The xml document must conform to the format defined in
 	/// "job_scheduling_data_1_5.xsd"
@@ -42,30 +42,30 @@ namespace Quartz.Xml
 	/// 
 	/// <p>
 	/// After creating an instance of this class, you should call one of the <see cref="ProcessFile()" />
-	/// functions, after which you may call the <see cref="getScheduledJobs()" />
+	/// functions, after which you may call the <see cref="ScheduledJobs()" />
 	/// function to get a handle to the defined Jobs and Triggers, which can then be
 	/// scheduled with the <see cref="IScheduler" />. Alternatively, you could call
-	/// the <see cref="ProcessFileAndScheduleJobs()" /> function to do all of this
+	/// the <see cref="ProcessFileAndScheduleJobs(IScheduler,bool)" /> function to do all of this
 	/// in one step.
 	/// </p>
 	/// 
 	/// <p>
 	/// The same instance can be used again and again, with the list of defined Jobs
-	/// being cleared each time you call a <see cref="ProcessFile" /> method,
+	/// being cleared each time you call a <see cref="ProcessFile()" /> method,
 	/// however a single instance is not thread-safe.
 	/// </p>
-	/// </summary>
+    /// </remarks>
 	/// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public class JobSchedulingDataProcessor
 	{
-		private static readonly ILog Log = LogManager.GetLogger(typeof(JobSchedulingDataProcessor));
+		private ILog log;
 
 		public const string QUARTZ_SYSTEM_ID_DIR_PROP = "quartz.system.id.dir";
 		public const string QUARTZ_XML_FILE_NAME = "quartz_jobs.xml";
 		public const string QUARTZ_SCHEMA = "http://www.opensymphony.com/quartz/xml/job_scheduling_data_1_5.xsd";
-		public const string QUARTZ_XSD = "/org/quartz/xml/job_scheduling_data_1_5.xsd";
+		public const string QUARTZ_XSD = "Quartz.Quartz.Xml.job_scheduling_data.xsd";
 		
 		protected const string THREAD_LOCAL_KEY_SCHEDULDER = "quartz_scheduler";
 
@@ -73,7 +73,7 @@ namespace Quartz.Xml
 		protected const string TAG_OVERWRITE_EXISTING_JOBS = "overwrite-existing-jobs";
 		protected const string TAG_JOB_LISTENER = "job-listener";
 		protected const string TAG_CALENDAR = "calendar";
-		protected const string TAG_CLASS_NAME = "class-name";
+		protected const string TAG_CLASS_NAME = "type-name";
 		protected const string TAG_DESCRIPTION = "description";
 		protected const string TAG_BASE_CALENDAR = "base-calendar";
 		protected const string TAG_MISFIRE_INSTRUCTION = "misfire-instruction";
@@ -82,7 +82,7 @@ namespace Quartz.Xml
 		protected const string TAG_JOB_DETAIL = "job-detail";
 		protected const string TAG_NAME = "name";
 		protected const string TAG_GROUP = "group";
-		protected const string TAG_JOB_CLASS = "job-class";
+		protected const string TAG_JOB_CLASS = "job-type";
 		protected const string TAG_JOB_LISTENER_REF = "job-listener-ref";
 		protected const string TAG_VOLATILITY = "volatility";
 		protected const string TAG_DURABILITY = "durability";
@@ -131,14 +131,24 @@ namespace Quartz.Xml
 			set { overWriteExistingJobs = value; }
 		}
 
-		/// <summary> 
-		/// Returns a <see cref="Map" /> of scheduled jobs.
+
+        /// <summary>
+        /// Gets the log.
+        /// </summary>
+        /// <value>The log.</value>
+	    protected internal ILog Log
+	    {
+	        get { return log; }
+	    }
+
+	    /// <summary> 
+        /// Returns a <see cref="IDictionary" /> of scheduled jobs.
 		/// <p>
 		/// The key is the job name and the value is a <see cref="JobSchedulingBundle" />
 		/// containing the <see cref="JobDetail" /> and <see cref="Trigger" />.
 		/// </p>
 		/// </summary>
-		/// <returns> a <see cref="Map" /> of scheduled jobs.
+        /// <returns> a <see cref="IDictionary" /> of scheduled jobs.
 		/// </returns>
 		public virtual IDictionary ScheduledJobs
 		{
@@ -163,6 +173,7 @@ namespace Quartz.Xml
 		/// <param name="validatingSchema">whether or not to validate XML schema.</param>
 		public JobSchedulingDataProcessor(bool validating, bool validatingSchema)
 		{
+		    log = LogManager.GetLogger(GetType());
 		}
 
 
@@ -202,7 +213,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Process the xml file named <see cref="fileName" />.
+		/// Process the xml file named <see param="fileName" />.
 		/// </summary>
 		/// <param name="fileName">meta data file name.</param>
 		public virtual void ProcessFile(string fileName)
@@ -211,7 +222,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Process the xmlfile named <see cref="fileName" /> with the given system
+		/// Process the xmlfile named <see param="fileName" /> with the given system
 		/// ID.
 		/// </summary>
 		/// <param name="fileName">Name of the file.</param>
@@ -233,7 +244,7 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Process the xmlfile named <see cref="fileName" /> with the given system
+		/// Process the xmlfile named <see param="fileName" /> with the given system
 		/// ID.
 		/// </summary>
 		/// <param name="stream">The stream.</param>
@@ -338,11 +349,11 @@ namespace Quartz.Xml
 		}
 
 		/// <summary>
-		/// Returns an <see cref="InputStream" /> from the fileName as a resource.
+        /// Returns an <see cref="Stream" /> from the fileName as a resource.
 		/// </summary>
 		/// <param name="fileName">Name of the file.</param>
 		/// <returns>
-		/// an <see cref="InputStream" /> from the fileName as a resource.
+        /// an <see cref="Stream" /> from the fileName as a resource.
 		/// </returns>
 		protected virtual Stream GetInputStream(string fileName)
 		{
