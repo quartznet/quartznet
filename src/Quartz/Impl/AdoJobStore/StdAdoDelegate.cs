@@ -758,8 +758,8 @@ namespace Quartz.Impl.AdoJobStore
                         job.Group = GetString(rs[COL_JOB_GROUP]);
                         job.Description = GetString(rs[COL_DESCRIPTION]);
                         job.JobType = loadHelper.LoadType(GetString(rs[COL_JOB_CLASS]));
-                        job.Durability = GetBoolean(rs[COL_IS_DURABLE]);
-                        job.Volatility = GetBoolean(rs[COL_IS_VOLATILE]);
+                        job.Durable = GetBoolean(rs[COL_IS_DURABLE]);
+                        job.Volatile = GetBoolean(rs[COL_IS_VOLATILE]);
                         job.RequestsRecovery = GetBoolean(rs[COL_REQUESTS_RECOVERY]);
 
                         IDictionary map;
@@ -1608,7 +1608,7 @@ namespace Quartz.Impl.AdoJobStore
                         JobDetail job = new JobDetail();
                         job.Name = GetString(rs[0]);
                         job.Group = GetString(rs[1]);
-                        job.Durability = GetBoolean(rs[2]);
+                        job.Durable = GetBoolean(rs[2]);
                         job.JobType = loadHelper.LoadType(GetString(rs[3]));
                         job.RequestsRecovery = GetBoolean(rs[4]);
 

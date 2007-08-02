@@ -196,31 +196,6 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set whether or not the <see cref="IJob" /> should be persisted in the
-        /// <see cref="IJobStore" /> for re-use after program
-        /// restarts.
-        /// <p>
-        /// If not explicitly set, the default value is <see langword="false" />.
-        /// </p>
-        /// </summary>
-        public bool Volatility
-        {
-            set { volatility = value; }
-        }
-
-        /// <summary>
-        /// Set whether or not the <see cref="IJob" /> should remain stored after it
-        /// is orphaned (no <see cref="Trigger" />s point to it).
-        /// <p>
-        /// If not explicitly set, the default value is <see langword="false" />.
-        /// </p>
-        /// </summary>
-        public bool Durability
-        {
-            set { durability = value; }
-        }
-
-        /// <summary>
         /// Set whether or not the the <see cref="IScheduler" /> should re-Execute
         /// the <see cref="IJob" /> if a 'recovery' or 'fail-over' situation is
         /// encountered.
@@ -249,6 +224,7 @@ namespace Quartz
         public virtual bool Volatile
         {
             get { return volatility; }
+            set { volatility = value;  }
         }
 
         /// <summary>
@@ -265,6 +241,7 @@ namespace Quartz
         public virtual bool Durable
         {
             get { return durability; }
+            set { durability = value; }
         }
 
         /// <summary>
@@ -341,8 +318,8 @@ namespace Quartz
             Name = name;
             Group = group;
             JobType = jobType;
-            Volatility = volatility;
-            Durability = durability;
+            Volatile = volatility;
+            Durable = durability;
             RequestsRecovery = recover;
         }
 
@@ -473,6 +450,11 @@ namespace Quartz
             return IsEqual((JobDetail)obj);
         }
 
+        /// <summary>
+        /// Checks equality between given job detail and this instance.
+        /// </summary>
+        /// <param name="detail">The detail to compare this instance with.</param>
+        /// <returns></returns>
         public bool Equals(JobDetail detail)
         {
             return IsEqual(detail);

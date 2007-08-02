@@ -127,7 +127,7 @@ namespace Quartz.Examples.Example2
 
 			// jobs can be fired directly... (rather than waiting for a trigger)
 			job = new JobDetail("job8", "group1", typeof (SimpleJob));
-			job.Durability = (true);
+			job.Durable = (true);
 			sched.AddJob(job, true);
 			log.Info("'Manually' triggering job8...");
 			sched.TriggerJob("job8", "group1");

@@ -571,14 +571,40 @@ namespace Quartz
         /// <see cref="IJob" />, if any (may be null).
         /// </param>
         /// <returns>
-        /// One of the <see cref="SchedulerInstruction"/> constants.
+        /// One of the <see cref="SchedulerInstruction"/> members.
         /// </returns>
         /// <seealso cref="SchedulerInstruction.NoInstruction" />
         /// <seealso cref="SchedulerInstruction.ReExecuteJob" />
         /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
         /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
         /// <seealso cref="Triggered" />
-        public abstract SchedulerInstruction ExecutionComplete(JobExecutionContext context, JobExecutionException result);
+        public virtual SchedulerInstruction ExecutionComplete(JobExecutionContext context, JobExecutionException result)
+        {
+            if (result != null && result.RefireImmediately)
+            {
+                return SchedulerInstruction.ReExecuteJob;
+            }
+
+            if (result != null && result.UnscheduleFiringTrigger)
+            {
+                return SchedulerInstruction.SetTriggerComplete;
+            }
+
+            if (result != null && result.UnscheduleAllTriggers)
+            {
+                return SchedulerInstruction.SetAllJobTriggersComplete;
+            }
+
+            if (result != null && !result.RefireImmediately)
+                return SchedulerInstruction.NoInstruction;
+
+            if (!GetMayFireAgain())
+            {
+                return SchedulerInstruction.DeleteTrigger;
+            }
+
+            return SchedulerInstruction.NoInstruction;
+        }
 
 		/// <summary> 
 		/// Used by the <see cref="IScheduler" /> to determine whether or not

@@ -175,8 +175,11 @@ namespace Quartz.Core
 				// Execute the job
 				try
 				{
-					log.Debug("Calling Execute on job " + jobDetail.FullName);
-					job.Execute(jec);
+                    if (log.IsDebugEnabled)
+                    {
+                        log.Debug("Calling Execute on job " + jobDetail.FullName);
+                    }
+				    job.Execute(jec);
 					endTime = DateTime.Now;
 				}
 				catch (JobExecutionException jee)
@@ -210,6 +213,10 @@ namespace Quartz.Core
 				try
 				{
 					instCode = trigger.ExecutionComplete(jec, jobExEx);
+                    if (log.IsDebugEnabled)
+                    {
+                        log.Debug(string.Format("Trigger instruction : {0}", instCode.ToString()));
+                    }
 				}
 				catch (Exception e)
 				{
@@ -224,10 +231,13 @@ namespace Quartz.Core
 				{
 					break;
 				}
-
 				// update job/trigger or re-Execute job
                 if (instCode == SchedulerInstruction.ReExecuteJob)
 				{
+				    if (log.IsDebugEnabled)
+				    {
+				        log.Debug("Rescheduling trigger to reexecute");
+				    }
 					jec.IncrementRefireCount();
 					try
 					{

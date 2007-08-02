@@ -21,7 +21,7 @@
 using System;
 using System.Collections;
 using System.Text;
-
+using System.Threading;
 using Common.Logging;
 
 using Nullables;
@@ -322,15 +322,15 @@ namespace Quartz.Simpl
 				{
 					if (pausedTriggerGroups.Contains(newTrigger.Group))
 					{
-						tw.state = TriggerWrapper.STATE_PAUSED;
+                        tw.state = InternalTriggerState.Paused;;
 						if (blockedJobs.Contains(tw.jobKey))
 						{
-							tw.state = TriggerWrapper.STATE_PAUSED_BLOCKED;
+                            tw.state = InternalTriggerState.PausedAndBlocked;
 						}
 					}
 					else if (blockedJobs.Contains(tw.jobKey))
 					{
-						tw.state = TriggerWrapper.STATE_BLOCKED;
+                        tw.state = InternalTriggerState.Blocked;
 					}
 					else
 					{
@@ -355,48 +355,69 @@ namespace Quartz.Simpl
 		public virtual bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName, bool deleteOrphanedJob)
 		{
 			string key = TriggerWrapper.GetTriggerNameKey(triggerName, groupName);
-
-			bool found;
-
+            log.Debug(string.Format("RemoveTrigger {0},{1}",triggerName,groupName));
+/*
+            //trying to find out if any concurrent thread
+		    //may want to modify (maybe remove) this trigger
+		    //if so, we shouldn't throw an exception when
+		    //trigger is not found
+		    //( the concurrent thread may want to acquire lock
+            //  between Monitor.TryEnter and lock, but let's hope
+            //  this is unlikely)
+		    //Unfortunately, this can lead to not-throwing exceptions
+		    //when there is no trigger to remove but 
+		    //a different trigger is being deleted at the same time
+		    bool locked = !Monitor.TryEnter(triggerLock);
+		    if (!locked)
+                Monitor.Exit(triggerLock);
+*/          
+		    bool found;
 			lock (triggerLock)
 			{
 				// remove from triggers by FQN map
 				object tempObject;
 				tempObject = triggersByFQN[key];
 				triggersByFQN.Remove(key);
-				found = (tempObject == null) ? false : true;
-				if (found)
-				{
-					TriggerWrapper tw = null;
-					// remove from triggers by group
-					IDictionary grpMap = (Hashtable) triggersByGroup[groupName];
-					if (grpMap != null)
-					{
-						grpMap.Remove(triggerName);
-						if (grpMap.Count == 0)
-						{
-							triggersByGroup.Remove(groupName);
-						}
-					}
-					// remove from triggers array
-					for (int i = 0;i < triggers.Count; ++i)
-					{
-						tw = (TriggerWrapper) triggers[i];
-						if (key.Equals(tw.key))
-						{
-							triggers.RemoveAt(i);
-							break;
-						}
-					}
-					timeTriggers.Remove(tw);
+                found = (tempObject == null) ? false : true;
+                if (found)
+                {
+                    TriggerWrapper tw = null;
+                    // remove from triggers by group
+                    IDictionary grpMap = (Hashtable)triggersByGroup[groupName];
+                    if (grpMap != null)
+                    {
+                        grpMap.Remove(triggerName);
+                        if (grpMap.Count == 0)
+                        {
+                            triggersByGroup.Remove(groupName);
+                        }
+                    }
+                    // remove from triggers array
+                    for (int i = 0; i < triggers.Count; ++i)
+                    {
+                        tw = (TriggerWrapper)triggers[i];
+                        if (key.Equals(tw.key))
+                        {
+                            triggers.RemoveAt(i);
+                            break;
+                        }
+                    }
+                    timeTriggers.Remove(tw);
 
-					JobWrapper jw = (JobWrapper) jobsByFQN[JobWrapper.GetJobNameKey(tw.trigger.JobName, tw.trigger.JobGroup)];
-					Trigger[] trigs = GetTriggersForJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
-					if ((trigs == null || trigs.Length == 0) && !jw.jobDetail.Durable && deleteOrphanedJob)
-					{
-						RemoveJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
-					}
-				}
+                    JobWrapper jw = (JobWrapper)jobsByFQN[JobWrapper.GetJobNameKey(tw.trigger.JobName, tw.trigger.JobGroup)];
+                    Trigger[] trigs = GetTriggersForJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
+                    if ((trigs == null || trigs.Length == 0) && !jw.jobDetail.Durable && deleteOrphanedJob)
+                    {
+                        RemoveJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
+                    }
+                }
+/*                else
+                {
+                    if (!locked)
+                            throw new Quartz.SchedulerException("trigger to delete not found");
+                }
+ */
+ 
 			}
 
 			return found;
@@ -518,23 +539,23 @@ namespace Quartz.Simpl
 			{
                 return TriggerState.None;
 			}
-			if (tw.state == TriggerWrapper.STATE_COMPLETE)
+            if (tw.state == InternalTriggerState.Complete)
 			{
 				return TriggerState.Complete;
 			}
-			if (tw.state == TriggerWrapper.STATE_PAUSED)
+            if (tw.state == InternalTriggerState.Paused)
 			{
 				return TriggerState.Paused;
 			}
-			if (tw.state == TriggerWrapper.STATE_PAUSED_BLOCKED)
+            if (tw.state == InternalTriggerState.PausedAndBlocked)
 			{
 				return TriggerState.Paused;
 			}
-			if (tw.state == TriggerWrapper.STATE_BLOCKED)
+			if (tw.state == InternalTriggerState.Blocked)
 			{
 				return TriggerState.Blocked;
 			}
-			if (tw.state == TriggerWrapper.STATE_ERROR)
+			if (tw.state == InternalTriggerState.Error)
 			{
 				return TriggerState.Error;
 			}
@@ -891,20 +912,20 @@ namespace Quartz.Simpl
 				return;
 			}
 			// if the trigger is "complete" pausing it does not make sense...
-			if (tw.state == TriggerWrapper.STATE_COMPLETE)
+            if (tw.state == InternalTriggerState.Complete)
 			{
 				return;
 			}
 
 			lock (triggerLock)
 			{
-				if (tw.state == TriggerWrapper.STATE_BLOCKED)
+                if (tw.state == InternalTriggerState.Blocked)
 				{
-					tw.state = TriggerWrapper.STATE_PAUSED_BLOCKED;
+                    tw.state = InternalTriggerState.PausedAndBlocked;
 				}
 				else
 				{
-					tw.state = TriggerWrapper.STATE_PAUSED;
+                    tw.state = InternalTriggerState.Paused;
 				}
 				timeTriggers.Remove(tw);
 			}
@@ -999,7 +1020,8 @@ namespace Quartz.Simpl
 
 
 			// if the trigger is not paused resuming it does not make sense...
-			if (tw.state != TriggerWrapper.STATE_PAUSED && tw.state != TriggerWrapper.STATE_PAUSED_BLOCKED)
+            if (tw.state != InternalTriggerState.Paused && 
+                tw.state != InternalTriggerState.PausedAndBlocked)
 			{
 				return;
 			}
@@ -1008,16 +1030,16 @@ namespace Quartz.Simpl
 			{
 				if (blockedJobs.Contains(JobWrapper.GetJobNameKey(trig.JobName, trig.JobGroup)))
 				{
-					tw.state = TriggerWrapper.STATE_BLOCKED;
+					tw.state = InternalTriggerState.Blocked;
 				}
 				else
 				{
-					tw.state = TriggerWrapper.STATE_WAITING;
+                    tw.state = InternalTriggerState.Waiting;
 				}
 
 				ApplyMisfire(tw);
 
-				if (tw.state == TriggerWrapper.STATE_WAITING)
+                if (tw.state == InternalTriggerState.Waiting)
 				{
 					timeTriggers.Add(tw);
 				}
@@ -1168,7 +1190,7 @@ namespace Quartz.Simpl
 
 			if (!tw.trigger.GetNextFireTime().HasValue)
 			{
-				tw.state = TriggerWrapper.STATE_COMPLETE;
+                tw.state = InternalTriggerState.Complete;
 				lock (triggerLock)
 				{
 					timeTriggers.Remove(tw);
@@ -1232,7 +1254,7 @@ namespace Quartz.Simpl
 						return null;
 					}
 
-					tw.state = TriggerWrapper.STATE_ACQUIRED;
+                    tw.state = InternalTriggerState.Acquired;
 
 					tw.trigger.FireInstanceId = FiredTriggerRecordId;
 					Trigger trig = (Trigger) tw.trigger.Clone();
@@ -1253,9 +1275,9 @@ namespace Quartz.Simpl
 			lock (triggerLock)
 			{
 				TriggerWrapper tw = (TriggerWrapper) triggersByFQN[TriggerWrapper.GetTriggerNameKey(trigger)];
-				if (tw != null && tw.state == TriggerWrapper.STATE_ACQUIRED)
+                if (tw != null && tw.state == InternalTriggerState.Acquired)
 				{
-					tw.state = TriggerWrapper.STATE_WAITING;
+                    tw.state = InternalTriggerState.Waiting;
 					timeTriggers.Add(tw);
 				}
 			}
@@ -1277,22 +1299,22 @@ namespace Quartz.Simpl
 					return null;
 				}
 				// was the trigger completed since being acquired?
-				if (tw.state == TriggerWrapper.STATE_COMPLETE)
+                if (tw.state == InternalTriggerState.Complete)
 				{
 					return null;
 				}
 				// was the trigger paused since being acquired?
-				if (tw.state == TriggerWrapper.STATE_PAUSED)
+                if (tw.state == InternalTriggerState.Paused)
 				{
 					return null;
 				}
 				// was the trigger blocked since being acquired?
-				if (tw.state == TriggerWrapper.STATE_BLOCKED)
+                if (tw.state == InternalTriggerState.Blocked)
 				{
 					return null;
 				}
 				// was the trigger paused and blocked since being acquired?
-				if (tw.state == TriggerWrapper.STATE_PAUSED_BLOCKED)
+                if (tw.state == InternalTriggerState.PausedAndBlocked)
 				{
 					return null;
 				}
@@ -1307,7 +1329,7 @@ namespace Quartz.Simpl
 				tw.trigger.Triggered(cal);
 				trigger.Triggered(cal);
 				//tw.state = TriggerWrapper.STATE_EXECUTING;
-				tw.state = TriggerWrapper.STATE_WAITING;
+                tw.state = InternalTriggerState.Waiting;
 
 				TriggerFiredBundle bndle =
 					new TriggerFiredBundle(RetrieveJob(ctxt, trigger.JobName, trigger.JobGroup), trigger, cal, false, DateTime.Now,
@@ -1322,13 +1344,13 @@ namespace Quartz.Simpl
 					while (itr.MoveNext())
 					{
 						TriggerWrapper ttw = (TriggerWrapper) itr.Current;
-						if (ttw.state == TriggerWrapper.STATE_WAITING)
+                        if (ttw.state == InternalTriggerState.Waiting)
 						{
-							ttw.state = TriggerWrapper.STATE_BLOCKED;
+                            ttw.state = InternalTriggerState.Blocked;
 						}
-						if (ttw.state == TriggerWrapper.STATE_PAUSED)
+                        if (ttw.state == InternalTriggerState.Paused)
 						{
-							ttw.state = TriggerWrapper.STATE_PAUSED_BLOCKED;
+                            ttw.state = InternalTriggerState.PausedAndBlocked;
 						}
 						timeTriggers.Remove(ttw);
 					}
@@ -1387,14 +1409,14 @@ namespace Quartz.Simpl
 						ArrayList trigs = GetTriggerWrappersForJob(jd.Name, jd.Group);
 						foreach (TriggerWrapper ttw in trigs)
 						{
-							if (ttw.state == TriggerWrapper.STATE_BLOCKED)
+                            if (ttw.state == InternalTriggerState.Blocked)
 							{
-								ttw.state = TriggerWrapper.STATE_WAITING;
+                                ttw.state = InternalTriggerState.Waiting;
 								timeTriggers.Add(ttw);
 							}
-							if (ttw.state == TriggerWrapper.STATE_PAUSED_BLOCKED)
+                            if (ttw.state == InternalTriggerState.PausedAndBlocked)
 							{
-								ttw.state = TriggerWrapper.STATE_PAUSED;
+                                ttw.state = InternalTriggerState.Paused;
 							}
 						}
 					}
@@ -1410,6 +1432,7 @@ namespace Quartz.Simpl
 				{
 					if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
 					{
+					    log.Debug("Deleting trigger");
 						NullableDateTime d = trigger.GetNextFireTime();
 						if (!d.HasValue)
 						{
@@ -1420,30 +1443,34 @@ namespace Quartz.Simpl
 							{
 								RemoveTrigger(ctxt, trigger.Name, trigger.Group);
 							}
+						    else
+							{
+							    log.Debug("Deleting cancelled - trigger still active");
+							}
 						}
 						else
 						{
 							RemoveTrigger(ctxt, trigger.Name, trigger.Group);
 						}
 					}
-					else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
+					else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
 					{
-						tw.state = TriggerWrapper.STATE_COMPLETE;
+                        tw.state = InternalTriggerState.Complete;
 						timeTriggers.Remove(tw);
 					}
                     else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
 					{
 						Log.Info(string.Format("Trigger {0} set to ERROR state.", trigger.FullName));
-						tw.state = TriggerWrapper.STATE_ERROR;
+                        tw.state = InternalTriggerState.Error;
 					}
                     else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
 					{
 						Log.Info(string.Format("All triggers of Job {0} set to ERROR state.", trigger.FullJobName));
-						SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, TriggerWrapper.STATE_ERROR);
+                        SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, InternalTriggerState.Error);
 					}
 					else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
 					{
-						SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, TriggerWrapper.STATE_COMPLETE);
+						SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, InternalTriggerState.Complete);
 					}
 				}
 			}
@@ -1454,14 +1481,14 @@ namespace Quartz.Simpl
 		/// </summary>
 		/// <param name="jobName">Name of the job.</param>
 		/// <param name="jobGroup">The job group.</param>
-		/// <param name="state">The state to set.</param>
-		protected internal virtual void SetAllTriggersOfJobToState(string jobName, string jobGroup, int state)
+		/// <param name="state">The internal state to set.</param>
+		protected internal virtual void SetAllTriggersOfJobToState(string jobName, string jobGroup, InternalTriggerState state)
 		{
 			ArrayList tws = GetTriggerWrappersForJob(jobName, jobGroup);
 			foreach (TriggerWrapper tw in tws)
 			{
 				tw.state = state;
-				if (state != TriggerWrapper.STATE_WAITING)
+                if (state != InternalTriggerState.Waiting)
 				{
 					timeTriggers.Remove(tw);
 				}
@@ -1598,80 +1625,82 @@ namespace Quartz.Simpl
 		}
 	}
 
+  /// <summary>
+  /// Possible internal trigger states 
+  /// in RAMJobStore
+  /// </summary>
+  public enum InternalTriggerState
+  {
+      /// <summary>
+      /// Waiting 
+      /// </summary>
+      Waiting,
+      /// <summary>
+      /// Acquired
+      /// </summary>
+      Acquired,
+      /// <summary>
+      /// Executing
+      /// </summary>
+      Executing,
+      /// <summary>
+      /// Complete
+      /// </summary>
+      Complete,
+      /// <summary>
+      /// Paused
+      /// </summary>
+      Paused,
+      /// <summary>
+      /// Blocked
+      /// </summary>
+      Blocked,
+      /// <summary>
+      /// Paused and Blocked
+      /// </summary>
+      PausedAndBlocked,
+      /// <summary>
+      /// Error
+      /// </summary>
+      Error
+  }
     /// <summary>
-    /// Helper wrapper class.
+    /// Helper wrapper class
     /// </summary>
 	public class TriggerWrapper
 	{
         /// <summary>
-        /// Gets the trigger.
+        /// Gets the trigger
         /// </summary>
-        /// <value>The trigger.</value>
+        /// <value>The trigger</value>
 		public virtual Trigger Trigger
 		{
 			get { return trigger; }
 		}
 
 		/// <summary>
-		/// The key used.
+		/// The key used
 		/// </summary>
 		public string key;
 
 		/// <summary>
-		/// Job's key.
+		/// Job's key
 		/// </summary>
 		public string jobKey;
 
 		/// <summary>
-		/// The trigger.
+		/// The trigger
 		/// </summary>
 		public Trigger trigger;
 
 		/// <summary>
-		/// Current state.
+		/// Current state
 		/// </summary>
-		public int state = STATE_WAITING;
+        public InternalTriggerState state = InternalTriggerState.Waiting;
 
-		/// <summary>
-		/// Waiting.
-		/// </summary>
-		public const int STATE_WAITING = 0;
-
-		/// <summary>
-		/// Acquired.
-		/// </summary>
-		public const int STATE_ACQUIRED = 1;
-
-		/// <summary>
-		/// Executing.
-		/// </summary>
-		public const int STATE_EXECUTING = 2;
-
-		/// <summary>
-		/// Complete.
-		/// </summary>
-		public const int STATE_COMPLETE = 3;
-
-		/// <summary>
-		/// Paused-
-		/// </summary>
-		public const int STATE_PAUSED = 4;
-
-		/// <summary>
-		/// Blocked.
-		/// </summary>
-		public const int STATE_BLOCKED = 5;
-
-		/// <summary>
-		/// Paused-blocked.
-		/// </summary>
-		public const int STATE_PAUSED_BLOCKED = 6;
-
-		/// <summary>
-		/// Error.
-		/// </summary>
-		public const int STATE_ERROR = 7;
-
+		
+		
+		
 		internal TriggerWrapper(Trigger trigger)
 		{
 			this.trigger = trigger;

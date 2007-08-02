@@ -137,5 +137,13 @@ namespace Quartz
 			get { return refire; }
             set { refire = value; }
 		}
+	    
+	    public override string ToString()
+	    {
+            return
+                string.Format(
+                    "Parameters: refire = {0}, unscheduleFiringTrigger = {1}, unscheduleAllTriggers = {2} \n {3}",
+                    RefireImmediately, UnscheduleFiringTrigger, UnscheduleAllTriggers, base.ToString());
+	    }
 	}
 }

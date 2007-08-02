@@ -14,21 +14,37 @@
  * under the License.
  */
 
+using Common.Logging;
 using NUnit.Framework;
 
 using Quartz.Impl;
 
 namespace Quartz.Tests.Integration
 {
-    [Category("integration")]
-    [TestFixture]
+    [Category("integration")]    
     public class IntegrationTest
     {
         protected IScheduler sched;
+        protected ILog log = null;
+
+
+        public IntegrationTest()
+        {
+            log = LogManager.GetLogger(GetType());
+        }
+
+        protected ILog Log
+        {
+            get
+            {
+                return log;
+            }
+        }
         
         [TestFixtureSetUp]
         public virtual void SetUp()
         {
+            log.Debug("integration test started");
             ISchedulerFactory sf = new StdSchedulerFactory();
             sched = sf.GetScheduler();            
         }
@@ -36,6 +52,7 @@ namespace Quartz.Tests.Integration
         [TestFixtureTearDown]
         public virtual void TearDown()
         {
+            log.Debug("shutting down scheduler");
             sched.Shutdown(true);
         }
     }

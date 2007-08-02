@@ -755,51 +755,6 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// <p>
-		/// Called after the <see cref="IScheduler" /> has executed the
-		/// <see cref="JobDetail" /> associated with the <see cref="Trigger" />
-		/// in order to get the final instruction code from the trigger.
-		/// </p>
-		/// </summary>
-		/// <param name="context">is the <see cref="JobExecutionContext" /> that was used by the
-		/// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
-		/// <param name="result">is the <see cref="JobExecutionException" /> thrown by the
-		/// <see cref="IJob" />, if any (may be null).</param>
-		/// <returns>
-        /// one of the SchedulerInstruction.XXX constants.
-		/// </returns>
-		/// <seealso cref="SchedulerInstruction.NoInstruction" />
-        /// <seealso cref="SchedulerInstruction.ReExecuteJob" />
-        /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
-        /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
-		/// <seealso cref="Triggered" />
-        public override SchedulerInstruction ExecutionComplete(JobExecutionContext context,
-		                                      JobExecutionException result)
-		{
-			if (result != null && result.RefireImmediately)
-			{
-                return SchedulerInstruction.ReExecuteJob;
-			}
-
-			if (result != null && result.UnscheduleFiringTrigger)
-			{
-                return SchedulerInstruction.SetTriggerComplete;
-			}
-
-			if (result != null && result.UnscheduleAllTriggers)
-			{
-                return SchedulerInstruction.SetAllJobTriggersComplete;
-			}
-
-			if (!GetMayFireAgain())
-			{
-                return SchedulerInstruction.DeleteTrigger;
-			}
-
-            return SchedulerInstruction.NoInstruction;
-		}
-
-		/// <summary>
 		/// Called when the <see cref="IScheduler" /> has decided to 'fire'
 		/// the trigger (Execute the associated <see cref="IJob" />), in order to
 		/// give the <see cref="Trigger" /> a chance to update itself for its next

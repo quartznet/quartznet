@@ -43,7 +43,7 @@ namespace Quartz.Tests.Unit.Simpl
 			fJobStore.Initialize(null, fSignaler);
 
 			fJobDetail = new JobDetail("job1", "jobGroup1", typeof (NoOpJob));
-			fJobDetail.Durability = true;
+			fJobDetail.Durable = true;
 			fJobStore.StoreJob(null, fJobDetail, false);
 		}
 
