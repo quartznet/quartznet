@@ -49,8 +49,8 @@ namespace Quartz.Examples.Example14
             // Set thread count to 1 to force Triggers scheduled for the same time to 
             // to be ordered by priority.
             properties["quartz.threadPool.threadCount"] = "1";
-            properties["quartz.threadPool.class"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.jobStore.class"] = "Quartz.Simpl.RAMJobStore, Quartz";
+            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz";
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = sf.GetScheduler();
 

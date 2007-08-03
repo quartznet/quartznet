@@ -130,7 +130,8 @@ namespace Quartz.Util
 		/// <param name="props">The properties to set to object.</param>
 		public static void SetObjectProperties(object obj, NameValueCollection props)
 		{
-			props.Remove("class");
+            // remove the type
+			props.Remove("type");
 			Type t = obj.GetType();
 
 			foreach (string name in props.Keys)

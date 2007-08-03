@@ -94,11 +94,11 @@ namespace Quartz.Examples.Example13
 
 		    properties["quartz.scheduler.instanceName"] = "TestScheduler";
 		    properties["quartz.scheduler.instanceId"] = "instance_one";
-            properties["quartz.threadPool.class"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
 		    properties["quartz.threadPool.threadCount"] = "5";
             properties["quartz.threadPool.threadPriority"] = "Normal";
 		    properties["quartz.jobStore.misfireThreshold"] = "60000";
-            properties["quartz.jobStore.class"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MSSQLDelegate, Quartz";
             properties["quartz.jobStore.useProperties"] = "false";
             properties["quartz.jobStore.dataSource"] = "default";
