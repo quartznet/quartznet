@@ -125,6 +125,16 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Integration\ExceptionPolicy\ExceptionJob.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Integration\ExceptionPolicy\ExceptionJobTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Integration\Impl\Calendar\AnnualCalendarTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

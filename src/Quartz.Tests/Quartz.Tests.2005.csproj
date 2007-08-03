@@ -110,6 +110,8 @@
       <Link>AssemblyInfo.cs</Link>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Integration\ExceptionPolicy\ExceptionJob.cs" />
+    <Compile Include="Integration\ExceptionPolicy\ExceptionJobTest.cs" />
     <Compile Include="Integration\Impl\AdoJobStore\AdoJobStoreSmokeTest.cs" />
     <Compile Include="Integration\Impl\Calendar\AnnualCalendarTest.cs" />
     <Compile Include="Integration\IntegrationTest.cs" />

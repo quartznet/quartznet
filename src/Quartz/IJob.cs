@@ -41,16 +41,16 @@ namespace Quartz
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
 		/// fires that is associated with the <see cref="IJob" />.
-		/// <p>
+        /// </summary>
+		/// <remarks>
 		/// The implementation may wish to set a  result object on the 
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to 
 		/// <see cref="IJobListener" />s or 
 		/// <see cref="ITriggerListener" />s that are watching the job's 
 		/// execution.
-		/// </p>
+		/// </remarks>
 		/// <param name="context">The execution context.</param>
-		/// </summary>
 		void Execute(JobExecutionContext context);
 	}
 }
