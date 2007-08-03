@@ -13,14 +13,14 @@ namespace Quartz.Impl.AdoJobStore.Common
     /// </summary>
     public class DbProvider : IDbProvider
     {
-        private const string QUARTZ_PROPERTY_GROUP_DB_PROVIDER = "quartz.dbprovider";
-        private const string QUARTZ_DB_PROVIDER_RESOURCE_NAME = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
+        protected const string QUARTZ_PROPERTY_GROUP_DB_PROVIDER = "quartz.dbprovider";
+        protected const string QUARTZ_DB_PROVIDER_RESOURCE_NAME = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
 
         private string connectionString;
         private DbMetadata dbMetadata;
-        private static readonly Hashtable dbMetadataLookup = new Hashtable();
 
-        private static readonly object notInitializedMetadata = new object();
+        protected static readonly Hashtable dbMetadataLookup = new Hashtable();
+        protected static readonly object notInitializedMetadata = new object();
 
         static DbProvider()
         {
@@ -33,20 +33,41 @@ namespace Quartz.Impl.AdoJobStore.Common
             }
         }
 
-        private static DbMetadata GetDbMetadata(string providerName)
+        ///<summary>
+        /// Registers DB metadata information for given provider name.
+        ///</summary>
+        ///<param name="dbProviderName"></param>
+        ///<param name="metadata"></param>
+        public static void RegisterDbMetadata(string dbProviderName, DbMetadata metadata)
         {
-            try
+            dbMetadataLookup[dbProviderName] = metadata;
+         }
+
+        protected virtual DbMetadata GetDbMetadata(string providerName)
+        {
+            if (dbMetadataLookup[providerName] == notInitializedMetadata)
             {
-                PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(QUARTZ_DB_PROVIDER_RESOURCE_NAME);
-                DbMetadata metadata = new DbMetadata();
-                NameValueCollection props = pp.GetPropertyGroup(QUARTZ_PROPERTY_GROUP_DB_PROVIDER + "." + providerName, true);
-                ObjectUtils.SetObjectProperties(metadata, props);
-                metadata.Init();
-                return metadata;
+                try
+                {
+                    PropertiesParser pp =
+                        PropertiesParser.ReadFromEmbeddedAssemblyResource(QUARTZ_DB_PROVIDER_RESOURCE_NAME);
+                    DbMetadata metadata = new DbMetadata();
+                    NameValueCollection props =
+                        pp.GetPropertyGroup(QUARTZ_PROPERTY_GROUP_DB_PROVIDER + "." + providerName, true);
+                    ObjectUtils.SetObjectProperties(metadata, props);
+                    metadata.Init();
+                    RegisterDbMetadata(providerName, metadata);
+                    return metadata;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Error while reading metadata information for provider '" + providerName + "'",
+                                        ex);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                throw new Exception("Error while reading metadata information for provider '" + providerName + "'", ex);
+                return (DbMetadata) dbMetadataLookup[providerName];
             }
         }
 
@@ -58,18 +79,15 @@ namespace Quartz.Impl.AdoJobStore.Common
         public DbProvider(string dbProviderName, string connectionString)
         {
             this.connectionString = connectionString;
-            if (dbMetadataLookup[dbProviderName] == notInitializedMetadata)
-            {
-                dbMetadataLookup[dbProviderName] = GetDbMetadata(dbProviderName);
-                dbMetadata = (DbMetadata)dbMetadataLookup[dbProviderName];
-            }
+            dbMetadata = GetDbMetadata(dbProviderName);
+
             if (dbMetadata == null)
             {
                 throw new ArgumentException(string.Format("Invalid DB provider name: {0}{1}{2}", dbProviderName, Environment.NewLine, GenerateValidProviderNamesInfo()));
             }
         }
 
-        private static string GenerateValidProviderNamesInfo()
+        protected static string GenerateValidProviderNamesInfo()
         {
             StringBuilder sb = new StringBuilder("Valid DB Provider names are:").Append(Environment.NewLine);
             foreach (string providerName in dbMetadataLookup.Keys)
@@ -84,7 +102,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// against the database.
         /// </summary>
         /// <returns>An new <see cref="IDbCommand"/></returns>
-        public IDbCommand CreateCommand()
+        public virtual IDbCommand CreateCommand()
         {
             return (IDbCommand) ObjectUtils.InstantiateType(dbMetadata.CommandType); 
         }
@@ -96,16 +114,16 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <remarks>In .NET 1.1 there was no common base class or interface
         /// for command builders, hence the return signature is object to
         /// be portable (but more loosely typed) across .NET 1.1/2.0</remarks>
-        public object CreateCommandBuilder()
+        public virtual object CreateCommandBuilder()
         {
-            throw new NotImplementedException();
+            return ObjectUtils.InstantiateType(dbMetadata.CommandBuilderType); 
         }
 
         /// <summary>
         /// Returns a new connection object to communicate with the database.
         /// </summary>
         /// <returns>A new <see cref="IDbConnection"/></returns>
-        public IDbConnection CreateConnection()
+        public virtual IDbConnection CreateConnection()
         {
             IDbConnection conn = (IDbConnection)ObjectUtils.InstantiateType(dbMetadata.ConnectionType);
             conn.ConnectionString = ConnectionString;
@@ -117,7 +135,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// placeholders in SQL statements or Stored Procedure variables.
         /// </summary>
         /// <returns>A new <see cref="IDbDataParameter"/></returns>
-        public IDbDataParameter CreateParameter()
+        public virtual IDbDataParameter CreateParameter()
         {
             return (IDbDataParameter) ObjectUtils.InstantiateType(dbMetadata.ParameterType);
         }
@@ -136,7 +154,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the metadata.
         /// </summary>
         /// <value>The metadata.</value>
-        public DbMetadata Metadata
+        public virtual DbMetadata Metadata
         {
             get { return dbMetadata; }
         }
@@ -144,7 +162,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <summary>
         /// Shutdowns this instance.
         /// </summary>
-        public void Shutdown()
+        public virtual void Shutdown()
         {
 
         }

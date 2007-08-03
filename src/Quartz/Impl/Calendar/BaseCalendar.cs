@@ -27,14 +27,14 @@ namespace Quartz.Impl.Calendar
 	/// This implementation of the Calendar may be used (you don't have to) as a
 	/// base class for more sophisticated one's. It merely implements the base
 	/// functionality required by each Calendar.
-	/// <p>
+	/// </summary>
+	/// <remarks>
 	/// Regarded as base functionality is the treatment of base calendars. Base
 	/// calendar allow you to chain (stack) as much calendars as you may need. For
 	/// example to exclude weekends you may use WeeklyCalendar. In order to exclude
 	/// holidays as well you may define a WeeklyCalendar instance to be the base
 	/// calendar for HolidayCalendar instance.
-	/// </p>
-	/// </summary>
+	/// </remarks>
 	/// <seealso cref="ICalendar" /> 
 	/// <author>Juergen Donnerstag</author>
 	/// <author>James House</author>
@@ -124,7 +124,7 @@ namespace Quartz.Impl.Calendar
 		{
 			if (time == DateTime.MinValue)
 			{
-				throw new ArgumentException("timeStamp must be greater 0");
+				throw new ArgumentException("timeStamp must be greater DateTime.MinValue");
 			}
 
 			if (baseCalendar != null)

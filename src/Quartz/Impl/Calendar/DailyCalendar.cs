@@ -5,7 +5,10 @@ namespace Quartz.Impl.Calendar
 {
     /// <summary>
     /// This implementation of the Calendar excludes (or includes - see below) a
-    /// specified time range each day. For example, you could use this calendar to
+    /// specified time range each day. 
+    /// </summary>
+    /// <remarks>
+    /// For example, you could use this calendar to
     /// exclude business hours (8AM - 5PM) every day. Each <see cref="DailyCalendar" />
     /// only allows a single time range to be specified, and that time range may not
     /// * cross daily boundaries (i.e. you cannot specify a time range from 8PM - 5AM).
@@ -20,9 +23,10 @@ namespace Quartz.Impl.Calendar
     /// excluded <i>every week</i>. Likewise, <see cref="DailyCalendar" /> defines a
     /// set of times that are excluded <i>every day</i>.
     /// </p>
-    /// </summary>
+    /// </remarks>
     /// <author>Mike Funk</author>
     /// <author>Aaron Craven</author>
+    [Serializable]
     public class DailyCalendar : BaseCalendar
     {
         private static readonly string invalidHourOfDay = "Invalid hour of day: ";

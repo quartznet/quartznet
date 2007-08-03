@@ -19,6 +19,7 @@ namespace Quartz.Impl.Calendar
 	/// </p>
 	/// </summary>
 	/// <author>Aaron Craven</author>
+    [Serializable]
 	public class CronCalendar : BaseCalendar
 	{
 		CronExpression cronExpression;

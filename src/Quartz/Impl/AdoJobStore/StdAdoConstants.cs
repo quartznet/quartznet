@@ -480,7 +480,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string UPDATE_JOB_DETAIL =
             string.Format(
-                "UPDATE {0}{1} SET {2} = @jobDescription, {3} = @jobType, {4} = @durable, {5} = @volatile, {6} = @stateful, {7} = @requestsRecovery, {8} = @jobDataMap  WHERE {9} = @jobName AND {10} = @jobGroup",
+                "UPDATE {0}{1} SET {2} = @jobDescription, {3} = @jobType, {4} = @jobDurable, {5} = @jobVolatile, {6} = @jobStateful, {7} = @jobRequestsRecovery, {8} = @jobDataMap  WHERE {9} = @jobName AND {10} = @jobGroup",
                 TABLE_PREFIX_SUBST, TABLE_JOB_DETAILS, COL_DESCRIPTION,
                 COL_JOB_CLASS, COL_IS_DURABLE, COL_IS_VOLATILE,
                 COL_IS_STATEFUL, COL_REQUESTS_RECOVERY, COL_JOB_DATAMAP,

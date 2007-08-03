@@ -429,93 +429,7 @@ Please add configuration to your application config file to correctly initialize
                 throw initException;
             }
 
-            // Get JobStore Properties
-            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-            string jsClass = cfg.GetStringProperty(PROP_JOB_STORE_CLASS, typeof (RAMJobStore).FullName);
-
-            if (jsClass == null)
-            {
-                initException =
-                    new SchedulerException("JobStore class not specified. ", SchedulerException.ERR_BAD_CONFIGURATION);
-                throw initException;
-            }
-
-            try
-            {
-                js = (IJobStore) ObjectUtils.InstantiateType(loadHelper.LoadType(jsClass));
-            }
-            catch (Exception e)
-            {
-                initException =
-                    new SchedulerException(string.Format("JobStore class '{0}' could not be instantiated.", jsClass), e);
-                initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
-                throw initException;
-            }
-            tProps =
-                cfg.GetPropertyGroup(PROP_JOB_STORE_PREFIX, true, new string[] {PROP_JOB_STORE_LOCK_HANDLER_PREFIX});
-            try
-            {
-                ObjectUtils.SetObjectProperties(js, tProps);
-            }
-            catch (Exception e)
-            {
-                initException =
-                    new SchedulerException(
-                        string.Format("JobStore class '{0}' props could not be configured.", jsClass), e);
-                initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
-                throw initException;
-            }
-
-
-            if (js is JobStoreSupport)
-            {
-                ((JobStoreSupport) js).InstanceId = schedInstId;
-                ((JobStoreSupport) js).InstanceName = schedName;
-
-                // Install custom lock handler (Semaphore)
-                String lockHandlerClass = cfg.GetStringProperty(PROP_JOB_STORE_LOCK_HANDLER_CLASS);
-                if (lockHandlerClass != null)
-                {
-                    try
-                    {
-                        ISemaphore lockHandler =
-                            (ISemaphore) ObjectUtils.InstantiateType(loadHelper.LoadType(lockHandlerClass));
-
-                        tProps = cfg.GetPropertyGroup(PROP_JOB_STORE_LOCK_HANDLER_PREFIX, true);
-
-                        // If this lock handler requires the table prefix, add it to its properties.
-                        if (lockHandler is ITablePrefixAware)
-                        {
-                            tProps[PROP_TABLE_PREFIX] = ((JobStoreSupport) js).TablePrefix;
-                        }
-
-                        try
-                        {
-                            ObjectUtils.SetObjectProperties(lockHandler, tProps);
-                        }
-                        catch (Exception e)
-                        {
-                            initException = new SchedulerException("JobStore LockHandler class '" + lockHandlerClass
-                                                                   + "' props could not be configured.", e);
-                            initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
-                            throw initException;
-                        }
-
-                        ((JobStoreSupport) js).LockHandler = lockHandler;
-                        Log.Info("Using custom data access locking (synchronization): " + lockHandlerClass);
-                    }
-                    catch (Exception e)
-                    {
-                        initException = new SchedulerException("JobStore LockHandler class '" + lockHandlerClass
-                                                               + "' could not be instantiated.", e);
-                        initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
-                        throw initException;
-                    }
-                }
-            }
-
-            // Set up any DataSources
+                        // Set up any DataSources
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             string[] dsNames = cfg.GetPropertyGroups(PROP_DATASOURCE_PREFIX);
@@ -593,6 +507,107 @@ Please add configuration to your application config file to correctly initialize
                         initException =
                             new SchedulerException(string.Format("Could not Initialize DataSource: {0}", dsNames[i]),
                                                    exception);
+                        throw initException;
+                    }
+                }
+            }
+
+            // Get JobStore Properties
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            string jsClass = cfg.GetStringProperty(PROP_JOB_STORE_CLASS, typeof (RAMJobStore).FullName);
+
+            if (jsClass == null)
+            {
+                initException =
+                    new SchedulerException("JobStore class not specified. ", SchedulerException.ERR_BAD_CONFIGURATION);
+                throw initException;
+            }
+
+            try
+            {
+                js = (IJobStore) ObjectUtils.InstantiateType(loadHelper.LoadType(jsClass));
+            }
+            catch (Exception e)
+            {
+                initException =
+                    new SchedulerException(string.Format("JobStore class '{0}' could not be instantiated.", jsClass), e);
+                initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
+                throw initException;
+            }
+            
+            tProps =
+                cfg.GetPropertyGroup(PROP_JOB_STORE_PREFIX, true, new string[] {PROP_JOB_STORE_LOCK_HANDLER_PREFIX});
+            
+            try
+            {
+                ObjectUtils.SetObjectProperties(js, tProps);
+            }
+            catch (Exception e)
+            {
+                initException =
+                    new SchedulerException(
+                        string.Format("JobStore class '{0}' props could not be configured.", jsClass), e);
+                initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
+                throw initException;
+            }
+
+
+            if (js is JobStoreSupport)
+            {
+                ((JobStoreSupport) js).InstanceId = schedInstId;
+                ((JobStoreSupport) js).InstanceName = schedName;
+
+                // Install custom lock handler (Semaphore)
+                string lockHandlerTypeName = cfg.GetStringProperty(PROP_JOB_STORE_LOCK_HANDLER_CLASS);
+                if (lockHandlerTypeName != null)
+                {
+                    try
+                    {
+                        Type lockHandlerType = loadHelper.LoadType(lockHandlerTypeName);
+                        ISemaphore lockHandler;
+                        ConstructorInfo cWithDbProvider =
+                            lockHandlerType.GetConstructor(new Type[] {typeof (DbProvider)});
+
+                        if (cWithDbProvider != null)
+                        {
+                            // takes db provider
+                            IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(((JobStoreSupport) js).DataSource);
+                            lockHandler = (ISemaphore) cWithDbProvider.Invoke(new object[] { dbProvider });
+                        }
+                        else
+                        {
+                            lockHandler = (ISemaphore)ObjectUtils.InstantiateType(lockHandlerType);
+                        }
+
+                        tProps = cfg.GetPropertyGroup(PROP_JOB_STORE_LOCK_HANDLER_PREFIX, true);
+
+                        // If this lock handler requires the table prefix, add it to its properties.
+                        if (lockHandler is ITablePrefixAware)
+                        {
+                            tProps[PROP_TABLE_PREFIX] = ((JobStoreSupport) js).TablePrefix;
+                        }
+
+                        try
+                        {
+                            ObjectUtils.SetObjectProperties(lockHandler, tProps);
+                        }
+                        catch (Exception e)
+                        {
+                            initException = new SchedulerException("JobStore LockHandler class '" + lockHandlerTypeName
+                                                                   + "' props could not be configured.", e);
+                            initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
+                            throw initException;
+                        }
+
+                        ((JobStoreSupport) js).LockHandler = lockHandler;
+                        Log.Info("Using custom data access locking (synchronization): " + lockHandlerType);
+                    }
+                    catch (Exception e)
+                    {
+                        initException = new SchedulerException("JobStore LockHandler class '" + lockHandlerTypeName
+                                                               + "' could not be instantiated.", e);
+                        initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
                         throw initException;
                     }
                 }

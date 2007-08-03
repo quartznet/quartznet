@@ -39,16 +39,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     private string sql;
     private string tablePrefix;
     private string expandedSQL;
-    private IDbProvider dbProvider;
     private AdoUtil adoUtil;
-
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * Constructors.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
@@ -56,12 +47,12 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     /// <param name="tablePrefix">The table prefix.</param>
     /// <param name="sql">The SQL.</param>
     /// <param name="defaultSQL">The default SQL.</param>
+    /// <param name="dbProvider">The db provider.</param>
     public DBSemaphore(string tablePrefix, string sql, string defaultSQL, IDbProvider dbProvider) {
         log = LogManager.GetLogger(GetType());
         this.sql = defaultSQL;
         this.tablePrefix = tablePrefix;
         SQL = sql;
-        this.dbProvider = dbProvider;
         adoUtil = new AdoUtil(dbProvider);
     }
 
@@ -75,14 +66,11 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         set { LogicalThreadContext.SetData(THREAD_CONTEXT_KEY_LOCK_OWNERS, value); }
     }
 
-    /*
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     * Interface.
-     * 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
 
+    /// <summary>
+    /// Gets the log.
+    /// </summary>
+    /// <value>The log.</value>
     protected ILog Log
     {
         get { return log; }

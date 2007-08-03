@@ -369,8 +369,8 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         string jobName = GetString(rs[COL_JOB_NAME]);
                         string jobGroup = GetString(rs[COL_JOB_GROUP]);
-                        string trigName = GetString(rs[COL_TRIGGER_NAME]);
-                        string trigGroup = GetString(rs[COL_TRIGGER_GROUP]);
+                        // string trigName = GetString(rs[COL_TRIGGER_NAME]);
+                        // string trigGroup = GetString(rs[COL_TRIGGER_GROUP]);
                         long firedTimeInTicks = Convert.ToInt64(rs[COL_FIRED_TIME]);
                         int priority = Convert.ToInt32(rs[COL_PRIORITY]);
                         DateTime firedTime = new DateTime(firedTimeInTicks);
@@ -517,11 +517,11 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 2, "jobType", GetStorableJobTypeName(job.JobType));
                 AddCommandParameter(cmd, 3, "jobDurable", GetDbBooleanValue(job.Durable));
                 AddCommandParameter(cmd, 4, "jobVolatile", GetDbBooleanValue(job.Volatile));
-                AddCommandParameter(cmd, 5, "jobStateFul", GetDbBooleanValue(job.Stateful));
+                AddCommandParameter(cmd, 5, "jobStateful", GetDbBooleanValue(job.Stateful));
                 AddCommandParameter(cmd, 6, "jobRequestsRecovery", job.RequestsRecovery);
                 AddCommandParameter(cmd, 7, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
                 AddCommandParameter(cmd, 8, "jobName", job.Name);
-                AddCommandParameter(cmd, 9, "jobGrooup", job.Group);
+                AddCommandParameter(cmd, 9, "jobGroup", job.Group);
 
                 int insertResult = cmd.ExecuteNonQuery();
 
@@ -1639,27 +1639,33 @@ namespace Quartz.Impl.AdoJobStore
         public virtual Trigger[] SelectTriggersForJob(ConnectionAndTransactionHolder conn, string jobName,
                                                       string groupName)
         {
-            ArrayList trigList = new ArrayList();
-
+            ArrayList triggerIdentifiers = new ArrayList();
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SELECT_TRIGGERS_FOR_JOB)))
             {
                 AddCommandParameter(cmd, 1, "jobName", jobName);
                 AddCommandParameter(cmd, 2, "jobGroup", groupName);
+                
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     while (rs.Read())
                     {
-                        Trigger t = SelectTrigger(conn,
-                                                  rs.GetString(0),
-                                                  rs.GetString(1));
-                        if (t != null)
-                        {
-                            trigList.Add(t);
-                        }
+                        Pair p = new Pair();
+                        p.First = rs.GetString(0);
+                        p.Second = rs.GetString(1);
+                        triggerIdentifiers.Add(p);
                     }
                 }
             }
 
+            ArrayList trigList = new ArrayList();
+            foreach (Pair p in triggerIdentifiers)
+            {
+                Trigger t = SelectTrigger(conn, (string) p.First, (string) p.Second);
+                if (t != null)
+                {
+                    trigList.Add(t);
+                }
+            }
 
             return (Trigger[]) trigList.ToArray(typeof (Trigger));
         }
@@ -2312,7 +2318,7 @@ namespace Quartz.Impl.AdoJobStore
                     ICalendar cal = null;
                     if (rs.Read())
                     {
-                        cal = (ICalendar) GetObjectFromBlob(rs, 2);
+                        cal = (ICalendar) GetObjectFromBlob(rs, 1);
                     }
                     if (null == cal)
                     {

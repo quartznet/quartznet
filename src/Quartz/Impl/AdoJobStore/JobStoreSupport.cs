@@ -472,13 +472,9 @@ namespace Quartz.Impl.AdoJobStore
         */
 
         protected internal static string LOCK_TRIGGER_ACCESS = "TRIGGER_ACCESS";
-
         protected internal static string LOCK_JOB_ACCESS = "JOB_ACCESS";
-
         protected internal static string LOCK_CALENDAR_ACCESS = "CALENDAR_ACCESS";
-
         protected internal static string LOCK_STATE_ACCESS = "STATE_ACCESS";
-
         protected internal static string LOCK_MISFIRE_ACCESS = "MISFIRE_ACCESS";
 
         /*
@@ -490,28 +486,17 @@ namespace Quartz.Impl.AdoJobStore
         */
 
         protected internal string dataSource;
-
         protected internal string tablePrefix = DEFAULT_TABLE_PREFIX;
-
         protected internal bool useProperties = false;
-
         protected internal string instanceId;
-
         protected internal string instanceName;
-
         protected internal string delegateTypeName;
         protected internal Type delegateType;
-
         protected internal Hashtable calendarCache = new Hashtable();
-
         private IDriverDelegate driverDelegate;
-
         private long misfireThreshold = 60000L; // one minute
-
         private bool dontSetAutoCommitFalse = false;
-
         private bool clustered = false;
-
         private bool useDBLocks = false;
 
         private bool lockOnInsert = true;
