@@ -273,9 +273,9 @@ namespace Quartz.Plugins.Xml
 					SimpleTrigger trig =
 						new SimpleTrigger("JobInitializationPlugin_" + name, "JobInitializationPlugin", DateTime.Now, null,
 						                  SimpleTrigger.REPEAT_INDEFINITELY, scanInterval);
-					trig.Volatility = true;
+					trig.Volatile = true;
 					JobDetail job = new JobDetail("JobInitializationPlugin_" + name, "JobInitializationPlugin", typeof (FileScanJob));
-					job.Volatility = true;
+					job.Volatile = true;
 					job.JobDataMap.Put(FileScanJob.FILE_NAME, FilePath);
 					job.JobDataMap.Put(FileScanJob.FILE_SCAN_LISTENER_NAME, "JobInitializationPlugin_" + name);
 

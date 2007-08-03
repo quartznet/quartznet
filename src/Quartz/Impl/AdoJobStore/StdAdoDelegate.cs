@@ -1819,7 +1819,7 @@ namespace Quartz.Impl.AdoJobStore
                                 st.CalendarName = calendarName;
                                 st.MisfireInstruction = misFireInstr;
                                 st.TimesTriggered = timesTriggered;
-                                st.Volatility = volatility;
+                                st.Volatile = volatility;
                                 st.SetNextFireTime(nft);
                                 st.SetPreviousFireTime(pft);
                                 st.Description = description;
@@ -1868,7 +1868,7 @@ namespace Quartz.Impl.AdoJobStore
                                 {
                                     ct.CalendarName = calendarName;
                                     ct.MisfireInstruction = misFireInstr;
-                                    ct.Volatility = volatility;
+                                    ct.Volatile = volatility;
                                     ct.SetNextFireTime(nft);
                                     ct.SetPreviousFireTime(pft);
                                     ct.Description = description;

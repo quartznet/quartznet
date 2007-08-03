@@ -232,15 +232,6 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Set whether or not the <see cref="Trigger" /> should be persisted in the
-		/// <see cref="IJobStore" /> for re-use after program  restarts.
-		/// </summary>
-		public virtual bool Volatility
-		{
-			set { volatility = value; }
-		}
-
-		/// <summary>
 		/// Get or set  the <see cref="ICalendar" /> with the given name with
 		/// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
 		/// </summary>
@@ -282,6 +273,7 @@ namespace Quartz
 		public virtual bool Volatile
 		{
 			get { return volatility; }
+            set { volatility = value; }
 		}
 
 		/// <summary>

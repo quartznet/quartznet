@@ -30,17 +30,28 @@ using Quartz.Xml;
 
 namespace Quartz.Plugins.Xml
 {
-	/// <summary> This plugin loads XML files to add jobs and schedule them with triggers
+	/// <summary> 
+	/// This plugin loads XML files to add jobs and schedule them with triggers
 	/// as the scheduler is initialized, and can optionally periodically scan the
 	/// file for changes.
-	/// 
 	/// </summary>
-	/// <author>  Brooke Hedrick
-	/// </author>
+	/// <author> Brooke Hedrick</author>
 	public class JobInitializationPluginMultiple : ISchedulerPlugin, IFileScanListener
 	{
 		private static readonly ILog Log = LogManager.GetLogger(typeof (JobInitializationPluginMultiple));
 
+		private string name;
+		private IScheduler scheduler;
+		private bool overWriteExistingJobs = true;
+		private bool failOnFileNotFound = true;
+		private string fileName;
+		private ArrayList files = ArrayList.Synchronized(new ArrayList(10));
+		private bool validating = true;
+		private bool validatingSchema = true;
+		private long scanInterval = 0;
+		internal bool initializing = true;
+		internal bool started = false;
+		
 		/// <summary> 
 		/// Whether or not jobs defined in the XML file should be overwrite existing
 		/// jobs with the same name.
@@ -100,27 +111,7 @@ namespace Quartz.Plugins.Xml
 			set { validatingSchema = value; }
 		}
 
-		private string name;
 
-		private IScheduler scheduler;
-
-		private bool overWriteExistingJobs = true;
-
-		private bool failOnFileNotFound = true;
-
-		private string fileName;
-
-		private ArrayList files = ArrayList.Synchronized(new ArrayList(10));
-
-		private bool validating = true;
-
-		private bool validatingSchema = true;
-
-		private long scanInterval = 0;
-
-		internal bool initializing = true;
-
-		internal bool started = false;
 
 
 		public JobInitializationPluginMultiple()
@@ -178,10 +169,10 @@ namespace Quartz.Plugins.Xml
 						SimpleTrigger trig =
 							new SimpleTrigger("JobInitializationPluginMultiple_" + name, "JobInitializationPluginMultiple", DateTime.Now,
 							                  null, SimpleTrigger.REPEAT_INDEFINITELY, scanInterval);
-						trig.Volatility = true;
+						trig.Volatile = true;
 						JobDetail job =
 							new JobDetail("JobInitializationPluginMultiple_" + name, "JobInitializationPluginMultiple", typeof (FileScanJob));
-						job.Volatility = true;
+						job.Volatile = true;
 						job.JobDataMap.Put(FileScanJob.FILE_NAME, jobFile.FilePath);
 						job.JobDataMap.Put(FileScanJob.FILE_SCAN_LISTENER_NAME, "JobInitializationPluginMultiple_" + name);
 

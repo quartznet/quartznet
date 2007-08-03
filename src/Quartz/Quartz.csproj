@@ -616,6 +616,16 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Plugin\Xml\JobInitializationPlugin.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Plugin\Xml\JobInitializationPluginMultiple.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Simpl\CascadingClassLoadHelper.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

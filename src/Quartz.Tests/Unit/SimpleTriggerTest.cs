@@ -57,11 +57,11 @@ namespace Quartz.Tests.Unit
 			SimpleTrigger t = new SimpleTrigger("SimpleTrigger", "SimpleGroup",
 			                                    "JobName", "JobGroup", START_TIME,
 			                                    END_TIME, 5, 1000);
-			t.CalendarName = ("MyCalendar");
-			t.Description = ("SimpleTriggerDesc");
-			t.JobDataMap = (jobDataMap);
+			t.CalendarName = "MyCalendar";
+			t.Description = "SimpleTriggerDesc";
+			t.JobDataMap = jobDataMap;
 			t.MisfireInstruction = (SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT);
-			t.Volatility = (true);
+			t.Volatile = true;
 
 			t.AddTriggerListener("L1");
 			t.AddTriggerListener("L2");

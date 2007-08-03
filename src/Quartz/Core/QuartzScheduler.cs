@@ -842,7 +842,7 @@ namespace Quartz.Core
             Trigger trig =
                 new SimpleTrigger(NewTriggerId(), SchedulerConstants.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.Now,
                                   NullableDateTime.Default, 0, 0);
-            trig.Volatility = false;
+            trig.Volatile = false;
             trig.ComputeFirstFireTime(null);
             if (data != null)
             {
@@ -884,7 +884,7 @@ namespace Quartz.Core
             Trigger trig =
                 new SimpleTrigger(NewTriggerId(), SchedulerConstants.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.Now,
                                   NullableDateTime.Default, 0, 0);
-            trig.Volatility = true;
+            trig.Volatile = true;
             trig.ComputeFirstFireTime(null);
             if (data != null)
             {
