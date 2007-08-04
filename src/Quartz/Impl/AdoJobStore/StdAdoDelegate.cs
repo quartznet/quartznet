@@ -487,7 +487,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         protected virtual object GetDbBooleanValue(bool booleanValue)
         {
-            return booleanValue;
+            // works nicely for databases we have currently supported
+            return booleanValue ? 1 : 0;
         }
 
         protected virtual string GetStorableJobTypeName(Type jobType)

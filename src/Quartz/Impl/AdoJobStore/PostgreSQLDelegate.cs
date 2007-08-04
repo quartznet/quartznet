@@ -27,13 +27,14 @@ using Common.Logging;
 namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary>
-	/// This is a driver delegate for the MSSQL ADO.NET driver.
+	/// This is a driver delegate for the PostgreSQL ADO.NET driver.
 	/// </summary>
 	/// <author>Marko Lahma</author>
 	public class PostgreSQLDelegate : StdAdoDelegate
 	{
+
         /// <summary>
-        /// Create new MSSQLDelegate instance.
+        /// Initializes a new instance of the <see cref="PostgreSQLDelegate"/> class.
         /// </summary>
         /// <param name="log">The log.</param>
         /// <param name="tablePrefix">The table prefix.</param>
@@ -45,7 +46,7 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MSSQLDelegate"/> class.
+        /// Initializes a new instance of the <see cref="PostgreSQLDelegate"/> class.
         /// </summary>
         /// <param name="log">The log.</param>
         /// <param name="tablePrefix">The table prefix.</param>
