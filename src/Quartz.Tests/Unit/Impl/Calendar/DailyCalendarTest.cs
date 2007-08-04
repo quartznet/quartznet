@@ -32,10 +32,10 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 		[Test]
 		public void TestStringStartEndTimes()
 		{
-			DailyCalendar dailyCalendar = new DailyCalendar("TestCal", "1:20", "14:50");
+			DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
 			Assert.IsTrue(dailyCalendar.ToString().IndexOf("01:20:00:000 - 14:50:00:000") > 0);
 
-			dailyCalendar = new DailyCalendar("TestCal", "1:20:1:456", "14:50:15:2");
+			dailyCalendar = new DailyCalendar("1:20:1:456", "14:50:15:2");
 			Assert.IsTrue(dailyCalendar.ToString().IndexOf("01:20:01:456 - 14:50:15:002") > 0);
 		}
 
@@ -45,7 +45,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             // Grafit found a copy-paste problem from ending time, it was the same as starting time
 
             DateTime d = DateTime.Now;
-            DailyCalendar dailyCalendar = new DailyCalendar("TestCal", "1:20", "14:50");
+            DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
             DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
             DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
 
@@ -57,7 +57,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 		[Test]
 		public void TestStringInvertTimeRange()
 		{
-			DailyCalendar dailyCalendar = new DailyCalendar("TestCal", "1:20", "14:50");
+			DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
 			dailyCalendar.InvertTimeRange = true;
 			Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: True") > 0);
 
@@ -72,7 +72,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 		/// <returns></returns>
 		protected object GetTargetObject()
 		{
-			DailyCalendar c = new DailyCalendar("TestCal", "01:20:01:456", "14:50:15:002");
+			DailyCalendar c = new DailyCalendar("01:20:01:456", "14:50:15:002");
 			c.Description = "description";
 			c.InvertTimeRange = true;
 

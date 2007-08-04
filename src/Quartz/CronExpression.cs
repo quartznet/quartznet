@@ -354,8 +354,8 @@ namespace Quartz
                 throw new ArgumentException("cronExpression cannot be null");
             }
 
-            cronExpressionString = cronExpression;
-            BuildExpression(cronExpression.ToUpper(CultureInfo.InvariantCulture));
+            cronExpressionString = cronExpression.ToUpper(CultureInfo.InvariantCulture);
+            BuildExpression(cronExpression);
         }
 
 
@@ -599,7 +599,7 @@ namespace Quartz
                 if (type == MONTH)
                 {
                     sval = GetMonthNumber(sub) + 1;
-                    if (sval < 0)
+                    if (sval <= 0)
                     {
                         throw new FormatException(string.Format("Invalid Month value: '{0}'", sub));
                     }
@@ -611,7 +611,7 @@ namespace Quartz
                             i += 4;
                             sub = s.Substring(i, 3);
                             eval = GetMonthNumber(sub) + 1;
-                            if (eval < 0)
+                            if (eval <= 0)
                             {
                                 throw new FormatException(
                                     string.Format("Invalid Month value: '{0}'", sub));
@@ -1618,7 +1618,15 @@ namespace Quartz
                     else if (st != null && st.Count != 0)
                     {
                         t = day;
-                        day = ((int) st.First());
+                        day = (int) st.First();
+
+                        // make sure we don't over-run a short month, such as february
+                        int lastDay = GetLastDayOfMonth(mon, d.Year);
+                        if (day > lastDay)
+                        {
+                            day = (int) daysOfMonth.First();
+                            mon++;
+                        }
                     }
                     else
                     {

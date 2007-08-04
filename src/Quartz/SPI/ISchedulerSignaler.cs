@@ -31,10 +31,16 @@ namespace Quartz.Spi
 	public interface ISchedulerSignaler
 	{
 		/// <summary>
-		/// Notifies the trigger listeners misfired.
+		/// Notifies the scheduler about misfired trigger.
 		/// </summary>
-		/// <param name="trigger">The trigger.</param>
+		/// <param name="trigger">The trigger that misfired.</param>
 		void NotifyTriggerListenersMisfired(Trigger trigger);
+
+        /// <summary>
+        /// Notifies the scheduler about finalized trigger.
+        /// </summary>
+        /// <param name="trigger">The trigger that has finalized.</param>
+        void NotifySchedulerListenersFinalized(Trigger trigger);
 
 		/// <summary>
 		/// Signals the scheduling change.

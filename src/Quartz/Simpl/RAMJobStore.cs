@@ -1191,6 +1191,7 @@ namespace Quartz.Simpl
 			if (!tw.trigger.GetNextFireTime().HasValue)
 			{
                 tw.state = InternalTriggerState.Complete;
+                signaler.NotifySchedulerListenersFinalized(tw.trigger);
 				lock (triggerLock)
 				{
 					timeTriggers.Remove(tw);

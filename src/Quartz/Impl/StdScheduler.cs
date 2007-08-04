@@ -578,7 +578,16 @@ namespace Quartz.Impl
 			return sched.GetCalendar(schedCtxt, calName);
 		}
 
-		/// <summary>
+        /// <summary>
+        /// Get the names of all registered <see cref="ICalendar"/>.
+        /// </summary>
+        /// <returns></returns>
+	    public string[] GetCalendarNames()
+	    {
+	        return sched.GetCalendarNames(schedCtxt);
+	    }
+
+	    /// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void AddGlobalJobListener(IJobListener jobListener)

@@ -109,7 +109,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual void SetDayExcluded(int day, bool exclude)
 		{
-			excludeDays[day] = exclude;
+			excludeDays[day - 1] = exclude;
 			excludeAll = AreAllDaysExcluded();
 		}
 

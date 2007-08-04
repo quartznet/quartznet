@@ -24,9 +24,9 @@ using Quartz.Impl.Calendar;
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     [TestFixture]
-    public class AnnualCalendarTest : SerializationTestSupport
+    public class HolidayCalendarTest : SerializationTestSupport
     {
-        private AnnualCalendar cal;
+        private HolidayCalendar cal;
 
         private static string[] VERSIONS = new string[] { "1.5.1" };
 
@@ -35,57 +35,25 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         [SetUp]
         public void Setup()
         {
-            cal = new AnnualCalendar();
+            cal = new HolidayCalendar();
         }
-    
+
+        [Test]
+        public void TestAddAndRemoveExclusion()
+        {
+            cal.AddExcludedDate(new DateTime(2007, 10, 20, 12, 40, 22));
+            cal.RemoveExcludedDate(new DateTime(2007, 10, 20, 2, 0, 0));
+            Assert.IsTrue(cal.ExcludedDates.Count == 0);
+        }
+
         [Test]
         public void TestDayExclusion()
         {
-            DateTime d = new DateTime(2005, 1, 1);
-            cal.SetDayExcluded(d, true);
-            Assert.IsFalse(cal.IsTimeIncluded(d), "Time was included when it was supposed not to be");
-            Assert.IsTrue(cal.IsDayExcluded(d), "Day was not excluded when it was supposed to be excluded");
-            Assert.AreEqual(1, cal.DaysExcluded.Count);
-            Assert.AreEqual(d, cal.DaysExcluded[0]);
+            DateTime excluded = new DateTime(2007, 12, 31);
+            cal.AddExcludedDate(excluded);
+            Assert.AreEqual(new DateTime(2008, 1, 1), cal.GetNextIncludedTime(excluded));
         }
-
-        [Test]
-        public void TestDayInclusionAfterExclusion()
-        {
-            DateTime d = new DateTime(2005, 1, 1);
-            cal.SetDayExcluded(d, true);
-            cal.SetDayExcluded(d, false);
-            cal.SetDayExcluded(d, false);
-            Assert.IsTrue(cal.IsTimeIncluded(d), "Time was not included when it was supposed to be");
-            Assert.IsFalse(cal.IsDayExcluded(d), "Day was excluded when it was supposed to be included");
-            
-        }
-
-        [Test]
-        public void TestDayExclusionDifferentYears()
-        {
-            string errMessage = "Day was not excluded when it was supposed to be excluded";
-            DateTime d = new DateTime(2005, 1, 1);
-            cal.SetDayExcluded(d, true);
-            Assert.IsTrue(cal.IsDayExcluded(d), errMessage);
-            Assert.IsTrue(cal.IsDayExcluded(d.AddYears(-2)), errMessage);
-            Assert.IsTrue(cal.IsDayExcluded(d.AddYears(2)), errMessage);
-            Assert.IsTrue(cal.IsDayExcluded(d.AddYears(100)), errMessage);
-        }
-
-
-        [Test]
-        public void TestExclusionAndNextIncludedTime()
-        {
-            cal.DaysExcluded = null;
-            DateTime test = DateTime.Now.Date;
-            Assert.AreEqual(test, cal.GetNextIncludedTime(test));
-
-            cal.SetDayExcluded(test, true);
-            Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTime(test));
-
-        }
-
+    
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
         /// tests, and against which to validate deserialized object.

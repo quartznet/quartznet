@@ -617,7 +617,7 @@ namespace Quartz
 		public abstract NullableDateTime GetNextFireTime();
 
 		/// <summary>
-		/// Returns the previous time at which the <see cref="Trigger" /> will fire.
+		/// Returns the previous time at which the <see cref="Trigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
 		public abstract NullableDateTime GetPreviousFireTime();

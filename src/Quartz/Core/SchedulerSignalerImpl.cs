@@ -40,10 +40,11 @@ namespace Quartz.Core
 			this.sched = sched;
 		}
 
-		/// <summary>
-		/// Notifies the scheduler about misfired trigger.
-		/// </summary>
-		/// <param name="trigger">The trigger.</param>
+
+        /// <summary>
+        /// Notifies the scheduler about misfired trigger.
+        /// </summary>
+        /// <param name="trigger">The trigger that misfired.</param>
 		public virtual void NotifyTriggerListenersMisfired(Trigger trigger)
 		{
 			try
@@ -56,6 +57,16 @@ namespace Quartz.Core
 				sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se);
 			}
 		}
+
+
+        /// <summary>
+        /// Notifies the scheduler about finalized trigger.
+        /// </summary>
+        /// <param name="trigger">The trigger that has finalized.</param>
+        public void NotifySchedulerListenersFinalized(Trigger trigger)
+        {
+            sched.NotifySchedulerListenersFinalized(trigger);
+        }
 
 		/// <summary>
 		/// Signals the scheduling change.

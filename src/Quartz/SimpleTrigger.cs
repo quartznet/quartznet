@@ -289,7 +289,7 @@ namespace Quartz
         /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
-        /// firing, use {@link #REPEAT_INDEFINITELY}for unlimitted times.</param>
+        /// firing, use {@link #REPEAT_INDEFINITELY}for unlimited times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, DateTime startTime, NullableDateTime endTime, int repeatCount,
 		                     long repeatInterval) : base(name, group)
@@ -314,7 +314,7 @@ namespace Quartz
         /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
-        /// firing, use REPEAT_INDEFINITELY for unlimitted times.</param>
+        /// firing, use REPEAT_INDEFINITELY for unlimited times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTime,
 		                     NullableDateTime endTime, int repeatCount, long repeatInterval)
@@ -559,8 +559,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the previous time at which the <see cref="SimpleTrigger" /> will
-		/// fire. If the trigger has not yet fired, <see langword="null" /> will be
+		/// Returns the previous time at which the <see cref="SimpleTrigger" /> fired.
+		/// If the trigger has not yet fired, <see langword="null" /> will be
 		/// returned.
 		/// </summary>
 		public override NullableDateTime GetPreviousFireTime()

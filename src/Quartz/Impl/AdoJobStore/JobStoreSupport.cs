@@ -861,6 +861,8 @@ namespace Quartz.Impl.AdoJobStore
                 }
 
                 DoUpdateOfMisfiredTrigger(conn, null, trig, false, STATE_WAITING, recovering);
+
+                signaler.NotifySchedulerListenersFinalized(trig);
             }
 
             return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count);
@@ -888,6 +890,8 @@ namespace Quartz.Impl.AdoJobStore
                 }
 
                 DoUpdateOfMisfiredTrigger(conn, ctxt, trig, forceState, newStateIfNotComplete, false);
+
+                signaler.NotifySchedulerListenersFinalized(trig);
 
                 return true;
             }

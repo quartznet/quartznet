@@ -38,7 +38,6 @@ namespace Quartz.Impl.Calendar
         private static readonly long oneMillis = 1;
         private static readonly char colon = ':';
 
-        private readonly string name;
         private int rangeStartingHourOfDay;
         private int rangeStartingMinute;
         private int rangeStartingSecond;
@@ -82,60 +81,52 @@ namespace Quartz.Impl.Calendar
         ///     </li>  
         /// </ul>
         /// </summary>
-        /// <param name="name">The name for this calendar.</param>
-        public DailyCalendar(string name,
-                             string rangeStartingTime,
+        public DailyCalendar(string rangeStartingTime,
                              string rangeEndingTime)
         {
-            this.name = name;
             SetTimeRange(rangeStartingTime, rangeEndingTime);
         }
 
 
         /// <summary>
-        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-        /// specified strings and the specified baseCalendar. 
-        /// <param name="rangeStartingTime" /> and <param name="rangeEndingTime" />
-        /// must be in the format &quot;HH:MM[:SS[:mmm]]&quot; where:
+        /// Create a <see cref="DailyCalendar"/> with a time range defined by the
+        /// specified strings and the specified baseCalendar.
+        /// <param name="rangeStartingTime"/> and <param name="rangeEndingTime"/>
+        /// must be in the format "HH:MM[:SS[:mmm]]" where:
         /// <ul>
-        ///     <li>
-        ///         HH is the hour of the specified time. The hour should be
-        ///         specified using military (24-hour) time and must be in the range
-        ///         0 to 23.
-        ///     </li>
-        ///     <li>
-        ///         MM is the minute of the specified time and must be in the range
-        ///         0 to 59.
-        ///     </li>
-        ///      <li>
-        ///         SS is the second of the specified time and must be in the range
-        ///         0 to 59.
-        ///     </li>
-        ///     <li>
-        ///         mmm is the millisecond of the specified time and must be in the
-        ///         range 0 to 999.
-        ///     </li>
-        ///     <li>
-        ///         items enclosed in brackets ('[', ']') are optional.
-        ///     </li>
-        ///     <li>
-        ///         The time range starting time must be before the time range ending
-        ///         time. Note this means that a time range may not cross daily 
-        ///          boundaries (10PM - 2AM)
-        ///     </li>  
-        ///  </ul>
+        /// 		<li>
+        /// HH is the hour of the specified time. The hour should be
+        /// specified using military (24-hour) time and must be in the range
+        /// 0 to 23.
+        /// </li>
+        /// 		<li>
+        /// MM is the minute of the specified time and must be in the range
+        /// 0 to 59.
+        /// </li>
+        /// 		<li>
+        /// SS is the second of the specified time and must be in the range
+        /// 0 to 59.
+        /// </li>
+        /// 		<li>
+        /// mmm is the millisecond of the specified time and must be in the
+        /// range 0 to 999.
+        /// </li>
+        /// 		<li>
+        /// items enclosed in brackets ('[', ']') are optional.
+        /// </li>
+        /// 		<li>
+        /// The time range starting time must be before the time range ending
+        /// time. Note this means that a time range may not cross daily
+        /// boundaries (10PM - 2AM)
+        /// </li>
+        /// 	</ul>
         /// </summary>
-        /// <param name="name">the name for the <see cref="DailyCalendar" /></param>
-        /// <param name="baseCalendar">
-        /// The base calendar for this calendar instance see BaseCalendar for more 
-        /// information on base calendar functionality.
-        /// </param>
-        public DailyCalendar(string name,
-                             ICalendar baseCalendar,
+        /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
+        /// information on base calendar functionality.</param>
+        public DailyCalendar(ICalendar baseCalendar,
                              string rangeStartingTime,
                              string rangeEndingTime) : base(baseCalendar)
         {
-            this.name = name;
             SetTimeRange(rangeStartingTime, rangeEndingTime);
         }
 
@@ -158,7 +149,6 @@ namespace Quartz.Impl.Calendar
         ///     </li>  
         /// </ul>
         /// </summary>
-        /// <param name="name">The name.</param>
         /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
         /// <param name="rangeStartingMinute">The range starting minute.</param>
         /// <param name="rangeStartingSecond">The range starting second.</param>
@@ -167,8 +157,7 @@ namespace Quartz.Impl.Calendar
         /// <param name="rangeEndingMinute">The range ending minute.</param>
         /// <param name="rangeEndingSecond">The range ending second.</param>
         /// <param name="rangeEndingMillis">The range ending millis.</param>
-        public DailyCalendar(string name,
-                             int rangeStartingHourOfDay,
+        public DailyCalendar(int rangeStartingHourOfDay,
                              int rangeStartingMinute,
                              int rangeStartingSecond,
                              int rangeStartingMillis,
@@ -177,7 +166,6 @@ namespace Quartz.Impl.Calendar
                              int rangeEndingSecond,
                              int rangeEndingMillis)
         {
-            this.name = name;
             SetTimeRange(rangeStartingHourOfDay,
                          rangeStartingMinute,
                          rangeStartingSecond,
@@ -189,25 +177,24 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-        /// specified values and the specified <param name="baseCalendar" />. Values are
+        /// Create a <see cref="DailyCalendar"/> with a time range defined by the
+        /// specified values and the specified <param name="baseCalendar"/>. Values are
         /// subject to the following validations:
-        ///	<ul>
-        ///     <li>
-        ///         Hours must be in the range 0-23 and are expressed using military
-        ///		    (24-hour) time.
-        ///     </li>
-        ///		<li>Minutes must be in the range 0-59</li>
-        ///		<li>Seconds must be in the range 0-59</li>
-        ///		<li>Milliseconds must be in the range 0-999</li>
-        ///		<li>
-        ///         The time range starting time must be before the time range ending
-        ///		    time. Note this means that a time range may not cross daily
-        ///		    boundaries (10PM - 2AM)
-        ///     </li>  
-        ///	</ul> 
+        /// <ul>
+        /// 		<li>
+        /// Hours must be in the range 0-23 and are expressed using military
+        /// (24-hour) time.
+        /// </li>
+        /// 		<li>Minutes must be in the range 0-59</li>
+        /// 		<li>Seconds must be in the range 0-59</li>
+        /// 		<li>Milliseconds must be in the range 0-999</li>
+        /// 		<li>
+        /// The time range starting time must be before the time range ending
+        /// time. Note this means that a time range may not cross daily
+        /// boundaries (10PM - 2AM)
+        /// </li>
+        /// 	</ul>
         /// </summary>
-        /// <param name="name">The name.</param>
         /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
         /// <param name="rangeStartingMinute">The range starting minute.</param>
         /// <param name="rangeStartingSecond">The range starting second.</param>
@@ -216,8 +203,7 @@ namespace Quartz.Impl.Calendar
         /// <param name="rangeEndingMinute">The range ending minute.</param>
         /// <param name="rangeEndingSecond">The range ending second.</param>
         /// <param name="rangeEndingMillis">The range ending millis.</param>
-        public DailyCalendar(string name,
-                             ICalendar baseCalendar,
+        public DailyCalendar(ICalendar baseCalendar,
                              int rangeStartingHourOfDay,
                              int rangeStartingMinute,
                              int rangeStartingSecond,
@@ -227,7 +213,6 @@ namespace Quartz.Impl.Calendar
                              int rangeEndingSecond,
                              int rangeEndingMillis) : base(baseCalendar)
         {
-            this.name = name;
             SetTimeRange(rangeStartingHourOfDay,
                          rangeStartingMinute,
                          rangeStartingSecond,
@@ -260,46 +245,40 @@ namespace Quartz.Impl.Calendar
         ///     </li>  
         /// </ul> 
         /// </summary>
-        /// <param name="name">The name.</param>
         /// <param name="rangeStartingCalendar">The range starting calendar.</param>
         /// <param name="rangeEndingCalendar">The range ending calendar.</param>
-        public DailyCalendar(string name,
-                             DateTime rangeStartingCalendar,
+        public DailyCalendar(DateTime rangeStartingCalendar,
                              DateTime rangeEndingCalendar)
         {
-            this.name = name;
             SetTimeRange(rangeStartingCalendar, rangeEndingCalendar);
         }
 
         /// <summary>
-        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-        ///	specified <see cref="DateTime" />s and the specified 
-        ///	<param name="baseCalendar" />. The Calendars are subject to the following
-        ///	considerations:
-        ///	<ul>
-        ///     <li>
-        ///         Only the time-of-day fields of the specified Calendars will be
-        ///		    used (the date fields will be ignored)
-        ///     </li>
-        ///		<li>
-        ///         The starting time must be before the ending time of the defined
-        ///		    time range. Note this means that a time range may not cross
-        ///		    daily boundaries (10PM - 2AM). <i>(because only time fields are
-        ///		    are used, it is possible for two Calendars to represent a valid
-        ///		    time range and 
-        ///		    <c>rangeStartingCalendar.after(rangeEndingCalendar) == true</c>)</i>
-        ///     </li>  
-        /// </ul> 
+        /// Create a <see cref="DailyCalendar"/> with a time range defined by the
+        /// specified <see cref="DateTime"/>s and the specified
+        /// <param name="baseCalendar"/>. The Calendars are subject to the following
+        /// considerations:
+        /// <ul>
+        /// 		<li>
+        /// Only the time-of-day fields of the specified Calendars will be
+        /// used (the date fields will be ignored)
+        /// </li>
+        /// 		<li>
+        /// The starting time must be before the ending time of the defined
+        /// time range. Note this means that a time range may not cross
+        /// daily boundaries (10PM - 2AM). <i>(because only time fields are
+        /// are used, it is possible for two Calendars to represent a valid
+        /// time range and
+        /// <c>rangeStartingCalendar.after(rangeEndingCalendar) == true</c>)</i>
+        /// 		</li>
+        /// 	</ul>
         /// </summary>
-        /// <param name="name">The name.</param>
         /// <param name="rangeStartingCalendar">The range starting calendar.</param>
         /// <param name="rangeEndingCalendar">The range ending calendar.</param>
-        public DailyCalendar(string name,
-                             ICalendar baseCalendar,
+        public DailyCalendar(ICalendar baseCalendar,
                              DateTime rangeStartingCalendar,
                              DateTime rangeEndingCalendar) : base(baseCalendar)
         {
-            this.name = name;
             SetTimeRange(rangeStartingCalendar, rangeEndingCalendar);
         }
 
@@ -321,60 +300,43 @@ namespace Quartz.Impl.Calendar
         ///     </li>  
         /// </ul> 
         /// </summary>
-        /// <param name="name">The name.</param>
         /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
         /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
-        public DailyCalendar(string name,
-                             long rangeStartingTimeInMillis,
+        public DailyCalendar(long rangeStartingTimeInMillis,
                              long rangeEndingTimeInMillis)
         {
-            this.name = name;
             SetTimeRange(rangeStartingTimeInMillis,
                          rangeEndingTimeInMillis);
         }
 
 
         /// <summary>
-        /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-        /// specified values and the specified <param name="baseCalendar" />. The values
+        /// Create a <see cref="DailyCalendar"/> with a time range defined by the
+        /// specified values and the specified <param name="baseCalendar"/>. The values
         /// are subject to the following considerations:
         /// <ul>
-        ///     <li>
-        ///         Only the time-of-day portion of the specified values will be
-        ///         used
-        ///     </li>
-        /// 	<li>
-        ///         The starting time must be before the ending time of the defined
-        ///         time range. Note this means that a time range may not cross
-        ///         daily boundaries (10PM - 2AM). <i>(because only time value are
-        ///         are used, it is possible for the two values to represent a valid
-        ///         time range and <c>rangeStartingTime &gt; rangeEndingTime</c>)</i>
-        ///     </li>
-        /// </ul>
+        /// 		<li>
+        /// Only the time-of-day portion of the specified values will be
+        /// used
+        /// </li>
+        /// 		<li>
+        /// The starting time must be before the ending time of the defined
+        /// time range. Note this means that a time range may not cross
+        /// daily boundaries (10PM - 2AM). <i>(because only time value are
+        /// are used, it is possible for the two values to represent a valid
+        /// time range and <c>rangeStartingTime &gt; rangeEndingTime</c>)</i>
+        /// 		</li>
+        /// 	</ul>
         /// </summary>
-        /// <param name="name">The name.</param>
         /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
         /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
-        public DailyCalendar(string name,
-                             ICalendar baseCalendar,
+        public DailyCalendar(ICalendar baseCalendar,
                              long rangeStartingTimeInMillis,
                              long rangeEndingTimeInMillis) : base(baseCalendar)
         {
-            this.name = name;
             SetTimeRange(rangeStartingTimeInMillis,
                          rangeEndingTimeInMillis);
         }
-
-
-        /// <summary>
-        /// Gets the name.
-        /// </summary>
-        /// <value>The name.</value>
-        public string Name
-        {
-            get { return name; }
-        }
-
 
         /// <summary>
         /// Determine whether the given time  is 'included' by the
@@ -557,8 +519,7 @@ namespace Quartz.Impl.Calendar
         public override string ToString()
         {
             StringBuilder buffer = new StringBuilder();
-            buffer.Append(Name);
-            buffer.Append(": base calendar: [");
+            buffer.Append("base calendar: [");
             if (GetBaseCalendar() != null)
             {
                 buffer.Append(GetBaseCalendar().ToString());

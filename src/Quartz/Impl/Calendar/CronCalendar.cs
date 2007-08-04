@@ -5,9 +5,11 @@ namespace Quartz.Impl.Calendar
 {
 	/// <summary>
 	/// This implementation of the Calendar excludes the set of times expressed by a
-	/// given CronExpression. For example, you 
-	/// could use this calendar to exclude all but business hours (8AM - 5PM) every 
-	/// day using the expression &quot;* * 0-7,18-24 ? * *&quot;. 
+	/// given CronExpression. 
+	/// </summary>
+	/// <remarks>
+	/// For example, you could use this calendar to exclude all but business hours (8AM - 5PM) every 
+	/// day using the expression &quot;* * 0-7,18-23 ? * *&quot;. 
 	/// <p>
 	/// It is important to remember that the cron expression here describes a set of
 	/// times to be <i>excluded</i> from firing. Whereas the cron expression in 
@@ -17,7 +19,7 @@ namespace Quartz.Impl.Calendar
 	/// the <i>same</i> expression, the calendar will exclude all the times the 
 	/// trigger includes, and they will cancel each other out.
 	/// </p>
-	/// </summary>
+	/// </remarks>
 	/// <author>Aaron Craven</author>
     [Serializable]
 	public class CronCalendar : BaseCalendar

@@ -183,7 +183,12 @@ namespace Quartz.Tests.Unit.Simpl
 				fMisfireCount++;
 			}
 
-			public void SignalSchedulingChange()
+		    public void NotifySchedulerListenersFinalized(Trigger trigger)
+		    {
+		        
+		    }
+
+		    public void SignalSchedulingChange()
 			{
 			}
 		}

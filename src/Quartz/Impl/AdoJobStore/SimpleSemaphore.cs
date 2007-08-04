@@ -130,7 +130,7 @@ namespace Quartz.Impl.AdoJobStore
 					}
 					ThreadLocks.Remove(lockName);
 					locks.Remove(lockName);
-					Monitor.Pulse(this);
+					Monitor.PulseAll(this);
 				}
 				else if (log.IsDebugEnabled)
 				{

@@ -72,9 +72,11 @@ namespace Quartz.Impl.Calendar
                 {
                     excludeDays = new ArrayList();
                 }
-
-                excludeDays = new ArrayList(value);
-                dataSorted = false;
+                else
+                {
+                    excludeDays = new ArrayList(value);
+                    dataSorted = false;
+                }
             }
         }
 

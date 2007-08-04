@@ -56,7 +56,7 @@ To create a listener, simply create an object the implements either the ITrigger
 Listeners are then registered with the scheduler during run time, and must be given a name (or rather, they must advertise their own 
 name via their Name property. Listeners can be registered as either "global" or "non-global". 
 Global listeners receive events for ALL triggers/jobs, and non-global listeners receive events only for the specific triggers/jobs that
-explicitely name the listener in their getTriggerListenerNames() or getJobListenerNames() properties.
+explicitely name the listener in their GetTriggerListenerNames() or GetJobListenerNames() properties.
 </p>	
 
 <p>

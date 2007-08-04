@@ -120,168 +120,180 @@ namespace Quartz.Core
 		/// </summary>
 		public virtual void Run()
 		{
-			Trigger trigger = jec.Trigger;
-			JobDetail jobDetail = jec.JobDetail;
-		    do
-			{
-				JobExecutionException jobExEx = null;
-				IJob job = jec.JobInstance;
+            try
+            {
+                Trigger trigger = jec.Trigger;
+                JobDetail jobDetail = jec.JobDetail;
+                do
+                {
+                    JobExecutionException jobExEx = null;
+                    IJob job = jec.JobInstance;
 
-				try
-				{
-					Begin();
-				}
-				catch (SchedulerException se)
-				{
-					qs.NotifySchedulerListenersError(string.Format("Error executing Job ({0}: couldn't begin execution.", jec.JobDetail.FullName), se);
-					break;
-				}
+                    try
+                    {
+                        Begin();
+                    }
+                    catch (SchedulerException se)
+                    {
+                        qs.NotifySchedulerListenersError(
+                            string.Format("Error executing Job ({0}: couldn't begin execution.", jec.JobDetail.FullName),
+                            se);
+                        break;
+                    }
 
-				// notify job & trigger listeners...
-                SchedulerInstruction instCode;
-			    try
-				{
-					if (!NotifyListenersBeginning(jec))
-					{
-						break;
-					}
-				}
-				catch (VetoedException)
-				{
-					try
-					{
-                        instCode = trigger.ExecutionComplete(jec, null);
+                    // notify job & trigger listeners...
+                    SchedulerInstruction instCode;
+                    try
+                    {
+                        if (!NotifyListenersBeginning(jec))
+                        {
+                            break;
+                        }
+                    }
+                    catch (VetoedException)
+                    {
                         try
                         {
-                            qs.NotifyJobStoreJobVetoed(schdCtxt, trigger, jobDetail, instCode);
+                            instCode = trigger.ExecutionComplete(jec, null);
+                            try
+                            {
+                                qs.NotifyJobStoreJobVetoed(schdCtxt, trigger, jobDetail, instCode);
+                            }
+                            catch (JobPersistenceException)
+                            {
+                                VetoedJobRetryLoop(trigger, jobDetail, instCode);
+                            }
+                            Complete(true);
                         }
-                        catch (JobPersistenceException)
+                        catch (SchedulerException se)
                         {
-                            VetoedJobRetryLoop(trigger, jobDetail, instCode);
+                            qs.NotifySchedulerListenersError(
+                                string.Format("Error during veto of Job ({0}: couldn't finalize execution.",
+                                              jec.JobDetail.FullName), se);
                         }
-						Complete(true);
-					}
-					catch (SchedulerException se)
-					{
-						qs.NotifySchedulerListenersError(
-							string.Format("Error during veto of Job ({0}: couldn't finalize execution.", jec.JobDetail.FullName), se);
-					}
-					break;
-				}
-
-				DateTime startTime = DateTime.Now;
-				DateTime endTime;
-
-				// Execute the job
-				try
-				{
-                    if (log.IsDebugEnabled)
-                    {
-                        log.Debug("Calling Execute on job " + jobDetail.FullName);
+                        break;
                     }
-				    job.Execute(jec);
-					endTime = DateTime.Now;
-				}
-				catch (JobExecutionException jee)
-				{
-					endTime = DateTime.Now;
-					jobExEx = jee;
-					log.Info(string.Format("Job {0} threw a JobExecutionException: ", jobDetail.FullName), jobExEx);
-				}
-				catch (Exception e)
-				{
-					endTime = DateTime.Now;
-					log.Error(string.Format("Job {0} threw an unhandled Exception: ", jobDetail.FullName), e);
-					SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
-					se.ErrorCode = SchedulerException.ERR_JOB_EXECUTION_THREW_EXCEPTION;
-					qs.NotifySchedulerListenersError(string.Format("Job ({0} threw an exception.", jec.JobDetail.FullName), se);
-					jobExEx = new JobExecutionException(se, false);
-					jobExEx.ErrorCode = JobExecutionException.ERR_JOB_EXECUTION_THREW_EXCEPTION;
-				}
 
-				jec.JobRunTime = (long) (endTime - startTime).TotalMilliseconds;
+                    DateTime startTime = DateTime.Now;
+                    DateTime endTime;
 
-				// notify all job listeners
-				if (!NotifyJobListenersComplete(jec, jobExEx))
-				{
-					break;
-				}
-
-                instCode = SchedulerInstruction.NoInstruction;
-
-				// update the trigger
-				try
-				{
-					instCode = trigger.ExecutionComplete(jec, jobExEx);
-                    if (log.IsDebugEnabled)
+                    // Execute the job
+                    try
                     {
-                        log.Debug(string.Format("Trigger instruction : {0}", instCode.ToString()));
+                        if (log.IsDebugEnabled)
+                        {
+                            log.Debug("Calling Execute on job " + jobDetail.FullName);
+                        }
+                        job.Execute(jec);
+                        endTime = DateTime.Now;
                     }
-				}
-				catch (Exception e)
-				{
-					// If this happens, there's a bug in the trigger...
-					SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
-					se.ErrorCode = SchedulerException.ERR_TRIGGER_THREW_EXCEPTION;
-					qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se);
-				}
+                    catch (JobExecutionException jee)
+                    {
+                        endTime = DateTime.Now;
+                        jobExEx = jee;
+                        log.Info(string.Format("Job {0} threw a JobExecutionException: ", jobDetail.FullName), jobExEx);
+                    }
+                    catch (Exception e)
+                    {
+                        endTime = DateTime.Now;
+                        log.Error(string.Format("Job {0} threw an unhandled Exception: ", jobDetail.FullName), e);
+                        SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
+                        se.ErrorCode = SchedulerException.ERR_JOB_EXECUTION_THREW_EXCEPTION;
+                        qs.NotifySchedulerListenersError(
+                            string.Format("Job ({0} threw an exception.", jec.JobDetail.FullName), se);
+                        jobExEx = new JobExecutionException(se, false);
+                        jobExEx.ErrorCode = JobExecutionException.ERR_JOB_EXECUTION_THREW_EXCEPTION;
+                    }
 
-				// notify all trigger listeners
-				if (!NotifyTriggerListenersComplete(jec, instCode))
-				{
-					break;
-				}
-				// update job/trigger or re-Execute job
-                if (instCode == SchedulerInstruction.ReExecuteJob)
-				{
-				    if (log.IsDebugEnabled)
-				    {
-				        log.Debug("Rescheduling trigger to reexecute");
-				    }
-					jec.IncrementRefireCount();
-					try
-					{
-						Complete(false);
-					}
-					catch (SchedulerException se)
-					{
-						qs.NotifySchedulerListenersError(
-							string.Format("Error executing Job ({0}: couldn't finalize execution.", jec.JobDetail.FullName), se);
-					}
-					continue;
-				}
+                    jec.JobRunTime = (long) (endTime - startTime).TotalMilliseconds;
 
-				try
-				{
-					Complete(true);
-				}
-				catch (SchedulerException se)
-				{
-					qs.NotifySchedulerListenersError(
-						string.Format("Error executing Job ({0}: couldn't finalize execution.", jec.JobDetail.FullName), se);
-					continue;
-				}
+                    // notify all job listeners
+                    if (!NotifyJobListenersComplete(jec, jobExEx))
+                    {
+                        break;
+                    }
 
-				try
-				{
-					qs.NotifyJobStoreJobComplete(schdCtxt, trigger, jobDetail, instCode);
-				}
-				catch (JobPersistenceException jpe)
-				{
-					qs.NotifySchedulerListenersError(
-						string.Format("An error occured while marking executed job complete. job= '{0}'", jobDetail.FullName), jpe);
-					if (!CompleteTriggerRetryLoop(trigger, jobDetail, instCode))
-					{
-					}
-					return;
-				}
+                    instCode = SchedulerInstruction.NoInstruction;
 
-				break;
-			} while (true);
+                    // update the trigger
+                    try
+                    {
+                        instCode = trigger.ExecutionComplete(jec, jobExEx);
+                        if (log.IsDebugEnabled)
+                        {
+                            log.Debug(string.Format("Trigger instruction : {0}", instCode));
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // If this happens, there's a bug in the trigger...
+                        SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
+                        se.ErrorCode = SchedulerException.ERR_TRIGGER_THREW_EXCEPTION;
+                        qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se);
+                    }
 
-			qs.NotifySchedulerThread();
+                    // notify all trigger listeners
+                    if (!NotifyTriggerListenersComplete(jec, instCode))
+                    {
+                        break;
+                    }
+                    // update job/trigger or re-Execute job
+                    if (instCode == SchedulerInstruction.ReExecuteJob)
+                    {
+                        if (log.IsDebugEnabled)
+                        {
+                            log.Debug("Rescheduling trigger to reexecute");
+                        }
+                        jec.IncrementRefireCount();
+                        try
+                        {
+                            Complete(false);
+                        }
+                        catch (SchedulerException se)
+                        {
+                            qs.NotifySchedulerListenersError(
+                                string.Format("Error executing Job ({0}: couldn't finalize execution.",
+                                              jec.JobDetail.FullName), se);
+                        }
+                        continue;
+                    }
 
-			jobRunShellFactory.ReturnJobRunShell(this);
+                    try
+                    {
+                        Complete(true);
+                    }
+                    catch (SchedulerException se)
+                    {
+                        qs.NotifySchedulerListenersError(
+                            string.Format("Error executing Job ({0}: couldn't finalize execution.",
+                                          jec.JobDetail.FullName), se);
+                        continue;
+                    }
+
+                    try
+                    {
+                        qs.NotifyJobStoreJobComplete(schdCtxt, trigger, jobDetail, instCode);
+                    }
+                    catch (JobPersistenceException jpe)
+                    {
+                        qs.NotifySchedulerListenersError(
+                            string.Format("An error occured while marking executed job complete. job= '{0}'",
+                                          jobDetail.FullName), jpe);
+                        if (!CompleteTriggerRetryLoop(trigger, jobDetail, instCode))
+                        {
+                        }
+                        return;
+                    }
+
+                    break;
+                } while (true);
+
+                qs.NotifySchedulerThread();
+            }
+		    finally
+            {
+                jobRunShellFactory.ReturnJobRunShell(this);
+            }
 		}
 
 		/// <summary>

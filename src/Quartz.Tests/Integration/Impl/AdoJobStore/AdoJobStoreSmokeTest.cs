@@ -93,6 +93,21 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             RunAdoJobStoreTest("SQLite-1044", "SQLite");
         }
 
+        [Test]
+        public void TestSQLite1044NonClustered()
+        {
+            clustered = true;
+            try
+            {
+                TestSQLite1044();
+            }
+            finally
+            {
+                clustered = false;
+            }
+        }
+
+
         private void RunAdoJobStoreTest(string dbProvider, string connectionStringId)
         {
             RunAdoJobStoreTest(dbProvider, connectionStringId, null);
@@ -153,7 +168,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.AddCalendar("annualCalendar", new AnnualCalendar(), false, true);
                     sched.AddCalendar("baseCalendar", new BaseCalendar(), false, true);
                     sched.AddCalendar("cronCalendar", cronCalendar, false, true);
-                    sched.AddCalendar("dailyCalendar", new DailyCalendar("test", DateTime.Now.Date, DateTime.Now.AddMinutes(1)), false, true);
+                    sched.AddCalendar("dailyCalendar", new DailyCalendar(DateTime.Now.Date, DateTime.Now.AddMinutes(1)), false, true);
                     sched.AddCalendar("holidayCalendar", holidayCalendar, false, true);
                     sched.AddCalendar("monthlyCalendar", new MonthlyCalendar(), false, true);
                     sched.AddCalendar("weeklyCalendar", new WeeklyCalendar(), false, true);
@@ -258,13 +273,18 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.ResumeJob("job_1", schedId);
 
                     sched.PauseJobGroup(schedId);
+                    
                     Thread.Sleep(1000);
+
                     sched.ResumeJobGroup(schedId);
 
                     sched.PauseTrigger("trig_2", schedId);
                     sched.ResumeTrigger("trig_2", schedId);
 
                     sched.PauseTriggerGroup(schedId);
+                    
+                    Assert.AreEqual(1, sched.GetPausedTriggerGroups().Count);
+
                     Thread.Sleep(1000);
                     sched.ResumeTriggerGroup(schedId);
 
@@ -273,7 +293,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     sched.Standby();
 
-
+                    Assert.IsNotEmpty(sched.GetCalendarNames());
                     Assert.IsNotEmpty(sched.GetJobNames(schedId));
 
                     Assert.IsNotEmpty(sched.GetTriggersOfJob("job_2", schedId));
@@ -290,7 +310,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
             finally
             {
-                sched.Shutdown(true);
+                sched.Shutdown(false);
             }
         }
 

@@ -20,13 +20,13 @@ using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
 
-namespace Quartz.Tests.Unit.NewTest
+namespace Quartz.Tests.Unit.Impl.Calendar
 {
     [TestFixture]
     public class CronCalendarTest
     {
         [Test]
-        public void TestCronCalendar()
+        public void TestTimeIncluded()
         {
             string expr = string.Format("0/15 * * * * ?");
             CronCalendar calendar = new CronCalendar(expr);
@@ -38,6 +38,16 @@ namespace Quartz.Tests.Unit.NewTest
             calendar.SetCronExpressionString("0/25 * * * * ?");
             fault = "Time was not included as expected";
             Assert.IsTrue(calendar.IsTimeIncluded(tst), fault);
+        }
+
+        [Test]
+        [Ignore("Need to check this with Java team")]
+        public void TestGetNextIncludedTimeWhenBusinessHoursExcluded()
+        {
+            string expr = string.Format("* * 8-17 ? * *");
+            CronCalendar calendar = new CronCalendar(expr);
+            DateTime tst = new DateTime(2007, 6, 28, 14, 0, 0);
+            Assert.AreEqual(new DateTime(2007, 6, 28, 17, 0, 0), calendar.GetNextIncludedTime(tst));
         }
 
     

@@ -92,12 +92,12 @@ Here's a quick example of getting data from the JobDataMap during the job's exec
 {<br />
 &nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>public&nbsp;void&nbsp;</font><font color='black'>Execute(JobExecutionContext&nbsp;context)<br />
 &nbsp;&nbsp;&nbsp;&nbsp;{<br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;String&nbsp;instName&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Name</font><font color='blue'>;<br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>String&nbsp;instGroup&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Group</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="blue">string</font>&nbsp;instName&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Name</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'><font color="blue">string</font>&nbsp;instGroup&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Group</font><font color='blue'>;<br />
 <br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>JobDataMap&nbsp;dataMap&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.JobDataMap</font><font color='blue'>;<br />
 <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>String&nbsp;jobSays&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>dataMap.GetString(</font><font color='#808080'>"jobSays"</font><font color='black'>)</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'><font color="blue">string</font>&nbsp;jobSays&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>dataMap.GetString(</font><font color='#808080'>"jobSays"</font><font color='black'>)</font><font color='blue'>;<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;</font><font color='black'>myFloatValue&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>dataMap.GetFloat(</font><font color='#808080'>"myFloatValue"</font><font color='black'>)</font><font color='blue'>;<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>ArrayList&nbsp;state&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>(ArrayList)&nbsp;dataMap[</font><font color='#808080'>"myStateData"</font><font color='black'>]</font><font color='blue'>;<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>state.Add(DateTime.Now)</font><font color='blue'>;<br />
@@ -140,13 +140,13 @@ Here's a quick example of getting data from the JobExecutionContext's merged Job
 {<br />
 &nbsp;&nbsp;&nbsp;&nbsp;</font><font color='blue'>public&nbsp;void&nbsp;</font><font color='black'>Execute(JobExecutionContext&nbsp;context)<br />
 &nbsp;&nbsp;&nbsp;&nbsp;{<br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;String&nbsp;instName&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Name</font><font color='blue'>;<br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>String&nbsp;instGroup&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Group</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="blue">string</font>&nbsp;instName&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Name</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'><font color="blue">string</font>&nbsp;instGroup&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.JobDetail.Group</font><font color='blue'>;<br />
 <br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='darkgreen'>//&nbsp;Note&nbsp;the&nbsp;difference&nbsp;from&nbsp;the&nbsp;previous&nbsp;example<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>JobDataMap&nbsp;dataMap&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>context.MergedJobDataMap</font><font color='blue'>;<br />
 <br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>String&nbsp;jobSays&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>dataMap.GetString(</font><font color='#808080'>"jobSays"</font><font color='black'>)</font><font color='blue'>;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'><font color="blue">string</font>&nbsp;jobSays&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>dataMap.GetString(</font><font color='#808080'>"jobSays"</font><font color='black'>)</font><font color='blue'>;<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;float&nbsp;</font><font color='black'>myFloatValue&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>dataMap.GetFloat(</font><font color='#808080'>"myFloatValue"</font><font color='black'>)</font><font color='blue'>;<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>ArrayList&nbsp;state&nbsp;</font><font color='blue'>=&nbsp;</font><font color='black'>(ArrayList)&nbsp;dataMap.Get(</font><font color='#808080'>"myStateData"</font><font color='black'>)</font><font color='blue'>;<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</font><font color='black'>state.Add(DateTime.Now)</font><font color='blue'>;<br />
@@ -180,8 +180,9 @@ and JobDataMap - and adding them all to the scheduler.
 
 <p>
 When a trigger fires, the Job it is associated to is instantiated via the JobFactory configured on the Scheduler. The default 
-JobFactory simply calls newInstance() on the job class. You may want to create your own implementation of JobFactory to accomplish things 
-such as having your application's IoC or DI container produce/initialize the job instance.
+JobFactory simply calls Activator.CreateInstance behind the scenes on the job class. 
+You may want to create your own implementation of JobFactory to accomplish things such as having your application's IoC or 
+DI container produce/initialize the job instance.
 </p>
 
 <h2>Other Attributes Of Jobs</h2>
@@ -191,8 +192,8 @@ Here's a quick summary of the other properties which can be defined for a job in
 </p>
 
 <ul>
-	<li>Durability - if a job is non-durable, it is automatically deleted from the scheduler once there are no longer any active triggers associated with it.</li>
-    <li>Volatility - if a job is volatile, it is not persisted between re-starts of the Quartz scheduler.</li>
+	<li>Durable - if a job is non-durable, it is automatically deleted from the scheduler once there are no longer any active triggers associated with it.</li>
+    <li>Volatile - if a job is volatile, it is not persisted between re-starts of the Quartz scheduler.</li>
     <li>RequestsRecovery - if a job "requests recovery", and it is executing during the time of a 'hard shutdown' of the scheduler (i.e. the process it is running within crashes, or the machine is shut off), then it is re-executed when the scheduler is started again. In this case, the JobExecutionContext.isRecovering() method will return true.</li>
     <li>JobListeners - a job can have a set of zero or more JobListeners associated with it. When the job executes, the listeners are notified. More discussion on JobListeners can be found in the section of this document that is dedicated to the topic of TriggerListeners & JobListeners.</li>
 </ul>

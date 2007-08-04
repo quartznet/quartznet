@@ -66,7 +66,13 @@ namespace Quartz.Tests.Unit
 		{
 			JobDetail jobDetail = new JobDetail();
 			jobDetail.AddJobListener("A");
-        
+
+            // verify order
+            for (int i = 0; i < 10; i++)
+            {
+                jobDetail.AddJobListener("A" + i);
+            }
+
 			JobDetail clonedJobDetail = (JobDetail)jobDetail.Clone();
 			TestUtil.AssertCollectionEquality(new ArrayList(clonedJobDetail.JobListenerNames),
 				new ArrayList(jobDetail.JobListenerNames));

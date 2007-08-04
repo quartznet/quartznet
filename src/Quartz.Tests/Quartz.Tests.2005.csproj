@@ -126,6 +126,9 @@
     <Compile Include="Unit\Impl\AdoJobStore\Common\DbProviderTest.cs" />
     <Compile Include="Unit\Impl\AdoJobStore\StdAdoDelegateTest.cs" />
     <Compile Include="Unit\Impl\Calendar\AnnualCalendarTest.cs" />
+    <Compile Include="Unit\Impl\Calendar\MonthlyCalendarTest.cs" />
+    <Compile Include="Unit\Impl\Calendar\WeeklyCalendarTest.cs" />
+    <Compile Include="Unit\Impl\Calendar\HolidayCalendarTest.cs" />
     <Compile Include="Unit\Impl\Calendar\CronCalendarTest.cs" />
     <Compile Include="Unit\Impl\Calendar\DailyCalendarTest.cs">
       <SubType>Code</SubType>

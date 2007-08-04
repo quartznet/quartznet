@@ -688,6 +688,12 @@ namespace Quartz
 		/// </summary>
 		ICalendar GetCalendar(string calName);
 
+        /// <summary>
+        /// Get the names of all registered <see cref="ICalendar" />.
+        /// </summary>
+        /// <returns></returns>
+        string[] GetCalendarNames();
+
 		/// <summary>
 		/// Request the interruption, within this Scheduler instance, of all 
         /// currently executing instances of the identified <code>Job</code>, which 

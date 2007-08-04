@@ -77,7 +77,6 @@ Also in the future..
 
 <h1>Clustering</h1>
 <br />
-<strong>NOTE: This is currently a work in progress</strong>
 <ul>
 	<li>Fail-over.</li>
 	<li>Load balancing.</li>

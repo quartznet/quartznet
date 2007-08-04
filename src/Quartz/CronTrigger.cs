@@ -385,7 +385,10 @@ namespace Quartz
 		public override object Clone()
 		{
 			CronTrigger copy = (CronTrigger) MemberwiseClone();
-			copy.CronExpression = (CronExpression) cronEx.Clone();
+			if (cronEx != null)
+			{
+			    copy.CronExpression = (CronExpression) cronEx.Clone();
+			}
 			return copy;
 		}
 
@@ -479,7 +482,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the previous time at which the <see cref="Trigger" /> will fire.
+		/// Returns the previous time at which the <see cref="Trigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
 		/// <returns></returns>

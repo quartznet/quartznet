@@ -31,7 +31,7 @@ of Quartz.NET uses RAMJobStore as job store implementation.
 
 <p>
 <strong>
-ADO.NET based job store is still experimental and may (and propably does) contain bugs. <br />
+ADO.NET based job store is still experimental and may contain bugs. <br />
 AdoJobStore is available from version 0.6 onwards.
 </strong>
 </p>
@@ -150,6 +150,7 @@ Currently following database providers are supported:
 	<li>MySql-109 - MySQL Connector/.NET v. 1.0.9 </li>
 	<li>MySql-50 - MySQL Connector/.NET v. 5.0 (.NET 2.0)</li>
 	<li>MySql-51 - MySQL Connector/:NET v. 5.1 (.NET 2.0)</li>
+	<li>SQLite1044 - SQLite ADO.NET 2.0 Provider v. 1.0.44 (.NET 2.0)</li>
 </ul>
 </p>
 

@@ -265,6 +265,12 @@ namespace Quartz.Impl
 			}
 		}
 
+        /// <summary>
+        /// Get the <i>global</i><see cref="IJobListener"/> that has
+        /// the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
 	    public IJobListener GetGlobalJobListener(string name)
 	    {
 
@@ -273,6 +279,12 @@ namespace Quartz.Impl
                     SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
 	    }
 
+        /// <summary>
+        /// Get the <i>global</i><see cref="ITriggerListener"/> that
+        /// has the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
 	    public ITriggerListener GetGlobalTriggerListener(string name)
 	    {
             throw new SchedulerException(
@@ -978,7 +990,23 @@ namespace Quartz.Impl
 			}
 		}
 
-		/// <summary>
+        /// <summary>
+        /// Get the names of all registered <see cref="ICalendar"/>.
+        /// </summary>
+        /// <returns></returns>
+	    public string[] GetCalendarNames()
+	    {
+            try
+            {
+                return GetRemoteScheduler().GetCalendarNames(schedCtxt);
+            }
+            catch (RemotingException re)
+            {
+                throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+            }
+	    }
+
+	    /// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
@@ -1011,6 +1039,14 @@ namespace Quartz.Impl
 			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
 		}
 
+        /// <summary>
+        /// Remove the identifed <see cref="IJobListener"/> from the <see cref="IScheduler"/>'s
+        /// list of <i>global</i> listeners.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns>
+        /// true if the identifed listener was found in the list, and removed
+        /// </returns>
 	    public bool RemoveGlobalJobListener(string name)
 	    {
             throw new SchedulerException(
@@ -1065,6 +1101,14 @@ namespace Quartz.Impl
 			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
 		}
 
+        /// <summary>
+        /// Remove the identifed <see cref="ITriggerListener"/> from the <see cref="IScheduler"/>'s
+        /// list of <i>global</i> listeners.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns>
+        /// true if the identifed listener was found in the list, and removed.
+        /// </returns>
 	    public bool RemoveGlobalTriggerListener(string name)
 	    {
 

@@ -3,18 +3,58 @@ QUARTZ.NET CHANGELOG
 http://quartznet.sourceforge.net
 
 
-Release 0.6, xxxxx xx, 2007
+Release 0.6, August 4, 2007
 -----------------------------
+
 Bug
+
+    * [QRTZNET-18] - JobDataMap cannot convert Int32 values correctly from string representation
+    * [QRTZNET-20] - CronExpression fails when minute is incremented to 60
+    * [QRTZNET-21] - DailyCalendar.GetTimeRangeEndingTime reports starting time instead of ending time
+    * [QRTZNET-24] - AnnualCalendar.SetDayExcluded(d, false) does not work
+    * [QRTZNET-25] - StringKeyDirtyFlagMap lacks Put(string, int)
+    * [QRTZNET-27] - RamJobStore.StoreTrigger incorrectly removes JobDetail when replacing trigger
+    * [QRTZNET-28] - CronTrigger: Hour, Minute, and Second parameters describe an un-representable DateTime
+    * [QRTZNET-29] - RAMJobStore.RemoveCalendar fails when triggers are present
+    * [QRTZNET-31] - CronExpression GetTimeAfter() fails with System.ArgumentOutOfRangeException
 
 Improvement
 
+    * [QRTZNET-7] - Load balanced database support
+    * [QRTZNET-22] - CronExpression should all extra white space from expression
+    * [QRTZNET-23] - IScheduler.SchedulerJob should throw always exception if trigger's calendar cannot be found
+    * [QRTZNET-26] - Change trigger instructions and states to enum values
+    * [QRTZNET-33] - Remove confusing Durability and Volatility properties from JobDetail
+
+New Feature
+
+    * [QRTZNET-3] - AdoJobStore support
+    * [QRTZNET-16] - Quartz default properties should be read from embedded resource inside the assembly
+
 Task
+
+    * [QRTZNET-17] - CronTrigger misfire instruction constants should be made public
+    * [QRTZNET-30] - Upgrade Common.Logging libraries to 1.1
+    * [QRTZNET-34] - Rename Schedulder_Fields class to more describing SchedulerConstants
+    * [QRTZNET-35] - Change Quartz initialization properties to use "type" instead of "class" to be more .NET like
 
 Other:
 
+Breaking changes:
+
+ * Quartz.NET initialization property keys now use "*.type" instead of "*.class", you need to update configuration
+   or if you are fine with defaults you can also ditch configuration from app.config (see QRTZNET-16)
+   
+ * Trigger instructions and states are now enum values instead of old class constants
+ 
+ * There's no longer properties named Durablity or Volatility, only Durable and Volatile (JobDetail & Trigger) 
+   
+ * Class Scheduler_Fields was renamed to SchedulerConstants
+
+
 Special thanks for Drew Burlingame for string concatenation and TreeSet performance patches
-and Anton Dvinskiy for hunting down bugs and patch for SchedulerState and TriggerState enumerations. 
+and Anton Dvinskiy for hunting down bugs, finding good places to refactor and patches
+for Quartz and its tests. 
 
 
 

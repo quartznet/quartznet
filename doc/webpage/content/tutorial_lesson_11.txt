@@ -3,7 +3,7 @@
 <h2>Clustering</h2>
 
 <p>
-<strong>Clustering is avaiable from version 0.6 onwards and is still experimental.</strong>
+<strong>Clustering is avaiable from version 0.6 onwards.</strong>
 </p>
 
 <p>
