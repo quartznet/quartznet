@@ -164,13 +164,20 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [ExpectedException(typeof(FormatException), "Day-of-Week values must be between 1 and 7")]
         public void TestCronExpressionParsingIncorrectDayOfWeek()
         {
             // test failed before because of improper trimming
-            string expr = string.Format(" * * * * * {0}", DateTime.Now.Year);
-            CronExpression ce = new CronExpression(expr);
-            ce.IsSatisfiedBy(DateTime.Now.AddMinutes(2));
+			try
+			{
+				string expr = string.Format(" * * * * * {0}", DateTime.Now.Year);
+				CronExpression ce = new CronExpression(expr);
+				ce.IsSatisfiedBy(DateTime.Now.AddMinutes(2));
+				Assert.Fail("Accepted wrong format");
+			}
+			catch (FormatException fe)
+			{
+				Assert.AreEqual("Day-of-Week values must be between 1 and 7", fe.Message);
+			}
         }
 
         [Test]
