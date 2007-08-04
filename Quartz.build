@@ -60,7 +60,11 @@
 
     <mkdir dir="build\${target.framework}\${configuration}\Quartz\" /> 
     
-    <csc target="library" output="build\${target.framework}\${configuration}\Quartz\Quartz.dll" debug="true">
+    <csc 
+		target="library" 
+		output="build\${target.framework}\${configuration}\Quartz\Quartz.dll" 
+		doc="build\${target.framework}\${configuration}\Quartz\Quartz.xml" 
+		debug="true">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -88,7 +92,7 @@
       </references>
     </csc>
 
-    <copy todir="build\${target.framework}\${configuration}\Quartz.Tests\" flatten="true" >
+    <copy todir="build\${target.framework}\${configuration}\Quartz\" flatten="true" >
       <fileset>
         <include name="lib\${target.framework}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" />
@@ -191,13 +195,15 @@
 		<delete failonerror="false" dir="./build" />
     <delete failonerror="false" dir="./CloverBuild" />
     <delete failonerror="false" dir="./CloverReport" />
-		<echo message="Cleaning old temporary build files (obj and bin dirs)..." />
-		<delete>
-		    <fileset>
-		        <include name="${dir.src}\**\obj\**" />
-				<include name="${dir.src}\**\bin\**" />
-		    </fileset>
-		</delete>
+	<delete failonerror="false" dir="./package" />
+	<delete failonerror="false" file="./Quartz-x.x.zip" />
+	<echo message="Cleaning old temporary build files (obj and bin dirs)..." />
+	<delete>
+		<fileset>
+			<include name="${dir.src}\**\obj\**" />
+			<include name="${dir.src}\**\bin\**" />
+		</fileset>
+	</delete>
 	</target>
 
   <target name="with-clover">
@@ -267,9 +273,19 @@
 				 </documenter>
 			</documenters> 
 		</ndoc>
+		<!-- clean unwanted items -->
+		<delete>
+			<fileset>
+				<include name="doc\apidoc\**\ndoc_msdn_temp" />
+				<include name="doc\apidoc\**\*.chm" />
+				<include name="doc\apidoc\**\*.hhc" />
+				<include name="doc\apidoc\**\*.hhk" />
+				<include name="doc\apidoc\**\*.hhp" />
+			</fileset>
+		</delete>
     </target>
 	
-	<target name="package" depends="clean, build-all">
+	<target name="package" depends="clean, build-all, doc">
 		<delete dir="package" failonerror="false" />
 		<mkdir dir="package" />
 		<mkdir dir="package\bin" />
@@ -292,6 +308,7 @@
 				<exclude name="**/_svn/**" />
 				<exclude name="**/*.suo" />
 				<exclude name="**/*.user" />
+				<exclude name="**/*.pdb" />
 		    </fileset>
 		</copy>
 		

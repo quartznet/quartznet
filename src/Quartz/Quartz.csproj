@@ -432,17 +432,12 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Impl\AdoJobStore\MSSQLDelegate.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
                     RelPath = "Impl\AdoJobStore\NoSuchDelegateException.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Impl\AdoJobStore\OracleDelegate.cs"
+                    RelPath = "Impl\AdoJobStore\PostgreSQLDelegate.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
