@@ -212,5 +212,26 @@ namespace Quartz.Tests.Unit
 			Assert.AreEqual("V1", simpleTrigger.JobDataMap.Get("K1"));
 			Assert.AreEqual("V2", simpleTrigger.JobDataMap.Get("K2"));
 		}
+
+        [Test]
+        public void TestSetTriggerListenerNames()
+        {
+            SimpleTrigger simpleTrigger = new SimpleTrigger();
+            
+            simpleTrigger.TriggerListenerNames = null;
+            Assert.IsNotNull(simpleTrigger.TriggerListenerNames);
+            Assert.IsEmpty(simpleTrigger.TriggerListenerNames);
+            
+            simpleTrigger.TriggerListenerNames = new string[] { "FOO", "BAR"};
+            Assert.AreEqual(2, simpleTrigger.TriggerListenerNames.Length);
+
+            simpleTrigger.TriggerListenerNames = new string[] {"BAZ"};
+            Assert.AreEqual(1, simpleTrigger.TriggerListenerNames.Length);
+
+            simpleTrigger.TriggerListenerNames = null;
+            Assert.IsNotNull(simpleTrigger.TriggerListenerNames);
+            Assert.IsEmpty(simpleTrigger.TriggerListenerNames);
+            
+        }
 	}
 }

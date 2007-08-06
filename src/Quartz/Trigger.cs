@@ -284,6 +284,17 @@ namespace Quartz
 		public virtual string[] TriggerListenerNames
 		{
 			get { return (string[]) triggerListeners.ToArray(typeof (string)); }
+            set 
+            { 
+                ClearAllTriggerListeners();
+                if (value != null)
+                {
+                    foreach (string triggerListenerName in value)
+                    {
+                        AddTriggerListener(triggerListenerName);
+                    }
+                }
+            }
 		}
 
 		
