@@ -1,14 +1,12 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
-"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html>
 
 <head>
-	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1"/>
-	<meta name="description" content="Quartz.NET is a port of Java Quartz which is an enterprise class job sheduling system. Quartz.NET is a free open source tool that you can use in your .NET applications."/>
-	<meta name="keywords" content="Quartz Scheduler Scheduling .NET C# cron timer free download open source"/> 
-	<meta name="author" content="Marko Lahma"/> 
-	<link rel="stylesheet" type="text/css" href="default.css" media="screen"/>
-	<title>Quartz Enterprise Scheduler .NET</title>
+	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+	<meta name="description" content="Quartz.NET is a port of Java Quartz which is an enterprise class job sheduling system. Quartz.NET is a free open source tool that you can use in your .NET applications.">
+	<meta name="keywords" content="Quartz.NET Quartz Scheduler Scheduling .NET C# cron timer free download open source">
+	<meta name="author" content="Marko Lahma">
+	<link rel="stylesheet" type="text/css" href="default.css" media="screen">
+	<title>Quartz.NET - Enterprise Job Scheduler for .NET Platform</title>
 </head>
 
 <body>
@@ -17,10 +15,11 @@
 
 	<div class="header">
 		
+		<a href="index.html">
 		<div class="title">
-			<h1>Quartz Enterprise Scheduler .NET</h1>
+			<h1>Quartz.NET - Enterprise Job Scheduler</h1>
 		</div>
-
+		</a>
 		<!--
 		<div class="navigation">
 			<a href="index.html">Vestibulum</a>
@@ -59,6 +58,7 @@
 				<li><a href="download.html">Download</a></li>
 				<li><a href="license.html">License</a></li>
 				<li><a href="tutorial.html">Tutorial</a></li>
+				<li><a href="faq.html">FAQ</a></li>
 				<li><a href="apidoc/">API Documentation</a></li>
 				<li><a href="mailing_list.html">Mailing List</a></li>
 			</ul>

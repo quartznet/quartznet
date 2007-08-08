@@ -1,4 +1,4 @@
-<h1>Welcome to the home of Quartz Enterprise Scheduler .NET!</h1>
+<h1>Welcome to the home of Quartz.NET!</h1>
 <br />
 <cite>Quartz.NET is a full-featured, open source job scheduling system that can be used from smallest apps to large scale enterprise systems.</cite>
 
@@ -9,8 +9,48 @@
 </p>
 <p>
 	Quartz.NET is a pure .NET library written in C# which currently targets Framework version 1.1 and above.
-	Quart.NET is still very much work in progress, all feedback and suggestions are greatly welcome.
+	Quartz.NET has already almost caught up with Quartz Java 1.6 and there aren't so many things missing. Quartz.NET
+	is running in some production systems and has received good feedback.
 </p>
+
+
+<h1>Project News</h1>
+<div class="descr">August 8, 2007 by Marko Lahma</div>
+<p>
+	Now that version 0.6 was released with quite impressive feature set
+	it's a good time to sit back and elaborate a bit what's been up with the project.
+</p>
+<p>
+	Project has received free license for Clover.NET from kind folks at <a href="http://www.cenqua.com/">Cenqua</a>
+	(actually now Atlassian - the're cool people too!),
+	and did we receive it right on time - product will be discontinued and I believe no 
+	further licenses will be given. Cenqua also has opened a 
+	<a href="http://fisheye3.cenqua.com/browse/quartznet">FishEye view of the source code</a>.
+</p>
+<p>
+	The folks at <a href="http://www.innovasys.com">Innovasys</a> also support open source and they gave us a free license
+	for their excellent source code documentation management software <a href="http://www.innovasys.com/products/documentx.asp">Document! X</a>
+</p>
+<p>
+	So what's going to happen next? We've caught up with Java version 1.6 already quite nicely but there are still a couple of big things to do:
+</p>
+<ul>
+	<li>XML based configuration support - ability to define jobs and triggers in XML configuration file</li>
+	<li>Spring.NET support - actually I've already got running code that seems to work but there are still some issues to solve</li>
+</ul>
+<p>
+	After XML configuration is working and released (planned for 0.7) it's getting close to 1.0 time. Even though
+	Quartz.NET is quite production ready as-is, it'll be considered 1.0 when it's also feature ready.
+</p>
+<p>
+	Please remember, It's your feedback that drives this project! So don't hesitate to bring up the the good and the bad
+	in Quartz.NET. We gladly accept bug reports (better yet with test code to illustrate and maybe even a patch to fix it!)
+	to our <a href="http://jira.opensymphony.com/browse/QRTZNET">JIRA issue tracker</a> and welcome questions and help 
+	requests to <a href="http://groups.google.com/group/quartznet">Quartz.NET mailing list</a>. It would also be great
+	to hear about projects/products using Quartz.NET!
+</p>
+
+
 
 <h1>Quartz.NET 0.6 Released</h1>
 <div class="descr">August 4, 2007 by Marko Lahma</div>
@@ -19,7 +59,7 @@
 </p>
 <p>
 	This both feature and bug fix release. The new biggest feature is AdoJobStore
-	that currently supports SQL Server, Oracle, MySQL, PostgreSQL, SQLite.
+	that currently supports SQL Server, Oracle, MySQL, PostgreSQL and SQLite.
 	With AdoJobStore comes also clustering. Please give it a go (Example 13 has an example 
 	for SQL Server) and give us feedback!
 </p>
@@ -42,57 +82,10 @@
 </p>
 
 
+<br />
+<br />
 
-<h1>Quartz.NET 0.5 Released</h1>
-<div class="descr">June 17, 2007 by Marko Lahma</div>
 <p>
-	Quartz.NET 0.5 has been released. 
-</p>
-<p>
-	Version 0.5 is a feature and a bug fix release. Release adds functionality
-	from Java Quartz 1.6 (excluding XML and database job stores). All users
-	are advised to upgrade because this release fixes problems found in cron
-	scheduling and other minor problems.
-</p>
-<p>
-	Grap it from <a href="download.html">downloads page</a>.
-</p>
-
-<h1>Quartz.NET 0.4.1 Released</h1>
-<div class="descr">March 24, 2007 by Marko Lahma</div>
-<p>
-	Quartz.NET 0.4.1 has been released. 
-</p>
-<p>
-	Version 0.4.1 is a bug fix release that addresses problems found in CronTrigger.
-</p>
-<p>
-	Grap it from <a href="download.html">downloads page</a>.
-</p>
-
-<h1>Quartz.NET Tutorial Online</h1>
-<div class="descr">March 24, 2007 by Marko Lahma</div>			
-<p>
-Tutorial has been ported from Java side to serve as starting point for Quartz.NET development. There may still be some 
-rough edges to smooth an minor inaccurasies but it should be enough to get you going.
-</p>	
-<p>
-Go to <a href="tutorial.html">Tutorial section</a>.
-</p>
-	
-<h1>Quartz.NET 0.4 Released</h1>
-<div class="descr">March 4, 2007 by Marko Lahma</div>
-<p>
-	Quartz.NET 0.4, the initial version of Quartz.NET was released today. 
-</p>
-<p>
-	Version 0.4 is the first public release with core features including:
-	<ul>
-		<li>SimpleTrigger and CronTrigger</li>
-		<li>RAMJobStore as job store implementation</li>
-	</ul>
-</p>
-<p>
-	Grap it from <a href="download.html">downloads page</a>.
+	Older news can be found from the <a href="old_news.html">news archive >></a>.
 </p>
 	

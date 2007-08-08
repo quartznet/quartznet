@@ -1,0 +1,469 @@
+
+<h1>Frequently Asked Questions</h1>
+<div class="descr"></div>
+<br />
+
+<p>
+	<strong>This FAQ was adapted from Quartz Java</strong>
+</p>
+
+<strong>General Questions:</strong>
+
+<ul>
+	<li><a href="#whatis">What Is Quartz?</a></li>
+    <li><a href="#whynottimer">Why not just use System.Timers.Timer?</a></li>
+	<li><a href="#howtobuild">How do I build the Quartz source?</a></li>
+</ul>
+
+<strong>Miscellaneous Questions:</strong>
+
+<ul>
+	<li><a href="#howmanyjobs">How many jobs is Quartz capable of running?</a></li>
+	<!-- <li><a href="#">I'm having issues with using Quartz via RMI</a></li> -->
+</ul>
+
+<strong>Questions about Jobs:</strong>
+
+<ul>
+	<li><a href="#howtocontroljobinstantiation">How can I control the instantiation of Jobs?</a></li>
+	<li><a href="#howtopreventdelete">How do I keep a Job from being removed (deleted) after it completes?</a></li>
+	<li><a href="#howtopreventconcurrentfire">How do I keep a Job from firing concurrently?</a></li>
+	<li><a href="#howtostopjob">How do I stop a Job that is currently executing?</a></li>
+</ul>
+
+<strong>Questions about Triggers:</strong>
+
+<ul>
+	<li><a href="#howtochainjobs">How do I chain Job execution? Or, how do I create a workflow?</a></li>
+	<li><a href="#whytriggerisntfiring">Why isn't my trigger firing?</a></li>
+	<li><a href="#daylight">Daylight Saving Time and Triggers</a></li>
+</ul>
+
+<strong>Questions about AdoJobStore:</strong>
+
+<ul>
+	<li><a href="#howtoimproveadojobstoreperf">How do I improve the performance of AdoJobStore?</a></li>
+	<!-- <li><a href="#">My DB Connections don't recover properly if the database server is restarted.</a></li> -->
+</ul>
+
+
+<h2>General Questions</h2>
+
+<a name="whatis">
+<h3>What is Quartz?</h3>
+</a>
+
+<p>
+	Quartz is a job scheduling system that can be integrated with, or used along 
+	side virtually any other software system. The term "job scheduler" seems to 
+	conjure different ideas for different people. As you read this tutorial, you 
+	should be able to get a firm idea of what we mean when we use this term, but 
+	in short, a job scheduler is a system that is responsible for executing 
+	(or notifying) other software components when a pre-determined (scheduled) 
+	time arrives.
+</p>
+
+<p>
+	Quartz is quite flexible, and contains multiple usage paradigms that can be 
+	used separately or together, in order to achieve your desired behavior, and 
+	enable you to write your code in the manner that seems most 'natural' to 
+	your project.
+</p>
+
+<p>
+	Quartz is very light-weight, and requires very little setup/configuration - 
+	it can actually be used 'out-of-the-box' if your needs are relatively basic.
+</p>
+
+<p>
+	Quartz is fault-tolerant, and can persist ('remember') your scheduled 
+	jobs between system restarts.
+</p>
+
+<p>
+	Although Quartz is extremely useful for simply running certain system 
+	processes on given schedules, the full potential of Quartz can be realized 
+	when you learn how to use it to drive the flow of your application's 
+	business processes.
+</p>
+
+<h3>What is Quartz - From a Software Component View?</h3>
+
+<p>
+	Quartz is distributed as a small dynamically linked library (.dll file) 
+	that contains all  of the core Quartz functionality. The main interface (API) to this 
+	functionality is the Scheduler interface. It provides simple operations 
+	such as scheduling/unscheduling jobs, starting/stopping/pausing the scheduler.
+</p>
+
+<p>
+	If you wish to schedule your own software components for execution they must 
+	implement the simple Job interface, which contains the method execute(). 
+	If you wish to have components notified when a scheduled fire-time arrives,
+	then the components should implement either the TriggerListener or JobListener 
+	interface.
+</p>
+
+<p>
+	The main Quartz 'process' can be started and ran within your own application, 
+	or a stand-alone application (with an remote interface).
+</p>
+
+<a name="whynottimer">
+<h3>Why not just use System.Timers.Timer?</h3>
+</a>
+<p>
+	.NET Framework has "built-in" timer capabilities, through the 
+	System.Timers.Timer class - why would someone use Quartz rather than these 
+	standard features?
+</p>
+
+<p>
+	There are many reasons! Here are a few:
+</p>
+	<ol>
+		<li>Timers have no persistence mechanism.</li>
+		<li>
+			Timers have inflexible scheduling (only able to set start-time 
+			& repeat interval, nothing based on dates, time of day, etc.
+		</li>
+		<li>Timers don't utilize a thread-pool (one thread per timer)</li>
+		<li>
+			Timers have no real management schemes - you'd have to write your 
+			own mechanism for being able to remember, organize and retreive your 
+			tasks by name, etc.
+		</li>
+	</ol>
+
+<p>
+	...of course to some simple applications these features may not be important, 
+	in which case it may then be the right decision not to use Quartz.NET.
+</p>
+
+<a name="howtobuild">
+<h3>How do I build the Quartz source?</h3>
+</a>
+
+<p>
+	Although Quartz ships "pre-built" many people like to make their own 
+	alterations and/or build the latest 'non-released' version of Quartz from 
+	Subversion. To do this, follow the instructions in the "README.TXT" file 
+	that ships with Quartz.
+</p>
+
+<h2>Miscellaneous Questions</h2>
+
+<a name="howmanyjobs">
+<h3>How many jobs is Quartz capable of running?</h3>
+</a>
+
+<p>
+	This is a tough question to answer... the answer is basically "it depends".
+</p>
+<p>
+	I know you hate that answer, to here's some information about what it depends "on".
+</p>
+<p>
+	First off, the JobStore that you use plays a significant factor. 
+	The RAM-based JobStore is MUCH (1000x) faster than the ADO.NET-based JobStore. 
+	The speed of AdoJobStore depends almost entirely on the speed of the 
+	connection to your database, which data base system that you use, and what 
+	hardware the database is running on. Quartz actually does very little 
+	processing itself, nearly all of the time is spent in the database. Of course 
+	RAMJobStore has a more finite limit on how many Jobs & Triggers can be stored, 
+	as you're sure to have less RAM than hard-drive space for a database. 
+	You may also look at the FAQ "How do I improve the performance of AdoJobStore?"
+</p>
+<p>
+	So, the limitting factor of the number of Triggers and Jobs Quartz can "store" 
+	and monitor is really the amount of storage space available to the JobStore 
+	(either the amount of RAM or the amount of disk space).
+</p>
+<p>
+	Now, aside from "how many can I store?" is the question of "how many jobs 
+	can Quartz be running at the same moment in time?"
+</p>
+<p>
+	One thing that CAN slow down quartz itself is using a lot of listeners 
+	(TriggerListeners, JobListeners, and SchedulerListeners). The time spent in 
+	each listener obviously adds into the time spent "processing" a job's 
+	execution, outside of actual execution of the job. This doesn't mean that 
+	you should be terrified of using listeners, it just means that you should 
+	use them judiciously - don't create a bunch of "global" listeners if you can 
+	really make more specialized ones. Also don't do "expensive" things in the 
+	listeners, unless you really need to. Also be mindful that many 
+	plug-ins (such as the "history" plugin) are actually listeners.
+</p>
+<p>
+	The actual number of jobs that can be running at any moment in time is 
+	limitted by the size of the thread pool. If there are five threads in 
+	the pool, no more than five jobs can run at a time. Be careful of making a 
+	lot of threads though, as the VM, Operating System, and CPU all have a hard 
+	time juggling lots of threads, and performance degrades just because of all 
+	of the management. In most cases performance starts to tank as you get into 
+	the hundreds of threads. Be mindful that if you're running within an 
+	application server, it probably has created at least a few dozen threads 
+	of its own!
+</p>
+<p>
+	Aside from those factors, it really comes down to what your jobs DO. 
+	If your jobs take a long time to complete their work, and/or their work is 
+	very CPU-intensive, then you're obviously not going to be able to run very 
+	many jobs at once, nor very many in a given spanse of time.
+</p>
+<p>
+	Finally, if you just can't get enough horse-power out of one Quartz instance, 
+	you can always load-balance many Quartz instances (on separate machines). 
+	Each will run the jobs out of the shared database on a first-come first-serve 
+	basis, as quickly as the triggers need fired.
+</p>
+<p>
+	So here you are this far into the answer of "how many", and I still 
+	haven't given you a number And I really hate to, because of all of the 
+	variables mentioned above. So let me just say, there are installments of 
+	Quartz Java out there that are managing hundreds-of-thousands of Jobs and Triggers, 
+	and that at any given moment in time are executing dozens of jobs – and this 
+	excludes using load-balancing. With this in mind, most people should feel 
+	confident that they can get the performance out of Quartz that they need.
+</p>
+<!--
+<h3>I'm having issues with using Quartz via RMI</h3>
+
+<p>
+RMI can be a bit problematic, especially if you don't have an understanding of how class loading via RMI works. I highly recommend reading all of the JavaDOC available about RMI, and strongly suggest you read the following references, dug up by a kind Quartz user (Mike Curwen)
+
+<p>
+An excellent description of RMI and codebase: http://www.kedwards.com/jini/codebase.html. One of the important points is to realize that "codebase" is used by the client!
+
+Quick info about security managers: http://gethelp.devx.com/techtips/java_pro/10MinuteSolutions/10min0500.asp.
+
+And finally from the java API docs, read the docs for the RMISecurityManager
+http://java.sun.com/j2se/1.3/docs/api/java/rmi/RMISecurityManager.html
+
+The important 'take away' of the API is:
+
+    RMI's class loader will not download any classes from remote locations if no security manager has been set.
+-->
+	
+<h2>Questions About Jobs</h2>
+
+<a name="howtocontroljobinstantiation">
+<h3>How can I control the instantiation of Jobs?</h3>
+</a>
+
+<p>
+	See Quartz.Spi.IJobFactory and the Quartz.IScheduler.JobFactory property.
+</p>
+
+<a name="howtopreventdelete">
+<h3>How do I keep a Job from being removed after it completes?</h3>
+</a>
+
+<p>
+	Set the property JobDetail.Durable = true - which instructs Quartz not to 
+	delete the Job when it becomes an "orphan" (when the Job not longer has a 
+	Trigger referencing it).
+</p>
+
+<a name="howtopreventconcurrentfire">
+<h3>How do I keep a Job from firing concurrently?</h3>
+</a>
+
+<p>
+	Make the job class implement IStatefulJob rather than Job. Read the API 
+	documentation for IStatefulJob for more information.
+</p>
+
+<a name="howtostopjob">
+<h3>How do I stop a Job that is currently executing?</h3>
+</a>
+
+<p>
+	See the Quartz.IInterruptableJob interface, and the 
+	Scheduler.Interrupt(string, string) method.
+</p>
+
+<h2>Questions About Triggers</h2>
+
+<a name="howtochainjobs">
+<h3>How do I chain Job execution? Or, how do I create a workflow?</h3>
+</a>
+
+<p>
+	There currently is no "direct" or "free" way to chain triggers with Quartz. 
+	However there are several ways you can accomplish it without much effort. 
+	Below is an outline of a couple approaches:
+</p>
+<p>
+	One way is to use a listener (i.e. a TriggerListener, JobListener or 
+	SchedulerListener) that can notice the completion of a job/trigger and then 
+	immediately schedule a new trigger to fire. This approach can get a bit 
+	involved, since you'll have to inform the listener which job follows which 
+	- and you may need to worry about persistence of this information.
+</p>
+<p>
+	Another way is to build a Job that contains within its JobDataMap the name 
+	of the next job to fire, and as the job completes (the last step in its 
+	Execute() method) have the job schedule the next job. Several people are 
+	doing this and have had good luck. Most have made a base (abstract) class 
+	that is a Job that knows how to get the job name and group out of the 
+	JobDataMap using special keys (constants) and contains code to schedule the 
+	identified job. Then they simply make extensions of this class that included 
+	the additional work the job should do.
+</p>
+<p>
+	In the future, Quartz will provide a much cleaner way to do this, but until 
+	then, you'll have to use one of the above approaches, or think of yet another 
+	that works better for you.
+</p>
+
+<a name="whytriggerisntfiring">
+<h3>Why isn't my trigger firing?</h3>
+</a>
+
+<p>
+	The most common reason for this is not having called Scheduler.Start(), 
+	which tells the scheduler to start firing triggers.
+</p>
+
+<p>
+	The second most common reason is that the trigger or trigger group 
+	has been paused.
+</p>
+
+
+<a name="daylight">
+<h3>Daylight Saving Time and Triggers</h3>
+</a>
+
+<p>
+	CronTrigger and SimpleTrigger each handle daylight savings time in their own 
+	way - each in the way that is intuitive to the trigger type.
+</p>
+
+<p>
+	First, as a review of what daylight savings time is, please read this resource: 
+	http://webexhibits.org/daylightsaving/g.html . Some readers may be unaware 
+	that the rules are different for different nations/contents. For example, 
+	the 2005 daylight savings time starts in the United States on April 3, but 
+	in Egypt on April 29. It is also important to know that not only the dates 
+	are different for different locals, but the time of the shift is different 
+	as well. Many places shift at 2:00 am, but others shift time at 1:00 am, 
+	others at 3:00 am, and still others right at midnight.
+</p>
+
+<p>
+	SimpleTrigger allows you to schedule jobs to fire every N milliseconds. 
+	As such, it has to do nothing in particular with respect to daylight 
+	savings time in order to "stay on schedule" - it simply keeps firing every 
+	N milliseconds. Regardless your SimpleTrigger is firing every 10 seconds, 
+	or every 15 minutes, or every hour or every 24 hours it will continue to do 
+	so. However the implication of this which confuses some users is that if 
+	your SimpleTrigger is firing say every 12 hours, before daylight savings 
+	switches it may be firing at what appears to be 3:00 am and 3:00 pm, 
+	but after daylight savings 4:00 am and 4:00 pm. This is not a bug 
+	- the trigger has kept firing exacly every N milliseconds, it just that the 
+	"name" of that time that humans impose on that moment has changed.
+</p>
+
+<p>
+	CronTrigger allows you to schedule jobs to fire at certain moments with 
+	respect to a "gregorian calendar". Hence, if you create a trigger to fire 
+	every day at 10:00 am, before and after daylight savings time switches it 
+	will continue to do so. However, depending on whether it was the Spring or 
+	Autumn daylight savings event, for that particular Sunday, the actual time 
+	interval between the firing of the trigger on Sundary morning at 10:00 am 
+	since its firing on Saturday morning at 10:00 am will not be 24 hours, 
+	but will instead be 23 or 25 hours respectively.
+</p>
+
+<p>
+	There is one additional point users must understand about CronTrigger with 
+	respect to daylight savings. This is that you should take careful thought 
+	about creating schedules that fire between midnight and 3:00 am (the critical 
+	window of time depends on your trigger's locale, as explained above). 
+	The reason is that depending on your trigger's schedule, and the particular 
+	daylight event, the trigger may be skipped or may appear to not fire for an 
+	hour or two. As examples, say you are in the United States, where daylight 
+	savings events occur at 2:00 am. If you have a CronTrrigger that fires every 
+	day at 2:15 am, then on the day of the beginning of daylight savings time 
+	the trigger will be skipped, since, 2:15 am never occurs that day. If you 
+	have a CronTrigger that fires every 15 minutes of every hour of every day, 
+	then on the day daylight savings time ends you will have an hour of time 
+	for which no triggerings occur, because when 2:00 am arrives, it will become 
+	1:00 am again, however all of the firings during the one o'clock hour have 
+	already occurred, and the trigger's next fire time was set to 2:00 am 
+	- hence for the next hour no triggerings will occur.
+</p>
+	
+
+<p>
+	In summary, all of this makes perfect sense, and should be easy to remember 
+	if you keep these two rules in mind:
+</p>
+<ul>
+    <li>
+		SimpleTrigger ALWAYS fires exacly every N seconds, 
+		with no relation to the time of day.
+	</li>
+    <li>
+		CronTrigger ALWAYS fires at a given time of day and then computes its 
+		next time to fire. If that time does not occur on a given day, the 
+		trigger will be skipped. If the time occurs twice in a given day, it 
+		only fires once, because after firing on that time the first time, 
+		it computes the next time of day to fire on.
+	</li>
+</ul>
+
+<h2>Questions About AdoJobStore</h2>
+
+<a name="howtoimproveadojobstoreperf">
+<h3>How do I improve the performance of AdoJobStore?</h3>
+</a>
+
+<p>
+	There are a few known ways to speed up AdoJobStore, only one of which is 
+	very practical.
+</p>
+
+<p>
+	First, the obvious, but not-so-practical:
+</p>
+<ul>
+	<li>Buy a better (faster) network between the machine that runs Quartz, and the machine that runs your RDBMS.</li>
+	<li>Buy a better (more powerful) machine to run your database on.</li>
+	<li>Buy a better RDBMS.</li>
+</ul>
+
+<p>
+	Now for something simple, but effective: Build indexes on the Quartz tables.
+</p>
+
+<p>
+	Most database systems will automatically put indexes on the primary-key 
+	fields, many will also automatically do it for the foreign-key field. 
+	Make sure yours does this, or make the indexes on all key fields 
+	of every table manually.
+</p>
+
+<p>
+	Next, manually add some additional indexes: most important to index are 
+	the TRIGGER table's "next_fire_time" and "state" fields. Last 
+	(but not as important), add indexes to every column on the FIRED_TRIGGERS table.
+</p>
+
+<strong>Create Table Indexes</strong>
+<div class="code">
+	create index idx_qrtz_t_next_fire_time on qrtz_triggers(NEXT_FIRE_TIME);<br />
+	create index idx_qrtz_t_state on qrtz_triggers(TRIGGER_STATE);<br />
+	create index idx_qrtz_t_nf_st on qrtz_triggers(TRIGGER_STATE,NEXT_FIRE_TIME);<br />
+	create index idx_qrtz_ft_trig_name on qrtz_fired_triggers(TRIGGER_NAME);<br />
+	create index idx_qrtz_ft_trig_group on qrtz_fired_triggers(TRIGGER_GROUP);<br />
+	create index idx_qrtz_ft_trig_name on qrtz_fired_triggers(TRIGGER_NAME);<br />
+	create index idx_qrtz_ft_trig_n_g on qrtz_fired_triggers(TRIGGER_NAME,TRIGGER_GROUP);<br />
+	create index idx_qrtz_ft_trig_inst_name on qrtz_fired_triggers(INSTANCE_NAME);<br />
+	create index idx_qrtz_ft_job_name on qrtz_fired_triggers(JOB_NAME);<br />
+	create index idx_qrtz_ft_job_group on qrtz_fired_triggers(JOB_GROUP);<br />
+</div>
+
+	

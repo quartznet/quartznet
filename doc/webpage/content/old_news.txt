@@ -1,0 +1,57 @@
+<h1>News archive</h1>
+<br />
+
+
+<h1>Quartz.NET 0.5 Released</h1>
+<div class="descr">June 17, 2007 by Marko Lahma</div>
+<p>
+	Quartz.NET 0.5 has been released. 
+</p>
+<p>
+	Version 0.5 is a feature and a bug fix release. Release adds functionality
+	from Java Quartz 1.6 (excluding XML and database job stores). All users
+	are advised to upgrade because this release fixes problems found in cron
+	scheduling and other minor problems.
+</p>
+<p>
+	Grap it from <a href="download.html">downloads page</a>.
+</p>
+
+<h1>Quartz.NET 0.4.1 Released</h1>
+<div class="descr">March 24, 2007 by Marko Lahma</div>
+<p>
+	Quartz.NET 0.4.1 has been released. 
+</p>
+<p>
+	Version 0.4.1 is a bug fix release that addresses problems found in CronTrigger.
+</p>
+<p>
+	Grap it from <a href="download.html">downloads page</a>.
+</p>
+
+<h1>Quartz.NET Tutorial Online</h1>
+<div class="descr">March 24, 2007 by Marko Lahma</div>			
+<p>
+Tutorial has been ported from Java side to serve as starting point for Quartz.NET development. There may still be some 
+rough edges to smooth an minor inaccurasies but it should be enough to get you going.
+</p>	
+<p>
+Go to <a href="tutorial.html">Tutorial section</a>.
+</p>
+	
+<h1>Quartz.NET 0.4 Released</h1>
+<div class="descr">March 4, 2007 by Marko Lahma</div>
+<p>
+	Quartz.NET 0.4, the initial version of Quartz.NET was released today. 
+</p>
+<p>
+	Version 0.4 is the first public release with core features including:
+	<ul>
+		<li>SimpleTrigger and CronTrigger</li>
+		<li>RAMJobStore as job store implementation</li>
+	</ul>
+</p>
+<p>
+	Grap it from <a href="download.html">downloads page</a>.
+</p>
+	
