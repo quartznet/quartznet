@@ -1,3 +1,6 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
 <html>
 
 <head>
@@ -15,11 +18,11 @@
 
 	<div class="header">
 		
-		<a href="index.html">
+		
 		<div class="title">
 			<h1>Quartz.NET - Enterprise Job Scheduler</h1>
 		</div>
-		</a>
+		
 		<!--
 		<div class="navigation">
 			<a href="index.html">Vestibulum</a>
