@@ -114,7 +114,7 @@ go
 create table QRTZ_CRON_TRIGGERS (
 TRIGGER_NAME varchar(80) not null,
 TRIGGER_GROUP varchar(80) not null,
-CRON_EXPRESSION varchar(80) not null,
+CRON_EXPRESSION varchar(120) not null,
 TIME_ZONE_ID varchar(80) null,
 )
 go

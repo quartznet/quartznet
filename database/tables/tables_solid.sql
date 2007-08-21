@@ -68,7 +68,7 @@ foreign key (trigger_name,trigger_group) references qrtz2_triggers(trigger_name,
 create table qrtz2_cron_triggers(
 	trigger_name varchar(80) not null,
 	trigger_group varchar(80) not null,
-	cron_expression varchar(80) not null,
+	cron_expression varchar(120) not null,
 	time_zone_id varchar(80),
 primary key (trigger_name,trigger_group),
 foreign key (trigger_name,trigger_group) references qrtz2_triggers(trigger_name,trigger_group)
