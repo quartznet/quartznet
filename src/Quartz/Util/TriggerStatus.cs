@@ -1,5 +1,3 @@
-using Nullables;
-
 /* 
 * Copyright 2004-2005 OpenSymphony 
 * 
@@ -21,6 +19,11 @@ using Nullables;
 * Previously Copyright (c) 2001-2004 James House
 */
 
+using System;
+#if !NET_20
+using Nullables;
+#endif
+
 namespace Quartz.Util
 {
     /// <summary> 
@@ -37,7 +40,11 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="status">The trigger's status</param>
         /// <param name="nextFireTime">The next time the trigger will fire</param>
+#if !NET_20
         public TriggerStatus(string status, NullableDateTime nextFireTime)
+#else
+        public TriggerStatus(string status, DateTime? nextFireTime)
+#endif
         {
             base.First = status;
             base.Second = nextFireTime;
@@ -77,10 +84,17 @@ namespace Quartz.Util
         /// Get the group portion of the key.
         /// </summary>
         /// <returns> the group </returns>
+#if !NET_20
         public virtual NullableDateTime NextFireTime
         {
             get { return (NullableDateTime) Second; }
         }
+#else
+        public virtual DateTime? NextFireTime
+        {
+            get { return (DateTime?) Second; }
+        }
+#endif
 
         // TODO: Repackage under spi or root pkg ?, put status constants here.
 

@@ -16,7 +16,9 @@
 using System;
 using System.Collections;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using NUnit.Framework;
 
@@ -138,7 +140,12 @@ namespace Quartz.Tests.Unit
 			simpleTrigger.RepeatInterval = 10;
 			simpleTrigger.RepeatCount = 4;
 
-			NullableDateTime fireTimeAfter = simpleTrigger.GetFireTimeAfter(startTime.AddMilliseconds(34));
+#if !NET_20
+            NullableDateTime fireTimeAfter;
+#else
+		    DateTime? fireTimeAfter;
+#endif
+            fireTimeAfter = simpleTrigger.GetFireTimeAfter(startTime.AddMilliseconds(34));
 			Assert.AreEqual(startTime.AddMilliseconds(40), fireTimeAfter.Value);
 		}
 

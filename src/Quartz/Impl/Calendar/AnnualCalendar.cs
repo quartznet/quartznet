@@ -23,7 +23,9 @@
 using System;
 using System.Collections;
 
+#if !NET_20
 using Nullables;
+#endif
 
 namespace Quartz.Impl.Calendar
 {
@@ -85,12 +87,19 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual bool IsDayExcluded(DateTime day)
 		{
-		    NullableDateTime d = FindExcludedDateByMonthAndDay(day);
-
-			return d.HasValue;
+#if !NET_20
+            NullableDateTime d = FindExcludedDateByMonthAndDay(day);
+#else
+            DateTime? d = FindExcludedDateByMonthAndDay(day);
+#endif
+            return d.HasValue;
 		}
 
+#if !NET_20
         protected virtual NullableDateTime FindExcludedDateByMonthAndDay(DateTime day)
+#else
+        protected virtual DateTime? FindExcludedDateByMonthAndDay(DateTime day)
+#endif
         {
             int dmonth = day.Month;
             int dday = day.Day;
@@ -142,7 +151,11 @@ namespace Quartz.Impl.Calendar
             {
                 // include
                 // find first, year may vary
+#if !NET_20
                 NullableDateTime d = FindExcludedDateByMonthAndDay(day);
+#else
+                DateTime? d = FindExcludedDateByMonthAndDay(day);
+#endif
                 if (d.HasValue)
                 {
                      excludeDays.Remove(d.Value);

@@ -30,7 +30,9 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 using Common.Logging;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using Quartz.Collection;
 using Quartz.Spi;
@@ -1748,9 +1750,15 @@ namespace Quartz.Impl.AdoJobStore
             int misFireInstr = Int32.MinValue;
             int priority = Int32.MinValue;
             IDictionary map = null;
+#if !NET_20
             NullableDateTime pft = null;
             NullableDateTime endTimeD = null;
             NullableDateTime nft = null;
+#else
+            DateTime? pft = null;
+            DateTime? endTimeD = null;
+            DateTime? nft = null;
+#endif
             DateTime startTimeD = DateTime.MinValue;
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SELECT_TRIGGER)))
@@ -2042,7 +2050,11 @@ namespace Quartz.Impl.AdoJobStore
                         string jobName = GetString(rs[COL_JOB_NAME]);
                         string jobGroup = GetString(rs[COL_JOB_GROUP]);
 
+#if !NET_20
                         NullableDateTime nft = null;
+#else
+                        DateTime? nft = null;
+#endif
                         if (nextFireTime > 0)
                         {
                             nft = new DateTime(nextFireTime);
@@ -2420,32 +2432,6 @@ namespace Quartz.Impl.AdoJobStore
         //---------------------------------------------------------------------------
         // trigger firing
         //---------------------------------------------------------------------------
-
-        /// <summary>
-        /// Select the next time that a trigger will be fired.
-        /// </summary>
-        /// <param name="conn">the DB Connection</param>
-        /// <returns>
-        /// the next fire time, or 0 if no trigger will be fired
-        /// </returns>
-        public virtual NullableDateTime SelectNextFireTimeDEPRECATED(ConnectionAndTransactionHolder conn)
-        {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SELECT_NEXT_FIRE_TIME)))
-            {
-                AddCommandParameter(cmd, 1, "state", STATE_WAITING);
-                using (IDataReader rs = cmd.ExecuteReader())
-                {
-                    if (rs.Read())
-                    {
-                        return new DateTime(Convert.ToInt64(rs[ALIAS_COL_NEXT_FIRE_TIME]));
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
-            }
-        }
 
         /// <summary>
         /// Select the trigger that will be fired at the given fire time.

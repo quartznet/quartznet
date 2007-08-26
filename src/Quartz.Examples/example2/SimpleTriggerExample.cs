@@ -16,8 +16,12 @@
 */
 using System;
 using System.Threading;
+
 using Common.Logging;
+#if !NET_20
 using Nullables;
+#endif
+
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example2
@@ -148,8 +152,12 @@ namespace Quartz.Examples.Example2
 			// job 7 will run immediately and repeat 10 times for every second
 			log.Info("------- Rescheduling... --------------------");
 			trigger = new SimpleTrigger("trigger7", "group1", "job7", "group1", DateTime.Now, null, 10, 1000L);
-			NullableDateTime ft2 = sched.RescheduleJob("trigger7", "group1", trigger);
-			if (ft2.HasValue)
+#if !NET_20
+            NullableDateTime ft2 = sched.RescheduleJob("trigger7", "group1", trigger);
+#else
+            DateTime? ft2 = sched.RescheduleJob("trigger7", "group1", trigger);
+#endif
+            if (ft2.HasValue)
 			{
 				log.Info("job7 rescheduled to run at: " + ft2.Value.ToString("r"));
 			}

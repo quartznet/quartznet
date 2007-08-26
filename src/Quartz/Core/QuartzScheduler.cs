@@ -26,7 +26,10 @@ using System.Reflection;
 using System.Runtime.Remoting;
 using System.Threading;
 using Common.Logging;
+
+#if !NET_20
 using Nullables;
+#endif
 
 using Quartz;
 using Quartz.Collection;
@@ -72,7 +75,11 @@ namespace Quartz.Core
         private ArrayList holdToPreventGC = new ArrayList(5);
         private bool signalOnSchedulingChange = true;
         private bool closed = false;
+#if !NET_20
         private NullableDateTime initialStart = null;
+#else
+        private DateTime? initialStart = null;
+#endif
 
         static QuartzScheduler()
         {
@@ -446,7 +453,11 @@ namespace Quartz.Core
         /// Gets the running since.
         /// </summary>
         /// <value>The running since.</value>
+#if !NET_20
         public virtual NullableDateTime RunningSince
+#else
+        public virtual DateTime? RunningSince
+#endif
         {
             get { return initialStart; }
         }
@@ -622,7 +633,11 @@ namespace Quartz.Core
                                                  SchedulerException.ERR_PERSISTENCE_CALENDAR_DOES_NOT_EXIST);
                 }
             }
+#if !NET_20
             NullableDateTime ft = trigger.ComputeFirstFireTime(cal);
+#else
+            DateTime? ft = trigger.ComputeFirstFireTime(cal);
+#endif
 
             if (!ft.HasValue)
             {
@@ -664,7 +679,11 @@ namespace Quartz.Core
                 }
             }
 
+#if !NET_20
             NullableDateTime ft = trigger.ComputeFirstFireTime(cal);
+#else
+            DateTime? ft = trigger.ComputeFirstFireTime(cal);
+#endif
             if (!ft.HasValue)
             {
                 throw new SchedulerException("Based on configured schedule, the given trigger will never fire.",
@@ -758,8 +777,13 @@ namespace Quartz.Core
         /// name and group was not found and removed from the store, otherwise
         /// the first fire time of the newly scheduled trigger.
         /// </returns>
-        public virtual NullableDateTime RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName,
-                                                      Trigger newTrigger)
+        public virtual 
+#if !NET_20
+        NullableDateTime
+#else
+        DateTime?
+#endif
+            RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger)
         {
             ValidateState();
 
@@ -775,7 +799,12 @@ namespace Quartz.Core
             {
                 cal = resources.JobStore.RetrieveCalendar(ctxt, newTrigger.CalendarName);
             }
+
+#if !NET_20
             NullableDateTime ft = newTrigger.ComputeFirstFireTime(cal);
+#else
+            DateTime? ft = newTrigger.ComputeFirstFireTime(cal);
+#endif
 
             if (!ft.HasValue)
             {
@@ -791,7 +820,7 @@ namespace Quartz.Core
             }
             else
             {
-                return NullableDateTime.Default;
+                return null;
             }
 
             return ft;
@@ -841,7 +870,7 @@ namespace Quartz.Core
 
             Trigger trig =
                 new SimpleTrigger(NewTriggerId(), SchedulerConstants.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.Now,
-                                  NullableDateTime.Default, 0, 0);
+                                  null, 0, 0);
             trig.Volatile = false;
             trig.ComputeFirstFireTime(null);
             if (data != null)
@@ -883,7 +912,7 @@ namespace Quartz.Core
 
             Trigger trig =
                 new SimpleTrigger(NewTriggerId(), SchedulerConstants.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.Now,
-                                  NullableDateTime.Default, 0, 0);
+                                  null, 0, 0);
             trig.Volatile = true;
             trig.ComputeFirstFireTime(null);
             if (data != null)

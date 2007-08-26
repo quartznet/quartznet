@@ -24,7 +24,10 @@ using System.Text;
 using System.Threading;
 using Common.Logging;
 
+#if !NET_20
 using Nullables;
+#endif
+
 
 using Quartz;
 using Quartz.Collection;
@@ -1172,8 +1175,12 @@ namespace Quartz.Simpl
 				misfireTime = misfireTime.AddMilliseconds(-1 *MisfireThreshold);
 			}
 
-			NullableDateTime tnft = tw.trigger.GetNextFireTime();
-			if (tnft.Value > misfireTime)
+#if !NET_20
+            NullableDateTime tnft = tw.trigger.GetNextFireTime();
+#else
+            DateTime? tnft = tw.trigger.GetNextFireTime();
+#endif
+            if (tnft.Value > misfireTime)
 			{
 				return false;
 			}
@@ -1325,8 +1332,12 @@ namespace Quartz.Simpl
 				{
 					cal = RetrieveCalendar(ctxt, tw.trigger.CalendarName);
 				}
-				NullableDateTime prevFireTime = trigger.GetPreviousFireTime();
-				// call triggered on our copy, and the scheduler's copy
+#if !NET_20
+                NullableDateTime prevFireTime = trigger.GetPreviousFireTime();
+#else
+                DateTime? prevFireTime = trigger.GetPreviousFireTime();
+#endif
+                // call triggered on our copy, and the scheduler's copy
 				tw.trigger.Triggered(cal);
 				trigger.Triggered(cal);
 				//tw.state = TriggerWrapper.STATE_EXECUTING;
@@ -1359,8 +1370,12 @@ namespace Quartz.Simpl
 				}
 				else
 				{
-					NullableDateTime d = tw.trigger.GetNextFireTime();
-					if (d.HasValue)
+#if !NET_20
+                    NullableDateTime d = tw.trigger.GetNextFireTime();
+#else
+                    DateTime? d = tw.trigger.GetNextFireTime();
+#endif
+                    if (d.HasValue)
 					{
 						lock (triggerLock)
 						{
@@ -1434,8 +1449,12 @@ namespace Quartz.Simpl
 					if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
 					{
 					    log.Debug("Deleting trigger");
-						NullableDateTime d = trigger.GetNextFireTime();
-						if (!d.HasValue)
+#if !NET_20
+                        NullableDateTime d = trigger.GetNextFireTime();
+#else
+                        DateTime? d = trigger.GetNextFireTime();
+#endif
+                        if (!d.HasValue)
 						{
 							// double check for possible reschedule within job 
 							// execution, which would cancel the need to delete...

@@ -17,8 +17,9 @@
 using System;
 using System.Collections;
 
+#if !NET_20
 using Nullables;
-
+#endif
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -103,8 +104,7 @@ namespace Quartz.Tests.Unit
             CronExpression cronExpression = new CronExpression("0 15 23 * * ?");
             DateTime cal = new DateTime(2005, 6, 1, 23, 16, 0);
             DateTime nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0);
-            NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
-            Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
+            Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);
         }
 
 
@@ -147,8 +147,7 @@ namespace Quartz.Tests.Unit
             CronExpression cronExpression = new CronExpression("0/5 * * * * ?");
             DateTime cal = new DateTime(2005, 6, 1, 1, 59, 55);
             DateTime nextExpectedFireTime = new DateTime(2005, 6, 1, 2, 0, 0);
-            NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
-            Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
+            Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);
         }
 
         [Test]
@@ -158,9 +157,7 @@ namespace Quartz.Tests.Unit
             CronExpression cronExpression = new CronExpression("* * 1 * * ?");
             DateTime cal = new DateTime(2005, 7, 31, 22, 59, 57);
             DateTime nextExpectedFireTime = new DateTime(2005, 8, 1, 1, 0, 0);
-            NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
-            Assert.AreEqual(nextExpectedFireTime, nextFireTime.Value);
-            
+            Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);            
         }
 
         [Test]
@@ -196,7 +193,11 @@ namespace Quartz.Tests.Unit
             DateTime cal = new DateTime(2007, 6, 1, 11, 0, 0);
             for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
             {
+#if !NET_20
                 NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
+#else
+                DateTime? nextFireTime = cronExpression.GetTimeAfter(cal);
+#endif
                 if (!fireDays.Contains(nextFireTime.Value.Day) && nextFireTime.Value.Month == 6)
                 {
                     // next fire day may be monday for several days..

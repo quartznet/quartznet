@@ -17,7 +17,9 @@
 using System;
 using System.Threading;
 using Common.Logging;
+#if !NET_20
 using Nullables;
+#endif
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example1
@@ -51,7 +53,7 @@ namespace Quartz.Examples.Example1
 			log.Info("------- Scheduling Jobs -------------------");
 			
 			// computer a time that is on the next round minute
-			DateTime runTime = TriggerUtils.GetEvenMinuteDate(new NullableDateTime(DateTime.Now));
+			DateTime runTime = TriggerUtils.GetEvenMinuteDate(DateTime.Now);
 			
 			// define the job and tie it to our HelloJob class
 			JobDetail job = new JobDetail("job1", "group1", typeof(HelloJob));

@@ -20,7 +20,10 @@
 */
 
 using System;
+
+#if !NET_20
 using Nullables;
+#endif
 
 namespace Quartz
 {
@@ -94,7 +97,11 @@ namespace Quartz
 		/// Note that the return time may be in the past.
 		/// </p>
 		/// </summary>
-		public override NullableDateTime FinalFireTime
+#if !NET_20
+        public override NullableDateTime FinalFireTime
+#else
+        public override DateTime? FinalFireTime
+#endif
 		{
 			get
 			{
@@ -105,12 +112,12 @@ namespace Quartz
 
 				if (repeatCount == REPEAT_INDEFINITELY && !EndTime.HasValue)
 				{
-					return NullableDateTime.Default;
+					return null;
 				}
 
 				if (repeatCount == REPEAT_INDEFINITELY && !EndTime.HasValue)
 				{
-					return NullableDateTime.Default;
+					return null;
 				}
 				else if (repeatCount == REPEAT_INDEFINITELY)
 				{
@@ -238,10 +245,15 @@ namespace Quartz
 		/// </summary>
 		public const int REPEAT_INDEFINITELY = -1;
 
-		private NullableDateTime nextFireTime = null;
+#if !NET_20
+        private NullableDateTime nextFireTime = null;
 		private NullableDateTime previousFireTime = null;
+#else
+        private DateTime? nextFireTime = null;
+        private DateTime? previousFireTime = null;
+#endif
 
-		private int repeatCount = 0;
+        private int repeatCount = 0;
 		private long repeatInterval = 0;
 		private int timesTriggered = 0;
 		private bool complete = false;
@@ -291,8 +303,13 @@ namespace Quartz
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use {@link #REPEAT_INDEFINITELY}for unlimited times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-		public SimpleTrigger(string name, string group, DateTime startTime, NullableDateTime endTime, int repeatCount,
-		                     long repeatInterval) : base(name, group)
+		public SimpleTrigger(string name, string group, DateTime startTime,
+#if !NET_20
+            NullableDateTime endTime, 
+#else
+            DateTime? endTime,
+#endif
+            int repeatCount, long repeatInterval) : base(name, group)
 		{
 			StartTime = startTime;
 			EndTime = endTime;
@@ -317,7 +334,12 @@ namespace Quartz
         /// firing, use REPEAT_INDEFINITELY for unlimited times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTime,
-		                     NullableDateTime endTime, int repeatCount, long repeatInterval)
+#if !NET_20
+                 NullableDateTime endTime,
+#else
+                 DateTime? endTime,
+#endif
+                 int repeatCount, long repeatInterval)
 			: base(name, group, jobName, jobGroup)
 		{
 			StartTime = startTime;
@@ -398,9 +420,13 @@ namespace Quartz
 			}
 			else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_EXISTING_COUNT)
 			{
-				NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
+#if !NET_20
+                NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
+#else
+                DateTime? newFireTime = GetFireTimeAfter(DateTime.Now);
+#endif
 
-				while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
+                while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
 					newFireTime = GetFireTimeAfter(newFireTime);
 				}
@@ -408,7 +434,11 @@ namespace Quartz
 			}
 			else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT)
 			{
-				NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
+#if !NET_20
+                NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
+#else
+                DateTime? newFireTime = GetFireTimeAfter(DateTime.Now);
+#endif
 
 				while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
@@ -534,7 +564,11 @@ namespace Quartz
 		/// by the scheduler, which is also the same value <see cref="GetNextFireTime()" />
 		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
-		public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
+#if !NET_20
+        public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
+#else
+        public override DateTime? ComputeFirstFireTime(ICalendar cal)
+#endif
 		{
 			nextFireTime = StartTime;
 
@@ -553,7 +587,11 @@ namespace Quartz
 		/// returned. The value returned is not guaranteed to be valid until after
 		/// the <see cref="Trigger" /> has been added to the scheduler.
 		/// </summary>
-		public override NullableDateTime GetNextFireTime()
+#if !NET_20
+        public override NullableDateTime GetNextFireTime()
+#else
+        public override DateTime? GetNextFireTime()
+#endif
 		{
 			return nextFireTime;
 		}
@@ -563,7 +601,11 @@ namespace Quartz
 		/// If the trigger has not yet fired, <see langword="null" /> will be
 		/// returned.
 		/// </summary>
-		public override NullableDateTime GetPreviousFireTime()
+#if !NET_20
+        public override NullableDateTime GetPreviousFireTime()
+#else
+        public override DateTime? GetPreviousFireTime()
+#endif
 		{
 			return previousFireTime;
 		}
@@ -572,7 +614,11 @@ namespace Quartz
 		/// Set the next time at which the <see cref="SimpleTrigger" /> should fire.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
-		public void SetNextFireTime(NullableDateTime fireTime)
+#if !NET_20
+        public void SetNextFireTime(NullableDateTime fireTime)
+#else
+        public void SetNextFireTime(DateTime? fireTime)
+#endif
 		{
 			nextFireTime = fireTime;
 		}
@@ -581,7 +627,11 @@ namespace Quartz
 		/// Set the previous time at which the <see cref="SimpleTrigger" /> fired.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
-		public virtual void SetPreviousFireTime(NullableDateTime fireTime)
+#if !NET_20
+        public virtual void SetPreviousFireTime(NullableDateTime fireTime)
+#else
+        public virtual void SetPreviousFireTime(DateTime? fireTime)
+#endif
 		{
 			previousFireTime = fireTime;
 		}
@@ -591,7 +641,11 @@ namespace Quartz
 		/// fire, after the given time. If the trigger will not fire after the given
 		/// time, <see langword="null" /> will be returned.
 		/// </summary>
-		public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
+#if !NET_20
+        public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
+#else
+        public override DateTime? GetFireTimeAfter(DateTime? afterTime)
+#endif
 		{
 			if (complete)
 			{
@@ -608,7 +662,7 @@ namespace Quartz
 				afterTime = DateTime.Now;
 			}
 
-			if (repeatCount == 0 && afterTime.CompareTo(StartTime) >= 0)
+			if (repeatCount == 0 && afterTime.Value.CompareTo(StartTime) >= 0)
 			{
 				return null;
 			}
@@ -652,11 +706,15 @@ namespace Quartz
 		/// fire, before the given time. If the trigger will not fire before the
 		/// given time, <see langword="null" /> will be returned.
 		/// </summary>
-		public virtual NullableDateTime GetFireTimeBefore(NullableDateTime end)
+#if !NET_20
+        public virtual NullableDateTime GetFireTimeBefore(NullableDateTime end)
+#else
+        public virtual DateTime? GetFireTimeBefore(DateTime? end)
+#endif
 		{
 			if (end.Value < StartTime)
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 
 			int numFires = ComputeNumTimesFiredBetween(StartTime, end);
@@ -669,7 +727,11 @@ namespace Quartz
         /// <param name="start">The start.</param>
         /// <param name="end">The end.</param>
         /// <returns></returns>
-		public virtual int ComputeNumTimesFiredBetween(NullableDateTime start, NullableDateTime end)
+#if !NET_20
+        public virtual int ComputeNumTimesFiredBetween(NullableDateTime start, NullableDateTime end)
+#else
+        public virtual int ComputeNumTimesFiredBetween(DateTime? start, DateTime? end)
+#endif
 		{
 			long time = (long) (end.Value - start.Value).TotalMilliseconds;
 			return (int) (time/repeatInterval);

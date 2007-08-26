@@ -75,10 +75,6 @@
       <Name>Common.Logging</Name>
       <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
     </Reference>
-    <Reference Include="Nullables">
-      <Name>Nullables</Name>
-      <HintPath>..\..\lib\1.1\Nullables.dll</HintPath>
-    </Reference>
     <Reference Include="System">
       <Name>System</Name>
     </Reference>

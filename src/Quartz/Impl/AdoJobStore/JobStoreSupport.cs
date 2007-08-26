@@ -28,7 +28,9 @@ using System.Threading;
 
 using Common.Logging;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using Quartz.Collection;
 using Quartz.Core;
@@ -3423,7 +3425,11 @@ namespace Quartz.Impl.AdoJobStore
                 throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
             }
 
+#if !NET_20
             NullableDateTime prevFireTime = trigger.GetPreviousFireTime();
+#else
+            DateTime? prevFireTime = trigger.GetPreviousFireTime();
+#endif
 
             // call triggered - to update the trigger's next-fire-time state...
             trigger.Triggered(cal);
@@ -3460,14 +3466,15 @@ namespace Quartz.Impl.AdoJobStore
 
             job.JobDataMap.ClearDirtyFlag();
 
-            DateTime tempAux = DateTime.Now;
-
-            NullableDateTime tempAux2 = trigger.GetPreviousFireTime();
-            NullableDateTime tempAux3 = trigger.GetNextFireTime();
-            return
-                new TriggerFiredBundle(job, trigger, cal, trigger.Group.Equals(SchedulerConstants.DEFAULT_RECOVERY_GROUP),
-                                       tempAux,
-                                       tempAux2, prevFireTime, tempAux3);
+            return new TriggerFiredBundle(
+                job, 
+                trigger, 
+                cal, 
+                trigger.Group.Equals(SchedulerConstants.DEFAULT_RECOVERY_GROUP),
+                DateTime.Now,
+                trigger.GetPreviousFireTime(), 
+                prevFireTime, 
+                trigger.GetNextFireTime());
         }
 
 

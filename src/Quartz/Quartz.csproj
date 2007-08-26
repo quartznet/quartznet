@@ -761,11 +761,6 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Xml\job_scheduling_data.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
                     RelPath = "Xml\job_scheduling_data.xsd"
                     BuildAction = "Content"
                 />

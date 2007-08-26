@@ -17,7 +17,9 @@
 using System;
 using System.Globalization;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using Quartz.Spi;
 
@@ -112,9 +114,14 @@ namespace Quartz
 		/// </summary>
 		public const int INTERVAL_TYPE_WEEKLY = 3;
 
-		private NullableDateTime previousFireTime;
+#if !NET_20
+        private NullableDateTime previousFireTime;
 		private NullableDateTime nextFireTime;
-		private ICalendar calendar;
+#else
+        private DateTime? previousFireTime;
+        private DateTime? nextFireTime;
+#endif  
+        private ICalendar calendar;
 
 		private int n = 1;
 		private int intervalType = INTERVAL_TYPE_MONTHLY;
@@ -304,14 +311,23 @@ namespace Quartz
 		/// </summary>
 		/// <returns> the last time the trigger will fire.
 		/// </returns>
-		public override NullableDateTime FinalFireTime
+#if !NET_20
+        public override NullableDateTime FinalFireTime
+#else
+        public override DateTime? FinalFireTime
+#endif
 		{
 			get
 			{
-				NullableDateTime finalTime = NullableDateTime.Default;
+#if !NET_20
+                NullableDateTime finalTime = null;
 				NullableDateTime currCal = new NullableDateTime(EndTime.Value);
+#else
+                DateTime? finalTime = null;
+                DateTime? currCal = EndTime.Value;
+#endif
 
-				while (!finalTime.HasValue && StartTime < currCal.Value)
+                while (!finalTime.HasValue && StartTime < currCal.Value)
 				{
 					currCal = currCal.Value.AddDays(-1);
 					finalTime = GetFireTimeAfter(currCal);
@@ -410,8 +426,11 @@ namespace Quartz
 		/// <returns> the next fire time for the trigger
 		/// </returns>
 		/// <seealso cref="NextFireCutoffInterval" /> 
-		/// <seealso cref="GetFireTimeAfter(NullableDateTime)" />
-		public override NullableDateTime GetNextFireTime()
+#if !NET_20
+        public override NullableDateTime GetNextFireTime()
+#else
+        public override DateTime? GetNextFireTime()
+#endif
 		{
 			return nextFireTime;
 		}
@@ -423,7 +442,11 @@ namespace Quartz
 		/// </summary>
 		/// <returns> the previous fire time for the trigger
 		/// </returns>
-		public override NullableDateTime GetPreviousFireTime()
+#if !NET_20
+        public override NullableDateTime GetPreviousFireTime()
+#else
+        public override DateTime? GetPreviousFireTime()
+#endif
 		{
 			return previousFireTime;
 		}
@@ -465,7 +488,11 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-		public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
+#if !NET_20
+        public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
+#else
+        public override DateTime? GetFireTimeAfter(DateTime? afterTime)
+#endif
 		{
 			if (!afterTime.HasValue)
 			{
@@ -491,7 +518,7 @@ namespace Quartz
 			}
 			else
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 		}
 
@@ -523,7 +550,11 @@ namespace Quartz
 		/// {@link #getNextFireTime()} will return (until after the first 
 		/// firing of the <see cref="Trigger" />).
 		/// </returns>
-		public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
+#if !NET_20
+        public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
+#else
+        public override DateTime? ComputeFirstFireTime(ICalendar cal)
+#endif
 		{
 			calendar = cal;
 			DateTime tempAux = StartTime.AddMilliseconds(-1*1000);
@@ -589,8 +620,7 @@ namespace Quartz
 		/// </returns>
 		public override bool GetMayFireAgain()
 		{
-			NullableDateTime d = GetNextFireTime();
-			return d.HasValue;
+			return GetNextFireTime().HasValue;
 		}
 
 		/// <summary> 
@@ -684,7 +714,11 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-		private NullableDateTime GetWeeklyFireTimeAfter(NullableDateTime afterDate)
+#if !NET_20
+        private NullableDateTime GetWeeklyFireTimeAfter(NullableDateTime afterDate)
+#else
+        private DateTime? GetWeeklyFireTimeAfter(DateTime? afterDate)
+#endif
 		{
 			int currN = 0;
 			DateTime afterCal = afterDate.Value;
@@ -728,7 +762,7 @@ namespace Quartz
 					//if we pass endTime, drop out and return null.
 					if (EndTime.HasValue && currCal > EndTime.Value)
 					{
-						return NullableDateTime.Default;
+						return null;
 					}
 				}
 
@@ -757,7 +791,7 @@ namespace Quartz
 			}
 			else
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 		}
 
@@ -774,7 +808,11 @@ namespace Quartz
 		/// will not be returned as the next fire time.
 		/// </param>
 		/// <returns> the first time the trigger will fire following the specified date </returns>
-		private NullableDateTime GetMonthlyFireTimeAfter(DateTime afterDate)
+#if !NET_20
+        private NullableDateTime GetMonthlyFireTimeAfter(DateTime afterDate)
+#else
+        private DateTime? GetMonthlyFireTimeAfter(DateTime afterDate)
+#endif
 		{
 			int currN = 0;
 			DateTime afterCal = afterDate;
@@ -813,7 +851,7 @@ namespace Quartz
 					//if we pass endTime, drop out and return null.
 					if (EndTime.HasValue && currCal > EndTime.Value)
 					{
-						return NullableDateTime.Default;
+						return null;
 					}
 				}
 
@@ -843,7 +881,7 @@ namespace Quartz
 			}
 			else
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 		}
 
@@ -862,7 +900,11 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-		private NullableDateTime GetYearlyFireTimeAfter(NullableDateTime afterDate)
+#if !NET_20
+        private NullableDateTime GetYearlyFireTimeAfter(NullableDateTime afterDate)
+#else
+        private DateTime? GetYearlyFireTimeAfter(DateTime? afterDate)
+#endif
 		{
 			int currN = 0;
 			DateTime afterCal = afterDate.Value;
@@ -901,7 +943,7 @@ namespace Quartz
 					//if we pass endTime, drop out and return null.
 					if (EndTime.HasValue && currCal > EndTime.Value)
 					{
-						return NullableDateTime.Default;
+						return null;
 					}
 				}
 
@@ -929,7 +971,7 @@ namespace Quartz
 			}
 			else
 			{
-				return NullableDateTime.Default;
+				return null;
 			}
 		}
 

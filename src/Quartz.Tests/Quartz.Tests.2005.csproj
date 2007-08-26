@@ -34,7 +34,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;NET_20</DefineConstants>
     <DocumentationFile>
     </DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
@@ -77,10 +77,6 @@
     <Reference Include="Common.Logging">
       <Name>Common.Logging</Name>
       <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
-    </Reference>
-    <Reference Include="Nullables">
-      <Name>Nullables</Name>
-      <HintPath>..\..\lib\1.1\Nullables.dll</HintPath>
     </Reference>
     <Reference Include="nunit.framework">
       <Name>nunit.framework</Name>

@@ -22,7 +22,9 @@
 using System;
 using System.Collections;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using Quartz.Collection;
 using Quartz.Spi;
@@ -419,10 +421,14 @@ namespace Quartz
 		/// name and group was not found and removed from the store, otherwise
 		/// the first fire time of the newly scheduled trigger.
 		/// </returns>
-		NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
+#if !NET_20
+        NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
+#else
+        DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
+#endif
 
 
-		/// <summary>
+        /// <summary>
 		/// Add the given <see cref="IJob" /> to the Scheduler - with no associated
 		/// <see cref="Trigger" />. The <see cref="IJob" /> will be 'dormant' until
 		/// it is scheduled with a <see cref="Trigger" />, or <see cref="IScheduler.TriggerJob(string, string)" />

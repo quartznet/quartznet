@@ -15,7 +15,9 @@
  */
 using System;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using NUnit.Framework;
 
@@ -43,7 +45,13 @@ namespace Quartz.Tests.Unit
 			yearlyTrigger.FireAtTime = "14:35:15";
         
 			DateTime targetCalendar = new DateTime(2006, 1, 10, 14, 35, 15);
-			NullableDateTime nextFireTime = yearlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
+#if !NET_20
+            NullableDateTime nextFireTime;
+#else
+            DateTime? nextFireTime;
+#endif
+
+            nextFireTime = yearlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
 			Assert.AreEqual(targetCalendar, nextFireTime.Value);
         
 			// Test monthly

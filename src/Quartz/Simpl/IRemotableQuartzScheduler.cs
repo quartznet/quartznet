@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using Quartz;
 using Quartz.Collection;
@@ -44,9 +46,13 @@ namespace Quartz.Simpl
 
 		void Shutdown(bool waitForJobsToComplete);
 
-		NullableDateTime RunningSince { get; }
+#if !NET_20
+        NullableDateTime RunningSince { get; }
+#else
+        DateTime? RunningSince { get; }
+#endif
 
-		int NumJobsExecuted { get; }
+        int NumJobsExecuted { get; }
 
 		bool SupportsPersistence { get; }
 
@@ -60,7 +66,11 @@ namespace Quartz.Simpl
 
 		bool UnscheduleJob(SchedulingContext ctxt, string triggerName, string groupName);
 
-		NullableDateTime RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger);
+#if !NET_20
+        NullableDateTime RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger);
+#else
+        DateTime? RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger);
+#endif
 
 
 		void TriggerJob(SchedulingContext ctxt, string jobName, string groupName, JobDataMap data);

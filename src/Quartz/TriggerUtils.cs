@@ -1,7 +1,3 @@
-using System;
-using System.Collections;
-
-using Nullables;
 /* 
 * Copyright 2004-2005 OpenSymphony 
 * 
@@ -22,6 +18,13 @@ using Nullables;
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
+
+using System;
+using System.Collections;
+
+#if !NET_20
+using Nullables;
+#endif
 
 namespace Quartz
 {
@@ -610,7 +613,11 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-		public static DateTime GetEvenHourDate(NullableDateTime date)
+#if !NET_20
+        public static DateTime GetEvenHourDate(NullableDateTime date)
+#else
+        public static DateTime GetEvenHourDate(DateTime? date)
+#endif
 		{
 			if (!date.HasValue)
 			{
@@ -631,7 +638,11 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-		public static DateTime GetEvenHourDateBefore(NullableDateTime date)
+#if !NET_20
+        public static DateTime GetEvenHourDateBefore(NullableDateTime date)
+#else
+        public static DateTime GetEvenHourDateBefore(DateTime? date)
+#endif
 		{
 			if (!date.HasValue)
 			{
@@ -651,7 +662,11 @@ namespace Quartz
 		/// </summary>
 		/// <param name="date">The Date to round, if <see langword="null" /> the current time will  be used</param>
 		/// <returns>The new rounded date</returns>
-		public static DateTime GetEvenMinuteDate(NullableDateTime date)
+#if !NET_20
+        public static DateTime GetEvenMinuteDate(NullableDateTime date)
+#else
+        public static DateTime GetEvenMinuteDate(DateTime? date)
+#endif
 		{
 			if (date.HasValue)
 			{
@@ -674,7 +689,11 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-		public static DateTime GetEvenMinuteDateBefore(NullableDateTime date)
+#if !NET_20
+        public static DateTime GetEvenMinuteDateBefore(NullableDateTime date)
+#else
+        public static DateTime GetEvenMinuteDateBefore(DateTime? date)
+#endif
 		{
 			if (!date.HasValue)
 			{
@@ -692,7 +711,11 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-		public static DateTime GetEvenSecondDate(NullableDateTime date)
+#if !NET_20
+        public static DateTime GetEvenSecondDate(NullableDateTime date)
+#else
+        public static DateTime GetEvenSecondDate(DateTime? date)
+#endif
 		{
 			if (!date.HasValue)
 			{
@@ -714,7 +737,11 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-		public static DateTime GetEvenSecondDateBefore(NullableDateTime date)
+#if !NET_20
+        public static DateTime GetEvenSecondDateBefore(NullableDateTime date)
+#else
+        public static DateTime GetEvenSecondDateBefore(DateTime? date)
+#endif
 		{
 			if (!date.HasValue)
 			{
@@ -815,7 +842,11 @@ namespace Quartz
 		/// the base-minute to set the time on
 		/// </param>
 		/// <returns> the new rounded date</returns>
-		public static DateTime GetNextGivenMinuteDate(NullableDateTime date, int minuteBase)
+#if !NET_20
+        public static DateTime GetNextGivenMinuteDate(NullableDateTime date, int minuteBase)
+#else
+        public static DateTime GetNextGivenMinuteDate(DateTime? date, int minuteBase)
+#endif
 		{
 			if (minuteBase < 0 || minuteBase > 59)
 			{
@@ -861,7 +892,11 @@ namespace Quartz
 		/// <param name="date">The date.</param>
 		/// <param name="secondBase">The second base.</param>
 		/// <returns></returns>
-		public static DateTime GetNextGivenSecondDate(NullableDateTime date, int secondBase)
+#if !NET_20
+        public static DateTime GetNextGivenSecondDate(NullableDateTime date, int secondBase)
+#else
+        public static DateTime GetNextGivenSecondDate(DateTime? date, int secondBase)
+#endif
 		{
 			if (secondBase < 0 || secondBase > 59)
 			{
@@ -981,8 +1016,12 @@ namespace Quartz
 
 			for (int i = 0; i < numTimes; i++)
 			{
-				NullableDateTime d = t.GetNextFireTime();
-				if (d != null && d.HasValue)
+#if !NET_20
+                NullableDateTime d = t.GetNextFireTime();
+#else
+                DateTime? d = t.GetNextFireTime();
+#endif
+                if (d.HasValue)
 				{
 					lst.Add(d);
 					t.Triggered(cal);
@@ -1029,15 +1068,19 @@ namespace Quartz
 			//        to the type of trigger ...
 			while (true)
 			{
-				NullableDateTime d = t.GetNextFireTime();
-				if (d != null && d.HasValue)
+#if !NET_20
+                NullableDateTime d = t.GetNextFireTime();
+#else
+                DateTime? d = t.GetNextFireTime();
+#endif
+                if (d.HasValue)
 				{
-					if ((d.Value < from))
+					if (d.Value < from)
 					{
 						t.Triggered(cal);
 						continue;
 					}
-					if ((d.Value > to))
+					if (d.Value > to)
 					{
 						break;
 					}

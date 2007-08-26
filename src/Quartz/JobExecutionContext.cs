@@ -20,8 +20,11 @@
 */
 using System;
 using System.Collections;
-using System.Text;
+
+#if !NET_20
 using Nullables;
+#endif
+
 
 using Quartz.Spi;
 
@@ -78,10 +81,17 @@ namespace Quartz
         private readonly ICalendar calendar;
         private readonly bool recovering = false;
         private int numRefires = 0;
+#if !NET_20
         private readonly NullableDateTime fireTime;
         private readonly NullableDateTime scheduledFireTime;
         private readonly NullableDateTime prevFireTime;
         private readonly NullableDateTime nextFireTime;
+#else
+        private readonly DateTime? fireTime;
+        private readonly DateTime? scheduledFireTime;
+        private readonly DateTime? prevFireTime;
+        private readonly DateTime? nextFireTime;
+#endif
         private long jobRunTime = -1;
         private object result;
 
@@ -210,7 +220,11 @@ namespace Quartz
 		/// </summary>
 		/// <returns> Returns the fireTime.</returns>
 		/// <seealso cref="ScheduledFireTime" />
-		public NullableDateTime FireTime
+#if !NET_20
+        public NullableDateTime FireTime
+#else
+        public DateTime? FireTime
+#endif
 		{
 			get { return fireTime; }
 		}
@@ -222,7 +236,11 @@ namespace Quartz
 		/// </summary>
 		/// <returns> Returns the scheduledFireTime.</returns>
 		/// <seealso cref="FireTime" />
+#if !NET_20
         public NullableDateTime ScheduledFireTime
+#else
+        public DateTime? ScheduledFireTime
+#endif
 		{
 			get { return scheduledFireTime; }
 		}
@@ -231,7 +249,11 @@ namespace Quartz
 		/// Gets the previous fire time.
 		/// </summary>
 		/// <value>The previous fire time.</value>
-		public NullableDateTime PreviousFireTime
+#if !NET_20
+        public NullableDateTime PreviousFireTime
+#else
+        public DateTime? PreviousFireTime
+#endif
 		{
 			get { return prevFireTime; }
 		}
@@ -240,7 +262,11 @@ namespace Quartz
 		/// Gets the next fire time.
 		/// </summary>
 		/// <value>The next fire time.</value>
-		public NullableDateTime NextFireTime
+#if !NET_20
+        public NullableDateTime NextFireTime
+#else
+        public DateTime? NextFireTime
+#endif
 		{
 			get { return nextFireTime; }
 		}

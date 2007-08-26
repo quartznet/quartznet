@@ -21,7 +21,11 @@
 using System;
 using System.Collections;
 using System.Runtime.Remoting;
+
+#if !NET_20
 using Nullables;
+#endif
+
 using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Simpl;
@@ -601,7 +605,11 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+#if !NET_20
+        public virtual NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+#else
+        public virtual DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+#endif
 		{
 			try
 			{

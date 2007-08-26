@@ -19,7 +19,11 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+
+#if !NET_20
 using Nullables;
+#endif
+
 using Quartz.Core;
 
 namespace Quartz.Spi
@@ -37,11 +41,17 @@ namespace Quartz.Spi
         private Trigger trigger;
         private ICalendar cal;
         private bool jobIsRecovering;
+#if !NET_20
         private NullableDateTime fireTime;
         private NullableDateTime scheduledFireTime;
         private NullableDateTime prevFireTime;
         private NullableDateTime nextFireTime;
-
+#else
+        private DateTime? fireTime;
+        private DateTime? scheduledFireTime;
+        private DateTime? prevFireTime;
+        private DateTime? nextFireTime;
+#endif
         /// <summary>
         /// Gets the job detail.
         /// </summary>
@@ -78,7 +88,9 @@ namespace Quartz.Spi
             get { return jobIsRecovering; }
         }
 
-        /// <returns> Returns the fireTime.
+#if !NET_20
+        /// <returns> 
+        /// Returns the fire time.
         /// </returns>
         public virtual NullableDateTime FireTime
         {
@@ -89,30 +101,66 @@ namespace Quartz.Spi
         /// Gets the next fire time.
         /// </summary>
         /// <value>The next fire time.</value>
-        /// <returns> Returns the nextFireTime.
-        /// </returns>
+        /// <returns> Returns the nextFireTime.</returns>
         public virtual NullableDateTime NextFireTime
         {
             get { return nextFireTime; }
         }
 
         /// <summary>
-        /// Gets the prev fire time.
+        /// Gets the previous fire time.
         /// </summary>
-        /// <value>The prev fire time.</value>
-        /// <returns> Returns the prevFireTime.
-        /// </returns>
+        /// <value>The previous fire time.</value>
+        /// <returns> Returns the previous fire time. </returns>
         public virtual NullableDateTime PrevFireTime
         {
             get { return prevFireTime; }
         }
 
-        /// <returns> Returns the scheduledFireTime.
+        /// <returns> 
+        /// Returns the scheduledFireTime.
         /// </returns>
         public virtual NullableDateTime ScheduledFireTime
         {
             get { return scheduledFireTime; }
         }
+#else
+        /// <returns> 
+        /// Returns the fire time.
+        /// </returns>
+        public virtual DateTime? FireTime
+        {
+            get { return fireTime; }
+        }
+
+        /// <summary>
+        /// Gets the next fire time.
+        /// </summary>
+        /// <value>The next fire time.</value>
+        /// <returns> Returns the nextFireTime.</returns>
+        public virtual DateTime? NextFireTime
+        {
+            get { return nextFireTime; }
+        }
+
+        /// <summary>
+        /// Gets the previous fire time.
+        /// </summary>
+        /// <value>The previous fire time.</value>
+        /// <returns> Returns the previous fire time. </returns>
+        public virtual DateTime? PrevFireTime
+        {
+            get { return prevFireTime; }
+        }
+
+        /// <returns> 
+        /// Returns the scheduledFireTime.
+        /// </returns>
+        public virtual DateTime? ScheduledFireTime
+        {
+            get { return scheduledFireTime; }
+        }
+#endif
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TriggerFiredBundle"/> class.
@@ -126,9 +174,17 @@ namespace Quartz.Spi
         /// <param name="prevFireTime">The previous fire time.</param>
         /// <param name="nextFireTime">The next fire time.</param>
         public TriggerFiredBundle(JobDetail job, Trigger trigger, ICalendar cal, bool jobIsRecovering,
-                                  NullableDateTime fireTime, NullableDateTime scheduledFireTime,
+#if !NET_20
+                                  NullableDateTime fireTime, 
+                                  NullableDateTime scheduledFireTime,
                                   NullableDateTime prevFireTime,
                                   NullableDateTime nextFireTime)
+#else
+                                  DateTime? fireTime,
+                                  DateTime? scheduledFireTime,
+                                  DateTime? prevFireTime,
+                                  DateTime? nextFireTime)
+#endif
         {
             this.job = job;
             this.trigger = trigger;

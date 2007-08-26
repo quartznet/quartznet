@@ -21,7 +21,9 @@
 using System;
 using System.Collections;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using Quartz.Spi;
 using Quartz.Util;
@@ -75,7 +77,11 @@ namespace Quartz
         private string fireInstanceId = null;
         private int misfireInstruction = MISFIRE_INSTRUCTION_SMART_POLICY;
         private ArrayList triggerListeners = new ArrayList();
+#if !NET_20
         private NullableDateTime endTime;
+#else
+	    private DateTime? endTime;
+#endif
         private DateTime startTime;
 		private int priority = DEFAULT_PRIORITY;
 		[NonSerialized] 
@@ -314,9 +320,13 @@ namespace Quartz
 		/// Note that the return time *may* be in the past.
 		/// </p>
 		/// </summary>
-		public abstract NullableDateTime FinalFireTime { get; }
+#if !NET_20
+        public abstract NullableDateTime FinalFireTime { get; }
+#else
+        public abstract DateTime? FinalFireTime { get; }
+#endif
 
-		/// <summary>
+        /// <summary>
 		/// Get or set the instruction the <see cref="IScheduler" /> should be given for
 		/// handling misfire situations for this <see cref="Trigger" />- the
 		/// concrete <see cref="Trigger" /> type that you are using will have
@@ -368,8 +378,12 @@ namespace Quartz
 		/// the final boundary for trigger firings &#x8212; the trigger will not
 		/// fire after to this date and time. If this value is null, no end time
 		/// boundary is assumed, and the trigger can continue indefinitely.
-		/// </summary>
-		public virtual NullableDateTime EndTime
+        /// </summary>
+#if !NET_20
+        public virtual NullableDateTime EndTime
+#else
+        public virtual DateTime? EndTime
+#endif
 		{
 			get { return endTime; }
 
@@ -538,26 +552,32 @@ namespace Quartz
 		/// </seealso>
 		public abstract void Triggered(ICalendar cal);
 
-		/// <summary>
-		/// This method should not be used by the Quartz client.
-		/// <p>
-		/// Called by the scheduler at the time a <see cref="Trigger" /> is first
-		/// added to the scheduler, in order to have the <see cref="Trigger" />
-		/// compute its first fire time, based on any associated calendar.
-		/// </p>
-		/// 
-		/// <p>
-		/// After this method has been called, <see cref="GetNextFireTime()" />
-		/// should return a valid answer.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <returns> 
-		/// The first time at which the <see cref="Trigger" /> will be fired
-		/// by the scheduler, which is also the same value <see cref="GetNextFireTime()" />
-		/// will return (until after the first firing of the <see cref="Trigger" />).
-		/// </returns>
+
+        /// <summary>
+        /// This method should not be used by the Quartz client.
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// Called by the scheduler at the time a <see cref="Trigger" /> is first
+        /// added to the scheduler, in order to have the <see cref="Trigger" />
+        /// compute its first fire time, based on any associated calendar.
+        /// </p>
+        /// 
+        /// <p>
+        /// After this method has been called, <see cref="GetNextFireTime()" />
+        /// should return a valid answer.
+        /// </p>
+        /// </remarks>
+        /// <returns> 
+        /// The first time at which the <see cref="Trigger" /> will be fired
+        /// by the scheduler, which is also the same value <see cref="GetNextFireTime()" />
+        /// will return (until after the first firing of the <see cref="Trigger" />).
+        /// </returns>        
+#if !NET_20
 		public abstract NullableDateTime ComputeFirstFireTime(ICalendar cal);
+#else
+        public abstract DateTime? ComputeFirstFireTime(ICalendar cal);
+#endif
 
         /// <summary>
         /// This method should not be used by the Quartz client.
@@ -625,21 +645,31 @@ namespace Quartz
 		/// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
 		/// has been added to the scheduler.
 		/// </summary>
+#if !NET_20
 		public abstract NullableDateTime GetNextFireTime();
-
+#else
+        public abstract DateTime? GetNextFireTime();
+#endif
 		/// <summary>
 		/// Returns the previous time at which the <see cref="Trigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
+#if !NET_20
 		public abstract NullableDateTime GetPreviousFireTime();
+#else
+        public abstract DateTime? GetPreviousFireTime();
+#endif
 
 		/// <summary>
 		/// Returns the next time at which the <see cref="Trigger" /> will fire,
 		/// after the given time. If the trigger will not fire after the given time,
 		/// <see langword="null" /> will be returned.
 		/// </summary>
+#if !NET_20
 		public abstract NullableDateTime GetFireTimeAfter(NullableDateTime afterTime);
-
+#else
+        public abstract DateTime? GetFireTimeAfter(DateTime? afterTime);
+#endif
 		/// <summary>
 		/// Validates the misfire instruction.
 		/// </summary>
@@ -719,9 +749,13 @@ namespace Quartz
 		{
 			Trigger other = (Trigger) obj;
 
-			NullableDateTime myTime = GetNextFireTime();
+#if !NET_20
+            NullableDateTime myTime = GetNextFireTime();
 			NullableDateTime otherTime = other.GetNextFireTime();
-
+#else
+            DateTime? myTime = GetNextFireTime();
+            DateTime? otherTime = other.GetNextFireTime();
+#endif
 			if (!myTime.HasValue && !otherTime.HasValue)
 			{
 				return 0;

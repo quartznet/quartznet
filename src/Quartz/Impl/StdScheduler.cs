@@ -21,7 +21,9 @@
 using System;
 using System.Collections;
 
+#if !NET_20
 using Nullables;
+#endif
 
 using Quartz.Collection;
 using Quartz.Core;
@@ -343,7 +345,11 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+#if !NET_20
+        public virtual NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+#else
+        public virtual DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+#endif
 		{
 			return sched.RescheduleJob(schedCtxt, triggerName, groupName, newTrigger);
 		}
