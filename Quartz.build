@@ -1,69 +1,95 @@
 <project name="Quartz.NET" xmlns="http://nant.sf.net/release/0.85/nant.xsd" default="build">
 
-	<call target="init" />
+  <call target="init" />
 
-	<target name="init">
+  <target name="init">
 
-		<!-- what kind of build -->
-		<if test="${property::exists('configuration') == false}">
-			<property name="configuration" value="Debug" />
-		</if>
-		
-		<!-- Check target framework -->
-		<if test="${property::exists('target.framework') == false}">
-			<!-- 2.0 is the default -->
-			<property name="target.framework" value="2.0" />
-		</if>
-		
-		<!-- set global target framework -->
-		<property name="nant.settings.currentframework" value="net-${target.framework}" />
+    <!-- what kind of build -->
+    <if test="${property::exists('configuration') == false}">
+      <property name="configuration" value="Debug" />
+    </if>
 
-		<!-- Set directories -->
-		<property name="dir.src" value="src\" />
-		<property name="dir.doc" value="doc\" />
-		<property name="dir.build" value="build\${target.framework}\${configuration}" />
-		<property name="dir.deployment" value="deployment\${target.framework}" />
-		
-		<mkdir dir="${dir.build}" />
+    <!-- Check target framework -->
+    <if test="${property::exists('target.framework') == false}">
+      <!-- 2.0 is the default -->
+      <property name="target.framework" value="2.0" />
+    </if>
+
+    <!-- set global target framework -->
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+
+    <!-- Set directories -->
+    <property name="dir.src" value="src\" />
+    <property name="dir.doc" value="doc\" />
+    <property name="dir.build" value="build\${target.framework}\${configuration}" />
+    <property name="dir.deployment" value="deployment\${target.framework}" />
+
+    <mkdir dir="${dir.build}" />
 
     <property name="clover.home" value="C:\Program Files\Cenqua\Clover.NET 2.1 for .NET 2.0"/>
     <loadtasks assembly="${clover.home}\CloverNAnt-0.85.dll"/>
-    
-	</target>
-	
 
-	<target name="build" depends="init">
-		<call target="build-${target.framework}" />
-	</target>
-	
-	<target name="build-all" depends="init">
-    <call target="build-1.1" />
-    <call target="build-2.0" />
   </target>
 
+
+  <target name="build" depends="init">
+    <call target="build-${target.framework}" />
+  </target>
+
+  <target name="build-all" depends="init">
+    <call target="build-1.1" />
+    <call target="build-2.0" />
+    <call target="build-mono-1.0" />
+    <call target="build-mono-2.0" />
+  </target>
+  
   <target name="build-1.1" >
     <property name="target.framework" value="1.1" />
-    <solution configuration="${configuration}" solutionfile="Quartz.2003.sln" />
-	</target>
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+    <call target="build-all-csc" />
+  </target>
 
-	<target name="build-2.0">
+  <target name="build-2.0">
     <property name="net20" value="true" />
-	<property name="defines" value="NET_20" />
-	
+    <property name="defines" value="NET_20" />
+
     <property name="target.framework" value="2.0" />
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
     <call target="build-all-csc" />
 
-	</target>
+  </target>
 
+
+  <target name="build-mono-1.0">
+    <property name="net20" value="false" />
+    <property name="defines" value="MONO" />
+
+    <property name="target.framework" value="mono-1.0" />
+    <property name="nant.settings.currentframework" value="${target.framework}" />
+    <property name="lib-dir-version" value="1.1" />
+    <call target="build-all-csc" />
+
+  </target>
+  
+  <target name="build-mono-2.0">
+    <property name="net20" value="true" />
+    <property name="defines" value="NET_20,MONO" />
+
+    <property name="target.framework" value="mono-2.0" />
+    <property name="nant.settings.currentframework" value="${target.framework}" />
+    <property name="lib-dir-version" value="2.0" />
+    <call target="build-all-csc" />
+
+  </target>
+  
   <target name="build-quartz" >
 
-    <mkdir dir="build\${target.framework}\${configuration}\Quartz\" /> 
-    
-    <csc 
-		target="library" 
-		output="build\${target.framework}\${configuration}\Quartz\Quartz.dll" 
-		doc="build\${target.framework}\${configuration}\Quartz\Quartz.xml" 
+    <mkdir dir="build\${target.framework}\${configuration}\Quartz\" />
+
+    <csc
+		target="library"
+		output="build\${target.framework}\${configuration}\Quartz\Quartz.dll"
+		doc="build\${target.framework}\${configuration}\Quartz\Quartz.xml"
 		debug="true"
 		define="${defines}">
       <nowarn>
@@ -74,6 +100,7 @@
         <warning number="0618" />
       </nowarn>
       <sources>
+        <include name="src/AssemblyInfo.cs" />
         <include name="src/Quartz/**/*.cs" />
         <exclude name="**/JNDIConnectionProvider.cs" />
         <exclude name="**/RemotingInvokerJob.cs" />
@@ -82,20 +109,21 @@
         <include name="src/Quartz/quartz.properties" />
       </resources>
       <resources dynamicprefix="false" prefix="Quartz.Impl.AdoJobStore.Common">
-		<include name="src/Quartz/Impl/AdoJobStore/Common/dbproviders.properties" />
+        <include name="src/Quartz/Impl/AdoJobStore/Common/dbproviders.properties" />
       </resources>
       <references>
         <include name="System.dll" />
+        <include name="System.Configuration.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="System.Web.dll" />
+        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
-        
       </references>
     </csc>
 
     <copy todir="build\${target.framework}\${configuration}\Quartz\" flatten="true" >
       <fileset>
-        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
       </fileset>
     </copy>
@@ -106,7 +134,7 @@
   <target name="build-examples" depends="build-quartz">
 
     <mkdir dir="build\${target.framework}\${configuration}\Quartz.Examples\" />
-    
+
     <csc target="exe" output="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe" debug="true" define="${defines}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
@@ -116,12 +144,13 @@
         <warning number="0618" />
       </nowarn>
       <sources>
+        <include name="src/AssemblyInfo.cs" />
         <include name="src/Quartz.Examples/**/*.cs" />
       </sources>
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
       </references>
@@ -130,10 +159,11 @@
     <copy todir="build\${target.framework}\${configuration}\Quartz.Examples\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
-        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
       </fileset>
     </copy>
+    <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
   </target>
 
   <target name="build-tests" depends="build-quartz">
@@ -149,13 +179,14 @@
         <warning number="0618" />
       </nowarn>
       <sources>
+        <include name="src/AssemblyInfo.cs" />
         <include name="src/Quartz.Tests/**/*.cs" />
       </sources>
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\${target.framework}\Common.Logging.dll" />
-        <include name="lib\${target.framework}\nunit.framework.dll" />
+        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
+        <include name="lib\${lib-dir-version}\nunit.framework.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
       </references>
@@ -164,7 +195,7 @@
     <copy todir="build\${target.framework}\${configuration}\Quartz.Tests\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
-        <include name="lib\${target.framework}\Common.Logging.dll" />
+        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
       </fileset>
     </copy>
@@ -192,20 +223,20 @@
 
 
   <target name="clean">
-		<echo message="Cleaning old compiled dlls..." />
-		<delete failonerror="false" dir="./build" />
+    <echo message="Cleaning old compiled dlls..." />
+    <delete failonerror="false" dir="./build" />
     <delete failonerror="false" dir="./CloverBuild" />
     <delete failonerror="false" dir="./CloverReport" />
-	<delete failonerror="false" dir="./package" />
-	<delete failonerror="false" file="./Quartz-x.x.zip" />
-	<echo message="Cleaning old temporary build files (obj and bin dirs)..." />
-	<delete>
-		<fileset>
-			<include name="${dir.src}\**\obj\**" />
-			<include name="${dir.src}\**\bin\**" />
-		</fileset>
-	</delete>
-	</target>
+    <delete failonerror="false" dir="./package" />
+    <delete failonerror="false" file="./Quartz-x.x.zip" />
+    <echo message="Cleaning old temporary build files (obj and bin dirs)..." />
+    <delete>
+      <fileset>
+        <include name="${dir.src}\**\obj\**" />
+        <include name="${dir.src}\**\bin\**" />
+      </fileset>
+    </delete>
+  </target>
 
   <target name="with-clover">
     <clover-setup initstring="CloverBuild\clover.cdb"
@@ -221,109 +252,115 @@
   </target>
 
   <target name="clover-report" depends="with-clover">
-    
+
     <clover-report>
       <current title="Quartz.NET Clover Report" output="CloverReport">
         <format type="html" orderby="Alpha" />
       </current>
     </clover-report>
-    
+
   </target>
 
   <target name="clover" depends="with-clover, nunit-2.0, clover-report">
-    
+
+  </target>
+
+  <target name="doc" depends="build">
+
+    <mkdir dir="doc\apidoc" />
+
+    <property name="dir.ndoc.target.binaries" value="${dir.build}\Quartz\" />
+    <echo message="Building documentation using binaries found from ${dir.ndoc.target.binaries}" />
+
+    <ndoc>
+      <assemblies basedir="${dir.ndoc.target.binaries}">
+        <include name="Quartz.dll" />
+      </assemblies>
+
+      <summaries basedir="${dir.src}\">
+        <include name="NamespaceSummary.xml" />
+      </summaries>
+      <documenters>
+        <documenter name="MSDN">
+          <property name="OutputDirectory" value="doc\apidoc" />
+          <property name="HtmlHelpName" value="Quartz.NET" />
+          <property name="HtmlHelpCompilerFilename" value="hhc.exe" />
+          <property name="IncludeFavorites" value="False" />
+          <property name="Title" value="Quartz.NET Class Library" />
+          <property name="SplitTOCs" value="False" />
+          <property name="DefaulTOC" value="" />
+          <property name="ShowVisualBasic" value="False" />
+          <property name="ShowMissingSummaries" value="False" />
+          <property name="ShowMissingRemarks" value="False" />
+          <property name="ShowMissingParams" value="False" />
+          <property name="ShowMissingReturns" value="False" />
+          <property name="ShowMissingValues" value="False" />
+          <property name="DocumentInternals" value="False" />
+          <property name="DocumentProtected" value="True" />
+          <property name="DocumentPrivates" value="False" />
+          <property name="DocumentEmptyNamespaces" value="False" />
+          <property name="IncludeAssemblyVersion" value="True" />
+          <property name="CopyrightText" value="Copyright OpenSymphony 2006-2007" />
+          <property name="CopyrightHref" value="" />
+        </documenter>
+      </documenters>
+    </ndoc>
+    <!-- clean unwanted items -->
+    <delete>
+      <fileset>
+        <include name="doc\apidoc\**\ndoc_msdn_temp" />
+        <include name="doc\apidoc\**\*.chm" />
+        <include name="doc\apidoc\**\*.hhc" />
+        <include name="doc\apidoc\**\*.hhk" />
+        <include name="doc\apidoc\**\*.hhp" />
+      </fileset>
+    </delete>
+  </target>
+
+  <target name="package" depends="clean, build-all, doc">
+    <delete dir="package" failonerror="false" />
+    <mkdir dir="package" />
+    <mkdir dir="package\bin" />
+    <mkdir dir="package\doc" />
+    <mkdir dir="package\database" />
+    <mkdir dir="package\src" />
+
+    <copy todir="package">
+      <fileset>
+        <include name="${dir.src}\**" />
+        <include name="build\**" />
+        <include name="${dir.doc}\apidoc\**" />
+        <include name="database\**" />
+        <include name="lib\**" />
+        <include name="*.sln" />
+        <include name="*.txt" />
+        <include name="*.build" />
+
+        <exclude name="**/.svn/**" />
+        <exclude name="**/_svn/**" />
+        <exclude name="**/*.suo" />
+        <exclude name="**/*.user" />
+        <exclude name="**/*.pdb" />
+      </fileset>
+    </copy>
+
+    <zip zipfile="Quartz.NET-x.x.zip">
+      <fileset basedir="package">
+        <include name="**/*" />
+      </fileset>
+    </zip>
+
   </target>
   
-	<target name="doc" depends="build">
-		
-		<mkdir dir="doc\apidoc" />
-		
-		<property name="dir.ndoc.target.binaries" value="${dir.build}\Quartz\" />
-		<echo message="Building documentation using binaries found from ${dir.ndoc.target.binaries}" />
-		
-		<ndoc>
-			<assemblies basedir="${dir.ndoc.target.binaries}">
-				<include name="Quartz.dll" />
-			</assemblies>
-			
-			<summaries basedir="${dir.src}\">
-				<include name="NamespaceSummary.xml" />
-			</summaries>
-			<documenters>
-				<documenter name="MSDN">
-					<property name="OutputDirectory" value="doc\apidoc" />
-					<property name="HtmlHelpName" value="Quartz.NET" />
-					<property name="HtmlHelpCompilerFilename" value="hhc.exe" />
-					<property name="IncludeFavorites" value="False" />
-					<property name="Title" value="Quartz.NET Class Library" />
-					<property name="SplitTOCs" value="False" />
-					<property name="DefaulTOC" value="" />
-					<property name="ShowVisualBasic" value="False" />
-					<property name="ShowMissingSummaries" value="False" />
-					<property name="ShowMissingRemarks" value="False" />
-					<property name="ShowMissingParams" value="False" />
-					<property name="ShowMissingReturns" value="False" />
-					<property name="ShowMissingValues" value="False" />
-					<property name="DocumentInternals" value="False" />
-					<property name="DocumentProtected" value="True" />
-					<property name="DocumentPrivates" value="False" />
-					<property name="DocumentEmptyNamespaces" value="False" />
-					<property name="IncludeAssemblyVersion" value="True" />
-					<property name="CopyrightText" value="Copyright OpenSymphony 2006-2007" />
-					<property name="CopyrightHref" value="" />
-				 </documenter>
-			</documenters> 
-		</ndoc>
-		<!-- clean unwanted items -->
-		<delete>
-			<fileset>
-				<include name="doc\apidoc\**\ndoc_msdn_temp" />
-				<include name="doc\apidoc\**\*.chm" />
-				<include name="doc\apidoc\**\*.hhc" />
-				<include name="doc\apidoc\**\*.hhk" />
-				<include name="doc\apidoc\**\*.hhp" />
-			</fileset>
-		</delete>
-    </target>
-	
-	<target name="package" depends="clean, build-all, doc">
-		<delete dir="package" failonerror="false" />
-		<mkdir dir="package" />
-		<mkdir dir="package\bin" />
-		<mkdir dir="package\doc" />
-		<mkdir dir="package\database" />
-		<mkdir dir="package\src" />
-		
-		<copy todir="package">
-		    <fileset>
-		        <include name="${dir.src}\**" />
-				<include name="build\**" />
-				<include name="${dir.doc}\apidoc\**" />
-				<include name="database\**" />
-				<include name="lib\**" />
-				<include name="*.sln" />
-				<include name="*.txt" />
-				<include name="*.build" />
-				
-				<exclude name="**/.svn/**" />
-				<exclude name="**/_svn/**" />
-				<exclude name="**/*.suo" />
-				<exclude name="**/*.user" />
-				<exclude name="**/*.pdb" />
-		    </fileset>
-		</copy>
-		
-		<zip zipfile="Quartz.NET-x.x.zip">
-			<fileset basedir="package">
-				<include name="**/*" />
-			</fileset>
-		</zip>
-		
-	</target>
-	<target name="build-all-csc">
+  <target name="build-all-csc">
+    <property name="defines" value="" overwrite="false" />
+    <property name="net20" value="false" overwrite="false" />
+    <property name="lib-dir-version" value="${target.framework}" overwrite="false" />
+
     <call target="build-quartz" />
     <call target="build-examples" />
     <call target="build-tests" />
 
   </target>
+  
 </project>
