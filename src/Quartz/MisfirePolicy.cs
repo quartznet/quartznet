@@ -12,6 +12,11 @@ namespace Quartz
         public const int InstructionNotSet = 0;
 
         /// <summary>
+        /// Use smart policy.
+        /// </summary>
+        public const int SmartPolicy = 0;
+
+        /// <summary>
         /// Misfire policy settings for SimpleTrigger.
         /// </summary>
         public struct SimpleTrigger

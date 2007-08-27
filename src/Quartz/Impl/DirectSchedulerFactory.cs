@@ -265,7 +265,7 @@ namespace Quartz.Impl
 
 			QuartzScheduler qs = new QuartzScheduler(qrs, schedCtxt, idleWaitTime, dbFailureRetryInterval);
 
-			IClassLoadHelper cch = new CascadingClassLoadHelper();
+			ITypeLoadHelper cch = new CascadingClassLoadHelper();
 			cch.Initialize();
 
 			jobStore.Initialize(cch, qs.SchedulerSignaler);

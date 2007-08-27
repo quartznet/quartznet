@@ -143,7 +143,7 @@ namespace Quartz.Plugins.Xml
 		private long scanInterval = 0;
 		internal bool initializing = true;
 		internal bool started = false;
-		protected internal IClassLoadHelper classLoadHelper = null;
+		protected internal ITypeLoadHelper classLoadHelper = null;
 
 
 		public JobInitializationPlugin()

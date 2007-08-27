@@ -292,7 +292,7 @@
     <Compile Include="Simpl\SimpleThreadPool.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="SPI\IClassLoadHelper.cs">
+    <Compile Include="SPI\ITypeLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SPI\IInstanceIdGenerator.cs">

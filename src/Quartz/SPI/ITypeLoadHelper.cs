@@ -28,10 +28,11 @@ namespace Quartz.Spi
 	/// An interface for classes wishing to provide the service of loading classes
 	/// and resources within the scheduler...
 	/// </summary>
-	/// <author> jhouse</author>
-	public interface IClassLoadHelper
+	/// <author>James House</author>
+	public interface ITypeLoadHelper
 	{
-		/// <summary> Called to give the ClassLoadHelper a chance to Initialize itself,
+		/// <summary> 
+		/// Called to give the ClassLoadHelper a chance to Initialize itself,
 		/// including the oportunity to "steal" the class loader off of the calling
 		/// thread, which is the thread that is initializing Quartz.
 		/// </summary>

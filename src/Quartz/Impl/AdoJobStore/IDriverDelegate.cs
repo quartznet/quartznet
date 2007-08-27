@@ -245,7 +245,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">The group containing the job</param>
         /// <param name="classLoadHelper">The class load helper.</param>
         /// <returns>The populated JobDetail object</returns>
-		JobDetail SelectJobDetail(ConnectionAndTransactionHolder conn, string jobName, string groupName, IClassLoadHelper classLoadHelper);
+		JobDetail SelectJobDetail(ConnectionAndTransactionHolder conn, string jobName, string groupName, ITypeLoadHelper classLoadHelper);
 
 		/// <summary>
 		/// Select the total number of jobs stored.
@@ -535,7 +535,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// The <code>JobDetail}</code> object associated with the given trigger
         /// </returns>
-		JobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, string triggerName, string groupName, IClassLoadHelper loadHelper);
+		JobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, string triggerName, string groupName, ITypeLoadHelper loadHelper);
 
 		/// <summary>
 		/// Select the stateful jobs which are referenced by triggers in the given

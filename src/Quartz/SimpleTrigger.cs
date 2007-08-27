@@ -266,11 +266,12 @@ namespace Quartz
 		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-            return ((misfireInstruction == MisfirePolicy.SimpleTrigger.FireNow) ||
-                    (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount) ||
-                    (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount)||
-                    (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount)||
-                    (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount));
+            return (misfireInstruction == MisfirePolicy.SimpleTrigger.FireNow) 
+                || (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount) 
+                || (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount)
+                || (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
+                || (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
+                || (misfireInstruction == MisfirePolicy.SmartPolicy);
 		           
 		}
 
@@ -299,7 +300,7 @@ namespace Quartz
 		public override void UpdateAfterMisfire(ICalendar cal)
 		{
 			int instr = MisfireInstruction;
-			if (MisfireSmartPolicyEnabled)
+			if (instr == MisfirePolicy.SmartPolicy)
 			{
 				if (RepeatCount == 0)
 				{

@@ -46,7 +46,7 @@ namespace Quartz.Spi
 		/// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
 		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
-		void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler signaler);
+		void Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler);
 
 		/// <summary>
 		/// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that

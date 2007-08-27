@@ -37,7 +37,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="loadHelper"></param>
         /// <param name="signaler"></param>
-        public override void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler signaler)
+        public override void Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
         {
             base.Initialize(loadHelper, signaler);
             Log.Info("JobStoreTX initialized.");

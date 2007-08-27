@@ -28,7 +28,7 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
 	/// <summary>
-	/// A <see cref="IClassLoadHelper" /> uses all of the <see cref="IClassLoadHelper" />
+	/// A <see cref="ITypeLoadHelper" /> uses all of the <see cref="ITypeLoadHelper" />
 	/// types that are found in this package in its attempts to load a class, when
 	/// one scheme is found to work, it is promoted to the scheme that will be used
 	/// first the next time a class is loaded (in order to improve perfomance).
@@ -42,7 +42,7 @@ namespace Quartz.Simpl
 	/// 'remembers' it.  
 	/// </remarks>
 	/// <author>James House</author>
-	public class CascadingClassLoadHelper : IClassLoadHelper
+	public class CascadingClassLoadHelper : ITypeLoadHelper
 	{
 		/*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -54,7 +54,7 @@ namespace Quartz.Simpl
 
 		private ArrayList loadHelpers;
 
-		private IClassLoadHelper bestCandidate;
+		private ITypeLoadHelper bestCandidate;
 
 
 		/// <summary> 
@@ -69,7 +69,7 @@ namespace Quartz.Simpl
 			loadHelpers.Add(new LoadingLoaderClassLoadHelper());
 			loadHelpers.Add(new SimpleClassLoadHelper());
 
-			foreach (IClassLoadHelper helper in loadHelpers)
+			foreach (ITypeLoadHelper helper in loadHelpers)
 			{
 				helper.Initialize();
 			}
@@ -95,7 +95,7 @@ namespace Quartz.Simpl
 			Exception cnfe = null;
 			Type clazz = null;
 
-			foreach (IClassLoadHelper loadHelper in loadHelpers)
+			foreach (ITypeLoadHelper loadHelper in loadHelpers)
 			{
 				try
 				{
@@ -147,9 +147,9 @@ namespace Quartz.Simpl
 			}
 
 			Uri result = null;
-			IClassLoadHelper loadHelper = null;
+			ITypeLoadHelper loadHelper = null;
 
-			foreach (IClassLoadHelper lh in loadHelpers)
+			foreach (ITypeLoadHelper lh in loadHelpers)
 			{
 				loadHelper = lh;
 
@@ -186,9 +186,9 @@ namespace Quartz.Simpl
 			}
 
 			Stream result = null;
-			IClassLoadHelper loadHelper = null;
+			ITypeLoadHelper loadHelper = null;
 
-			foreach (IClassLoadHelper lh in loadHelpers)
+			foreach (ITypeLoadHelper lh in loadHelpers)
 			{
 				loadHelper = lh;
 

@@ -26,12 +26,12 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
 	/// <summary> 
-	/// A <see cref="IClassLoadHelper" /> that simply calls <see cref="Type.GetType(string)" />.
+	/// A <see cref="ITypeLoadHelper" /> that simply calls <see cref="Type.GetType(string)" />.
 	/// </summary>
-	/// <seealso cref="IClassLoadHelper" />
+	/// <seealso cref="ITypeLoadHelper" />
 	/// <seealso cref="CascadingClassLoadHelper" />
 	/// <author>James House</author>
-	public class SimpleClassLoadHelper : IClassLoadHelper
+	public class SimpleClassLoadHelper : ITypeLoadHelper
 	{
 		/// <summary> 
 		/// Called to give the ClassLoadHelper a chance to Initialize itself,

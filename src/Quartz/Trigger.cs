@@ -61,18 +61,6 @@ namespace Quartz
 	[Serializable]
 	public abstract class Trigger : ICloneable, IComparable
 	{
-        protected  bool misfireSmartPolicyEnabled = true;
-        /// <summary>
-        /// tells IScheduler whether 
-        ///  <see cref="UpdateAfterMisfire" /> method will be called  after misfire
-        /// on the <see cref="Trigger" /> to determine the mis-fire instruction
-        /// </summary>
-	    public bool MisfireSmartPolicyEnabled
-	    {
-	        get { return misfireSmartPolicyEnabled; }
-	        set { misfireSmartPolicyEnabled = value; }
-	    }
-
 	    /// <summary>
 		/// The default value for priority.
 		/// </summary>

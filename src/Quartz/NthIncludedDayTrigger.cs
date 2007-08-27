@@ -616,8 +616,9 @@ namespace Quartz
         /// <returns>Whether <see param="misfireInstruction" /> is valid.</returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-            return ((misfireInstruction == MisfirePolicy.NthIncludedDayTrigger.DoNothing) ||
-                    (misfireInstruction == MisfirePolicy.NthIncludedDayTrigger.FireOnceNow));
+            return (misfireInstruction == MisfirePolicy.NthIncludedDayTrigger.DoNothing) 
+                || (misfireInstruction == MisfirePolicy.NthIncludedDayTrigger.FireOnceNow)
+                || (misfireInstruction == MisfirePolicy.SmartPolicy);
 		
 		}
 
@@ -638,7 +639,7 @@ namespace Quartz
 
 			calendar = cal;
 
-			if (MisfireSmartPolicyEnabled)
+			if (instruction == MisfirePolicy.SmartPolicy)
 			{
 				instruction = MisfirePolicy.NthIncludedDayTrigger.FireOnceNow;
 			}

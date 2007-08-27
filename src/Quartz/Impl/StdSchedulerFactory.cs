@@ -321,10 +321,10 @@ Please add configuration to your application config file to correctly initialize
 
 
             // Create class load helper
-            IClassLoadHelper loadHelper;
+            ITypeLoadHelper loadHelper;
             try
             {
-                loadHelper = (IClassLoadHelper) ObjectUtils.InstantiateType(LoadType(classLoadHelperClass));
+                loadHelper = (ITypeLoadHelper) ObjectUtils.InstantiateType(LoadType(classLoadHelperClass));
             }
             catch (Exception e)
             {

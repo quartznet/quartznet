@@ -26,14 +26,14 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
 	/// <summary>
-	/// A <see cref="IClassLoadHelper" /> that uses either the loader of it's own
+	/// A <see cref="ITypeLoadHelper" /> that uses either the loader of it's own
 	/// class.
 	/// </summary>
-	/// <seealso cref="IClassLoadHelper" />
+	/// <seealso cref="ITypeLoadHelper" />
 	/// <seealso cref="SimpleClassLoadHelper" />
 	/// <seealso cref="CascadingClassLoadHelper" />
 	/// <author>James House</author>
-	public class LoadingLoaderClassLoadHelper : IClassLoadHelper
+	public class LoadingLoaderClassLoadHelper : ITypeLoadHelper
 	{
 		/// <summary> 
 		/// Called to give the ClassLoadHelper a chance to Initialize itself,

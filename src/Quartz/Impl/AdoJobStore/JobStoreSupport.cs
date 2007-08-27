@@ -31,7 +31,7 @@ using Common.Logging;
 #if !NET_20
 using Nullables;
 #endif
-
+using Quartz;
 using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore.Common;
@@ -88,6 +88,72 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
+        /*
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        * 
+        * Constants.
+        * 
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
+
+        protected static string LOCK_TRIGGER_ACCESS = "TRIGGER_ACCESS";
+        protected static string LOCK_JOB_ACCESS = "JOB_ACCESS";
+        protected static string LOCK_CALENDAR_ACCESS = "CALENDAR_ACCESS";
+        protected static string LOCK_STATE_ACCESS = "STATE_ACCESS";
+        protected static string LOCK_MISFIRE_ACCESS = "MISFIRE_ACCESS";
+
+        /*
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        * 
+        * Data members.
+        * 
+        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
+
+        protected string dataSource;
+        protected string tablePrefix = DEFAULT_TABLE_PREFIX;
+        protected bool useProperties = false;
+        protected string instanceId;
+        protected string instanceName;
+        protected string delegateTypeName;
+        protected Type delegateType;
+        protected Hashtable calendarCache = new Hashtable();
+        private IDriverDelegate driverDelegate;
+        private long misfireThreshold = 60000L; // one minute
+        private bool dontSetAutoCommitFalse = false;
+        private bool clustered = false;
+        private bool useDBLocks = false;
+
+        private bool lockOnInsert = true;
+
+        private ISemaphore lockHandler = null; // set in Initialize() method...
+
+        private string selectWithLockSQL = null;
+
+        private long clusterCheckinInterval = 7500L;
+
+        private ClusterManager clusterManagementThread = null;
+
+        private MisfireHandler misfireHandler = null;
+
+        private ITypeLoadHelper typeLoadHelper;
+
+        private ISchedulerSignaler signaler;
+
+        protected int maxToRecoverAtATime = 20;
+
+        private bool setTxIsolationLevelSequential = false;
+
+        private long dbRetryInterval = 10000;
+
+        private bool makeThreadsDaemons = false;
+
+        private bool doubleCheckLockMisfireHandler = true;
+
+        private readonly ILog log;
+
+        private bool ignoreTriggerInheritance = true;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
         /// </summary>
@@ -106,6 +172,26 @@ namespace Quartz.Impl.AdoJobStore
             set { dataSource = value; }
         }
 
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this job store 
+        /// should ignore trigger inheritance when persisting triggers.
+        /// </summary>
+        /// <remarks>
+        /// Basically this means that triggers inherited from <see cref="SimpleTrigger" /> or
+        /// <see cref="CronTrigger" />  are all persisted as their base class implementations, 
+        /// effectively ignoring introduced new data members. You should set this to false if 
+        /// you want to store members of your inheriting implementation. This
+        /// will make you your implementation persistent by means of serialization.
+        /// </remarks>
+        /// <value>
+        /// 	<c>true</c> if trigger inheritance should be ignore; otherwise, <c>false</c>.
+        /// </value>
+        public virtual bool IgnoreTriggerInheritance
+        {
+            get { return ignoreTriggerInheritance; }
+            set { ignoreTriggerInheritance = value; }
+        }
 
         /// <summary>
         /// Gets the log.
@@ -296,9 +382,9 @@ namespace Quartz.Impl.AdoJobStore
             set { selectWithLockSQL = value; }
         }
 
-        protected virtual IClassLoadHelper ClassLoadHelper
+        protected virtual ITypeLoadHelper TypeLoadHelper
         {
-            get { return classLoadHelper; }
+            get { return typeLoadHelper; }
         }
 
         /// <summary>
@@ -411,13 +497,13 @@ namespace Quartz.Impl.AdoJobStore
         {
             get
             {
-                if (null == driverDelegate)
+                if (driverDelegate == null)
                 {
                     try
                     {
                         if (delegateTypeName != null)
                         {
-                            delegateType = ClassLoadHelper.LoadType(delegateTypeName);
+                            delegateType = TypeLoadHelper.LoadType(delegateTypeName);
                         }
 
                         ConstructorInfo ctor;
@@ -443,6 +529,11 @@ namespace Quartz.Impl.AdoJobStore
                         }
 
                         driverDelegate = (IDriverDelegate)ctor.Invoke(ctorParams);
+                        StdAdoDelegate adoDelegate = driverDelegate as StdAdoDelegate;
+                        if (adoDelegate != null)
+                        {
+                            adoDelegate.IgnoreTriggerInheritance = IgnoreTriggerInheritance;
+                        }
                     }
                     catch (Exception e)
                     {
@@ -468,70 +559,6 @@ namespace Quartz.Impl.AdoJobStore
         /*
         * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         * 
-        * Constants.
-        * 
-        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        */
-
-        protected static string LOCK_TRIGGER_ACCESS = "TRIGGER_ACCESS";
-        protected static string LOCK_JOB_ACCESS = "JOB_ACCESS";
-        protected static string LOCK_CALENDAR_ACCESS = "CALENDAR_ACCESS";
-        protected static string LOCK_STATE_ACCESS = "STATE_ACCESS";
-        protected static string LOCK_MISFIRE_ACCESS = "MISFIRE_ACCESS";
-
-        /*
-        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        * 
-        * Data members.
-        * 
-        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        */
-
-        protected string dataSource;
-        protected string tablePrefix = DEFAULT_TABLE_PREFIX;
-        protected bool useProperties = false;
-        protected string instanceId;
-        protected string instanceName;
-        protected string delegateTypeName;
-        protected Type delegateType;
-        protected Hashtable calendarCache = new Hashtable();
-        private IDriverDelegate driverDelegate;
-        private long misfireThreshold = 60000L; // one minute
-        private bool dontSetAutoCommitFalse = false;
-        private bool clustered = false;
-        private bool useDBLocks = false;
-
-        private bool lockOnInsert = true;
-
-        private ISemaphore lockHandler = null; // set in Initialize() method...
-
-        private string selectWithLockSQL = null;
-
-        private long clusterCheckinInterval = 7500L;
-
-        private ClusterManager clusterManagementThread = null;
-
-        private MisfireHandler misfireHandler = null;
-
-        private IClassLoadHelper classLoadHelper;
-
-        private ISchedulerSignaler signaler;
-
-        protected int maxToRecoverAtATime = 20;
-
-        private bool setTxIsolationLevelSequential = false;
-
-        private long dbRetryInterval = 10000;
-
-        private bool makeThreadsDaemons = false;
-
-        private bool doubleCheckLockMisfireHandler = true;
-
-        private readonly ILog log;
-
-        /*
-        * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        * 
         * Interface.
         * 
         * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -549,14 +576,14 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <code>JobStore</code> is
         /// used, in order to give it a chance to Initialize.
         /// </summary>
-        public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
+        public virtual void Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler s)
         {
             if (dataSource == null)
             {
                 throw new SchedulerConfigException("DataSource name not set.");
             }
 
-            classLoadHelper = loadHelper;
+            typeLoadHelper = loadHelper;
             signaler = s;
 
 
@@ -1180,7 +1207,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (job == null)
                 {
-                    job = Delegate.SelectJobDetail(conn, newTrigger.JobName, newTrigger.JobGroup, ClassLoadHelper);
+                    job = Delegate.SelectJobDetail(conn, newTrigger.JobName, newTrigger.JobGroup, TypeLoadHelper);
                 }
                 if (job == null)
                 {
@@ -1199,11 +1226,11 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 if (existingTrigger)
                 {
-                    if (newTrigger.GetType() == typeof(SimpleTrigger))
+                    if (Util.GetTriggerPersistenceType(newTrigger, IgnoreTriggerInheritance) == typeof(SimpleTrigger))
                     {
                         Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger)newTrigger);
                     }
-                    else if (newTrigger.GetType() == typeof(CronTrigger))
+                    else if (Util.GetTriggerPersistenceType(newTrigger, IgnoreTriggerInheritance) == typeof(CronTrigger))
                     {
                         Delegate.UpdateCronTrigger(conn, (CronTrigger)newTrigger);
                     }
@@ -1216,11 +1243,11 @@ namespace Quartz.Impl.AdoJobStore
                 else
                 {
                     Delegate.InsertTrigger(conn, newTrigger, state, job);
-                    if (newTrigger.GetType() == typeof(SimpleTrigger))
+                    if (Util.GetTriggerPersistenceType(newTrigger, IgnoreTriggerInheritance) == typeof(SimpleTrigger))
                     {
                         Delegate.InsertSimpleTrigger(conn, (SimpleTrigger)newTrigger);
                     }
-                    else if (newTrigger.GetType() == typeof(CronTrigger))
+                    else if (Util.GetTriggerPersistenceType(newTrigger, IgnoreTriggerInheritance) == typeof(CronTrigger))
                     {
                         Delegate.InsertCronTrigger(conn, (CronTrigger)newTrigger);
                     }
@@ -1236,9 +1263,8 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> <p>
+        /// <summary>
         /// Check existence of a given trigger.
-        /// </p>
         /// </summary>
         protected virtual bool TriggerExists(ConnectionAndTransactionHolder conn, string triggerName,
                                                       string groupName)
@@ -1413,7 +1439,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                JobDetail job = Delegate.SelectJobDetail(conn, jobName, groupName, ClassLoadHelper);
+                JobDetail job = Delegate.SelectJobDetail(conn, jobName, groupName, TypeLoadHelper);
                 String[] listeners = Delegate.SelectJobListeners(conn, jobName, groupName);
                 for (int i = 0; i < listeners.Length; ++i)
                 {
@@ -1499,7 +1525,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // this must be called before we delete the trigger, obviously
-                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
+                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, TypeLoadHelper);
 
                 removedTrigger = DeleteTriggerAndChildren(conn, triggerName, groupName);
 
@@ -1565,7 +1591,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // this must be called before we delete the trigger, obviously
-                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, ClassLoadHelper);
+                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, TypeLoadHelper);
 
                 if (job == null)
                 {

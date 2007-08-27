@@ -676,11 +676,6 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "SPI\IClassLoadHelper.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
                     RelPath = "SPI\IInstanceIdGenerator.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -707,6 +702,11 @@
                 />
                 <File
                     RelPath = "SPI\IThreadPool.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "SPI\ITypeLoadHelper.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

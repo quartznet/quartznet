@@ -686,8 +686,9 @@ namespace Quartz
 		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-            return ((misfireInstruction == MisfirePolicy.CronTrigger.DoNothing) ||
-                    (misfireInstruction == MisfirePolicy.CronTrigger.FireOnceNow));
+            return (misfireInstruction == MisfirePolicy.CronTrigger.DoNothing) 
+                || (misfireInstruction == MisfirePolicy.CronTrigger.FireOnceNow)
+                || (misfireInstruction == MisfirePolicy.SmartPolicy);
 			
 		}
 
@@ -708,7 +709,7 @@ namespace Quartz
 		{
 			int instr = MisfireInstruction;
 
-			if (MisfireSmartPolicyEnabled)
+			if (instr == MisfirePolicy.SmartPolicy)
 			{
 				instr = MisfirePolicy.CronTrigger.FireOnceNow;
 			}

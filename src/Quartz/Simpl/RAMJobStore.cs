@@ -114,7 +114,7 @@ namespace Quartz.Simpl
 		/// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
 		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
-		public virtual void Initialize(IClassLoadHelper loadHelper, ISchedulerSignaler s)
+		public virtual void Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler s)
 		{
 			signaler = s;
 			Log.Info("RAMJobStore initialized.");
