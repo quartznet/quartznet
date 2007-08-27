@@ -23,197 +23,231 @@ using System;
 
 namespace Quartz.Impl.Calendar
 {
-	/// <summary>
-	/// This implementation of the Calendar excludes a set of days of the week. You
-	/// may use it to exclude weekends for example. But you may define any day of
-	/// the week.
-	/// </summary>
-	/// <seealso cref="ICalendar" />
-	/// <seealso cref="BaseCalendar" />
-	/// <author>Juergen Donnerstag</author>
-	[Serializable]
-	public class WeeklyCalendar : BaseCalendar, ICalendar
-	{
-		/// <summary> 
-		/// Get the array with the week days.
-		/// Setting will redefine the array of days excluded. The array must of size greater or
-		/// equal 8. java.util.Calendar's constants like MONDAY should be used as
-		/// index. A value of true is regarded as: exclude it.
-		/// </summary>
-		public virtual bool[] DaysExcluded
-		{
-			get { return excludeDays; }
+    /// <summary>
+    /// This implementation of the Calendar excludes a set of days of the week. You
+    /// may use it to exclude weekends for example. But you may define any day of
+    /// the week.
+    /// </summary>
+    /// <seealso cref="ICalendar" />
+    /// <seealso cref="BaseCalendar" />
+    /// <author>Juergen Donnerstag</author>
+    [Serializable]
+    public class WeeklyCalendar : BaseCalendar, ICalendar
+    {
+        /// <summary> 
+        /// Get the array with the week days.
+        /// Setting will redefine the array of days excluded. The array must of size greater or
+        /// equal 8. java.util.Calendar's constants like MONDAY should be used as
+        /// index. A value of true is regarded as: exclude it.
+        /// </summary>
+        public virtual bool[] DaysExcluded
+        {
+            get { return excludeDays; }
 
-			set
-			{
-				if (value == null)
-				{
-					return;
-				}
+            set
+            {
+                if (value == null)
+                {
+                    return;
+                }
 
-				excludeDays = value;
-				excludeAll = AreAllDaysExcluded();
-			}
-		}
+                excludeDays = value;
+                excludeAll = AreAllDaysExcluded();
+            }
+        }
 
-		// An array to store the week days which are to be excluded.
-		// java.util.Calendar.MONDAY etc. are used as index.
-		private bool[] excludeDays = new bool[8];
+        // An array to store the week days which are to be excluded.
+        // java.util.Calendar.MONDAY etc. are used as index.
+        private bool[] excludeDays = new bool[8];
 
-		// Will be set to true, if all week days are excluded
-		private bool excludeAll = false;
+        // Will be set to true, if all week days are excluded
+        private bool excludeAll = false;
 
-		/// <summary> <p>
-		/// Constructor
-		/// </p>
-		/// </summary>
-		public WeeklyCalendar() : base()
-		{
-			Init();
-		}
+        /// <summary> <p>
+        /// Constructor
+        /// </p>
+        /// </summary>
+        public WeeklyCalendar()
+            : base()
+        {
+            Init();
+        }
 
-		/// <summary> <p>
-		/// Constructor
-		/// </p>
-		/// </summary>
-		public WeeklyCalendar(ICalendar baseCalendar) : base(baseCalendar)
-		{
-			Init();
-		}
+        /// <summary> <p>
+        /// Constructor
+        /// </p>
+        /// </summary>
+        public WeeklyCalendar(ICalendar baseCalendar)
+            : base(baseCalendar)
+        {
+            Init();
+        }
 
-		/// <summary>
-		/// Initialize internal variables
-		/// </summary>
-		private void Init()
-		{
-			excludeDays[(int) DayOfWeek.Sunday] = true;
-			excludeDays[(int) DayOfWeek.Saturday] = true;
-			excludeAll = AreAllDaysExcluded();
-		}
+        /// <summary>
+        /// Initialize internal variables
+        /// </summary>
+        private void Init()
+        {
+            excludeDays[(int)DayOfWeek.Sunday] = true;
+            excludeDays[(int)DayOfWeek.Saturday] = true;
+            excludeAll = AreAllDaysExcluded();
+        }
 
-		/// <summary> 
-		/// Return true, if wday is defined to be exluded. E. g.
-		/// saturday and sunday.
-		/// </summary>
-		public virtual bool IsDayExcluded(DayOfWeek wday)
-		{
-			return excludeDays[(int) wday];
-		}
+        /// <summary> 
+        /// Return true, if wday is defined to be exluded. E. g.
+        /// saturday and sunday.
+        /// </summary>
+        public virtual bool IsDayExcluded(DayOfWeek wday)
+        {
+            return excludeDays[(int)wday];
+        }
 
-		/// <summary>
-		/// Redefine a certain day of the week to be excluded (true) or included
-		/// (false). Use java.util.Calendar's constants like MONDAY to determine the
-		/// wday.
-		/// </summary>
-		public virtual void SetDayExcluded(DayOfWeek wday, bool exclude)
-		{
-			excludeDays[(int) wday] = exclude;
-			excludeAll = AreAllDaysExcluded();
-		}
+        /// <summary>
+        /// Redefine a certain day of the week to be excluded (true) or included
+        /// (false). Use java.util.Calendar's constants like MONDAY to determine the
+        /// wday.
+        /// </summary>
+        public virtual void SetDayExcluded(DayOfWeek wday, bool exclude)
+        {
+            excludeDays[(int)wday] = exclude;
+            excludeAll = AreAllDaysExcluded();
+        }
 
-		/// <summary>
-		/// Check if all week ays are excluded. That is no day is included.
-		/// </summary>
-		public virtual bool AreAllDaysExcluded()
-		{
-			if (IsDayExcluded(DayOfWeek.Sunday) == false)
-			{
-				return false;
-			}
+        /// <summary>
+        /// Check if all week ays are excluded. That is no day is included.
+        /// </summary>
+        public virtual bool AreAllDaysExcluded()
+        {
+            if (IsDayExcluded(DayOfWeek.Sunday) == false)
+            {
+                return false;
+            }
 
-			if (IsDayExcluded(DayOfWeek.Monday) == false)
-			{
-				return false;
-			}
+            if (IsDayExcluded(DayOfWeek.Monday) == false)
+            {
+                return false;
+            }
 
-			if (IsDayExcluded(DayOfWeek.Tuesday) == false)
-			{
-				return false;
-			}
+            if (IsDayExcluded(DayOfWeek.Tuesday) == false)
+            {
+                return false;
+            }
 
-			if (IsDayExcluded(DayOfWeek.Wednesday) == false)
-			{
-				return false;
-			}
+            if (IsDayExcluded(DayOfWeek.Wednesday) == false)
+            {
+                return false;
+            }
 
-			if (IsDayExcluded(DayOfWeek.Thursday) == false)
-			{
-				return false;
-			}
+            if (IsDayExcluded(DayOfWeek.Thursday) == false)
+            {
+                return false;
+            }
 
-			if (IsDayExcluded(DayOfWeek.Friday) == false)
-			{
-				return false;
-			}
+            if (IsDayExcluded(DayOfWeek.Friday) == false)
+            {
+                return false;
+            }
 
-			if (IsDayExcluded(DayOfWeek.Saturday) == false)
-			{
-				return false;
-			}
+            if (IsDayExcluded(DayOfWeek.Saturday) == false)
+            {
+                return false;
+            }
 
-			return true;
-		}
+            return true;
+        }
 
-		/// <summary>
-		/// Determine whether the given time (in milliseconds) is 'included' by the
-		/// Calendar.
-		/// <p>
-		/// Note that this Calendar is only has full-day precision.
-		/// </p>
-		/// </summary>
-		public override bool IsTimeIncluded(DateTime time)
-		{
-			if (excludeAll)
-			{
-				return false;
-			}
+        /// <summary>
+        /// Determine whether the given time (in milliseconds) is 'included' by the
+        /// Calendar.
+        /// <p>
+        /// Note that this Calendar is only has full-day precision.
+        /// </p>
+        /// </summary>
+        public override bool IsTimeIncluded(DateTime time)
+        {
+            if (excludeAll)
+            {
+                return false;
+            }
 
-			// Test the base calendar first. Only if the base calendar not already
-			// excludes the time/date, continue evaluating this calendar instance.
-			if (!base.IsTimeIncluded(time))
-			{
-				return false;
-			}
+            // Test the base calendar first. Only if the base calendar not already
+            // excludes the time/date, continue evaluating this calendar instance.
+            if (!base.IsTimeIncluded(time))
+            {
+                return false;
+            }
 
-			return !(IsDayExcluded(time.DayOfWeek));
-		}
+            return !(IsDayExcluded(time.DayOfWeek));
+        }
 
-		/// <summary>
-		/// Determine the next time (in milliseconds) that is 'included' by the
-		/// Calendar after the given time. Return the original value if timeStamp is
-		/// included. Return DateTime.MinValue if all days are excluded.
-		/// <p>
-		/// Note that this Calendar is only has full-day precision.
-		/// </p>
-		/// </summary>
-		public override DateTime GetNextIncludedTime(DateTime time)
-		{
-			if (excludeAll == true)
-			{
-				return DateTime.MinValue;
-			}
+        /// <summary>
+        /// Determine the next time (in milliseconds) that is 'included' by the
+        /// Calendar after the given time. Return the original value if timeStamp is
+        /// included. Return DateTime.MinValue if all days are excluded.
+        /// <p>
+        /// Note that this Calendar is only has full-day precision.
+        /// </p>
+        /// </summary>
+        public override DateTime GetNextIncludedTime(DateTime time)
+        {
+            if (excludeAll == true)
+            {
+                return DateTime.MinValue;
+            }
 
-			// Call base calendar implementation first
-			DateTime baseTime = base.GetNextIncludedTime(time);
-			if ((baseTime != DateTime.MinValue) && (baseTime > time))
-			{
-				time = baseTime;
-			}
+            // Call base calendar implementation first
+            DateTime baseTime = base.GetNextIncludedTime(time);
+            if ((baseTime != DateTime.MinValue) && (baseTime > time))
+            {
+                time = baseTime;
+            }
 
-			// Get timestamp for 00:00:00
-			DateTime d = BuildHoliday(time);
+            // Get timestamp for 00:00:00
+            DateTime d = BuildHoliday(time);
 
-			if (!IsDayExcluded(d.DayOfWeek))
-			{
-				return time;
-			} // return the original value
+            if (!IsDayExcluded(d.DayOfWeek))
+            {
+                return time;
+            } // return the original value
 
-			while (IsDayExcluded(d.DayOfWeek))
-			{
-				d = d.AddDays(1);
-			}
+            while (IsDayExcluded(d.DayOfWeek))
+            {
+                d = d.AddDays(1);
+            }
 
-			return d;
-		}
-	}
+            return d;
+        }
+
+        public override int GetHashCode()
+        {
+            int baseHash = 0;
+            if (GetBaseCalendar() != null)
+                baseHash = GetBaseCalendar().GetHashCode();
+
+            return DaysExcluded.GetHashCode() + 5 * baseHash;
+        }
+
+        public bool Equals(WeeklyCalendar obj)
+        {
+            if (obj == null)
+                return false;
+            bool baseEqual = GetBaseCalendar() != null ?
+                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+
+
+            return baseEqual && (ArraysEqualElementsOnEqualPlaces(obj.DaysExcluded,DaysExcluded));
+
+        }
+
+
+        public override bool Equals(object obj)
+        {
+            if ((obj == null) || !(obj is WeeklyCalendar))
+                return false;
+            else
+                return Equals((WeeklyCalendar)obj);
+
+
+        }
+    }
 }

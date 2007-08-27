@@ -74,20 +74,6 @@ namespace Quartz
 	[Serializable]
 	public class NthIncludedDayTrigger : Trigger
 	{
-		/// <summary> 
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
-		/// <see cref="NthIncludedDayTrigger" /> wants to be fired now by the 
-		/// <see cref="IScheduler" />
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_FIRE_ONCE_NOW = 1;
-
-		/// <summary> 
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
-		/// <see cref="NthIncludedDayTrigger" /> wants to have 
-		/// <see cref="nextFireTime" /> updated to the next time in the schedule after
-		/// the current time, but it does not want to be fired now.
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
 
 		/// <summary> 
 		/// Indicates a monthly trigger type (fires on the N<SUP>th</SUP> included
@@ -630,16 +616,9 @@ namespace Quartz
         /// <returns>Whether <see param="misfireInstruction" /> is valid.</returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-			if ((misfireInstruction == MISFIRE_INSTRUCTION_SMART_POLICY) ||
-			    (misfireInstruction == MISFIRE_INSTRUCTION_DO_NOTHING) ||
-			    (misfireInstruction == MISFIRE_INSTRUCTION_FIRE_ONCE_NOW))
-			{
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+            return ((misfireInstruction == MisfirePolicy.NthIncludedDayTrigger.DoNothing) ||
+                    (misfireInstruction == MisfirePolicy.NthIncludedDayTrigger.FireOnceNow));
+		
 		}
 
 		/// <summary> Updates the <see cref="NthIncludedDayTrigger" />'s state based on the
@@ -659,17 +638,17 @@ namespace Quartz
 
 			calendar = cal;
 
-			if (instruction == MISFIRE_INSTRUCTION_SMART_POLICY)
+			if (MisfireSmartPolicyEnabled)
 			{
-				instruction = MISFIRE_INSTRUCTION_FIRE_ONCE_NOW;
+				instruction = MisfirePolicy.NthIncludedDayTrigger.FireOnceNow;
 			}
 
-			if (instruction == MISFIRE_INSTRUCTION_DO_NOTHING)
+			if (instruction == MisfirePolicy.NthIncludedDayTrigger.DoNothing)
 			{
 				DateTime tempAux = DateTime.Now;
 				nextFireTime = GetFireTimeAfter(tempAux);
 			}
-			else if (instruction == MISFIRE_INSTRUCTION_FIRE_ONCE_NOW)
+			else if (instruction == MisfirePolicy.NthIncludedDayTrigger.FireOnceNow)
 			{
 				nextFireTime = DateTime.Now;
 			}

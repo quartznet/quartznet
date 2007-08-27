@@ -147,96 +147,7 @@ namespace Quartz
 			get { return true; }
 		}
 
-		/// <summary> 
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-		/// situation, the <see cref="SimpleTrigger" /> wants to be fired
-		/// now by <see cref="IScheduler" />.
-		/// <p>
-		/// <i>NOTE:</i> This instruction should typically only be used for
-		/// 'one-shot' (non-repeating) Triggers. If it is used on a trigger with a
-		/// repeat count > 0 then it is equivalent to the instruction 
-		/// <see cref="MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT" />.
-		/// </p>
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_FIRE_NOW = 1;
-
-		/// <summary>
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-		/// situation, the <see cref="SimpleTrigger" /> wants to be
-		/// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
-		/// excludes 'now') with the repeat count left as-is.   This does obey the
-        /// <see cref="Trigger" /> end-time however, so if 'now' is after the
-        /// end-time the <code>Trigger</code> will not fire again.
-		/// <p>
-		/// <i>NOTE:</i> Use of this instruction causes the trigger to 'forget'
-		/// the start-time and repeat-count that it was originally setup with (this
-		/// is only an issue if you for some reason wanted to be able to tell what
-		/// the original values were at some later time).
-		/// </p>
-		/// 
-		/// <p>
-		/// <i>NOTE:</i> This instruction could cause the <see cref="Trigger" />
-		/// to go to the 'COMPLETE' state after firing 'now', if all the
-		/// repeat-fire-times where missed.
-		/// </p>
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT = 2;
-
-		/// <summary>
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-		/// situation, the <see cref="SimpleTrigger" /> wants to be
-		/// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
-		/// excludes 'now') with the repeat count set to what it would be, if it had
-        /// not missed any firings. This does obey the <see cref="Trigger" /> end-time 
-        /// however, so if 'now' is after the end-time the <see cref="Trigger" /> will 
-        /// not fire again.
-        /// 
-		/// <p>
-		/// <i>NOTE:</i> Use of this instruction causes the trigger to 'forget'
-		/// the start-time and repeat-count that it was originally setup with (this
-		/// is only an issue if you for some reason wanted to be able to tell what
-		/// the original values were at some later time).
-		/// </p>
-		/// 
-		/// <p>
-		/// <i>NOTE:</i> This instruction could cause the <see cref="Trigger" />
-		/// to go to the 'COMPLETE' state after firing 'now', if all the
-		/// repeat-fire-times where missed.
-		/// </p>
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT = 3;
-
-		/// <summary> 
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-		/// situation, the <see cref="SimpleTrigger" /> wants to be
-		/// re-scheduled to the next scheduled time after 'now' - taking into
-		/// account any associated <see cref="ICalendar" />, and with the
-		/// repeat count set to what it would be, if it had not missed any firings.
-        /// </summary>
-        /// <remarks>
-		/// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="Trigger" />
-		/// to go directly to the 'COMPLETE' state if all fire-times where missed.
-        /// </remarks>
-		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT = 4;
-
-		/// <summary>
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-		/// situation, the <see cref="SimpleTrigger" /> wants to be
-		/// re-scheduled to the next scheduled time after 'now' - taking into
-		/// account any associated <see cref="ICalendar" />, and with the
-		/// repeat count left unchanged.
-		/// <p>
-		/// <i>NOTE:</i> Use of this instruction causes the trigger to 'forget'
-		/// the repeat-count that it was originally setup with (this is only an
-		/// issue if you for some reason wanted to be able to tell what the original
-		/// values were at some later time).
-		/// </p>
-		/// <p>
-		/// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="Trigger" />
-		/// to go directly to the 'COMPLETE' state if all fire-times where missed.
-		/// </p>
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_EXISTING_COUNT = 5;
+		
 
 		/// <summary>
 		/// Used to indicate the 'repeat count' of the trigger is indefinite. Or in
@@ -355,37 +266,32 @@ namespace Quartz
 		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-			if (misfireInstruction < MISFIRE_INSTRUCTION_SMART_POLICY)
-			{
-				return false;
-			}
-
-			if (misfireInstruction > MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_EXISTING_COUNT)
-			{
-				return false;
-			}
-
-			return true;
+            return ((misfireInstruction == MisfirePolicy.SimpleTrigger.FireNow) ||
+                    (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount) ||
+                    (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount)||
+                    (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount)||
+                    (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount));
+		           
 		}
 
 		/// <summary>
 		/// Updates the <see cref="SimpleTrigger" />'s state based on the
-		/// MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="SimpleTrigger" />
+        /// MisfirePolicy value that was selected when the <see cref="SimpleTrigger" />
 		/// was created.
 		/// <p>
-		/// If the misfire instruction is set to MISFIRE_INSTRUCTION_SMART_POLICY,
+		/// If MisfireSmartPolicyEnabled is set to true,
 		/// then the following scheme will be used: <br />
 		/// <ul>
 		/// <li>If the Repeat Count is 0, then the instruction will
-		/// be interpreted as <see cref="MISFIRE_INSTRUCTION_FIRE_NOW" />.</li>
+        /// be interpreted as <see cref="MisfirePolicy.SimpleTrigger.FireNow" />.</li>
 		/// <li>If the Repeat Count is <see cref="REPEAT_INDEFINITELY" />, then
-		/// the instruction will be interpreted as <see cref="MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT" />.
-		/// <b>WARNING:</b> using MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT 
+        /// the instruction will be interpreted as <see cref="MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount" />.
+        /// <b>WARNING:</b> using MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount 
 		/// with a trigger that has a non-null end-time may cause the trigger to 
 		/// never fire again if the end-time arrived during the misfire time span. 
 		/// </li>
 		/// <li>If the Repeat Count is > 0, then the instruction
-		/// will be interpreted as <see cref="MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT" />.
+        /// will be interpreted as <see cref="MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />.
 		/// </li>
 		/// </ul>
 		/// </p>
@@ -393,32 +299,32 @@ namespace Quartz
 		public override void UpdateAfterMisfire(ICalendar cal)
 		{
 			int instr = MisfireInstruction;
-			if (instr == MISFIRE_INSTRUCTION_SMART_POLICY)
+			if (MisfireSmartPolicyEnabled)
 			{
 				if (RepeatCount == 0)
 				{
-					instr = MISFIRE_INSTRUCTION_FIRE_NOW;
+                    instr = MisfirePolicy.SimpleTrigger.FireNow;
 				}
 				else if (RepeatCount == REPEAT_INDEFINITELY)
 				{
-					instr = MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT;
+                    instr = MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount;
+					    
 				}
 				else
 				{
-					// if (getRepeatCount() > 0)
-					instr = MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT;
+                    instr = MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
 				}
 			}
-			else if (instr == MISFIRE_INSTRUCTION_FIRE_NOW && RepeatCount != 0)
+            else if (instr == MisfirePolicy.SimpleTrigger.FireNow && RepeatCount != 0)
 			{
-				instr = MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT;
+                instr = MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;
 			}
 
-			if (instr == MISFIRE_INSTRUCTION_FIRE_NOW)
+            if (instr == MisfirePolicy.SimpleTrigger.FireNow)
 			{
 				SetNextFireTime(DateTime.Now);
 			}
-			else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_EXISTING_COUNT)
+			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount)
 			{
 #if !NET_20
                 NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
@@ -432,7 +338,7 @@ namespace Quartz
 				}
 				SetNextFireTime(newFireTime);
 			}
-			else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT)
+			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount)
 			{
 #if !NET_20
                 NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
@@ -453,7 +359,7 @@ namespace Quartz
 
 				SetNextFireTime(newFireTime);
 			}
-			else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT)
+			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
 			{
 				DateTime newFireTime = DateTime.Now;
 				if (repeatCount != 0 && repeatCount != REPEAT_INDEFINITELY)
@@ -472,7 +378,7 @@ namespace Quartz
 					SetNextFireTime(newFireTime);
 				}
 			}
-			else if (instr == MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT)
+			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
 			{
 				DateTime newFireTime = DateTime.Now;
 				int timesMissed = ComputeNumTimesFiredBetween(nextFireTime, newFireTime);

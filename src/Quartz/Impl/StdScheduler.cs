@@ -44,8 +44,31 @@ namespace Quartz.Impl
 	{
         private readonly QuartzScheduler sched;
         private readonly SchedulingContext schedCtxt;
-        
-        /// <summary>
+
+
+	    /// <summary>
+	    /// returns true if the given JobGroup
+	    /// is paused
+	    /// </summary>
+	    /// <param name="groupName"></param>
+	    /// <returns></returns>
+	    public bool IsJobGroupPaused(string groupName)
+	    {
+            return sched.IsJobGroupPaused(schedCtxt, groupName);
+	    }
+
+	    /// <summary>
+	    /// returns true if the given TriggerGroup
+	    /// is paused
+	    /// </summary>
+	    /// <param name="groupName"></param>
+	    /// <returns></returns>
+	    public bool IsTriggerGroupPaused(string groupName)
+	    {
+            return sched.IsTriggerGroupPaused(schedCtxt, groupName);
+	    }
+
+	    /// <summary>
 		/// Returns the name of the <see cref="IScheduler" />.
 		/// </summary>
 		public virtual string SchedulerName

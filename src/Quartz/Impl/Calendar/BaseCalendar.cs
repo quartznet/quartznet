@@ -41,6 +41,28 @@ namespace Quartz.Impl.Calendar
 	[Serializable]
 	public class BaseCalendar : ICalendar
 	{
+        /// <summary>
+        /// checks whether two arrays have 
+        /// the same length and 
+        /// for any given place there are equal elements 
+        /// in both arrays
+        /// </summary>
+        /// <returns></returns>
+        protected static bool ArraysEqualElementsOnEqualPlaces(Array array1, Array array2)
+        {
+            if (array1.Length != array2.Length)
+            {
+                return false;
+            }
+            bool toReturn = true;
+            for (int i = 0; i < array1.Length; i++)
+            {
+                toReturn = toReturn && (array1.GetValue(i).Equals(array2.GetValue(i)));
+            }
+            return toReturn;
+        }
+
+
 		/// <summary> 
 		/// Gets or sets the description given to the <see cref="ICalendar" /> instance by
 		/// its creator (if any).

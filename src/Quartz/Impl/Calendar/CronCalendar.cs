@@ -161,5 +161,35 @@ namespace Quartz.Impl.Calendar
 			cronExpression = newExp;
 		}
 
+
+        public override int GetHashCode()
+        {
+            int baseHash = 0;
+            if (GetBaseCalendar() != null)
+                baseHash = GetBaseCalendar().GetHashCode();
+
+            return CronExpression.GetHashCode() + 5 * baseHash;
+        }
+
+        public bool Equals(CronCalendar obj)
+        {
+            if (obj == null)
+                return false;
+            bool baseEqual = GetBaseCalendar() != null ?
+                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+            
+            return baseEqual && (CronExpression.Equals(obj.CronExpression));
+        }
+
+
+        public override bool Equals(object obj)
+        {
+            if ((obj == null) || !(obj is CronCalendar))
+                return false;
+            else
+                return Equals((CronCalendar)obj);
+
+        }
+
 	}
 }

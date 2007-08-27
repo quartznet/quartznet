@@ -382,7 +382,7 @@ namespace Quartz.Impl.AdoJobStore
                         rcvryTrig.JobName = jobName;
                         rcvryTrig.JobGroup = jobGroup;
                         rcvryTrig.Priority = priority;
-                        rcvryTrig.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW;
+                        rcvryTrig.MisfireInstruction = MisfirePolicy.SimpleTrigger.FireNow;
 
                         list.Add(rcvryTrig);
                     }

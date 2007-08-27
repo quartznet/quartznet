@@ -157,10 +157,10 @@ namespace Quartz.Tests.Unit.Simpl
             fJobStore.StoreTrigger(null, tr, false);
             Assert.AreEqual(tr, fJobStore.RetrieveTrigger(null, trName, trGroup));
 
-            tr.CalendarName = "QQ";
+            tr.CalendarName = "NonExistingCalendar";
             fJobStore.StoreTrigger(null, tr, true); 
             Assert.AreEqual(tr, fJobStore.RetrieveTrigger(null, trName, trGroup));
-            Assert.AreEqual("QQ", fJobStore.RetrieveTrigger(null, trName, trGroup).CalendarName, "StoreJob doesn't replace triggers");
+            Assert.AreEqual(tr.CalendarName, fJobStore.RetrieveTrigger(null, trName, trGroup).CalendarName, "StoreJob doesn't replace triggers");
 
             bool exeptionRaised = false;
             try
@@ -174,6 +174,30 @@ namespace Quartz.Tests.Unit.Simpl
             Assert.IsTrue(exeptionRaised, "an attempt to store duplicate trigger succeeded");
         }
 
+	    [Test]
+	    public void PauseJobGroupPausesNewJob()
+	    {
+            string jobName1 = "PauseJobGroupPausesNewJob";
+            string jobName2 = "PauseJobGroupPausesNewJob2";
+            string jobGroup = "PauseJobGroupPausesNewJobGroup";
+            JobDetail detail = new JobDetail(jobName1, jobGroup, typeof(NoOpJob));
+            detail.Durable = true;
+            fJobStore.StoreJob(null, detail, false);
+            fJobStore.PauseJobGroup(null,jobGroup);
+            
+	        detail = new JobDetail(jobName2, jobGroup, typeof(NoOpJob));
+            detail.Durable = true;
+            fJobStore.StoreJob(null, detail, false);
+	        
+	        string trName = "PauseJobGroupPausesNewJobTrigger";
+            string trGroup = "PauseJobGroupPausesNewJobTriggerGroup";
+            Trigger tr = new SimpleTrigger(trName, trGroup, DateTime.Now);
+            tr.JobGroup = jobGroup;
+            tr.JobName = jobName2;
+	        fJobStore.StoreTrigger(null,tr,false);
+	        Assert.AreEqual(TriggerState.Paused,fJobStore.GetTriggerState(null,tr.Name,tr.Group));
+	        
+	    }
 		public class SampleSignaler : ISchedulerSignaler
 		{
 			internal int fMisfireCount = 0;

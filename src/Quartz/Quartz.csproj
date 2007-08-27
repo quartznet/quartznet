@@ -218,6 +218,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "MisfirePolicy.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "NthIncludedDayTrigger.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

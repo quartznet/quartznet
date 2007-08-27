@@ -127,5 +127,37 @@ namespace Quartz.Impl.Calendar
 			DateTime date = BuildHoliday(dateToRemove);
 			dates.Remove(date);
 		}
+
+        public override int GetHashCode()
+        {
+            int baseHash = 0;
+            if (GetBaseCalendar() != null)
+                baseHash = GetBaseCalendar().GetHashCode();
+
+            return ExcludedDates.GetHashCode() + 5 * baseHash;
+        }
+
+        public bool Equals(HolidayCalendar obj)
+        {
+            if (obj == null)
+                return false;
+            bool baseEqual = GetBaseCalendar() != null ?
+                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+
+            return baseEqual && (ExcludedDates.Equals(obj.ExcludedDates));
+
+        }
+
+
+        public override bool Equals(object obj)
+        {
+            if ((obj == null) || !(obj is HolidayCalendar))
+                return false;
+            else
+                return Equals((HolidayCalendar)obj);
+
+
+        }
+ 
 	}
 }

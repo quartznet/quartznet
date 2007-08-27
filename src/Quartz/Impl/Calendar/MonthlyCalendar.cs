@@ -34,7 +34,7 @@ namespace Quartz.Impl.Calendar
 	[Serializable]
 	public class MonthlyCalendar : BaseCalendar, ICalendar
 	{
-		private static readonly int MAX_DAYS_IN_MONTH = 31;
+        private const int MAX_DAYS_IN_MONTH = 31;
 
 		/// <summary>
 		/// Get or set the array which defines the exclude-value of each day of month
@@ -59,7 +59,7 @@ namespace Quartz.Impl.Calendar
 
 		// An array to store a months days which are to be excluded.
 		// Day as index.
-		private bool[] excludeDays = new bool[31];
+        private bool[] excludeDays = new bool[MAX_DAYS_IN_MONTH];
 
 		// Will be set to true, if all week days are excluded
 		private bool excludeAll = false;
@@ -195,6 +195,48 @@ namespace Quartz.Impl.Calendar
 			}
 
 			return newTimeStamp;
+	
 		}
+
+        public override int GetHashCode()
+        {
+            int baseHash = 0;
+            if (GetBaseCalendar() != null)
+                baseHash = GetBaseCalendar().GetHashCode();
+
+            return DaysExcluded.GetHashCode() + 5 * baseHash;
+        }
+
+        public bool Equals(MonthlyCalendar obj)
+        {
+            //a little trick here : Monthly calendar knows nothing
+            //about the precise month it is dealing with, so
+            //FebruaryCalendars will be only equal if their
+            // 31st days are equally included ))
+            //but that's not going to be a problem since 
+            //there's no need to redefine default value of false
+            //for such days
+            if (obj == null)
+                return false;
+            bool baseEqual = GetBaseCalendar() != null ?
+                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+
+            return baseEqual && (ArraysEqualElementsOnEqualPlaces(DaysExcluded,obj.DaysExcluded)
+            );
+
+        }
+
+
+        public override bool Equals(object obj)
+        {
+            if ((obj == null) || !(obj is MonthlyCalendar))
+                return false;
+            else
+                return Equals((MonthlyCalendar)obj);
+
+
+        }
+ 
+
 	}
 }

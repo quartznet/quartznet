@@ -19,13 +19,9 @@
 * Previously Copyright (c) 2001-2004 James House
 * and Juergen Donnerstag (c) 2002, EDS 2002
 */
-
-using System;
 using System.Collections;
 
-#if !NET_20
-using Nullables;
-#endif
+using System;
 
 namespace Quartz.Impl.Calendar
 {
@@ -36,6 +32,12 @@ namespace Quartz.Impl.Calendar
 	/// <seealso cref="ICalendar" />
 	/// <seealso cref="BaseCalendar" />
 	/// <author>Juergen Donnerstag</author>
+    
+	//shouldn't be split with conditional compilation for
+    // framework 1.0 and 2.0 
+    // as this will surely make  serialization job store
+    // bound to the framework in which the serialized
+    // data was written (otherwise there's hope...)
 	[Serializable]
 	public class AnnualCalendar : BaseCalendar, ICalendar
 	{
@@ -76,9 +78,9 @@ namespace Quartz.Impl.Calendar
                 }
                 else
                 {
-                    excludeDays = new ArrayList(value);
-                    dataSorted = false;
+                    excludeDays = new ArrayList(value);                    
                 }
+                dataSorted = false;
             }
         }
 
@@ -87,19 +89,10 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual bool IsDayExcluded(DateTime day)
 		{
-#if !NET_20
-            NullableDateTime d = FindExcludedDateByMonthAndDay(day);
-#else
-            DateTime? d = FindExcludedDateByMonthAndDay(day);
-#endif
-            return d.HasValue;
+            return IsDateTimeExcluded(day);
 		}
 
-#if !NET_20
-        protected virtual NullableDateTime FindExcludedDateByMonthAndDay(DateTime day)
-#else
-        protected virtual DateTime? FindExcludedDateByMonthAndDay(DateTime day)
-#endif
+        protected virtual bool IsDateTimeExcluded(DateTime day)
         {
             int dmonth = day.Month;
             int dday = day.Day;
@@ -115,7 +108,7 @@ namespace Quartz.Impl.Calendar
                 // remember, the list is sorted
                 if (dmonth < cl.Month)
                 {
-                    return null;
+                    return false;
                 }
 
                 if (dday != cl.Day)
@@ -128,11 +121,11 @@ namespace Quartz.Impl.Calendar
                     continue;
                 }
 
-                return cl;
+                return true;
             }
 
             // not found
-            return null;
+            return false;
         }
 
 		/// <summary>
@@ -151,14 +144,9 @@ namespace Quartz.Impl.Calendar
             {
                 // include
                 // find first, year may vary
-#if !NET_20
-                NullableDateTime d = FindExcludedDateByMonthAndDay(day);
-#else
-                DateTime? d = FindExcludedDateByMonthAndDay(day);
-#endif
-                if (d.HasValue)
+                if (IsDayExcluded(day))
                 {
-                     excludeDays.Remove(d.Value);
+                     excludeDays.Remove(BuildHoliday(day));
                 }
             }
 			dataSorted = false;
@@ -216,5 +204,41 @@ namespace Quartz.Impl.Calendar
 
 			return day;
 		}
+	    
+	    
+	    public override int GetHashCode()
+	    {
+            int baseHash = 0;
+            if (GetBaseCalendar() != null)
+                baseHash = GetBaseCalendar().GetHashCode();
+	        
+	        return excludeDays.GetHashCode() + 5*baseHash;
+	    }
+	    
+	    public bool Equals(AnnualCalendar obj)
+	    {
+	        if (obj == null)
+	            return false;
+             bool toReturn = GetBaseCalendar() != null ? 
+                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+
+             toReturn = toReturn && (DaysExcluded.Count == obj.DaysExcluded.Count);
+             if (toReturn)
+            {
+                foreach (DateTime date in DaysExcluded)
+                    toReturn = toReturn && obj.DaysExcluded.Contains(date);
+            }
+            return toReturn;
+	    }
+	    
+	    
+	    public override bool Equals(object obj)
+	    {
+	        if ((obj == null) || !(obj is AnnualCalendar))
+	            return false;
+            else    
+	             return Equals((AnnualCalendar) obj);
+	        
+	    }
 	}
 }

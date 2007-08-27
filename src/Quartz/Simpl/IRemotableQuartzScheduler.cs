@@ -44,7 +44,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		void Shutdown();
 
-		void Shutdown(bool waitForJobsToComplete);
+        void Shutdown(bool waitForJobsToComplete);
 
 #if !NET_20
         NullableDateTime RunningSince { get; }
@@ -62,7 +62,23 @@ namespace Quartz.Simpl
 
 		void AddJob(SchedulingContext ctxt, JobDetail jobDetail, bool replace);
 
-		bool DeleteJob(SchedulingContext ctxt, string jobName, string groupName);
+        /// <summary>
+        /// returns true if the given JobGroup
+        /// is paused
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns></returns>
+        bool IsJobGroupPaused(SchedulingContext ctxt,string groupName);
+
+        /// <summary>
+        /// returns true if the given TriggerGroup
+        /// is paused
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns></returns>
+        bool IsTriggerGroupPaused(SchedulingContext ctxt,string groupName);
+        
+	    bool DeleteJob(SchedulingContext ctxt, string jobName, string groupName);
 
 		bool UnscheduleJob(SchedulingContext ctxt, string triggerName, string groupName);
 

@@ -165,6 +165,21 @@ namespace Quartz
     /// <seealso cref="ISchedulerListener"/>
 	public interface IScheduler
 	{
+        /// <summary>
+        /// returns true if the given JobGroup
+        /// is paused
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns></returns>
+        bool IsJobGroupPaused(string groupName);
+        /// <summary>
+        /// returns true if the given TriggerGroup
+        /// is paused
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns></returns>
+        bool IsTriggerGroupPaused(string groupName);
+        
 		/// <summary> 
 		/// Returns the name of the <see cref="IScheduler" />.
 		/// </summary>

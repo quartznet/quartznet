@@ -2061,6 +2061,16 @@ namespace Quartz.Core
                 plugin.Start();
             }
         }
+
+        public bool IsJobGroupPaused(SchedulingContext ctxt, string groupName)
+        {
+            return resources.JobStore.IsJobGroupPaused(ctxt, groupName);
+        }
+
+        public bool IsTriggerGroupPaused(SchedulingContext ctxt, string groupName)
+        {
+            return resources.JobStore.IsTriggerGroupPaused(ctxt, groupName);
+        }
     }
 
     /// <summary>

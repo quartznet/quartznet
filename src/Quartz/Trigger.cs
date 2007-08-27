@@ -24,7 +24,7 @@ using System.Collections;
 #if !NET_20
 using Nullables;
 #endif
-
+using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -61,7 +61,19 @@ namespace Quartz
 	[Serializable]
 	public abstract class Trigger : ICloneable, IComparable
 	{
-		/// <summary>
+        protected  bool misfireSmartPolicyEnabled = true;
+        /// <summary>
+        /// tells IScheduler whether 
+        ///  <see cref="UpdateAfterMisfire" /> method will be called  after misfire
+        /// on the <see cref="Trigger" /> to determine the mis-fire instruction
+        /// </summary>
+	    public bool MisfireSmartPolicyEnabled
+	    {
+	        get { return misfireSmartPolicyEnabled; }
+	        set { misfireSmartPolicyEnabled = value; }
+	    }
+
+	    /// <summary>
 		/// The default value for priority.
 		/// </summary>
 		public const int DEFAULT_PRIORITY = 5;
@@ -75,8 +87,10 @@ namespace Quartz
         private bool volatility = false;
         private string calendarName = null;
         private string fireInstanceId = null;
-        private int misfireInstruction = MISFIRE_INSTRUCTION_SMART_POLICY;
-        private ArrayList triggerListeners = new ArrayList();
+
+        private int misfireInstruction = MisfirePolicy.InstructionNotSet;
+
+	    private ArrayList triggerListeners = new ArrayList();
 #if !NET_20
         private NullableDateTime endTime;
 #else
@@ -86,18 +100,6 @@ namespace Quartz
 		private int priority = DEFAULT_PRIORITY;
 		[NonSerialized] 
 		private Key key = null;
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-        /// situation, the <see cref="UpdateAfterMisfire" /> method will be called
-        /// on the <see cref="Trigger" /> to determine the mis-fire instruction.
-        /// <p>
-        /// In order to see if this instruction fits your needs, you should look at
-        /// the documentation for the GetSmartMisfirePolicy method
-        /// on the particular <see cref="Trigger" /> implementation you are using.
-        /// </p>
-        /// </summary>
-        public const int MISFIRE_INSTRUCTION_SMART_POLICY = 0;
 
 		/// <summary>
 		/// Get or sets the name of this <see cref="Trigger" />.
@@ -333,10 +335,10 @@ namespace Quartz
 		/// defined a set of additional MISFIRE_INSTRUCTION_XXX
 		/// constants that may be passed to this method.
 		/// <p>
-		/// If not explicitly set, the default value is <see cref="MISFIRE_INSTRUCTION_SMART_POLICY" />.
+        /// If not explicitly set, the default value is <see cref="MisfirePolicy.InstructionNotSet" />.
 		/// </p>
 		/// </summary>
-		/// <seealso cref="MISFIRE_INSTRUCTION_SMART_POLICY" />
+        /// <seealso cref="MisfirePolicy.InstructionNotSet" />
 		/// <seealso cref="UpdateAfterMisfire" />
 		/// <seealso cref="SimpleTrigger" />
 		/// <seealso cref="CronTrigger" />
@@ -793,23 +795,11 @@ namespace Quartz
         /// </returns>
 		public override bool Equals(object obj)
 		{
-			if (!(obj is Trigger))
-			{
-				return false;
-			}
-
-			Trigger other = (Trigger) obj;
-
-			if (!other.Name.Equals(Name))
-			{
-				return false;
-			}
-			if (!other.Group.Equals(Group))
-			{
-				return false;
-			}
-
-			return true;
+            if ((obj == null) || (!obj.GetType().IsSubclassOf(typeof(Trigger))))
+                return false;
+            else
+                return TriggerWrapper.GetTriggerNameKey(this).Equals(
+                                      TriggerWrapper.GetTriggerNameKey((Trigger) obj));
 		}
 
 
@@ -821,7 +811,7 @@ namespace Quartz
         /// </returns>
 		public override int GetHashCode()
 		{
-			return FullName.GetHashCode();
+			return TriggerWrapper.GetTriggerNameKey(Name,Group).GetHashCode();
 		}
 
         /// <summary>
@@ -853,5 +843,8 @@ namespace Quartz
 			}
 			return copy;
 		}
+
 	}
+
 }
+

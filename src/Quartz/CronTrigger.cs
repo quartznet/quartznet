@@ -178,6 +178,7 @@ namespace Quartz
 	/// <author>Sharada Jambula</author>
 	/// <author>James House</author>
 	/// <author>Contributions from Mads Henderson</author>
+    [Serializable]
 	public class CronTrigger : Trigger
 	{
 		private CronExpression cronEx = null;
@@ -192,23 +193,6 @@ namespace Quartz
         private DateTime? previousFireTime = null;
 #endif
 		[NonSerialized] private TimeZone timeZone = null;
-
-		/// <summary>
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-		/// situation, the <see cref="CronTrigger" /> wants to be fired now
-		/// by <see cref="IScheduler" />.
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_FIRE_ONCE_NOW = 1;
-
-		/// <summary>
-		/// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-		/// situation, the <see cref="CronTrigger" /> wants to have it's
-		/// next-fire-time updated to the next time in the schedule after the
-		/// current time (taking into account any associated <see cref="ICalendar" />,
-		/// but it does not want to be fired now.
-		/// </summary>
-		public const int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
-
 
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with no settings.
@@ -702,17 +686,9 @@ namespace Quartz
 		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-			if (misfireInstruction < MISFIRE_INSTRUCTION_SMART_POLICY)
-			{
-				return false;
-			}
-
-			if (misfireInstruction > MISFIRE_INSTRUCTION_DO_NOTHING)
-			{
-				return false;
-			}
-
-			return true;
+            return ((misfireInstruction == MisfirePolicy.CronTrigger.DoNothing) ||
+                    (misfireInstruction == MisfirePolicy.CronTrigger.FireOnceNow));
+			
 		}
 
 
@@ -732,12 +708,12 @@ namespace Quartz
 		{
 			int instr = MisfireInstruction;
 
-			if (instr == MISFIRE_INSTRUCTION_SMART_POLICY)
+			if (MisfireSmartPolicyEnabled)
 			{
-				instr = MISFIRE_INSTRUCTION_FIRE_ONCE_NOW;
+				instr = MisfirePolicy.CronTrigger.FireOnceNow;
 			}
 
-			if (instr == MISFIRE_INSTRUCTION_DO_NOTHING)
+			if (instr == MisfirePolicy.CronTrigger.DoNothing)
 			{
 #if !NET_20
                 NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
@@ -751,7 +727,7 @@ namespace Quartz
 				}
 				SetNextFireTime(newFireTime);
 			}
-			else if (instr == MISFIRE_INSTRUCTION_FIRE_ONCE_NOW)
+			else if (instr == MisfirePolicy.CronTrigger.FireOnceNow)
 			{
 				SetNextFireTime(DateTime.Now);
 			}

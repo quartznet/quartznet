@@ -88,7 +88,7 @@ namespace Quartz.Examples.Example5
 			job.JobDataMap.Put(MisfireJob.EXECUTION_DELAY, 10);
 
 			trigger = new SimpleTrigger("trigger2", "group1", ts, null, SimpleTrigger.REPEAT_INDEFINITELY, 3000L);
-			trigger.MisfireInstruction = SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT;
+            trigger.MisfireInstruction = MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
 			ft = sched.ScheduleJob(job, trigger);
 
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));

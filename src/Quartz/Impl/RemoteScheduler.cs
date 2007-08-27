@@ -45,7 +45,29 @@ namespace Quartz.Impl
 	/// <author>James House</author>
 	public class RemoteScheduler : IScheduler
 	{
-		/// <summary>
+	    /// <summary>
+	    /// returns true if the given JobGroup
+	    /// is paused
+	    /// </summary>
+	    /// <param name="groupName"></param>
+	    /// <returns></returns>
+	    public bool IsJobGroupPaused(string groupName)
+	    {
+	        throw new NotImplementedException();
+	    }
+
+	    /// <summary>
+	    /// returns true if the given TriggerGroup
+	    /// is paused
+	    /// </summary>
+	    /// <param name="groupName"></param>
+	    /// <returns></returns>
+	    public bool IsTriggerGroupPaused(string groupName)
+	    {
+	        throw new NotImplementedException();
+	    }
+
+	    /// <summary>
 		/// Returns the name of the <see cref="IScheduler" />.
 		/// </summary>
 		public virtual string SchedulerName
