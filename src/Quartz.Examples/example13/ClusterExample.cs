@@ -73,18 +73,22 @@ namespace Quartz.Examples.Example13
 			string[] groups = inScheduler.TriggerGroupNames;
 			for (int i = 0; i < groups.Length; i++)
 			{
-				String[] names = inScheduler.GetTriggerNames(groups[i]);
+				string[] names = inScheduler.GetTriggerNames(groups[i]);
 				for (int j = 0; j < names.Length; j++)
-					inScheduler.UnscheduleJob(names[j], groups[i]);
+				{
+				    inScheduler.UnscheduleJob(names[j], groups[i]);
+				}
 			}
 
 			// delete jobs
 			groups = inScheduler.JobGroupNames;
 			for (int i = 0; i < groups.Length; i++)
 			{
-				String[] names = inScheduler.GetJobNames(groups[i]);
+				string[] names = inScheduler.GetJobNames(groups[i]);
 				for (int j = 0; j < names.Length; j++)
-					inScheduler.DeleteJob(names[j], groups[i]);
+				{
+				    inScheduler.DeleteJob(names[j], groups[i]);
+				}
 			}
 		}
 
@@ -99,16 +103,15 @@ namespace Quartz.Examples.Example13
             properties["quartz.threadPool.threadPriority"] = "Normal";
 		    properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MSSQLDelegate, Quartz";
             properties["quartz.jobStore.useProperties"] = "false";
             properties["quartz.jobStore.dataSource"] = "default";
 		    properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
 		    properties["quartz.jobStore.clustered"] = "true";
             // if running MS SQL Server we need this
-		    properties["quartz.jobStore.selectWithLockSQL"] = "SELECT * FROM {0}LOCKS UPDLOCK WHERE LOCK_NAME = @lockName";
+            properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
 
             properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
-            properties["quartz.dataSource.default.provider"] = "SqlServer-11";
+            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
 
 			// First we must get a reference to a scheduler
 			ISchedulerFactory sf = new StdSchedulerFactory(properties);
