@@ -668,7 +668,7 @@ namespace Quartz
         public static DateTime GetEvenMinuteDate(DateTime? date)
 #endif
 		{
-			if (date.HasValue)
+			if (!date.HasValue)
 			{
 				date = DateTime.Now;
 			}
