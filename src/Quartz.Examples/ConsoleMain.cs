@@ -64,12 +64,19 @@ namespace Quartz.Examples
 	        {
 	            Type t1 = (Type) x;
 	            Type t2 = (Type) y;
-                if (t1.Namespace.Length < t2.Namespace.Length)
+                
+                if (t1.Namespace.Length > t2.Namespace.Length)
+                {
+                    return 1;
+                }
+                else if (t1.Namespace.Length < t2.Namespace.Length)
                 {
                     return -1;
                 }
-
-                return t1.Namespace.CompareTo(t2.Namespace);
+                else
+                {
+                    return t1.Namespace.CompareTo(t2.Namespace);
+                }
 	        }
 	    }
 	}
