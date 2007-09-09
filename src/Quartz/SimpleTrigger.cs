@@ -415,25 +415,26 @@ namespace Quartz
 		{
 			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-			DateTime now = DateTime.UtcNow;
-			do
-			{
-				while (nextFireTimeUtc.HasValue && calendar != null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
-				{
-					nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
-				}
+            if (nextFireTimeUtc == null || calendar == null)
+            {
+                return;
+            }
 
-				if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < now)
-				{
-					long diff = (long) (now - nextFireTimeUtc.Value).TotalMilliseconds;
-					if (diff >= misfireThreshold)
-					{
-						nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
-						continue;
-					}
-				}
-			} while (false);
-		}
+            DateTime now = DateTime.UtcNow;
+            while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+            {
+                nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+                if (nextFireTimeUtc != null && nextFireTimeUtc < now)
+                {
+                    long diff = (long) (now - nextFireTimeUtc.Value).TotalMilliseconds;
+                    if (diff >= misfireThreshold)
+                    {
+                        nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                    }
+                }
+            }
+        }
 
 		/// <summary>
 		/// Called by the scheduler at the time a <see cref="Trigger" /> is first
