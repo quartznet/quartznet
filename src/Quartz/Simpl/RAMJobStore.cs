@@ -24,10 +24,11 @@ using System.Text;
 using System.Threading;
 using Common.Logging;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
-
 
 using Quartz;
 using Quartz.Collection;
@@ -1205,17 +1206,13 @@ namespace Quartz.Simpl
 		/// <returns></returns>
 		protected internal virtual bool ApplyMisfire(TriggerWrapper tw)
 		{
-			DateTime misfireTime = DateTime.Now;
+			DateTime misfireTime = DateTime.UtcNow;
 			if (MisfireThreshold > 0)
 			{
 				misfireTime = misfireTime.AddMilliseconds(-1 *MisfireThreshold);
 			}
 
-#if !NET_20
-            NullableDateTime tnft = tw.trigger.GetNextFireTime();
-#else
-            DateTime? tnft = tw.trigger.GetNextFireTime();
-#endif
+            NullableDateTime tnft = tw.trigger.GetNextFireTimeUtc();
             if (tnft.Value > misfireTime)
 			{
 				return false;
@@ -1231,7 +1228,7 @@ namespace Quartz.Simpl
 
 			tw.trigger.UpdateAfterMisfire(cal);
 
-			if (!tw.trigger.GetNextFireTime().HasValue)
+			if (!tw.trigger.GetNextFireTimeUtc().HasValue)
 			{
                 tw.state = InternalTriggerState.Complete;
                 signaler.NotifySchedulerListenersFinalized(tw.trigger);
@@ -1240,7 +1237,7 @@ namespace Quartz.Simpl
 					timeTriggers.Remove(tw);
 				}
 			}
-			else if (tnft.Equals(tw.trigger.GetNextFireTime()))
+			else if (tnft.Equals(tw.trigger.GetNextFireTimeUtc()))
 			{
 				return false;
 			}
@@ -1248,7 +1245,7 @@ namespace Quartz.Simpl
 			return true;
 		}
 
-		private static long ftrCtr = DateTime.Now.Ticks;
+		private static long ftrCtr = DateTime.UtcNow.Ticks;
 
 		/// <summary>
 		/// Get a handle to the next trigger to be fired, and mark it as 'reserved'
@@ -1273,7 +1270,7 @@ namespace Quartz.Simpl
 						return null;
 					}
 
-					if (!tw.trigger.GetNextFireTime().HasValue)
+					if (!tw.trigger.GetNextFireTimeUtc().HasValue)
 					{
 						timeTriggers.Remove(tw);
 						tw = null;
@@ -1284,7 +1281,7 @@ namespace Quartz.Simpl
 
 					if (ApplyMisfire(tw))
 					{
-						if (tw.trigger.GetNextFireTime().HasValue)
+						if (tw.trigger.GetNextFireTimeUtc().HasValue)
 						{
 							timeTriggers.Add(tw);
 						}
@@ -1292,7 +1289,7 @@ namespace Quartz.Simpl
 						continue;
 					}
 
-					if (tw.trigger.GetNextFireTime().Value > noLaterThan)
+					if (tw.trigger.GetNextFireTimeUtc().Value > noLaterThan)
 					{
 						timeTriggers.Add(tw);
 						return null;
@@ -1368,11 +1365,9 @@ namespace Quartz.Simpl
 				{
 					cal = RetrieveCalendar(ctxt, tw.trigger.CalendarName);
 				}
-#if !NET_20
-                NullableDateTime prevFireTime = trigger.GetPreviousFireTime();
-#else
-                DateTime? prevFireTime = trigger.GetPreviousFireTime();
-#endif
+
+                NullableDateTime prevFireTime = trigger.GetPreviousFireTimeUtc();
+                
                 // call triggered on our copy, and the scheduler's copy
 				tw.trigger.Triggered(cal);
 				trigger.Triggered(cal);
@@ -1380,8 +1375,8 @@ namespace Quartz.Simpl
                 tw.state = InternalTriggerState.Waiting;
 
 				TriggerFiredBundle bndle =
-					new TriggerFiredBundle(RetrieveJob(ctxt, trigger.JobName, trigger.JobGroup), trigger, cal, false, DateTime.Now,
-					                       trigger.GetPreviousFireTime(), prevFireTime, trigger.GetNextFireTime());
+					new TriggerFiredBundle(RetrieveJob(ctxt, trigger.JobName, trigger.JobGroup), trigger, cal, false, DateTime.UtcNow,
+					                       trigger.GetPreviousFireTimeUtc(), prevFireTime, trigger.GetNextFireTimeUtc());
 
 				JobDetail job = bndle.JobDetail;
 
@@ -1406,11 +1401,7 @@ namespace Quartz.Simpl
 				}
 				else
 				{
-#if !NET_20
-                    NullableDateTime d = tw.trigger.GetNextFireTime();
-#else
-                    DateTime? d = tw.trigger.GetNextFireTime();
-#endif
+                    NullableDateTime d = tw.trigger.GetNextFireTimeUtc();
                     if (d.HasValue)
 					{
 						lock (triggerLock)
@@ -1485,16 +1476,12 @@ namespace Quartz.Simpl
 					if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
 					{
 					    log.Debug("Deleting trigger");
-#if !NET_20
-                        NullableDateTime d = trigger.GetNextFireTime();
-#else
-                        DateTime? d = trigger.GetNextFireTime();
-#endif
+                        NullableDateTime d = trigger.GetNextFireTimeUtc();
                         if (!d.HasValue)
 						{
 							// double check for possible reschedule within job 
 							// execution, which would cancel the need to delete...
-							d = tw.Trigger.GetNextFireTime();
+							d = tw.Trigger.GetNextFireTimeUtc();
 							if (!d.HasValue)
 							{
 								RemoveTrigger(ctxt, trigger.Name, trigger.Group);

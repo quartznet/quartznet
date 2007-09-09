@@ -167,7 +167,7 @@ namespace Quartz.Plugins.Xml
 					foreach (JobFile jobFile in files)
 					{
 						SimpleTrigger trig =
-							new SimpleTrigger("JobInitializationPluginMultiple_" + name, "JobInitializationPluginMultiple", DateTime.Now,
+							new SimpleTrigger("JobInitializationPluginMultiple_" + name, "JobInitializationPluginMultiple", DateTime.UtcNow,
 							                  null, SimpleTrigger.REPEAT_INDEFINITELY, scanInterval);
 						trig.Volatile = true;
 						JobDetail job =

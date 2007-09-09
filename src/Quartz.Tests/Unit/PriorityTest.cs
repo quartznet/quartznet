@@ -29,17 +29,21 @@ namespace Quartz.Tests.Unit
 	[TestFixture]
 	public class PriorityTest
 	{
-		private static StringBuilder result = new StringBuilder();
+		private static StringBuilder result;
+
+        [SetUp]
+        public void Setup()
+        {
+            result = new StringBuilder();
+        }
 
 
 		[Test]
 		public void TestSameDefaultPriority()
 		{
-			result = new StringBuilder();
-
 			IScheduler sched = new StdSchedulerFactory().GetScheduler();
 
-			DateTime n = DateTime.Now;
+			DateTime n = DateTime.UtcNow;
 			DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
 
 			Trigger trig1 = new SimpleTrigger("T1", null, cal);
@@ -63,11 +67,9 @@ namespace Quartz.Tests.Unit
 
 		public void TestDifferentPriority()
 		{
-			result = new StringBuilder();
-
 			IScheduler sched = new StdSchedulerFactory().GetScheduler();
 
-			DateTime n = DateTime.Now;
+			DateTime n = DateTime.UtcNow;
 			DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
 
 			Trigger trig1 = new SimpleTrigger("T1", null, cal);

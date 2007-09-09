@@ -21,10 +21,11 @@
 using System;
 using System.Collections;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
-
 
 using Quartz.Spi;
 
@@ -81,25 +82,17 @@ namespace Quartz
         private readonly ICalendar calendar;
         private readonly bool recovering = false;
         private int numRefires = 0;
-#if !NET_20
-        private readonly NullableDateTime fireTime;
-        private readonly NullableDateTime scheduledFireTime;
-        private readonly NullableDateTime prevFireTime;
-        private readonly NullableDateTime nextFireTime;
-#else
-        private readonly DateTime? fireTime;
-        private readonly DateTime? scheduledFireTime;
-        private readonly DateTime? prevFireTime;
-        private readonly DateTime? nextFireTime;
-#endif
+        private readonly NullableDateTime fireTimeUtc;
+        private readonly NullableDateTime scheduledFireTimeUtc;
+        private readonly NullableDateTime prevFireTimeUtc;
+        private readonly NullableDateTime nextFireTimeUtc;
         private long jobRunTime = -1;
         private object result;
 
         private readonly IDictionary data = new Hashtable();
 
-        /// <summary> <p>
+        /// <summary>
         /// Create a JobExcecutionContext with the given context data.
-        /// </p>
         /// </summary>
         public JobExecutionContext(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
         {
@@ -109,10 +102,10 @@ namespace Quartz
             jobDetail = firedBundle.JobDetail;
             this.job = job;
             recovering = firedBundle.Recovering;
-            fireTime = firedBundle.FireTime;
-            scheduledFireTime = firedBundle.ScheduledFireTime;
-            prevFireTime = firedBundle.PrevFireTime;
-            nextFireTime = firedBundle.NextFireTime;
+            fireTimeUtc = firedBundle.FireTimeUtc;
+            scheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
+            prevFireTimeUtc = firedBundle.PrevFireTimeUtc;
+            nextFireTimeUtc = firedBundle.NextFireTimeUtc;
 
             jobDataMap = new JobDataMap();
             jobDataMap.PutAll(jobDetail.JobDataMap);
@@ -218,15 +211,11 @@ namespace Quartz
 		/// have been 10:00:00 but the actual fire time may have been 10:00:03 if
 		/// the scheduler was too busy.
 		/// </summary>
-		/// <returns> Returns the fireTime.</returns>
-		/// <seealso cref="ScheduledFireTime" />
-#if !NET_20
-        public NullableDateTime FireTime
-#else
-        public DateTime? FireTime
-#endif
+		/// <returns> Returns the fireTimeUtc.</returns>
+		/// <seealso cref="ScheduledFireTimeUtc" />
+        public NullableDateTime FireTimeUtc
 		{
-			get { return fireTime; }
+			get { return fireTimeUtc; }
 		}
 
 		/// <summary> 
@@ -234,41 +223,29 @@ namespace Quartz
 		/// time may have been 10:00:00 but the actual fire time may have been
 		/// 10:00:03 if the scheduler was too busy.
 		/// </summary>
-		/// <returns> Returns the scheduledFireTime.</returns>
-		/// <seealso cref="FireTime" />
-#if !NET_20
-        public NullableDateTime ScheduledFireTime
-#else
-        public DateTime? ScheduledFireTime
-#endif
+		/// <returns> Returns the scheduledFireTimeUtc.</returns>
+		/// <seealso cref="FireTimeUtc" />
+        public NullableDateTime ScheduledFireTimeUtc
 		{
-			get { return scheduledFireTime; }
+			get { return scheduledFireTimeUtc; }
 		}
 
 		/// <summary>
 		/// Gets the previous fire time.
 		/// </summary>
 		/// <value>The previous fire time.</value>
-#if !NET_20
         public NullableDateTime PreviousFireTime
-#else
-        public DateTime? PreviousFireTime
-#endif
 		{
-			get { return prevFireTime; }
+			get { return prevFireTimeUtc; }
 		}
 
 		/// <summary>
 		/// Gets the next fire time.
 		/// </summary>
 		/// <value>The next fire time.</value>
-#if !NET_20
-        public NullableDateTime NextFireTime
-#else
-        public DateTime? NextFireTime
-#endif
+        public NullableDateTime NextFireTimeUtc
 		{
-			get { return nextFireTime; }
+			get { return nextFireTimeUtc; }
 		}
 
 		/// <summary>
@@ -339,7 +316,7 @@ namespace Quartz
 		public override string ToString()
 		{
 			return
-				string.Format("JobExecutionContext: trigger: '{0} job: {1} fireTime: '{2} scheduledFireTime: {3} previousFireTime: '{4} nextFireTime: {5} recovering: {6} refireCount: {7}", Trigger.FullName, JobDetail.FullName, FireTime.Value.ToString("r"), ScheduledFireTime.Value.ToString("r"), PreviousFireTime.Value.ToString("r"), NextFireTime.Value.ToString("r"), Recovering, RefireCount);
+				string.Format("JobExecutionContext: trigger: '{0} job: {1} fireTimeUtc: '{2} scheduledFireTimeUtc: {3} previousFireTime: '{4} nextFireTimeUtc: {5} recovering: {6} refireCount: {7}", Trigger.FullName, JobDetail.FullName, FireTimeUtc.Value.ToString("r"), ScheduledFireTimeUtc.Value.ToString("r"), PreviousFireTime.Value.ToString("r"), NextFireTimeUtc.Value.ToString("r"), Recovering, RefireCount);
 		}
 
 	    /// <summary> 

@@ -716,6 +716,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Util\DateTimeUtil.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Util\DBConnectionManager.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

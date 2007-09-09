@@ -17,9 +17,12 @@
 using System;
 using System.Collections;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
+
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -78,22 +81,22 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
 
-            DateTime cal = new DateTime(2005, 6, 1, 10, 15, 0);
+            DateTime cal = new DateTime(2005, 6, 1, 10, 15, 0).ToUniversalTime();
             Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
 
             cal = cal.AddYears(1);
             Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
 
-            cal = new DateTime(2005, 6, 1, 10, 16, 0);
+            cal = new DateTime(2005, 6, 1, 10, 16, 0).ToUniversalTime();
             Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
 
-            cal = new DateTime(2005, 6, 1, 10, 14, 0);
+            cal = new DateTime(2005, 6, 1, 10, 14, 0).ToUniversalTime();
             Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
 
             cronExpression = new CronExpression("0 15 10 ? * MON-FRI");
 
             // weekends
-            cal = new DateTime(2007, 6, 9, 10, 15, 0);
+            cal = new DateTime(2007, 6, 9, 10, 15, 0).ToUniversalTime();
             Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
             Assert.IsFalse(cronExpression.IsSatisfiedBy(cal.AddDays(1)));
         }
@@ -102,8 +105,8 @@ namespace Quartz.Tests.Unit
         public void TestCronExpressionPassingMidnight()
         {
             CronExpression cronExpression = new CronExpression("0 15 23 * * ?");
-            DateTime cal = new DateTime(2005, 6, 1, 23, 16, 0);
-            DateTime nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0);
+            DateTime cal = new DateTime(2005, 6, 1, 23, 16, 0).ToUniversalTime();
+            DateTime nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0).ToUniversalTime();
             Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);
         }
 
@@ -155,8 +158,8 @@ namespace Quartz.Tests.Unit
         {
             // QRTZNET-28
             CronExpression cronExpression = new CronExpression("* * 1 * * ?");
-            DateTime cal = new DateTime(2005, 7, 31, 22, 59, 57);
-            DateTime nextExpectedFireTime = new DateTime(2005, 8, 1, 1, 0, 0);
+            DateTime cal = new DateTime(2005, 7, 31, 22, 59, 57).ToUniversalTime();
+            DateTime nextExpectedFireTime = new DateTime(2005, 8, 1, 1, 0, 0).ToUniversalTime();
             Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);            
         }
 
@@ -168,7 +171,7 @@ namespace Quartz.Tests.Unit
 			{
 				string expr = string.Format(" * * * * * {0}", DateTime.Now.Year);
 				CronExpression ce = new CronExpression(expr);
-				ce.IsSatisfiedBy(DateTime.Now.AddMinutes(2));
+				ce.IsSatisfiedBy(DateTime.UtcNow.AddMinutes(2));
 				Assert.Fail("Accepted wrong format");
 			}
 			catch (FormatException fe)
@@ -186,18 +189,14 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(calendar.IsSatisfiedBy(DateTime.Now.AddMinutes(2)), "Time was included");
         }
 
-        private static void TestCorrectWeekFireDays(CronExpression cronExpression, ArrayList correctFireDays)
+        private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList correctFireDays)
         {
             ArrayList fireDays = new ArrayList();
 
-            DateTime cal = new DateTime(2007, 6, 1, 11, 0, 0);
+            DateTime cal = new DateTime(2007, 6, 1, 11, 0, 0).ToUniversalTime();
             for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
             {
-#if !NET_20
                 NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
-#else
-                DateTime? nextFireTime = cronExpression.GetTimeAfter(cal);
-#endif
                 if (!fireDays.Contains(nextFireTime.Value.Day) && nextFireTime.Value.Month == 6)
                 {
                     // next fire day may be monday for several days..
@@ -216,7 +215,7 @@ namespace Quartz.Tests.Unit
 
             // check that all fired
             Assert.IsEmpty(correctFireDays,
-                           string.Format("CronExpression did evaluate true for all june days (count: {0}).", correctFireDays.Count));
+                           string.Format("CronExpression did not evaluate true for all expected days (count: {0}).", correctFireDays.Count));
         }
     }
 }

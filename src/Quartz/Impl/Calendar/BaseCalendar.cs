@@ -21,6 +21,8 @@
 */
 using System;
 
+using Quartz;
+
 namespace Quartz.Impl.Calendar
 {
 	/// <summary>
@@ -41,7 +43,67 @@ namespace Quartz.Impl.Calendar
 	[Serializable]
 	public class BaseCalendar : ICalendar
 	{
+        // A optional base calendar.
+        private ICalendar baseCalendar;
+        private string description;
+	    private TimeZone timeZone;
+
+
         /// <summary>
+        /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
+        /// </summary>
+        public BaseCalendar()
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
+        /// </summary>
+        /// <param name="baseCalendar">The base calendar.</param>
+        public BaseCalendar(ICalendar baseCalendar)
+        {
+            CalendarBase = baseCalendar;
+        }
+
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
+        /// </summary>
+        /// <param name="timeZone">The time zone.</param>
+	    public BaseCalendar(TimeZone timeZone)
+	    {
+	        this.timeZone = timeZone;
+	    }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
+        /// </summary>
+        /// <param name="baseCalendar">The base calendar.</param>
+        /// <param name="timeZone">The time zone.</param>
+	    public BaseCalendar(ICalendar baseCalendar, TimeZone timeZone)
+	    {
+	        this.baseCalendar = baseCalendar;
+	        this.timeZone = timeZone;
+	    }
+
+	    /// <summary>
+        /// Gets or sets the time zone.
+        /// </summary>
+        /// <value>The time zone.</value>
+	    public virtual TimeZone TimeZone
+	    {
+	        get
+	        {
+                if (timeZone == null)
+                {
+                    timeZone = System.TimeZone.CurrentTimeZone;
+                }
+	            return timeZone;
+	        }
+	        set { timeZone = value; }
+	    }
+
+	    /// <summary>
         /// checks whether two arrays have 
         /// the same length and 
         /// for any given place there are equal elements 
@@ -73,27 +135,6 @@ namespace Quartz.Impl.Calendar
 			set { description = value; }
 		}
 
-		// A optional base calendar.
-		private ICalendar baseCalendar;
-		private string description;
-
-		/// <summary> <p>
-		/// Default Constructor
-		/// </p>
-		/// </summary>
-		public BaseCalendar()
-		{
-		}
-
-		/// <summary> <p>
-		/// Constructor
-		/// </p>
-		/// </summary>
-		public BaseCalendar(ICalendar baseCalendar)
-		{
-			CalendarBase = baseCalendar;
-		}
-
 		/// <summary>
 		/// Set a new base calendar or remove the existing one
 		/// </summary>
@@ -118,16 +159,16 @@ namespace Quartz.Impl.Calendar
 		/// calendars IsTimeIncluded() method if base calendar is set.
 		/// </summary>
 		/// <seealso cref="ICalendar.IsTimeIncluded" />
-		public virtual bool IsTimeIncluded(DateTime timeStamp)
+		public virtual bool IsTimeIncluded(DateTime timeStampUtc)
 		{
-			if (timeStamp == DateTime.MinValue)
+			if (timeStampUtc == DateTime.MinValue)
 			{
-				throw new ArgumentException("timeStamp must be greater 0");
+				throw new ArgumentException("timeStampUtc must be greater 0");
 			}
 
 			if (baseCalendar != null)
 			{
-				if (baseCalendar.IsTimeIncluded(timeStamp) == false)
+				if (baseCalendar.IsTimeIncluded(timeStampUtc) == false)
 				{
 					return false;
 				}
@@ -137,33 +178,24 @@ namespace Quartz.Impl.Calendar
 		}
 
 		/// <summary>
-		/// Determine the next time (in milliseconds) that is 'included' by the
+		/// Determine the next UTC time (in milliseconds) that is 'included' by the
 		/// Calendar after the given time. Return the original value if timeStamp is
 		/// included. Return 0 if all days are excluded.
 		/// </summary>
-		/// <seealso cref="ICalendar.GetNextIncludedTime" />
-		public virtual DateTime GetNextIncludedTime(DateTime time)
+		/// <seealso cref="ICalendar.GetNextIncludedTimeUtc" />
+		public virtual DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
 		{
-			if (time == DateTime.MinValue)
+			if (timeUtc == DateTime.MinValue)
 			{
 				throw new ArgumentException("timeStamp must be greater DateTime.MinValue");
 			}
 
 			if (baseCalendar != null)
 			{
-				return baseCalendar.GetNextIncludedTime(time);
+				return baseCalendar.GetNextIncludedTimeUtc(timeUtc);
 			}
 
-			return time;
-		}
-
-		/// <summary>
-		/// Utility method. Return the date of excludeDate. The time fraction will
-		/// be reset to 00.00:00.
-		/// </summary>
-		public static DateTime BuildHoliday(DateTime date)
-		{
-			return date.Date;
+			return timeUtc;
 		}
 
 	}

@@ -27,10 +27,12 @@ using System.Reflection;
 using System.Threading;
 
 using Common.Logging;
-
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
+
 using Quartz;
 using Quartz.Collection;
 using Quartz.Core;
@@ -471,7 +473,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             get
             {
-                DateTime misfireTime = DateTime.Now;
+                DateTime misfireTime = DateTime.UtcNow;
                 if (MisfireThreshold > 0)
                 {
                     misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold);
@@ -811,7 +813,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (JobExists(conn, recoveringJobTriggers[i].JobName, recoveringJobTriggers[i].JobGroup))
                     {
-                        recoveringJobTriggers[i].ComputeFirstFireTime(null);
+                        recoveringJobTriggers[i].ComputeFirstFireTimeUtc(null);
                         StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, STATE_WAITING, false, true);
                     }
                 }
@@ -907,13 +909,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 Trigger trig = Delegate.SelectTrigger(conn, triggerName, groupName);
 
-                DateTime misfireTime = DateTime.Now;
+                DateTime misfireTime = DateTime.UtcNow;
                 if (MisfireThreshold > 0)
                 {
                     misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold);
                 }
 
-                if (trig.GetNextFireTime().Value > misfireTime)
+                if (trig.GetNextFireTimeUtc().Value > misfireTime)
                 {
                     return false;
                 }
@@ -946,7 +948,7 @@ namespace Quartz.Impl.AdoJobStore
 
             trig.UpdateAfterMisfire(cal);
 
-            if (!trig.GetNextFireTime().HasValue)
+            if (!trig.GetNextFireTimeUtc().HasValue)
             {
                 StoreTrigger(conn, ctxt, trig, null, true, STATE_COMPLETE, forceState, recovering);
             }
@@ -2786,7 +2788,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 TriggerStatus status = Delegate.SelectTriggerStatus(conn, triggerName, groupName);
 
-                if (status == null || !status.NextFireTime.HasValue || status.NextFireTime == DateTime.MinValue)
+                if (status == null || !status.NextFireTimeUtc.HasValue || status.NextFireTimeUtc == DateTime.MinValue)
                 {
                     return;
                 }
@@ -2801,7 +2803,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 bool misfired = false;
 
-                if ((status.NextFireTime.Value < DateTime.Now))
+                if ((status.NextFireTimeUtc.Value < DateTime.UtcNow))
                 {
                     misfired = UpdateMisfiredTrigger(conn, ctxt, triggerName, groupName, newState, true);
                 }
@@ -3230,7 +3232,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private static long ftrCtr = DateTime.Now.Ticks;
+        private static long ftrCtr = DateTime.UtcNow.Ticks;
 
 
         /**
@@ -3473,11 +3475,7 @@ namespace Quartz.Impl.AdoJobStore
                 throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
             }
 
-#if !NET_20
-            NullableDateTime prevFireTime = trigger.GetPreviousFireTime();
-#else
-            DateTime? prevFireTime = trigger.GetPreviousFireTime();
-#endif
+            NullableDateTime prevFireTime = trigger.GetPreviousFireTimeUtc();
 
             // call triggered - to update the trigger's next-fire-time state...
             trigger.Triggered(cal);
@@ -3504,7 +3502,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
 
-            if (!trigger.GetNextFireTime().HasValue)
+            if (!trigger.GetNextFireTimeUtc().HasValue)
             {
                 state2 = STATE_COMPLETE;
                 force = true;
@@ -3519,10 +3517,10 @@ namespace Quartz.Impl.AdoJobStore
                 trigger, 
                 cal, 
                 trigger.Group.Equals(SchedulerConstants.DEFAULT_RECOVERY_GROUP),
-                DateTime.Now,
-                trigger.GetPreviousFireTime(), 
+                DateTime.UtcNow,
+                trigger.GetPreviousFireTimeUtc(), 
                 prevFireTime, 
-                trigger.GetNextFireTime());
+                trigger.GetNextFireTimeUtc());
         }
 
 
@@ -3576,12 +3574,12 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
                 {
-                    if (!trigger.GetNextFireTime().HasValue)
+                    if (!trigger.GetNextFireTimeUtc().HasValue)
                     {
                         // double check for possible reschedule within job 
                         // execution, which would cancel the need to delete...
                         TriggerStatus stat = Delegate.SelectTriggerStatus(conn, trigger.Name, trigger.Group);
-                        if (stat != null && !stat.NextFireTime.HasValue)
+                        if (stat != null && !stat.NextFireTimeUtc.HasValue)
                         {
                             RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
                         }
@@ -3724,7 +3722,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected bool firstCheckIn = true;
 
-        protected DateTime lastCheckin = DateTime.Now;
+        protected DateTime lastCheckin = DateTime.UtcNow;
 
         protected virtual bool DoCheckin()
         {
@@ -3844,7 +3842,7 @@ namespace Quartz.Impl.AdoJobStore
                     else
                     {
                         // find failed instances...
-                        if (CalcFailedIfAfter(rec) < DateTime.Now)
+                        if (CalcFailedIfAfter(rec) < DateTime.UtcNow)
                         {
                             failedInstances.Add(rec);
                         }
@@ -3872,7 +3870,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                lastCheckin = DateTime.Now;
+                lastCheckin = DateTime.UtcNow;
                 throw new JobPersistenceException("Failure identifying failed instances when checking-in: "
                                                   + e.Message, e);
             }
@@ -3914,7 +3912,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected DateTime CalcFailedIfAfter(SchedulerStateRecord rec)
         {
-            return rec.CheckinTimestamp.AddMilliseconds(Math.Max(rec.CheckinInterval, (long)(DateTime.Now - lastCheckin).TotalMilliseconds) + 7500L);
+            return rec.CheckinTimestamp.AddMilliseconds(Math.Max(rec.CheckinInterval, (long)(DateTime.UtcNow - lastCheckin).TotalMilliseconds) + 7500L);
         }
 
         protected virtual IList ClusterCheckIn(ConnectionAndTransactionHolder conn)
@@ -3926,7 +3924,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
                 // check in...
-                lastCheckin = DateTime.Now;
+                lastCheckin = DateTime.UtcNow;
                 if (Delegate.UpdateSchedulerState(conn, InstanceId, lastCheckin) == 0)
                 {
                     Delegate.InsertSchedulerState(conn, InstanceId, lastCheckin, ClusterCheckinInterval);
@@ -3946,7 +3944,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (failedInstances.Count > 0)
             {
-                long recoverIds = DateTime.Now.Ticks;
+                long recoverIds = DateTime.UtcNow.Ticks;
 
                 LogWarnIfNonZero(failedInstances.Count,
                                  "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
@@ -4015,7 +4013,7 @@ namespace Quartz.Impl.AdoJobStore
                                     jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS, Convert.ToString(ftRec.FireTimestamp));
                                     rcvryTrig.JobDataMap = jd;
 
-                                    rcvryTrig.ComputeFirstFireTime(null);
+                                    rcvryTrig.ComputeFirstFireTimeUtc(null);
                                     StoreTrigger(conn, null, rcvryTrig, null, false, STATE_WAITING, false, true);
                                     recoveredCount++;
                                 }
@@ -4466,7 +4464,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (!shutdown)
                     {
                         long timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-                        long transpiredTime = (long)(DateTime.Now - jobStoreSupport.lastCheckin).TotalMilliseconds;
+                        long transpiredTime = (long)(DateTime.UtcNow - jobStoreSupport.lastCheckin).TotalMilliseconds;
                         timeToSleep = timeToSleep - transpiredTime;
                         if (timeToSleep <= 0)
                         {
@@ -4555,7 +4553,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     while (!shutdown)
                     {
-                        DateTime sTime = DateTime.Now;
+                        DateTime sTime = DateTime.UtcNow;
 
                         RecoverMisfiredJobsResult recoverMisfiredJobsResult = Manage();
 
@@ -4570,7 +4568,7 @@ namespace Quartz.Impl.AdoJobStore
                             if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
                             {
                                 timeToSleep = jobStoreSupport.MisfireThreshold -
-                                              (long)(DateTime.Now - sTime).TotalMilliseconds;
+                                              (long)(DateTime.UtcNow - sTime).TotalMilliseconds;
                                 if (timeToSleep <= 0)
                                 {
                                     timeToSleep = 50L;

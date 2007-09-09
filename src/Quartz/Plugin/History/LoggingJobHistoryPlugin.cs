@@ -373,8 +373,8 @@ namespace Quartz.Plugin.History
             object[] args =
                 new object[]
                     {
-                        context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
-                        trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount
+                        context.JobDetail.Name, context.JobDetail.Group, DateTime.UtcNow, trigger.Name, trigger.Group,
+                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 
             Log.Info(String.Format(JobToBeFiredMessage, args));
@@ -405,8 +405,8 @@ namespace Quartz.Plugin.History
                 args =
                     new object[]
                         {
-                            context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
-                            trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount, errMsg
+                            context.JobDetail.Name, context.JobDetail.Group, DateTime.UtcNow, trigger.Name, trigger.Group,
+                            trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
                         };
 
                 Log.Warn(String.Format(JobFailedMessage, args), jobException);
@@ -422,8 +422,8 @@ namespace Quartz.Plugin.History
                 args =
                     new object[]
                         {
-                            context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
-                            trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount, result
+                            context.JobDetail.Name, context.JobDetail.Group, DateTime.UtcNow, trigger.Name, trigger.Group,
+                            trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
                         };
 
                 Log.Info(String.Format(JobSuccessMessage, args));
@@ -450,8 +450,8 @@ namespace Quartz.Plugin.History
             object[] args =
                 new object[]
                     {
-                        context.JobDetail.Name, context.JobDetail.Group, DateTime.Now, trigger.Name, trigger.Group,
-                        trigger.GetPreviousFireTime(), trigger.GetNextFireTime(), context.RefireCount
+                        context.JobDetail.Name, context.JobDetail.Group, DateTime.UtcNow, trigger.Name, trigger.Group,
+                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 
             Log.Info(String.Format(JobWasVetoedMessage, args));

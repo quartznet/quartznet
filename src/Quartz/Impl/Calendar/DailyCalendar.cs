@@ -1,6 +1,8 @@
 using System;
 using System.Text;
 
+using Quartz;
+
 namespace Quartz.Impl.Calendar
 {
     /// <summary>
@@ -342,28 +344,28 @@ namespace Quartz.Impl.Calendar
         /// Determine whether the given time  is 'included' by the
         /// Calendar.
         /// </summary>
-        /// <param name="time"></param>
+        /// <param name="timeUtc"></param>
         /// <returns></returns>
-        public override bool IsTimeIncluded(DateTime time)
+        public override bool IsTimeIncluded(DateTime timeUtc)
         {
             if ((GetBaseCalendar() != null) &&
-                (GetBaseCalendar().IsTimeIncluded(time) == false))
+                (GetBaseCalendar().IsTimeIncluded(timeUtc) == false))
             {
                 return false;
             }
 
-            DateTime startOfDayInMillis = GetStartOfDay(time);
-            DateTime endOfDayInMillis = GetEndOfDay(time);
+            DateTime startOfDayInMillis = GetStartOfDay(timeUtc);
+            DateTime endOfDayInMillis = GetEndOfDay(timeUtc);
             DateTime timeRangeStartingTimeInMillis =
-                GetTimeRangeStartingTime(time);
+                GetTimeRangeStartingTime(timeUtc);
             DateTime timeRangeEndingTimeInMillis =
-                GetTimeRangeEndingTime(time);
+                GetTimeRangeEndingTime(timeUtc);
             if (!invertTimeRange)
             {
-                if ((time > startOfDayInMillis &&
-                     time < timeRangeStartingTimeInMillis) ||
-                    (time > timeRangeEndingTimeInMillis &&
-                     time < endOfDayInMillis))
+                if ((timeUtc > startOfDayInMillis &&
+                     timeUtc < timeRangeStartingTimeInMillis) ||
+                    (timeUtc > timeRangeEndingTimeInMillis &&
+                     timeUtc < endOfDayInMillis))
                 {
                     return true;
                 }
@@ -374,8 +376,8 @@ namespace Quartz.Impl.Calendar
             }
             else
             {
-                if ((time >= timeRangeStartingTimeInMillis) &&
-                    (time <= timeRangeEndingTimeInMillis))
+                if ((timeUtc >= timeRangeStartingTimeInMillis) &&
+                    (timeUtc <= timeRangeEndingTimeInMillis))
                 {
                     return true;
                 }
@@ -392,12 +394,12 @@ namespace Quartz.Impl.Calendar
         /// Calendar after the given time. Return the original value if timeStamp is
         /// included. Return 0 if all days are excluded.
         /// </summary>
-        /// <param name="time"></param>
+        /// <param name="timeUtc"></param>
         /// <returns></returns>
-        /// <seealso cref="ICalendar.GetNextIncludedTime"/>
-        public override DateTime GetNextIncludedTime(DateTime time)
+        /// <seealso cref="ICalendar.GetNextIncludedTimeUtc"/>
+        public override DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
         {
-            DateTime nextIncludedTime = time.AddMilliseconds(oneMillis);
+            DateTime nextIncludedTime = timeUtc.AddMilliseconds(oneMillis);
 
             while (!IsTimeIncluded(nextIncludedTime))
             {
@@ -421,7 +423,7 @@ namespace Quartz.Impl.Calendar
                              (!GetBaseCalendar().IsTimeIncluded(nextIncludedTime)))
                     {
                         nextIncludedTime =
-                            GetBaseCalendar().GetNextIncludedTime(nextIncludedTime);
+                            GetBaseCalendar().GetNextIncludedTimeUtc(nextIncludedTime);
                     }
                     else
                     {
@@ -453,7 +455,7 @@ namespace Quartz.Impl.Calendar
                              (!GetBaseCalendar().IsTimeIncluded(nextIncludedTime)))
                     {
                         nextIncludedTime =
-                            GetBaseCalendar().GetNextIncludedTime(nextIncludedTime);
+                            GetBaseCalendar().GetNextIncludedTimeUtc(nextIncludedTime);
                     }
                     else
                     {
@@ -668,12 +670,12 @@ namespace Quartz.Impl.Calendar
                      rangeEndingSecond,
                      rangeEndingMillis);
 
-            DateTime startCal = DateTime.Now;
+            DateTime startCal = DateTime.UtcNow;
             startCal =
                 new DateTime(startCal.Year, startCal.Month, startCal.Day, rangeStartingHourOfDay, rangeStartingMinute,
                              rangeStartingSecond, rangeStartingMillis);
 
-            DateTime endCal = DateTime.Now;
+            DateTime endCal = DateTime.UtcNow;
             endCal =
                 new DateTime(endCal.Year, endCal.Month, endCal.Day, rangeEndingHourOfDay, rangeEndingMinute,
                              rangeEndingSecond, rangeEndingMillis);

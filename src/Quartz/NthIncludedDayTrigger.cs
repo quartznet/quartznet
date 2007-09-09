@@ -17,11 +17,14 @@
 using System;
 using System.Globalization;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -100,13 +103,8 @@ namespace Quartz
 		/// </summary>
 		public const int INTERVAL_TYPE_WEEKLY = 3;
 
-#if !NET_20
-        private NullableDateTime previousFireTime;
-		private NullableDateTime nextFireTime;
-#else
-        private DateTime? previousFireTime;
-        private DateTime? nextFireTime;
-#endif  
+        private NullableDateTime previousFireTimeUtc;
+		private NullableDateTime nextFireTimeUtc;
         private ICalendar calendar;
 
 		private int n = 1;
@@ -117,6 +115,66 @@ namespace Quartz
 		private int fireAtSecond = 0;
 		private DayOfWeek triggerCalendarFirstDayOfWeek = DayOfWeek.Sunday;
 		private CalendarWeekRule triggerCalendarWeekRule = CalendarWeekRule.FirstFourDayWeek;
+	    private TimeZone timeZone;
+
+
+        /// <summary> 
+        /// Create an <see cref="NthIncludedDayTrigger" /> with no specified name,
+        /// group, or <see cref="JobDetail" />. This will result initially in a
+        /// default monthly trigger that fires on the first day of every month at
+        /// 12:00 PM (n = 1, 
+        /// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
+        /// fireAtTime="12:00").
+        /// <p>
+        /// Note that <see cref="Trigger.Name" />, <see cref="Trigger.Group" />, 
+        /// <see cref="Trigger.JobName" />, and <see cref="Trigger.JobGroup" />, must be 
+        /// called before the <see cref="NthIncludedDayTrigger" /> can be placed into
+        /// a <see cref="IScheduler" />.
+        /// </p>
+        /// </summary>
+        public NthIncludedDayTrigger()
+        {
+        }
+
+        /// <summary> 
+        /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
+        /// group but no specified <see cref="JobDetail" />. This will result 
+        /// initially in a default monthly trigger that fires on the first day of 
+        /// every month at 12:00 PM (<see cref="n" />=1, 
+        /// intervalType=<see cref="INTERVAL_TYPE_MONTHLY" />, 
+        /// fireAtTime=12:00").
+        /// <p>
+        /// Note that <see cref="Trigger.JobName" /> and <see cref="Trigger.JobGroup" /> must
+        /// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
+        /// into a <see cref="IScheduler" />.
+        /// </p>
+        /// </summary>
+        /// <param name="name"> the name for the <see cref="NthIncludedDayTrigger" />
+        /// </param>
+        /// <param name="group">the group for the <see cref="NthIncludedDayTrigger" />
+        /// </param>
+        public NthIncludedDayTrigger(string name, string group)
+            : base(name, group)
+        {
+        }
+
+        /// <summary> 
+        /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
+        /// group and the specified <see cref="JobDetail" />. This will result 
+        /// initially in a default monthly trigger that fires on the first day of
+        /// every month at 12:00 PM (<see cref="n" />=1, 
+        /// intervalType=<see cref="INTERVAL_TYPE_MONTHLY" />, 
+        /// fireAtTime="12:00").
+        /// </summary>
+        /// <param name="name">The name for the <see cref="NthIncludedDayTrigger" />.</param>
+        /// <param name="group">The group for the <see cref="NthIncludedDayTrigger" />.</param>
+        /// <param name="jobName">The name of the job to associate with the <see cref="NthIncludedDayTrigger" />.</param>
+        /// <param name="jobGroup">The group containing the job to associate with the <see cref="NthIncludedDayTrigger" />.</param>
+        public NthIncludedDayTrigger(string name, string group, string jobName, string jobGroup)
+            : base(name, group, jobName, jobGroup)
+        {
+        }
+
 
 		/// <summary> 
 		/// Gets or sets the day of the interval on which the 
@@ -142,7 +200,8 @@ namespace Quartz
 
 		/// <summary> 
 		/// Returns the interval type for the <see cref="NthIncludedDayTrigger" />.
-		/// 
+		/// </summary>
+		/// <remarks>
 		/// Sets the interval type for the <see cref="NthIncludedDayTrigger" />. If
 		/// {@link #INTERVAL_TYPE_MONTHLY}, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every month. If 
@@ -150,13 +209,10 @@ namespace Quartz
 		/// N<SUP>th</SUP> included day of every year. If 
 		/// {@link #INTERVAL_TYPE_WEEKLY}, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every week. 
-		/// </summary>
-		/// <seealso cref="INTERVAL_TYPE_WEEKLY">
-		/// </seealso>
-		/// <seealso cref="INTERVAL_TYPE_MONTHLY">
-		/// </seealso>
-		/// <seealso cref="INTERVAL_TYPE_YEARLY">
-		/// </seealso>
+        /// </remarks>
+		/// <seealso cref="INTERVAL_TYPE_WEEKLY" />
+		/// <seealso cref="INTERVAL_TYPE_MONTHLY" />
+		/// <seealso cref="INTERVAL_TYPE_YEARLY" />
 		public virtual int IntervalType
 		{
 			get { return intervalType; }
@@ -178,7 +234,7 @@ namespace Quartz
 						break;
 
 					default:
-						throw new ArgumentException("Invalid Interval Type:" + value);
+						throw new ArgumentException("Invalid Interval Type: " + value);
 				}
 			}
 		}
@@ -291,29 +347,19 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Returns the last time the <see cref="NthIncludedDayTrigger" /> will fire.
+		/// Returns the last UTC time the <see cref="NthIncludedDayTrigger" /> will fire.
 		/// If the trigger will not fire at any point between <see name="startTime" />
 		/// and <see name="endTime" />, <see langword="null" /> will be returned.
 		/// </summary>
-		/// <returns> the last time the trigger will fire.
-		/// </returns>
-#if !NET_20
-        public override NullableDateTime FinalFireTime
-#else
-        public override DateTime? FinalFireTime
-#endif
+		/// <returns> the last time the trigger will fire.</returns>
+        public override NullableDateTime FinalFireTimeUtc
 		{
 			get
 			{
-#if !NET_20
                 NullableDateTime finalTime = null;
-				NullableDateTime currCal = new NullableDateTime(EndTime.Value);
-#else
-                DateTime? finalTime = null;
-                DateTime? currCal = EndTime.Value;
-#endif
+				NullableDateTime currCal = new NullableDateTime(EndTimeUtc.Value);
 
-                while (!finalTime.HasValue && StartTime < currCal.Value)
+                while (!finalTime.HasValue && StartTimeUtc < currCal.Value)
 				{
 					currCal = currCal.Value.AddDays(-1);
 					finalTime = GetFireTimeAfter(currCal);
@@ -333,174 +379,126 @@ namespace Quartz
 			get { return false; }
 		}
 
-
-
 		/// <summary> 
-		/// Create an <see cref="NthIncludedDayTrigger" /> with no specified name,
-		/// group, or <see cref="JobDetail" />. This will result initially in a
-		/// default monthly trigger that fires on the first day of every month at
-		/// 12:00 PM (n = 1, 
-		/// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
-		/// fireAtTime="12:00").
-		/// <p>
-        /// Note that <see cref="Trigger.Name" />, <see cref="Trigger.Group" />, 
-        /// <see cref="Trigger.JobName" />, and <see cref="Trigger.JobGroup" />, must be 
-		/// called before the <see cref="NthIncludedDayTrigger" /> can be placed into
-		/// a <see cref="IScheduler" />.
-		/// </p>
-		/// </summary>
-		public NthIncludedDayTrigger()
-		{
-		}
-
-		/// <summary> 
-		/// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
-		/// group but no specified <see cref="JobDetail" />. This will result 
-		/// initially in a default monthly trigger that fires on the first day of 
-		/// every month at 12:00 PM (<see cref="n" />=1, 
-		/// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
-		/// fireAtTime=12:00").
-		/// <p>
-        /// Note that <see cref="Trigger.JobName" /> and <see cref="Trigger.JobGroup" /> must
-		/// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
-		/// into a <see cref="IScheduler" />.
-		/// </p>
-		/// </summary>
-		/// <param name="name"> the name for the <see cref="NthIncludedDayTrigger" />
-		/// </param>
-		/// <param name="group">the group for the <see cref="NthIncludedDayTrigger" />
-		/// </param>
-		public NthIncludedDayTrigger(string name, string group) : base(name, group)
-		{
-		}
-
-		/// <summary> 
-		/// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
-		/// group and the specified <see cref="JobDetail" />. This will result 
-		/// initially in a default monthly trigger that fires on the first day of
-		/// every month at 12:00 PM (<see cref="n" />=1, 
-		/// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
-		/// fireAtTime="12:00").
-		/// </summary>
-		/// <param name="name">The name for the <see cref="NthIncludedDayTrigger" />.</param>
-		/// <param name="group">The group for the <see cref="NthIncludedDayTrigger" />.</param>
-		/// <param name="jobName">The name of the job to associate with the <see cref="NthIncludedDayTrigger" />.</param>
-		/// <param name="jobGroup">The group containing the job to associate with the <see cref="NthIncludedDayTrigger" />.</param>
-		public NthIncludedDayTrigger(string name, string group, string jobName, string jobGroup)
-			: base(name, group, jobName, jobGroup)
-		{
-		}
-
-		/// <summary> 
-		/// Returns the next time at which the <see cref="NthIncludedDayTrigger" />
+		/// Returns the next UTC time at which the <see cref="NthIncludedDayTrigger" />
 		/// will fire. If the trigger will not fire again, <see langword="null" /> will be
 		/// returned. 
+		/// </summary>
+		/// <remarks>
 		/// <p>
 		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
-		/// will <I>never</I> fire again. Therefore, it will search for the next 
+		/// will <i>never</i> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
-		/// {@link #setNextFireCutoffInterval(int)} and 
-		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
+		/// <see cref="NextFireCutoffInterval" /> property. The default cutoff is 12
 		/// of the intervals specified by <see cref="IntervalType" /> intervalType.
 		/// </p>
 		/// <p>
 		/// The returned value is not guaranteed to be valid until after
 		/// the trigger has been added to the scheduler.
 		/// </p>
-		/// </summary>
-		/// <returns> the next fire time for the trigger
-		/// </returns>
+        /// </remarks>
+		/// <returns> the next fire time for the trigger</returns>
 		/// <seealso cref="NextFireCutoffInterval" /> 
-#if !NET_20
-        public override NullableDateTime GetNextFireTime()
-#else
-        public override DateTime? GetNextFireTime()
-#endif
+        public override NullableDateTime GetNextFireTimeUtc()
 		{
-			return nextFireTime;
+			return nextFireTimeUtc;
 		}
 
-		/// <summary> Returns the previous time at which the 
+		/// <summary> 
+		/// Returns the previous UTC time at which the 
 		/// <see cref="NthIncludedDayTrigger" /> fired. If the trigger has not yet 
 		/// fired, <see langword="null" /> will be returned.
-		/// 
 		/// </summary>
-		/// <returns> the previous fire time for the trigger
-		/// </returns>
-#if !NET_20
-        public override NullableDateTime GetPreviousFireTime()
-#else
-        public override DateTime? GetPreviousFireTime()
-#endif
+		/// <returns> the previous fire time for the trigger</returns>
+        public override NullableDateTime GetPreviousFireTimeUtc()
 		{
-			return previousFireTime;
+			return previousFireTimeUtc;
 		}
 
-		/// <summary>
+
+	    /// <summary>
+	    /// Sets or gets the time zone in which the <code>fireAtTime</code> will be resolved.
+	    /// If no time zone is provided, then the default time zone will be used. 
+	    /// </summary>
+	    /// <see cref="System.TimeZone.CurrentTimeZone" />
+	    /// <see cref="FireAtTime" />
+	    public virtual TimeZone TimeZone
+	    {
+	        get
+	        {
+	            if (timeZone == null)
+	            {
+	                timeZone = TimeZone.CurrentTimeZone;
+	            }
+	            return timeZone;
+	        }
+	        set { timeZone = value; }
+	    }
+
+
+	    /// <summary>
 		/// Returns the first time the <see cref="NthIncludedDayTrigger" /> will fire
-		/// after the specified date. 
-		/// <P> 
+		/// after the specified date.
+		/// </summary>
+		/// <remarks>
+		/// <p> 
 		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
-		/// will <I>never</I> fire again. Therefore, it will search for the next 
+		/// will <i>never</i> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
-		/// {@link #setNextFireCutoffInterval(int)} and 
-		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
+		/// <see cref="NextFireCutoffInterval" /> property. The default cutoff is 12
 		/// of the intervals specified by <see cref="IntervalType" /> intervalType.
-		/// </P>
-		/// <P>
+		/// </p>
+		/// <p>
 		/// Therefore, for triggers with intervalType = 
-		/// {@link NthIncludedDayTrigger#INTERVAL_TYPE_WEEKLY 
-		/// INTERVAL_TYPE_WEEKLY" />, if the trigger will not fire within 12
+        /// <see cref="NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY" />, if the trigger 
+        /// will not fire within 12
 		/// weeks after the given date/time, <see langword="null" /> will be returned. For
 		/// triggers with intervalType = 
-		/// {@link NthIncludedDayTrigger#INTERVAL_TYPE_MONTHLY
-		/// INTERVAL_TYPE_MONTHLY" />, if the trigger will not fire within 12 
+        /// <see cref="NthIncludedDayTrigger.INTERVAL_TYPE_MONTHLY" />
+		/// , if the trigger will not fire within 12 
 		/// months after the given date/time, <see langword="null" /> will be returned. 
 		/// For triggers with intervalType = 
-		/// {@link NthIncludedDayTrigger#INTERVAL_TYPE_YEARLY 
-		/// INTERVAL_TYPE_YEARLY" />, if the trigger will not fire within 12
+        /// <see cref="NthIncludedDayTrigger.INTERVAL_TYPE_YEARLY" />
+		/// , if the trigger will not fire within 12
 		/// years after the given date/time, <see langword="null" /> will be returned.  In 
 		/// all cases, if the trigger will not fire before <see field="endTime" />, 
 		/// <see langword="null" /> will be returned.
-		/// </P>
-		/// </summary>
-		/// <param name="afterTime">The time after which to find the nearest fire time.
+		/// </p>
+        /// </remarks> 
+		/// <param name="afterTimeUtc">The time after which to find the nearest fire time.
 		/// This argument is treated as exclusive &#x8212; that is,
 		/// if afterTime is a valid fire time for the trigger, it
 		/// will not be returned as the next fire time.
 		/// </param>
-		/// <returns> the first time the trigger will fire following the specified
-		/// date
+		/// <returns> 
+		/// the first time the trigger will fire following the specified date
 		/// </returns>
-#if !NET_20
-        public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
-#else
-        public override DateTime? GetFireTimeAfter(DateTime? afterTime)
-#endif
+        public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTimeUtc)
 		{
-			if (!afterTime.HasValue)
+            afterTimeUtc = DateTimeUtil.AssumeUniversalTime(afterTimeUtc);
+			if (!afterTimeUtc.HasValue)
 			{
-				afterTime = DateTime.Now;
+				afterTimeUtc = DateTime.UtcNow;
 			}
 
-			if ((afterTime.Value < StartTime))
+			if ((afterTimeUtc.Value < StartTimeUtc))
 			{
-				afterTime = StartTime.AddMilliseconds(-1*1000);
+				afterTimeUtc = StartTimeUtc.AddMilliseconds(-1*1000);
 			}
 
 			if (intervalType == INTERVAL_TYPE_WEEKLY)
 			{
-				return GetWeeklyFireTimeAfter(afterTime);
+				return GetWeeklyFireTimeAfter(afterTimeUtc.Value);
 			}
 			else if (intervalType == INTERVAL_TYPE_MONTHLY)
 			{
-				return GetMonthlyFireTimeAfter(afterTime.Value);
+				return GetMonthlyFireTimeAfter(afterTimeUtc.Value);
 			}
 			else if (intervalType == INTERVAL_TYPE_YEARLY)
 			{
-				return GetYearlyFireTimeAfter(afterTime.Value);
+				return GetYearlyFireTimeAfter(afterTimeUtc.Value);
 			}
 			else
 			{
@@ -517,8 +515,8 @@ namespace Quartz
 		public override void Triggered(ICalendar cal)
 		{
 			calendar = cal;
-			previousFireTime = nextFireTime;
-			nextFireTime = GetFireTimeAfter(nextFireTime);
+			previousFireTimeUtc = nextFireTimeUtc;
+			nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 		}
 
 		/// <summary>
@@ -526,7 +524,7 @@ namespace Quartz
 		/// added to the scheduler, in order to have the <see cref="Trigger" />
 		/// compute its first fire time, based on any associated calendar.
 		/// <p>
-		/// After this method has been called, <see cref="GetNextFireTime()" />
+		/// After this method has been called, <see cref="GetNextFireTimeUtc" />
 		/// should return a valid answer.
 		/// </p>
 		/// 
@@ -536,17 +534,13 @@ namespace Quartz
 		/// {@link #getNextFireTime()} will return (until after the first 
 		/// firing of the <see cref="Trigger" />).
 		/// </returns>
-#if !NET_20
-        public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
-#else
-        public override DateTime? ComputeFirstFireTime(ICalendar cal)
-#endif
+        public override NullableDateTime ComputeFirstFireTimeUtc(ICalendar cal)
 		{
 			calendar = cal;
-			DateTime tempAux = StartTime.AddMilliseconds(-1*1000);
-			nextFireTime = GetFireTimeAfter(tempAux);
+			DateTime dt = StartTimeUtc.AddMilliseconds(-1*1000);
+			nextFireTimeUtc = GetFireTimeAfter(dt);
 
-			return nextFireTime;
+			return nextFireTimeUtc;
 		}
 
 		/// <summary> 
@@ -606,7 +600,7 @@ namespace Quartz
 		/// </returns>
 		public override bool GetMayFireAgain()
 		{
-			return GetNextFireTime().HasValue;
+			return GetNextFireTimeUtc().HasValue;
 		}
 
 		/// <summary> 
@@ -646,12 +640,11 @@ namespace Quartz
 
 			if (instruction == MisfirePolicy.NthIncludedDayTrigger.DoNothing)
 			{
-				DateTime tempAux = DateTime.Now;
-				nextFireTime = GetFireTimeAfter(tempAux);
+                nextFireTimeUtc = GetFireTimeAfter(DateTime.UtcNow);
 			}
 			else if (instruction == MisfirePolicy.NthIncludedDayTrigger.FireOnceNow)
 			{
-				nextFireTime = DateTime.Now;
+				nextFireTimeUtc = DateTime.UtcNow;
 			}
 		}
 
@@ -667,15 +660,15 @@ namespace Quartz
 		public override void UpdateWithNewCalendar(ICalendar cal, long misfireThreshold)
 		{
 		    calendar = cal;
-			nextFireTime = GetFireTimeAfter(previousFireTime);
+			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-			DateTime now = DateTime.Now;
-			if ((nextFireTime.HasValue) && ((nextFireTime.Value < now)))
+			DateTime now = DateTime.UtcNow;
+			if ((nextFireTimeUtc.HasValue) && ((nextFireTimeUtc.Value < now)))
 			{
-			    long diff = (long) (now - nextFireTime.Value).TotalMilliseconds;
+			    long diff = (long) (now - nextFireTimeUtc.Value).TotalMilliseconds;
 			    if (diff >= misfireThreshold)
 				{
-					nextFireTime = GetFireTimeAfter(nextFireTime);
+					nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 				}
 			}
 		}
@@ -683,10 +676,10 @@ namespace Quartz
 		/// <summary> 
 		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
 		/// <c>intervalType = INTERVAL_TYPE_WEEKLY</c> will fire 
-		/// after the specified date. See <see cref="GetNextFireTime" /> for more 
+		/// after the specified date. See <see cref="GetNextFireTimeUtc" /> for more 
 		/// information.
 		/// </summary>
-		/// <param name="afterDate">The time after which to find the nearest fire time.
+		/// <param name="afterDateUtc">The time after which to find the nearest fire time.
 		/// This argument is treated as exclusive &#x8212; that is,
 		/// if afterTime is a valid fire time for the trigger, it
 		/// will not be returned as the next fire time.
@@ -694,21 +687,17 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-#if !NET_20
-        private NullableDateTime GetWeeklyFireTimeAfter(NullableDateTime afterDate)
-#else
-        private DateTime? GetWeeklyFireTimeAfter(DateTime? afterDate)
-#endif
-		{
+        private NullableDateTime GetWeeklyFireTimeAfter(DateTime afterDateUtc)
+        {
 			int currN = 0;
-			DateTime afterCal = afterDate.Value;
-			DateTime currCal = new DateTime(afterCal.Year, afterCal.Month, afterCal.Day);
 			int currWeek;
 			int weekCount = 0;
 			bool gotOne = false;
 
-			//move to the first day of the week (SUNDAY)
-			currCal = currCal.AddDays(((int) afterCal.DayOfWeek)*- 1);
+            afterDateUtc = TimeZone.ToLocalTime(afterDateUtc);
+            DateTime currCal = new DateTime(afterDateUtc.Year, afterDateUtc.Month, afterDateUtc.Day);
+            //move to the first day of the week (SUNDAY)
+            currCal = currCal.AddDays(((int)afterDateUtc.DayOfWeek) * -1);
 
 			currCal = new DateTime(currCal.Year, currCal.Month, currCal.Day, fireAtHour, fireAtMinute, fireAtSecond, 0);
 
@@ -740,7 +729,7 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
-					if (EndTime.HasValue && currCal > EndTime.Value)
+					if (EndTimeUtc.HasValue && currCal.ToUniversalTime() > EndTimeUtc.Value)
 					{
 						return null;
 					}
@@ -748,10 +737,10 @@ namespace Quartz
 
 				//We found an "n" or we've checked the requisite number of weeks.
 				// If we've found an "n", is it the right one? -- that is, we could
-				// be looking at an nth day PRIOR to afterDate
+				// be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
-					if (afterDate.Value < currCal)
+					if (afterDateUtc < currCal.ToUniversalTime())
 					{
 						gotOne = true;
 					}
@@ -767,7 +756,7 @@ namespace Quartz
 
 			if (weekCount < nextFireCutoffInterval)
 			{
-				return currCal;
+				return currCal.ToUniversalTime();
 			}
 			else
 			{
@@ -776,27 +765,23 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
+		/// Calculates the first UTC time an <see cref="NthIncludedDayTrigger" /> with 
 		/// intervalType = <see cref="INTERVAL_TYPE_MONTHLY" /> will fire 
-		/// after the specified date. See <see cref="GetNextFireTime" /> for more 
+		/// after the specified date. See <see cref="GetNextFireTimeUtc" /> for more 
 		/// information.
 		/// </summary>
-		/// <param name="afterDate">
-		/// The time after which to find the nearest fire time.
+		/// <param name="afterDateUtc">
+		/// The UTC time after which to find the nearest fire time.
 		/// This argument is treated as exclusive &#x8212; that is,
 		/// if afterTime is a valid fire time for the trigger, it
 		/// will not be returned as the next fire time.
 		/// </param>
 		/// <returns> the first time the trigger will fire following the specified date </returns>
-#if !NET_20
-        private NullableDateTime GetMonthlyFireTimeAfter(DateTime afterDate)
-#else
-        private DateTime? GetMonthlyFireTimeAfter(DateTime afterDate)
-#endif
+        private NullableDateTime GetMonthlyFireTimeAfter(DateTime afterDateUtc)
 		{
 			int currN = 0;
-			DateTime afterCal = afterDate;
-			DateTime currCal = new DateTime(afterCal.Year, afterCal.Month, afterCal.Day, fireAtHour, fireAtMinute, fireAtSecond, 0);
+            DateTime currCal = TimeZone.ToLocalTime(afterDateUtc);
+            currCal = new DateTime(currCal.Year, currCal.Month, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currMonth;
 			int monthCount = 0;
 			bool gotOne = false;
@@ -829,7 +814,7 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
-					if (EndTime.HasValue && currCal > EndTime.Value)
+					if (EndTimeUtc.HasValue && currCal > EndTimeUtc.Value)
 					{
 						return null;
 					}
@@ -837,10 +822,10 @@ namespace Quartz
 
 				//We found an "n" or we've checked the requisite number of months.
 				// If we've found an "n", is it the right one? -- that is, we could
-				// be looking at an nth day PRIOR to afterDate
+				// be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
-					if (afterDate < currCal)
+					if (afterDateUtc < currCal)
 					{
 						gotOne = true;
 					}
@@ -857,7 +842,7 @@ namespace Quartz
 
 			if (monthCount < nextFireCutoffInterval)
 			{
-				return currCal;
+				return currCal.ToUniversalTime();
 			}
 			else
 			{
@@ -868,11 +853,11 @@ namespace Quartz
 		/// <summary> 
 		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
 		/// intervalType = <see cref="INTERVAL_TYPE_YEARLY" /> will fire 
-		/// after the specified date. See <see cref="GetNextFireTime" /> for more 
+		/// after the specified date. See <see cref="GetNextFireTimeUtc" /> for more 
 		/// information.
 		/// </summary>
-		/// <param name="afterDate">
-		/// The time after which to find the nearest fire time.
+		/// <param name="afterDateUtc">
+		/// The UTC time after which to find the nearest fire time.
 		/// This argument is treated as exclusive &#x8212; that is,
 		/// if afterTime is a valid fire time for the trigger, it
 		/// will not be returned as the next fire time.
@@ -880,15 +865,11 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-#if !NET_20
-        private NullableDateTime GetYearlyFireTimeAfter(NullableDateTime afterDate)
-#else
-        private DateTime? GetYearlyFireTimeAfter(DateTime? afterDate)
-#endif
+        private NullableDateTime GetYearlyFireTimeAfter(DateTime afterDateUtc)
 		{
 			int currN = 0;
-			DateTime afterCal = afterDate.Value;
-			DateTime currCal = new DateTime(afterCal.Year, 1, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
+            DateTime currCal = TimeZone.ToLocalTime(afterDateUtc);
+            currCal = new DateTime(currCal.Year, 1, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currYear;
 			int yearCount = 0;
 			bool gotOne = false;
@@ -921,7 +902,7 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
-					if (EndTime.HasValue && currCal > EndTime.Value)
+					if (EndTimeUtc.HasValue && currCal.ToUniversalTime() > EndTimeUtc.Value)
 					{
 						return null;
 					}
@@ -929,10 +910,10 @@ namespace Quartz
 
 				//We found an "n" or we've checked the requisite number of years.
 				// If we've found an "n", is it the right one? -- that is, we 
-				// could be looking at an nth day PRIOR to afterDate
+				// could be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
-					if (afterDate.Value < currCal)
+					if (afterDateUtc < currCal.ToUniversalTime())
 					{
 						gotOne = true;
 					}
@@ -947,7 +928,7 @@ namespace Quartz
 
 			if (yearCount < nextFireCutoffInterval)
 			{
-				return currCal;
+				return currCal.ToUniversalTime();
 			}
 			else
 			{

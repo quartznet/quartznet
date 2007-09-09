@@ -22,7 +22,9 @@
 using System;
 using System.Collections;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
@@ -173,7 +175,7 @@ namespace Quartz
 				return null; /* never happens... */
 			}
 
-			trig.StartTime = DateTime.Now;
+			trig.StartTimeUtc = DateTime.UtcNow;
 
 			return trig;
 		}
@@ -223,7 +225,7 @@ namespace Quartz
 				return null; /* never happens... */
 			}
 
-			trig.StartTime = DateTime.Now;
+			trig.StartTimeUtc = DateTime.UtcNow;
 
 			return trig;
 		}
@@ -289,7 +291,7 @@ namespace Quartz
 				return null; /* never happens... */
 			}
 
-			trig.StartTime = DateTime.Now;
+			trig.StartTimeUtc = DateTime.UtcNow;
 
 			return trig;
 		}
@@ -332,7 +334,7 @@ namespace Quartz
 		public static Trigger MakeImmediateTrigger(int repeatCount, long repeatInterval)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
-			trig.StartTime = DateTime.Now;
+			trig.StartTimeUtc = DateTime.UtcNow;
 			trig.RepeatCount = repeatCount;
 			trig.RepeatInterval = repeatInterval;
 			return trig;
@@ -414,7 +416,7 @@ namespace Quartz
 
 			trig.RepeatInterval = intervalInSeconds*1000L;
 			trig.RepeatCount = repeatCount;
-            trig.StartTime = new DateTime();
+            trig.StartTimeUtc = DateTime.UtcNow;
 
 			return trig;
 		}
@@ -495,7 +497,7 @@ namespace Quartz
 			SimpleTrigger trig = new SimpleTrigger();
 			trig.RepeatInterval = intervalInMinutes*MILLISECONDS_IN_MINUTE;
 			trig.RepeatCount = repeatCount;
-			trig.StartTime = DateTime.Now;
+			trig.StartTimeUtc = DateTime.UtcNow;
 
 			return trig;
 		}
@@ -577,7 +579,7 @@ namespace Quartz
 
 			trig.RepeatInterval = intervalInHours*MILLISECONDS_IN_HOUR;
 			trig.RepeatCount = repeatCount;
-			trig.StartTime = DateTime.Now;
+			trig.StartTimeUtc = DateTime.UtcNow;
 
 			return trig;
 		}
@@ -613,11 +615,7 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-#if !NET_20
         public static DateTime GetEvenHourDate(NullableDateTime date)
-#else
-        public static DateTime GetEvenHourDate(DateTime? date)
-#endif
 		{
 			if (!date.HasValue)
 			{
@@ -638,11 +636,7 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-#if !NET_20
         public static DateTime GetEvenHourDateBefore(NullableDateTime date)
-#else
-        public static DateTime GetEvenHourDateBefore(DateTime? date)
-#endif
 		{
 			if (!date.HasValue)
 			{
@@ -662,11 +656,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="date">The Date to round, if <see langword="null" /> the current time will  be used</param>
 		/// <returns>The new rounded date</returns>
-#if !NET_20
         public static DateTime GetEvenMinuteDate(NullableDateTime date)
-#else
-        public static DateTime GetEvenMinuteDate(DateTime? date)
-#endif
 		{
 			if (!date.HasValue)
 			{
@@ -689,11 +679,7 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-#if !NET_20
         public static DateTime GetEvenMinuteDateBefore(NullableDateTime date)
-#else
-        public static DateTime GetEvenMinuteDateBefore(DateTime? date)
-#endif
 		{
 			if (!date.HasValue)
 			{
@@ -711,11 +697,7 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-#if !NET_20
         public static DateTime GetEvenSecondDate(NullableDateTime date)
-#else
-        public static DateTime GetEvenSecondDate(DateTime? date)
-#endif
 		{
 			if (!date.HasValue)
 			{
@@ -737,11 +719,7 @@ namespace Quartz
 		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-#if !NET_20
         public static DateTime GetEvenSecondDateBefore(NullableDateTime date)
-#else
-        public static DateTime GetEvenSecondDateBefore(DateTime? date)
-#endif
 		{
 			if (!date.HasValue)
 			{
@@ -842,11 +820,7 @@ namespace Quartz
 		/// the base-minute to set the time on
 		/// </param>
 		/// <returns> the new rounded date</returns>
-#if !NET_20
         public static DateTime GetNextGivenMinuteDate(NullableDateTime date, int minuteBase)
-#else
-        public static DateTime GetNextGivenMinuteDate(DateTime? date, int minuteBase)
-#endif
 		{
 			if (minuteBase < 0 || minuteBase > 59)
 			{
@@ -892,11 +866,7 @@ namespace Quartz
 		/// <param name="date">The date.</param>
 		/// <param name="secondBase">The second base.</param>
 		/// <returns></returns>
-#if !NET_20
         public static DateTime GetNextGivenSecondDate(NullableDateTime date, int secondBase)
-#else
-        public static DateTime GetNextGivenSecondDate(DateTime? date, int secondBase)
-#endif
 		{
 			if (secondBase < 0 || secondBase > 59)
 			{
@@ -1009,18 +979,14 @@ namespace Quartz
 
 			Trigger t = (Trigger) trigg.Clone();
 
-			if (t.GetNextFireTime() == null || !t.GetNextFireTime().HasValue)
+			if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
 			{
-				t.ComputeFirstFireTime(cal);
+				t.ComputeFirstFireTimeUtc(cal);
 			}
 
 			for (int i = 0; i < numTimes; i++)
 			{
-#if !NET_20
-                NullableDateTime d = t.GetNextFireTime();
-#else
-                DateTime? d = t.GetNextFireTime();
-#endif
+                NullableDateTime d = t.GetNextFireTimeUtc();
                 if (d.HasValue)
 				{
 					lst.Add(d);
@@ -1057,22 +1023,18 @@ namespace Quartz
 
 			Trigger t = (Trigger) trigg.Clone();
 
-			if (t.GetNextFireTime() == null || !t.GetNextFireTime().HasValue)
+			if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
 			{
-				t.StartTime = from;
-				t.EndTime = to;
-				t.ComputeFirstFireTime(cal);
+				t.StartTimeUtc = from;
+				t.EndTimeUtc = to;
+				t.ComputeFirstFireTimeUtc(cal);
 			}
 
 			// TODO: this method could be more efficient by using logic specific
 			//        to the type of trigger ...
 			while (true)
 			{
-#if !NET_20
-                NullableDateTime d = t.GetNextFireTime();
-#else
-                DateTime? d = t.GetNextFireTime();
-#endif
+                NullableDateTime d = t.GetNextFireTimeUtc();
                 if (d.HasValue)
 				{
 					if (d.Value < from)

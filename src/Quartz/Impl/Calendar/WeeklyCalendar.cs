@@ -63,20 +63,18 @@ namespace Quartz.Impl.Calendar
         // Will be set to true, if all week days are excluded
         private bool excludeAll = false;
 
-        /// <summary> <p>
-        /// Constructor
-        /// </p>
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
         /// </summary>
         public WeeklyCalendar()
-            : base()
         {
             Init();
         }
 
-        /// <summary> <p>
-        /// Constructor
-        /// </p>
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
         /// </summary>
+        /// <param name="baseCalendar">The base calendar.</param>
         public WeeklyCalendar(ICalendar baseCalendar)
             : base(baseCalendar)
         {
@@ -163,7 +161,7 @@ namespace Quartz.Impl.Calendar
         /// Note that this Calendar is only has full-day precision.
         /// </p>
         /// </summary>
-        public override bool IsTimeIncluded(DateTime time)
+        public override bool IsTimeIncluded(DateTime timeUtc)
         {
             if (excludeAll)
             {
@@ -172,12 +170,12 @@ namespace Quartz.Impl.Calendar
 
             // Test the base calendar first. Only if the base calendar not already
             // excludes the time/date, continue evaluating this calendar instance.
-            if (!base.IsTimeIncluded(time))
+            if (!base.IsTimeIncluded(timeUtc))
             {
                 return false;
             }
 
-            return !(IsDayExcluded(time.DayOfWeek));
+            return !(IsDayExcluded(timeUtc.DayOfWeek));
         }
 
         /// <summary>
@@ -188,26 +186,26 @@ namespace Quartz.Impl.Calendar
         /// Note that this Calendar is only has full-day precision.
         /// </p>
         /// </summary>
-        public override DateTime GetNextIncludedTime(DateTime time)
+        public override DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
         {
-            if (excludeAll == true)
+            if (excludeAll)
             {
                 return DateTime.MinValue;
             }
 
             // Call base calendar implementation first
-            DateTime baseTime = base.GetNextIncludedTime(time);
-            if ((baseTime != DateTime.MinValue) && (baseTime > time))
+            DateTime baseTime = base.GetNextIncludedTimeUtc(timeUtc);
+            if ((baseTime != DateTime.MinValue) && (baseTime > timeUtc))
             {
-                time = baseTime;
+                timeUtc = baseTime;
             }
 
             // Get timestamp for 00:00:00
-            DateTime d = BuildHoliday(time);
+            DateTime d = timeUtc.Date;
 
             if (!IsDayExcluded(d.DayOfWeek))
             {
-                return time;
+                return timeUtc;
             } // return the original value
 
             while (IsDayExcluded(d.DayOfWeek))

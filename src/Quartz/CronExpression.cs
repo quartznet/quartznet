@@ -19,7 +19,9 @@ using System.Collections;
 using System.Globalization;
 using System.Text;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
@@ -368,20 +370,16 @@ namespace Quartz
         /// Note that  milliseconds are ignored, so two Dates falling on different milliseconds
         /// of the same second will always have the same result here.
         /// </remarks>
-        /// <param name="date">The date to evaluate.</param>
+        /// <param name="dateUtc">The date to evaluate.</param>
         /// <returns>a boolean indicating whether the given date satisfies the cron expression</returns>
-        public bool IsSatisfiedBy(DateTime date)
+        public bool IsSatisfiedBy(DateTime dateUtc)
         {
             DateTime test =
-                new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second).AddSeconds(-1);
+                new DateTime(dateUtc.Year, dateUtc.Month, dateUtc.Day, dateUtc.Hour, dateUtc.Minute, dateUtc.Second).AddSeconds(-1);
 
-#if !NET_20
             NullableDateTime timeAfter = GetTimeAfter(test);
-#else
-            DateTime? timeAfter = GetTimeAfter(test);
-#endif
 
-            if (timeAfter.HasValue && timeAfter.Value.Equals(date))
+            if (timeAfter.HasValue && timeAfter.Value.Equals(dateUtc))
             {
                 return true;
             }
@@ -397,15 +395,10 @@ namespace Quartz
         /// </summary>
         /// <param name="date">the date/time at which to begin the search for the next valid date/time</param>
         /// <returns>the next valid date/time</returns>
-#if !NET_20
         public NullableDateTime GetNextValidTimeAfter(DateTime date)
-#else
-        public DateTime? GetNextValidTimeAfter(DateTime date)
-#endif
         {
             return GetTimeAfter(date);
         }
-
 
         /// <summary>
         /// Returns the next date/time <i>after</i> the given date/time which does
@@ -413,11 +406,7 @@ namespace Quartz
         /// </summary>
         /// <param name="date">the date/time at which to begin the search for the next invalid date/time</param>
         /// <returns>the next valid date/time</returns>
-#if !NET_20
         public NullableDateTime GetNextInvalidTimeAfter(DateTime date)
-#else
-        public DateTime? GetNextInvalidTimeAfter(DateTime date)
-#endif
         {
             long difference = 1000;
 
@@ -1415,11 +1404,7 @@ namespace Quartz
 		/// <param name="dayofmn">The day of month.</param>
 		/// <param name="mon">The month.</param>
 		/// <returns></returns>
-#if !NET_20
         protected NullableDateTime GetTime(int sc, int mn, int hr, int dayofmn, int mon)
-#else
-        protected DateTime? GetTime(int sc, int mn, int hr, int dayofmn, int mon)
-#endif
         {
             try
             {
@@ -1443,7 +1428,7 @@ namespace Quartz
                 {
                     mon = 0;
                 }
-                return new DateTime(DateTime.Now.Year, mon, dayofmn, hr, mn, sc);
+                return new DateTime(DateTime.UtcNow.Year, mon, dayofmn, hr, mn, sc);
             }
             catch (Exception)
             {
@@ -1454,20 +1439,19 @@ namespace Quartz
 		/// <summary>
 		/// Gets the next fire time after the given time.
 		/// </summary>
-		/// <param name="afterTime">The time to start searching from.</param>
+		/// <param name="afterTimeUtc">The UTC time to start searching from.</param>
 		/// <returns></returns>
-#if !NET_20
-        public NullableDateTime GetTimeAfter(DateTime afterTime)
-#else
-        public DateTime? GetTimeAfter(DateTime afterTime)
-#endif
+        public NullableDateTime GetTimeAfter(DateTime afterTimeUtc)
         {
             // move ahead one second, since we're computing the time *after/// the
             // given time
-            afterTime = afterTime.AddSeconds(1);
+            afterTimeUtc = afterTimeUtc.AddSeconds(1);
 
             // CronTrigger does not deal with milliseconds
-            DateTime d = CreateDateTimeWithoutMillis(afterTime);
+            DateTime d = CreateDateTimeWithoutMillis(afterTimeUtc);
+
+            // change to specified time zone
+            d = TimeZone.ToLocalTime(d);
 
             bool gotOne = false;
             // loop until we've computed the next time, or we've past the endTime
@@ -1593,7 +1577,7 @@ namespace Quartz
                             }
 
                             DateTime nTime = new DateTime(tcal.Year, mon, day, hr, min, sec, d.Millisecond);
-                            if (nTime < afterTime)
+                            if (nTime < afterTimeUtc)
                             {
                                 day = 1;
                                 mon++;
@@ -1628,7 +1612,7 @@ namespace Quartz
                         }
 
                         tcal = new DateTime(tcal.Year, mon, day, hr, min, sec);
-                        if (tcal < afterTime)
+                        if (tcal < afterTimeUtc)
                         {
                             day = ((int) daysOfMonth.First());
                             mon++;
@@ -1850,7 +1834,7 @@ namespace Quartz
                 gotOne = true;
             } // while( !done )
 
-            return d;
+            return d.ToUniversalTime();
         }
 
         /// <summary>
@@ -1895,11 +1879,7 @@ namespace Quartz
         /// </summary>
         /// <param name="endTime">The end time.</param>
         /// <returns></returns>
-#if !NET_20
         public NullableDateTime GetTimeBefore(NullableDateTime endTime)
-#else
-        public DateTime? GetTimeBefore(DateTime? endTime) 
-#endif
         {
             // TODO: implement
             return null;
@@ -1910,11 +1890,7 @@ namespace Quartz
         /// <see cref="CronExpression" /> will match.
         /// </summary>
         /// <returns></returns>
-#if !NET_20
         public NullableDateTime GetFinalFireTime()
-#else
-        public DateTime? GetFinalFireTime()
-#endif
         {
             // TODO: implement QUARTZ-423
             return null;

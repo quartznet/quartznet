@@ -56,15 +56,15 @@ namespace Quartz
 		ICalendar CalendarBase { set; get; }
 
 		/// <summary>
-		/// Determine whether the given time  is 'included' by the
+		/// Determine whether the given UTC time  is 'included' by the
 		/// Calendar.
 		/// </summary>
-		bool IsTimeIncluded(DateTime time);
+		bool IsTimeIncluded(DateTime timeUtc);
 
 		/// <summary>
-		/// Determine the next time that is 'included' by the
-		/// Calendar after the given time.
+		/// Determine the next UTC time that is 'included' by the
+		/// Calendar after the given UTC time.
 		/// </summary>
-		DateTime GetNextIncludedTime(DateTime time);
+		DateTime GetNextIncludedTimeUtc(DateTime timeUtc);
 	}
 }

@@ -37,7 +37,7 @@ namespace Quartz.Xml
 	/// <remarks>
 	/// <p>
 	/// The xml document must conform to the format defined in
-	/// "job_scheduling_data_1_5.xsd"
+	/// "job_scheduling_data.xsd"
 	/// </p>
 	/// 
 	/// <p>
@@ -61,10 +61,12 @@ namespace Quartz.Xml
 	public class JobSchedulingDataProcessor
 	{
 		private ILog log;
+	    private bool validateXml;
+	    private bool validateSchema;
 
 		public const string QUARTZ_SYSTEM_ID_DIR_PROP = "quartz.system.id.dir";
 		public const string QUARTZ_XML_FILE_NAME = "quartz_jobs.xml";
-		public const string QUARTZ_SCHEMA = "http://www.opensymphony.com/quartz/xml/job_scheduling_data_1_5.xsd";
+		public const string QUARTZ_SCHEMA = "http://quartznet.sourceforge.net/xml/job_scheduling_data.xsd";
 		public const string QUARTZ_XSD = "Quartz.Quartz.Xml.job_scheduling_data.xsd";
 		
 		protected const string THREAD_LOCAL_KEY_SCHEDULDER = "quartz_scheduler";
@@ -169,37 +171,13 @@ namespace Quartz.Xml
 		/// <summary>
 		/// Constructor for QuartzMetaDataProcessor.
 		/// </summary>
-		/// <param name="validating">whether or not to validate XML.</param>
-		/// <param name="validatingSchema">whether or not to validate XML schema.</param>
-		public JobSchedulingDataProcessor(bool validating, bool validatingSchema)
+		/// <param name="validateXml">whether or not to validate XML.</param>
+		/// <param name="validateSchema">whether or not to validate XML schema.</param>
+		public JobSchedulingDataProcessor(bool validateXml, bool validateSchema)
 		{
+		    this.validateXml = validateXml;
+		    this.validateSchema = validateSchema;
 		    log = LogManager.GetLogger(GetType());
-		}
-
-
-
-
-		/// <summary>
-		/// Initializes the digester for XML Schema validation.
-		/// </summary>
-		/// <param name="validatingSchema">if set to <c>true</c> [validating schema].</param>
-		protected virtual void InitSchemaValidation(bool validatingSchema)
-		{
-			if (validatingSchema)
-			{
-				string schemaUri = null;
-				GetType();
-				Uri url = new Uri(Path.GetFullPath(QUARTZ_XSD));
-				if (url != null)
-				{
-					schemaUri = url.ToString();
-				}
-				else
-				{
-					schemaUri = QUARTZ_SCHEMA;
-				}
-				
-			}
 		}
 
 
@@ -229,18 +207,11 @@ namespace Quartz.Xml
 		/// <param name="systemId">The system id.</param>
 		public virtual void ProcessFile(string fileName, string systemId)
 		{
-			ClearValidationExceptions();
-
-			scheduledJobs.Clear();
-			jobsToSchedule.Clear();
-			calsToSchedule.Clear();
-
-			Log.Info("Parsing XML file: " + fileName + " with systemId: " + systemId + " validating: [unknown]" +
-			         " validating schema: [unknown]");
-			
-			
-
-			MaybeThrowValidationException();
+			Log.Info(string.Format("Parsing XML file: {0} with systemId: {1} validating: {2} validating schema: {3}", fileName, systemId, validateXml, validateSchema));
+            using (StreamReader sr = new StreamReader(fileName))
+            {
+                ProcessInternal(sr.ReadToEnd());
+            }
 		}
 
 		/// <summary>
@@ -251,25 +222,60 @@ namespace Quartz.Xml
 		/// <param name="systemId">The system id.</param>
 		public virtual void ProcessStream(Stream stream, string systemId)
 		{
-			ClearValidationExceptions();
-
-			scheduledJobs.Clear();
-			jobsToSchedule.Clear();
-			calsToSchedule.Clear();
-
-			Log.Info("Parsing XML from stream with systemId: " + systemId + " validating: " + "[TODO]" +
-			         " validating schema: " + "[TODO]");
-			
-			MaybeThrowValidationException();
+			Log.Info(string.Format("Parsing XML from stream with systemId: {0} validating: {1} validating schema: {2}", systemId, validateXml, validateSchema));
+            using (StreamReader sr = new StreamReader(stream))
+            {
+                ProcessInternal(sr.ReadToEnd());
+            }
 		}
 
-		/// <summary> Process the xml file in the default location, and schedule all of the
+        protected virtual void ProcessInternal(string xml)
+        {
+            ClearValidationExceptions();
+
+            scheduledJobs.Clear();
+            jobsToSchedule.Clear();
+            calsToSchedule.Clear();
+
+            ValidateXmlIfNeeded(xml);
+            
+
+            MaybeThrowValidationException();
+        }
+
+	    private void ValidateXmlIfNeeded(string xml)
+	    {
+            if (validateXml)
+            {
+                // stream to validate
+                using (StringReader stringReader = new StringReader(xml))
+                {
+                    // schema to validate against
+                    /* XmlReaderSettings settings = new XmlReaderSettings();
+                    string messageSchemaData = "";
+                    settings.Schemas.Add(null, XmlReader.Create(new StringReader(messageSchemaData)));
+                    settings.ValidationType = ValidationType.Schema;
+
+                    // read document to ensure validity
+                    using (XmlReader xmlReader = XmlReader.Create(stringReader, settings))
+                    {
+                        while (xmlReader.Read())
+                        {
+                        }
+                    }
+					*/
+                }
+            }
+	    }
+
+
+	    /// <summary> 
+		/// Process the xml file in the default location, and schedule all of the
 		/// jobs defined within it.
-		/// 
 		/// </summary>
-		public virtual void ProcessFileAndScheduleJobs(IScheduler sched, bool overWriteExistingJobs)
+        public virtual void ProcessFileAndScheduleJobs(IScheduler sched, bool overwriteExistingJobs)
 		{
-			ProcessFileAndScheduleJobs(QUARTZ_XML_FILE_NAME, sched, overWriteExistingJobs);
+            ProcessFileAndScheduleJobs(QUARTZ_XML_FILE_NAME, sched, overwriteExistingJobs);
 		}
 
 		/// <summary>
@@ -291,15 +297,15 @@ namespace Quartz.Xml
 		/// <param name="fileName">Name of the file.</param>
 		/// <param name="systemId">The system id.</param>
 		/// <param name="sched">The sched.</param>
-		/// <param name="overWriteExistingJobs">if set to <c>true</c> [over write existing jobs].</param>
+        /// <param name="overwriteExistingJobs">if set to <c>true</c> [over write existing jobs].</param>
 		public virtual void ProcessFileAndScheduleJobs(string fileName, string systemId, IScheduler sched,
-		                                               bool overWriteExistingJobs)
+                                                       bool overwriteExistingJobs)
 		{
 			LogicalThreadContext.SetData(THREAD_LOCAL_KEY_SCHEDULDER, sched);
 			try
 			{
 				ProcessFile(fileName, systemId);
-				ScheduleJobs(ScheduledJobs, sched, overWriteExistingJobs);
+                ScheduleJobs(ScheduledJobs, sched, overwriteExistingJobs);
 			}
 			finally
 			{
@@ -313,8 +319,8 @@ namespace Quartz.Xml
 		/// </summary>
 		/// <param name="jobBundles">The job bundles.</param>
 		/// <param name="sched">The sched.</param>
-		/// <param name="overWriteExistingJobs">if set to <c>true</c> [over write existing jobs].</param>
-		public virtual void ScheduleJobs(IDictionary jobBundles, IScheduler sched, bool overWriteExistingJobs)
+		/// <param name="overwriteExistingJobs">if set to <c>true</c> [over write existing jobs].</param>
+		public virtual void ScheduleJobs(IDictionary jobBundles, IScheduler sched, bool overwriteExistingJobs)
 		{
 			Log.Info("Scheduling " + jobsToSchedule.Count + " parsed jobs.");
 
@@ -325,7 +331,7 @@ namespace Quartz.Xml
 
 			foreach (JobSchedulingBundle bndle in jobsToSchedule)
 			{
-				ScheduleJob(bndle, sched, overWriteExistingJobs);
+				ScheduleJob(bndle, sched, overwriteExistingJobs);
 			}
 
 			foreach (IJobListener listener in listenersToSchedule)
@@ -357,8 +363,7 @@ namespace Quartz.Xml
 		/// </returns>
 		protected virtual Stream GetInputStream(string fileName)
 		{
-			// TODO
-			return null;
+			return new StreamReader(fileName).BaseStream;
 		}
 
 		/// <summary>
@@ -438,9 +443,9 @@ namespace Quartz.Xml
 					trigger.JobName = detail.Name;
 					trigger.JobGroup = detail.Group;
 
-					if (trigger.StartTime == DateTime.MinValue)
+					if (trigger.StartTimeUtc == DateTime.MinValue)
 					{
-						trigger.StartTime = DateTime.Now;
+						trigger.StartTimeUtc = DateTime.UtcNow;
 					}
 
 					if (dupeT != null)

@@ -49,9 +49,10 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         [Test]
         public void TestDayExclusion()
         {
-            DateTime excluded = new DateTime(2007, 12, 31);
+            // use end of day to get by with utc offsets
+            DateTime excluded = new DateTime(2007, 12, 31, 23, 59, 0).ToUniversalTime();
             cal.AddExcludedDate(excluded);
-            Assert.AreEqual(new DateTime(2008, 1, 1), cal.GetNextIncludedTime(excluded));
+            Assert.AreEqual(new DateTime(2008, 1, 1), cal.GetNextIncludedTimeUtc(excluded));
         }
     
         /// <summary>

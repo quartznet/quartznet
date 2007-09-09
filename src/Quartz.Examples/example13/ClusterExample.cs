@@ -138,9 +138,9 @@ namespace Quartz.Examples.Example13
 				job.RequestsRecovery = true;
 				SimpleTrigger trigger = new SimpleTrigger("trig_" + count, schedId, 20, 5000L);
 
-				trigger.StartTime = DateTime.Now.AddMilliseconds(1000L);
+				trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
 				sched.ScheduleJob(job, trigger);
-                _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTime(), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+                _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
 
 				count++;
 				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
@@ -149,9 +149,9 @@ namespace Quartz.Examples.Example13
 				job.RequestsRecovery = (true);
 				trigger = new SimpleTrigger("trig_" + count, schedId, 20, 5000L);
 
-				trigger.StartTime = (DateTime.Now.AddMilliseconds(2000L));
+				trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(2000L));
 				sched.ScheduleJob(job, trigger);
-                _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTime(), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+                _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
 
 				count++;
 				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
@@ -160,9 +160,9 @@ namespace Quartz.Examples.Example13
 				job.RequestsRecovery = (true);
 				trigger = new SimpleTrigger("trig_" + count, schedId, 20, 3000L);
 
-				trigger.StartTime = (DateTime.Now.AddMilliseconds(1000L));
+				trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(1000L));
 				sched.ScheduleJob(job, trigger);
-                _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTime(), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+                _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
 
 				count++;
 				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
@@ -171,9 +171,9 @@ namespace Quartz.Examples.Example13
 				job.RequestsRecovery = (true);
 				trigger = new SimpleTrigger("trig_" + count, schedId, 20, 4000L);
 
-				trigger.StartTime = (DateTime.Now.AddMilliseconds( 1000L));
+				trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds( 1000L));
 				sched.ScheduleJob(job, trigger);
-                _log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.FullName, trigger.GetNextFireTime(), trigger.RepeatCount, trigger.RepeatInterval));
+                _log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval));
 
 				count++;
 				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
@@ -182,9 +182,9 @@ namespace Quartz.Examples.Example13
 				job.RequestsRecovery = (true);
 				trigger = new SimpleTrigger("trig_" + count, schedId, 20, 4500L);
 
-				trigger.StartTime = (DateTime.Now.AddMilliseconds(1000L));
+				trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(1000L));
 				sched.ScheduleJob(job, trigger);
-                _log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.FullName, trigger.GetNextFireTime(), trigger.RepeatCount, trigger.RepeatInterval));
+                _log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval));
             }
 
 			// jobs don't start firing until start() has been called...

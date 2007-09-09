@@ -19,8 +19,9 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
-using System;
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
@@ -39,15 +40,11 @@ namespace Quartz.Util
         /// Construct a new TriggerStatus with the status name and nextFireTime.
         /// </summary>
         /// <param name="status">The trigger's status</param>
-        /// <param name="nextFireTime">The next time the trigger will fire</param>
-#if !NET_20
-        public TriggerStatus(string status, NullableDateTime nextFireTime)
-#else
-        public TriggerStatus(string status, DateTime? nextFireTime)
-#endif
+        /// <param name="nextFireTimeUtc">The next UTC time the trigger will fire</param>
+        public TriggerStatus(string status, NullableDateTime nextFireTimeUtc)
         {
             base.First = status;
-            base.Second = nextFireTime;
+            base.Second = nextFireTimeUtc;
         }
 
         /// <summary>
@@ -84,17 +81,10 @@ namespace Quartz.Util
         /// Get the group portion of the key.
         /// </summary>
         /// <returns> the group </returns>
-#if !NET_20
-        public virtual NullableDateTime NextFireTime
+        public virtual NullableDateTime NextFireTimeUtc
         {
             get { return (NullableDateTime) Second; }
         }
-#else
-        public virtual DateTime? NextFireTime
-        {
-            get { return (DateTime?) Second; }
-        }
-#endif
 
         // TODO: Repackage under spi or root pkg ?, put status constants here.
 
@@ -103,7 +93,7 @@ namespace Quartz.Util
         /// </summary>
         public override string ToString()
         {
-            return string.Format("status: {0}, next fire = {1}", Status, NextFireTime.Value.ToString("r"));
+            return string.Format("status: {0}, next fire = {1}", Status, NextFireTimeUtc.Value.ToString("r"));
         }
     }
 }

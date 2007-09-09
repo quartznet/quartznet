@@ -242,7 +242,7 @@ namespace Quartz.Core
                     {
                         Trigger trigger = null;
 
-                        now = DateTime.Now;
+                        now = DateTime.UtcNow;
 
                         signaled = false;
                         try
@@ -273,8 +273,8 @@ namespace Quartz.Core
 
                         if (trigger != null)
                         {
-                            now = DateTime.Now;
-                            DateTime triggerTime = trigger.GetNextFireTime().Value;
+                            now = DateTime.UtcNow;
+                            DateTime triggerTime = trigger.GetNextFireTimeUtc().Value;
                             long timeUntilTrigger = (long) (triggerTime - now).TotalMilliseconds;
                             spinInterval = 10;
 
@@ -300,7 +300,7 @@ namespace Quartz.Core
                                 {
                                 }
 
-                                now = DateTime.Now;
+                                now = DateTime.UtcNow;
                                 timeUntilTrigger = (long) (triggerTime - now).TotalMilliseconds;
                                 numPauses = (int) (timeUntilTrigger/spinInterval);
                             }
@@ -467,7 +467,7 @@ namespace Quartz.Core
                     // the
                     // CPU usage of this spinning can't even be measured on a pentium
                     // 4.
-                    now = DateTime.Now;
+                    now = DateTime.UtcNow;
                     DateTime waitTime = now.AddMilliseconds(GetRandomizedIdleWaitTime());
                     long timeUntilContinue = (long) (waitTime - now).TotalMilliseconds;
                     spinInterval = 10;
@@ -482,7 +482,7 @@ namespace Quartz.Core
                         catch (ThreadInterruptedException)
                         {
                         }
-                        now = DateTime.Now;
+                        now = DateTime.UtcNow;
                         timeUntilContinue = (long) (waitTime - now).TotalMilliseconds;
                         numPauses = (int) (timeUntilContinue/spinInterval);
                     }

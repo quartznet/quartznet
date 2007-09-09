@@ -109,12 +109,12 @@ namespace Quartz.Xml
 			return calendar.IsTimeIncluded(timeStamp);
 		}
 
-		public virtual DateTime GetNextIncludedTime(DateTime timeStamp)
+		public virtual DateTime GetNextIncludedTimeUtc(DateTime timeStamp)
 		{
-			return calendar.GetNextIncludedTime(timeStamp);
+			return calendar.GetNextIncludedTimeUtc(timeStamp);
 		}
 
-		protected internal virtual void CreateCalendar()
+		protected virtual void CreateCalendar()
 		{
 			Type type = Type.GetType(typeName);
 			Calendar = (ICalendar) ObjectUtils.InstantiateType(type);

@@ -32,12 +32,6 @@ namespace Quartz.Impl.Calendar
 	/// <seealso cref="ICalendar" />
 	/// <seealso cref="BaseCalendar" />
 	/// <author>Juergen Donnerstag</author>
-    
-	//shouldn't be split with conditional compilation for
-    // framework 1.0 and 2.0 
-    // as this will surely make  serialization job store
-    // bound to the framework in which the serialized
-    // data was written (otherwise there's hope...)
 	[Serializable]
 	public class AnnualCalendar : BaseCalendar, ICalendar
 	{
@@ -45,6 +39,9 @@ namespace Quartz.Impl.Calendar
 
 		// true, if excludeDays is sorted
 		private bool dataSorted = false;
+
+        // year to use as fixed year
+	    private const int FIXED_YEAR = 2000;
 
         /// <summary>
         /// Constructor
@@ -133,68 +130,69 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual void SetDayExcluded(DateTime day, bool exclude)
 		{
+            DateTime d = new DateTime(FIXED_YEAR, day.Month, day.Day);
+
             if (exclude)
 			{
 				if (!IsDayExcluded(day))
 				{
-                    excludeDays.Add(day.Date);
+                    excludeDays.Add(d);
 				}
 			}
             else
             {
                 // include
-                // find first, year may vary
                 if (IsDayExcluded(day))
                 {
-                     excludeDays.Remove(BuildHoliday(day));
+                     excludeDays.Remove(d);
                 }
             }
 			dataSorted = false;
 		}
 
 		/// <summary>
-		/// Determine whether the given time (in milliseconds) is 'included' by the
+		/// Determine whether the given UTC time (in milliseconds) is 'included' by the
 		/// Calendar.
 		/// <p>
 		/// Note that this Calendar is only has full-day precision.
 		/// </p>
 		/// </summary>
-		public override bool IsTimeIncluded(DateTime date)
+		public override bool IsTimeIncluded(DateTime dateUtc)
 		{
 			// Test the base calendar first. Only if the base calendar not already
 			// excludes the time/date, continue evaluating this calendar instance.
-			if (!base.IsTimeIncluded(date))
+			if (!base.IsTimeIncluded(dateUtc))
 			{
 				return false;
 			}
 
-			return !(IsDayExcluded(date));
+			return !(IsDayExcluded(TimeZone.ToLocalTime(dateUtc)));
 		}
 
 		/// <summary>
-		/// Determine the next time (in milliseconds) that is 'included' by the
-		/// Calendar after the given time. Return the original value if timeStamp is
+		/// Determine the next UTC time (in milliseconds) that is 'included' by the
+		/// Calendar after the given time. Return the original value if timeStampUtc is
 		/// included. Return 0 if all days are excluded.
 		/// <p>
 		/// Note that this Calendar is only has full-day precision.
 		/// </p>
 		/// </summary>
-		public override DateTime GetNextIncludedTime(DateTime timeStamp)
+		public override DateTime GetNextIncludedTimeUtc(DateTime timeStampUtc)
 		{
 			// Call base calendar implementation first
-			DateTime baseTime = base.GetNextIncludedTime(timeStamp);
-			if ((baseTime != DateTime.MinValue) && (baseTime > timeStamp))
+			DateTime baseTime = base.GetNextIncludedTimeUtc(timeStampUtc);
+			if ((baseTime != DateTime.MinValue) && (baseTime > timeStampUtc))
 			{
-				timeStamp = baseTime;
+				timeStampUtc = baseTime;
 			}
 
 			// Get timestamp for 00:00:00
-			DateTime day = BuildHoliday(timeStamp);
+			DateTime day = TimeZone.ToLocalTime(new DateTime(timeStampUtc.Year, timeStampUtc.Month, timeStampUtc.Day));
 
-			if (IsDayExcluded(day) == false)
+			if (!IsDayExcluded(day))
 			{
 				// return the original value
-				return timeStamp;
+				return timeStampUtc;
 			}
 
 			while (IsDayExcluded(day))
@@ -202,7 +200,7 @@ namespace Quartz.Impl.Calendar
 				day = day.AddDays(1);
 			}
 
-			return day;
+			return day.ToUniversalTime();
 		}
 	    
 	    

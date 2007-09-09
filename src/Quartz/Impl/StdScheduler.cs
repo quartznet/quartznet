@@ -21,7 +21,9 @@
 using System;
 using System.Collections;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
@@ -368,11 +370,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-#if !NET_20
         public virtual NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
-#else
-        public virtual DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
-#endif
 		{
 			return sched.RescheduleJob(schedCtxt, triggerName, groupName, newTrigger);
 		}

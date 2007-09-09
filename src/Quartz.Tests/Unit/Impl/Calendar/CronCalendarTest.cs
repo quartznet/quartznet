@@ -31,7 +31,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             string expr = string.Format("0/15 * * * * ?");
             CronCalendar calendar = new CronCalendar(expr);
             string fault = "Time was included when it was not supposed to be";
-            DateTime tst = DateTime.Now.AddMinutes(2);
+            DateTime tst = DateTime.UtcNow.AddMinutes(2);
             tst = new DateTime(tst.Year, tst.Month, tst.Day, tst.Hour, tst.Minute, 30);
             Assert.IsFalse(calendar.IsTimeIncluded(tst), fault);
 
@@ -47,7 +47,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             string expr = string.Format("* * 8-17 ? * *");
             CronCalendar calendar = new CronCalendar(expr);
             DateTime tst = new DateTime(2007, 6, 28, 14, 0, 0);
-            Assert.AreEqual(new DateTime(2007, 6, 28, 17, 0, 0), calendar.GetNextIncludedTime(tst));
+            Assert.AreEqual(new DateTime(2007, 6, 28, 17, 0, 0), calendar.GetNextIncludedTimeUtc(tst));
         }
 
     

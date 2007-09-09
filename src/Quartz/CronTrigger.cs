@@ -22,11 +22,14 @@
 
 using System;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -182,16 +185,10 @@ namespace Quartz
 	public class CronTrigger : Trigger
 	{
 		private CronExpression cronEx = null;
-		private DateTime startTime = DateTime.MinValue;
-#if !NET_20
-        private NullableDateTime endTime = null;
-		private NullableDateTime nextFireTime = null;
-		private NullableDateTime previousFireTime = null;
-#else
-        private DateTime? endTime = null;
-        private DateTime? nextFireTime = null;
-        private DateTime? previousFireTime = null;
-#endif
+		private DateTime startTimeUtc = DateTime.MinValue;
+        private NullableDateTime endTimeUtc = null;
+		private NullableDateTime nextFireTimeUtc = null;
+		private NullableDateTime previousFireTimeUtc = null;
 		[NonSerialized] private TimeZone timeZone = null;
 
 		/// <summary>
@@ -203,7 +200,7 @@ namespace Quartz
         /// </remarks>
 		public CronTrigger()
 		{
-			StartTime = DateTime.Now;
+			StartTimeUtc = DateTime.UtcNow;
 			TimeZone = TimeZone.CurrentTimeZone;
 		}
 
@@ -218,7 +215,7 @@ namespace Quartz
 		/// <param name="group">The group.</param>
 		public CronTrigger(string name, string group) : base(name, group)
 		{
-			StartTime = DateTime.Now;
+			StartTimeUtc = DateTime.UtcNow;
 			TimeZone = TimeZone.CurrentTimeZone;
 		}
 
@@ -234,10 +231,10 @@ namespace Quartz
 		/// <param name="name">The name.</param>
 		/// <param name="group">The group.</param>
 		/// <param name="cronExpression">The cron expression.</param>
-		public CronTrigger(String name, string group, string cronExpression) : base(name, group)
+		public CronTrigger(string name, string group, string cronExpression) : base(name, group)
 		{
 			CronExpressionString = cronExpression;
-			StartTime = DateTime.Now;
+			StartTimeUtc = DateTime.UtcNow;
 			TimeZone = TimeZone.CurrentTimeZone;
 		}
 
@@ -257,7 +254,7 @@ namespace Quartz
 		public CronTrigger(String name, string group, string jobName,
 			string jobGroup) : base(name, group, jobName, jobGroup)
 		{
-			StartTime = DateTime.Now;
+			StartTimeUtc = DateTime.UtcNow;
 			TimeZone = TimeZone.CurrentTimeZone;
 		}
 
@@ -277,7 +274,7 @@ namespace Quartz
 		/// <param name="cronExpression">The cron expression.</param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, string cronExpression)
-			: this(name, group, jobName, jobGroup, DateTime.Now, null, cronExpression, TimeZone.CurrentTimeZone)
+			: this(name, group, jobName, jobGroup, DateTime.UtcNow, null, cronExpression, TimeZone.CurrentTimeZone)
 		{
 		}
 
@@ -294,7 +291,7 @@ namespace Quartz
 		/// <param name="timeZone">The time zone.</param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, string cronExpression, TimeZone timeZone)
-			: this(name, group, jobName, jobGroup, DateTime.Now, null, cronExpression,
+			: this(name, group, jobName, jobGroup, DateTime.UtcNow, null, cronExpression,
 			timeZone)
 		{
 		}
@@ -317,11 +314,7 @@ namespace Quartz
 		/// <param name="cronExpression">The cron expression.</param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, DateTime startTime, 
-#if !NET_20
             NullableDateTime endTime, 
-#else
-            DateTime? endTime,
-#endif
             string cronExpression)
 			: base(name, group, jobName, jobGroup)
 		{
@@ -329,12 +322,12 @@ namespace Quartz
 
 			if (startTime == DateTime.MinValue)
 			{
-				startTime = DateTime.Now;
+				startTime = DateTime.UtcNow;
 			}
-			StartTime = startTime;
+			StartTimeUtc = DateTimeUtil.AssumeUniversalTime(startTime);
 			if (endTime.HasValue)
 			{
-				EndTime = endTime;
+				EndTimeUtc = endTime;
 			}
 			TimeZone = TimeZone.CurrentTimeZone;
 		}
@@ -343,8 +336,8 @@ namespace Quartz
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with fire time dictated by the
 		/// <param name="cronExpression" /> resolved with respect to the specified
-		/// <param name="timeZone" /> occuring from the <see cref="startTime" /> until
-		/// the given <paran name="endTime" />.
+		/// <param name="timeZone" /> occuring from the <see cref="startTimeUtc" /> until
+		/// the given <paran name="endTimeUtc" />.
 		/// </summary>
 		/// <param name="name">The name.</param>
 		/// <param name="group">The group.</param>
@@ -354,23 +347,19 @@ namespace Quartz
 		/// <param name="endTime">The end time.</param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, DateTime startTime, 
-#if !NET_20
             NullableDateTime endTime,
-#else
-            DateTime? endTime,
-#endif
 			string cronExpression, TimeZone timeZone) : base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
 
 			if (startTime == DateTime.MinValue)
 			{
-				startTime = DateTime.Now;
+				startTime = DateTime.UtcNow;
 			}
-			StartTime = startTime;
+			StartTimeUtc = DateTimeUtil.AssumeUniversalTime(startTime);
 			if (endTime.HasValue)
 			{
-				EndTime = endTime;
+				EndTimeUtc = endTime;
 			}
 			if (timeZone == null)
 			{
@@ -429,19 +418,15 @@ namespace Quartz
 		/// will not fire prior to this date and time.
 		/// </summary>
 		/// <value></value>
-		public override DateTime StartTime
+		public override DateTime StartTimeUtc
 		{
 			get
 			{
-				return startTime;
+				return startTimeUtc;
 			}
 			set
 			{
-#if !NET_20
-				NullableDateTime eTime = EndTime;
-#else
-                DateTime? eTime = EndTime;
-#endif
+				NullableDateTime eTime = EndTimeUtc;
 				if (eTime.HasValue && eTime.Value < value)
 				{
 					throw new ArgumentException("End time cannot be before start time");
@@ -449,7 +434,8 @@ namespace Quartz
         
 				// round off millisecond...
 				DateTime dt = new DateTime(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second);
-				startTime = dt;
+			    DateTimeUtil.AssumeUniversalTime(dt);
+                startTimeUtc = dt;
 			}
 		}
 
@@ -458,25 +444,21 @@ namespace Quartz
 		/// Get or sets the time at which the <c>CronTrigger</c> should quit
 		/// repeating - even if repeastCount isn't yet satisfied. 
 		/// </summary>
-#if !NET_20
-		public override NullableDateTime EndTime
-#else
-        public override DateTime? EndTime
-#endif
+		public override NullableDateTime EndTimeUtc
 		{
 			get
 			{
-				return endTime;
+				return endTimeUtc;
 			}
 			set
 			{
-				DateTime sTime = StartTime;
+				DateTime sTime = StartTimeUtc;
 				if (value.HasValue && sTime > value.Value)
 				{
 					throw new ArgumentException("End time cannot be before start time");
 				}
 
-				endTime = value;
+				endTimeUtc = DateTimeUtil.AssumeUniversalTime(value);
 			}
 		}
 
@@ -488,13 +470,9 @@ namespace Quartz
 		/// has been added to the scheduler.
 		/// </summary>
         /// <returns></returns>
-#if !NET_20
-        public override NullableDateTime GetNextFireTime()
-#else
-        public override DateTime? GetNextFireTime()
-#endif
+        public override NullableDateTime GetNextFireTimeUtc()
         {
-			return nextFireTime;
+			return nextFireTimeUtc;
 		}
 
 		/// <summary>
@@ -502,13 +480,9 @@ namespace Quartz
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
         /// <returns></returns>
-#if !NET_20
-        public override NullableDateTime GetPreviousFireTime()
-#else
-        public override DateTime? GetPreviousFireTime()
-#endif
+        public override NullableDateTime GetPreviousFireTimeUtc()
 		{
-			return previousFireTime;
+			return previousFireTimeUtc;
 		}
 
 
@@ -519,13 +493,9 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <param name="fireTime">The fire time.</param>
-#if !NET_20
         public void SetNextFireTime(NullableDateTime fireTime)
-#else
-        public void SetNextFireTime(DateTime? fireTime)
-#endif
 		{
-			nextFireTime = fireTime;
+			nextFireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTime);
 		}
 
 
@@ -536,13 +506,9 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <param name="fireTime">The fire time.</param>
-#if !NET_20
         public void SetPreviousFireTime(NullableDateTime fireTime)
-#else
-        public void SetPreviousFireTime(DateTime? fireTime)
-#endif
 		{
-			previousFireTime = fireTime;
+			previousFireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTime);
 		}
 
 
@@ -581,35 +547,27 @@ namespace Quartz
 		/// after the given time. If the trigger will not fire after the given time,
 		/// <see langword="null" /> will be returned.
 		/// </summary>
-		/// <param name="afterTime"></param>
+		/// <param name="afterTimeUtc"></param>
         /// <returns></returns>
-#if !NET_20
-        public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTime)
-#else
-        public override DateTime? GetFireTimeAfter(DateTime? afterTime)
-#endif
+        public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTimeUtc)
 		{
-			if (!afterTime.HasValue)
+			if (!afterTimeUtc.HasValue)
 			{
-				afterTime = DateTime.Now;
+				afterTimeUtc = DateTime.UtcNow;
 			}
 
-			if (StartTime > afterTime.Value)
+			if (StartTimeUtc > afterTimeUtc.Value)
 			{
-				afterTime = startTime.AddSeconds(-1);
+				afterTimeUtc = DateTimeUtil.AssumeUniversalTime(startTimeUtc).AddSeconds(-1);
 			}
 
-            if (EndTime.HasValue && (afterTime.Value.CompareTo(EndTime.Value) >= 0))
+            if (EndTimeUtc.HasValue && (afterTimeUtc.Value.CompareTo(EndTimeUtc.Value) >= 0))
             {
                 return null;
             }
 
-#if !NET_20
-            NullableDateTime pot = GetTimeAfter(afterTime.Value);
-#else
-            DateTime? pot = GetTimeAfter(afterTime.Value);
-#endif
-            if (EndTime.HasValue && pot.Value > EndTime.Value)
+            NullableDateTime pot = GetTimeAfter(afterTimeUtc.Value);
+            if (EndTimeUtc.HasValue && pot.Value > EndTimeUtc.Value)
 			{
 				return null;
 			}
@@ -618,35 +576,27 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the last time at which the <see cref="Trigger" /> will fire, if
+		/// Returns the last UTC time at which the <see cref="Trigger" /> will fire, if
 		/// the Trigger will repeat indefinitely, null will be returned.
 		/// <p>
 		/// Note that the return time *may* be in the past.
 		/// </p>
         /// </summary>
-#if !NET_20
-        public override NullableDateTime FinalFireTime
-#else
-        public override DateTime? FinalFireTime
-#endif
+        public override NullableDateTime FinalFireTimeUtc
 		{
 			get
             {
-#if !NET_20
                 NullableDateTime resultTime;
-#else
-                DateTime? resultTime;
-#endif
-                if (EndTime.HasValue)
+                if (EndTimeUtc.HasValue)
                 {
-                    resultTime = GetTimeBefore(EndTime.Value.AddSeconds(1));
+                    resultTime = GetTimeBefore(EndTimeUtc.Value.AddSeconds(1));
                 }
                 else
                 {
                     resultTime = (cronEx == null) ? null : cronEx.GetFinalFireTime();
                 }
 
-                if (resultTime.HasValue && resultTime.Value < StartTime)
+                if (resultTime.HasValue && resultTime.Value < StartTimeUtc)
                 {
                     return null;
                 }
@@ -676,7 +626,7 @@ namespace Quartz
 		/// <returns></returns>
 		public override bool GetMayFireAgain()
 		{
-			return GetNextFireTime().HasValue;
+			return GetNextFireTimeUtc().HasValue;
 		}
 
 		/// <summary>
@@ -716,11 +666,8 @@ namespace Quartz
 
 			if (instr == MisfirePolicy.CronTrigger.DoNothing)
 			{
-#if !NET_20
                 NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
-#else
-                DateTime? newFireTime = GetFireTimeAfter(DateTime.Now);
-#endif
+
                 while (newFireTime.HasValue && cal != null
 				       && !cal.IsTimeIncluded(newFireTime.Value))
 				{
@@ -730,7 +677,7 @@ namespace Quartz
 			}
 			else if (instr == MisfirePolicy.CronTrigger.FireOnceNow)
 			{
-				SetNextFireTime(DateTime.Now);
+				SetNextFireTime(DateTime.UtcNow);
 			}
 		}
 
@@ -769,18 +716,14 @@ namespace Quartz
 		public bool WillFireOn(DateTime test, bool dayOnly)
 		{
 			test = new DateTime(test.Year, test.Month, test.Day, test.Hour, test.Minute, test.Second);
-
 			if (dayOnly)
 			{
 				test = new DateTime(test.Year, test.Month, test.Day, 0, 0, 0);
 			}
+            DateTimeUtil.AssumeUniversalTime(test);
 
-#if !NET_20
             NullableDateTime fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));
-#else
-            DateTime? fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));
-#endif
-            DateTime p = fta.Value;
+            DateTime p = TimeZone.ToLocalTime(fta.Value);
 
 			if (dayOnly)
 			{
@@ -797,7 +740,7 @@ namespace Quartz
 			if (fta.Equals(test))
 			{
 				return true;
-			}
+			}   
 
 			return false;
 		}
@@ -812,13 +755,13 @@ namespace Quartz
 		/// <seealso cref="JobExecutionException" />
 		public override void Triggered(ICalendar cal)
 		{
-			previousFireTime = nextFireTime;
-			nextFireTime = GetFireTimeAfter(nextFireTime);
+			previousFireTimeUtc = nextFireTimeUtc;
+			nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-			while (nextFireTime.HasValue && cal != null
-			       && !cal.IsTimeIncluded(nextFireTime.Value))
+			while (nextFireTimeUtc.HasValue && cal != null
+			       && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
 			{
-				nextFireTime = GetFireTimeAfter(nextFireTime);
+				nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 			}
 		}
 
@@ -829,23 +772,23 @@ namespace Quartz
 		/// <param name="misfireThreshold">The misfire threshold.</param>
 		public override void UpdateWithNewCalendar(ICalendar calendar, long misfireThreshold)
 		{
-			nextFireTime = GetFireTimeAfter(previousFireTime);
+			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-			DateTime now = DateTime.Now;
+			DateTime now = DateTime.UtcNow;
 			do
 			{
-				while (nextFireTime.HasValue && calendar != null
-				       && !calendar.IsTimeIncluded(nextFireTime.Value))
+				while (nextFireTimeUtc.HasValue && calendar != null
+				       && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
 				{
-					nextFireTime = GetFireTimeAfter(nextFireTime);
+					nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 				}
 
-				if (nextFireTime.HasValue && nextFireTime.Value < (now))
+				if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < (now))
 				{
-					long diff = (long) (now - nextFireTime.Value).TotalMilliseconds;
+					long diff = (long) (now - nextFireTimeUtc.Value).TotalMilliseconds;
 					if (diff >= misfireThreshold)
 					{
-						nextFireTime = GetFireTimeAfter(nextFireTime);
+						nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 						continue;
 					}
 				}
@@ -858,30 +801,26 @@ namespace Quartz
 		/// added to the scheduler, in order to have the <see cref="Trigger" />
 		/// compute its first fire time, based on any associated calendar.
 		/// <p>
-		/// After this method has been called, <see cref="GetNextFireTime()" />
+		/// After this method has been called, <see cref="GetNextFireTimeUtc" />
 		/// should return a valid answer.
 		/// </p>
 		/// </summary>
 		/// <param name="cal"></param>
 		/// <returns>
 		/// the first time at which the <see cref="Trigger" /> will be fired
-		/// by the scheduler, which is also the same value <see cref="GetNextFireTime()" />
+		/// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
 		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
-#if !NET_20
-        public override NullableDateTime ComputeFirstFireTime(ICalendar cal)
-#else
-        public override DateTime? ComputeFirstFireTime(ICalendar cal)
-#endif
+        public override NullableDateTime ComputeFirstFireTimeUtc(ICalendar cal)
         {
-			nextFireTime = GetFireTimeAfter(startTime.AddSeconds(-1));
+			nextFireTimeUtc = GetFireTimeAfter(startTimeUtc.AddSeconds(-1));
 
-			while (nextFireTime.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTime.Value))
+			while (nextFireTimeUtc.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
 			{
-				nextFireTime = GetFireTimeAfter(nextFireTime);
+				nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 			}
 
-			return nextFireTime;
+			return nextFireTimeUtc;
 		}
 
 		/// <summary>
@@ -904,11 +843,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="afterTime">The time to compute from.</param>
 		/// <returns></returns>
-#if !NET_20
         protected NullableDateTime GetTimeAfter(DateTime afterTime)
-#else
-        protected DateTime? GetTimeAfter(DateTime afterTime)
-#endif
         {
             if (cronEx != null)
             {
@@ -926,13 +861,9 @@ namespace Quartz
 		/// </summary>
 		/// <param name="date">The date.</param>
 		/// <returns></returns> 
-#if !NET_20
         protected NullableDateTime GetTimeBefore(NullableDateTime date)
-#else
-        protected DateTime? GetTimeBefore(DateTime? date)
-#endif
 		{
-            return (cronEx == null) ? null : cronEx.GetTimeBefore(endTime);
+            return (cronEx == null) ? null : cronEx.GetTimeBefore(endTimeUtc);
 		}
 	}
 }

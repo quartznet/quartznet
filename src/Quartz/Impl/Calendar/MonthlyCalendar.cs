@@ -138,7 +138,7 @@ namespace Quartz.Impl.Calendar
 		/// Note that this Calendar is only has full-day precision.
 		/// </p>
 		/// </summary>
-		public override bool IsTimeIncluded(DateTime timeStamp)
+		public override bool IsTimeIncluded(DateTime timeStampUtc)
 		{
 			if (excludeAll)
 			{
@@ -147,12 +147,12 @@ namespace Quartz.Impl.Calendar
 
 			// Test the base calendar first. Only if the base calendar not already
 			// excludes the time/date, continue evaluating this calendar instance.
-			if (!base.IsTimeIncluded(timeStamp))
+			if (!base.IsTimeIncluded(timeStampUtc))
 			{
 				return false;
 			}
 
-			int day = timeStamp.Day;
+			int day = timeStampUtc.Day;
 
 			return !(IsDayExcluded(day));
 		}
@@ -165,7 +165,7 @@ namespace Quartz.Impl.Calendar
 		/// Note that this Calendar is only has full-day precision.
 		/// </p>
 		/// </summary>
-		public override DateTime GetNextIncludedTime(DateTime time)
+		public override DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
 		{
 			if (excludeAll)
 			{
@@ -173,19 +173,19 @@ namespace Quartz.Impl.Calendar
 			}
 
 			// Call base calendar implementation first
-			DateTime baseTime = base.GetNextIncludedTime(time);
-			if ((baseTime != DateTime.MinValue) && (baseTime > time))
+			DateTime baseTime = base.GetNextIncludedTimeUtc(timeUtc);
+			if ((baseTime != DateTime.MinValue) && (baseTime > timeUtc))
 			{
-				time = baseTime;
+				timeUtc = baseTime;
 			}
 
 			// Get timestamp for 00:00:00
-			DateTime newTimeStamp = BuildHoliday(time);
+			DateTime newTimeStamp = TimeZone.ToLocalTime(timeUtc.Date);
 			int day = newTimeStamp.Day;
 
 			if (!IsDayExcluded(day))
 			{
-				return time;
+				return timeUtc;
 			} // return the original value
 
 			while (IsDayExcluded(day))
@@ -194,7 +194,7 @@ namespace Quartz.Impl.Calendar
 				day = (int) newTimeStamp.DayOfWeek + 1;
 			}
 
-			return newTimeStamp;
+			return newTimeStamp.ToUniversalTime();
 	
 		}
 

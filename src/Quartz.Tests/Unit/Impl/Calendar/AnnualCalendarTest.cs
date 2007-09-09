@@ -30,23 +30,26 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 
         private static string[] VERSIONS = new string[] { "1.5.1" };
 
-        //private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("America/New_York"); 
+        private static readonly TimeZone TEST_TIME_ZONE = TimeZone.CurrentTimeZone; 
 
         [SetUp]
         public void Setup()
         {
             cal = new AnnualCalendar();
+            cal.TimeZone = TEST_TIME_ZONE;
         }
     
         [Test]
         public void TestDayExclusion()
         {
+            // we're local by default
             DateTime d = new DateTime(2005, 1, 1);
             cal.SetDayExcluded(d, true);
-            Assert.IsFalse(cal.IsTimeIncluded(d), "Time was included when it was supposed not to be");
+            Assert.IsFalse(cal.IsTimeIncluded(d.ToUniversalTime()), "Time was included when it was supposed not to be");
             Assert.IsTrue(cal.IsDayExcluded(d), "Day was not excluded when it was supposed to be excluded");
             Assert.AreEqual(1, cal.DaysExcluded.Count);
-            Assert.AreEqual(d, cal.DaysExcluded[0]);
+            Assert.AreEqual(d.Day, ((DateTime) cal.DaysExcluded[0]).Day);
+            Assert.AreEqual(d.Month, ((DateTime)cal.DaysExcluded[0]).Month);
         }
 
         [Test]
@@ -78,11 +81,11 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public void TestExclusionAndNextIncludedTime()
         {
             cal.DaysExcluded = null;
-            DateTime test = DateTime.Now.Date;
-            Assert.AreEqual(test, cal.GetNextIncludedTime(test));
+            DateTime test = DateTime.UtcNow.Date;
+            Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test));
 
             cal.SetDayExcluded(test, true);
-            Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTime(test));
+            Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTimeUtc(test));
 
         }
 

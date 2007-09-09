@@ -36,8 +36,8 @@ namespace Quartz.Impl.Calendar
 		}
 
 		/// <summary>
-		/// Create a <CODE>CronCalendar</CODE> with the given cron exprssion and 
-		/// <CODE>baseCalendar</CODE>. 
+		/// Create a <see cref="CronCalendar" /> with the given cron expression and 
+		/// <see cref="BaseCalendar" />. 
 		/// </summary>
 		/// <param name="baseCalendar">
 		/// the base calendar for this calendar instance 
@@ -51,21 +51,46 @@ namespace Quartz.Impl.Calendar
             cronExpression = new CronExpression(expression);
 		}
 
-		/// <summary>
+        /// <summary>
+        /// Create a <see cref="CronCalendar" /> with the given cron expression and 
+        /// <see cref="BaseCalendar" />. 
+        /// </summary>
+        /// <param name="baseCalendar">
+        /// the base calendar for this calendar instance 
+        /// see BaseCalendar for more information on base
+        /// calendar functionality
+        /// </param>
+        /// <param name="expression">a String representation of the desired cron expression</param>
+        public CronCalendar(ICalendar baseCalendar,
+                            string expression,
+                            TimeZone timeZone)
+            : base(baseCalendar, timeZone)
+        {
+            cronExpression = new CronExpression(expression);
+        }
+
+
+	    public override TimeZone TimeZone
+	    {
+	        get { return cronExpression.TimeZone; }
+            set { cronExpression.TimeZone = value; }
+	    }
+
+	    /// <summary>
 		/// Determine whether the given time  is 'included' by the
 		/// Calendar.
 		/// </summary>
-		/// <param name="time">the time to test</param>
+		/// <param name="timeUtc">the time to test</param>
 		/// <returns>a boolean indicating whether the specified time is 'included' by the CronCalendar</returns>
-		public override bool IsTimeIncluded(DateTime time)
+		public override bool IsTimeIncluded(DateTime timeUtc)
 		{
 			if ((GetBaseCalendar() != null) &&
-			    (GetBaseCalendar().IsTimeIncluded(time) == false))
+			    (GetBaseCalendar().IsTimeIncluded(timeUtc) == false))
 			{
 				return false;
 			}
 
-			return (!(cronExpression.IsSatisfiedBy(time)));
+			return (!(cronExpression.IsSatisfiedBy(timeUtc)));
 		}
 
 		/// <summary>
@@ -73,11 +98,11 @@ namespace Quartz.Impl.Calendar
 		/// Calendar after the given time. Return the original value if timeStamp is
 		/// included. Return 0 if all days are excluded.
 		/// </summary>
-		/// <param name="time"></param>
+		/// <param name="timeUtc"></param>
 		/// <returns></returns>
-		public override DateTime GetNextIncludedTime(DateTime time)
+		public override DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
 		{
-			DateTime nextIncludedTime = time.AddMilliseconds(1); //plus on millisecond
+			DateTime nextIncludedTime = timeUtc.AddMilliseconds(1); //plus on millisecond
 
 			while (!IsTimeIncluded(nextIncludedTime))
 			{
@@ -97,7 +122,7 @@ namespace Quartz.Impl.Calendar
 				         (!GetBaseCalendar().IsTimeIncluded(nextIncludedTime)))
 				{
 					nextIncludedTime =
-						GetBaseCalendar().GetNextIncludedTime(nextIncludedTime);
+						GetBaseCalendar().GetNextIncludedTimeUtc(nextIncludedTime);
 				}
 				else
 				{
@@ -107,6 +132,8 @@ namespace Quartz.Impl.Calendar
 
 			return nextIncludedTime;
 		}
+
+
 
 		/// <summary>
 		/// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.

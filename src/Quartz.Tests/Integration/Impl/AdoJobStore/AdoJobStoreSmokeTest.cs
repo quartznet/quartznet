@@ -200,7 +200,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     SimpleTrigger trigger = new SimpleTrigger("trig_" + count, schedId, 20, 5000L);
 
                     trigger.AddTriggerListener(new DummyTriggerListener().Name);
-                    trigger.StartTime = DateTime.Now.AddMilliseconds(1000L);
+                    trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                     sched.ScheduleJob(job, trigger);
 
                     count++;
@@ -210,7 +210,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     job.RequestsRecovery = (true);
                     trigger = new SimpleTrigger("trig_" + count, schedId, 20, 5000L);
 
-                    trigger.StartTime = (DateTime.Now.AddMilliseconds(2000L));
+                    trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(2000L));
                     sched.ScheduleJob(job, trigger);
 
                     count++;
@@ -220,7 +220,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     job.RequestsRecovery = (true);
                     trigger = new SimpleTrigger("trig_" + count, schedId, 20, 3000L);
 
-                    trigger.StartTime = (DateTime.Now.AddMilliseconds(1000L));
+                    trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(1000L));
                     sched.ScheduleJob(job, trigger);
 
                     count++;
@@ -230,7 +230,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     job.RequestsRecovery = (true);
                     trigger = new SimpleTrigger("trig_" + count, schedId, 20, 4000L);
 
-                    trigger.StartTime = (DateTime.Now.AddMilliseconds(1000L));
+                    trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(1000L));
                     sched.ScheduleJob(job, trigger);
 
                     count++;
@@ -247,7 +247,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
                     CronTrigger ct = new CronTrigger("cron_trig_" + count, schedId, "0/10 * * * * ?");
-                    ct.StartTime = DateTime.Now.AddMilliseconds(1000);
+                    ct.StartTimeUtc = DateTime.Now.AddMilliseconds(1000);
 
                     sched.ScheduleJob(job, ct);
 
@@ -257,7 +257,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
                     NthIncludedDayTrigger nt = new NthIncludedDayTrigger("cron_trig_" + count, schedId);
-                    nt.StartTime = DateTime.Now.Date.AddMilliseconds(1000);
+                    nt.StartTimeUtc = DateTime.Now.Date.AddMilliseconds(1000);
                     nt.N = 1;
 
                     sched.ScheduleJob(job, nt);

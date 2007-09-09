@@ -386,6 +386,7 @@
     <Compile Include="Plugin\Xml\JobInitializationPluginMultiple.cs" />
     <Compile Include="SchedulerInstruction.cs" />
     <Compile Include="TriggerState.cs" />
+    <Compile Include="Util\DateTimeUtil.cs" />
     <Compile Include="Util\LogicalThreadContext.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
     <Compile Include="Xml\CalendarBundle.cs" />

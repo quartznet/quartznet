@@ -874,8 +874,8 @@ namespace Quartz.Impl.AdoJobStore
         /// in ascending order of fire time, and then descending by priority.
         /// </summary>
         /// <param name="conn">The conn.</param>
-        /// <param name="noLaterThan">highest value of <see cref="Trigger.GetNextFireTime" /> of the triggers (exclusive)</param>
-        /// <param name="noEarlierThan">highest value of <see cref="Trigger.GetNextFireTime" /> of the triggers (inclusive)</param>
+        /// <param name="noLaterThan">highest value of <see cref="Trigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
+        /// <param name="noEarlierThan">highest value of <see cref="Trigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
         /// <returns>The next identifier of the next trigger to be fired.</returns>
         Key SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, DateTime noEarlierThan);
 

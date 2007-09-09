@@ -22,7 +22,9 @@
 using System;
 using System.Collections;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
@@ -436,12 +438,7 @@ namespace Quartz
 		/// name and group was not found and removed from the store, otherwise
 		/// the first fire time of the newly scheduled trigger.
 		/// </returns>
-#if !NET_20
         NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
-#else
-        DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
-#endif
-
 
         /// <summary>
 		/// Add the given <see cref="IJob" /> to the Scheduler - with no associated
@@ -675,7 +672,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Request the interruption, within this Scheduler instance, of all 
-        /// currently executing instances of the identified <code>Job</code>, which 
+        /// currently executing instances of the identified <see cref="IJob" />, which 
         /// must be an implementor of the <see cref="IInterruptableJob" /> interface.
 		/// </summary>
 		/// <remarks>

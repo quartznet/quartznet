@@ -21,9 +21,12 @@
 using System;
 using System.Collections;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
+
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -79,12 +82,9 @@ namespace Quartz
         private int misfireInstruction = MisfirePolicy.InstructionNotSet;
 
 	    private ArrayList triggerListeners = new ArrayList();
-#if !NET_20
-        private NullableDateTime endTime;
-#else
-	    private DateTime? endTime;
-#endif
-        private DateTime startTime;
+
+        private NullableDateTime endTimeUtc;
+        private DateTime startTimeUtc;
 		private int priority = DEFAULT_PRIORITY;
 		[NonSerialized] 
 		private Key key = null;
@@ -304,17 +304,13 @@ namespace Quartz
 
 		
 		/// <summary>
-		/// Returns the last time at which the <see cref="Trigger" /> will fire, if
+		/// Returns the last UTC time at which the <see cref="Trigger" /> will fire, if
 		/// the Trigger will repeat indefinitely, null will be returned.
 		/// <p>
 		/// Note that the return time *may* be in the past.
 		/// </p>
 		/// </summary>
-#if !NET_20
-        public abstract NullableDateTime FinalFireTime { get; }
-#else
-        public abstract DateTime? FinalFireTime { get; }
-#endif
+        public abstract NullableDateTime FinalFireTimeUtc { get; }
 
         /// <summary>
 		/// Get or set the instruction the <see cref="IScheduler" /> should be given for
@@ -369,24 +365,20 @@ namespace Quartz
 		/// fire after to this date and time. If this value is null, no end time
 		/// boundary is assumed, and the trigger can continue indefinitely.
         /// </summary>
-#if !NET_20
-        public virtual NullableDateTime EndTime
-#else
-        public virtual DateTime? EndTime
-#endif
+        public virtual NullableDateTime EndTimeUtc
 		{
-			get { return endTime; }
+			get { return endTimeUtc; }
 
 			set
 			{
-				DateTime sTime = StartTime;
+				DateTime sTime = StartTimeUtc;
 
 				if (value.HasValue && (sTime > value.Value))
 				{
 					throw new ArgumentException("End time cannot be before start time");
 				}
 
-				endTime = value;
+				endTimeUtc = DateTimeUtil.AssumeUniversalTime(value);
 			}
 		}
 
@@ -395,13 +387,13 @@ namespace Quartz
 		/// defines the initial boundary for trigger firings &#x8212; the trigger
 		/// will not fire prior to this date and time.
 		/// </summary>
-		public virtual DateTime StartTime
+		public virtual DateTime StartTimeUtc
 		{
-			get { return startTime; }
+			get { return startTimeUtc; }
 
 			set
 			{
-				if (EndTime.HasValue && EndTime.Value < value)
+				if (EndTimeUtc.HasValue && EndTimeUtc.Value < value)
 				{
 					throw new ArgumentException("End time cannot be before start time");
 				}
@@ -409,14 +401,14 @@ namespace Quartz
 				if (HasMillisecondPrecision)
 				{
 					// round off millisecond...	
-					DateTime cl = new DateTime(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second);
-					startTime = cl;
+					startTimeUtc = new DateTime(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second);
 				}
 				else
 				{
-					startTime = value;
+					startTimeUtc = value;
 				}
-		
+
+			    startTimeUtc = DateTimeUtil.AssumeUniversalTime(startTimeUtc);
 			}
 		}
 
@@ -554,20 +546,16 @@ namespace Quartz
         /// </p>
         /// 
         /// <p>
-        /// After this method has been called, <see cref="GetNextFireTime()" />
+        /// After this method has been called, <see cref="GetNextFireTimeUtc" />
         /// should return a valid answer.
         /// </p>
         /// </remarks>
         /// <returns> 
         /// The first time at which the <see cref="Trigger" /> will be fired
-        /// by the scheduler, which is also the same value <see cref="GetNextFireTime()" />
+        /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="Trigger" />).
         /// </returns>        
-#if !NET_20
-		public abstract NullableDateTime ComputeFirstFireTime(ICalendar cal);
-#else
-        public abstract DateTime? ComputeFirstFireTime(ICalendar cal);
-#endif
+		public abstract NullableDateTime ComputeFirstFireTimeUtc(ICalendar cal);
 
         /// <summary>
         /// This method should not be used by the Quartz client.
@@ -635,32 +623,21 @@ namespace Quartz
 		/// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
 		/// has been added to the scheduler.
 		/// </summary>
-#if !NET_20
-		public abstract NullableDateTime GetNextFireTime();
-#else
-        public abstract DateTime? GetNextFireTime();
-#endif
+		public abstract NullableDateTime GetNextFireTimeUtc();
 		/// <summary>
 		/// Returns the previous time at which the <see cref="Trigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
-#if !NET_20
-		public abstract NullableDateTime GetPreviousFireTime();
-#else
-        public abstract DateTime? GetPreviousFireTime();
-#endif
+		public abstract NullableDateTime GetPreviousFireTimeUtc();
 
 		/// <summary>
 		/// Returns the next time at which the <see cref="Trigger" /> will fire,
 		/// after the given time. If the trigger will not fire after the given time,
 		/// <see langword="null" /> will be returned.
 		/// </summary>
-#if !NET_20
 		public abstract NullableDateTime GetFireTimeAfter(NullableDateTime afterTime);
-#else
-        public abstract DateTime? GetFireTimeAfter(DateTime? afterTime);
-#endif
-		/// <summary>
+
+        /// <summary>
 		/// Validates the misfire instruction.
 		/// </summary>
 		/// <param name="misfireInstruction">The misfire instruction.</param>
@@ -728,7 +705,7 @@ namespace Quartz
 			return
 				string.Format(
 					"Trigger '{0}':  triggerClass: '{1} isVolatile: {2} calendar: '{3}' misfireInstruction: {4} nextFireTime: {5}",
-					FullName, GetType().FullName, Volatile, CalendarName, MisfireInstruction, GetNextFireTime());
+					FullName, GetType().FullName, Volatile, CalendarName, MisfireInstruction, GetNextFireTimeUtc());
 		}
 
 		/// <summary>
@@ -739,14 +716,10 @@ namespace Quartz
 		{
 			Trigger other = (Trigger) obj;
 
-#if !NET_20
-            NullableDateTime myTime = GetNextFireTime();
-			NullableDateTime otherTime = other.GetNextFireTime();
-#else
-            DateTime? myTime = GetNextFireTime();
-            DateTime? otherTime = other.GetNextFireTime();
-#endif
-			if (!myTime.HasValue && !otherTime.HasValue)
+            NullableDateTime myTime = GetNextFireTimeUtc();
+			NullableDateTime otherTime = other.GetNextFireTimeUtc();
+
+            if (!myTime.HasValue && !otherTime.HasValue)
 			{
 				return 0;
 			}

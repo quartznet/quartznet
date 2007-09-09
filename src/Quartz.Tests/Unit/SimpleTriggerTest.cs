@@ -16,7 +16,9 @@
 using System;
 using System.Collections;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
@@ -98,8 +100,8 @@ namespace Quartz.Tests.Unit
 			Assert.AreEqual(targetSimpleTrigger.Group, deserializedSimpleTrigger.Group);
 			Assert.AreEqual(targetSimpleTrigger.JobName, deserializedSimpleTrigger.JobName);
 			Assert.AreEqual(targetSimpleTrigger.JobGroup, deserializedSimpleTrigger.JobGroup);
-			Assert.AreEqual(targetSimpleTrigger.StartTime, deserializedSimpleTrigger.StartTime);
-			Assert.AreEqual(targetSimpleTrigger.EndTime, deserializedSimpleTrigger.EndTime);
+			Assert.AreEqual(targetSimpleTrigger.StartTimeUtc, deserializedSimpleTrigger.StartTimeUtc);
+			Assert.AreEqual(targetSimpleTrigger.EndTimeUtc, deserializedSimpleTrigger.EndTimeUtc);
 			Assert.AreEqual(targetSimpleTrigger.RepeatCount, deserializedSimpleTrigger.RepeatCount);
 			Assert.AreEqual(targetSimpleTrigger.RepeatInterval, deserializedSimpleTrigger.RepeatInterval);
 			Assert.AreEqual(targetSimpleTrigger.CalendarName, deserializedSimpleTrigger.CalendarName);
@@ -118,15 +120,15 @@ namespace Quartz.Tests.Unit
 			DateTime endTime = new DateTime(2005, 7, 5, 10, 0, 0);
 
 			SimpleTrigger simpleTrigger = new SimpleTrigger();
-			simpleTrigger.MisfireInstruction = (MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount);
-			simpleTrigger.RepeatCount = (5);
-			simpleTrigger.StartTime = (startTime);
-			simpleTrigger.EndTime = (endTime);
+			simpleTrigger.MisfireInstruction = MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
+			simpleTrigger.RepeatCount = 5;
+			simpleTrigger.StartTimeUtc = startTime;
+			simpleTrigger.EndTimeUtc = endTime;
 
 			simpleTrigger.UpdateAfterMisfire(null);
-			Assert.AreEqual(startTime, simpleTrigger.StartTime);
-			Assert.AreEqual(endTime, simpleTrigger.EndTime.Value);
-			Assert.IsTrue(!simpleTrigger.GetNextFireTime().HasValue);
+			Assert.AreEqual(startTime, simpleTrigger.StartTimeUtc);
+			Assert.AreEqual(endTime, simpleTrigger.EndTimeUtc.Value);
+			Assert.IsTrue(!simpleTrigger.GetNextFireTimeUtc().HasValue);
 		}
 
 		[Test]
@@ -136,15 +138,11 @@ namespace Quartz.Tests.Unit
 
 			DateTime startTime = TriggerUtils.GetEvenSecondDate(DateTime.Now);
 
-			simpleTrigger.StartTime = startTime;
+			simpleTrigger.StartTimeUtc = startTime;
 			simpleTrigger.RepeatInterval = 10;
 			simpleTrigger.RepeatCount = 4;
 
-#if !NET_20
             NullableDateTime fireTimeAfter;
-#else
-		    DateTime? fireTimeAfter;
-#endif
             fireTimeAfter = simpleTrigger.GetFireTimeAfter(startTime.AddMilliseconds(34));
 			Assert.AreEqual(startTime.AddMilliseconds(40), fireTimeAfter.Value);
 		}

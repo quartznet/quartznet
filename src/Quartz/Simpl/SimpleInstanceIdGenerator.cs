@@ -40,11 +40,11 @@ namespace Quartz.Simpl
 			try
 			{
 #if NET_20
-                return Dns.GetHostName() + DateTime.Now.Ticks;
+                return Dns.GetHostName() + DateTime.UtcNow.Ticks;
 #else
 				return
 					Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName +
-					DateTime.Now.Ticks;
+					DateTime.UtcNow.Ticks;
 #endif
             }
 			catch (Exception e)

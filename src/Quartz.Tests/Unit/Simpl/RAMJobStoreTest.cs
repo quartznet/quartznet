@@ -50,7 +50,7 @@ namespace Quartz.Tests.Unit.Simpl
 		[Test]
 		public void TestAcquireNextTrigger()
 		{
-			DateTime d = DateTime.Now;
+			DateTime d = DateTime.UtcNow;
 			Trigger trigger1 =
 				new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name,
 				                  fJobDetail.Group, d.AddSeconds(200),
@@ -64,9 +64,9 @@ namespace Quartz.Tests.Unit.Simpl
 				                  fJobDetail.Group, d.AddSeconds(100),
 				                  d.AddSeconds(200), 2, 2000);
 
-			trigger1.ComputeFirstFireTime(null);
-			trigger2.ComputeFirstFireTime(null);
-			trigger3.ComputeFirstFireTime(null);
+			trigger1.ComputeFirstFireTimeUtc(null);
+			trigger2.ComputeFirstFireTimeUtc(null);
+			trigger3.ComputeFirstFireTimeUtc(null);
 			fJobStore.StoreTrigger(null, trigger1, false);
 			fJobStore.StoreTrigger(null, trigger2, false);
 			fJobStore.StoreTrigger(null, trigger3, false);
@@ -75,15 +75,15 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.IsNull(t);
 			Assert.AreEqual(
 				trigger2,
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10)));
 			Assert.AreEqual(
 				trigger3,
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10)));
 			Assert.AreEqual(
 				trigger1,
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10)));
 			Assert.IsNull(
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10)));
 
 			// because of trigger2
 			Assert.AreEqual(1, fSignaler.fMisfireCount);
@@ -92,7 +92,7 @@ namespace Quartz.Tests.Unit.Simpl
 			fJobStore.ReleaseAcquiredTrigger(null, trigger3);
 			Assert.AreEqual(
 				trigger3,
-				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTime().Value.AddSeconds(10)));
+				fJobStore.AcquireNextTrigger(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10)));
 		}
 
 		[Test]
@@ -101,7 +101,7 @@ namespace Quartz.Tests.Unit.Simpl
 			Trigger trigger =
 				new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
 				                  DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, 2000);
-			trigger.ComputeFirstFireTime(null);
+			trigger.ComputeFirstFireTimeUtc(null);
 			Assert.AreEqual(TriggerState.None, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
 			fJobStore.StoreTrigger(null, trigger, false);
 			Assert.AreEqual(TriggerState.Normal, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
@@ -113,14 +113,14 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.AreEqual(TriggerState.Normal, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
 
 			trigger = fJobStore.AcquireNextTrigger(null,
-			                                       trigger.GetNextFireTime().Value.AddSeconds(10));
+			                                       trigger.GetNextFireTimeUtc().Value.AddSeconds(10));
 			Assert.IsNotNull(trigger);
 			fJobStore.ReleaseAcquiredTrigger(null, trigger);
 			trigger = fJobStore.AcquireNextTrigger(null,
-			                                       trigger.GetNextFireTime().Value.AddSeconds(10));
+			                                       trigger.GetNextFireTimeUtc().Value.AddSeconds(10));
 			Assert.IsNotNull(trigger);
 			Assert.IsNull(fJobStore.AcquireNextTrigger(null,
-			                                       trigger.GetNextFireTime().Value.AddSeconds(10)));
+			                                       trigger.GetNextFireTimeUtc().Value.AddSeconds(10)));
 		}
 
         [Test]
@@ -130,7 +130,7 @@ namespace Quartz.Tests.Unit.Simpl
 
             Trigger trigger = new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
                                   DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, 2000);
-            trigger.ComputeFirstFireTime(null);
+            trigger.ComputeFirstFireTimeUtc(null);
             ICalendar cal = new MonthlyCalendar();
             fJobStore.StoreTrigger(null, trigger, false);
             fJobStore.StoreCalendar(null, "cal", cal, false, true);

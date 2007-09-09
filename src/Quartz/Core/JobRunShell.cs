@@ -174,7 +174,7 @@ namespace Quartz.Core
                         break;
                     }
 
-                    DateTime startTime = DateTime.Now;
+                    DateTime startTime = DateTime.UtcNow;
                     DateTime endTime;
 
                     // Execute the job
@@ -189,13 +189,13 @@ namespace Quartz.Core
                     }
                     catch (JobExecutionException jee)
                     {
-                        endTime = DateTime.Now;
+                        endTime = DateTime.UtcNow;
                         jobExEx = jee;
                         log.Info(string.Format("Job {0} threw a JobExecutionException: ", jobDetail.FullName), jobExEx);
                     }
                     catch (Exception e)
                     {
-                        endTime = DateTime.Now;
+                        endTime = DateTime.UtcNow;
                         log.Error(string.Format("Job {0} threw an unhandled Exception: ", jobDetail.FullName), e);
                         SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
                         se.ErrorCode = SchedulerException.ERR_JOB_EXECUTION_THREW_EXCEPTION;
@@ -398,7 +398,7 @@ namespace Quartz.Core
 				return false;
 			}
 
-			if (!ctx.Trigger.GetNextFireTime().HasValue)
+			if (!ctx.Trigger.GetNextFireTimeUtc().HasValue)
 			{
 				qs.NotifySchedulerListenersFinalized(ctx.Trigger);
 			}

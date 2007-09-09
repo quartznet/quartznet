@@ -15,7 +15,9 @@
  */
 using System;
 
-#if !NET_20
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
 using Nullables;
 #endif
 
@@ -40,16 +42,12 @@ namespace Quartz.Tests.Unit
 			// Test yearly
 			NthIncludedDayTrigger yearlyTrigger = new NthIncludedDayTrigger();
 			yearlyTrigger.IntervalType = NthIncludedDayTrigger.INTERVAL_TYPE_YEARLY;
-			yearlyTrigger.StartTime = startCalendar;
+			yearlyTrigger.StartTimeUtc = startCalendar;
 			yearlyTrigger.N = 10;
 			yearlyTrigger.FireAtTime = "14:35:15";
         
-			DateTime targetCalendar = new DateTime(2006, 1, 10, 14, 35, 15);
-#if !NET_20
+			DateTime targetCalendar = new DateTime(2006, 1, 10, 14, 35, 15).ToUniversalTime();
             NullableDateTime nextFireTime;
-#else
-            DateTime? nextFireTime;
-#endif
 
             nextFireTime = yearlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
 			Assert.AreEqual(targetCalendar, nextFireTime.Value);
@@ -57,22 +55,22 @@ namespace Quartz.Tests.Unit
 			// Test monthly
 			NthIncludedDayTrigger monthlyTrigger = new NthIncludedDayTrigger();
 			monthlyTrigger.IntervalType = NthIncludedDayTrigger.INTERVAL_TYPE_MONTHLY;
-			monthlyTrigger.StartTime = startCalendar;
+			monthlyTrigger.StartTimeUtc = startCalendar;
 			monthlyTrigger.N = 5;
 			monthlyTrigger.FireAtTime = "14:35:15";
         
-			targetCalendar = new DateTime(2005, 6, 5, 14, 35, 15);
+			targetCalendar = new DateTime(2005, 6, 5, 14, 35, 15).ToUniversalTime();
 			nextFireTime = monthlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
 			Assert.AreEqual(targetCalendar, nextFireTime.Value);
         
 			// Test weekly
 			NthIncludedDayTrigger weeklyTrigger = new NthIncludedDayTrigger();
 			weeklyTrigger.IntervalType = NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY;
-			weeklyTrigger.StartTime = startCalendar;
+			weeklyTrigger.StartTimeUtc = startCalendar;
 			weeklyTrigger.N = 3;
 			weeklyTrigger.FireAtTime = "14:35:15";
 
-			targetCalendar = new DateTime(2005, 6, 7, 14, 35, 15);
+			targetCalendar = new DateTime(2005, 6, 7, 14, 35, 15).ToUniversalTime();
 			nextFireTime = weeklyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
 			Assert.AreEqual(targetCalendar, nextFireTime.Value);
 		}
@@ -226,7 +224,7 @@ namespace Quartz.Tests.Unit
 			NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
 			t.IntervalType = (NthIncludedDayTrigger.INTERVAL_TYPE_MONTHLY);
 			t.N = 3;
-			t.StartTime = (startTime);
+			t.StartTimeUtc = (startTime);
 			t.FireAtTime = ("12:15");
 			t.NextFireCutoffInterval = (13);
         
@@ -256,8 +254,8 @@ namespace Quartz.Tests.Unit
 			Assert.AreEqual(targetTrigger.Group, deserializedTrigger.Group);
 			Assert.AreEqual(targetTrigger.IntervalType, deserializedTrigger.IntervalType);
 			Assert.AreEqual(targetTrigger.N, deserializedTrigger.N);
-			Assert.AreEqual(targetTrigger.StartTime, deserializedTrigger.StartTime);
-			Assert.IsNull(targetTrigger.EndTime);
+			Assert.AreEqual(targetTrigger.StartTimeUtc, deserializedTrigger.StartTimeUtc);
+			Assert.IsNull(targetTrigger.EndTimeUtc);
 			Assert.AreEqual(targetTrigger.FireAtTime, deserializedTrigger.FireAtTime);
 			Assert.AreEqual(targetTrigger.NextFireCutoffInterval, deserializedTrigger.NextFireCutoffInterval);
 			// Assert.AreEqual(TimeZone.getDefault(), deserializedTrigger.getTimeZone());
