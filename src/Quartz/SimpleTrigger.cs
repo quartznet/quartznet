@@ -425,7 +425,7 @@ namespace Quartz
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-                if (nextFireTimeUtc != null && nextFireTimeUtc < now)
+                if (nextFireTimeUtc != null && nextFireTimeUtc.Value < now)
                 {
                     long diff = (long) (now - nextFireTimeUtc.Value).TotalMilliseconds;
                     if (diff >= misfireThreshold)
