@@ -66,38 +66,5 @@ namespace Quartz.Impl.AdoJobStore
 		{
 			return String.Intern(string.Format("{0}_$x$x$_{1}", groupName, triggerName));
 		}
-
-        /// <summary>
-        /// Determines which type is correct for equality comparison for given type.
-        /// This basically determines whether to use Quartz's own tables or object serialization.
-        /// </summary>
-        /// <param name="trigger">Trigger who's type should be checked.</param>
-        /// <returns></returns>
-        /// <param name="ignoreTriggerInheritance">Whether to ignore inheritance.</param>
-        internal static Type GetTriggerPersistenceType(Trigger trigger, bool ignoreTriggerInheritance)
-        {
-            if (ignoreTriggerInheritance)
-            {
-                if (trigger is CronTrigger)
-                {
-                    return typeof(CronTrigger);
-                }
-                else if (trigger is SimpleTrigger)
-                {
-                    return typeof(SimpleTrigger);
-                }
-                else
-                {
-                    // fall back
-                    return trigger.GetType();
-                }
-            }
-            else
-            {
-                // strict checking
-                return trigger.GetType();
-            }
-        }
-
 	}
 }

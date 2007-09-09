@@ -697,6 +697,24 @@ namespace Quartz
 			}
 		}
 
+        /// <summary>
+        /// Gets a value indicating whether this instance has additional properties
+        /// that should be considered when for example saving to database. 
+        /// </summary>
+        /// <remarks>
+        /// If trigger implementation has additional properties that need to be saved 
+        /// with base properties you need to make your class override this property with value true.
+        /// Returning true will effectively mean that ADOJobStore needs to serialize 
+        /// this trigger instance to make sure additional properties are also saved.
+        /// </remarks>
+        /// <value>
+        /// 	<c>true</c> if this instance has additional properties; otherwise, <c>false</c>.
+        /// </value>
+	    public virtual bool HasAdditionalProperties
+	    {
+	        get { return false; }
+	    }
+
 		/// <summary>
 		/// Return a simple string representation of this object.
 		/// </summary>

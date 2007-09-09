@@ -58,7 +58,6 @@ namespace Quartz.Impl.AdoJobStore
         protected bool useProperties;
         protected IDbProvider dbProvider;
         protected AdoUtil adoUtil;
-        private bool ignoreTriggerInheritance;
 
         /*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -101,26 +100,6 @@ namespace Quartz.Impl.AdoJobStore
             this.dbProvider = dbProvider;
             adoUtil = new AdoUtil(dbProvider);
             this.useProperties = useProperties;
-        }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether this job store 
-        /// should ignore trigger inheritance when persisting triggers.
-        /// </summary>
-        /// <remarks>
-        /// Basically this means that triggers inherited from <see cref="SimpleTrigger" /> or
-        /// <see cref="CronTrigger" />  are all persisted as their base class implementations, 
-        /// effectively ignoring introduced new data members. You should set this to false if 
-        /// you want to store members of your inheriting implementation. This
-        /// will make you your implementation persistent by means of serialization.
-        /// </remarks>
-        /// <value>
-        /// 	<c>true</c> if trigger inheritance should be ignore; otherwise, <c>false</c>.
-        /// </value>
-        public virtual bool IgnoreTriggerInheritance
-        {
-            get { return ignoreTriggerInheritance; }
-            set { ignoreTriggerInheritance = value; }
         }
 
         /*
@@ -932,17 +911,17 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 8, "triggerPreviousFireTime", Convert.ToDecimal(prevFireTime));
                 AddCommandParameter(cmd, 9, "triggerState", state);
                 string paramName = "triggerType";
-                if (Util.GetTriggerPersistenceType(trigger, IgnoreTriggerInheritance) == typeof (SimpleTrigger))
+                if (trigger is SimpleTrigger && !trigger.HasAdditionalProperties)
                 {
                     AddCommandParameter(cmd, 10, paramName, TTYPE_SIMPLE);
                 }
-                else if (Util.GetTriggerPersistenceType(trigger, IgnoreTriggerInheritance) == typeof(CronTrigger))
+                else if (trigger is CronTrigger && !trigger.HasAdditionalProperties)
                 {
                     AddCommandParameter(cmd, 10, paramName, TTYPE_CRON);
                 }
                 else
                 {
-                    // (trigger instanceof BlobTrigger)
+                    // (trigger instanceof BlobTrigger or additional properties in sub-class
                     AddCommandParameter(cmd, 10, paramName, TTYPE_BLOB);
                 }
                 AddCommandParameter(cmd, 11, "triggerStartTime", Convert.ToDecimal(trigger.StartTimeUtc.Ticks));
@@ -1091,12 +1070,12 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, 6, "triggerPreviousFireTime", Convert.ToDecimal(prevFireTime));
             AddCommandParameter(cmd, 7, "triggerState", state);
             string paramName = "triggerType";
-            if (Util.GetTriggerPersistenceType(trigger, IgnoreTriggerInheritance) == typeof(SimpleTrigger))
+            if (trigger is SimpleTrigger && !trigger.HasAdditionalProperties)
             {
                 // UpdateSimpleTrigger(conn, (SimpleTrigger)trigger);
                 AddCommandParameter(cmd, 8, paramName, TTYPE_SIMPLE);
             }
-            else if (Util.GetTriggerPersistenceType(trigger, IgnoreTriggerInheritance) == typeof(CronTrigger))
+            else if (trigger is CronTrigger && !trigger.HasAdditionalProperties)
             {
                 // UpdateCronTrigger(conn, (CronTrigger)trigger);
                 AddCommandParameter(cmd, 8, paramName, TTYPE_CRON);

@@ -154,8 +154,6 @@ namespace Quartz.Impl.AdoJobStore
 
         private readonly ILog log;
 
-        private bool ignoreTriggerInheritance = true;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
         /// </summary>
@@ -172,27 +170,6 @@ namespace Quartz.Impl.AdoJobStore
         {
             get { return dataSource; }
             set { dataSource = value; }
-        }
-
-
-        /// <summary>
-        /// Gets or sets a value indicating whether this job store 
-        /// should ignore trigger inheritance when persisting triggers.
-        /// </summary>
-        /// <remarks>
-        /// Basically this means that triggers inherited from <see cref="SimpleTrigger" /> or
-        /// <see cref="CronTrigger" />  are all persisted as their base class implementations, 
-        /// effectively ignoring introduced new data members. You should set this to false if 
-        /// you want to store members of your inheriting implementation. This
-        /// will make you your implementation persistent by means of serialization.
-        /// </remarks>
-        /// <value>
-        /// 	<c>true</c> if trigger inheritance should be ignore; otherwise, <c>false</c>.
-        /// </value>
-        public virtual bool IgnoreTriggerInheritance
-        {
-            get { return ignoreTriggerInheritance; }
-            set { ignoreTriggerInheritance = value; }
         }
 
         /// <summary>
@@ -531,11 +508,6 @@ namespace Quartz.Impl.AdoJobStore
                         }
 
                         driverDelegate = (IDriverDelegate)ctor.Invoke(ctorParams);
-                        StdAdoDelegate adoDelegate = driverDelegate as StdAdoDelegate;
-                        if (adoDelegate != null)
-                        {
-                            adoDelegate.IgnoreTriggerInheritance = IgnoreTriggerInheritance;
-                        }
                     }
                     catch (Exception e)
                     {
@@ -1228,11 +1200,11 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 if (existingTrigger)
                 {
-                    if (Util.GetTriggerPersistenceType(newTrigger, IgnoreTriggerInheritance) == typeof(SimpleTrigger))
+                    if (newTrigger is SimpleTrigger && !newTrigger.HasAdditionalProperties)
                     {
                         Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger)newTrigger);
                     }
-                    else if (Util.GetTriggerPersistenceType(newTrigger, IgnoreTriggerInheritance) == typeof(CronTrigger))
+                    else if (newTrigger is CronTrigger && !newTrigger.HasAdditionalProperties)
                     {
                         Delegate.UpdateCronTrigger(conn, (CronTrigger)newTrigger);
                     }
@@ -1245,11 +1217,11 @@ namespace Quartz.Impl.AdoJobStore
                 else
                 {
                     Delegate.InsertTrigger(conn, newTrigger, state, job);
-                    if (Util.GetTriggerPersistenceType(newTrigger, IgnoreTriggerInheritance) == typeof(SimpleTrigger))
+                    if (newTrigger is SimpleTrigger && !newTrigger.HasAdditionalProperties)
                     {
                         Delegate.InsertSimpleTrigger(conn, (SimpleTrigger)newTrigger);
                     }
-                    else if (Util.GetTriggerPersistenceType(newTrigger, IgnoreTriggerInheritance) == typeof(CronTrigger))
+                    else if (newTrigger is CronTrigger && !newTrigger.HasAdditionalProperties)
                     {
                         Delegate.InsertCronTrigger(conn, (CronTrigger)newTrigger);
                     }
