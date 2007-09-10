@@ -15,13 +15,13 @@
  */
 
 using Common.Logging;
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Impl;
 
 namespace Quartz.Tests.Integration
 {
-    [Category("integration")]    
+    [TestCategory("integration")]    
     public class IntegrationTest
     {
         protected IScheduler sched;
@@ -41,19 +41,6 @@ namespace Quartz.Tests.Integration
             }
         }
         
-        [TestFixtureSetUp]
-        public virtual void SetUp()
-        {
-            log.Debug("integration test started");
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            sched = sf.GetScheduler();            
-        }
         
-        [TestFixtureTearDown]
-        public virtual void TearDown()
-        {
-            log.Debug("shutting down scheduler");
-            sched.Shutdown(true);
-        }
     }
 }

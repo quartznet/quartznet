@@ -316,7 +316,15 @@ namespace Quartz
 		public override string ToString()
 		{
 			return
-				string.Format("JobExecutionContext: trigger: '{0} job: {1} fireTimeUtc: '{2} scheduledFireTimeUtc: {3} previousFireTime: '{4} nextFireTimeUtc: {5} recovering: {6} refireCount: {7}", Trigger.FullName, JobDetail.FullName, FireTimeUtc.Value.ToString("r"), ScheduledFireTimeUtc.Value.ToString("r"), PreviousFireTime.Value.ToString("r"), NextFireTimeUtc.Value.ToString("r"), Recovering, RefireCount);
+				string.Format("JobExecutionContext: trigger: '{0}' job: '{1}' fireTimeUtc: '{2:r}' scheduledFireTimeUtc: '{3:r}' previousFireTimeUtc: '{4:r}' nextFireTimeUtc: '{5:r}' recovering: {6} refireCount: {7}", 
+                Trigger.FullName, 
+                JobDetail.FullName, 
+                FireTimeUtc, 
+                ScheduledFireTimeUtc, 
+                PreviousFireTime, 
+                NextFireTimeUtc, 
+                Recovering, 
+                RefireCount);
 		}
 
 	    /// <summary> 

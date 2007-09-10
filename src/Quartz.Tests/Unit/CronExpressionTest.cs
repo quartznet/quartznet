@@ -23,7 +23,7 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 using Nullables;
 #endif
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {
@@ -32,7 +32,7 @@ namespace Quartz.Tests.Unit
     {
         private static readonly string[] VERSIONS = new String[] {"1.5.2"};
 
-        private static TimeZone EST_TIME_ZONE = TimeZone.CurrentTimeZone;
+        private static readonly TimeZone TEST_TIME_ZONE = TimeZone.CurrentTimeZone;
 
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
@@ -42,7 +42,7 @@ namespace Quartz.Tests.Unit
         protected object GetTargetObject()
         {
             CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
-            //cronExpression.TimeZone = EST_TIME_ZONE);
+            cronExpression.TimeZone = TEST_TIME_ZONE;
 
             return cronExpression;
         }
@@ -77,7 +77,7 @@ namespace Quartz.Tests.Unit
         /// Test method for 'CronExpression.IsSatisfiedBy(DateTime)'.
         /// </summary>
         [Test]
-        public void TestIsSatisfiedBy()
+        public void TestIsSatisfiedBy(DateTime utcTimeToTest, bool shouldbeStatified)
         {
             CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
 

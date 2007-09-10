@@ -22,7 +22,7 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 using Nullables;
 #endif
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Collection;
 

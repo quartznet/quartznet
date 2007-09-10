@@ -80,11 +80,6 @@
                     HintPath = "..\..\..\..\..\WINDOWS\Microsoft.NET\Framework\v1.1.4322\System.XML.dll"
                 />
                 <Reference
-                    Name = "nunit.framework"
-                    AssemblyName = "nunit.framework"
-                    HintPath = "..\..\lib\1.1\nunit.framework.dll"
-                />
-                <Reference
                     Name = "Quartz"
                     Project = "{AEF8823B-E45B-4B35-A4D0-C08C1196D017}"
                     Package = "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"
@@ -98,6 +93,11 @@
                     Name = "Common.Logging"
                     AssemblyName = "Common.Logging"
                     HintPath = "..\..\lib\1.1\Common.Logging.dll"
+                />
+                <Reference
+                    Name = "MbUnit.Framework"
+                    AssemblyName = "MbUnit.Framework"
+                    HintPath = "..\..\lib\1.1\MbUnit.Framework.dll"
                 />
             </References>
         </Build>
@@ -156,6 +156,11 @@
                 />
                 <File
                     RelPath = "Unit\JobDetailTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Unit\JobExecutionContextTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

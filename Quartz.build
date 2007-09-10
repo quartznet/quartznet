@@ -28,7 +28,6 @@
 
     <property name="clover.home" value="C:\Program Files\Cenqua\Clover.NET 2.1 for .NET 2.0"/>
     <loadtasks assembly="${clover.home}\CloverNAnt-0.85.dll"/>
-
   </target>
 
 
@@ -186,7 +185,7 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\${lib-dir-version}\nunit.framework.dll" />
+        <include name="lib\1.1\mbunit.framework.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
       </references>
@@ -197,28 +196,30 @@
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
+		<include name="lib\1.1\mbunit.dll"  />
       </fileset>
     </copy>
 
   </target>
 
-  <target name="nunit-2.0" depends="build-2.0">
-    <call target="nunit" />
+  <target name="unit-2.0" depends="build-2.0">
+    <call target="unit" />
   </target>
 
-  <target name="nunit-1.1" depends="build-1.1">
-    <call target="nunit" />
+  <target name="unit-1.1" depends="build-1.1">
+    <call target="unit" />
   </target>
 
 
 
-  <target name="nunit">
+  <target name="unit">
     <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests\Quartz.Tests.dll" />
     <echo message="Testing dll: ${test.dll}"  />
-    <nunit2 verbose="true" failonerror="false">
-      <formatter type="Plain" />
-      <test assemblyname="${test.dll}" />
-    </nunit2>
+    <mbunit report-types="text" verbose="true" halt-on-failure="false">
+	    <assemblies>
+			<include name="${test.dll}" /> 
+        </assemblies>
+    </mbunit>
   </target>
 
 
@@ -261,7 +262,7 @@
 
   </target>
 
-  <target name="clover" depends="with-clover, nunit-2.0, clover-report">
+  <target name="clover" depends="with-clover, unit-2.0, clover-report">
 
   </target>
 

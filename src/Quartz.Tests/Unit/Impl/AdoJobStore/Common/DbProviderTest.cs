@@ -1,7 +1,7 @@
 
 using System;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Impl.AdoJobStore.Common;
 

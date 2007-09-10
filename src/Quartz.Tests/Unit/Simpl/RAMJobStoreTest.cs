@@ -15,7 +15,7 @@
  */
 using System;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Impl.Calendar;
 using Quartz.Job;

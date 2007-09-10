@@ -17,8 +17,9 @@
 using System;
 using System.Threading;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Impl.Calendar;
 
 namespace Quartz.Tests.Integration.Impl.Calendar
@@ -29,6 +30,9 @@ namespace Quartz.Tests.Integration.Impl.Calendar
         [Test]
         public void TestTriggerFireExclusion()
         {
+            ISchedulerFactory sf = new StdSchedulerFactory();
+            sched = sf.GetScheduler();   
+
             sched.Start();
             TestJob.JobHasFired = false;
             JobDetail myDesc = new JobDetail("name", "group", typeof(TestJob));
@@ -39,6 +43,9 @@ namespace Quartz.Tests.Integration.Impl.Calendar
             sched.AddCalendar("calendar", calendar, true, true);
             trigger.CalendarName = "calendar";
             sched.ScheduleJob(myDesc, trigger);
+            Trigger triggerreplace = new CronTrigger("foo", "trigGroup", "name", "group", "0/15 * * * * ?");
+            triggerreplace.CalendarName = "calendar";
+            sched.RescheduleJob("trigName", "trigGroup", triggerreplace);
             Thread.Sleep(1000 * 20);
             Assert.IsFalse(TestJob.JobHasFired, "task must not be neglected - it is forbidden by the calendar");
 
@@ -50,6 +57,7 @@ namespace Quartz.Tests.Integration.Impl.Calendar
             sched.DeleteJob("name", "group");
             sched.DeleteCalendar("calendar");
 
+            sched.Shutdown();
         }
     }
 }
