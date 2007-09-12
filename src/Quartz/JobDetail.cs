@@ -65,12 +65,64 @@ namespace Quartz
         private Key key = null;
 
         /// <summary>
+        /// Create a <see cref="JobDetail" /> with no specified name or group, and
+        /// the default settings of all the other properties.
+        /// <p>
+        /// Note that the <see cref="Name" />,<see cref="Group" /> and
+        /// <see cref="JobType" /> properties must be set before the job can be
+        /// placed into a <see cref="IScheduler" />.
+        /// </p>
+        /// </summary>
+        public JobDetail()
+        {
+            // do nothing...
+        }
+
+        /// <summary>
+        /// Create a <see cref="JobDetail" /> with the given name, and group, and
+        /// the default settings of all the other properties.
+        /// If <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// If name is null or empty, or the group is an empty string.
+        /// </exception>
+        public JobDetail(string name, string group, Type jobClass)
+        {
+            Name = name;
+            Group = group;
+            JobType = jobClass;
+        }
+
+        /// <summary>
+        /// Create a <see cref="JobDetail" /> with the given name, and group, and
+        /// the given settings of all the other properties.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="group">if <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.</param>
+        /// <param name="jobType">Type of the job.</param>
+        /// <param name="volatility">if set to <c>true</c> [volatility].</param>
+        /// <param name="durability">if set to <c>true</c> [durability].</param>
+        /// <param name="recover">if set to <c>true</c> [recover].</param>
+        /// <exception cref="ArgumentException"> ArgumentException
+        /// if nameis null or empty, or the group is an empty string.
+        /// </exception>
+        public JobDetail(string name, string group, Type jobType, bool volatility, bool durability, bool recover)
+        {
+            Name = name;
+            Group = group;
+            JobType = jobType;
+            Volatile = volatility;
+            Durable = durability;
+            RequestsRecovery = recover;
+        }
+
+        /// <summary>
         /// Get or sets the name of this <see cref="IJob" />.
         /// </summary>
         /// <exception cref="ArgumentException"> 
         /// if name is null or empty.
         /// </exception>
-        public string Name
+        public virtual string Name
         {
             get { return name; }
 
@@ -87,12 +139,12 @@ namespace Quartz
 
         /// <summary>
         /// Get or sets the group of this <see cref="IJob" />. 
-        /// If <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.
+        /// If <see langword="null" />, <see cref="SchedulerConstants.DEFAULT_GROUP" /> will be used.
         /// </summary>
         /// <exception cref="ArgumentException"> 
         /// If the group is an empty string.
         /// </exception>
-        public string Group
+        public virtual string Group
         {
             get { return group; }
 
@@ -125,7 +177,7 @@ namespace Quartz
 		/// Gets the key.
 		/// </summary>
 		/// <value>The key.</value>
-        public Key Key
+        public virtual Key Key
         {
             get
             {
@@ -158,7 +210,7 @@ namespace Quartz
         /// <exception cref="ArgumentException"> 
         /// if jobType is null or the class is not a <see cref="IJob" />.
         /// </exception>
-        public Type JobType
+        public virtual Type JobType
         {
             get { return jobType; }
 
@@ -204,7 +256,7 @@ namespace Quartz
         /// </p>
         /// </summary>
         /// <seealso cref="JobExecutionContext.Recovering" />
-        public bool RequestsRecovery
+        public virtual bool RequestsRecovery
         {
             set { shouldRecover = value; }
             get { return shouldRecover; }
@@ -261,66 +313,22 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Returns an array of <see cref="String" /> s containing the names of all
+        /// Gets or sets an array of <see cref="String" /> s containing the names of all
         /// <see cref="IJobListener" /> s assigned to the <see cref="IJob" />,
-        /// in the order in which they should be notified.
+        /// in the order in which they should be notified. Setting the array
+        /// clears any listener names that were in the list.
         /// </summary>
         public virtual string[] JobListenerNames
         {
             get { return (string[]) jobListeners.ToArray(typeof (string)); }
-        }
-
-
-        /// <summary>
-        /// Create a <see cref="JobDetail" /> with no specified name or group, and
-        /// the default settings of all the other properties.
-        /// <p>
-        /// Note that the {@link #setName(String)},{@link #setGroup(String)}and
-        /// {@link #setJobClass(Class)}methods must be called before the job can be
-        /// placed into a {@link Scheduler}
-        /// </p>
-        /// </summary>
-        public JobDetail()
-        {
-            // do nothing...
-        }
-
-        /// <summary>
-        /// Create a <see cref="JobDetail" /> with the given name, and group, and
-        /// the default settings of all the other properties.
-        /// If <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.
-        /// </summary>
-        /// <exception cref="ArgumentException">
-        /// If name is null or empty, or the group is an empty string.
-        /// </exception>
-        public JobDetail(string name, string group, Type jobClass)
-        {
-            Name = name;
-            Group = group;
-            JobType = jobClass;
-        }
-
-        /// <summary>
-        /// Create a <see cref="JobDetail" /> with the given name, and group, and
-        /// the given settings of all the other properties.
-        /// </summary>
-        /// <param name="name">The name.</param>
-        /// <param name="group">if <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.</param>
-        /// <param name="jobType">Type of the job.</param>
-        /// <param name="volatility">if set to <c>true</c> [volatility].</param>
-        /// <param name="durability">if set to <c>true</c> [durability].</param>
-        /// <param name="recover">if set to <c>true</c> [recover].</param>
-        /// <exception cref="ArgumentException"> ArgumentException
-        /// if nameis null or empty, or the group is an empty string.
-        /// </exception>
-        public JobDetail(string name, string group, Type jobType, bool volatility, bool durability, bool recover)
-        {
-            Name = name;
-            Group = group;
-            JobType = jobType;
-            Volatile = volatility;
-            Durable = durability;
-            RequestsRecovery = recover;
+            set
+            {
+                jobListeners.Clear();
+                for (int i = 0; i < value.Length; i++)
+                {
+                    AddJobListener(value[i]);
+                }
+            }
         }
 
         /// <summary> 
@@ -359,14 +367,11 @@ namespace Quartz
 			}
         }
 
-        /// <summary> <p>
+        /// <summary>
         /// Remove the specified name of a <see cref="IJobListener" /> from
         /// the <see cref="IJob" />'s list of listeners.
-        /// </p>
-        /// 
         /// </summary>
-        /// <returns> true if the given name was found in the list, and removed
-        /// </returns>
+        /// <returns>true if the given name was found in the list, and removed</returns>
         public virtual bool RemoveJobListener(string listenerName)
         {
             for (int i = 0; i < jobListeners.Count; i++)
