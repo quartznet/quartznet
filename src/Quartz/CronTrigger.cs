@@ -666,7 +666,7 @@ namespace Quartz
 
 			if (instr == MisfirePolicy.CronTrigger.DoNothing)
 			{
-                NullableDateTime newFireTime = GetFireTimeAfter(DateTime.Now);
+                NullableDateTime newFireTime = GetFireTimeAfter(DateTime.UtcNow);
 
                 while (newFireTime.HasValue && cal != null
 				       && !cal.IsTimeIncluded(newFireTime.Value))

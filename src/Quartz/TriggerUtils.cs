@@ -612,16 +612,16 @@ namespace Quartz
 		/// date's 'day' will be promoted, and the time will be set to 00:00:00.
 		/// </p>
 		/// </summary>
-		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
+        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenHourDate(NullableDateTime date)
+        public static DateTime GetEvenHourDate(NullableDateTime dateUtc)
 		{
-			if (!date.HasValue)
+            if (!dateUtc.HasValue)
 			{
-				date = DateTime.Now;
+                dateUtc = DateTime.UtcNow;
 			}
-			DateTime d = date.Value.AddHours(1);
+            DateTime d = dateUtc.Value.AddHours(1);
 			return new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0);
 		}
 
@@ -633,16 +633,16 @@ namespace Quartz
 		/// with the time of 08:00:00.
 		/// </p>
 		/// </summary>
-		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
+        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenHourDateBefore(NullableDateTime date)
+        public static DateTime GetEvenHourDateBefore(NullableDateTime dateUtc)
 		{
-			if (!date.HasValue)
+            if (!dateUtc.HasValue)
 			{
-				date = DateTime.Now;
+                dateUtc = DateTime.UtcNow;
 			}
-			return new DateTime(date.Value.Year, date.Value.Month, date.Value.Day, date.Value.Hour, 0, 0);
+            return new DateTime(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0);
 		}
 
 		/// <summary>
@@ -654,16 +654,16 @@ namespace Quartz
 		/// then the hour (and possibly the day) will be promoted.
 		/// </p>
 		/// </summary>
-		/// <param name="date">The Date to round, if <see langword="null" /> the current time will  be used</param>
+        /// <param name="dateUtc">The Date to round, if <see langword="null" /> the current time will  be used</param>
 		/// <returns>The new rounded date</returns>
-        public static DateTime GetEvenMinuteDate(NullableDateTime date)
+        public static DateTime GetEvenMinuteDate(NullableDateTime dateUtc)
 		{
-			if (!date.HasValue)
+            if (!dateUtc.HasValue)
 			{
-				date = DateTime.Now;
+                dateUtc = DateTime.UtcNow;
 			}
 
-			DateTime d = date.Value;
+            DateTime d = dateUtc.Value;
 			d = d.AddMinutes(1);
 			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0);
 		}
@@ -676,17 +676,17 @@ namespace Quartz
 		/// with the time of 08:13:00.
 		/// </p>
 		/// </summary>
-		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
+        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenMinuteDateBefore(NullableDateTime date)
+        public static DateTime GetEvenMinuteDateBefore(NullableDateTime dateUtc)
 		{
-			if (!date.HasValue)
+            if (!dateUtc.HasValue)
 			{
-				date = DateTime.Now;
+				dateUtc = DateTime.UtcNow;
 			}
 
-			DateTime d = date.Value;
+            DateTime d = dateUtc.Value;
 			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0);
 		}
 
@@ -694,16 +694,16 @@ namespace Quartz
 		/// Returns a date that is rounded to the next even second above the given
 		/// date.
 		/// </summary>
-		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
+        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenSecondDate(NullableDateTime date)
+        public static DateTime GetEvenSecondDate(NullableDateTime dateUtc)
 		{
-			if (!date.HasValue)
+            if (!dateUtc.HasValue)
 			{
-				date = DateTime.Now;
+                dateUtc = DateTime.UtcNow;
 			}
-			DateTime d = date.Value;
+            DateTime d = dateUtc.Value;
 			d = d.AddSeconds(1);
 			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second);
 		}
@@ -716,16 +716,16 @@ namespace Quartz
 		/// date with the time of 08:13:00.000.
 		/// </p>
 		/// </summary>
-		/// <param name="date">the Date to round, if <see langword="null" /> the current time will
+        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenSecondDateBefore(NullableDateTime date)
+        public static DateTime GetEvenSecondDateBefore(NullableDateTime dateUtc)
 		{
-			if (!date.HasValue)
+            if (!dateUtc.HasValue)
 			{
-				date = DateTime.Now;
+                dateUtc = DateTime.UtcNow;
 			}
-			DateTime d = date.Value;
+            DateTime d = dateUtc.Value;
 			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second);
 		}
 
@@ -812,7 +812,7 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// </summary>
-		/// <param name="date">
+        /// <param name="dateUtc">
 		/// the Date to round, if <see langword="null" /> the current time will
 		/// be used
 		/// </param>
@@ -820,18 +820,18 @@ namespace Quartz
 		/// the base-minute to set the time on
 		/// </param>
 		/// <returns> the new rounded date</returns>
-        public static DateTime GetNextGivenMinuteDate(NullableDateTime date, int minuteBase)
+        public static DateTime GetNextGivenMinuteDate(NullableDateTime dateUtc, int minuteBase)
 		{
 			if (minuteBase < 0 || minuteBase > 59)
 			{
 				throw new ArgumentException("minuteBase must be >=0 and <= 59");
 			}
 
-			if (!date.HasValue)
+            if (!dateUtc.HasValue)
 			{
-				date = DateTime.Now;
+                dateUtc = DateTime.UtcNow;
 			}
-			DateTime d = date.Value;
+            DateTime d = dateUtc.Value;
 
 			if (minuteBase == 0)
 			{
@@ -863,22 +863,22 @@ namespace Quartz
 		/// <see cref="GetNextGivenMinuteDate" />.
 		/// </p>
 		/// </summary>
-		/// <param name="date">The date.</param>
+        /// <param name="dateUtc">The date.</param>
 		/// <param name="secondBase">The second base.</param>
 		/// <returns></returns>
-        public static DateTime GetNextGivenSecondDate(NullableDateTime date, int secondBase)
+        public static DateTime GetNextGivenSecondDate(NullableDateTime dateUtc, int secondBase)
 		{
 			if (secondBase < 0 || secondBase > 59)
 			{
 				throw new ArgumentException("secondBase must be >=0 and <= 59");
 			}
 
-			if (!date.HasValue)
+            if (!dateUtc.HasValue)
 			{
-				date = DateTime.Now;
+                dateUtc = DateTime.UtcNow;
 			}
 
-			DateTime d = date.Value;
+            DateTime d = dateUtc.Value;
 
 			if (secondBase == 0)
 			{
@@ -903,7 +903,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Get a <see cref="DateTime" /> object that represents the given time, on
-		/// today's date.
+		/// today's UTC date.
 		/// </summary>
 		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
 		/// <param name="minute">The value (0-59) to give the minutes field of the date</param>
@@ -915,7 +915,7 @@ namespace Quartz
 			ValidateMinute(minute);
 			ValidateHour(hour);
 
-			DateTime now = DateTime.Now;
+			DateTime now = DateTime.UtcNow;
 			return new DateTime(now.Year, now.Month, now.Day, hour, minute, second);
 		}
 
@@ -937,7 +937,7 @@ namespace Quartz
 			ValidateDayOfMonth(dayOfMonth);
 			ValidateMonth(month);
 
-			return new DateTime(DateTime.Now.Year, month, dayOfMonth, hour, minute, second);
+			return new DateTime(DateTime.UtcNow.Year, month, dayOfMonth, hour, minute, second);
 		}
 
 		/// <summary>
@@ -1065,10 +1065,10 @@ namespace Quartz
 		/// <param name="date">the date to translate</param>
 		/// <param name="src">the original time-zone</param>
 		/// <param name="dest">the destination time-zone</param>
-		/// <returns>the translated date</returns>
+		/// <returns>the translated UTC date</returns>
 		public static DateTime TranslateTime(DateTime date, TimeZone src, TimeZone dest)
 		{
-			DateTime newDate = DateTime.Now;
+			DateTime newDate = DateTime.UtcNow;
  			int offset = (GetOffset(date, dest) - GetOffset(date, src));
 
 			newDate = newDate.AddMilliseconds(-1*offset);

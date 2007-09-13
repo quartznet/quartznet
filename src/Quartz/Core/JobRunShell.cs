@@ -185,7 +185,7 @@ namespace Quartz.Core
                             log.Debug("Calling Execute on job " + jobDetail.FullName);
                         }
                         job.Execute(jec);
-                        endTime = DateTime.Now;
+                        endTime = DateTime.UtcNow;
                     }
                     catch (JobExecutionException jee)
                     {
