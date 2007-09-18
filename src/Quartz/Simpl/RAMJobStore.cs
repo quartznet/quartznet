@@ -1213,7 +1213,7 @@ namespace Quartz.Simpl
 			}
 
             NullableDateTime tnft = tw.trigger.GetNextFireTimeUtc();
-            if (tnft.Value > misfireTime)
+            if (!tnft.HasValue || tnft.Value > misfireTime)
 			{
 				return false;
 			}
