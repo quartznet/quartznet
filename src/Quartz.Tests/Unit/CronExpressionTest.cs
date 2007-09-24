@@ -110,6 +110,16 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);
         }
 
+        [Test]
+        public void TestCronExpressionPassingYear()
+        {
+            DateTime start = new DateTime(2007, 12, 1, 23, 59, 59).ToUniversalTime();
+
+            CronExpression ce = new CronExpression("0 55 15 1 * ?");
+            DateTime d = ce.GetNextValidTimeAfter(start).Value.ToLocalTime();
+            Assert.AreEqual(new DateTime(2008, 1, 1, 15, 55, 0), d, "Got wrong date and time when passed year");
+        }
+
 
         [Test]
         public void TestCronExpressionWeekdaysMonFri()

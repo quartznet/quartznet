@@ -1639,7 +1639,14 @@ namespace Quartz
 
                     if (day != t || mon != tmon)
                     {
-                        d = new DateTime(d.Year, mon, day, 0, 0, 0);
+                        if (mon > 12)
+                        {
+                            d = new DateTime(d.Year, 12, day, 0, 0, 0).AddMonths(mon - 12);
+                        }
+                        else
+                        {
+                            d = new DateTime(d.Year, mon, day, 0, 0, 0);
+                        }
                         continue;
                     }
                 }
