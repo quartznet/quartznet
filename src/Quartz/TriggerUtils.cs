@@ -901,67 +901,7 @@ namespace Quartz
 			}
 		}
 
-		/// <summary>
-		/// Get a <see cref="DateTime" /> object that represents the given time, on
-		/// today's UTC date.
-		/// </summary>
-		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
-		/// <param name="minute">The value (0-59) to give the minutes field of the date</param>
-		/// <param name="hour">The value (0-23) to give the hours field of the date</param>
-		/// <returns>the new date</returns>
-		public static DateTime GetDateOf(int second, int minute, int hour)
-		{
-			ValidateSecond(second);
-			ValidateMinute(minute);
-			ValidateHour(hour);
 
-			DateTime now = DateTime.UtcNow;
-			return new DateTime(now.Year, now.Month, now.Day, hour, minute, second);
-		}
-
-		/// <summary>
-		/// Get a <see cref="DateTime" /> object that represents the given time, on the
-		/// given date.
-		/// </summary>
-		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
-		/// <param name="minute">The value (0-59) to give the minutes field of the date</param>
-		/// <param name="hour">The value (0-23) to give the hours field of the date</param>
-		/// <param name="dayOfMonth">The value (1-31) to give the day of month field of the date</param>
-		/// <param name="month">The value (1-12) to give the month field of the date</param>
-		/// <returns>the new date</returns>
-		public static DateTime GetDateOf(int second, int minute, int hour, int dayOfMonth, int month)
-		{
-			ValidateSecond(second);
-			ValidateMinute(minute);
-			ValidateHour(hour);
-			ValidateDayOfMonth(dayOfMonth);
-			ValidateMonth(month);
-
-			return new DateTime(DateTime.UtcNow.Year, month, dayOfMonth, hour, minute, second);
-		}
-
-		/// <summary>
-		/// Get a <see cref="DateTime" /> object that represents the given time, on the
-		/// given date.
-		/// </summary>
-		/// <param name="second">The value (0-59) to give the seconds field of the date</param>
-		/// <param name="minute">The value (0-59) to give the minutes field of the date</param>
-		/// <param name="hour">The value (0-23) to give the hours field of the date</param>
-		/// <param name="dayOfMonth">The value (1-31) to give the day of month field of the date</param>
-		/// <param name="month">The value (1-12) to give the month field of the date</param>
-		/// <param name="year">The value (1970-2099) to give the year field of the date</param>
-		/// <returns>the new date</returns>
-		public static DateTime GetDateOf(int second, int minute, int hour, int dayOfMonth, int month, int year)
-		{
-			ValidateSecond(second);
-			ValidateMinute(minute);
-			ValidateHour(hour);
-			ValidateDayOfMonth(dayOfMonth);
-			ValidateMonth(month);
-			ValidateYear(year);
-
-			return new DateTime(year, month, dayOfMonth, hour, minute, second);
-		}
 
 		/// <summary>
 		/// Returns a list of Dates that are the next fire times of a

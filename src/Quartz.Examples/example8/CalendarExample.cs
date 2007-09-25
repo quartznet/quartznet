@@ -55,15 +55,15 @@ namespace Quartz.Examples.Example8
 			AnnualCalendar holidays = new AnnualCalendar();
 			
 			// fourth of July (July 4)
-			DateTime fourthOfJuly = new DateTime(DateTime.Now.Year, 7, 4);
+            DateTime fourthOfJuly = new DateTime(DateTime.UtcNow.Year, 7, 4);
 			holidays.SetDayExcluded(fourthOfJuly, true);
 			
 			// halloween (Oct 31)
-			DateTime halloween = new DateTime(DateTime.Now.Year, 10, 31);
+            DateTime halloween = new DateTime(DateTime.UtcNow.Year, 10, 31);
 			holidays.SetDayExcluded(halloween, true);
 			
 			// christmas (Dec 25)
-			DateTime christmas = new DateTime(DateTime.Now.Year, 12, 25);
+            DateTime christmas = new DateTime(DateTime.UtcNow.Year, 12, 25);
 			holidays.SetDayExcluded(christmas, true);
 			
 			// tell the schedule about our holiday calendar
@@ -72,7 +72,7 @@ namespace Quartz.Examples.Example8
 			
 			// schedule a job to run hourly, starting on halloween
 			// at 10 am
-			DateTime runDate = TriggerUtils.GetDateOf(0, 0, 10, 31, 10);
+			DateTime runDate = new DateTime(DateTime.UtcNow.Year, 10, 31, 10, 0, 0).ToUniversalTime();
 			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runDate, null, SimpleTrigger.REPEAT_INDEFINITELY, 60 * 60 * 1000);
 			// tell the trigger to obey the Holidays calendar!

@@ -47,7 +47,7 @@ namespace Quartz.Examples.Example12
 			JobDataMap map = new JobDataMap();
 			map.Put("msg", "Your remotely added job has executed!");
 			job.JobDataMap = map;
-			CronTrigger trigger = new CronTrigger("remotelyAddedTrigger", "default", "remotelyAddedJob", "default", DateTime.Now, null, "/5 * * ? * *");
+			CronTrigger trigger = new CronTrigger("remotelyAddedTrigger", "default", "remotelyAddedJob", "default", DateTime.UtcNow, null, "/5 * * ? * *");
 			
 			// schedule the job
 			sched.ScheduleJob(job, trigger);

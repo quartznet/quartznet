@@ -73,7 +73,7 @@ namespace Quartz.Examples.Example14
             // 6. Priority10Trigger15SecondRepeat
 
             // Calculate the start time of all triggers as 5 seconds from now
-            DateTime startTime = DateTime.Now.AddSeconds(5);
+            DateTime startTime = DateTime.UtcNow.AddSeconds(5);
 
             // First trigger has priority of -5, and will repeat after 5 seconds
             SimpleTrigger trigger1 =

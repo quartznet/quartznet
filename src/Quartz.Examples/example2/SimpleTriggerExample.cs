@@ -153,8 +153,8 @@ namespace Quartz.Examples.Example2
 			// jobs can be re-scheduled...  
 			// job 7 will run immediately and repeat 10 times for every second
 			log.Info("------- Rescheduling... --------------------");
-			
-            trigger = new SimpleTrigger("trigger7", "group1", "job7", "group1", DateTime.Now, null, 10, 1000L);
+
+            trigger = new SimpleTrigger("trigger7", "group1", "job7", "group1", DateTime.UtcNow, null, 10, 1000L);
             
             NullableDateTime ft2 = sched.RescheduleJob("trigger7", "group1", trigger);
 
