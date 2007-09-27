@@ -95,9 +95,9 @@
                     HintPath = "..\..\lib\1.1\Common.Logging.dll"
                 />
                 <Reference
-                    Name = "MbUnit.Framework"
-                    AssemblyName = "MbUnit.Framework"
-                    HintPath = "..\..\lib\1.1\MbUnit.Framework.dll"
+                    Name = "nunit.framework"
+                    AssemblyName = "nunit.framework"
+                    HintPath = "..\..\lib\1.1\nunit.framework.dll"
                 />
             </References>
         </Build>

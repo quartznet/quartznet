@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 namespace Quartz.Tests
 {

@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations 
  * under the License.
  */
-using MbUnit.Framework;
+using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {

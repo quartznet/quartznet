@@ -3,14 +3,14 @@ using System.Collections;
 using System.Collections.Specialized;
 using System.Threading;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
-    [TestCategory("integration")]
+    [Category("integration")]
     [TestFixture]
     public class AdoJobStoreSmokeTest
     {

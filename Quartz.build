@@ -185,7 +185,7 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\1.1\mbunit.framework.dll" />
+        <include name="lib\${lib-dir-version}\nunit.framework.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
       </references>
@@ -196,7 +196,7 @@
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
-		<include name="lib\1.1\mbunit.dll"  />
+		<include name="lib\${lib-dir-version}\nunit.framework.dll"  />
       </fileset>
     </copy>
 
@@ -212,14 +212,13 @@
 
 
 
-  <target name="unit">
+  <target name="unit" depends="build">
     <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests\Quartz.Tests.dll" />
     <echo message="Testing dll: ${test.dll}"  />
-    <mbunit report-types="text" verbose="true" halt-on-failure="false">
-	    <assemblies>
-			<include name="${test.dll}" /> 
-        </assemblies>
-    </mbunit>
+    <nunit2 verbose="true" failonerror="false">
+      <formatter type="Plain" />
+      <test assemblyname="${test.dll}" />
+    </nunit2>
   </target>
 
 

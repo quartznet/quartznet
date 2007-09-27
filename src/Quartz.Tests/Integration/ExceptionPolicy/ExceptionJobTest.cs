@@ -1,6 +1,6 @@
 using System.Threading;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 namespace Quartz.Tests.Integration.ExceptionPolicy
 {

@@ -17,7 +17,7 @@ using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {

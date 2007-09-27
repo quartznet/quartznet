@@ -15,13 +15,13 @@
  */
 
 using Common.Logging;
-using MbUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Impl;
 
 namespace Quartz.Tests.Integration
 {
-    [TestCategory("integration")]    
+    [Category("integration")]    
     public class IntegrationTest
     {
         protected IScheduler sched;

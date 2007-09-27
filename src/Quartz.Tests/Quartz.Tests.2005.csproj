@@ -78,9 +78,9 @@
       <Name>Common.Logging</Name>
       <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
     </Reference>
-    <Reference Include="MbUnit.Framework, Version=1.0.2700.29885, Culture=neutral, PublicKeyToken=5e72ecd30bc408d5">
+    <Reference Include="nunit.framework, Version=2.4.1.0, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\1.1\MbUnit.Framework.dll</HintPath>
+      <HintPath>..\..\lib\2.0\nunit.framework.dll</HintPath>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>
@@ -162,6 +162,9 @@
     <Compile Include="Unit\Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Unit\Plugin\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

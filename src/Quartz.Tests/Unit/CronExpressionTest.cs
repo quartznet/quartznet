@@ -23,7 +23,7 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 using Nullables;
 #endif
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {
