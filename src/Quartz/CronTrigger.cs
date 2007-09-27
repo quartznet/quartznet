@@ -309,22 +309,22 @@ namespace Quartz
 		/// <param name="group">The group.</param>
 		/// <param name="jobName">Name of the job.</param>
 		/// <param name="jobGroup">The job group.</param>
-		/// <param name="startTime">The start time.</param>
+        /// <param name="startTimeUtc">The start time.</param>
 		/// <param name="endTime">The end time.</param>
 		/// <param name="cronExpression">The cron expression.</param>
 		public CronTrigger(string name, string group, string jobName,
-			string jobGroup, DateTime startTime, 
+			string jobGroup, DateTime startTimeUtc, 
             NullableDateTime endTime, 
             string cronExpression)
 			: base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
 
-			if (startTime == DateTime.MinValue)
+            if (startTimeUtc == DateTime.MinValue)
 			{
-				startTime = DateTime.UtcNow;
+                startTimeUtc = DateTime.UtcNow;
 			}
-			StartTimeUtc = DateTimeUtil.AssumeUniversalTime(startTime);
+			StartTimeUtc = startTimeUtc;
 			if (endTime.HasValue)
 			{
 				EndTimeUtc = endTime;
@@ -343,20 +343,21 @@ namespace Quartz
 		/// <param name="group">The group.</param>
 		/// <param name="jobName">Name of the job.</param>
 		/// <param name="jobGroup">The job group.</param>
-		/// <param name="startTime">The start time.</param>
+        /// <param name="startTimeUtc">The start time.</param>
 		/// <param name="endTime">The end time.</param>
 		public CronTrigger(string name, string group, string jobName,
-			string jobGroup, DateTime startTime, 
+            string jobGroup, DateTime startTimeUtc, 
             NullableDateTime endTime,
 			string cronExpression, TimeZone timeZone) : base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
 
-			if (startTime == DateTime.MinValue)
+            if (startTimeUtc == DateTime.MinValue)
 			{
-				startTime = DateTime.UtcNow;
+                startTimeUtc = DateTime.UtcNow;
 			}
-			StartTimeUtc = DateTimeUtil.AssumeUniversalTime(startTime);
+            StartTimeUtc = startTimeUtc;
+
 			if (endTime.HasValue)
 			{
 				EndTimeUtc = endTime;

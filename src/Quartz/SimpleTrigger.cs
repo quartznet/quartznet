@@ -109,8 +109,8 @@ namespace Quartz
             NullableDateTime endTimeUtc, 
             int repeatCount, long repeatInterval) : base(name, group)
 		{
-			StartTimeUtc = DateTimeUtil.AssumeUniversalTime(startTimeUtc);
-			EndTimeUtc = DateTimeUtil.AssumeUniversalTime(endTimeUtc);
+			StartTimeUtc = startTimeUtc;
+			EndTimeUtc = endTimeUtc;
 			RepeatCount = repeatCount;
 			RepeatInterval = repeatInterval;
 		}
@@ -136,8 +136,8 @@ namespace Quartz
                  int repeatCount, long repeatInterval)
 			: base(name, group, jobName, jobGroup)
 		{
-			StartTimeUtc = DateTimeUtil.AssumeUniversalTime(startTime);
-			EndTimeUtc = DateTimeUtil.AssumeUniversalTime(endTime);
+			StartTimeUtc = startTime;
+			EndTimeUtc = endTime;
 			RepeatCount = repeatCount;
 			RepeatInterval = repeatInterval;
 		}
