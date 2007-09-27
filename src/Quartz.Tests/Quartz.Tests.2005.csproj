@@ -82,6 +82,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\2.0\nunit.framework.dll</HintPath>
     </Reference>
+    <Reference Include="Rhino.Mocks, Version=3.2.0.781, Culture=neutral, PublicKeyToken=0b3305902db7183f, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\2.0\Rhino.Mocks.dll</HintPath>
+    </Reference>
     <Reference Include="System">
       <Name>System</Name>
     </Reference>
@@ -142,6 +146,8 @@
     <Compile Include="Unit\NthIncludedDayTriggerTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Unit\Plugin\History\LoggingJobHistoryPluginTest.cs" />
+    <Compile Include="Unit\Plugin\History\LoggingTriggerHistoryPluginTest.cs" />
     <Compile Include="Unit\PriorityTest.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -162,9 +168,6 @@
     <Compile Include="Unit\Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Unit\Plugin\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

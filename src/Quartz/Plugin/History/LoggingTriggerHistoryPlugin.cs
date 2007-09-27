@@ -26,9 +26,11 @@ using Quartz.Spi;
 
 namespace Quartz.Plugin.History
 {
-    /// <summary> Logs a history of all trigger firings via the Jakarta Commons-Logging
+    /// <summary> 
+    /// Logs a history of all trigger firings via the Jakarta Commons-Logging
     /// framework.
-    /// 
+    /// </summary>
+    /// <remarks>
     /// <p>
     /// The logged message is customizable by setting one of the following message
     /// properties to a string that conforms to the syntax of <see cref="String.Format(string, object[])" />.
@@ -200,13 +202,25 @@ namespace Quartz.Plugin.History
     /// {6}.{5} at {4, date, HH:mm:ss MM/dd/yyyy} with resulting trigger instruction
     /// code: {9"</i>
     /// </p>
-    /// 
-    /// </summary>
-    /// <author>  James House
-    /// </author>
+    /// </remarks>
+    /// <author>James House</author>
     public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof (LoggingTriggerHistoryPlugin));
+        private string name;
+        private string triggerFiredMessage = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy} ";
+        private string triggerMisfiredMessage = "Trigger {1}.{0} misfired job {6}.{5}  at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
+        private string triggerCompleteMessage = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
+        
+        private ILog log = LogManager.GetLogger(typeof (LoggingTriggerHistoryPlugin));
+
+        /// <summary>
+        /// Logger instance to use. Defaults to common logging.
+        /// </summary>
+        public ILog Log
+        {
+            get { return log; }
+            set { log = value; }
+        }
 
         /// <summary> 
         /// Get or set the message that is printed upon the completion of a trigger's
@@ -242,23 +256,8 @@ namespace Quartz.Plugin.History
         /// <value></value>
         public virtual string Name
         {
-            /*
-			* object[] arguments = { new Integer(7), new
-			* Date(System.currentTimeMillis()), "a disturbance in the Force" };
-			* 
-			* string result = MessageFormat.format( "At {1,time} on {1,date}, there
-			* was {2} on planet {0,number,integer}.", arguments);
-			*/
-
             get { return name; }
         }
-
-
-        private string name;
-        private string triggerFiredMessage = "Trigger {1}.{0} fired job {6}.{5} at: {4, date, HH:mm:ss MM/dd/yyyy";
-        private string triggerMisfiredMessage = "Trigger {1}.{0} misfired job {6}.{5}  at: {4, date, HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3, date, HH:mm:ss MM/dd/yyyy";
-        private string triggerCompleteMessage = "Trigger {1}.{0} completed firing job {6}.{5} at {4, date, HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9";
-
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give

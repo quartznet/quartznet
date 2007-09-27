@@ -99,6 +99,11 @@
                     AssemblyName = "nunit.framework"
                     HintPath = "..\..\lib\1.1\nunit.framework.dll"
                 />
+                <Reference
+                    Name = "Rhino.Mocks"
+                    AssemblyName = "Rhino.Mocks"
+                    HintPath = "..\..\lib\1.1\Rhino.Mocks.dll"
+                />
             </References>
         </Build>
         <Files>
@@ -223,6 +228,20 @@
                     RelPath = "Unit\Impl\Calendar\DailyCalendarTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Unit\Plugin\History\LoggingJobHistoryPluginTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Unit\Plugin\History\LoggingTriggerHistoryPluginTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Unit\Plugin\History\LoggingTriggerHistoryPluginTest.cs~RFbb133e3.TMP"
+                    BuildAction = "None"
                 />
                 <File
                     RelPath = "Unit\Simpl\PropertySettingJobFactoryTest.cs"

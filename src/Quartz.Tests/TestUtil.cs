@@ -3,6 +3,8 @@ using System.Collections;
 
 using NUnit.Framework;
 
+using Quartz.Spi;
+
 namespace Quartz.Tests
 {
 	/// <summary>
@@ -22,5 +24,19 @@ namespace Quartz.Tests
 				Assert.AreEqual(col1[i], col2[i], string.Format("Collection items differ at index {0}: {1} vs {2}", i, col1[i], col2[i]));
 			}
 		}
+
+        /// <summary>
+        /// Creates the minimal fired bundle with job detail that has
+        /// given job type.
+        /// </summary>
+        /// <param name="jobType">Type of the job.</param>
+        /// <param name="trigger">The trigger.</param>
+        /// <returns>Minimal TriggerFiredBundle</returns>
+        public static TriggerFiredBundle CreateMinimalFiredBundleWithTypedJobDetail(Type jobType, Trigger trigger)
+        {
+            JobDetail jd = new JobDetail("jobName", "jobGroup", jobType);
+            TriggerFiredBundle bundle = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
+            return bundle;
+        }
 	}
 }

@@ -188,6 +188,7 @@
         <include name="lib\${lib-dir-version}\nunit.framework.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+		<include name="lib\${lib-dir-version}\Rhino.Mocks.dll"  />
       </references>
     </csc>
 
@@ -197,6 +198,7 @@
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
 		<include name="lib\${lib-dir-version}\nunit.framework.dll"  />
+		<include name="lib\${lib-dir-version}\Rhino.Mocks.dll"  />
       </fileset>
     </copy>
 
