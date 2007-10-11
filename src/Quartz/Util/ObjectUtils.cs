@@ -54,41 +54,35 @@ namespace Quartz.Util
 
 				
 				// try to convert using type converter
-				try
-				{
-					TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
-					if (typeConverter.CanConvertFrom(newValue.GetType()))
-					{
-						newValue = typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
-					}
-					if (requiredType == typeof(int) && newValue.GetType() == typeof(long))
-					{
-						// automatically doesn't work, try with converter
-						newValue = Convert.ToInt32(newValue);
-					}
-					else if (requiredType == typeof(short) && (newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
-					{
-						// automatically doesn't work, try with converter
-						newValue = Convert.ToInt16(newValue);
-					}
-					else if (requiredType == typeof(byte) && (newValue.GetType() == typeof(short) || newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
-					{
-						// automatically doesn't work, try with converter
-						newValue = Convert.ToByte(newValue);
-					}
-                    else if (newValue != null && requiredType == typeof(Type))
+			    TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
+			    if (typeConverter.CanConvertFrom(newValue.GetType()))
+			    {
+				    newValue = typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
+			    }
+			    if (requiredType == typeof(int) && newValue.GetType() == typeof(long))
+			    {
+				    // automatically doesn't work, try with converter
+				    newValue = Convert.ToInt32(newValue);
+			    }
+			    else if (requiredType == typeof(short) && (newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
+			    {
+				    // automatically doesn't work, try with converter
+				    newValue = Convert.ToInt16(newValue);
+			    }
+			    else if (requiredType == typeof(byte) && (newValue.GetType() == typeof(short) || newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
+			    {
+				    // automatically doesn't work, try with converter
+				    newValue = Convert.ToByte(newValue);
+			    }
+                else if (newValue != null && requiredType == typeof(Type))
+                {
+                    Type t = Type.GetType(newValue.ToString());
+                    if (t == null)
                     {
-                        newValue = Type.GetType(newValue.ToString());
+                        throw new ArgumentException("Unable to load type '" + newValue + "', incorrect type or missing assembly reference");
                     }
-				}
-				catch (Exception)
-				{
-					throw;
-				}
-				if (newValue == null)
-				{
-					throw new Exception();
-				}
+                    newValue = t;
+                }
 			}
 			return newValue;
 		}
