@@ -22,7 +22,10 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Reflection;
 using System.Xml;
+using System.Xml.Schema;
+using System.Xml.Serialization;
 
 using Common.Logging;
 
@@ -60,7 +63,7 @@ namespace Quartz.Xml
 	/// <author>Marko Lahma (.NET)</author>
 	public class JobSchedulingDataProcessor
 	{
-		private ILog log;
+		private readonly ILog log;
 	    private bool validateXml;
 	    private bool validateSchema;
 
@@ -70,42 +73,7 @@ namespace Quartz.Xml
 		public const string QUARTZ_XSD = "Quartz.Quartz.Xml.job_scheduling_data.xsd";
 		
 		protected const string THREAD_LOCAL_KEY_SCHEDULDER = "quartz_scheduler";
-
-		protected const string TAG_QUARTZ = "quartz";
-		protected const string TAG_OVERWRITE_EXISTING_JOBS = "overwrite-existing-jobs";
-		protected const string TAG_JOB_LISTENER = "job-listener";
-		protected const string TAG_CALENDAR = "calendar";
-		protected const string TAG_CLASS_NAME = "type-name";
-		protected const string TAG_DESCRIPTION = "description";
-		protected const string TAG_BASE_CALENDAR = "base-calendar";
-		protected const string TAG_MISFIRE_INSTRUCTION = "misfire-instruction";
-		protected const string TAG_CALENDAR_NAME = "calendar-name";
-		protected const string TAG_JOB = "job";
-		protected const string TAG_JOB_DETAIL = "job-detail";
-		protected const string TAG_NAME = "name";
-		protected const string TAG_GROUP = "group";
-		protected const string TAG_JOB_CLASS = "job-type";
-		protected const string TAG_JOB_LISTENER_REF = "job-listener-ref";
-		protected const string TAG_VOLATILITY = "volatility";
-		protected const string TAG_DURABILITY = "durability";
-		protected const string TAG_RECOVER = "recover";
-		protected const string TAG_JOB_DATA_MAP = "job-data-map";
-		protected const string TAG_ENTRY = "entry";
-		protected const string TAG_KEY = "key";
-		protected const string TAG_ALLOWS_TRANSIENT_DATA = "allows-transient-data";
-		protected const string TAG_VALUE = "value";
-		protected const string TAG_TRIGGER = "trigger";
-		protected const string TAG_SIMPLE = "simple";
-		protected const string TAG_CRON = "cron";
-		protected const string TAG_JOB_NAME = "job-name";
-		protected const string TAG_JOB_GROUP = "job-group";
-		protected const string TAG_START_TIME = "start-time";
-		protected const string TAG_END_TIME = "end-time";
-		protected const string TAG_REPEAT_COUNT = "repeat-count";
-		protected const string TAG_REPEAT_INTERVAL = "repeat-interval";
-		protected const string TAG_CRON_EXPRESSION = "cron-expression";
-		protected const string TAG_TIME_ZONE = "time-zone";
-
+		
 		/// <summary> 
 		/// XML Schema dateTime datatype format.
 		/// <p>
@@ -123,6 +91,7 @@ namespace Quartz.Xml
 		protected ArrayList validationExceptions = new ArrayList();
 
 		private bool overWriteExistingJobs = true;
+
 		
 		/// <summary> 
 		/// Gets or sets whether to overwrite existing jobs.
@@ -154,22 +123,19 @@ namespace Quartz.Xml
 		/// </returns>
 		public virtual IDictionary ScheduledJobs
 		{
-			get
-			{
-				return scheduledJobs;
-			}
+			get { return scheduledJobs; }
 		}
 
 
 		/// <summary>
-		/// Constructor for QuartzMetaDataProcessor.
+		/// Constructor for JobSchedulingDataProcessor.
 		/// </summary>
 		public JobSchedulingDataProcessor() : this(true, true)
 		{
 		}
 
 		/// <summary>
-		/// Constructor for QuartzMetaDataProcessor.
+		/// Constructor for JobSchedulingDataProcessor.
 		/// </summary>
 		/// <param name="validateXml">whether or not to validate XML.</param>
 		/// <param name="validateSchema">whether or not to validate XML schema.</param>
@@ -229,7 +195,7 @@ namespace Quartz.Xml
             }
 		}
 
-        protected virtual void ProcessInternal(string xml)
+        protected internal virtual void ProcessInternal(string xml)
         {
             ClearValidationExceptions();
 
@@ -239,9 +205,137 @@ namespace Quartz.Xml
 
             ValidateXmlIfNeeded(xml);
             
+            // deserialize as object model
+            XmlSerializer xs = new XmlSerializer(typeof(quartz));
+            quartz data = (quartz) xs.Deserialize(new StringReader(xml));
 
+            // process data
+            
+            // add calendars
+            foreach (calendarType ct in data.calendar)
+            {
+                CalendarBundle c = CreateCalendarFromXmlObject(ct);
+                calsToSchedule.Add(c);
+            }
+
+            // add job scheduling bundles
+            ProcessJobs(data);
+
+            if (data.joblistener != null)
+            {
+                // go through listeners
+                foreach (joblistenerType jt in data.joblistener)
+                {
+                    Type listenerType = Type.GetType(jt.type);
+                    if (listenerType == null)
+                    {
+                        throw new SchedulerConfigException("Unknown job listener type " + jt.type);
+                    }
+                    IJobListener listener = (IJobListener) ObjectUtils.InstantiateType(listenerType);
+                    listenersToSchedule.Add(listener);
+                }
+            }
             MaybeThrowValidationException();
         }
+
+	    private void ProcessJobs(quartz data)
+	    {
+	        foreach (jobType jt in data.job)
+	        {
+	            JobSchedulingBundle jsb = new JobSchedulingBundle();
+	            jobdetailType j = jt.jobdetail;
+	            Type jobType = Type.GetType(j.jobtype);
+                if (jobType == null)
+                {
+                    throw new SchedulerConfigException("Unknown job type " + j.jobtype);
+                }
+
+	            JobDetail jd = new JobDetail(j.name, j.group, jobType, j.@volatile, j.durable, j.recover);
+	            jd.Description = j.description;
+	            jsb.JobDetail = jd;
+
+	            triggerType[] tArr = jt.trigger;
+	            foreach (triggerType t in tArr)
+	            {
+	                Trigger trigger;
+	                if (t.Item is cronType)
+	                {
+	                    cronType c = (cronType) t.Item;
+	                    CronTrigger ct = new CronTrigger(c.name, c.group, c.jobname, c.jobgroup, c.starttime, c.endtime, c.cronexpression);
+	                    if (c.timezone != null && c.timezone.Trim().Length > 0)
+	                    {
+	                        TimeZone tz = (TimeZone) ObjectUtils.InstantiateType(Type.GetType(c.timezone));
+	                        ct.TimeZone = tz;
+	                    }
+	                    trigger = ct;
+	                }
+	                else if (t.Item is simpleType)
+	                {
+	                    simpleType s = (simpleType) t.Item;
+	                    
+                        SimpleTrigger st = new SimpleTrigger(
+                            s.name, 
+                            s.group, 
+                            s.jobname, 
+                            s.jobgroup,
+                            s.starttime, 
+                            s.endtime, 
+                            ParseSimpleTriggerRepeatCount(s.repeatcount), 
+                            Convert.ToInt64(s.repeatinterval));
+
+	                    trigger = st;
+	                }
+	                else
+	                {
+	                    throw new ArgumentException("Unknown trigger type in XML");
+	                }
+	                trigger.CalendarName = t.Item.calendarname;
+	                trigger.MisfireInstruction = ReadMisfireInstructionFromString(t.Item.misfireinstruction);
+
+	                jsb.Triggers.Add(trigger);
+	            }
+
+	            jobsToSchedule.Add(jsb);
+	        }
+	    }
+
+	    private static int ParseSimpleTriggerRepeatCount(string repeatcount)
+	    {
+	        int value;
+	        if (repeatcount == "REPEAT_INDEFINITELY")
+	        {
+	            value = SimpleTrigger.REPEAT_INDEFINITELY;
+	        }
+            else
+	        {
+                value = Convert.ToInt32(repeatcount);
+	        }
+
+            return value;
+	    }
+
+	    private static int ReadMisfireInstructionFromString(string misfireinstruction)
+	    {
+	       Constants c = new Constants(typeof(MisfirePolicy), typeof(MisfirePolicy.CronTrigger), typeof(MisfirePolicy.SimpleTrigger));
+	       return c.AsNumber(misfireinstruction);
+	    }
+
+	    private static CalendarBundle CreateCalendarFromXmlObject(calendarType ct)
+	    {
+            CalendarBundle c = new CalendarBundle(); 
+            
+            // set type name first as it creates the actual inner instance
+	        c.TypeName = ct.type;
+            c.Description = ct.description;
+            c.CalendarName = ct.name;
+            c.Replace = ct.replace;
+
+            if (ct.basecalendar != null)
+            {
+                c.CalendarBase = CreateCalendarFromXmlObject(ct.basecalendar);
+            }
+            return c;
+	    }
 
 	    private void ValidateXmlIfNeeded(string xml)
 	    {
@@ -250,22 +344,24 @@ namespace Quartz.Xml
                 // stream to validate
                 using (StringReader stringReader = new StringReader(xml))
                 {
-                    // schema to validate against
-                    /* XmlReaderSettings settings = new XmlReaderSettings();
-                    string messageSchemaData = "";
-                    settings.Schemas.Add(null, XmlReader.Create(new StringReader(messageSchemaData)));
-                    settings.ValidationType = ValidationType.Schema;
+                    XmlTextReader xmlr = new XmlTextReader(stringReader);
+                    XmlValidatingReader xmlvread = new XmlValidatingReader(xmlr);
 
-                    // read document to ensure validity
-                    using (XmlReader xmlReader = XmlReader.Create(stringReader, settings))
-                    {
-                        while (xmlReader.Read())
-                        {
-                        }
-                    }
-					*/
+                    // Set the validation event handler
+                    xmlvread.ValidationEventHandler += new ValidationEventHandler(XmlValidationCallBack);
+
+                    // Read XML data
+                    while (xmlvread.Read()) { }
+
+                    //Close the reader.
+                    xmlvread.Close();
                 }
             }
+	    }
+
+	    private void XmlValidationCallBack(object sender, ValidationEventArgs e)
+	    {
+	        validationExceptions.Add(e.Exception);
 	    }
 
 
@@ -322,7 +418,7 @@ namespace Quartz.Xml
 		/// <param name="overwriteExistingJobs">if set to <c>true</c> [over write existing jobs].</param>
 		public virtual void ScheduleJobs(IDictionary jobBundles, IScheduler sched, bool overwriteExistingJobs)
 		{
-			Log.Info("Scheduling " + jobsToSchedule.Count + " parsed jobs.");
+			Log.Info(string.Format("Scheduling {0} parsed jobs.", jobsToSchedule.Count));
 
 			foreach (CalendarBundle bndle in calsToSchedule)
 			{
@@ -336,10 +432,10 @@ namespace Quartz.Xml
 
 			foreach (IJobListener listener in listenersToSchedule)
 			{
-				Log.Info("adding listener " + listener.Name + " of type " + listener.GetType().FullName);
+				Log.Info(string.Format("adding listener {0} of type {1}", listener.Name, listener.GetType().FullName));
 				sched.AddJobListener(listener);
 			}
-			Log.Info(jobBundles.Count + " scheduled jobs.");
+			Log.Info(string.Format("{0} scheduled jobs.", jobBundles.Count));
 		}
 
 		/// <summary>
@@ -421,11 +517,11 @@ namespace Quartz.Xml
 
 				if (dupeJ != null)
 				{
-					Log.Info("Replacing job: " + detail.FullName);
+					Log.Info(string.Format("Replacing job: {0}", detail.FullName));
 				}
 				else
 				{
-					Log.Info("Adding job: " + detail.FullName);
+					Log.Info(string.Format("Adding job: {0}", detail.FullName));
 				}
 
 				if (job.Triggers.Count == 0 && !job.JobDetail.Durable)
@@ -450,7 +546,7 @@ namespace Quartz.Xml
 
 					if (dupeT != null)
 					{
-						Log.Debug("Rescheduling job: " + detail.FullName + " with updated trigger: " + trigger.FullName);
+						Log.Debug(string.Format("Rescheduling job: {0} with updated trigger: {1}", detail.FullName, trigger.FullName));
 						if (!dupeT.JobGroup.Equals(trigger.JobGroup) || !dupeT.JobName.Equals(trigger.JobName))
 						{
 							Log.Warn("Possibly duplicately named triggers in jobs xml file!");
@@ -459,7 +555,7 @@ namespace Quartz.Xml
 					}
 					else
 					{
-						Log.Debug("Scheduling job: " + detail.FullName + " with trigger: " + trigger.FullName);
+						Log.Debug(string.Format("Scheduling job: {0} with trigger: {1}", detail.FullName, trigger.FullName));
 						sched.ScheduleJob(trigger);
 					}
 				}
@@ -525,4 +621,32 @@ namespace Quartz.Xml
 
 
 	}
+
+    /// <summary>
+    /// Helper class to map constant names to their values.
+    /// </summary>
+    internal class Constants
+    {
+        private readonly Type[] types;
+
+        public Constants(params Type[] reflectedTypes)
+        {
+            types = reflectedTypes;
+        }
+
+        public int AsNumber(string field)
+        {
+            foreach (Type type in types)
+            {
+                FieldInfo fi = type.GetField(field);
+                if (fi != null)
+                {
+                    return Convert.ToInt32(fi.GetValue(null));
+                }
+            }
+
+            // not found
+            throw new Exception(string.Format("Unknown field '{0}'", field));
+        }
+    }
 }

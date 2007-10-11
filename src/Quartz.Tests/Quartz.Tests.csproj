@@ -240,10 +240,6 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\Plugin\History\LoggingTriggerHistoryPluginTest.cs~RFbb133e3.TMP"
-                    BuildAction = "None"
-                />
-                <File
                     RelPath = "Unit\Simpl\PropertySettingJobFactoryTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -262,6 +258,15 @@
                     RelPath = "Unit\Utils\PropertiesParserTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Unit\Xml\JobSchedulingDataProcessorTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Unit\Xml\TestData\RichConfiguration.xml"
+                    BuildAction = "EmbeddedResource"
                 />
             </Include>
         </Files>

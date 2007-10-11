@@ -17,7 +17,7 @@
                 DelaySign = "false"
                 OutputType = "Exe"
                 PreBuildEvent = ""
-                PostBuildEvent = ""
+                PostBuildEvent = "cmd /c copy $(ProjectDir)quartz_jobs.xml $(TargetDir)"
                 RootNamespace = "Quartz.Examples"
                 RunPostBuildEvent = "OnBuildSuccess"
                 StartupObject = ""
@@ -119,6 +119,10 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "quartz_jobs.xml"
+                    BuildAction = "Content"
+                />
+                <File
                     RelPath = "example1\HelloJob.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -185,6 +189,11 @@
                 />
                 <File
                     RelPath = "example14\TriggerEchoJob.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "example15\XmlConfigurationExample.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

@@ -25,13 +25,13 @@ using System.Text;
 namespace Quartz.Xml
 {
 	/// <summary> 
-	/// Reports QuartzMetaDataProcessor validation exceptions.
+	/// Reports JobSchedulingDataProcessor validation exceptions.
 	/// </summary>
 	/// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	[Serializable]
 	public class ValidationException : ApplicationException
 	{
-		private ICollection validationExceptions = new ArrayList();
+		private readonly ICollection validationExceptions = new ArrayList();
 
 		/// <summary>
 		/// Gets the validation exceptions.

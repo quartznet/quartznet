@@ -117,6 +117,10 @@ namespace Quartz.Xml
 		protected virtual void CreateCalendar()
 		{
 			Type type = Type.GetType(typeName);
+            if (type == null)
+            {
+                throw new SchedulerConfigException("Unknown calendar type " + typeName);
+            }
 			Calendar = (ICalendar) ObjectUtils.InstantiateType(type);
 		}
 	}

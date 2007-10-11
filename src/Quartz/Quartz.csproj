@@ -621,11 +621,6 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Plugin\Xml\JobInitializationPluginMultiple.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
                     RelPath = "Simpl\CascadingClassLoadHelper.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -767,6 +762,11 @@
                 />
                 <File
                     RelPath = "Xml\CalendarBundle.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Xml\job_scheduling_data.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

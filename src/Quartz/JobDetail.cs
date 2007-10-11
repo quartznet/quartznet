@@ -86,11 +86,11 @@ namespace Quartz
         /// <exception cref="ArgumentException">
         /// If name is null or empty, or the group is an empty string.
         /// </exception>
-        public JobDetail(string name, string group, Type jobClass)
+        public JobDetail(string name, string group, Type jobType)
         {
             Name = name;
             Group = group;
-            JobType = jobClass;
+            JobType = jobType;
         }
 
         /// <summary>
@@ -100,20 +100,20 @@ namespace Quartz
         /// <param name="name">The name.</param>
         /// <param name="group">if <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.</param>
         /// <param name="jobType">Type of the job.</param>
-        /// <param name="volatility">if set to <c>true</c> [volatility].</param>
-        /// <param name="durability">if set to <c>true</c> [durability].</param>
-        /// <param name="recover">if set to <c>true</c> [recover].</param>
-        /// <exception cref="ArgumentException"> ArgumentException
-        /// if nameis null or empty, or the group is an empty string.
+        /// <param name="isVolatile">if set to <c>true</c>, job will be volatile.</param>
+        /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
+        /// <param name="requestsRecovery">if set to <c>true</c>, job will request recovery.</param>
+        /// <exception cref="ArgumentException"> 
+        /// ArgumentException if name is null or empty, or the group is an empty string.
         /// </exception>
-        public JobDetail(string name, string group, Type jobType, bool volatility, bool durability, bool recover)
+        public JobDetail(string name, string group, Type jobType, bool isVolatile, bool isDurable, bool requestsRecovery)
         {
             Name = name;
             Group = group;
             JobType = jobType;
-            Volatile = volatility;
-            Durable = durability;
-            RequestsRecovery = recover;
+            Volatile = isVolatile;
+            Durable = isDurable;
+            RequestsRecovery = requestsRecovery;
         }
 
         /// <summary>

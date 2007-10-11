@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<quartz xmlns="http://quartznet.sourceforge.net/JobSchedulingData"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://quartznet.sourceforge.net/JobSchedulingData file:/C:/Work/Quartz/Quartz.NET/src/Quartz/Xml/job_scheduling_data.xsd"
+				version="1.0"
+				overwrite-existing-jobs="true">
+	<job-listener type="Quartz.Tests.Unit.Xml.NoOpJobListener, Quartz.Tests" name="jobListener1"/>
+	<calendar type="Quartz.Impl.Calendar.AnnualCalendar, Quartz" replace="false">
+		<name>cal1</name>
+		<description>description0</description>
+		<base-calendar type="Quartz.Impl.Calendar.WeeklyCalendar, Quartz" replace="false">
+			<name>name1</name>
+			<description>description1</description>
+		</base-calendar>
+	</calendar>
+  <calendar type="Quartz.Impl.Calendar.AnnualCalendar, Quartz" replace="false">
+    <name>cal2</name>
+    <description>description0</description>
+    <base-calendar type="Quartz.Impl.Calendar.WeeklyCalendar, Quartz" replace="false">
+      <name>name1</name>
+      <description>description1</description>
+    </base-calendar>
+  </calendar>
+  <job>
+		<job-detail>
+			<name>jobName1</name>
+			<group>jobGroup1</group>
+			<description>jobDesciption1</description>
+			<job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+			<job-listener-ref>jobListener1</job-listener-ref>
+			<volatile>false</volatile>
+			<durable>true</durable>
+			<recover>false</recover>
+			<job-data-map allows-transient-data="false">
+				<entry>
+					<key>key0</key>
+					<value>value0</value>
+				</entry>
+				<entry>
+					<key>key1</key>
+					<value>value1</value>
+				</entry>
+				<entry>
+					<key>key2</key>
+					<value>value2</value>
+				</entry>
+			</job-data-map>
+		</job-detail>
+		<trigger>
+			<simple>
+				<name>simpleName</name>
+				<group>simpleGroup</group>
+				<description>SimpleTriggerDescription</description>
+				<misfire-instruction>SmartPolicy</misfire-instruction>
+				<calendar-name>calendar</calendar-name>
+				<volatile>false</volatile>
+				<job-name>jobName1</job-name>
+				<job-group>jobGroup1</job-group>
+				<start-time>1982-06-28T18:15:00.0Z</start-time>
+				<end-time>2006-05-04T18:13:51.0Z</end-time>
+				<repeat-count>100</repeat-count>
+				<repeat-interval>3000</repeat-interval>
+			</simple>
+		</trigger>
+
+	</job>
+</quartz>
+

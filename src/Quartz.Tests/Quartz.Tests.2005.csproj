@@ -168,6 +168,10 @@
     <Compile Include="Unit\Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Unit\Xml\JobSchedulingDataProcessorTest.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Unit\Xml\TestData\RichConfiguration.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

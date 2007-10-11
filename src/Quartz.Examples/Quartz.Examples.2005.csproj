@@ -183,8 +183,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="example15\XmlConfigurationExample.cs" />
     <Compile Include="example14\PriorityExample.cs" />
     <Compile Include="example14\TriggerEchoJob.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="quartz_jobs.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

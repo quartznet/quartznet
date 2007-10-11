@@ -18,331 +18,455 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
+
 using System;
+using System.Collections;
 using System.IO;
 using System.Net;
 using System.Web;
 
 using Common.Logging;
 
+using Quartz.Collection;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Xml;
 
-namespace Quartz.Plugins.Xml
+namespace Quartz.Plugin.Xml
 {
-	/// <summary> This plugin loads an XML file to add jobs and schedule them with triggers
-	/// as the scheduler is initialized, and can optionally periodically scan the
-	/// file for changes.
-	/// 
-	/// </summary>
-	/// <author>  James House
-	/// </author>
-	/// <author>  Pierre Awaragi
-	/// </author>
-	public class JobInitializationPlugin : ISchedulerPlugin, IFileScanListener
-	{
-		private static readonly ILog Log = LogManager.GetLogger(typeof (JobInitializationPlugin));
+    /// <summary> 
+    /// This plugin loads XML file(s) to add jobs and schedule them with triggers
+    /// as the scheduler is initialized, and can optionally periodically scan the
+    /// file for changes.
+    ///</summary>
+    /// <remarks>
+    /// The periodically scanning of files for changes is not currently supported in a 
+    /// clustered environment.
+    /// </remarks> 
+    /// <author>James House</author>
+    /// <author>Pierre Awaragi</author>
+    public class JobInitializationPlugin : ISchedulerPlugin, IFileScanListener
+    {
+        private readonly ILog log;
+        private const int MAX_JOB_TRIGGER_NAME_LEN = 80;
+        private const string JOB_INITIALIZATION_PLUGIN_NAME = "JobInitializationPlugin";
+        private const char FILE_NAME_DELIMITER = ',';
 
-		/// <summary> The file name (and path) to the XML file that should be read.
-		/// 
-		/// </summary>
-		/// <returns>
-		/// </returns>
-		/// <summary> The file name (and path) to the XML file that should be read.
-		/// 
-		/// </summary>
-		public virtual string FileName
-		{
-			get { return fileName; }
-			set { fileName = value; }
-		}
+        private bool overWriteExistingJobs = false;
+        private bool failOnFileNotFound = true;
+        private string fileNames = JobSchedulingDataProcessor.QUARTZ_XML_FILE_NAME;
 
-		/// <summary> 
-		/// Whether or not jobs defined in the XML file should be overwrite existing
-		/// jobs with the same name.
-		/// </summary>
-		public virtual bool OverWriteExistingJobs
-		{
-			get { return overWriteExistingJobs; }
-			set { overWriteExistingJobs = value; }
-		}
+        // Populated by initialization
+        private readonly IDictionary jobFiles = new Hashtable();
 
-		/// <summary> 
-		/// The interval (in seconds) at which to scan for changes to the file.  
-		/// If the file has been changed, it is re-loaded and parsed.   The default 
-		/// value for the interval is 0, which disables scanning.
-		/// </summary>
-		public virtual long ScanInterval
-		{
-			get { return scanInterval/1000; }
-			set { scanInterval = value*1000; }
-		}
+        private bool useContextClassLoader = true;
+        private bool validating = false;
+        private bool validatingSchema = true;
+        private long scanInterval = 0;
 
-		/// <summary> 
-		/// Whether or not initialization of the plugin should fail (throw an
-		/// exception) if the file cannot be found. Default is <code>true</code>.
-		/// </summary>
-		public virtual bool FailOnFileNotFound
-		{
-			get { return failOnFileNotFound; }
-			set { failOnFileNotFound = value; }
-		}
+        private bool started = false;
 
-		/// <summary> 
-		/// Whether or not the context class loader should be used. Default is <code>true</code>.
-		/// </summary>
-		public virtual bool UseContextClassLoader
-		{
-			get { return useContextClassLoader; }
-			set { useContextClassLoader = value; }
-		}
+        protected ITypeLoadHelper classLoadHelper = null;
 
-		/// <summary> 
-		/// Whether or not the XML should be validated. Default is <code>false</code>.
-		/// </summary>
-		public virtual bool Validating
-		{
-			get { return validating; }
-			set { validating = value; }
-		}
+        private readonly ISet jobTriggerNameSet = new HashSet();
+        private IScheduler scheduler;
+        private string name;
 
-		/// <summary> 
-		/// Whether or not the XML schema should be validated. Default is <code>true</code>.
-		/// </summary>
-		public virtual bool ValidatingSchema
-		{
-			get { return validatingSchema; }
-			set { validatingSchema = value; }
-		}
+        /// <summary>
+        /// Initializes a new instance of the <see cref="JobInitializationPlugin"/> class.
+        /// </summary>
+        public JobInitializationPlugin()
+        {
+            log = LogManager.GetLogger(typeof (JobInitializationPlugin));
+            fileNames = JobSchedulingDataProcessor.QUARTZ_XML_FILE_NAME;
+        }
 
 
-		private string FilePath
-		{
-			get
-			{
-				if (filePath == null)
-				{
-					findFile();
-				}
-				return filePath;
-			}
-		}
+        /// <summary>
+        /// Gets the log.
+        /// </summary>
+        /// <value>The log.</value>
+        protected ILog Log
+        {
+            get { return log; }
+        }
 
 
-		private string name;
-		private IScheduler scheduler;
-		private bool overWriteExistingJobs = false;
-		private bool failOnFileNotFound = true;
-		private bool fileFound = false;
-		private string fileName;
-		private string filePath = null;
-		private bool useContextClassLoader = true;
-		private bool validating = false;
-		private bool validatingSchema = true;
-		private long scanInterval = 0;
-		internal bool initializing = true;
-		internal bool started = false;
-		protected internal ITypeLoadHelper classLoadHelper = null;
+        public string Name
+        {
+            get { return name; }
+        }
+
+        public IScheduler Scheduler
+        {
+            get { return scheduler; }
+        }
+
+        /// <summary> 
+        /// Comma separated list of file names (with paths) to the XML files that should be read.
+        /// </summary>
+        public virtual string FileNames
+        {
+            get { return fileNames; }
+            set { fileNames = value; }
+        }
+
+        /// <summary> 
+        /// Whether or not jobs defined in the XML file should be overwrite existing
+        /// jobs with the same name.
+        /// </summary>
+        public virtual bool OverWriteExistingJobs
+        {
+            get { return overWriteExistingJobs; }
+            set { overWriteExistingJobs = value; }
+        }
+
+        /// <summary> 
+        /// The interval (in seconds) at which to scan for changes to the file.  
+        /// If the file has been changed, it is re-loaded and parsed.   The default 
+        /// value for the interval is 0, which disables scanning.
+        /// </summary>
+        public virtual long ScanInterval
+        {
+            get { return scanInterval/1000; }
+            set { scanInterval = value*1000; }
+        }
+
+        /// <summary> 
+        /// Whether or not initialization of the plugin should fail (throw an
+        /// exception) if the file cannot be found. Default is <code>true</code>.
+        /// </summary>
+        public virtual bool FailOnFileNotFound
+        {
+            get { return failOnFileNotFound; }
+            set { failOnFileNotFound = value; }
+        }
+
+        /// <summary> 
+        /// Whether or not the context class loader should be used. Default is <code>true</code>.
+        /// </summary>
+        public virtual bool UseContextClassLoader
+        {
+            get { return useContextClassLoader; }
+            set { useContextClassLoader = value; }
+        }
+
+        /// <summary> 
+        /// Whether or not the XML should be validated. Default is <code>false</code>.
+        /// </summary>
+        public virtual bool Validating
+        {
+            get { return validating; }
+            set { validating = value; }
+        }
+
+        /// <summary> 
+        /// Whether or not the XML schema should be validated. Default is <code>true</code>.
+        /// </summary>
+        public virtual bool ValidatingSchema
+        {
+            get { return validatingSchema; }
+            set { validatingSchema = value; }
+        }
 
 
-		public JobInitializationPlugin()
-		{
-			fileName = null; // TODO JobSchedulingDataProcessor.QUARTZ_XML_FILE_NAME;
-		}
+        #region IFileScanListener Members
 
-		/// <summary> <p>
-		/// Called during creation of the <code>Scheduler</code> in order to give
-		/// the <code>SchedulerPlugin</code> a chance to initialize.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <throws>  SchedulerConfigException </throws>
-		/// <summary>           if there is an error initializing.
-		/// </summary>
-		public virtual void Initialize(String pluginName, IScheduler s)
-		{
-			initializing = true;
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="fName"></param>
+        public virtual void FileUpdated(string fName)
+        {
+            if (started)
+            {
+                ProcessFile(fName);
+            }
+        }
 
-			classLoadHelper = new CascadingClassLoadHelper();
-			classLoadHelper.Initialize();
+        #endregion
 
-			try
-			{
-				name = pluginName;
-				scheduler = s;
+        #region ISchedulerPlugin Members
 
-				Log.Info("Registering Quartz Job Initialization Plug-in.");
+        /// <summary>
+        /// Called during creation of the <see cref="IScheduler"/> in order to give
+        /// the <see cref="ISchedulerPlugin"/> a chance to initialize.
+        /// </summary>
+        /// <param name="pluginName">The name.</param>
+        /// <param name="sched">The scheduler.</param>
+        /// <throws>SchedulerConfigException </throws>
+        public virtual void Initialize(string pluginName, IScheduler sched)
+        {
+            name = pluginName;
+            scheduler = sched;
+            classLoadHelper = new CascadingClassLoadHelper();
+            classLoadHelper.Initialize();
 
-				findFile();
-			}
-			finally
-			{
-				initializing = false;
-			}
-		}
+            Log.Info("Registering Quartz Job Initialization Plug-in.");
 
-		/// <summary> </summary>
-		private void findFile()
-		{
-			Stream f = null;
-			String furl = null;
+            // Create JobFile objects
+            string[] tokens = fileNames.Split(FILE_NAME_DELIMITER);
 
-			FileInfo file = new FileInfo(FileName); // files in filesystem
+            foreach (string token in tokens)
+            {
+                JobFile jobFile = new JobFile(this, token);
+                jobFiles.Add(jobFile.FilePath, jobFile);
+            }
+        }
 
-			bool tmpBool;
-			if (File.Exists(file.FullName))
-			{
-				tmpBool = true;
-			}
-			else
-			{
-				tmpBool = Directory.Exists(file.FullName);
-			}
-			if (!tmpBool)
-			{
-				Uri url = classLoadHelper.GetResource(FileName);
-				if (url != null)
-				{
-					// we need jdk 1.3 compatibility, so we abandon this code...
-					//                try {
-					//                    furl = URLDecoder.decode(url.getPath(), "UTF-8");
-					//                } catch (UnsupportedEncodingException e) {
-					//                    furl = url.getPath();
-					//                }
-					furl = HttpUtility.UrlDecode(url.AbsolutePath);
-					file = new FileInfo(furl);
-					try
-					{
-						f = WebRequest.Create(url).GetResponse().GetResponseStream();
-					}
-					catch (IOException)
-					{
-						// Swallow the exception
-					}
-				}
-			}
-			else
-			{
-				try
-				{
-					f = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
-				}
-				catch (FileNotFoundException)
-				{
-					// ignore
-				}
-			}
+        /// <summary>
+        /// Called when the associated <see cref="IScheduler"/> is started, in order
+        /// to let the plug-in know it can now make calls into the scheduler if it
+        /// needs to.
+        /// </summary>
+        public virtual void Start()
+        {
+            try
+            {
+                if (jobFiles.Count > 0)
+                {
+                    if (scanInterval > 0)
+                    {
+                        scheduler.Context.Put(JOB_INITIALIZATION_PLUGIN_NAME + '_' + Name, this);
+                    }
 
-			if (f == null && FailOnFileNotFound)
-			{
-				throw new SchedulerException("File named '" + FileName + "' does not exist.");
-			}
-			else if (f == null)
-			{
-				Log.Warn("File named '" + FileName + "' does not exist.");
-			}
-			else
-			{
-				fileFound = true;
-				try
-				{
-					if (furl != null)
-					{
-						filePath = furl;
-					}
-					else
-					{
-						filePath = file.FullName;
-					}
-					f.Close();
-				}
-				catch (IOException ioe)
-				{
-					Log.Warn("Error closing jobs file " + FileName, ioe);
-				}
-			}
-		}
+                    foreach (JobFile jobFile in jobFiles.Values)
+                    {
 
-		public virtual void Start()
-		{
-			if (scanInterval > 0)
-			{
-				try
-				{
-					SimpleTrigger trig =
-						new SimpleTrigger("JobInitializationPlugin_" + name, "JobInitializationPlugin", DateTime.UtcNow, null,
-						                  SimpleTrigger.REPEAT_INDEFINITELY, scanInterval);
-					trig.Volatile = true;
-					JobDetail job = new JobDetail("JobInitializationPlugin_" + name, "JobInitializationPlugin", typeof (FileScanJob));
-					job.Volatile = true;
-					job.JobDataMap.Put(FileScanJob.FILE_NAME, FilePath);
-					job.JobDataMap.Put(FileScanJob.FILE_SCAN_LISTENER_NAME, "JobInitializationPlugin_" + name);
+                        if (scanInterval > 0)
+                        {
+                            String jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
 
-					scheduler.Context.Put("JobInitializationPlugin_" + name, this);
-					scheduler.ScheduleJob(job, trig);
-				}
-				catch (SchedulerException se)
-				{
-					Log.Error("Error starting background-task for watching jobs file.", se);
-				}
-			}
+                            SimpleTrigger trig = new SimpleTrigger(
+                                jobTriggerName,
+                                JOB_INITIALIZATION_PLUGIN_NAME,
+                                DateTime.UtcNow, null,
+                                SimpleTrigger.REPEAT_INDEFINITELY, scanInterval);
+                            trig.Volatile = true;
 
-			try
-			{
-				ProcessFile();
-			}
-			finally
-			{
-				started = true;
-			}
-		}
+                            JobDetail job = new JobDetail(
+                                jobTriggerName,
+                                JOB_INITIALIZATION_PLUGIN_NAME,
+                                typeof(FileScanJob));
 
-		/// <summary> <p>
-		/// Called in order to inform the <code>SchedulerPlugin</code> that it
-		/// should free up all of it's resources because the scheduler is shutting
-		/// down.
-		/// </p>
-		/// </summary>
-		public virtual void Shutdown()
-		{
-			// nothing to do
-		}
+                            job.Volatile = true;
+                            job.JobDataMap.Put(FileScanJob.FILE_NAME, jobFile.FilePath);
+                            job.JobDataMap.Put(FileScanJob.FILE_SCAN_LISTENER_NAME, JOB_INITIALIZATION_PLUGIN_NAME + '_' + Name);
+
+                            scheduler.ScheduleJob(job, trig);
+                        }
+
+                        ProcessFile(jobFile);
+                    }
+                }
+            }
+            catch (SchedulerException se)
+            {
+                Log.Error("Error starting background-task for watching jobs file.", se);
+            }
+            finally
+            {
+                started = true;
+            }
+        }
+
+        /**
+     * Helper method for generating unique job/trigger name for the  
+     * file scanning jobs (one per FileJob).  The unique names are saved
+     * in jobTriggerNameSet.
+     */
+
+        private string BuildJobTriggerName(string fileBasename)
+        {
+            // Name w/o collisions will be prefix + _ + filename (with '.' of filename replaced with '_')
+            // For example: JobInitializationPlugin_jobInitializer_myjobs_xml
+            String jobTriggerName = JOB_INITIALIZATION_PLUGIN_NAME + '_' + Name + '_' + fileBasename.Replace('.', '_');
+
+            // If name is too long (DB column is 80 chars), then truncate to max length
+            if (jobTriggerName.Length > MAX_JOB_TRIGGER_NAME_LEN)
+            {
+                jobTriggerName = jobTriggerName.Substring(0, MAX_JOB_TRIGGER_NAME_LEN);
+            }
+
+            // Make sure this name is unique in case the same file name under different
+            // directories is being checked, or had a naming collision due to length truncation.
+            // If there is a conflict, keep incrementing a _# suffix on the name (being sure
+            // not to get too long), until we find a unique name.
+            int currentIndex = 1;
+            while (jobTriggerNameSet.Add(jobTriggerName) == false)
+            {
+                // If not our first time through, then strip off old numeric suffix
+                if (currentIndex > 1)
+                {
+                    jobTriggerName = jobTriggerName.Substring(0, jobTriggerName.LastIndexOf('_'));
+                }
+
+                String numericSuffix = "_" + currentIndex++;
+
+                // If the numeric suffix would make the name too long, then make room for it.
+                if (jobTriggerName.Length > (MAX_JOB_TRIGGER_NAME_LEN - numericSuffix.Length))
+                {
+                    jobTriggerName = jobTriggerName.Substring(0, (MAX_JOB_TRIGGER_NAME_LEN - numericSuffix.Length));
+                }
+
+                jobTriggerName += numericSuffix;
+            }
+
+            return jobTriggerName;
+        }
+
+        /// <summary>
+        /// Called in order to inform the <code>SchedulerPlugin</code> that it
+        /// should free up all of it's resources because the scheduler is shutting
+        /// down.
+        /// </summary>
+        public virtual void Shutdown()
+        {
+            // nothing to do
+        }
+
+        #endregion
 
 
-		public virtual void ProcessFile()
-		{
-			if (!fileFound)
-			{
-				return;
-			}
+        private void ProcessFile(JobFile jobFile)
+        {
+            if ((jobFile == null) || (jobFile.FileFound == false))
+            {
+                return;
+            }
 
-			/*
-			TODO
-			JobSchedulingDataProcessor processor =
-				new JobSchedulingDataProcessor(UseContextClassLoader, Validating, ValidatingSchema);
-			*/
-			try
-			{
-				// TODO processor.ProcessFileAndScheduleJobs(fileName, scheduler, OverWriteExistingJobs);
-			}
-			catch (Exception e)
-			{
-				Log.Error("Error scheduling jobs: " + e.Message, e);
-			}
-		}
+            JobSchedulingDataProcessor processor = new JobSchedulingDataProcessor(Validating, ValidatingSchema);
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="fName"></param>
-		public virtual void FileUpdated(string fName)
-		{
-			if (started)
-			{
-				ProcessFile();
-			}
-		}
-	}
+            try
+            {
+                processor.ProcessFileAndScheduleJobs(
+                    jobFile.FilePath,
+                    jobFile.FilePath, // systemId 
+                    scheduler,
+                    OverWriteExistingJobs);
+            }
+            catch (Exception e)
+            {
+                Log.Error("Error scheduling jobs: " + e.Message, e);
+            }
+        }
+
+        public void ProcessFile(string filePath)
+        {
+            ProcessFile((JobFile) jobFiles[filePath]);
+        }
+
+    internal class JobFile
+    {
+        private readonly string fileName;
+
+        // These are set by initialize()
+        private string filePath;
+        private string fileBasename;
+        private bool fileFound;
+        private JobInitializationPlugin plugin;
+
+        public JobFile(JobInitializationPlugin plugin, string fileName)
+        {
+            this.plugin = plugin;
+            this.fileName = fileName;
+            Initialize();
+        }
+
+        public string FileName
+        {
+            get { return fileName; }
+        }
+
+        public bool FileFound
+        {
+            get { return fileFound; }
+        }
+
+        public string FilePath
+        {
+            get { return filePath; }
+        }
+
+        public string FileBasename
+        {
+            get { return fileBasename; }
+        }
+
+        public void Initialize()
+        {
+            Stream f = null;
+            try
+            {
+                string furl = null;
+
+                FileInfo file = new FileInfo(FileName); // files in filesystem
+                if (!file.Exists)
+                {
+                    Uri url = plugin.classLoadHelper.GetResource(FileName);
+                    if (url != null)
+                    {
+                        furl = HttpUtility.UrlDecode(url.AbsolutePath);
+                        file = new FileInfo(furl);
+                        try
+                        {
+                            f = WebRequest.Create(url).GetResponse().GetResponseStream();
+                        }
+                        catch (IOException)
+                        {
+                            // Swallow the exception
+                        }
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        f = new FileStream(file.FullName, FileMode.Open);
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        // ignore
+                    }
+                }
+
+                if (f == null)
+                {
+                    if (plugin.FailOnFileNotFound)
+                    {
+                        throw new SchedulerException(
+                            "File named '" + FileName + "' does not exist.");
+                    }
+                    else
+                    {
+                        plugin.Log.Warn(string.Format("File named '{0}' does not exist.", FileName));
+                    }
+                }
+                else
+                {
+                    fileFound = true;
+                    filePath = (furl != null) ? furl : file.FullName;
+                    fileBasename = file.Name;
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (f != null)
+                    {
+                        f.Close();
+                    }
+                }
+                catch (IOException ioe)
+                {
+                    plugin.Log.Warn("Error closing jobs file " + FileName, ioe);
+                }
+            }
+        }
+    }
+
+    }
 
 }

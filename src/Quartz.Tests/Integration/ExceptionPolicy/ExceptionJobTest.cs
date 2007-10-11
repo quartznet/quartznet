@@ -2,11 +2,20 @@ using System.Threading;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
+
 namespace Quartz.Tests.Integration.ExceptionPolicy
 {
     [TestFixture]
     public class ExceptionHandlingTest : IntegrationTest
     {
+		[SetUp]
+		public void SetUp()
+		{
+			ISchedulerFactory sf = new StdSchedulerFactory();
+			sched = sf.GetScheduler();   
+		}
+
         [Test]
         public void ExceptionJobUnscheduleFirinigTrigger()
         {

@@ -30,9 +30,6 @@ namespace Quartz.Tests.Integration.Impl.Calendar
         [Test]
         public void TestTriggerFireExclusion()
         {
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            sched = sf.GetScheduler();   
-
             sched.Start();
             TestJob.JobHasFired = false;
             JobDetail myDesc = new JobDetail("name", "group", typeof(TestJob));
