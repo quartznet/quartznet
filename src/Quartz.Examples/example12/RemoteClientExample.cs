@@ -15,21 +15,23 @@
 * 
 */
 using System;
+using System.Collections.Specialized;
+
 using Common.Logging;
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example12
 {
 	
-	/// <summary> This example is a client program that will remotely 
+	/// <summary> 
+	/// This example is a client program that will remotely 
 	/// talk to the scheduler to schedule a job.   In this 
 	/// example, we will need to use the JDBC Job Store.  The 
 	/// client will connect to the JDBC Job Store remotely to 
 	/// schedule the job.
-	/// 
 	/// </summary>
-	/// <author>  James House, Bill Kratzer
-	/// </author>
+	/// <author>James House</author>
+    /// <author>Bill Kratzer</author>
 	public class RemoteClientExample : IExample
 	{
 		
@@ -37,9 +39,21 @@ namespace Quartz.Examples.Example12
 		{
 			
 			ILog log = LogManager.GetLogger(typeof(RemoteClientExample));
-			
+
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.scheduler.instanceName"] = "RemoteClient";
+
+            // set thread pool info
+            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.threadPool.threadCount"] = "5";
+            properties["quartz.threadPool.threadPriority"] = "Normal";
+
+            // set remoting expoter
+            properties["quartz.scheduler.proxy"] = "true";
+            properties["quartz.scheduler.proxy.address"] = "tcp://localhost:555/QuartzScheduler";
+
 			// First we must get a reference to a scheduler
-			ISchedulerFactory sf = new StdSchedulerFactory();
+			ISchedulerFactory sf = new StdSchedulerFactory(properties);
 			IScheduler sched = sf.GetScheduler();
 			
 			// define the job and ask it to run

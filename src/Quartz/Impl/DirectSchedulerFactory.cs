@@ -133,38 +133,32 @@ namespace Quartz.Impl
 
 		/// <summary>
 		/// Creates a proxy to a remote scheduler. This scheduler can be retrieved
-		/// via DirectSchedulerFactory#GetScheduler()}
+		/// via <see cref="DirectSchedulerFactory.GetScheduler()" />.
 		/// </summary>
-		/// <param name="rmiHost">The hostname for remote scheduler</param>
-		/// <param name="rmiPort">Port for the remote scheduler. The default RMI port is 1099.</param>
 		/// <throws>  SchedulerException </throws>
-		public virtual void CreateRemoteScheduler(string rmiHost, int rmiPort)
+		public virtual void CreateRemoteScheduler(string proxyAddress)
 		{
-			CreateRemoteScheduler(DEFAULT_SCHEDULER_NAME, DEFAULT_INSTANCE_ID, rmiHost, rmiPort);
+			CreateRemoteScheduler(DEFAULT_SCHEDULER_NAME, DEFAULT_INSTANCE_ID, proxyAddress);
 			initialized = true;
 		}
 
 		/// <summary>
-		/// Same as
-		/// DirectSchedulerFactory#createRemoteScheduler(string rmiHost, int rmiPort),
+		/// Same as <see cref="DirectSchedulerFactory.CreateRemoteScheduler(string)" />,
 		/// with the addition of specifying the scheduler name and instance ID. This
-		/// scheduler can only be retrieved via
-		///DirectSchedulerFactory#getScheduler(string)
+		/// scheduler can only be retrieved via <see cref="DirectSchedulerFactory.GetScheduler(string)" />.
 		/// </summary>
 		/// <param name="schedulerName">The name for the scheduler.</param>
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-		/// <param name="rmiHost">The hostname for remote scheduler</param>
-		/// <param name="rmiPort">Port for the remote scheduler. The default RMI port is 1099.</param>
 		/// <throws>  SchedulerException </throws>
-		protected internal virtual void CreateRemoteScheduler(String schedulerName, string schedulerInstanceId, string rmiHost,
-		                                                      int rmiPort)
+		protected internal virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
 		{
 			SchedulingContext schedCtxt = new SchedulingContext();
 			schedCtxt.InstanceId = schedulerInstanceId;
 
-			String uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
+			string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
 
-			RemoteScheduler remoteScheduler = new RemoteScheduler(schedCtxt, uid, rmiHost, rmiPort);
+			RemoteScheduler remoteScheduler = new RemoteScheduler(schedCtxt, uid);
+		    remoteScheduler.RemoteSchedulerAddress = proxyAddress;
 
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 			schedRep.Bind(remoteScheduler);

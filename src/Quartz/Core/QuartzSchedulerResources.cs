@@ -42,6 +42,7 @@ namespace Quartz.Core
         private IJobRunShellFactory jobRunShellFactory;
         private readonly ArrayList schedulerPlugins = new ArrayList(10);
         private bool makeSchedulerThreadDaemon = false;
+	    private ISchedulerExporter exporter;
 
 		/// <summary>
 		/// Get or set the name for the <see cref="QuartzScheduler" />.
@@ -233,6 +234,17 @@ namespace Quartz.Core
 	    {
 	        get { return makeSchedulerThreadDaemon; }
 	        set { makeSchedulerThreadDaemon = value; }
+	    }
+
+
+        /// <summary>
+        /// Gets or sets the scheduler exporter.
+        /// </summary>
+        /// <value>The scheduler exporter.</value>
+	    public ISchedulerExporter SchedulerExporter
+	    {
+	        get { return exporter; }
+	        set { exporter = value; }
 	    }
 	}
 }

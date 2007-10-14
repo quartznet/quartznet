@@ -26,29 +26,25 @@ namespace Quartz.Impl
 {
 	/// <summary>
 	/// Holds references to Scheduler instances - ensuring uniqueness, and
-	/// preventing garbage collection, and allowing 'global' lookups - all within a
-	/// ClassLoader space.
+	/// preventing garbage collection, and allowing 'global' lookups.
 	/// </summary>
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public class SchedulerRepository
 	{
-		/// <summary>
+        private readonly IDictionary schedulers;
+        private static readonly SchedulerRepository inst = new SchedulerRepository();
+        private readonly object syncRoot = new object();
+        
+        /// <summary>
 		/// Gets the singleton instance.
 		/// </summary>
 		/// <value>The instance.</value>
 		public static SchedulerRepository Instance
 		{
-			get
-			{
-				return inst;
-			}
+			get { return inst; }
 		}
 
-		private IDictionary schedulers;
-		private static readonly SchedulerRepository inst = new SchedulerRepository();
-		private object syncRoot = new object();
-		
 		private SchedulerRepository()
 		{
 			schedulers = new Hashtable();

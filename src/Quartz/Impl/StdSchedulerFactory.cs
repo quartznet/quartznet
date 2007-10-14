@@ -85,14 +85,10 @@ namespace Quartz.Impl
         public const string PROP_SCHED_INSTANCE_ID_GENERATOR_PREFIX = "quartz.scheduler.instanceIdGenerator";
         public const string PROP_SCHED_INSTANCE_ID_GENERATOR_TYPE = PROP_SCHED_INSTANCE_ID_GENERATOR_PREFIX + ".type";
         public const string PROP_SCHED_THREAD_NAME = "quartz.scheduler.threadName";
-        public const string PROP_SCHED_RMI_EXPORT = "quartz.scheduler.rmi.export";
-        public const string PROP_SCHED_RMI_PROXY = "quartz.scheduler.rmi.proxy";
-        public const string PROP_SCHED_RMI_HOST = "quartz.scheduler.rmi.registryHost";
-        public const string PROP_SCHED_RMI_PORT = "quartz.scheduler.rmi.registryPort";
-        public const string PROP_SCHED_RMI_SERVER_PORT = "quartz.scheduler.rmi.serverPort";
-        public const string PROP_SCHED_RMI_CREATE_REGISTRY = "quartz.scheduler.rmi.createRegistry";
-        public const string PROP_SCHED_WRAP_JOB_IN_USER_TX = "quartz.scheduler.wrapJobExecutionInUserTransaction";
-        public const string PROP_SCHED_USER_TX_URL = "quartz.scheduler.userTransactionURL";
+        public const string PROP_SCHEDULER_EXPORTER_PREFIX = "quartz.scheduler.exporter";
+        public const string PROP_SCHEDULER_EXPORTER_TYPE = PROP_SCHEDULER_EXPORTER_PREFIX + ".type";
+        public const string PROP_SCHEDULER_PROXY = "quartz.scheduler.proxy";
+        public const string PROP_SCHEDULER_PROXY_ADDRESS = "quartz.scheduler.proxy.address";
         public const string PROP_SCHED_IDLE_WAIT_TIME = "quartz.scheduler.idleWaitTime";
         public const string PROP_SCHED_DB_FAILURE_RETRY_INTERVAL = "quartz.scheduler.dbFailureRetryInterval";
         public const string PROP_SCHED_MAKE_SCHEDULER_THREAD_DAEMON = "quartz.scheduler.makeSchedulerThreadDaemon";
@@ -112,9 +108,6 @@ namespace Quartz.Impl
         public const string PROP_DB_PROVIDER_TYPE = "connectionProvider.type";
         public const string PROP_DATASOURCE_PROVIDER = "provider";
         public const string PROP_DATASOURCE_CONNECTION_STRING = "connectionString";
-        public const string PROP_DATASOURCE_USER = "user";
-        public const string PROP_DATASOURCE_PASSWORD = "password";
-        public const string PROP_DATASOURCE_MAX_CONNECTIONS = "maxConnections";
         public const string PROP_DATASOURCE_VALIDATION_QUERY = "validationQuery";
         public const string PROP_PLUGIN_PREFIX = "quartz.plugin";
         public const string PROP_PLUGIN_TYPE = "type";
@@ -277,6 +270,7 @@ Please add configuration to your application config file to correctly initialize
                 throw initException;
             }
 
+            ISchedulerExporter exporter = null;
             IJobStore js;
             IThreadPool tp;
             QuartzScheduler qs;
@@ -316,15 +310,38 @@ Please add configuration to your application config file to correctly initialize
 
             idleWaitTime = cfg.GetLongProperty(PROP_SCHED_IDLE_WAIT_TIME, idleWaitTime);
             dbFailureRetry = cfg.GetIntProperty(PROP_SCHED_DB_FAILURE_RETRY_INTERVAL, dbFailureRetry);
+            bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PROP_SCHED_MAKE_SCHEDULER_THREAD_DAEMON);
 
             NameValueCollection schedCtxtProps = cfg.GetPropertyGroup(PROP_SCHED_CONTEXT_PREFIX, true);
 
+            bool proxyScheduler = cfg.GetBooleanProperty(PROP_SCHEDULER_PROXY, false);
+            // If Proxying to remote scheduler, short-circuit here...
+            // ~~~~~~~~~~~~~~~~~~
+            if (proxyScheduler)
+            {
+                if (autoId)
+                {
+                    schedInstId = DEFAULT_INSTANCE_ID;
+                }
+
+                schedCtxt = new SchedulingContext();
+                schedCtxt.InstanceId = schedInstId;
+
+                string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
+
+                RemoteScheduler remoteScheduler = new RemoteScheduler(schedCtxt, uid);
+                string remoteSchedulerAddress = cfg.GetStringProperty(PROP_SCHEDULER_PROXY_ADDRESS);
+                remoteScheduler.RemoteSchedulerAddress = remoteSchedulerAddress;
+                schedRep.Bind(remoteScheduler);
+
+                return remoteScheduler;
+            }
 
             // Create type load helper
             ITypeLoadHelper loadHelper;
             try
             {
-                loadHelper = (ITypeLoadHelper) ObjectUtils.InstantiateType(LoadType(typeLoadHelperType));
+                loadHelper = (ITypeLoadHelper)ObjectUtils.InstantiateType(LoadType(typeLoadHelperType));
             }
             catch (Exception e)
             {
@@ -771,6 +788,41 @@ Please add configuration to your application config file to correctly initialize
                 triggerListeners[i] = listener;
             }
 
+            // Get exporter
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            string exporterType = cfg.GetStringProperty(PROP_SCHEDULER_EXPORTER_TYPE, null);
+
+            if (exporterType != null)
+            {
+                try
+                {
+                    exporter = (ISchedulerExporter)ObjectUtils.InstantiateType(loadHelper.LoadType(exporterType));
+                }
+                catch (Exception e)
+                {
+                    initException =
+                        new SchedulerException(
+                            string.Format("Scheduler exporter of type '{0}' could not be instantiated.", exporterType), e);
+                    initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
+                    throw initException;
+                }
+
+                tProps = cfg.GetPropertyGroup(PROP_SCHEDULER_EXPORTER_PREFIX, true);
+
+                try
+                {
+                    ObjectUtils.SetObjectProperties(exporter, tProps);
+                }
+                catch (Exception e)
+                {
+                    initException =
+                        new SchedulerException(
+                            string.Format("Scheduler exporter type '{0}' props could not be configured.", exporterType), e);
+                    initException.ErrorCode = SchedulerException.ERR_BAD_CONFIGURATION;
+                    throw initException;
+                }
+            }
 
             // Fire everything up
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -812,8 +864,10 @@ Please add configuration to your application config file to correctly initialize
             rsrcs.ThreadName = threadName;
             rsrcs.InstanceId = schedInstId;
             rsrcs.JobRunShellFactory = jrsf;
-            // rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
+            rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
             rsrcs.ThreadPool = tp;
+            rsrcs.SchedulerExporter = exporter;
+
             if (tp is SimpleThreadPool)
             {
                 ((SimpleThreadPool) tp).ThreadNamePrefix = schedName + "_Worker";
@@ -827,7 +881,6 @@ Please add configuration to your application config file to correctly initialize
             {
                 rsrcs.AddSchedulerPlugin(plugins[i]);
             }
-
 
             schedCtxt = new SchedulingContext();
             schedCtxt.InstanceId = rsrcs.InstanceId;

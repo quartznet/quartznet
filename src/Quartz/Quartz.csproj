@@ -651,6 +651,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Simpl\RemotingSchedulerExporter.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Simpl\SimpleClassLoadHelper.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -682,6 +687,11 @@
                 />
                 <File
                     RelPath = "SPI\IJobStore.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "SPI\ISchedulerExporter.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

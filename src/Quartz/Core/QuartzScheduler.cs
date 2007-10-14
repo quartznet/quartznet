@@ -53,7 +53,7 @@ namespace Quartz.Core
     /// <seealso cref="IThreadPool" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class QuartzScheduler : IRemotableQuartzScheduler
+    public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler
     {
         private readonly ILog Log;
         private static readonly FileVersionInfo versionInfo;
@@ -378,7 +378,10 @@ namespace Quartz.Core
         /// </summary>
         private void Bind()
         {
-            // TODO
+            if (resources.SchedulerExporter != null)
+            {
+                resources.SchedulerExporter.Bind(this);
+            }
         }
 
         /// <summary>
@@ -386,7 +389,10 @@ namespace Quartz.Core
         /// </summary>
         private void UnBind()
         {
-            // TODO
+            if (resources.SchedulerExporter != null)
+            {
+                resources.SchedulerExporter.UnBind(this);
+            }
         }
 
         /// <summary>

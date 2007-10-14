@@ -140,6 +140,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Integration\Impl\AdoJobStore\AdoJobStoreSmokeTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Integration\Impl\Calendar\AnnualCalendarTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

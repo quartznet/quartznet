@@ -24,33 +24,23 @@ using Quartz.Impl;
 
 namespace Quartz
 {
-	/// <summary> <p>
+	/// <summary>
 	/// Provides a mechanism for obtaining client-usable handles to <see cref="IScheduler" />
 	/// instances.
-	/// </p>
-	/// 
 	/// </summary>
-	/// <seealso cref="IScheduler">
-	/// </seealso>
-	/// <seealso cref="StdSchedulerFactory">
-	/// 
-	/// </seealso>
-	/// <author>  James House
-	/// </author>
+	/// <seealso cref="IScheduler" />
+	/// <seealso cref="StdSchedulerFactory" />
+	/// <author>James House</author>
 	public interface ISchedulerFactory
 	{
-		/// <summary> <p>
+		/// <summary>
 		/// Returns handles to all known Schedulers (made by any SchedulerFactory
-		/// within this jvm.).
-		/// </p>
+		/// within this app domain.).
 		/// </summary>
 		ICollection AllSchedulers { get; }
 
 		/// <summary>
 		/// Returns a client-usable handle to a <see cref="IScheduler" />.
-		/// </summary>
-		/// <throws>  SchedulerException </throws>
-		/// <summary>           if there is a problem with the underlying <see cref="IScheduler" />.
 		/// </summary>
 		IScheduler GetScheduler();
 

@@ -38,22 +38,38 @@ namespace Quartz.Impl
 	/// <summary>
 	/// An implementation of the <see cref="IScheduler" /> interface that remotely
 	/// proxies all method calls to the equivalent call on a given <see cref="QuartzScheduler" />
-	/// instance, via RMI.
+	/// instance, via remoting or similar technology.
 	/// </summary>
 	/// <seealso cref="IScheduler" />
 	/// <seealso cref="QuartzScheduler" />
 	/// <seealso cref="SchedulingContext" />
-	///
 	/// <author>James House</author>
 	public class RemoteScheduler : IScheduler
 	{
-	    /// <summary>
+        private IRemotableQuartzScheduler rsched;
+        private readonly SchedulingContext schedCtxt;
+        private readonly string schedId;
+	    private string remoteSchedulerAddress;
+
+
+        /// <summary>
+        /// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
+        /// RemoteableQuartzScheduler instance, and with the given
+        /// <see cref="SchedulingContext" />.
+        /// </summary>
+        public RemoteScheduler(SchedulingContext schedCtxt, string schedId)
+        {
+            this.schedCtxt = schedCtxt;
+            this.schedId = schedId;
+        }
+        
+        /// <summary>
 	    /// returns true if the given JobGroup
 	    /// is paused
 	    /// </summary>
 	    /// <param name="groupName"></param>
 	    /// <returns></returns>
-	    public bool IsJobGroupPaused(string groupName)
+	    public virtual bool IsJobGroupPaused(string groupName)
 	    {
 	        throw new NotImplementedException();
 	    }
@@ -64,7 +80,7 @@ namespace Quartz.Impl
 	    /// </summary>
 	    /// <param name="groupName"></param>
 	    /// <returns></returns>
-	    public bool IsTriggerGroupPaused(string groupName)
+	    public virtual bool IsTriggerGroupPaused(string groupName)
 	    {
 	        throw new NotImplementedException();
 	    }
@@ -82,7 +98,7 @@ namespace Quartz.Impl
 				}
 				catch (RemotingException re)
 				{
-					throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+					throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 				}
 			}
 		}
@@ -100,12 +116,22 @@ namespace Quartz.Impl
 				}
 				catch (RemotingException re)
 				{
-					throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+					throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 				}
 			}
 		}
 
         /// <summary>
+        /// Gets or sets the remote scheduler address.
+        /// </summary>
+        /// <value>The remote scheduler address.</value>
+	    public virtual string RemoteSchedulerAddress
+	    {
+	        get { return remoteSchedulerAddress; }
+	        set { remoteSchedulerAddress = value; }
+	    }
+
+	    /// <summary>
         /// Get a <see cref="SchedulerMetaData"/> object describiing the settings
         /// and capabilities of the scheduler instance.
         /// <p>
@@ -114,7 +140,7 @@ namespace Quartz.Impl
         /// </p>
         /// </summary>
         /// <returns></returns>
-		public SchedulerMetaData GetMetaData()
+		public virtual SchedulerMetaData GetMetaData()
 		{
 			try
 			{
@@ -127,7 +153,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -144,7 +170,7 @@ namespace Quartz.Impl
 				}
 				catch (RemotingException re)
 				{
-					throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+					throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 				}
 			}
 		}
@@ -162,7 +188,7 @@ namespace Quartz.Impl
 				}
 				catch (RemotingException re)
 				{
-					throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+					throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 				}
 			}
 		}
@@ -189,7 +215,7 @@ namespace Quartz.Impl
 				}
 				catch (RemotingException re)
 				{
-					throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+					throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 				}
 			}
 		}
@@ -197,7 +223,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public IList GetCurrentlyExecutingJobs()
+		public virtual IList GetCurrentlyExecutingJobs()
 		{
 			try
 			{
@@ -205,7 +231,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -224,7 +250,7 @@ namespace Quartz.Impl
 				}
 				catch (RemotingException re)
 				{
-					throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+					throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 				}
 			}
 		}
@@ -244,7 +270,7 @@ namespace Quartz.Impl
 				}
 				catch (RemotingException re)
 				{
-					throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+					throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 				}
 			}
 		}
@@ -264,7 +290,7 @@ namespace Quartz.Impl
 				}
 				catch (RemotingException re)
 				{
-					throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+					throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 				}
 			}
 		}
@@ -299,7 +325,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-	    public IJobListener GetGlobalJobListener(string name)
+	    public virtual IJobListener GetGlobalJobListener(string name)
 	    {
 
             throw new SchedulerException(
@@ -313,7 +339,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-	    public ITriggerListener GetGlobalTriggerListener(string name)
+	    public virtual ITriggerListener GetGlobalTriggerListener(string name)
 	    {
             throw new SchedulerException(
         "Operation not supported for remote schedulers.",
@@ -360,7 +386,7 @@ namespace Quartz.Impl
 		/// Get the names of all <see cref="Trigger" /> groups that are paused.
 		/// </summary>
 		/// <value></value>
-		public ISet GetPausedTriggerGroups()
+		public virtual ISet GetPausedTriggerGroups()
 		{
 			try
 			{
@@ -368,7 +394,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -394,27 +420,7 @@ namespace Quartz.Impl
 		}
 
 
-		private IRemotableQuartzScheduler rsched;
-		private readonly SchedulingContext schedCtxt;
-		private readonly string schedId;
-		//private string rmiHost;
-		//private int rmiPort;
-
-
-		/// <summary>
-		/// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
-		/// RemoteableQuartzScheduler instance, and with the given
-		/// <see cref="SchedulingContext" />.
-		/// </summary>
-		public RemoteScheduler(SchedulingContext schedCtxt, string schedId, string host, int port)
-		{
-			this.schedCtxt = schedCtxt;
-			this.schedId = schedId;
-			//rmiHost = host;
-			//rmiPort = port;
-		}
-
-		protected internal IRemotableQuartzScheduler GetRemoteScheduler()
+		protected virtual IRemotableQuartzScheduler GetRemoteScheduler()
 		{
 			if (rsched != null)
 			{
@@ -426,7 +432,7 @@ namespace Quartz.Impl
 
 				rsched =
 					(IRemotableQuartzScheduler)
-					Activator.GetObject(typeof (IRemotableQuartzScheduler), schedId);
+					Activator.GetObject(typeof (IRemotableQuartzScheduler), RemoteSchedulerAddress);
 			}
 			catch (Exception e)
 			{
@@ -439,7 +445,7 @@ namespace Quartz.Impl
 			return rsched;
 		}
 
-		protected internal virtual SchedulerException invalidateHandleCreateException(string msg, Exception cause)
+		protected virtual SchedulerException InvalidateHandleCreateException(string msg, Exception cause)
 		{
 			rsched = null;
 			SchedulerException ex = new SchedulerException(msg, cause);
@@ -458,7 +464,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -475,7 +481,7 @@ namespace Quartz.Impl
         /// <seealso cref="Start"/>
         /// <seealso cref="IsShutdown"/>
         /// <seealso cref="InStandbyMode"/>
-	    public bool IsStarted
+	    public virtual bool IsStarted
 	    {
             get
             {
@@ -485,7 +491,7 @@ namespace Quartz.Impl
                 }
                 catch (Exception re)
                 {
-                    throw invalidateHandleCreateException(
+                    throw InvalidateHandleCreateException(
                             "Error communicating with remote scheduler.", re);
                 }
             }
@@ -502,7 +508,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -520,7 +526,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -535,7 +541,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -552,7 +558,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -569,7 +575,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -586,7 +592,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -603,7 +609,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -620,7 +626,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -637,7 +643,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -664,7 +670,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -691,7 +697,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -708,7 +714,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -725,7 +731,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -742,7 +748,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -759,7 +765,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -776,7 +782,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -793,7 +799,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -810,7 +816,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -827,7 +833,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -844,7 +850,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -861,7 +867,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -878,7 +884,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -895,7 +901,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -912,7 +918,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -929,7 +935,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -946,7 +952,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -963,7 +969,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -980,7 +986,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -997,7 +1003,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -1014,7 +1020,7 @@ namespace Quartz.Impl
 			}
 			catch (RemotingException re)
 			{
-				throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+				throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
 			}
 		}
 
@@ -1030,7 +1036,7 @@ namespace Quartz.Impl
             }
             catch (RemotingException re)
             {
-                throw invalidateHandleCreateException("Error communicating with remote scheduler.", re);
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
 	    }
 
@@ -1075,7 +1081,7 @@ namespace Quartz.Impl
         /// <returns>
         /// true if the identifed listener was found in the list, and removed
         /// </returns>
-	    public bool RemoveGlobalJobListener(string name)
+	    public virtual bool RemoveGlobalJobListener(string name)
 	    {
             throw new SchedulerException(
                     "Operation not supported for remote schedulers.",
@@ -1137,7 +1143,7 @@ namespace Quartz.Impl
         /// <returns>
         /// true if the identifed listener was found in the list, and removed.
         /// </returns>
-	    public bool RemoveGlobalTriggerListener(string name)
+	    public virtual bool RemoveGlobalTriggerListener(string name)
 	    {
 
             throw new SchedulerException(
@@ -1193,7 +1199,7 @@ namespace Quartz.Impl
 			catch (RemotingException re)
 			{
 				throw new UnableToInterruptJobException(
-					invalidateHandleCreateException("Error communicating with remote scheduler.", re));
+					InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
 			}
 			catch (SchedulerException se)
 			{

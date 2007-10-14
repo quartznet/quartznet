@@ -17,6 +17,7 @@
 using System;
 using System.Collections;
 using System.Globalization;
+using System.Runtime.Serialization;
 using System.Text;
 
 #if NET_20
@@ -197,7 +198,7 @@ namespace Quartz
     /// <author>Contributions from Mads Henderson</author>
     /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
     [Serializable]
-    public class CronExpression : ICloneable
+    public class CronExpression : ICloneable, IDeserializationCallback
     {
 		/// <summary>
 		/// Field specification for second.
@@ -361,7 +362,6 @@ namespace Quartz
             cronExpressionString = cronExpression.ToUpper(CultureInfo.InvariantCulture);
             BuildExpression(cronExpression);
         }
-
 
         /// <summary>
         /// Indicates whether the given date satisfies the cron expression. 
@@ -1946,6 +1946,11 @@ namespace Quartz
                 throw new Exception("Not Cloneable.");
             }
             return copy;
+        }
+
+        public void OnDeserialization(object sender)
+        {
+            BuildExpression(cronExpressionString);
         }
     }
 

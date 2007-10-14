@@ -82,6 +82,7 @@
     <Reference Include="System.Data">
       <Name>System.Data</Name>
     </Reference>
+    <Reference Include="System.Runtime.Remoting" />
     <Reference Include="System.Web" />
     <Reference Include="System.Xml">
       <Name>System.Xml</Name>
@@ -384,6 +385,8 @@
     <Compile Include="MisfirePolicy.cs" />
     <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
     <Compile Include="SchedulerInstruction.cs" />
+    <Compile Include="Simpl\RemotingSchedulerExporter.cs" />
+    <Compile Include="SPI\ISchedulerExporter.cs" />
     <Compile Include="TriggerState.cs" />
     <Compile Include="Util\DateTimeUtil.cs" />
     <Compile Include="Util\LogicalThreadContext.cs" />

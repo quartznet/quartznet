@@ -15,6 +15,7 @@
 * 
 */
 using System;
+using System.Collections.Specialized;
 using System.Threading;
 
 using Common.Logging;
@@ -28,7 +29,7 @@ namespace Quartz.Examples.Example12
 	{
 		public string Name
 		{
-			get { throw new NotImplementedException(); }
+			get { return GetType().Name; }
 		}
 
 		/// <summary> This example will spawn a large number of jobs to run
@@ -40,9 +41,22 @@ namespace Quartz.Examples.Example12
 		{
 			ILog log = LogManager.GetLogger(typeof(RemoteServerExample));
 			
-			// First we must get a reference to a scheduler
-			ISchedulerFactory sf = new StdSchedulerFactory();
-			IScheduler sched = sf.GetScheduler();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.scheduler.instanceName"] = "RemoteServer";
+
+            // set thread pool info
+            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.threadPool.threadCount"] = "5";
+            properties["quartz.threadPool.threadPriority"] = "Normal";
+
+            // set remoting expoter
+            properties["quartz.scheduler.exporter.type"] = "Quartz.Simpl.RemotingSchedulerExporter, Quartz";
+            properties["quartz.scheduler.exporter.port"] = "555";
+            properties["quartz.scheduler.exporter.bindName"] = "QuartzScheduler";
+            properties["quartz.scheduler.exporter.channelType"] = "tcp";
+            
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler sched = sf.GetScheduler();
 			
 			log.Info("------- Initialization Complete -----------");
 			
