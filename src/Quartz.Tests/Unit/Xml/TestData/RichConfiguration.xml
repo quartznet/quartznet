@@ -46,6 +46,7 @@
 				</entry>
 			</job-data-map>
 		</job-detail>
+  	
 		<trigger>
 			<simple>
 				<name>simpleName</name>
@@ -57,12 +58,23 @@
 				<job-name>jobName1</job-name>
 				<job-group>jobGroup1</job-group>
 				<start-time>1982-06-28T18:15:00.0Z</start-time>
-				<end-time>2006-05-04T18:13:51.0Z</end-time>
+				<end-time>2020-05-04T18:13:51.0Z</end-time>
 				<repeat-count>100</repeat-count>
 				<repeat-interval>3000</repeat-interval>
 			</simple>
-		</trigger>
-
+      </trigger>
+  	<trigger>
+  		<cron>
+  			<name>cronName</name>
+  			<group>cronGroup</group>
+  			<job-name>jobName1</job-name>
+  			<job-group>jobGroup1</job-group>
+  			<start-time>1982-06-28T18:15:00.0Z</start-time>
+  			<end-time>2020-05-04T18:13:51.0Z</end-time>
+  			<cron-expression>0/10 * * * * ?</cron-expression>
+  		</cron>
+  		
+  	</trigger>
 	</job>
 </quartz>
 

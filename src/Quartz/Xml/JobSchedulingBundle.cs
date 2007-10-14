@@ -31,8 +31,8 @@ namespace Quartz.Xml
 	/// <author>James House</author>
 	public class JobSchedulingBundle
 	{
-		protected internal JobDetail jobDetail;
-		protected internal IList triggers = new ArrayList();
+		protected JobDetail jobDetail;
+		protected IList triggers = new ArrayList();
 		
 		/// <summary>
 		/// Gets or sets the job detail.

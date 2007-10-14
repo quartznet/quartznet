@@ -64,8 +64,8 @@ namespace Quartz.Xml
 	public class JobSchedulingDataProcessor
 	{
 		private readonly ILog log;
-	    private bool validateXml;
-	    private bool validateSchema;
+	    private readonly bool validateXml;
+	    private readonly bool validateSchema;
 
 		public const string QUARTZ_SYSTEM_ID_DIR_PROP = "quartz.system.id.dir";
 		public const string QUARTZ_XML_FILE_NAME = "quartz_jobs.xml";
@@ -215,7 +215,7 @@ namespace Quartz.Xml
             foreach (calendarType ct in data.calendar)
             {
                 CalendarBundle c = CreateCalendarFromXmlObject(ct);
-                calsToSchedule.Add(c);
+                AddCalendarToSchedule(c);
             }
 
             // add job scheduling bundles
@@ -232,7 +232,7 @@ namespace Quartz.Xml
                         throw new SchedulerConfigException("Unknown job listener type " + jt.type);
                     }
                     IJobListener listener = (IJobListener) ObjectUtils.InstantiateType(listenerType);
-                    listenersToSchedule.Add(listener);
+                    AddListenerToSchedule(listener);
                 }
             }
             MaybeThrowValidationException();
@@ -290,12 +290,14 @@ namespace Quartz.Xml
 	                    throw new ArgumentException("Unknown trigger type in XML");
 	                }
 	                trigger.CalendarName = t.Item.calendarname;
-	                trigger.MisfireInstruction = ReadMisfireInstructionFromString(t.Item.misfireinstruction);
-
+                    if (t.Item.misfireinstruction != null)
+                    {
+                        trigger.MisfireInstruction = ReadMisfireInstructionFromString(t.Item.misfireinstruction);
+                    }
 	                jsb.Triggers.Add(trigger);
 	            }
 
-	            jobsToSchedule.Add(jsb);
+	            AddJobToSchedule(jsb);
 	        }
 	    }
 
