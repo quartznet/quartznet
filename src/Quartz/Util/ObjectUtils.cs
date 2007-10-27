@@ -30,8 +30,13 @@ namespace Quartz.Util
 	/// Utility methods that are used to convert objects from one type into another.
 	/// </summary>
 	/// <author>Aleksandar Seovic</author>
-	public class ObjectUtils
+	public sealed class ObjectUtils
 	{
+        private ObjectUtils()
+        {
+            
+        }
+
 		/// <summary>
 		/// Convert the value to the required <see cref="System.Type"/> (if necessary from a string).
 		/// </summary>

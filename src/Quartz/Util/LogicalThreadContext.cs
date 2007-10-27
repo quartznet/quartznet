@@ -14,7 +14,6 @@
 * under the License.
 * 
 */
-using System;
 using System.Runtime.Remoting.Messaging;
 using System.Web;
 
@@ -26,7 +25,7 @@ namespace Quartz.Util
 	/// data if HTTP Context is avaiable.
 	/// </summary>
 	/// <author>Marko Lahma (.NET)</author>
-	public class LogicalThreadContext
+	public sealed class LogicalThreadContext
 	{
 		private LogicalThreadContext()
 		{

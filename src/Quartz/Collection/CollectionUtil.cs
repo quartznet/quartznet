@@ -22,8 +22,13 @@ namespace Quartz.Collection
 	/// <summary>
 	/// Collection manipulation related utility methods.
 	/// </summary>
-	public class CollectionUtil
+	public sealed class CollectionUtil
 	{
+        private CollectionUtil()
+        {
+            
+        }
+
 		/// <summary>
 		/// Removes the specified item from list of items and returns 
 		/// whether removal was success.

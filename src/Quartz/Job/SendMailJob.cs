@@ -42,25 +42,25 @@ namespace Quartz.Job
 		private static readonly ILog Log = LogManager.GetLogger(typeof (SendMailJob));
 
     	/// <summary> The host name of the smtp server. REQUIRED.</summary>
-		public const string PROP_SMTP_HOST = "smtp_host";
+		public const string PropertySmtpHost = "smtp_host";
 
 		/// <summary> The e-mail address to send the mail to. REQUIRED.</summary>
-		public const string PROP_RECIPIENT = "recipient";
+		public const string PropertyRecipient = "recipient";
 
 		/// <summary> The e-mail address to cc the mail to. Optional.</summary>
-		public const string PROP_CC_RECIPIENT = "cc_recipient";
+		public const string PropertyCcRecipient = "cc_recipient";
 
 		/// <summary> The e-mail address to claim the mail is from. REQUIRED.</summary>
-		public const string PROP_SENDER = "sender";
+		public const string PropertySender = "sender";
 
 		/// <summary> The e-mail address the message should say to reply to. Optional.</summary>
-		public const string PROP_REPLY_TO = "reply_to";
+		public const string PropertyReplyTo = "reply_to";
 
 		/// <summary> The subject to place on the e-mail. REQUIRED.</summary>
-		public const string PROP_SUBJECT = "subject";
+		public const string PropertySubject = "subject";
 
 		/// <summary> The e-mail message body. REQUIRED.</summary>
-		public const string PROP_MESSAGE = "message";
+		public const string PropertyMessage = "message";
 
 		/// <summary>
 		/// Executes the job.
@@ -70,33 +70,33 @@ namespace Quartz.Job
 		{
 			JobDataMap data = context.JobDetail.JobDataMap;
 
-			string smtpHost = data.GetString(PROP_SMTP_HOST);
-			string to = data.GetString(PROP_RECIPIENT);
-			string cc = data.GetString(PROP_CC_RECIPIENT);
-			string from = data.GetString(PROP_SENDER);
-			string replyTo = data.GetString(PROP_REPLY_TO);
-			string subject = data.GetString(PROP_SUBJECT);
-			string message = data.GetString(PROP_MESSAGE);
+			string smtpHost = data.GetString(PropertySmtpHost);
+			string to = data.GetString(PropertyRecipient);
+			string cc = data.GetString(PropertyCcRecipient);
+			string from = data.GetString(PropertySender);
+			string replyTo = data.GetString(PropertyReplyTo);
+			string subject = data.GetString(PropertySubject);
+			string message = data.GetString(PropertyMessage);
 
 			if (smtpHost == null || smtpHost.Trim().Length == 0)
 			{
-				throw new ArgumentException("PROP_SMTP_HOST not specified.");
+				throw new ArgumentException("PropertySmtpHost not specified.");
 			}
 			if (to == null || to.Trim().Length == 0)
 			{
-				throw new ArgumentException("PROP_RECIPIENT not specified.");
+				throw new ArgumentException("PropertyRecipient not specified.");
 			}
 			if (from == null || from.Trim().Length == 0)
 			{
-				throw new ArgumentException("PROP_SENDER not specified.");
+				throw new ArgumentException("PropertySender not specified.");
 			}
 			if (subject == null || subject.Trim().Length == 0)
 			{
-				throw new ArgumentException("PROP_SUBJECT not specified.");
+				throw new ArgumentException("PropertySubject not specified.");
 			}
 			if (message == null || message.Trim().Length == 0)
 			{
-				throw new ArgumentException("PROP_MESSAGE not specified.");
+				throw new ArgumentException("PropertyMessage not specified.");
 			}
 
 			if (cc != null && cc.Trim().Length == 0)

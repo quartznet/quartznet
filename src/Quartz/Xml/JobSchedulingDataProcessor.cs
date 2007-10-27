@@ -67,12 +67,12 @@ namespace Quartz.Xml
 	    private readonly bool validateXml;
 	    private readonly bool validateSchema;
 
-		public const string QUARTZ_SYSTEM_ID_DIR_PROP = "quartz.system.id.dir";
-		public const string QUARTZ_XML_FILE_NAME = "quartz_jobs.xml";
-		public const string QUARTZ_SCHEMA = "http://quartznet.sourceforge.net/xml/job_scheduling_data.xsd";
-		public const string QUARTZ_XSD = "Quartz.Quartz.Xml.job_scheduling_data.xsd";
+		public const string PropertyQuartzSystemIdDir = "quartz.system.id.dir";
+		public const string QuartzXmlFileName = "quartz_jobs.xml";
+		public const string QuartzSchema = "http://quartznet.sourceforge.net/xml/job_scheduling_data.xsd";
+		public const string QuartzXsdResourceName = "Quartz.Quartz.Xml.job_scheduling_data.xsd";
 		
-		protected const string THREAD_LOCAL_KEY_SCHEDULDER = "quartz_scheduler";
+		protected const string ThreadLocalKeyScheduler = "quartz_scheduler";
 		
 		/// <summary> 
 		/// XML Schema dateTime datatype format.
@@ -81,7 +81,7 @@ namespace Quartz.Xml
 		/// http://www.w3.org/TR/2001/REC-xmlschema-2-20010502/#dateTime</a>
 		/// </p>
 		/// </summary>
-		protected const string XSD_DATE_FORMAT = "yyyy-MM-dd'T'hh:mm:ss";
+		protected const string XsdDateFormat = "yyyy-MM-dd'T'hh:mm:ss";
 
 		protected IDictionary scheduledJobs = new Hashtable();
 		protected IList jobsToSchedule = new ArrayList();
@@ -90,16 +90,16 @@ namespace Quartz.Xml
 
 		protected ArrayList validationExceptions = new ArrayList();
 
-		private bool overWriteExistingJobs = true;
+		private bool overwriteExistingJobs = true;
 
 		
 		/// <summary> 
 		/// Gets or sets whether to overwrite existing jobs.
 		/// </summary>
-		public virtual bool OverWriteExistingJobs
+		public virtual bool OverwriteExistingJobs
 		{
-			get { return overWriteExistingJobs; }
-			set { overWriteExistingJobs = value; }
+			get { return overwriteExistingJobs; }
+			set { overwriteExistingJobs = value; }
 		}
 
 
@@ -153,7 +153,7 @@ namespace Quartz.Xml
 		/// </summary>
 		public virtual void ProcessFile()
 		{
-			ProcessFile(QUARTZ_XML_FILE_NAME);
+			ProcessFile(QuartzXmlFileName);
 		}
 
 		/// <summary>
@@ -304,9 +304,9 @@ namespace Quartz.Xml
 	    private static int ParseSimpleTriggerRepeatCount(string repeatcount)
 	    {
 	        int value;
-	        if (repeatcount == "REPEAT_INDEFINITELY")
+	        if (repeatcount == "RepeatIndefinitely")
 	        {
-	            value = SimpleTrigger.REPEAT_INDEFINITELY;
+	            value = SimpleTrigger.RepeatIndefinitely;
 	        }
             else
 	        {
@@ -373,7 +373,7 @@ namespace Quartz.Xml
 		/// </summary>
         public virtual void ProcessFileAndScheduleJobs(IScheduler sched, bool overwriteExistingJobs)
 		{
-            ProcessFileAndScheduleJobs(QUARTZ_XML_FILE_NAME, sched, overwriteExistingJobs);
+            ProcessFileAndScheduleJobs(QuartzXmlFileName, sched, overwriteExistingJobs);
 		}
 
 		/// <summary>
@@ -399,7 +399,7 @@ namespace Quartz.Xml
 		public virtual void ProcessFileAndScheduleJobs(string fileName, string systemId, IScheduler sched,
                                                        bool overwriteExistingJobs)
 		{
-			LogicalThreadContext.SetData(THREAD_LOCAL_KEY_SCHEDULDER, sched);
+			LogicalThreadContext.SetData(ThreadLocalKeyScheduler, sched);
 			try
 			{
 				ProcessFile(fileName, systemId);
@@ -407,7 +407,7 @@ namespace Quartz.Xml
 			}
 			finally
 			{
-				LogicalThreadContext.FreeNamedDataSlot(THREAD_LOCAL_KEY_SCHEDULDER);
+				LogicalThreadContext.FreeNamedDataSlot(ThreadLocalKeyScheduler);
 			}
 		}
 
@@ -474,7 +474,7 @@ namespace Quartz.Xml
 		/// </exception>
 		public virtual void ScheduleJob(JobSchedulingBundle job)
 		{
-			ScheduleJob(job, (IScheduler) LogicalThreadContext.GetData(THREAD_LOCAL_KEY_SCHEDULDER), OverWriteExistingJobs);
+			ScheduleJob(job, (IScheduler) LogicalThreadContext.GetData(ThreadLocalKeyScheduler), OverwriteExistingJobs);
 		}
 
 

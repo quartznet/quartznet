@@ -198,11 +198,11 @@ namespace Quartz.Core
                         endTime = DateTime.UtcNow;
                         log.Error(string.Format("Job {0} threw an unhandled Exception: ", jobDetail.FullName), e);
                         SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
-                        se.ErrorCode = SchedulerException.ERR_JOB_EXECUTION_THREW_EXCEPTION;
+                        se.ErrorCode = SchedulerException.ErrorJobExecutionThrewException;
                         qs.NotifySchedulerListenersError(
                             string.Format("Job ({0} threw an exception.", jec.JobDetail.FullName), se);
                         jobExEx = new JobExecutionException(se, false);
-                        jobExEx.ErrorCode = JobExecutionException.ERR_JOB_EXECUTION_THREW_EXCEPTION;
+                        jobExEx.ErrorCode = JobExecutionException.ErrorJobExecutionThrewException;
                     }
 
                     jec.JobRunTime = (long) (endTime - startTime).TotalMilliseconds;
@@ -228,7 +228,7 @@ namespace Quartz.Core
                     {
                         // If this happens, there's a bug in the trigger...
                         SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
-                        se.ErrorCode = SchedulerException.ERR_TRIGGER_THREW_EXCEPTION;
+                        se.ErrorCode = SchedulerException.ErrorTriggerThrewException;
                         qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se);
                     }
 

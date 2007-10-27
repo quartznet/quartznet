@@ -73,7 +73,7 @@ namespace Quartz.Examples.Example7
 			DateTime ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
 			
 			JobDetail job = new JobDetail("interruptableJob1", "group1", typeof(DumbInterruptableJob));
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.REPEAT_INDEFINITELY, 5000L);
+			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, 5000L);
 			DateTime ft = sched.ScheduleJob(job, trigger);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
 			

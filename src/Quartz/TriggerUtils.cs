@@ -42,32 +42,32 @@ namespace Quartz
 	/// <seealso cref="CronTrigger" />
 	/// <seealso cref="SimpleTrigger" />
 	/// <author>James House</author>
-	public class TriggerUtils
+	public sealed class TriggerUtils
 	{
 		/// <summary>
 		/// Constant indicating last day of month.
 		/// </summary>
-		public const int LAST_DAY_OF_MONTH = -1;
+		public const int LastDayOfMonth = -1;
 
 		/// <summary>
 		/// Milliseconds in minute.
 		/// </summary>
-		public const long MILLISECONDS_IN_MINUTE = 60 * 1000;
+		public const long MillisecondsInMinute = 60 * 1000;
 
 		/// <summary>
 		/// Milliseconds in hour.
 		/// </summary>
-		public const long MILLISECONDS_IN_HOUR = 60 * 60 * 1000;
+		public const long MillisecondsInHour = 60 * 60 * 1000;
 		
 		/// <summary>
 		/// Seconds in day.
 		/// </summary>
-		public const long SECONDS_IN_DAY = 24 * 60 * 60;
+		public const long SecondsInDay = 24 * 60 * 60;
 
 		/// <summary>
 		/// Milliseconds in day.
 		/// </summary>
-		public const long MILLISECONDS_IN_DAY = SECONDS_IN_DAY * 1000;
+		public const long MillisecondsInDay = SecondsInDay * 1000;
 
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace Quartz
 
 		private static void ValidateDayOfMonth(int day)
 		{
-			if ((day < 1 || day > 31) && day != LAST_DAY_OF_MONTH)
+			if ((day < 1 || day > 31) && day != LastDayOfMonth)
 			{
 				throw new ArgumentException("Invalid day of month.");
 			}
@@ -127,13 +127,13 @@ namespace Quartz
 
 		/// <summary>
 		/// Set the given <see cref="Trigger" />'s name to the given value, and its
-		/// group to the default group (<see cref="SchedulerConstants.DEFAULT_GROUP" />).
+		/// group to the default group (<see cref="SchedulerConstants.DefaultGroup" />).
 		/// </summary>
 		/// <param name="trig">the tigger to change name to</param>
 		/// <param name="name">the new trigger name</param>
 		public static void SetTriggerIdentity(Trigger trig, string name)
 		{
-			SetTriggerIdentity(trig, name, SchedulerConstants.DEFAULT_GROUP);
+			SetTriggerIdentity(trig, name, SchedulerConstants.DefaultGroup);
 		}
 
 		/// <summary>
@@ -277,7 +277,7 @@ namespace Quartz
 
 			try
 			{
-				if (dayOfMonth != LAST_DAY_OF_MONTH)
+				if (dayOfMonth != LastDayOfMonth)
 				{
 					trig.CronExpressionString = string.Format("0 {0} {1} {2} * ?", minute, hour, dayOfMonth);
 				}
@@ -367,7 +367,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeSecondlyTrigger()
 		{
-			return MakeSecondlyTrigger(1, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeSecondlyTrigger(1, SimpleTrigger.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -381,7 +381,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeSecondlyTrigger(string trigName)
 		{
-			return MakeSecondlyTrigger(trigName, 1, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeSecondlyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
 		}
 
 
@@ -396,7 +396,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeSecondlyTrigger(int intervalInSeconds)
 		{
-			return MakeSecondlyTrigger(intervalInSeconds, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeSecondlyTrigger(intervalInSeconds, SimpleTrigger.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -450,7 +450,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeMinutelyTrigger()
 		{
-			return MakeMinutelyTrigger(1, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeMinutelyTrigger(1, SimpleTrigger.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -464,7 +464,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeMinutelyTrigger(string trigName)
 		{
-			return MakeMinutelyTrigger(trigName, 1, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeMinutelyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -478,7 +478,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeMinutelyTrigger(int intervalInMinutes)
 		{
-			return MakeMinutelyTrigger(intervalInMinutes, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeMinutelyTrigger(intervalInMinutes, SimpleTrigger.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -495,7 +495,7 @@ namespace Quartz
 		public static Trigger MakeMinutelyTrigger(int intervalInMinutes, int repeatCount)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
-			trig.RepeatInterval = intervalInMinutes*MILLISECONDS_IN_MINUTE;
+			trig.RepeatInterval = intervalInMinutes*MillisecondsInMinute;
 			trig.RepeatCount = repeatCount;
 			trig.StartTimeUtc = DateTime.UtcNow;
 
@@ -531,7 +531,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeHourlyTrigger()
 		{
-			return MakeHourlyTrigger(1, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeHourlyTrigger(1, SimpleTrigger.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -545,7 +545,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeHourlyTrigger(string trigName)
 		{
-			return MakeHourlyTrigger(trigName, 1, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeHourlyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -559,7 +559,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static Trigger MakeHourlyTrigger(int intervalInHours)
 		{
-			return MakeHourlyTrigger(intervalInHours, SimpleTrigger.REPEAT_INDEFINITELY);
+			return MakeHourlyTrigger(intervalInHours, SimpleTrigger.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -577,7 +577,7 @@ namespace Quartz
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 
-			trig.RepeatInterval = intervalInHours*MILLISECONDS_IN_HOUR;
+			trig.RepeatInterval = intervalInHours*MillisecondsInHour;
 			trig.RepeatCount = repeatCount;
 			trig.StartTimeUtc = DateTime.UtcNow;
 

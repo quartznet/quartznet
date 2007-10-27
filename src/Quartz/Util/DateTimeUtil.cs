@@ -11,8 +11,12 @@ namespace Quartz.Util
     /// <summary>
     /// DateTime related utility methods.
     /// </summary>
-    public class DateTimeUtil
+    public sealed class DateTimeUtil
     {
+        private DateTimeUtil()
+        {
+        }
+
         /// <summary>
         /// Assumes that given input is in UTC and sets the kind to be UTC.
         /// Just a precaution if somebody does not set it explicitly.

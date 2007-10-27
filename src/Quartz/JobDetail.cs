@@ -52,7 +52,7 @@ namespace Quartz
     public class JobDetail : ICloneable
     {
         private string name;
-        private string group = SchedulerConstants.DEFAULT_GROUP;
+        private string group = SchedulerConstants.DefaultGroup;
         private string description;
         private Type jobType;
         private JobDataMap jobDataMap;
@@ -81,7 +81,7 @@ namespace Quartz
         /// <summary>
         /// Create a <see cref="JobDetail" /> with the given name, and group, and
         /// the default settings of all the other properties.
-        /// If <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.
+        /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
         /// </summary>
         /// <exception cref="ArgumentException">
         /// If name is null or empty, or the group is an empty string.
@@ -98,7 +98,7 @@ namespace Quartz
         /// the given settings of all the other properties.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="group">if <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.</param>
+        /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
         /// <param name="jobType">Type of the job.</param>
         /// <param name="isVolatile">if set to <c>true</c>, job will be volatile.</param>
         /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
@@ -139,7 +139,7 @@ namespace Quartz
 
         /// <summary>
         /// Get or sets the group of this <see cref="IJob" />. 
-        /// If <see langword="null" />, <see cref="SchedulerConstants.DEFAULT_GROUP" /> will be used.
+        /// If <see langword="null" />, <see cref="SchedulerConstants.DefaultGroup" /> will be used.
         /// </summary>
         /// <exception cref="ArgumentException"> 
         /// If the group is an empty string.
@@ -157,7 +157,7 @@ namespace Quartz
 
                 if (value == null)
                 {
-                    value = SchedulerConstants.DEFAULT_GROUP;
+                    value = SchedulerConstants.DefaultGroup;
                 }
 
                 group = value;
@@ -339,17 +339,17 @@ namespace Quartz
         {
             if (name == null)
             {
-                throw new SchedulerException("Job's name cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+                throw new SchedulerException("Job's name cannot be null", SchedulerException.ErrorClientError);
             }
 
             if (group == null)
             {
-                throw new SchedulerException("Job's group cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+                throw new SchedulerException("Job's group cannot be null", SchedulerException.ErrorClientError);
             }
 
             if (jobType == null)
             {
-                throw new SchedulerException("Job's class cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+                throw new SchedulerException("Job's class cannot be null", SchedulerException.ErrorClientError);
             }
         }
 

@@ -37,7 +37,7 @@ namespace Quartz
 		/// </summary>
 		public JobPersistenceException(string msg) : base(msg)
 		{
-			ErrorCode = ERR_PERSISTENCE;
+			ErrorCode = ErrorPersistence;
 		}
 
 		/// <summary> <p>
@@ -56,7 +56,7 @@ namespace Quartz
 		/// </summary>
 		public JobPersistenceException(string msg, Exception cause) : base(msg, cause)
 		{
-			ErrorCode = ERR_PERSISTENCE;
+			ErrorCode = ErrorPersistence;
 		}
 
 		/// <summary> <p>

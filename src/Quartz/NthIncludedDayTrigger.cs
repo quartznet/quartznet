@@ -30,8 +30,8 @@ namespace Quartz
 {
 	/// <summary> 
 	/// A trigger which fires on the N<sup>th</sup> day of every interval type 
-    /// <see cref="INTERVAL_TYPE_WEEKLY" />, <see cref="INTERVAL_TYPE_MONTHLY" /> or 
-    /// <see cref="INTERVAL_TYPE_YEARLY" /> that is <i>not</i> excluded by the associated
+    /// <see cref="IntervalTypeWeekly" />, <see cref="IntervalTypeMonthly" /> or 
+    /// <see cref="IntervalTypeYearly" /> that is <i>not</i> excluded by the associated
 	/// calendar. 
 	/// </summary>
 	/// <remarks>
@@ -68,7 +68,7 @@ namespace Quartz
 	/// Where W's represent weekend days, and H's represent holidays, all of which
 	/// are excluded on a calendar associated with an 
 	/// <see cref="NthIncludedDayTrigger" /> with n=5 and 
-	///  intervalType=INTERVAL_TYPE_MONTHLY. In this case, the trigger 
+	///  intervalType=IntervalTypeMonthly. In this case, the trigger 
 	/// would fire on the 8<sup>th</sup> of July (because of the July 4 holiday), 
 	/// the 5<sup>th</sup> of August, and the 8<sup>th</sup> of September (because 
 	/// of Labor Day).
@@ -82,12 +82,12 @@ namespace Quartz
 		/// Indicates a monthly trigger type (fires on the N<SUP>th</SUP> included
 		/// day of every month).
 		/// </summary>
-		public const int INTERVAL_TYPE_MONTHLY = 1;
+		public const int IntervalTypeMonthly = 1;
 
 		/// <summary> indicates a yearly trigger type (fires on the N<SUP>th</SUP> included 
 		/// day of every year).
 		/// </summary>
-		public const int INTERVAL_TYPE_YEARLY = 2;
+		public const int IntervalTypeYearly = 2;
 
 		/// <summary>
 		/// Indicates a weekly trigger type (fires on the N<SUP>th</SUP> included
@@ -101,14 +101,14 @@ namespace Quartz
 		/// <I>included</I> day of the week, which would be 4<SUP>th</SUP> 
 		/// <I>actual</I> day of the week.
 		/// </summary>
-		public const int INTERVAL_TYPE_WEEKLY = 3;
+		public const int IntervalTypeWeekly = 3;
 
         private NullableDateTime previousFireTimeUtc;
 		private NullableDateTime nextFireTimeUtc;
         private ICalendar calendar;
 
 		private int n = 1;
-		private int intervalType = INTERVAL_TYPE_MONTHLY;
+		private int intervalType = IntervalTypeMonthly;
 		private int fireAtHour = 12;
 		private int fireAtMinute = 0;
 		private int nextFireCutoffInterval = 12;
@@ -123,7 +123,7 @@ namespace Quartz
         /// group, or <see cref="JobDetail" />. This will result initially in a
         /// default monthly trigger that fires on the first day of every month at
         /// 12:00 PM (n = 1, 
-        /// intervalType={@link #INTERVAL_TYPE_MONTHLY" />, 
+        /// intervalType={@link #IntervalTypeMonthly" />, 
         /// fireAtTime="12:00").
         /// <p>
         /// Note that <see cref="Trigger.Name" />, <see cref="Trigger.Group" />, 
@@ -141,7 +141,7 @@ namespace Quartz
         /// group but no specified <see cref="JobDetail" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of 
         /// every month at 12:00 PM (<see cref="n" />=1, 
-        /// intervalType=<see cref="INTERVAL_TYPE_MONTHLY" />, 
+        /// intervalType=<see cref="IntervalTypeMonthly" />, 
         /// fireAtTime=12:00").
         /// <p>
         /// Note that <see cref="Trigger.JobName" /> and <see cref="Trigger.JobGroup" /> must
@@ -163,7 +163,7 @@ namespace Quartz
         /// group and the specified <see cref="JobDetail" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of
         /// every month at 12:00 PM (<see cref="n" />=1, 
-        /// intervalType=<see cref="INTERVAL_TYPE_MONTHLY" />, 
+        /// intervalType=<see cref="IntervalTypeMonthly" />, 
         /// fireAtTime="12:00").
         /// </summary>
         /// <param name="name">The name for the <see cref="NthIncludedDayTrigger" />.</param>
@@ -203,16 +203,16 @@ namespace Quartz
 		/// </summary>
 		/// <remarks>
 		/// Sets the interval type for the <see cref="NthIncludedDayTrigger" />. If
-		/// {@link #INTERVAL_TYPE_MONTHLY}, the trigger will fire on the 
+		/// {@link #IntervalTypeMonthly}, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every month. If 
-		/// {@link #INTERVAL_TYPE_YEARLY}, the trigger will fire on the 
+		/// {@link #IntervalTypeYearly}, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every year. If 
-		/// {@link #INTERVAL_TYPE_WEEKLY}, the trigger will fire on the 
+		/// {@link #IntervalTypeWeekly}, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every week. 
         /// </remarks>
-		/// <seealso cref="INTERVAL_TYPE_WEEKLY" />
-		/// <seealso cref="INTERVAL_TYPE_MONTHLY" />
-		/// <seealso cref="INTERVAL_TYPE_YEARLY" />
+		/// <seealso cref="IntervalTypeWeekly" />
+		/// <seealso cref="IntervalTypeMonthly" />
+		/// <seealso cref="IntervalTypeYearly" />
 		public virtual int IntervalType
 		{
 			get { return intervalType; }
@@ -221,15 +221,15 @@ namespace Quartz
 			{
 				switch (value)
 				{
-					case INTERVAL_TYPE_WEEKLY:
+					case IntervalTypeWeekly:
 						intervalType = value;
 						break;
 
-					case INTERVAL_TYPE_MONTHLY:
+					case IntervalTypeMonthly:
 						intervalType = value;
 						break;
 
-					case INTERVAL_TYPE_YEARLY:
+					case IntervalTypeYearly:
 						intervalType = value;
 						break;
 
@@ -452,15 +452,15 @@ namespace Quartz
 		/// </p>
 		/// <p>
 		/// Therefore, for triggers with intervalType = 
-        /// <see cref="NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY" />, if the trigger 
+        /// <see cref="IntervalTypeWeekly" />, if the trigger 
         /// will not fire within 12
 		/// weeks after the given date/time, <see langword="null" /> will be returned. For
 		/// triggers with intervalType = 
-        /// <see cref="NthIncludedDayTrigger.INTERVAL_TYPE_MONTHLY" />
+        /// <see cref="IntervalTypeMonthly" />
 		/// , if the trigger will not fire within 12 
 		/// months after the given date/time, <see langword="null" /> will be returned. 
 		/// For triggers with intervalType = 
-        /// <see cref="NthIncludedDayTrigger.INTERVAL_TYPE_YEARLY" />
+        /// <see cref="IntervalTypeYearly" />
 		/// , if the trigger will not fire within 12
 		/// years after the given date/time, <see langword="null" /> will be returned.  In 
 		/// all cases, if the trigger will not fire before <see field="endTime" />, 
@@ -488,15 +488,15 @@ namespace Quartz
 				afterTimeUtc = StartTimeUtc.AddMilliseconds(-1*1000);
 			}
 
-			if (intervalType == INTERVAL_TYPE_WEEKLY)
+			if (intervalType == IntervalTypeWeekly)
 			{
 				return GetWeeklyFireTimeAfter(afterTimeUtc.Value);
 			}
-			else if (intervalType == INTERVAL_TYPE_MONTHLY)
+			else if (intervalType == IntervalTypeMonthly)
 			{
 				return GetMonthlyFireTimeAfter(afterTimeUtc.Value);
 			}
-			else if (intervalType == INTERVAL_TYPE_YEARLY)
+			else if (intervalType == IntervalTypeYearly)
 			{
 				return GetYearlyFireTimeAfter(afterTimeUtc.Value);
 			}
@@ -675,7 +675,7 @@ namespace Quartz
 
 		/// <summary> 
 		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
-		/// <c>intervalType = INTERVAL_TYPE_WEEKLY</c> will fire 
+		/// <c>intervalType = IntervalTypeWeekly</c> will fire 
 		/// after the specified date. See <see cref="GetNextFireTimeUtc" /> for more 
 		/// information.
 		/// </summary>
@@ -766,7 +766,7 @@ namespace Quartz
 
 		/// <summary> 
 		/// Calculates the first UTC time an <see cref="NthIncludedDayTrigger" /> with 
-		/// intervalType = <see cref="INTERVAL_TYPE_MONTHLY" /> will fire 
+		/// intervalType = <see cref="IntervalTypeMonthly" /> will fire 
 		/// after the specified date. See <see cref="GetNextFireTimeUtc" /> for more 
 		/// information.
 		/// </summary>
@@ -852,7 +852,7 @@ namespace Quartz
 
 		/// <summary> 
 		/// Calculates the first time an <see cref="NthIncludedDayTrigger" /> with 
-		/// intervalType = <see cref="INTERVAL_TYPE_YEARLY" /> will fire 
+		/// intervalType = <see cref="IntervalTypeYearly" /> will fire 
 		/// after the specified date. See <see cref="GetNextFireTimeUtc" /> for more 
 		/// information.
 		/// </summary>

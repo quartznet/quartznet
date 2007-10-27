@@ -597,13 +597,13 @@ namespace Quartz.Core
             if (jobDetail == null)
             {
                 throw new SchedulerException("JobDetail cannot be null",
-                        SchedulerException.ERR_CLIENT_ERROR);
+                        SchedulerException.ErrorClientError);
             }
 
             if (trigger == null)
             {
                 throw new SchedulerException("Trigger cannot be null",
-                        SchedulerException.ERR_CLIENT_ERROR);
+                        SchedulerException.ErrorClientError);
             }
 
             jobDetail.Validate();
@@ -615,11 +615,11 @@ namespace Quartz.Core
             }
             else if (trigger.JobName != null && !trigger.JobName.Equals(jobDetail.Name))
             {
-                throw new SchedulerException("Trigger does not reference given job!", SchedulerException.ERR_CLIENT_ERROR);
+                throw new SchedulerException("Trigger does not reference given job!", SchedulerException.ErrorClientError);
             }
             else if (trigger.JobGroup != null && !trigger.JobGroup.Equals(jobDetail.Group))
             {
-                throw new SchedulerException("Trigger does not reference given job!", SchedulerException.ERR_CLIENT_ERROR);
+                throw new SchedulerException("Trigger does not reference given job!", SchedulerException.ErrorClientError);
             }
 
             trigger.Validate();
@@ -631,7 +631,7 @@ namespace Quartz.Core
                 if (cal == null)
                 {
                     throw new SchedulerException(string.Format("Calendar not found: {0}", trigger.CalendarName),
-                                                 SchedulerException.ERR_PERSISTENCE_CALENDAR_DOES_NOT_EXIST);
+                                                 SchedulerException.ErrorPersistenceCalendarDoesNotExist);
                 }
             }
 
@@ -640,7 +640,7 @@ namespace Quartz.Core
             if (!ft.HasValue)
             {
                 throw new SchedulerException("Based on configured schedule, the given trigger will never fire.",
-                                             SchedulerException.ERR_CLIENT_ERROR);
+                                             SchedulerException.ErrorClientError);
             }
 
             resources.JobStore.StoreJobAndTrigger(ctxt, jobDetail, trigger);
@@ -661,7 +661,7 @@ namespace Quartz.Core
             if (trigger == null)
             {
                 throw new SchedulerException("Trigger cannot be null",
-                        SchedulerException.ERR_CLIENT_ERROR);
+                        SchedulerException.ErrorClientError);
             }
 
             trigger.Validate();
@@ -673,7 +673,7 @@ namespace Quartz.Core
                 if (cal == null)
                 {
                     throw new SchedulerException(string.Format("Calendar not found: {0}", trigger.CalendarName),
-                                                 SchedulerException.ERR_PERSISTENCE_CALENDAR_DOES_NOT_EXIST);
+                                                 SchedulerException.ErrorPersistenceCalendarDoesNotExist);
                 }
             }
 
@@ -682,7 +682,7 @@ namespace Quartz.Core
             if (!ft.HasValue)
             {
                 throw new SchedulerException("Based on configured schedule, the given trigger will never fire.",
-                                             SchedulerException.ERR_CLIENT_ERROR);
+                                             SchedulerException.ErrorClientError);
             }
 
             resources.JobStore.StoreTrigger(ctxt, trigger, false);
@@ -708,7 +708,7 @@ namespace Quartz.Core
 
             if (!jobDetail.Durable && !replace)
             {
-                throw new SchedulerException("Jobs added with no trigger must be durable.", SchedulerException.ERR_CLIENT_ERROR);
+                throw new SchedulerException("Jobs added with no trigger must be durable.", SchedulerException.ErrorClientError);
             }
 
             resources.JobStore.StoreJob(ctxt, jobDetail, replace);
@@ -725,7 +725,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             return resources.JobStore.RemoveJob(ctxt, jobName, groupName);
@@ -741,7 +741,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             if (resources.JobStore.RemoveTrigger(ctxt, triggerName, groupName))
@@ -778,7 +778,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             newTrigger.Validate();
@@ -794,7 +794,7 @@ namespace Quartz.Core
             if (!ft.HasValue)
             {
                 throw new SchedulerException("Based on configured schedule, the given trigger will never fire.",
-                                             SchedulerException.ERR_CLIENT_ERROR);
+                                             SchedulerException.ErrorClientError);
             }
 
             if (resources.JobStore.ReplaceTrigger(ctxt, triggerName, groupName, newTrigger))
@@ -850,11 +850,11 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             Trigger trig =
-                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.UtcNow,
+                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DefaultManualTriggers, jobName, groupName, DateTime.UtcNow,
                                   null, 0, 0);
             trig.Volatile = false;
             trig.ComputeFirstFireTimeUtc(null);
@@ -892,11 +892,11 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             Trigger trig =
-                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DEFAULT_MANUAL_TRIGGERS, jobName, groupName, DateTime.UtcNow,
+                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DefaultManualTriggers, jobName, groupName, DateTime.UtcNow,
                                   null, 0, 0);
             trig.Volatile = true;
             trig.ComputeFirstFireTimeUtc(null);
@@ -932,7 +932,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             resources.JobStore.PauseTrigger(ctxt, triggerName, groupName);
@@ -949,7 +949,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             resources.JobStore.PauseTriggerGroup(ctxt, groupName);
@@ -967,7 +967,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             resources.JobStore.PauseJob(ctxt, jobName, groupName);
@@ -985,7 +985,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             resources.JobStore.PauseJobGroup(ctxt, groupName);
@@ -1007,7 +1007,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             resources.JobStore.ResumeTrigger(ctxt, triggerName, groupName);
@@ -1029,7 +1029,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             resources.JobStore.ResumeTriggerGroup(ctxt, groupName);
@@ -1062,7 +1062,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             resources.JobStore.ResumeJob(ctxt, jobName, groupName);
@@ -1085,7 +1085,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             resources.JobStore.ResumeJobGroup(ctxt, groupName);
@@ -1150,7 +1150,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             return resources.JobStore.GetJobNames(ctxt, groupName);
@@ -1166,7 +1166,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             return resources.JobStore.GetTriggersForJob(ctxt, jobName, groupName);
@@ -1192,7 +1192,7 @@ namespace Quartz.Core
 
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             return resources.JobStore.GetTriggerNames(ctxt, groupName);
@@ -1208,7 +1208,7 @@ namespace Quartz.Core
 
             if (jobGroup == null)
             {
-                jobGroup = SchedulerConstants.DEFAULT_GROUP;
+                jobGroup = SchedulerConstants.DefaultGroup;
             }
 
             return resources.JobStore.RetrieveJob(ctxt, jobName, jobGroup);
@@ -1224,7 +1224,7 @@ namespace Quartz.Core
 
             if (triggerGroup == null)
             {
-                triggerGroup = SchedulerConstants.DEFAULT_GROUP;
+                triggerGroup = SchedulerConstants.DefaultGroup;
             }
 
             return resources.JobStore.RetrieveTrigger(ctxt, triggerName, triggerGroup);
@@ -1243,7 +1243,7 @@ namespace Quartz.Core
 
             if (triggerGroup == null)
             {
-                triggerGroup = SchedulerConstants.DEFAULT_GROUP;
+                triggerGroup = SchedulerConstants.DefaultGroup;
             }
 
             return resources.JobStore.GetTriggerState(ctxt, triggerName, triggerGroup);
@@ -1588,7 +1588,7 @@ namespace Quartz.Core
                 else
                 {
                     throw new SchedulerException(string.Format("TriggerListener '{0}' not found.", additionalListeners[i]),
-                                                 SchedulerException.ERR_TRIGGER_LISTENER_NOT_FOUND);
+                                                 SchedulerException.ErrorTriggerListenerNotFound);
                 }
             }
 
@@ -1609,7 +1609,7 @@ namespace Quartz.Core
                 else
                 {
                     throw new SchedulerException(string.Format("JobListener '{0}' not found.", additionalListeners[i]),
-                                                 SchedulerException.ERR_JOB_LISTENER_NOT_FOUND);
+                                                 SchedulerException.ErrorJobListenerNotFound);
                 }
             }
 
@@ -1643,7 +1643,7 @@ namespace Quartz.Core
                 catch (Exception e)
                 {
                     SchedulerException se = new SchedulerException(string.Format("TriggerListener '{0}' threw exception: {1}", tl.Name, e.Message), e);
-                    se.ErrorCode = SchedulerException.ERR_TRIGGER_LISTENER;
+                    se.ErrorCode = SchedulerException.ErrorTriggerListener;
                     throw se;
                 }
             }
@@ -1671,7 +1671,7 @@ namespace Quartz.Core
                 catch (Exception e)
                 {
                     SchedulerException se = new SchedulerException(string.Format("TriggerListener '{0}' threw exception: {1}", tl.Name, e.Message), e);
-                    se.ErrorCode = SchedulerException.ERR_TRIGGER_LISTENER;
+                    se.ErrorCode = SchedulerException.ErrorTriggerListener;
                     throw se;
                 }
             }
@@ -1697,7 +1697,7 @@ namespace Quartz.Core
                 catch (Exception e)
                 {
                     SchedulerException se = new SchedulerException(string.Format("TriggerListener '{0}' threw exception: {1}", tl.Name, e.Message), e);
-                    se.ErrorCode = SchedulerException.ERR_TRIGGER_LISTENER;
+                    se.ErrorCode = SchedulerException.ErrorTriggerListener;
                     throw se;
                 }
             }
@@ -1722,7 +1722,7 @@ namespace Quartz.Core
                 catch (Exception e)
                 {
                     SchedulerException se = new SchedulerException(string.Format("JobListener '{0}' threw exception: {1}", jl.Name, e.Message), e);
-                    se.ErrorCode = SchedulerException.ERR_JOB_LISTENER;
+                    se.ErrorCode = SchedulerException.ErrorJobListener;
                     throw se;
                 }
             }
@@ -1747,7 +1747,7 @@ namespace Quartz.Core
                 catch (Exception e)
                 {
                     SchedulerException se = new SchedulerException(string.Format("JobListener '{0}' threw exception: {1}", jl.Name, e.Message), e);
-                    se.ErrorCode = SchedulerException.ERR_JOB_LISTENER;
+                    se.ErrorCode = SchedulerException.ErrorJobListener;
                     throw se;
                 }
             }
@@ -1773,7 +1773,7 @@ namespace Quartz.Core
                 catch (Exception e)
                 {
                     SchedulerException se = new SchedulerException(string.Format("JobListener '{0}' threw exception: {1}", jl.Name, e.Message), e);
-                    se.ErrorCode = SchedulerException.ERR_JOB_LISTENER;
+                    se.ErrorCode = SchedulerException.ErrorJobListener;
                     throw se;
                 }
             }
@@ -2001,7 +2001,7 @@ namespace Quartz.Core
         {
             if (groupName == null)
             {
-                groupName = SchedulerConstants.DEFAULT_GROUP;
+                groupName = SchedulerConstants.DefaultGroup;
             }
 
             IList jobs = CurrentlyExecutingJobs;

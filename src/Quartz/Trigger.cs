@@ -67,12 +67,12 @@ namespace Quartz
 	    /// <summary>
 		/// The default value for priority.
 		/// </summary>
-		public const int DEFAULT_PRIORITY = 5;
+		public const int DefaultPriority = 5;
 
         private string name;
-        private string group = SchedulerConstants.DEFAULT_GROUP;
+        private string group = SchedulerConstants.DefaultGroup;
         private string jobName;
-        private string jobGroup = SchedulerConstants.DEFAULT_GROUP;
+        private string jobGroup = SchedulerConstants.DefaultGroup;
         private string description;
         private JobDataMap jobDataMap;
         private bool volatility = false;
@@ -85,7 +85,7 @@ namespace Quartz
 
         private NullableDateTime endTimeUtc;
         private DateTime startTimeUtc;
-		private int priority = DEFAULT_PRIORITY;
+		private int priority = DefaultPriority;
 		[NonSerialized] 
 		private Key key = null;
 
@@ -109,7 +109,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get the group of this <see cref="Trigger" />. If <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.
+		/// Get the group of this <see cref="Trigger" />. If <see langword="null" />, Scheduler.DefaultGroup will be used.
 		/// </summary>
 		/// <exception cref="ArgumentException"> 
 		/// if group is an empty string.
@@ -127,7 +127,7 @@ namespace Quartz
 
 				if (value == null)
 				{
-					value = SchedulerConstants.DEFAULT_GROUP;
+					value = SchedulerConstants.DefaultGroup;
 				}
 
 				group = value;
@@ -157,7 +157,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Gets or sets the name of the associated <see cref="JobDetail" />'s
-		/// group. If set with <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.
+		/// group. If set with <see langword="null" />, Scheduler.DefaultGroup will be used.
 		/// </summary>
 		/// <exception cref="ArgumentException"> ArgumentException
 		/// if group is an empty string.
@@ -175,7 +175,7 @@ namespace Quartz
 
 				if (value == null)
 				{
-					value = SchedulerConstants.DEFAULT_GROUP;
+					value = SchedulerConstants.DefaultGroup;
 				}
 
 				jobGroup = value;
@@ -447,7 +447,7 @@ namespace Quartz
         /// </p>
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="group">if <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.</param>
+        /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
 		public Trigger(string name, string group)
 		{
 			Name = name;
@@ -458,7 +458,7 @@ namespace Quartz
         /// Create a <see cref="Trigger" /> with the given name, and group.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="group">if <see langword="null" />, Scheduler.DEFAULT_GROUP will be used.</param>
+        /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
         /// <param name="jobName">Name of the job.</param>
         /// <param name="jobGroup">The job group.</param>
         /// <exception cref="ArgumentException"> ArgumentException
@@ -482,7 +482,7 @@ namespace Quartz
 		/// If not explicitly set, the default value is <code>5</code>.
 		/// </remarks>
 		/// <returns></returns>
-		/// <see cref="DEFAULT_PRIORITY" />
+		/// <see cref="DefaultPriority" />
 		public int Priority
 		{
 			get { return priority; }
@@ -678,22 +678,22 @@ namespace Quartz
 		{
 			if (name == null)
 			{
-				throw new SchedulerException("Trigger's name cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+				throw new SchedulerException("Trigger's name cannot be null", SchedulerException.ErrorClientError);
 			}
 
 			if (group == null)
 			{
-				throw new SchedulerException("Trigger's group cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+				throw new SchedulerException("Trigger's group cannot be null", SchedulerException.ErrorClientError);
 			}
 
 			if (jobName == null)
 			{
-				throw new SchedulerException("Trigger's related Job's name cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+				throw new SchedulerException("Trigger's related Job's name cannot be null", SchedulerException.ErrorClientError);
 			}
 
 			if (jobGroup == null)
 			{
-				throw new SchedulerException("Trigger's related Job's group cannot be null", SchedulerException.ERR_CLIENT_ERROR);
+				throw new SchedulerException("Trigger's related Job's group cannot be null", SchedulerException.ErrorClientError);
 			}
 		}
 

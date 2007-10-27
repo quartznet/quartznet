@@ -50,7 +50,7 @@ namespace Quartz
         /// other words, the trigger should repeat continually until the trigger's
         /// ending timestamp.
         /// </summary>
-        public const int REPEAT_INDEFINITELY = -1;
+        public const int RepeatIndefinitely = -1;
 
         private NullableDateTime nextFireTimeUtc = null;
 		private NullableDateTime previousFireTimeUtc = null;
@@ -103,7 +103,7 @@ namespace Quartz
         /// <param name="endTimeUtc">A UTC <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
-        /// firing, use {@link #REPEAT_INDEFINITELY}for unlimited times.</param>
+        /// firing, use {@link #RepeatIndefinitely}for unlimited times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, DateTime startTimeUtc,
             NullableDateTime endTimeUtc, 
@@ -129,7 +129,7 @@ namespace Quartz
         /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
-        /// firing, use REPEAT_INDEFINITELY for unlimited times.</param>
+        /// firing, use RepeatIndefinitely for unlimited times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTime,
                  NullableDateTime endTime,
@@ -146,16 +146,16 @@ namespace Quartz
         /// Get or set thhe number of times the <see cref="SimpleTrigger" /> should
         /// repeat, after which it will be automatically deleted.
         /// </summary>
-        /// <seealso cref="REPEAT_INDEFINITELY" />
+        /// <seealso cref="RepeatIndefinitely" />
         public int RepeatCount
         {
             get { return repeatCount; }
 
             set
             {
-                if (value < 0 && value != REPEAT_INDEFINITELY)
+                if (value < 0 && value != RepeatIndefinitely)
                 {
-                    throw new ArgumentException("Repeat count must be >= 0, use the constant REPEAT_INDEFINITELY for infinite.");
+                    throw new ArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
                 }
 
                 repeatCount = value;
@@ -193,7 +193,7 @@ namespace Quartz
 
         /// <summary> 
         /// Returns the final UTC time at which the <see cref="SimpleTrigger" /> will
-        /// fire, if repeatCount is REPEAT_INDEFINITELY, null will be returned.
+        /// fire, if repeatCount is RepeatIndefinitely, null will be returned.
         /// <p>
         /// Note that the return time may be in the past.
         /// </p>
@@ -207,16 +207,16 @@ namespace Quartz
                     return StartTimeUtc;
                 }
 
-                if (repeatCount == REPEAT_INDEFINITELY && !EndTimeUtc.HasValue)
+                if (repeatCount == RepeatIndefinitely && !EndTimeUtc.HasValue)
                 {
                     return null;
                 }
 
-                if (repeatCount == REPEAT_INDEFINITELY && !EndTimeUtc.HasValue)
+                if (repeatCount == RepeatIndefinitely && !EndTimeUtc.HasValue)
                 {
                     return null;
                 }
-                else if (repeatCount == REPEAT_INDEFINITELY)
+                else if (repeatCount == RepeatIndefinitely)
                 {
                     return GetFireTimeBefore(EndTimeUtc);
                 }
@@ -272,7 +272,7 @@ namespace Quartz
 		/// <ul>
 		/// <li>If the Repeat Count is 0, then the instruction will
         /// be interpreted as <see cref="MisfirePolicy.SimpleTrigger.FireNow" />.</li>
-		/// <li>If the Repeat Count is <see cref="REPEAT_INDEFINITELY" />, then
+		/// <li>If the Repeat Count is <see cref="RepeatIndefinitely" />, then
         /// the instruction will be interpreted as <see cref="MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount" />.
         /// <b>WARNING:</b> using MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount 
 		/// with a trigger that has a non-null end-time may cause the trigger to 
@@ -292,7 +292,7 @@ namespace Quartz
 				{
                     instr = MisfirePolicy.SimpleTrigger.FireNow;
 				}
-				else if (RepeatCount == REPEAT_INDEFINITELY)
+				else if (RepeatCount == RepeatIndefinitely)
 				{
                     instr = MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount;
 					    
@@ -341,7 +341,7 @@ namespace Quartz
 			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
 			{
 				DateTime newFireTime = DateTime.UtcNow;
-				if (repeatCount != 0 && repeatCount != REPEAT_INDEFINITELY)
+				if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
 				{
 					RepeatCount = RepeatCount - TimesTriggered;
 					TimesTriggered = 0;
@@ -362,7 +362,7 @@ namespace Quartz
 				DateTime newFireTime = DateTime.UtcNow;
 				int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc, newFireTime);
 
-				if (repeatCount != 0 && repeatCount != REPEAT_INDEFINITELY)
+				if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
 				{
 					int remainingCount = RepeatCount - (TimesTriggered + timesMissed);
 					if (remainingCount <= 0)
@@ -516,7 +516,7 @@ namespace Quartz
 				return null;
 			}
 
-			if ((timesTriggered > repeatCount) && (repeatCount != REPEAT_INDEFINITELY))
+			if ((timesTriggered > repeatCount) && (repeatCount != RepeatIndefinitely))
 			{
 				return null;
 			}
@@ -549,7 +549,7 @@ namespace Quartz
 			long numberOfTimesExecuted = ((long) (afterMillis - startMillis).TotalMilliseconds / repeatInterval) + 1;
 
 			if ((numberOfTimesExecuted > repeatCount) && 
-				(repeatCount != REPEAT_INDEFINITELY)) 
+				(repeatCount != RepeatIndefinitely)) 
 			{
 				return null;
 			}
@@ -617,7 +617,7 @@ namespace Quartz
 
 			if (repeatCount != 0 && repeatInterval < 1)
 			{
-				throw new SchedulerException("Repeat Interval cannot be zero.", SchedulerException.ERR_CLIENT_ERROR);
+				throw new SchedulerException("Repeat Interval cannot be zero.", SchedulerException.ErrorClientError);
 			}
 		}
 	}

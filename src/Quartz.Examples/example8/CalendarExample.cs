@@ -74,7 +74,7 @@ namespace Quartz.Examples.Example8
 			// at 10 am
 			DateTime runDate = new DateTime(DateTime.UtcNow.Year, 10, 31, 10, 0, 0).ToUniversalTime();
 			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob));
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runDate, null, SimpleTrigger.REPEAT_INDEFINITELY, 60 * 60 * 1000);
+			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runDate, null, SimpleTrigger.RepeatIndefinitely, 60 * 60 * 1000);
 			// tell the trigger to obey the Holidays calendar!
 			trigger.CalendarName = "holidays";
 			

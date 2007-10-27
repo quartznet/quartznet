@@ -34,7 +34,7 @@ namespace Quartz
 		/// <summary>
 		/// Create a <see cref="JobPersistenceException" /> with the given message.
 		/// </summary>
-		public SchedulerConfigException(string msg) : base(msg, ERR_BAD_CONFIGURATION)
+		public SchedulerConfigException(string msg) : base(msg, ErrorBadConfiguration)
 		{
 		}
 
@@ -44,7 +44,7 @@ namespace Quartz
 		/// </summary>
 		public SchedulerConfigException(string msg, Exception cause) : base(msg, cause)
 		{
-			ErrorCode = ERR_BAD_CONFIGURATION;
+			ErrorCode = ErrorBadConfiguration;
 		}
 	}
 }

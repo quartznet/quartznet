@@ -93,7 +93,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> 
 		/// Select all of the triggers for jobs that are requesting recovery. The
 		/// returned trigger objects will have unique "recoverXXX" trigger names and
-		/// will be in the <code>Scheduler.DEFAULT_RECOVERY_GROUP</code> trigger group.
+		/// will be in the <code>Scheduler.DefaultRecoveryGroup</code> trigger group.
 		///
 		/// <p>
 		/// In order to preserve the ordering of the triggers, the fire time will be

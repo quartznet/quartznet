@@ -73,8 +73,8 @@ namespace Quartz.Impl
 	public class DirectSchedulerFactory : ISchedulerFactory
 	{
 		private readonly ILog log;
-        public const string DEFAULT_INSTANCE_ID = "SIMPLE_NON_CLUSTERED";
-        public const string DEFAULT_SCHEDULER_NAME = "SimpleQuartzScheduler";
+        public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";
+        public const string DefaultSchedulerName = "SimpleQuartzScheduler";
 
         private bool initialized = false;
         private static readonly DirectSchedulerFactory instance = new DirectSchedulerFactory();
@@ -138,7 +138,7 @@ namespace Quartz.Impl
 		/// <throws>  SchedulerException </throws>
 		public virtual void CreateRemoteScheduler(string proxyAddress)
 		{
-			CreateRemoteScheduler(DEFAULT_SCHEDULER_NAME, DEFAULT_INSTANCE_ID, proxyAddress);
+			CreateRemoteScheduler(DefaultSchedulerName, DefaultInstanceId, proxyAddress);
 			initialized = true;
 		}
 
@@ -179,7 +179,7 @@ namespace Quartz.Impl
 		/// </summary>
 		public virtual void CreateScheduler(IThreadPool threadPool, IJobStore jobStore)
 		{
-			CreateScheduler(DEFAULT_SCHEDULER_NAME, DEFAULT_INSTANCE_ID, threadPool, jobStore);
+			CreateScheduler(DefaultSchedulerName, DefaultInstanceId, threadPool, jobStore);
 			initialized = true;
 		}
 
@@ -316,7 +316,7 @@ namespace Quartz.Impl
 			}
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-			return schedRep.Lookup(DEFAULT_SCHEDULER_NAME);
+			return schedRep.Lookup(DefaultSchedulerName);
 		}
 
 		/// <summary>

@@ -42,28 +42,28 @@ namespace Quartz
 		/// A (possibly) usefull constant that can be used for specifying the group
 		/// that <see cref="IJob" /> and <see cref="Trigger" /> instances belong to.
 		/// </summary>
-		public static readonly string DEFAULT_GROUP = "DEFAULT";
+		public const string DefaultGroup = "DEFAULT";
 
 		/// <summary>
 		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
 		/// ("MANUAL_TRIGGER") for thename of a <see cref="Trigger" />'s group.
 		/// </summary>
-		public static readonly string DEFAULT_MANUAL_TRIGGERS = "MANUAL_TRIGGER";
+		public const string DefaultManualTriggers = "MANUAL_TRIGGER";
 
 		/// <summary>
 		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
 		/// ("RECOVERING_JOBS") for thename of a <see cref="Trigger" />'s group.
 		/// </summary>
-		public static readonly string DEFAULT_RECOVERY_GROUP = "RECOVERING_JOBS";
+		public const string DefaultRecoveryGroup = "RECOVERING_JOBS";
 
 		/// <summary>
 		/// A constant <see cref="Trigger" /> group name used internally by the
 		/// scheduler - clients should not use the value of this constant
 		/// ("FAILED_OVER_JOBS") for thename of a <see cref="Trigger" />'s group.
 		/// </summary>
-		public static readonly string DEFAULT_FAIL_OVER_GROUP = "FAILED_OVER_JOBS";
+		public const string DefaultFailOverGroup = "FAILED_OVER_JOBS";
 
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace Quartz
         /// instance.
         /// </summary>
         /// <seealso cref="JobDetail.RequestsRecovery" />
-        public static readonly string FAILED_JOB_ORIGINAL_TRIGGER_NAME = "QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME";
+        public const string FailedJobOriginalTriggerName = "QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME";
 
         /// <summary>
         /// A constant <see cref="JobDataMap" /> key that can be used to retrieve the
@@ -82,7 +82,7 @@ namespace Quartz
         /// instance.
         /// </summary>
         /// <seealso cref="JobDetail.RequestsRecovery" />
-        public static readonly string FAILED_JOB_ORIGINAL_TRIGGER_GROUP = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
+        public const string FailedJobOriginalTriggerGroup = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
 
         /// <summary>
         ///  A constant <see cref="JobDataMap" /> key that can be used to retrieve the
@@ -91,7 +91,7 @@ namespace Quartz
          /// instance.
         /// </summary>
         /// <seealso cref="JobDetail.RequestsRecovery" />
-        public static readonly string FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING";
+        public const string FailedJobOriginalTriggerFiretimeInMillisecoonds = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING";
 
 	}
 
@@ -138,7 +138,7 @@ namespace Quartz
     ///         logical groupings or categorizations of <see cref="IJob"/>s and
     ///         <see cref="Trigger"/>s. If you don't have need for assigning a group to a
     ///         given <see cref="IJob"/>s of <see cref="Trigger"/>s, then you can use
-    ///         the <see cref="SchedulerConstants.DEFAULT_GROUP"/> constant defined on
+    ///         the <see cref="SchedulerConstants.DefaultGroup"/> constant defined on
     ///         this interface.
     ///     </para>
     /// 	<para>

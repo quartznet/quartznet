@@ -22,188 +22,97 @@ using System;
 
 namespace Quartz
 {
-	/// <summary> 
-	/// Base class for exceptions thrown by the Quartz <see cref="IScheduler" />.
-	/// </summary>
-	/// <remarks>
-	/// SchedulerExceptions may contain a reference to another
-	/// <see cref="Exception" />, which was the underlying cause of the SchedulerException.
+    /// <summary> 
+    /// Base class for exceptions thrown by the Quartz <see cref="IScheduler" />.
+    /// </summary>
+    /// <remarks>
+    /// SchedulerExceptions may contain a reference to another
+    /// <see cref="Exception" />, which was the underlying cause of the SchedulerException.
     /// </remarks>
-	/// <author>James House</author>
-	[Serializable]
-	public class SchedulerException : ApplicationException
-	{
-		/// <summary>
-		/// Return the exception that is the underlying cause of this exception.
-		/// This may be used to find more detail about the cause of the error.
-		/// </summary>
-		/// <returns> The underlying exception, or <see langword="null" /> if there is not
-		/// one.
-		/// </returns>
-		public virtual Exception UnderlyingException
-		{
-			get { return cause; }
-		}
+    /// <author>James House</author>
+    [Serializable]
+    public class SchedulerException : ApplicationException
+    {
+        public const int ErrorBadConfiguration = 50;
 
-		/// <summary>
-		/// Get the error code associated with this exception.
-		/// This may be used to find more detail about the cause of the error.
-		/// </summary>
-		/// <returns> 
-		/// One of the ERR_XXX constants defined in this class.
-		/// </returns>
-		public int ErrorCode
-		{
-			get { return errorCode; }
-			set { errorCode = value; }
-		}
+        public const int ErrorClientError = 100;
 
-		/// <summary> <p>
-		/// Determine if the specified error code is in the <see cref="ERR_PERSISTENCE" />
-		/// category of errors.
-		/// </p>
-		/// </summary>
-		public virtual bool PersistenceError
-		{
-			get { return (errorCode >= ERR_PERSISTENCE && errorCode <= ERR_PERSISTENCE + 99); }
-		}
+        public const int ErrorCommunicationFailure = 200;
+        public const int ErrorJobExecutionThrewException = 800;
+        public const int ErrorJobListener = 600;
 
-		/// <summary> <p>
-		/// Determine if the specified error code is in the <see cref="ERR_THREAD_POOL" />
-		/// category of errors.
-		/// </p>
-		/// </summary>
-		public virtual bool ThreadPoolError
-		{
-			get { return (errorCode >= ERR_THREAD_POOL && errorCode <= ERR_THREAD_POOL + 99); }
-		}
+        public const int ErrorJobListenerNotFound = 610;
 
-		/// <summary>
-		/// Determine if the specified error code is in the <see cref="ERR_JOB_LISTENER" />
-		/// category of errors.
-		/// </summary>
-		public virtual bool JobListenerError
-		{
-			get { return (errorCode >= ERR_JOB_LISTENER && errorCode <= ERR_JOB_LISTENER + 99); }
-		}
+        public const int ErrorPersistence = 400;
 
-		/// <summary>
-		/// Determine if the specified error code is in the <see cref="ERR_TRIGGER_LISTENER" />
-		/// category of errors.
-		/// </summary>
-		public virtual bool TriggerListenerError
-		{
-			get { return (errorCode >= ERR_TRIGGER_LISTENER && errorCode <= ERR_TRIGGER_LISTENER + 99); }
-		}
+        public const int ErrorPersistenceCalendarDoesNotExist = 420;
 
-		/// <summary>
-		/// Determine if the specified error code is in the <see cref="ERR_CLIENT_ERROR" />
-		/// category of errors.
-		/// </summary>
-		public virtual bool ClientError
-		{
-			get { return (errorCode >= ERR_CLIENT_ERROR && errorCode <= ERR_CLIENT_ERROR + 99); }
-		}
+        public const int ErrorPersistenceCriticalFailure = 499;
+        public const int ErrorPersistenceJobDoesNotExist = 410;
+        public const int ErrorPersistenceTriggerDoesNotExist = 430;
 
-		/// <summary>
-		/// Determine if the specified error code is in the <see cref="ERR_CLIENT_ERROR" />
-		/// category of errors.
-		/// </summary>
-		public virtual bool ConfigurationError
-		{
-			get { return (errorCode >= ERR_BAD_CONFIGURATION && errorCode <= ERR_BAD_CONFIGURATION + 49); }
-		}
+        public const int ErrorThreadPool = 500;
+
+        public const int ErrorThreadPoolCriticalFailure = 599;
+        public const int ErrorThreadPoolExhausted = 510;
+
+        public const int ErrorTriggerListener = 700;
+
+        public const int ErrorTriggerListenerNotFound = 710;
+
+        public const int ErrorTriggerThrewException = 850;
+        public const int ErrorUnspecified = 0;
+        public const int ErrorUnsupportedFunctionInThisConfiguration = 210;
 
 
-		public const int ERR_UNSPECIFIED = 0;
+        private readonly Exception cause;
 
-		public const int ERR_BAD_CONFIGURATION = 50;
-
-		public const int ERR_TIME_BROKER_FAILURE = 70;
-
-		public const int ERR_CLIENT_ERROR = 100;
-
-		public const int ERR_COMMUNICATION_FAILURE = 200;
-
-		public const int ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION = 210;
-
-		public const int ERR_PERSISTENCE = 400;
-
-		public const int ERR_PERSISTENCE_JOB_DOES_NOT_EXIST = 410;
-
-		public const int ERR_PERSISTENCE_CALENDAR_DOES_NOT_EXIST = 420;
-
-		public const int ERR_PERSISTENCE_TRIGGER_DOES_NOT_EXIST = 430;
-
-		public const int ERR_PERSISTENCE_CRITICAL_FAILURE = 499;
-
-		public const int ERR_THREAD_POOL = 500;
-
-		public const int ERR_THREAD_POOL_EXHAUSTED = 510;
-
-		public const int ERR_THREAD_POOL_CRITICAL_FAILURE = 599;
-
-		public const int ERR_JOB_LISTENER = 600;
-
-		public const int ERR_JOB_LISTENER_NOT_FOUND = 610;
-
-		public const int ERR_TRIGGER_LISTENER = 700;
-
-		public const int ERR_TRIGGER_LISTENER_NOT_FOUND = 710;
-
-		public const int ERR_JOB_EXECUTION_THREW_EXCEPTION = 800;
-
-		public const int ERR_TRIGGER_THREW_EXCEPTION = 850;
-
-
-		private Exception cause;
-
-		private int errorCode = ERR_UNSPECIFIED;
+        private int errorCode = ErrorUnspecified;
 
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
-		public SchedulerException() 
-		{
-		}
+        public SchedulerException()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
         /// <param name="msg">The MSG.</param>
-		public SchedulerException(string msg) : base(msg)
-		{
-		}
+        public SchedulerException(string msg) : base(msg)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
         /// <param name="msg">The MSG.</param>
         /// <param name="errorCode">The error code.</param>
-		public SchedulerException(string msg, int errorCode) : base(msg)
-		{
-			ErrorCode = errorCode;
-		}
+        public SchedulerException(string msg, int errorCode) : base(msg)
+        {
+            ErrorCode = errorCode;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
         /// <param name="cause">The cause.</param>
-		public SchedulerException(Exception cause) : base(cause.ToString())
-		{
-			this.cause = cause;
-		}
+        public SchedulerException(Exception cause) : base(cause.ToString())
+        {
+            this.cause = cause;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
         /// <param name="msg">The MSG.</param>
         /// <param name="cause">The cause.</param>
-		public SchedulerException(string msg, Exception cause) : base(msg)
-		{
-			this.cause = cause;
-		}
+        public SchedulerException(string msg, Exception cause) : base(msg)
+        {
+            this.cause = cause;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
@@ -211,11 +120,92 @@ namespace Quartz
         /// <param name="msg">The MSG.</param>
         /// <param name="cause">The cause.</param>
         /// <param name="errorCode">The error code.</param>
-		public SchedulerException(string msg, Exception cause, int errorCode) : base(msg)
-		{
-			this.cause = cause;
-			ErrorCode = errorCode;
-		}
+        public SchedulerException(string msg, Exception cause, int errorCode) : base(msg)
+        {
+            this.cause = cause;
+            ErrorCode = errorCode;
+        }
+
+        /// <summary>
+        /// Return the exception that is the underlying cause of this exception.
+        /// This may be used to find more detail about the cause of the error.
+        /// </summary>
+        /// <returns> The underlying exception, or <see langword="null" /> if there is not
+        /// one.
+        /// </returns>
+        public virtual Exception UnderlyingException
+        {
+            get { return cause; }
+        }
+
+        /// <summary>
+        /// Get the error code associated with this exception.
+        /// This may be used to find more detail about the cause of the error.
+        /// </summary>
+        /// <returns> 
+        /// One of the ERR_XXX constants defined in this class.
+        /// </returns>
+        public int ErrorCode
+        {
+            get { return errorCode; }
+            set { errorCode = value; }
+        }
+
+        /// <summary> <p>
+        /// Determine if the specified error code is in the <see cref="ErrorPersistence" />
+        /// category of errors.
+        /// </p>
+        /// </summary>
+        public virtual bool PersistenceError
+        {
+            get { return (errorCode >= ErrorPersistence && errorCode <= ErrorPersistence + 99); }
+        }
+
+        /// <summary> <p>
+        /// Determine if the specified error code is in the <see cref="ErrorThreadPool" />
+        /// category of errors.
+        /// </p>
+        /// </summary>
+        public virtual bool ThreadPoolError
+        {
+            get { return (errorCode >= ErrorThreadPool && errorCode <= ErrorThreadPool + 99); }
+        }
+
+        /// <summary>
+        /// Determine if the specified error code is in the <see cref="ErrorJobListener" />
+        /// category of errors.
+        /// </summary>
+        public virtual bool JobListenerError
+        {
+            get { return (errorCode >= ErrorJobListener && errorCode <= ErrorJobListener + 99); }
+        }
+
+        /// <summary>
+        /// Determine if the specified error code is in the <see cref="ErrorTriggerListener" />
+        /// category of errors.
+        /// </summary>
+        public virtual bool TriggerListenerError
+        {
+            get { return (errorCode >= ErrorTriggerListener && errorCode <= ErrorTriggerListener + 99); }
+        }
+
+        /// <summary>
+        /// Determine if the specified error code is in the <see cref="ErrorClientError" />
+        /// category of errors.
+        /// </summary>
+        public virtual bool ClientError
+        {
+            get { return (errorCode >= ErrorClientError && errorCode <= ErrorClientError + 99); }
+        }
+
+        /// <summary>
+        /// Determine if the specified error code is in the <see cref="ErrorClientError" />
+        /// category of errors.
+        /// </summary>
+        public virtual bool ConfigurationError
+        {
+            get { return (errorCode >= ErrorBadConfiguration && errorCode <= ErrorBadConfiguration + 49); }
+        }
 
         /// <summary>
         /// Creates and returns a string representation of the current exception.
@@ -224,17 +214,16 @@ namespace Quartz
         /// A string representation of the current exception.
         /// </returns>
         /// <PermissionSet><IPermission class="System.Security.Permissions.FileIOPermission, mscorlib, Version=2.0.3600.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" version="1" PathDiscovery="*AllFiles*"/></PermissionSet>
-		public override string ToString()
-		{
-			if (cause == null)
-			{
-				return base.ToString();
-			}
-			else
-			{
-				return string.Format("{0} [See nested exception: {1}]", base.ToString(), cause);
-			}
-		}
-
-	}
+        public override string ToString()
+        {
+            if (cause == null)
+            {
+                return base.ToString();
+            }
+            else
+            {
+                return string.Format("{0} [See nested exception: {1}]", base.ToString(), cause);
+            }
+        }
+    }
 }

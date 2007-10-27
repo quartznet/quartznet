@@ -61,7 +61,7 @@ namespace Quartz.Impl
 				if (schedulers[sched.SchedulerName] != null)
 				{
 					throw new SchedulerException(string.Format("Scheduler with name '{0}' already exists.", sched.SchedulerName),
-					                             SchedulerException.ERR_BAD_CONFIGURATION);
+					                             SchedulerException.ErrorBadConfiguration);
 				}
 
 				schedulers[sched.SchedulerName] = sched;

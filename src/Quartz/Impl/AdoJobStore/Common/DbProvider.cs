@@ -13,8 +13,8 @@ namespace Quartz.Impl.AdoJobStore.Common
     /// </summary>
     public class DbProvider : IDbProvider
     {
-        protected const string QUARTZ_PROPERTY_GROUP_DB_PROVIDER = "quartz.dbprovider";
-        protected const string QUARTZ_DB_PROVIDER_RESOURCE_NAME = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
+        protected const string PropertyDbProvider = "quartz.dbprovider";
+        protected const string DbProviderResourceName = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
 
         private string connectionString;
         private DbMetadata dbMetadata;
@@ -25,8 +25,8 @@ namespace Quartz.Impl.AdoJobStore.Common
         static DbProvider()
         {
             // parse metadata
-            PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(QUARTZ_DB_PROVIDER_RESOURCE_NAME);
-            string[] providers = pp.GetPropertyGroups(QUARTZ_PROPERTY_GROUP_DB_PROVIDER);
+            PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(DbProviderResourceName);
+            string[] providers = pp.GetPropertyGroups(PropertyDbProvider);
             foreach (string providerName in providers)
             {
                 dbMetadataLookup[providerName] = notInitializedMetadata;
@@ -50,10 +50,10 @@ namespace Quartz.Impl.AdoJobStore.Common
                 try
                 {
                     PropertiesParser pp =
-                        PropertiesParser.ReadFromEmbeddedAssemblyResource(QUARTZ_DB_PROVIDER_RESOURCE_NAME);
+                        PropertiesParser.ReadFromEmbeddedAssemblyResource(DbProviderResourceName);
                     DbMetadata metadata = new DbMetadata();
                     NameValueCollection props =
-                        pp.GetPropertyGroup(QUARTZ_PROPERTY_GROUP_DB_PROVIDER + "." + providerName, true);
+                        pp.GetPropertyGroup(PropertyDbProvider + "." + providerName, true);
                     ObjectUtils.SetObjectProperties(metadata, props);
                     metadata.Init();
                     RegisterDbMetadata(providerName, metadata);

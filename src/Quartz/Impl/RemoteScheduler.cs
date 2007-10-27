@@ -303,7 +303,7 @@ namespace Quartz.Impl
 			get
 			{
 				throw new SchedulerException("Operation not supported for remote schedulers.",
-				                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+				                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 			}
 		}
 
@@ -315,7 +315,7 @@ namespace Quartz.Impl
 			get
 			{
 				throw new SchedulerException("Operation not supported for remote schedulers.",
-				                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+				                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 			}
 		}
 
@@ -330,7 +330,7 @@ namespace Quartz.Impl
 
             throw new SchedulerException(
                     "Operation not supported for remote schedulers.",
-                    SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+                    SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 	    }
 
         /// <summary>
@@ -343,7 +343,7 @@ namespace Quartz.Impl
 	    {
             throw new SchedulerException(
         "Operation not supported for remote schedulers.",
-        SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+        SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 	    }
 
 	    /// <summary>
@@ -354,7 +354,7 @@ namespace Quartz.Impl
 			get
 			{
 				throw new SchedulerException("Operation not supported for remote schedulers.",
-				                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+				                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 			}
 		}
 
@@ -366,7 +366,7 @@ namespace Quartz.Impl
 			get
 			{
 				throw new SchedulerException("Operation not supported for remote schedulers.",
-				                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+				                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 			}
 		}
 
@@ -378,7 +378,7 @@ namespace Quartz.Impl
 			get
 			{
 				throw new SchedulerException("Operation not supported for remote schedulers.",
-				                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+				                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 			}
 		}
 
@@ -415,7 +415,7 @@ namespace Quartz.Impl
 			set
 			{
 				throw new SchedulerException("Operation not supported for remote schedulers.",
-				                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+				                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 			}
 		}
 
@@ -438,7 +438,7 @@ namespace Quartz.Impl
 			{
 				SchedulerException initException =
 					new SchedulerException(string.Format("Could not get handle to remote scheduler: {0}", e.Message), e);
-				initException.ErrorCode = SchedulerException.ERR_COMMUNICATION_FAILURE;
+				initException.ErrorCode = SchedulerException.ErrorCommunicationFailure;
 				throw initException;
 			}
 
@@ -449,7 +449,7 @@ namespace Quartz.Impl
 		{
 			rsched = null;
 			SchedulerException ex = new SchedulerException(msg, cause);
-			ex.ErrorCode = SchedulerException.ERR_COMMUNICATION_FAILURE;
+			ex.ErrorCode = SchedulerException.ErrorCommunicationFailure;
 			return ex;
 		}
 		
@@ -1048,7 +1048,7 @@ namespace Quartz.Impl
 		public virtual void AddGlobalJobListener(IJobListener jobListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>
@@ -1059,7 +1059,7 @@ namespace Quartz.Impl
 		public virtual void AddJobListener(IJobListener jobListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>
@@ -1070,7 +1070,7 @@ namespace Quartz.Impl
 		public virtual bool RemoveGlobalJobListener(IJobListener jobListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
         /// <summary>
@@ -1085,7 +1085,7 @@ namespace Quartz.Impl
 	    {
             throw new SchedulerException(
                     "Operation not supported for remote schedulers.",
-                    SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+                    SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 	    }
 
 	    /// <summary>
@@ -1096,7 +1096,7 @@ namespace Quartz.Impl
 		public virtual bool RemoveJobListener(string name)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>
@@ -1105,7 +1105,7 @@ namespace Quartz.Impl
 		public virtual IJobListener GetJobListener(string name)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>
@@ -1114,7 +1114,7 @@ namespace Quartz.Impl
 		public virtual void AddGlobalTriggerListener(ITriggerListener triggerListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>
@@ -1123,7 +1123,7 @@ namespace Quartz.Impl
 		public virtual void AddTriggerListener(ITriggerListener triggerListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>
@@ -1132,7 +1132,7 @@ namespace Quartz.Impl
 		public virtual bool RemoveGlobalTriggerListener(ITriggerListener triggerListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
         /// <summary>
@@ -1148,7 +1148,7 @@ namespace Quartz.Impl
 
             throw new SchedulerException(
                     "Operation not supported for remote schedulers.",
-                    SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+                    SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 	    }
 
 	    /// <summary>
@@ -1157,7 +1157,7 @@ namespace Quartz.Impl
 		public virtual bool RemoveTriggerListener(string name)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>
@@ -1166,7 +1166,7 @@ namespace Quartz.Impl
 		public virtual ITriggerListener GetTriggerListener(string name)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>
@@ -1175,7 +1175,7 @@ namespace Quartz.Impl
 		public virtual void AddSchedulerListener(ISchedulerListener schedulerListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary> 
@@ -1184,7 +1184,7 @@ namespace Quartz.Impl
 		public virtual bool RemoveSchedulerListener(ISchedulerListener schedulerListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ERR_UNSUPPORTED_FUNCTION_IN_THIS_CONFIGURATION);
+			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
 		/// <summary>

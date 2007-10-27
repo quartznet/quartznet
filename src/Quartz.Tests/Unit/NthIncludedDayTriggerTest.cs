@@ -41,7 +41,7 @@ namespace Quartz.Tests.Unit
 
 			// Test yearly
 			NthIncludedDayTrigger yearlyTrigger = new NthIncludedDayTrigger();
-			yearlyTrigger.IntervalType = NthIncludedDayTrigger.INTERVAL_TYPE_YEARLY;
+			yearlyTrigger.IntervalType = NthIncludedDayTrigger.IntervalTypeYearly;
 			yearlyTrigger.StartTimeUtc = startCalendar;
 			yearlyTrigger.N = 10;
 			yearlyTrigger.FireAtTime = "14:35:15";
@@ -54,7 +54,7 @@ namespace Quartz.Tests.Unit
         
 			// Test monthly
 			NthIncludedDayTrigger monthlyTrigger = new NthIncludedDayTrigger();
-			monthlyTrigger.IntervalType = NthIncludedDayTrigger.INTERVAL_TYPE_MONTHLY;
+			monthlyTrigger.IntervalType = NthIncludedDayTrigger.IntervalTypeMonthly;
 			monthlyTrigger.StartTimeUtc = startCalendar;
 			monthlyTrigger.N = 5;
 			monthlyTrigger.FireAtTime = "14:35:15";
@@ -65,7 +65,7 @@ namespace Quartz.Tests.Unit
         
 			// Test weekly
 			NthIncludedDayTrigger weeklyTrigger = new NthIncludedDayTrigger();
-			weeklyTrigger.IntervalType = NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY;
+			weeklyTrigger.IntervalType = NthIncludedDayTrigger.IntervalTypeWeekly;
 			weeklyTrigger.StartTimeUtc = startCalendar;
 			weeklyTrigger.N = 3;
 			weeklyTrigger.FireAtTime = "14:35:15";
@@ -183,7 +183,7 @@ namespace Quartz.Tests.Unit
 			// Same timezone, so should just get back 8:00 that day
 			{
 				NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
-				t.setIntervalType(NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY);
+				t.setIntervalType(NthIncludedDayTrigger.IntervalTypeWeekly);
 				t.setN(3);
 				t.setStartTime(startTime.getTime());
 				t.setFireAtTime("8:00");
@@ -198,7 +198,7 @@ namespace Quartz.Tests.Unit
 			// Timezone is 5 hours later, so should just get back 8:00 a week later
 			{
 				NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
-				t.setIntervalType(NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY);
+				t.setIntervalType(NthIncludedDayTrigger.IntervalTypeWeekly);
 				t.setN(3);
 				t.setStartTime(startTime.getTime());
 				t.setFireAtTime("8:00");
@@ -222,7 +222,7 @@ namespace Quartz.Tests.Unit
 			DateTime startTime = new DateTime(2005, 6, 1, 11, 30, 0);
         
 			NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
-			t.IntervalType = (NthIncludedDayTrigger.INTERVAL_TYPE_MONTHLY);
+			t.IntervalType = (NthIncludedDayTrigger.IntervalTypeMonthly);
 			t.N = 3;
 			t.StartTimeUtc = (startTime);
 			t.FireAtTime = ("12:15");

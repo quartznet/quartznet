@@ -38,6 +38,11 @@ namespace Quartz.Util
 	/// <author>Mohammad Rezaei</author>
 	public class DBConnectionManager
 	{
+        public const string PropertyDbPrefix = "quartz.db.";
+        private static readonly DBConnectionManager instance = new DBConnectionManager();
+
+        private readonly IDictionary providers = new Hashtable();
+
 		/// <summary> 
 		/// Get the class instance.
 		/// </summary>
@@ -52,11 +57,6 @@ namespace Quartz.Util
 				return instance;
 			}
 		}
-
-		public const string DB_PROPS_PREFIX = "quartz.db.";
-		private static readonly DBConnectionManager instance = new DBConnectionManager();
-
-		private IDictionary providers = new Hashtable();
 
 
 		/// <summary> 

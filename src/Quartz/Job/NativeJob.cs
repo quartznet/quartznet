@@ -22,7 +22,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 
 using Common.Logging;
 
@@ -36,19 +35,19 @@ namespace Quartz.Job
 	/// <author>Steinar Overbeck Cook</author>
 	public class NativeJob : IJob
 	{
-		private static readonly ILog Log = LogManager.GetLogger(typeof (NativeJob));
+	    private readonly ILog log;
 
 		/// <summary> 
 		/// Required parameter that specifies the name of the command (executable) 
 		/// to be ran.
 		/// </summary>
-		public const string PROP_COMMAND = "command";
+		public const string PropertyCommand = "command";
 
 		/// <summary> 
 		/// Optional parameter that specifies the parameters to be passed to the
 		/// executed command.
 		/// </summary>
-		public const string PROP_PARAMETERS = "parameters";
+		public const string PropertyParameters = "parameters";
 
 
 		/// <summary> 
@@ -58,7 +57,7 @@ namespace Quartz.Job
 		/// 
 		/// <p>Defaults to <see langword="true" />.</p>  
 		/// </summary>
-		public const string PROP_WAIT_FOR_PROCESS = "waitForProcess";
+		public const string PropertyWaitForProcess = "waitForProcess";
 
 		/// <summary> 
 		/// Optional parameter (value should be 'true' or 'false') that specifies 
@@ -68,10 +67,27 @@ namespace Quartz.Job
 		/// 
 		/// <p>Defaults to <see langword="false" />.</p>  
 		/// </summary>
-		public const string PROP_CONSUME_STREAMS = "consumeStreams";
+		public const string PropertyConsumeStreams = "consumeStreams";
 
 
-		/*
+        /// <summary>
+        /// Gets the log.
+        /// </summary>
+        /// <value>The log.</value>
+	    protected ILog Log
+	    {
+	        get { return log; }
+	    }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="NativeJob"/> class.
+        /// </summary>
+	    public NativeJob()
+	    {
+            log = LogManager.GetLogger(typeof(NativeJob));
+	    }
+
+	    /*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		* 
 		* Interface.
@@ -96,9 +112,9 @@ namespace Quartz.Job
 		{
 			JobDataMap data = context.MergedJobDataMap;
 
-			String command = data.GetString(PROP_COMMAND);
+			String command = data.GetString(PropertyCommand);
 
-			String parameters = data.GetString(PROP_PARAMETERS);
+			String parameters = data.GetString(PropertyParameters);
 
 			if (parameters == null)
 			{
@@ -106,14 +122,14 @@ namespace Quartz.Job
 			}
 
 			bool wait = true;
-			if (data.Contains(PROP_WAIT_FOR_PROCESS))
+			if (data.Contains(PropertyWaitForProcess))
 			{
-				wait = data.GetBooleanValue(PROP_WAIT_FOR_PROCESS);
+				wait = data.GetBooleanValue(PropertyWaitForProcess);
 			}
 			bool consumeStreams = false;
-			if (data.Contains(PROP_CONSUME_STREAMS))
+			if (data.Contains(PropertyConsumeStreams))
 			{
-				consumeStreams = data.GetBooleanValue(PROP_CONSUME_STREAMS);
+				consumeStreams = data.GetBooleanValue(PropertyConsumeStreams);
 			}
 
 			int exitCode = RunNativeCommand(command, parameters, wait, consumeStreams);
@@ -226,7 +242,7 @@ namespace Quartz.Job
 				}
 
 				// Executes the command
-				Log.Info(string.Format("About to run {0}{1", cmd[0], cmd[1]));
+				Log.Info(string.Format("About to run {0}{1}", cmd[0], cmd[1]));
 				string temp = "";
 				for (int i = 1; i < cmd.Length; i++)
 				{
@@ -274,57 +290,50 @@ namespace Quartz.Job
 		/// <author>James House</author>
 		internal class StreamConsumer : QuartzThread
 		{
-			private void InitBlock(NativeJob job)
-			{
-				enclosingInstance = job;
-			}
-
-			private NativeJob enclosingInstance;
-
-			public NativeJob Enclosing_Instance
-			{
-				get { return enclosingInstance; }
-			}
-
-			internal Stream is_Renamed;
+			internal NativeJob outer;
+			internal Stream inputStream;
 			internal string type;
 
-			/// <summary> </summary>
+            /// <summary>
+            /// Initializes a new instance of the <see cref="StreamConsumer"/> class.
+            /// </summary>
+            /// <param name="enclosingInstance">The enclosing instance.</param>
+            /// <param name="inputStream">The input stream.</param>
+            /// <param name="type">The type.</param>
 			public StreamConsumer(NativeJob enclosingInstance, Stream inputStream, string type)
 			{
-				InitBlock(enclosingInstance);
-				is_Renamed = inputStream;
+				outer = enclosingInstance;
+				this.inputStream = inputStream;
 				this.type = type;
 			}
 
-			/// <summary> Runs this object as a separate thread, printing the contents of the InputStream
-			/// supplied during instantiation, to either stdout or stderr
+			/// <summary> 
+			/// Runs this object as a separate thread, printing the contents of the input stream
+			/// supplied during instantiation, to either Console. or stderr
 			/// </summary>
 			public override void Run()
 			{
 				StreamReader br = null;
 				try
 				{
-					br =
-						new StreamReader(new StreamReader(is_Renamed, Encoding.Default).BaseStream,
-						                 new StreamReader(is_Renamed, Encoding.Default).CurrentEncoding);
-					string line = null;
+					br = new StreamReader(inputStream);
+					string line;
 
 					while ((line = br.ReadLine()) != null)
 					{
 						if (type.ToUpper().Equals("stderr".ToUpper()))
 						{
-							NativeJob.Log.Warn(string.Format("{0}>{1}", type, line));
+							outer.Log.Warn(string.Format("{0}>{1}", type, line));
 						}
 						else
 						{
-							NativeJob.Log.Info(string.Format("{0}>{1}", type, line));
+							outer.Log.Info(string.Format("{0}>{1}", type, line));
 						}
 					}
 				}
 				catch (IOException ioe)
 				{
-					NativeJob.Log.Error(string.Format("Error consuming {0} stream of spawned process.", type), ioe);
+					outer.Log.Error(string.Format("Error consuming {0} stream of spawned process.", type), ioe);
 				}
 				finally
 				{
@@ -334,8 +343,9 @@ namespace Quartz.Job
 						{
 							br.Close();
 						}
-						catch (Exception)
+						catch
 						{
+						    ;
 						}
 					}
 				}

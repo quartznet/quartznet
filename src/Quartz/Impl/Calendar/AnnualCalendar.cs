@@ -41,7 +41,7 @@ namespace Quartz.Impl.Calendar
 		private bool dataSorted = false;
 
         // year to use as fixed year
-	    private const int FIXED_YEAR = 2000;
+	    private const int FixedYear = 2000;
 
         /// <summary>
         /// Constructor
@@ -130,7 +130,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual void SetDayExcluded(DateTime day, bool exclude)
 		{
-            DateTime d = new DateTime(FIXED_YEAR, day.Month, day.Day);
+            DateTime d = new DateTime(FixedYear, day.Month, day.Day);
 
             if (exclude)
 			{

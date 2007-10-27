@@ -109,7 +109,7 @@ namespace Quartz.Examples.Example2
 			// job6 will run indefinitely, every 50 seconds
 			job = new JobDetail("job6", "group1", typeof (SimpleJob));
 			trigger =
-				new SimpleTrigger("trigger6", "group1", "job6", "group1", ts, null, SimpleTrigger.REPEAT_INDEFINITELY,
+				new SimpleTrigger("trigger6", "group1", "job6", "group1", ts, null, SimpleTrigger.RepeatIndefinitely,
 				                  50000L);
 			ft = sched.ScheduleJob(job, trigger);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 

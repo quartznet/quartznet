@@ -49,13 +49,13 @@ namespace Quartz.Plugin.Xml
     public class JobInitializationPlugin : ISchedulerPlugin, IFileScanListener
     {
         private readonly ILog log;
-        private const int MAX_JOB_TRIGGER_NAME_LEN = 80;
-        private const string JOB_INITIALIZATION_PLUGIN_NAME = "JobInitializationPlugin";
-        private const char FILE_NAME_DELIMITER = ',';
+        private const int MaxJobTriggerNameLength = 80;
+        private const string JobInitializationPluginName = "JobInitializationPlugin";
+        private const char FileNameDelimiter = ',';
 
-        private bool overWriteExistingJobs = false;
+        private bool overwriteExistingJobs = false;
         private bool failOnFileNotFound = true;
-        private string fileNames = JobSchedulingDataProcessor.QUARTZ_XML_FILE_NAME;
+        private string fileNames = JobSchedulingDataProcessor.QuartzXmlFileName;
 
         // Populated by initialization
         private readonly IDictionary jobFiles = new Hashtable();
@@ -79,7 +79,7 @@ namespace Quartz.Plugin.Xml
         public JobInitializationPlugin()
         {
             log = LogManager.GetLogger(typeof (JobInitializationPlugin));
-            fileNames = JobSchedulingDataProcessor.QUARTZ_XML_FILE_NAME;
+            fileNames = JobSchedulingDataProcessor.QuartzXmlFileName;
         }
 
 
@@ -116,10 +116,10 @@ namespace Quartz.Plugin.Xml
         /// Whether or not jobs defined in the XML file should be overwrite existing
         /// jobs with the same name.
         /// </summary>
-        public virtual bool OverWriteExistingJobs
+        public virtual bool OverwriteExistingJobs
         {
-            get { return overWriteExistingJobs; }
-            set { overWriteExistingJobs = value; }
+            get { return overwriteExistingJobs; }
+            set { overwriteExistingJobs = value; }
         }
 
         /// <summary> 
@@ -206,7 +206,7 @@ namespace Quartz.Plugin.Xml
             Log.Info("Registering Quartz Job Initialization Plug-in.");
 
             // Create JobFile objects
-            string[] tokens = fileNames.Split(FILE_NAME_DELIMITER);
+            string[] tokens = fileNames.Split(FileNameDelimiter);
 
             foreach (string token in tokens)
             {
@@ -228,7 +228,7 @@ namespace Quartz.Plugin.Xml
                 {
                     if (scanInterval > 0)
                     {
-                        scheduler.Context.Put(JOB_INITIALIZATION_PLUGIN_NAME + '_' + Name, this);
+                        scheduler.Context.Put(JobInitializationPluginName + '_' + Name, this);
                     }
 
                     foreach (JobFile jobFile in jobFiles.Values)
@@ -240,19 +240,19 @@ namespace Quartz.Plugin.Xml
 
                             SimpleTrigger trig = new SimpleTrigger(
                                 jobTriggerName,
-                                JOB_INITIALIZATION_PLUGIN_NAME,
+                                JobInitializationPluginName,
                                 DateTime.UtcNow, null,
-                                SimpleTrigger.REPEAT_INDEFINITELY, scanInterval);
+                                SimpleTrigger.RepeatIndefinitely, scanInterval);
                             trig.Volatile = true;
 
                             JobDetail job = new JobDetail(
                                 jobTriggerName,
-                                JOB_INITIALIZATION_PLUGIN_NAME,
+                                JobInitializationPluginName,
                                 typeof(FileScanJob));
 
                             job.Volatile = true;
-                            job.JobDataMap.Put(FileScanJob.FILE_NAME, jobFile.FilePath);
-                            job.JobDataMap.Put(FileScanJob.FILE_SCAN_LISTENER_NAME, JOB_INITIALIZATION_PLUGIN_NAME + '_' + Name);
+                            job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
+                            job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
 
                             scheduler.ScheduleJob(job, trig);
                         }
@@ -281,12 +281,12 @@ namespace Quartz.Plugin.Xml
         {
             // Name w/o collisions will be prefix + _ + filename (with '.' of filename replaced with '_')
             // For example: JobInitializationPlugin_jobInitializer_myjobs_xml
-            String jobTriggerName = JOB_INITIALIZATION_PLUGIN_NAME + '_' + Name + '_' + fileBasename.Replace('.', '_');
+            String jobTriggerName = JobInitializationPluginName + '_' + Name + '_' + fileBasename.Replace('.', '_');
 
             // If name is too long (DB column is 80 chars), then truncate to max length
-            if (jobTriggerName.Length > MAX_JOB_TRIGGER_NAME_LEN)
+            if (jobTriggerName.Length > MaxJobTriggerNameLength)
             {
-                jobTriggerName = jobTriggerName.Substring(0, MAX_JOB_TRIGGER_NAME_LEN);
+                jobTriggerName = jobTriggerName.Substring(0, MaxJobTriggerNameLength);
             }
 
             // Make sure this name is unique in case the same file name under different
@@ -305,9 +305,9 @@ namespace Quartz.Plugin.Xml
                 String numericSuffix = "_" + currentIndex++;
 
                 // If the numeric suffix would make the name too long, then make room for it.
-                if (jobTriggerName.Length > (MAX_JOB_TRIGGER_NAME_LEN - numericSuffix.Length))
+                if (jobTriggerName.Length > (MaxJobTriggerNameLength - numericSuffix.Length))
                 {
-                    jobTriggerName = jobTriggerName.Substring(0, (MAX_JOB_TRIGGER_NAME_LEN - numericSuffix.Length));
+                    jobTriggerName = jobTriggerName.Substring(0, (MaxJobTriggerNameLength - numericSuffix.Length));
                 }
 
                 jobTriggerName += numericSuffix;
@@ -344,7 +344,7 @@ namespace Quartz.Plugin.Xml
                     jobFile.FilePath,
                     jobFile.FilePath, // systemId 
                     scheduler,
-                    OverWriteExistingJobs);
+                    OverwriteExistingJobs);
             }
             catch (Exception e)
             {
@@ -365,7 +365,7 @@ namespace Quartz.Plugin.Xml
         private string filePath;
         private string fileBasename;
         private bool fileFound;
-        private JobInitializationPlugin plugin;
+        private readonly JobInitializationPlugin plugin;
 
         public JobFile(JobInitializationPlugin plugin, string fileName)
         {

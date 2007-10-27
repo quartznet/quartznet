@@ -1,19 +1,35 @@
+using System;
 using System.Reflection;
+using System.Runtime.InteropServices;
+
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 
-[assembly : AssemblyTitle("Quarz.NET")]
-[assembly : AssemblyDescription("Quartz Scheduling Framework for .NET")]
-[assembly : AssemblyCompany("OpenSymphony")]
-[assembly : AssemblyProduct("Quarz.NET")]
+#if !NET_2_0
+[assembly: AssemblyConfiguration("net-1.1.win32; Release")]
+#else
+[assembly: AssemblyConfiguration("net-2.0.win32; Release")]
+#endif
+
+[assembly: AssemblyProduct("Quarz.NET 0.7")]
+[assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
+[assembly : AssemblyCompany("http://quartznet.sourceforge.net/")]
 [assembly : AssemblyCopyright("Copyright 2007 OpenSymphony")]
-[assembly : AssemblyTrademark("")]
+[assembly:  AssemblyTrademark("Apache License, Version 2.0")]
 [assembly : AssemblyCulture("")]
+//[assembly: CLSCompliant(true)]
+[assembly: ComVisible(false)]
 
-[assembly : AssemblyVersion("0.7.0.*")]
+#if !NET_2_0
+[assembly: AssemblyVersion("0.7.0.1")]
+#else
+[assembly: AssemblyVersion("0.7.0.2")]
+#endif
 
-[assembly : AssemblyConfiguration("")]
-[assembly : AssemblyDelaySign(false)]
-[assembly : AssemblyKeyFile("")]
-[assembly : AssemblyKeyName("")]
+#if STRONG
+[assembly: AssemblyDelaySign(false)]
+#if !NET_2_0
+[assembly: AssemblyKeyFile("Quartz.Net.snk")]
+#endif
+#endif

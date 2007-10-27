@@ -340,7 +340,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Select all of the triggers for jobs that are requesting recovery. The
         /// returned trigger objects will have unique "recoverXXX" trigger names and
         /// will be in the <code>{@link
-        /// org.quartz.Scheduler}.DEFAULT_RECOVERY_GROUP</code>
+        /// org.quartz.Scheduler}.DefaultRecoveryGroup</code>
         /// trigger group.
         /// </p>
         /// 
@@ -380,7 +380,7 @@ namespace Quartz.Impl.AdoJobStore
                         DateTime firedTime = new DateTime(firedTimeInTicks);
                         SimpleTrigger rcvryTrig =
                             new SimpleTrigger("recover_" + instanceId + "_" + Convert.ToString(dumId++),
-                                              SchedulerConstants.DEFAULT_RECOVERY_GROUP, firedTime);
+                                              SchedulerConstants.DefaultRecoveryGroup, firedTime);
                         rcvryTrig.JobName = jobName;
                         rcvryTrig.JobGroup = jobGroup;
                         rcvryTrig.Priority = priority;
@@ -395,9 +395,9 @@ namespace Quartz.Impl.AdoJobStore
             foreach (SimpleTrigger trigger in list)
             {
                 JobDataMap jd = SelectTriggerJobDataMap(conn, trigger.Name, trigger.Group);
-                jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_NAME, trigger.Name);
-                jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_GROUP, trigger.Group);
-                jd.Put(SchedulerConstants.FAILED_JOB_ORIGINAL_TRIGGER_FIRETIME_IN_MILLISECONDS,
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, trigger.Name);
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, trigger.Group);
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretimeInMillisecoonds,
                        Convert.ToString(trigger.StartTimeUtc));
 
                 trigger.JobDataMap = jd;

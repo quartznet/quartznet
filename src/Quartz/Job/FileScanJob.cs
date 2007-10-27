@@ -36,12 +36,30 @@ namespace Quartz.Job
 	/// <seealso cref="IFileScanListener" />
 	public class FileScanJob : IStatefulJob
 	{
-		public static string FILE_NAME = "FILE_NAME";
-		public static string FILE_SCAN_LISTENER_NAME = "FILE_SCAN_LISTENER_NAME";
-		private static string LAST_MODIFIED_TIME = "LAST_MODIFIED_TIME";
-		private static readonly ILog Log = LogManager.GetLogger(typeof (FileScanJob));
+		public const string FileName = "FILE_NAME";
+		public const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
+		private const string LastModifiedTime = "LAST_MODIFIED_TIME";
+		private readonly ILog log;
 
-		/// <summary>
+
+        /// <summary>
+        /// Gets the log.
+        /// </summary>
+        /// <value>The log.</value>
+	    protected ILog Log
+	    {
+	        get { return log; }
+	    }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FileScanJob"/> class.
+        /// </summary>
+	    public FileScanJob()
+	    {
+	        log = LogManager.GetLogger(typeof (FileScanJob));
+	    }
+
+	    /// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// <p>
@@ -69,16 +87,16 @@ namespace Quartz.Job
 				throw new JobExecutionException("Error obtaining scheduler context.", e, false);
 			}
 
-			string fileName = data.GetString(FILE_NAME);
-			string listenerName = data.GetString(FILE_SCAN_LISTENER_NAME);
+			string fileName = data.GetString(FileName);
+			string listenerName = data.GetString(FileScanListenerName);
 
 			if (fileName == null)
 			{
-				throw new JobExecutionException(string.Format("Required parameter '{0}' not found in JobDataMap", FILE_NAME));
+				throw new JobExecutionException(string.Format("Required parameter '{0}' not found in JobDataMap", FileName));
 			}
 			if (listenerName == null)
 			{
-				throw new JobExecutionException(string.Format("Required parameter '{0}' not found in JobDataMap", FILE_SCAN_LISTENER_NAME));
+				throw new JobExecutionException(string.Format("Required parameter '{0}' not found in JobDataMap", FileScanListenerName));
 			}
 
 			IFileScanListener listener = (IFileScanListener) schedCtxt[listenerName];
@@ -89,9 +107,9 @@ namespace Quartz.Job
 			}
 
 			DateTime lastDate = DateTime.MinValue;
-			if (data.Contains(LAST_MODIFIED_TIME))
+			if (data.Contains(LastModifiedTime))
 			{
-				lastDate = data.GetDateTime(LAST_MODIFIED_TIME);
+				lastDate = data.GetDateTime(LastModifiedTime);
 			}
 
 			DateTime newDate = GetLastModifiedDate(fileName);
@@ -113,7 +131,7 @@ namespace Quartz.Job
 				Log.Debug(string.Format("File '{0}' unchanged.", fileName));
 			}
 
-			data.Put(LAST_MODIFIED_TIME, newDate);
+			data.Put(LastModifiedTime, newDate);
 		}
 
 		/// <summary>

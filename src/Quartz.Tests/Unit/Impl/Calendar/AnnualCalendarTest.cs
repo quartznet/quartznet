@@ -82,10 +82,10 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         {
             cal.DaysExcluded = null;
             DateTime test = DateTime.UtcNow.Date;
-            Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test));
+            Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test), "Did not get today as date when nothing was excluded");
 
             cal.SetDayExcluded(test, true);
-            Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTimeUtc(test));
+            Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTimeUtc(test), "Did not get next day when current day excluded");
 
         }
 
