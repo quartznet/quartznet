@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.Threading;
 using Common.Logging;
 using Quartz.Core;
@@ -278,9 +279,9 @@ namespace Quartz.Impl
 
 			jrsf.Initialize(scheduler, schedCtxt);
 
-			Log.Info(string.Format("Quartz scheduler '{0}", scheduler.SchedulerName));
+			Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}", scheduler.SchedulerName));
 
-			Log.Info(string.Format("Quartz scheduler version: {0}", qs.Version));
+			Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler version: {0}", qs.Version));
 
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 

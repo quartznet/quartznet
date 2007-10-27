@@ -20,6 +20,7 @@
 */
 using System;
 using System.Collections;
+using System.Globalization;
 using System.Runtime.Remoting;
 
 #if NET_20
@@ -437,7 +438,7 @@ namespace Quartz.Impl
 			catch (Exception e)
 			{
 				SchedulerException initException =
-					new SchedulerException(string.Format("Could not get handle to remote scheduler: {0}", e.Message), e);
+					new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Could not get handle to remote scheduler: {0}", e.Message), e);
 				initException.ErrorCode = SchedulerException.ErrorCommunicationFailure;
 				throw initException;
 			}

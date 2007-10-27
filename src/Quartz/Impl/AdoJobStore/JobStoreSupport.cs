@@ -22,6 +22,7 @@
 using System;
 using System.Collections;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -113,7 +114,7 @@ namespace Quartz.Impl.AdoJobStore
         */
 
         protected string dataSource;
-        protected string tablePrefix = DEFAULT_TABLE_PREFIX;
+        protected string tablePrefix = DefaultTablePrefix;
         protected bool useProperties = false;
         protected string instanceId;
         protected string instanceName;
@@ -763,13 +764,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 // update inconsistent job states
                 int rows =
-                    Delegate.UpdateTriggerStatesFromOtherStates(conn, STATE_WAITING, STATE_ACQUIRED,
-                                                                STATE_BLOCKED);
+                    Delegate.UpdateTriggerStatesFromOtherStates(conn, StateWaiting, StateAcquired,
+                                                                StateBlocked);
 
                 rows +=
-                    Delegate.UpdateTriggerStatesFromOtherStates(conn, STATE_PAUSED,
-                                                                STATE_PAUSED_BLOCKED,
-                                                                STATE_PAUSED_BLOCKED);
+                    Delegate.UpdateTriggerStatesFromOtherStates(conn, StatePaused,
+                                                                StatePausedBlocked,
+                                                                StatePausedBlocked);
 
                 Log.Info("Freed " + rows + " triggers from 'acquired' / 'blocked' state.");
 
@@ -786,20 +787,20 @@ namespace Quartz.Impl.AdoJobStore
                     if (JobExists(conn, recoveringJobTriggers[i].JobName, recoveringJobTriggers[i].JobGroup))
                     {
                         recoveringJobTriggers[i].ComputeFirstFireTimeUtc(null);
-                        StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, STATE_WAITING, false, true);
+                        StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, StateWaiting, false, true);
                     }
                 }
                 Log.Info("Recovery complete.");
 
                 // remove lingering 'complete' triggers...
-                Key[] ct = Delegate.SelectTriggersInState(conn, STATE_COMPLETE);
+                Key[] ct = Delegate.SelectTriggersInState(conn, StateComplete);
                 for (int i = 0; ct != null && i < ct.Length; i++)
                 {
                     RemoveTrigger(conn, null, ct[i].Name, ct[i].Group);
                 }
                 if (ct != null)
                 {
-                    Log.Info(string.Format("Removed {0} 'complete' triggers.", ct.Length));
+                    Log.Info(string.Format(CultureInfo.InvariantCulture, "Removed {0} 'complete' triggers.", ct.Length));
                 }
 
                 // clean up any fired trigger entries
@@ -831,7 +832,7 @@ namespace Quartz.Impl.AdoJobStore
             // We must still look for the MISFIRED state in case triggers were left 
             // in this state when upgrading to this version that does not support it. 
             bool hasMoreMisfiredTriggers =
-                Delegate.SelectMisfiredTriggersInStates(conn, STATE_MISFIRED, STATE_WAITING, MisfireTime,
+                Delegate.SelectMisfiredTriggersInStates(conn, StateMisfired, StateWaiting, MisfireTime,
                                                         maxMisfiresToHandleAtATime, misfiredTriggers);
 
             if (hasMoreMisfiredTriggers)
@@ -863,7 +864,7 @@ namespace Quartz.Impl.AdoJobStore
                     continue;
                 }
 
-                DoUpdateOfMisfiredTrigger(conn, null, trig, false, STATE_WAITING, recovering);
+                DoUpdateOfMisfiredTrigger(conn, null, trig, false, StateWaiting, recovering);
 
                 signaler.NotifySchedulerListenersFinalized(trig);
             }
@@ -922,7 +923,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (!trig.GetNextFireTimeUtc().HasValue)
             {
-                StoreTrigger(conn, ctxt, trig, null, true, STATE_COMPLETE, forceState, recovering);
+                StoreTrigger(conn, ctxt, trig, null, true, StateComplete, forceState, recovering);
             }
             else
             {
@@ -992,7 +993,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 js.StoreJob(conn, ctxt, newJob, false);
                 js.StoreTrigger(conn, ctxt, newTrigger, newJob, false,
-                                STATE_WAITING, false, false);
+                                StateWaiting, false, false);
             }
         }
 
@@ -1130,7 +1131,7 @@ namespace Quartz.Impl.AdoJobStore
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.StoreTrigger(conn, ctxt, newTrigger, null, replaceExisting, STATE_WAITING, false, false);
+                js.StoreTrigger(conn, ctxt, newTrigger, null, replaceExisting, StateWaiting, false, false);
             }
         }
 
@@ -1164,7 +1165,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (!shouldBepaused)
                     {
-                        shouldBepaused = Delegate.IsTriggerGroupPaused(conn, ALL_GROUPS_PAUSED);
+                        shouldBepaused = Delegate.IsTriggerGroupPaused(conn, AllGroupsPaused);
 
                         if (shouldBepaused)
                         {
@@ -1173,9 +1174,9 @@ namespace Quartz.Impl.AdoJobStore
                     }
 
                     if (shouldBepaused &&
-                        (state.Equals(STATE_WAITING) || state.Equals(STATE_ACQUIRED)))
+                        (state.Equals(StateWaiting) || state.Equals(StateAcquired)))
                     {
-                        state = STATE_PAUSED;
+                        state = StatePaused;
                     }
                 }
 
@@ -1579,7 +1580,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 bool removedTrigger = DeleteTriggerAndChildren(conn, triggerName, groupName);
 
-                StoreTrigger(conn, ctxt, newTrigger, job, false, STATE_WAITING, false, false);
+                StoreTrigger(conn, ctxt, newTrigger, job, false, StateWaiting, false, false);
 
                 return removedTrigger;
             }
@@ -1673,9 +1674,9 @@ namespace Quartz.Impl.AdoJobStore
          * </p>
          * 
          * @see Trigger#STATE_NORMAL
-         * @see Trigger#STATE_PAUSED
-         * @see Trigger#STATE_COMPLETE
-         * @see Trigger#STATE_ERROR
+         * @see Trigger#StatePaused
+         * @see Trigger#StateComplete
+         * @see Trigger#StateError
          * @see Trigger#STATE_NONE
          */
 
@@ -1728,32 +1729,32 @@ namespace Quartz.Impl.AdoJobStore
                     return TriggerState.None;
                 }
 
-                if (ts.Equals(STATE_DELETED))
+                if (ts.Equals(StateDeleted))
                 {
                     return TriggerState.None;
                 }
 
-                if (ts.Equals(STATE_COMPLETE))
+                if (ts.Equals(StateComplete))
                 {
                     return TriggerState.Complete;
                 }
 
-                if (ts.Equals(STATE_PAUSED))
+                if (ts.Equals(StatePaused))
                 {
                     return TriggerState.Paused;
                 }
 
-                if (ts.Equals(STATE_PAUSED_BLOCKED))
+                if (ts.Equals(StatePausedBlocked))
                 {
                     return TriggerState.Blocked;
                 }
 
-                if (ts.Equals(STATE_ERROR))
+                if (ts.Equals(StateError))
                 {
                     return TriggerState.Error;
                 }
 
-                if (ts.Equals(STATE_BLOCKED))
+                if (ts.Equals(StateBlocked))
                 {
                     return TriggerState.Blocked;
                 }
@@ -1845,7 +1846,7 @@ namespace Quartz.Impl.AdoJobStore
                         for (int i = 0; i < trigs.Length; i++)
                         {
                             trigs[i].UpdateWithNewCalendar(calendar, MisfireThreshold);
-                            StoreTrigger(conn, ctxt, trigs[i], null, true, STATE_WAITING, false, false);
+                            StoreTrigger(conn, ctxt, trigs[i], null, true, StateWaiting, false, false);
                         }
                     }
                 }
@@ -2511,13 +2512,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 String oldState = Delegate.SelectTriggerState(conn, triggerName, groupName);
 
-                if (oldState.Equals(STATE_WAITING) || oldState.Equals(STATE_ACQUIRED))
+                if (oldState.Equals(StateWaiting) || oldState.Equals(StateAcquired))
                 {
-                    Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED);
+                    Delegate.UpdateTriggerState(conn, triggerName, groupName, StatePaused);
                 }
-                else if (oldState.Equals(STATE_BLOCKED))
+                else if (oldState.Equals(StateBlocked))
                 {
-                    Delegate.UpdateTriggerState(conn, triggerName, groupName, STATE_PAUSED_BLOCKED);
+                    Delegate.UpdateTriggerState(conn, triggerName, groupName, StatePausedBlocked);
                 }
             }
             catch (Exception e)
@@ -2611,10 +2612,10 @@ namespace Quartz.Impl.AdoJobStore
 
         /**
          * Determines if a Trigger for the given job should be blocked.  
-         * State can only transition to STATE_PAUSED_BLOCKED/STATE_BLOCKED from 
-         * STATE_PAUSED/STATE_WAITING respectively.
+         * State can only transition to StatePausedBlocked/StateBlocked from 
+         * StatePaused/StateWaiting respectively.
          * 
-         * @return STATE_PAUSED_BLOCKED, STATE_BLOCKED, or the currentState. 
+         * @return StatePausedBlocked, StateBlocked, or the currentState. 
          */
 
         protected virtual string CheckBlockedState(
@@ -2622,8 +2623,8 @@ namespace Quartz.Impl.AdoJobStore
             string jobGroupName, string currentState)
         {
             // State can only transition to BLOCKED from PAUSED or WAITING.
-            if ((currentState.Equals(STATE_WAITING) == false) &&
-                (currentState.Equals(STATE_PAUSED) == false))
+            if ((currentState.Equals(StateWaiting) == false) &&
+                (currentState.Equals(StatePaused) == false))
             {
                 return currentState;
             }
@@ -2641,7 +2642,7 @@ namespace Quartz.Impl.AdoJobStore
                         // TODO: worry about
                         // failed/recovering/volatile job
                         // states?
-                        return (STATE_PAUSED.Equals(currentState)) ? STATE_PAUSED_BLOCKED : STATE_BLOCKED;
+                        return (StatePaused.Equals(currentState)) ? StatePausedBlocked : StateBlocked;
                     }
                 }
 
@@ -2664,7 +2665,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                String newState = STATE_WAITING;
+                String newState = StateWaiting;
 
                 IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, jobName, groupName);
 
@@ -2676,7 +2677,7 @@ namespace Quartz.Impl.AdoJobStore
                         // TODO: worry about
                         // failed/recovering/volatile job
                         // states?
-                        newState = STATE_BLOCKED;
+                        newState = StateBlocked;
                     }
                 }
 
@@ -2766,12 +2767,12 @@ namespace Quartz.Impl.AdoJobStore
                 }
 
                 bool blocked = false;
-                if (STATE_PAUSED_BLOCKED.Equals(status.Status))
+                if (StatePausedBlocked.Equals(status.Status))
                 {
                     blocked = true;
                 }
 
-                string newState = CheckBlockedState(conn, ctxt, status.JobKey.Name, status.JobKey.Group, STATE_WAITING);
+                string newState = CheckBlockedState(conn, ctxt, status.JobKey.Name, status.JobKey.Group, StateWaiting);
 
                 bool misfired = false;
 
@@ -2785,11 +2786,11 @@ namespace Quartz.Impl.AdoJobStore
                     if (blocked)
                     {
                         Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState,
-                                                                  STATE_PAUSED_BLOCKED);
+                                                                  StatePausedBlocked);
                     }
                     else
                     {
-                        Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState, STATE_PAUSED);
+                        Delegate.UpdateTriggerStateFromOtherState(conn, triggerName, groupName, newState, StatePaused);
                     }
                 }
             }
@@ -2937,12 +2938,12 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                Delegate.UpdateTriggerGroupStateFromOtherStates(conn, groupName, STATE_PAUSED,
-                                                                STATE_ACQUIRED, STATE_WAITING,
-                                                                STATE_WAITING);
+                Delegate.UpdateTriggerGroupStateFromOtherStates(conn, groupName, StatePaused,
+                                                                StateAcquired, StateWaiting,
+                                                                StateWaiting);
 
-                Delegate.UpdateTriggerGroupStateFromOtherState(conn, groupName, STATE_PAUSED_BLOCKED,
-                                                               STATE_BLOCKED);
+                Delegate.UpdateTriggerGroupStateFromOtherState(conn, groupName, StatePausedBlocked,
+                                                               StateBlocked);
 
                 if (!Delegate.IsTriggerGroupPaused(conn, groupName))
                 {
@@ -3052,7 +3053,7 @@ namespace Quartz.Impl.AdoJobStore
                 /*
                 * int res =
                 * getDelegate().UpdateTriggerGroupStateFromOtherState(conn,
-                * groupName, STATE_WAITING, STATE_PAUSED);
+                * groupName, StateWaiting, StatePaused);
                 * 
                 * if(res > 0) {
                 * 
@@ -3062,7 +3063,7 @@ namespace Quartz.Impl.AdoJobStore
                 * 
                 * Key[] misfires =
                 * getDelegate().SelectMisfiredTriggersInGroupInState(conn,
-                * groupName, STATE_WAITING, misfireTime);
+                * groupName, StateWaiting, misfireTime);
                 * 
                 * List blockedTriggers = findTriggersToBeBlocked(conn, ctxt,
                 * groupName);
@@ -3070,12 +3071,12 @@ namespace Quartz.Impl.AdoJobStore
                 * Iterator itr = blockedTriggers.iterator(); while(itr.hasNext()) {
                 * Key key = (Key)itr.next();
                 * getDelegate().UpdateTriggerState(conn, key.getName(),
-                * key.getGroup(), STATE_BLOCKED); }
+                * key.getGroup(), StateBlocked); }
                 * 
                 * for(int i=0; i < misfires.length; i++) {               String
-                * newState = STATE_WAITING;
+                * newState = StateWaiting;
                 * if(blockedTriggers.contains(misfires[i])) newState =
-                * STATE_BLOCKED; UpdateMisfiredTrigger(conn, ctxt,
+                * StateBlocked; UpdateMisfiredTrigger(conn, ctxt,
                 * misfires[i].getName(), misfires[i].getGroup(), newState, true); } }
                 */
             }
@@ -3128,9 +3129,9 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                if (!Delegate.IsTriggerGroupPaused(conn, ALL_GROUPS_PAUSED))
+                if (!Delegate.IsTriggerGroupPaused(conn, AllGroupsPaused))
                 {
-                    Delegate.InsertPausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
+                    Delegate.InsertPausedTriggerGroup(conn, AllGroupsPaused);
                 }
             }
             catch (Exception e)
@@ -3196,7 +3197,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                Delegate.DeletePausedTriggerGroup(conn, ALL_GROUPS_PAUSED);
+                Delegate.DeletePausedTriggerGroup(conn, AllGroupsPaused);
             }
             catch (Exception e)
             {
@@ -3264,7 +3265,7 @@ namespace Quartz.Impl.AdoJobStore
                     int rowsUpdated = Delegate.UpdateTriggerStateFromOtherState(
                         conn,
                         triggerKey.Name, triggerKey.Group,
-                        STATE_ACQUIRED, STATE_WAITING);
+                        StateAcquired, StateWaiting);
 
                     // If our trigger was no longer in the expected state, try a new one.
                     if (rowsUpdated <= 0)
@@ -3281,7 +3282,7 @@ namespace Quartz.Impl.AdoJobStore
                     }
 
                     nextTrigger.FireInstanceId = FiredTriggerRecordId;
-                    Delegate.InsertFiredTrigger(conn, nextTrigger, STATE_ACQUIRED, null);
+                    Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null);
 
                     return nextTrigger;
                 }
@@ -3331,8 +3332,8 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Name, trigger.Group, STATE_WAITING,
-                                                          STATE_ACQUIRED);
+                Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Name, trigger.Group, StateWaiting,
+                                                          StateAcquired);
                 Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
             }
             catch (Exception e)
@@ -3394,9 +3395,9 @@ namespace Quartz.Impl.AdoJobStore
             // Make sure trigger wasn't deleted, paused, or completed...
             try
             {
-                // if trigger was deleted, state will be STATE_DELETED
+                // if trigger was deleted, state will be StateDeleted
                 String state = Delegate.SelectTriggerState(conn, trigger.Name, trigger.Group);
-                if (!state.Equals(STATE_ACQUIRED))
+                if (!state.Equals(StateAcquired))
                 {
                     return null;
                 }
@@ -3419,7 +3420,7 @@ namespace Quartz.Impl.AdoJobStore
                 try
                 {
                     Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
-                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
+                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, StateError);
                 }
                 catch (Exception sqle)
                 {
@@ -3440,7 +3441,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
-                Delegate.InsertFiredTrigger(conn, trigger, STATE_EXECUTING, job);
+                Delegate.InsertFiredTrigger(conn, trigger, StateExecuting, job);
             }
             catch (Exception e)
             {
@@ -3452,21 +3453,21 @@ namespace Quartz.Impl.AdoJobStore
             // call triggered - to update the trigger's next-fire-time state...
             trigger.Triggered(cal);
 
-            String state2 = STATE_WAITING;
+            String state2 = StateWaiting;
             bool force = true;
 
             if (job.Stateful)
             {
-                state2 = STATE_BLOCKED;
+                state2 = StateBlocked;
                 force = false;
                 try
                 {
-                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_BLOCKED,
-                                                                     STATE_WAITING);
-                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_BLOCKED,
-                                                                     STATE_ACQUIRED);
-                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, STATE_PAUSED_BLOCKED,
-                                                                     STATE_PAUSED);
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, StateBlocked,
+                                                                     StateWaiting);
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, StateBlocked,
+                                                                     StateAcquired);
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Name, job.Group, StatePausedBlocked,
+                                                                     StatePaused);
                 }
                 catch (Exception e)
                 {
@@ -3476,7 +3477,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (!trigger.GetNextFireTimeUtc().HasValue)
             {
-                state2 = STATE_COMPLETE;
+                state2 = StateComplete;
                 force = true;
             }
 
@@ -3563,31 +3564,31 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
-                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_COMPLETE);
+                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, StateComplete);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
-                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, STATE_ERROR);
+                    Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, StateError);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
-                    Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_COMPLETE);
+                    Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, StateComplete);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
-                    Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, STATE_ERROR);
+                    Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, StateError);
                 }
 
                 if (jobDetail.Stateful)
                 {
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
-                                                                     STATE_WAITING, STATE_BLOCKED);
+                                                                     StateWaiting, StateBlocked);
 
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
-                                                                     STATE_PAUSED,
-                                                                     STATE_PAUSED_BLOCKED);
+                                                                     StatePaused,
+                                                                     StatePausedBlocked);
 
                     try
                     {
@@ -3639,7 +3640,7 @@ namespace Quartz.Impl.AdoJobStore
                 // misfired triggers requiring recovery.
                 int misfireCount = (DoubleCheckLockMisfireHandler)
                                        ?
-                                   Delegate.CountMisfiredTriggersInStates(conn, STATE_MISFIRED, STATE_WAITING,
+                                   Delegate.CountMisfiredTriggersInStates(conn, StateMisfired, StateWaiting,
                                                                           MisfireTime)
                                        :
                                    Int32.MaxValue;
@@ -3944,24 +3945,24 @@ namespace Quartz.Impl.AdoJobStore
                             triggerKeys.Add(tKey);
 
                             // release blocked triggers..
-                            if (ftRec.FireInstanceState.Equals(STATE_BLOCKED))
+                            if (ftRec.FireInstanceState.Equals(StateBlocked))
                             {
                                 Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group,
-                                                                                 STATE_WAITING,
-                                                                                 STATE_BLOCKED);
+                                                                                 StateWaiting,
+                                                                                 StateBlocked);
                             }
-                            else if (ftRec.FireInstanceState.Equals(STATE_PAUSED_BLOCKED))
+                            else if (ftRec.FireInstanceState.Equals(StatePausedBlocked))
                             {
                                 Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group,
-                                                                                 STATE_PAUSED,
-                                                                                 STATE_PAUSED_BLOCKED);
+                                                                                 StatePaused,
+                                                                                 StatePausedBlocked);
                             }
 
                             // release acquired triggers..
-                            if (ftRec.FireInstanceState.Equals(STATE_ACQUIRED))
+                            if (ftRec.FireInstanceState.Equals(StateAcquired))
                             {
-                                Delegate.UpdateTriggerStateFromOtherState(conn, tKey.Name, tKey.Group, STATE_WAITING,
-                                                                          STATE_ACQUIRED);
+                                Delegate.UpdateTriggerStateFromOtherState(conn, tKey.Name, tKey.Group, StateWaiting,
+                                                                          StateAcquired);
                                 acquiredCount++;
                             }
                             else if (ftRec.JobRequestsRecovery)
@@ -3973,7 +3974,7 @@ namespace Quartz.Impl.AdoJobStore
                                     DateTime tempAux = new DateTime(ftRec.FireTimestamp);
                                     SimpleTrigger rcvryTrig =
                                         new SimpleTrigger(
-                                            "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++),
+                                            "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++, CultureInfo.InvariantCulture),
                                             SchedulerConstants.DefaultRecoveryGroup, tempAux);
                                     rcvryTrig.JobName = jKey.Name;
                                     rcvryTrig.JobGroup = jKey.Group;
@@ -3982,11 +3983,11 @@ namespace Quartz.Impl.AdoJobStore
                                     JobDataMap jd = Delegate.SelectTriggerJobDataMap(conn, tKey.Name, tKey.Group);
                                     jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, tKey.Name);
                                     jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, tKey.Group);
-                                    jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretimeInMillisecoonds, Convert.ToString(ftRec.FireTimestamp));
+                                    jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretimeInMillisecoonds, Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture));
                                     rcvryTrig.JobDataMap = jd;
 
                                     rcvryTrig.ComputeFirstFireTimeUtc(null);
-                                    StoreTrigger(conn, null, rcvryTrig, null, false, STATE_WAITING, false, true);
+                                    StoreTrigger(conn, null, rcvryTrig, null, false, StateWaiting, false, true);
                                     recoveredCount++;
                                 }
                                 else
@@ -4005,11 +4006,11 @@ namespace Quartz.Impl.AdoJobStore
                             if (ftRec.JobIsStateful)
                             {
                                 Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group,
-                                                                                 STATE_WAITING,
-                                                                                 STATE_BLOCKED);
+                                                                                 StateWaiting,
+                                                                                 StateBlocked);
                                 Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey.Name, jKey.Group,
-                                                                                 STATE_PAUSED,
-                                                                                 STATE_PAUSED_BLOCKED);
+                                                                                 StatePaused,
+                                                                                 StatePausedBlocked);
                             }
                         }
 
@@ -4023,7 +4024,7 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             if (
                                 Delegate.SelectTriggerState(conn, triggerKey.Name, triggerKey.Group).Equals(
-                                    STATE_COMPLETE))
+                                    StateComplete))
                             {
                                 IList firedTriggers =
                                     Delegate.SelectFiredTriggerRecords(conn, triggerKey.Name, triggerKey.Group);
@@ -4481,7 +4482,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     this.jobStoreSupport = jobStoreSupport;
                     Name =
-                        string.Format("QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName,
+                        string.Format(CultureInfo.InvariantCulture, "QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName,
                                       jobStoreSupport.instanceId);
                     IsBackground = jobStoreSupport.MakeThreadsDaemons;
                 }

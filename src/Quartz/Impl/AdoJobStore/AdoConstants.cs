@@ -30,102 +30,102 @@ namespace Quartz.Impl.AdoJobStore
 	public class AdoConstants
 	{
 		// Table names
-		public const string TABLE_JOB_DETAILS = "JOB_DETAILS";
-		public const string TABLE_TRIGGERS = "TRIGGERS";
-		public const string TABLE_SIMPLE_TRIGGERS = "SIMPLE_TRIGGERS";
-		public const string TABLE_CRON_TRIGGERS = "CRON_TRIGGERS";
-		public const string TABLE_BLOB_TRIGGERS = "BLOB_TRIGGERS";
-		public const string TABLE_FIRED_TRIGGERS = "FIRED_TRIGGERS";
-		public const string TABLE_JOB_LISTENERS = "JOB_LISTENERS";
-		public const string TABLE_TRIGGER_LISTENERS = "TRIGGER_LISTENERS";
-		public const string TABLE_CALENDARS = "CALENDARS";
-		public const string TABLE_PAUSED_TRIGGERS = "PAUSED_TRIGGER_GRPS";
-		public const string TABLE_LOCKS = "LOCKS";
-		public const string TABLE_SCHEDULER_STATE = "SCHEDULER_STATE";
+		public const string TableJobDetails = "JOB_DETAILS";
+		public const string TableTriggers = "TRIGGERS";
+		public const string TableSimpleTriggers = "SIMPLE_TRIGGERS";
+		public const string TableCronTriggers = "CRON_TRIGGERS";
+		public const string TableBlobTriggers = "BLOB_TRIGGERS";
+		public const string TableFiredTriggers = "FIRED_TRIGGERS";
+		public const string TableJobListeners = "JOB_LISTENERS";
+		public const string TableTriggerListeners = "TRIGGER_LISTENERS";
+		public const string TableCalendars = "CALENDARS";
+		public const string TablePausedTriggers = "PAUSED_TRIGGER_GRPS";
+		public const string TableLocks = "LOCKS";
+		public const string TableSchedulerState = "SCHEDULER_STATE";
 		
-		// TABLE_JOB_DETAILS columns names
-		public const string COL_JOB_NAME = "JOB_NAME";
-		public const string COL_JOB_GROUP = "JOB_GROUP";
-		public const string COL_IS_DURABLE = "IS_DURABLE";
-		public const string COL_IS_VOLATILE = "IS_VOLATILE";
-		public const string COL_IS_STATEFUL = "IS_STATEFUL";
-		public const string COL_REQUESTS_RECOVERY = "REQUESTS_RECOVERY";
-		public const string COL_JOB_DATAMAP = "JOB_DATA";
-		public const string COL_JOB_CLASS = "JOB_CLASS_NAME";
-		public const string COL_DESCRIPTION = "DESCRIPTION";
+		// TableJobDetails columns names
+		public const string ColumnJobName = "JOB_NAME";
+		public const string ColumnJobGroup = "JOB_GROUP";
+		public const string ColumnIsDurable = "IS_DURABLE";
+		public const string ColumnIsVolatile = "IS_VOLATILE";
+		public const string ColumnIsStateful = "IS_STATEFUL";
+		public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";
+		public const string ColumnJobDataMap = "JOB_DATA";
+		public const string ColumnJobClass = "JOB_CLASS_NAME";
+		public const string ColumnDescription = "DESCRIPTION";
 		
-		// TABLE_JOB_LISTENERS columns names
-		public const string COL_JOB_LISTENER = "JOB_LISTENER";
+		// TableJobListeners columns names
+		public const string ColumnJobListener = "JOB_LISTENER";
 		
-		// TABLE_TRIGGERS columns names
-		public const string COL_TRIGGER_NAME = "TRIGGER_NAME";
-		public const string COL_TRIGGER_GROUP = "TRIGGER_GROUP";
-		public const string COL_NEXT_FIRE_TIME = "NEXT_FIRE_TIME";
-		public const string COL_PREV_FIRE_TIME = "PREV_FIRE_TIME";
-		public const string COL_TRIGGER_STATE = "TRIGGER_STATE";
-		public const string COL_TRIGGER_TYPE = "TRIGGER_TYPE";
-		public const string COL_START_TIME = "START_TIME";
-		public const string COL_END_TIME = "END_TIME";
-		public const string COL_MISFIRE_INSTRUCTION = "MISFIRE_INSTR";
-        public const string COL_PRIORITY = "PRIORITY";
-		public const string ALIAS_COL_NEXT_FIRE_TIME = "ALIAS_NXT_FR_TM";
+		// TableTriggers columns names
+		public const string ColumnTriggerName = "TRIGGER_NAME";
+		public const string ColumnTriggerGroup = "TRIGGER_GROUP";
+		public const string ColumnNextFireTime = "NEXT_FIRE_TIME";
+		public const string ColumnPreviousFireTime = "PREV_FIRE_TIME";
+		public const string ColumnTriggerState = "TRIGGER_STATE";
+		public const string ColumnTriggerType = "TRIGGER_TYPE";
+		public const string ColumnStartTime = "START_TIME";
+		public const string ColumnEndTime = "END_TIME";
+		public const string ColumnMifireInstruction = "MISFIRE_INSTR";
+        public const string ColumnPriority = "PRIORITY";
+		public const string AliasColumnNextFireTime = "ALIAS_NXT_FR_TM";
 		
-		// TABLE_SIMPLE_TRIGGERS columns names
-		public const string COL_REPEAT_COUNT = "REPEAT_COUNT";
-		public const string COL_REPEAT_INTERVAL = "REPEAT_INTERVAL";
-		public const string COL_TIMES_TRIGGERED = "TIMES_TRIGGERED";
+		// TableSimpleTriggers columns names
+		public const string ColumnRepeatCount = "REPEAT_COUNT";
+		public const string ColumnRepeatInterval = "REPEAT_INTERVAL";
+		public const string ColumnTimesTriggered = "TIMES_TRIGGERED";
 		
-		// TABLE_CRON_TRIGGERS columns names
-		public const string COL_CRON_EXPRESSION = "CRON_EXPRESSION";
+		// TableCronTriggers columns names
+		public const string ColumnCronExpression = "CRON_EXPRESSION";
 		
-		// TABLE_BLOB_TRIGGERS columns names
-		public const string COL_BLOB = "BLOB_DATA";
-		public const string COL_TIME_ZONE_ID = "TIME_ZONE_ID";
+		// TableBlobTriggers columns names
+		public const string ColumnBlob = "BLOB_DATA";
+		public const string ColumnTimeZoneId = "TIME_ZONE_ID";
 		
-		// TABLE_TRIGGER_LISTENERS
-		public const string COL_TRIGGER_LISTENER = "TRIGGER_LISTENER";
+		// TableTriggerListeners
+		public const string ColumnTriggerListener = "TRIGGER_LISTENER";
 		
-		// TABLE_FIRED_TRIGGERS columns names
-		public const string COL_INSTANCE_NAME = "INSTANCE_NAME";
-		public const string COL_FIRED_TIME = "FIRED_TIME";
-		public const string COL_ENTRY_ID = "ENTRY_ID";
-		public const string COL_ENTRY_STATE = "STATE";
+		// TableFiredTriggers columns names
+		public const string ColumnInstanceName = "INSTANCE_NAME";
+		public const string ColumnFiredTime = "FIRED_TIME";
+		public const string ColumnEntryId = "ENTRY_ID";
+		public const string ColumnEntryState = "STATE";
 		
-		// TABLE_CALENDARS columns names
-		public const string COL_CALENDAR_NAME = "CALENDAR_NAME";
-		public const string COL_CALENDAR = "CALENDAR";
+		// TableCalendars columns names
+		public const string ColumnCalendarName = "CALENDAR_NAME";
+		public const string ColumnCalendar = "CALENDAR";
 		
-		// TABLE_LOCKS columns names
-		public const string COL_LOCK_NAME = "LOCK_NAME";
+		// TableLocks columns names
+		public const string ColumnLockName = "LOCK_NAME";
 		
-		// TABLE_LOCKS columns names
-		public const string COL_LAST_CHECKIN_TIME = "LAST_CHECKIN_TIME";
-		public const string COL_CHECKIN_INTERVAL = "CHECKIN_INTERVAL";
+		// TableLocks columns names
+		public const string ColumnLastCheckinTime = "LAST_CHECKIN_TIME";
+		public const string ColumnCheckinInterval = "CHECKIN_INTERVAL";
 		
 		// MISC CONSTANTS
-		public const string DEFAULT_TABLE_PREFIX = "QRTZ_";
+		public const string DefaultTablePrefix = "QRTZ_";
 		
 		// STATES
-		public const string STATE_WAITING = "WAITING";
-		public const string STATE_ACQUIRED = "ACQUIRED";
-		public const string STATE_EXECUTING = "EXECUTING";
-		public const string STATE_COMPLETE = "COMPLETE";
-		public const string STATE_BLOCKED = "BLOCKED";
-		public const string STATE_ERROR = "ERROR";
-		public const string STATE_PAUSED = "PAUSED";
-		public const string STATE_PAUSED_BLOCKED = "PAUSED_BLOCKED";
-		public const string STATE_DELETED = "DELETED";
+		public const string StateWaiting = "WAITING";
+		public const string StateAcquired = "ACQUIRED";
+		public const string StateExecuting = "EXECUTING";
+		public const string StateComplete = "COMPLETE";
+		public const string StateBlocked = "BLOCKED";
+		public const string StateError = "ERROR";
+		public const string StatePaused = "PAUSED";
+		public const string StatePausedBlocked = "PAUSED_BLOCKED";
+		public const string StateDeleted = "DELETED";
         /**
  * @deprecated Whether a trigger has misfired is no longer a state, but 
  * rather now identified dynamically by whether the trigger's next fire 
  * time is more than the misfire threshold time in the past.
  */
-        public const string STATE_MISFIRED = "MISFIRED";
-		public const string ALL_GROUPS_PAUSED = "_$_ALL_GROUPS_PAUSED_$_";
+        public const string StateMisfired = "MISFIRED";
+		public const string AllGroupsPaused = "_$_ALL_GROUPS_PAUSED_$_";
 		
 		// TRIGGER TYPES
-		public const string TTYPE_SIMPLE = "SIMPLE";
-		public const string TTYPE_CRON = "CRON";
-		public const string TTYPE_BLOB = "BLOB";
+		public const string TriggerTypeSimple = "SIMPLE";
+		public const string TriggerTypeCron = "CRON";
+		public const string TriggerTypeBlob = "BLOB";
 	}
 }

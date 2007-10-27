@@ -77,7 +77,7 @@ namespace Quartz.Util
                 object val = map[key];
 
                 Put(key, val);
-                // will throw ArgumentException if value not serilizable
+                // will throw ArgumentException if value not serializable
             }
         }
 

@@ -20,6 +20,7 @@
 */
 
 using System;
+using System.Globalization;
 using System.Threading;
 
 using Common.Logging;
@@ -99,14 +100,14 @@ namespace Quartz.Impl.AdoJobStore
 
 					if (log.IsDebugEnabled)
 					{
-						log.Debug(string.Format("Lock '{0}' given to: {1}", lockName, Thread.CurrentThread.Name));
+						log.Debug(string.Format(CultureInfo.InvariantCulture, "Lock '{0}' given to: {1}", lockName, Thread.CurrentThread.Name));
 					}
 					ThreadLocks.Add(lockName);
 					locks.Add(lockName);
 				}
 				else if (log.IsDebugEnabled)
 				{
-					log.Debug(string.Format("Lock '{0}' already owned by: {1} -- but not owner!", lockName, Thread.CurrentThread.Name), new Exception("stack-trace of wrongful returner"));
+					log.Debug(string.Format(CultureInfo.InvariantCulture, "Lock '{0}' already owned by: {1} -- but not owner!", lockName, Thread.CurrentThread.Name), new Exception("stack-trace of wrongful returner"));
 				}
 
 				return true;
@@ -126,7 +127,7 @@ namespace Quartz.Impl.AdoJobStore
 				{
 					if (log.IsDebugEnabled)
 					{
-						log.Debug(string.Format("Lock '{0}' retuned by: {1}", lockName, Thread.CurrentThread.Name));
+						log.Debug(string.Format(CultureInfo.InvariantCulture, "Lock '{0}' retuned by: {1}", lockName, Thread.CurrentThread.Name));
 					}
 					ThreadLocks.Remove(lockName);
 					locks.Remove(lockName);
@@ -134,7 +135,7 @@ namespace Quartz.Impl.AdoJobStore
 				}
 				else if (log.IsDebugEnabled)
 				{
-					log.Debug(string.Format("Lock '{0}' attempt to retun by: {1} -- but not owner!", lockName, Thread.CurrentThread.Name), new Exception("stack-trace of wrongful returner"));
+					log.Debug(string.Format(CultureInfo.InvariantCulture, "Lock '{0}' attempt to retun by: {1} -- but not owner!", lockName, Thread.CurrentThread.Name), new Exception("stack-trace of wrongful returner"));
 				}
 			}
 		}

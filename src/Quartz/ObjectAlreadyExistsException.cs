@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 
 namespace Quartz
 {
@@ -53,7 +54,7 @@ namespace Quartz
 		/// </summary>
 		public ObjectAlreadyExistsException(JobDetail offendingJob)
 			: base(
-				string.Format("Unable to store Job with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingJob.Name, offendingJob.Group))
+				string.Format(CultureInfo.InvariantCulture, "Unable to store Job with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingJob.Name, offendingJob.Group))
 		{
 		}
 
@@ -69,7 +70,7 @@ namespace Quartz
 		/// </summary>
 		public ObjectAlreadyExistsException(Trigger offendingTrigger)
 			: base(
-				string.Format("Unable to store Trigger with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingTrigger.Name, offendingTrigger.Group))
+				string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingTrigger.Name, offendingTrigger.Group))
 		{
 		}
 	}

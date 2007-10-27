@@ -22,6 +22,7 @@
 using System;
 using System.Collections;
 using System.Collections.Specialized;
+using System.Globalization;
 using System.IO;
 
 using Quartz.Collection;
@@ -109,13 +110,13 @@ namespace Quartz.Util
 		public virtual string[] GetStringArrayProperty(string name, string[] defaultValue)
 		{
 
-            String vals = GetStringProperty(name);
+            string vals = GetStringProperty(name);
             if (vals == null)
             {
                 return defaultValue;
             }
 
-            String[] items = vals.Split(',');
+            string[] items = vals.Split(',');
             ArrayList strs = new ArrayList();
             try
             {
@@ -145,7 +146,7 @@ namespace Quartz.Util
 				return false;
 			}
 
-			return val.ToUpper().Equals("TRUE");
+			return val.ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
 		}
 
         /// <summary>
@@ -162,7 +163,7 @@ namespace Quartz.Util
 				return defaultValue;
 			}
 
-			return val.ToUpper().Equals("TRUE");
+            return val.ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
 		}
 
         /// <summary>
@@ -180,11 +181,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return SByte.Parse(val);
+                return SByte.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -204,11 +205,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return SByte.Parse(val);
+                return SByte.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -270,11 +271,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Double.Parse(val);
+                return Double.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -294,11 +295,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Double.Parse(val);
+                return Double.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -317,11 +318,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Single.Parse(val);
+                return Single.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -341,11 +342,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Single.Parse(val);
+                return Single.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -364,11 +365,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Int32.Parse(val);
+                return Int32.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -388,11 +389,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Int32.Parse(val);
+                return Int32.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -430,11 +431,11 @@ namespace Quartz.Util
 					{
 						try
 						{
-							ints.Add(Int32.Parse(s));
+                            ints.Add(Int32.Parse(s, CultureInfo.InvariantCulture));
 						}
 						catch (FormatException)
 						{
-							throw new FormatException(string.Format(" '{0}'", vals));
+							throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", vals));
 						}
 					}
 					int[] outInts = new int[ints.Count];
@@ -468,11 +469,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Int64.Parse(val);
+                return Int64.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -492,11 +493,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Int64.Parse(val);
+                return Int64.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -515,11 +516,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Int16.Parse(val);
+                return Int16.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -539,11 +540,11 @@ namespace Quartz.Util
 
 			try
 			{
-				return Int16.Parse(val);
+                return Int16.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(" '{0}'", val));
+				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
 			}
 		}
 
@@ -615,7 +616,6 @@ namespace Quartz.Util
             {
                 if (key.StartsWith(prefix))
                 {
-
                     bool exclude = false;
                     if (excludedPrefixes != null)
                     {

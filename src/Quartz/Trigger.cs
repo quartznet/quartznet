@@ -20,6 +20,7 @@
 */
 using System;
 using System.Collections;
+using System.Globalization;
 
 #if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
@@ -500,7 +501,7 @@ namespace Quartz
 			if (triggerListeners.Contains(listenerName)) 
 			{
 				throw new ArgumentException(
-					string.Format("Trigger listener '{0}' is already registered for trigger: {1}", listenerName, FullName));
+					string.Format(CultureInfo.InvariantCulture, "Trigger listener '{0}' is already registered for trigger: {1}", listenerName, FullName));
 			}
 
 			triggerListeners.Add(listenerName);
@@ -722,6 +723,7 @@ namespace Quartz
 		{
 			return
 				string.Format(
+                    CultureInfo.InvariantCulture,
 					"Trigger '{0}':  triggerClass: '{1} isVolatile: {2} calendar: '{3}' misfireInstruction: {4} nextFireTime: {5}",
 					FullName, GetType().FullName, Volatile, CalendarName, MisfireInstruction, GetNextFireTimeUtc());
 		}

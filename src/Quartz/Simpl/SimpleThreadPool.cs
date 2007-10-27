@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.Threading;
 
 using Common.Logging;
@@ -198,7 +199,7 @@ namespace Quartz.Simpl
                         WorkerThread wt = (WorkerThread)busyWorkers[0];
                         try
                         {
-                            Log.Debug(string.Format("Waiting for thread {0} to shut down", wt.Name));
+                            Log.Debug(string.Format(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Name));
 
                             // note: with waiting infinite time the
                             // application may appear to 'hang'.
@@ -322,7 +323,7 @@ namespace Quartz.Simpl
             {
                 WorkerThread wt = new WorkerThread(
                     this,
-                    string.Format("{0}-{1}", ThreadNamePrefix, i),
+                    string.Format(CultureInfo.InvariantCulture, "{0}-{1}", ThreadNamePrefix, i),
                     ThreadPriority,
                     MakeThreadsDaemons);
 

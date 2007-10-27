@@ -97,7 +97,7 @@ namespace Quartz.Impl.AdoJobStore
 		///
 		/// <p>
 		/// In order to preserve the ordering of the triggers, the fire time will be
-		/// set from the <code>COL_FIRED_TIME</code> column in the <code>TABLE_FIRED_TRIGGERS</code>
+		/// set from the <code>ColumnFiredTime</code> column in the <code>TableFiredTriggers</code>
 		/// table. The caller is responsible for calling <code>computeFirstFireTime</code>
 		/// on each returned trigger. It is also up to the caller to insert the
 		/// returned triggers to ensure that they are fired.

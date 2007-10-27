@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 
 namespace Quartz.Impl
 {
@@ -60,7 +61,7 @@ namespace Quartz.Impl
 			{
 				if (schedulers[sched.SchedulerName] != null)
 				{
-					throw new SchedulerException(string.Format("Scheduler with name '{0}' already exists.", sched.SchedulerName),
+					throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Scheduler with name '{0}' already exists.", sched.SchedulerName),
 					                             SchedulerException.ErrorBadConfiguration);
 				}
 

@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 
 using Quartz.Collection;
 using Quartz.Spi;
@@ -363,7 +364,7 @@ namespace Quartz
         {
 			if (!jobListeners.Add(listenerName)) 
 			{
-				throw new ArgumentException(string.Format("Job listener '{0}' is already registered for job detail: {1}", listenerName, FullName));
+				throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Job listener '{0}' is already registered for job detail: {1}", listenerName, FullName));
 			}
         }
 
@@ -393,6 +394,7 @@ namespace Quartz
         {
             return
                 string.Format(
+                    CultureInfo.InvariantCulture,
                     "JobDetail '{0}':  jobType: '{1} isStateful: {2} isVolatile: {3} isDurable: {4} requestsRecovers: {5}",
                     FullName, ((JobType == null) ? null : JobType.FullName), Stateful, Volatile, Durable, RequestsRecovery);
         }
@@ -474,7 +476,7 @@ namespace Quartz
 		/// </returns>
         public override int GetHashCode()
         {
-            return string.Format("{0}_$x$x$_{1}", Group, Name).GetHashCode();
+            return string.Format(CultureInfo.InvariantCulture, "{0}_$x$x$_{1}", Group, Name).GetHashCode();
         }
     }
 }

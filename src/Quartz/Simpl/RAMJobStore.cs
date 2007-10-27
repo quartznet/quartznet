@@ -18,22 +18,22 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
+
 using System;
 using System.Collections;
+using System.Globalization;
 using System.Text;
-using System.Threading;
+
 using Common.Logging;
 
+using Quartz.Collection;
+using Quartz.Core;
+using Quartz.Spi;
 #if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;
 #endif
-
-using Quartz;
-using Quartz.Collection;
-using Quartz.Core;
-using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
@@ -52,18 +52,18 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class RAMJobStore : IJobStore
 	{
-		private IDictionary jobsByFQN = new Hashtable(1000);
-		private IDictionary triggersByFQN = new Hashtable(1000);
-		private IDictionary jobsByGroup = new Hashtable(25);
-		private IDictionary triggersByGroup = new Hashtable(25);
-		private TreeSet timeTriggers = new TreeSet(new TriggerComparator());
-		private IDictionary calendarsByName = new Hashtable(25);
-		private ArrayList triggers = new ArrayList(1000);
+		private readonly IDictionary jobsByFQN = new Hashtable(1000);
+		private readonly IDictionary triggersByFQN = new Hashtable(1000);
+		private readonly IDictionary jobsByGroup = new Hashtable(25);
+		private readonly IDictionary triggersByGroup = new Hashtable(25);
+		private readonly TreeSet timeTriggers = new TreeSet(new TriggerComparator());
+		private readonly IDictionary calendarsByName = new Hashtable(25);
+		private readonly ArrayList triggers = new ArrayList(1000);
 		private readonly object jobLock = new object();
 		private readonly object triggerLock = new object();
-		private HashSet pausedTriggerGroups = new HashSet();
-        private HashSet pausedJobGroups = new HashSet();
-        private HashSet blockedJobs = new HashSet();
+		private readonly HashSet pausedTriggerGroups = new HashSet();
+        private readonly HashSet pausedJobGroups = new HashSet();
+        private readonly HashSet blockedJobs = new HashSet();
 		private long misfireThreshold = 5000L;
 		private ISchedulerSignaler signaler;
 		
@@ -106,7 +106,7 @@ namespace Quartz.Simpl
 			{
 				lock (this)
 				{
-					return Convert.ToString(ftrCtr++);
+                    return Convert.ToString(ftrCtr++, CultureInfo.InvariantCulture);
 				}
 			}
 		}
@@ -383,7 +383,7 @@ namespace Quartz.Simpl
 		public virtual bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName, bool deleteOrphanedJob)
 		{
 			string key = TriggerWrapper.GetTriggerNameKey(triggerName, groupName);
-            log.Debug(string.Format("RemoveTrigger {0},{1}",triggerName,groupName));
+            log.Debug(string.Format(CultureInfo.InvariantCulture, "RemoveTrigger {0},{1}",triggerName,groupName));
 /*
             //trying to find out if any concurrent thread
 		    //may want to modify (maybe remove) this trigger
@@ -610,7 +610,7 @@ namespace Quartz.Simpl
 
 			if (obj != null && replaceExisting == false)
 			{
-				throw new ObjectAlreadyExistsException(string.Format("Calendar with name '{0}' already exists.", name));
+				throw new ObjectAlreadyExistsException(string.Format(CultureInfo.InvariantCulture, "Calendar with name '{0}' already exists.", name));
 			}
 			else if (obj != null)
 			{
@@ -1371,7 +1371,7 @@ namespace Quartz.Simpl
                 // call triggered on our copy, and the scheduler's copy
 				tw.trigger.Triggered(cal);
 				trigger.Triggered(cal);
-				//tw.state = TriggerWrapper.STATE_EXECUTING;
+				//tw.state = TriggerWrapper.StateExecuting;
                 tw.state = InternalTriggerState.Waiting;
 
 				TriggerFiredBundle bndle =
@@ -1503,12 +1503,12 @@ namespace Quartz.Simpl
 					}
                     else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
 					{
-						Log.Info(string.Format("Trigger {0} set to ERROR state.", trigger.FullName));
+						Log.Info(string.Format(CultureInfo.InvariantCulture, "Trigger {0} set to ERROR state.", trigger.FullName));
                         tw.state = InternalTriggerState.Error;
 					}
                     else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
 					{
-						Log.Info(string.Format("All triggers of Job {0} set to ERROR state.", trigger.FullJobName));
+						Log.Info(string.Format(CultureInfo.InvariantCulture, "All triggers of Job {0} set to ERROR state.", trigger.FullJobName));
                         SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, InternalTriggerState.Error);
 					}
 					else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)

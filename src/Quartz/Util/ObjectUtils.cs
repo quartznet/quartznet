@@ -65,17 +65,17 @@ namespace Quartz.Util
 			    if (requiredType == typeof(int) && newValue.GetType() == typeof(long))
 			    {
 				    // automatically doesn't work, try with converter
-				    newValue = Convert.ToInt32(newValue);
+                    newValue = Convert.ToInt32(newValue, CultureInfo.InvariantCulture);
 			    }
 			    else if (requiredType == typeof(short) && (newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
 			    {
 				    // automatically doesn't work, try with converter
-				    newValue = Convert.ToInt16(newValue);
+                    newValue = Convert.ToInt16(newValue, CultureInfo.InvariantCulture);
 			    }
 			    else if (requiredType == typeof(byte) && (newValue.GetType() == typeof(short) || newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
 			    {
 				    // automatically doesn't work, try with converter
-				    newValue = Convert.ToByte(newValue);
+                    newValue = Convert.ToByte(newValue, CultureInfo.InvariantCulture);
 			    }
                 else if (newValue != null && requiredType == typeof(Type))
                 {
@@ -141,7 +141,7 @@ namespace Quartz.Util
 				{
 					if (pi == null)
 					{
-						throw new MethodAccessException(string.Format("No property '{0}'", propertyName));
+						throw new MethodAccessException(string.Format(CultureInfo.InvariantCulture, "No property '{0}'", propertyName));
 					}
 					
 					MethodInfo mi = pi.GetSetMethod();
@@ -154,7 +154,7 @@ namespace Quartz.Util
 				}
 				catch (Exception nfe)
 				{
-					throw new SchedulerConfigException(string.Format("Could not parse property '{0}' into correct data type: {1}", name, nfe.Message    ), nfe);
+					throw new SchedulerConfigException(string.Format(CultureInfo.InvariantCulture, "Could not parse property '{0}' into correct data type: {1}", name, nfe.Message    ), nfe);
 				}
 			}
 			

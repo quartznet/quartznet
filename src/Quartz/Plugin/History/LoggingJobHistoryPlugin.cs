@@ -19,6 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
+
 using Common.Logging;
 using Quartz.Spi;
 
@@ -375,7 +377,7 @@ namespace Quartz.Plugin.History
                         trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 
-            Log.Info(String.Format(JobToBeFiredMessage, args));
+            Log.Info(String.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
         }
 
 
@@ -407,7 +409,7 @@ namespace Quartz.Plugin.History
                             trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
                         };
 
-                Log.Warn(String.Format(JobFailedMessage, args), jobException);
+                Log.Warn(String.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
             }
             else
             {
@@ -416,7 +418,7 @@ namespace Quartz.Plugin.History
                     return;
                 }
 
-                string result = Convert.ToString(context.Result);
+                string result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
                 args =
                     new object[]
                         {
@@ -424,7 +426,7 @@ namespace Quartz.Plugin.History
                             trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
                         };
 
-                Log.Info(String.Format(JobSuccessMessage, args));
+                Log.Info(String.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
             }
         }
 
@@ -452,7 +454,7 @@ namespace Quartz.Plugin.History
                         trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 
-            Log.Info(String.Format(JobWasVetoedMessage, args));
+            Log.Info(String.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
         }
     }
 }

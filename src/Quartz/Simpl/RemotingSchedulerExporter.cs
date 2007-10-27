@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
@@ -47,7 +48,7 @@ namespace Quartz.Simpl
             try
             {
                 RemotingServices.Marshal((MarshalByRefObject) scheduler, bindName);
-                Log.Info(string.Format("Successfully marhalled remotable scheduler under name '{0}'", bindName));
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "Successfully marhalled remotable scheduler under name '{0}'", bindName));
             }
             catch (RemotingException ex)
             {
@@ -82,7 +83,7 @@ namespace Quartz.Simpl
                     throw new ArgumentException("Unknown remoting channel type '" + channelType + "'");
                 }
 
-                Log.Info(string.Format("Registering remoting channel of type '{0}' to port ({1})", chan.GetType(), port));
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1})", chan.GetType(), port));
                 ChannelServices.RegisterChannel(chan);
                 Log.Info("Remoting channel registered successfully");
             }

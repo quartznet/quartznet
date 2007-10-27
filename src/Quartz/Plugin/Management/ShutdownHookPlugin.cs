@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 
 using Common.Logging;
 
@@ -63,7 +64,7 @@ namespace Quartz.Plugin.Management
             name = pluginName;
             scheduler = sched;
 
-            Log.Info(string.Format("Registering Quartz Shutdown hook '{0}.", name));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering Quartz Shutdown hook '{0}.", name));
 
             AppDomain.CurrentDomain.ProcessExit += new EventHandler(CurrentDomain_OnProcessExit);
         }

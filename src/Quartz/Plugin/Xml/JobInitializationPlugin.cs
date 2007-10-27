@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Web;
@@ -440,7 +441,7 @@ namespace Quartz.Plugin.Xml
                     }
                     else
                     {
-                        plugin.Log.Warn(string.Format("File named '{0}' does not exist.", FileName));
+                        plugin.Log.Warn(string.Format(CultureInfo.InvariantCulture, "File named '{0}' does not exist.", FileName));
                     }
                 }
                 else

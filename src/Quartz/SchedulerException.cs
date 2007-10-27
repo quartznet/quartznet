@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 
 namespace Quartz
 {
@@ -31,7 +32,7 @@ namespace Quartz
     /// </remarks>
     /// <author>James House</author>
     [Serializable]
-    public class SchedulerException : ApplicationException
+    public class SchedulerException : Exception
     {
         public const int ErrorBadConfiguration = 50;
 
@@ -222,7 +223,7 @@ namespace Quartz
             }
             else
             {
-                return string.Format("{0} [See nested exception: {1}]", base.ToString(), cause);
+                return string.Format(CultureInfo.InvariantCulture, "{0} [See nested exception: {1}]", base.ToString(), cause);
             }
         }
     }

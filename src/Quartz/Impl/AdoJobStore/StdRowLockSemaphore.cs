@@ -21,6 +21,7 @@
 
 using System;
 using System.Data;
+using System.Globalization;
 using System.Threading;
 
 namespace Quartz.Impl.AdoJobStore
@@ -42,8 +43,8 @@ namespace Quartz.Impl.AdoJobStore
 		*/
 
         public static readonly string SELECT_FOR_LOCK =
-            string.Format("SELECT * FROM {0}{1} WHERE {2} = @lockName FOR UPDATE", TABLE_PREFIX_SUBST, TABLE_LOCKS,
-                          COL_LOCK_NAME);
+            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = @lockName FOR UPDATE", TablePrefixSubst, TableLocks,
+                          ColumnLockName);
 
         /*
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -81,7 +82,7 @@ namespace Quartz.Impl.AdoJobStore
                     
                     if (!rs.Read())
                     {
-                        throw new Exception(Util.ReplaceTablePrefix("No row exists in table " + TABLE_PREFIX_SUBST + TABLE_LOCKS + " for lock named: " + lockName, TablePrefix));
+                        throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix("No row exists in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix));
                     }
                 }
             }

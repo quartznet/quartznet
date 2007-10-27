@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -26,9 +27,9 @@ namespace Quartz.Impl.AdoJobStore
 	/// This class contains utility functions for use in all delegate classes.
 	/// </summary>
 	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
-	public sealed class Util
+	public sealed class AdoJobStoreUtil
 	{
-	    private Util()
+	    private AdoJobStoreUtil()
 	    {
 	    }
 
@@ -41,7 +42,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns>The query, with proper table prefix substituted</returns>
 		public static string ReplaceTablePrefix(string query, string tablePrefix)
 		{
-			return string.Format(query, tablePrefix);
+			return string.Format(CultureInfo.InvariantCulture, query, tablePrefix);
 		}
 
 		/// <summary>
@@ -53,7 +54,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns>A unique <code>string</code> key </returns>
 		internal static string GetJobNameKey(string jobName, string groupName)
 		{
-			return String.Intern(string.Format("{0}_$x$x$_{1}", groupName, jobName));
+			return String.Intern(string.Format(CultureInfo.InvariantCulture, "{0}_$x$x$_{1}", groupName, jobName));
 		}
 
 		/// <summary>
@@ -64,7 +65,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns>A unique <code>string</code> key</returns>
 		internal static string GetTriggerNameKey(string triggerName, string groupName)
 		{
-			return String.Intern(string.Format("{0}_$x$x$_{1}", groupName, triggerName));
+			return String.Intern(string.Format(CultureInfo.InvariantCulture, "{0}_$x$x$_{1}", groupName, triggerName));
 		}
 	}
 }

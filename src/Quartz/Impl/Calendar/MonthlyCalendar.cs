@@ -20,6 +20,7 @@
 * and Juergen Donnerstag (c) 2002, EDS 2002
 */
 using System;
+using System.Globalization;
 
 namespace Quartz.Impl.Calendar
 {
@@ -64,18 +65,19 @@ namespace Quartz.Impl.Calendar
 		// Will be set to true, if all week days are excluded
 		private bool excludeAll = false;
 
-		/// <summary> <p>
-		/// Constructor
-		/// </p>
-		/// </summary>
-		public MonthlyCalendar() : base()
-		{
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MonthlyCalendar"/> class.
+        /// </summary>
+		public MonthlyCalendar()
+        {
 			Init();
 		}
 
-		/// <summary>
-		/// Constructor
-		/// </summary>
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="baseCalendar">The base calendar.</param>
 		public MonthlyCalendar(ICalendar baseCalendar) : base(baseCalendar)
 		{
 			Init();
@@ -98,7 +100,7 @@ namespace Quartz.Impl.Calendar
 			if ((day < 1) || (day > MAX_DAYS_IN_MONTH)) 
 			{
 				throw new ArgumentException(
-					string.Format("The day parameter must be in the range of 1 to {0}", MAX_DAYS_IN_MONTH));
+					string.Format(CultureInfo.InvariantCulture, "The day parameter must be in the range of 1 to {0}", MAX_DAYS_IN_MONTH));
 			}
 			return excludeDays[day - 1];
 		}

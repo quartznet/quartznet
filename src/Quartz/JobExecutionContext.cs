@@ -20,6 +20,7 @@
 */
 using System;
 using System.Collections;
+using System.Globalization;
 
 #if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
@@ -316,7 +317,7 @@ namespace Quartz
 		public override string ToString()
 		{
 			return
-				string.Format("JobExecutionContext: trigger: '{0}' job: '{1}' fireTimeUtc: '{2:r}' scheduledFireTimeUtc: '{3:r}' previousFireTimeUtc: '{4:r}' nextFireTimeUtc: '{5:r}' recovering: {6} refireCount: {7}", 
+				string.Format(CultureInfo.InvariantCulture, "JobExecutionContext: trigger: '{0}' job: '{1}' fireTimeUtc: '{2:r}' scheduledFireTimeUtc: '{3:r}' previousFireTimeUtc: '{4:r}' nextFireTimeUtc: '{5:r}' recovering: {6} refireCount: {7}", 
                 Trigger.FullName, 
                 JobDetail.FullName, 
                 FireTimeUtc, 

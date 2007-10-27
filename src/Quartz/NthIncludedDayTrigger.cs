@@ -248,7 +248,7 @@ namespace Quartz
 		/// </summary>
 		public virtual string FireAtTime
 		{
-			get { return string.Format("{0:00}:{1:00}:{2:00}", fireAtHour, fireAtMinute, fireAtSecond); }
+			get { return string.Format(CultureInfo.InvariantCulture, "{0:00}:{1:00}:{2:00}", fireAtHour, fireAtMinute, fireAtSecond); }
 
 			set
 			{
@@ -256,13 +256,13 @@ namespace Quartz
 				{
 					string[] components = value.Split(':');
 
-					int newFireHour = Int32.Parse(components[0]);
+                    int newFireHour = Int32.Parse(components[0], CultureInfo.InvariantCulture);
 					if (components[1].Length != 2)
 					{
 						// minutes must be in two digit format
 						throw new Exception();
 					}
-					int newFireMinute = Int32.Parse(components[1]);
+                    int newFireMinute = Int32.Parse(components[1], CultureInfo.InvariantCulture);
 					int newFireSecond = 0;
 					if (components.Length == 3)
 					{
@@ -271,7 +271,7 @@ namespace Quartz
 							// seconds must be in two digit format
 							throw new Exception();
 						}
-						newFireSecond = Convert.ToInt32(components[2]);
+                        newFireSecond = Convert.ToInt32(components[2], CultureInfo.InvariantCulture);
 					}
 
 					
@@ -279,17 +279,17 @@ namespace Quartz
 					if ((newFireHour < 0) || (newFireHour > 23)) 
 					{
 						throw new ArgumentException(
-							string.Format("Could not parse time expression '{0}':fireAtHour must be between 0 and 23", value));
+							string.Format(CultureInfo.InvariantCulture, "Could not parse time expression '{0}':fireAtHour must be between 0 and 23", value));
 					} 
 					else if ((newFireMinute < 0) || (newFireMinute > 59)) 
 					{
 						throw new ArgumentException(
-							string.Format("Could not parse time expression '{0}':fireAtMinute must be between 0 and 59", value));
+							string.Format(CultureInfo.InvariantCulture, "Could not parse time expression '{0}':fireAtMinute must be between 0 and 59", value));
 					} 
 					else if ((newFireSecond < 0) || (newFireSecond > 59)) 
 					{
 						throw new ArgumentException(
-							string.Format("Could not parse time expression '{0}':fireAtMinute must be between 0 and 59", value));
+							string.Format(CultureInfo.InvariantCulture, "Could not parse time expression '{0}':fireAtMinute must be between 0 and 59", value));
 					}
 
 					fireAtHour = newFireHour;

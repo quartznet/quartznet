@@ -20,6 +20,7 @@
 */
 using System;
 using System.Collections;
+using System.Globalization;
 
 using Quartz.Spi;
 
@@ -66,7 +67,7 @@ namespace Quartz.Core
 				if (threadName == null)
 				{
 					// thread name not already set, use default thread name
-					ThreadName = string.Format("{0}_QuartzSchedulerThread", value);
+					ThreadName = string.Format(CultureInfo.InvariantCulture, "{0}_QuartzSchedulerThread", value);
 				}
 			}
 		}
@@ -188,7 +189,7 @@ namespace Quartz.Core
 		/// <returns></returns>
 		public static string GetUniqueIdentifier(string schedName, string schedInstId)
 		{
-			return string.Format("{0}_$_{1}", schedName, schedInstId);
+			return string.Format(CultureInfo.InvariantCulture, "{0}_$_{1}", schedName, schedInstId);
 		}
 
 		/// <summary>

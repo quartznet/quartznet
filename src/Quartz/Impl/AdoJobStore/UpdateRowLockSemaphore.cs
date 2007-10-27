@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Globalization;
 using System.Threading;
 
 namespace Quartz.Impl.AdoJobStore
@@ -16,16 +17,16 @@ namespace Quartz.Impl.AdoJobStore
     /// </remarks>
     public class UpdateLockRowSemaphore : DBSemaphore
     {
-        public static readonly string UPDATE_FOR_LOCK =
-            string.Format("UPDATE {0}{1} SET {2} = {3} WHERE {4} = @lockName", TABLE_PREFIX_SUBST, TABLE_LOCKS, COL_LOCK_NAME,
-                          COL_LOCK_NAME, COL_LOCK_NAME);
+        public static readonly string SqlUpdateForLock =
+            string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = {3} WHERE {4} = @lockName", TablePrefixSubst, TableLocks, ColumnLockName,
+                          ColumnLockName, ColumnLockName);
 
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UpdateLockRowSemaphore"/> class.
         /// </summary>
         public UpdateLockRowSemaphore(IDbProvider provider)
-            : base(DEFAULT_TABLE_PREFIX, null, UPDATE_FOR_LOCK, provider)
+            : base(DefaultTablePrefix, null, SqlUpdateForLock, provider)
         {
         }
 
@@ -54,8 +55,8 @@ namespace Quartz.Impl.AdoJobStore
                     if (numUpdate < 1)
                     {
                         throw new Exception(
-                            Util.ReplaceTablePrefix(
-                                "No row exists in table " + TABLE_PREFIX_SUBST + TABLE_LOCKS + " for lock named: " +
+                            AdoJobStoreUtil.ReplaceTablePrefix(
+                                "No row exists in table " + TablePrefixSubst + TableLocks + " for lock named: " +
                                 lockName, TablePrefix));
                     }
                 }

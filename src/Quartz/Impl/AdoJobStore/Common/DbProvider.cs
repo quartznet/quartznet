@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Specialized;
 using System.Data;
+using System.Globalization;
 using System.Text;
 
 using Quartz.Util;
@@ -83,7 +84,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
             if (dbMetadata == null)
             {
-                throw new ArgumentException(string.Format("Invalid DB provider name: {0}{1}{2}", dbProviderName, Environment.NewLine, GenerateValidProviderNamesInfo()));
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid DB provider name: {0}{1}{2}", dbProviderName, Environment.NewLine, GenerateValidProviderNamesInfo()));
             }
         }
 

@@ -21,6 +21,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 
 using Common.Logging;
@@ -242,7 +243,7 @@ namespace Quartz.Job
 				}
 
 				// Executes the command
-				Log.Info(string.Format("About to run {0}{1}", cmd[0], cmd[1]));
+				Log.Info(string.Format(CultureInfo.InvariantCulture, "About to run {0}{1}", cmd[0], cmd[1]));
 				string temp = "";
 				for (int i = 1; i < cmd.Length; i++)
 				{
@@ -252,7 +253,7 @@ namespace Quartz.Job
 					}
 					else
 					{
-						temp = string.Format("{0} {1}", temp, cmd[i]);
+						temp = string.Format(CultureInfo.InvariantCulture, "{0} {1}", temp, cmd[i]);
 					}
 				}
 
@@ -321,19 +322,19 @@ namespace Quartz.Job
 
 					while ((line = br.ReadLine()) != null)
 					{
-						if (type.ToUpper().Equals("stderr".ToUpper()))
+						if (type.ToUpper(CultureInfo.InvariantCulture).Equals("stderr".ToUpper(CultureInfo.InvariantCulture)))
 						{
-							outer.Log.Warn(string.Format("{0}>{1}", type, line));
+							outer.Log.Warn(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
 						}
 						else
 						{
-							outer.Log.Info(string.Format("{0}>{1}", type, line));
+							outer.Log.Info(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
 						}
 					}
 				}
 				catch (IOException ioe)
 				{
-					outer.Log.Error(string.Format("Error consuming {0} stream of spawned process.", type), ioe);
+					outer.Log.Error(string.Format(CultureInfo.InvariantCulture, "Error consuming {0} stream of spawned process.", type), ioe);
 				}
 				finally
 				{

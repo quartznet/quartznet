@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 using System.Threading;
 
 using Quartz.Listener;
@@ -132,7 +133,7 @@ namespace Quartz.Impl
 				{
 					server.Serve(new StdSchedulerFactory(), false);
 				}
-				else if (args.Length == 1 && args[0].ToUpper().Equals("console".ToUpper()))
+				else if (args.Length == 1 && args[0].ToUpper(CultureInfo.InvariantCulture).Equals("console".ToUpper(CultureInfo.InvariantCulture)))
 				{
 					server.Serve(new StdSchedulerFactory(), true);
 				}

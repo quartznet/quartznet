@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 using System.IO;
 
 using Common.Logging;
@@ -92,18 +93,18 @@ namespace Quartz.Job
 
 			if (fileName == null)
 			{
-				throw new JobExecutionException(string.Format("Required parameter '{0}' not found in JobDataMap", FileName));
+				throw new JobExecutionException(string.Format(CultureInfo.InvariantCulture, "Required parameter '{0}' not found in JobDataMap", FileName));
 			}
 			if (listenerName == null)
 			{
-				throw new JobExecutionException(string.Format("Required parameter '{0}' not found in JobDataMap", FileScanListenerName));
+				throw new JobExecutionException(string.Format(CultureInfo.InvariantCulture, "Required parameter '{0}' not found in JobDataMap", FileScanListenerName));
 			}
 
 			IFileScanListener listener = (IFileScanListener) schedCtxt[listenerName];
 
 			if (listener == null)
 			{
-				throw new JobExecutionException(string.Format("FileScanListener named '{0}' not found in SchedulerContext", listenerName));
+				throw new JobExecutionException(string.Format(CultureInfo.InvariantCulture, "FileScanListener named '{0}' not found in SchedulerContext", listenerName));
 			}
 
 			DateTime lastDate = DateTime.MinValue;
@@ -116,19 +117,19 @@ namespace Quartz.Job
 
 			if (newDate == DateTime.MinValue)
 			{
-				Log.Warn(string.Format("File '{0}' does not exist.", fileName));
+				Log.Warn(string.Format(CultureInfo.InvariantCulture, "File '{0}' does not exist.", fileName));
 				return;
 			}
 
 			if (lastDate != DateTime.MinValue && (newDate != lastDate))
 			{
 				// notify call back...
-				Log.Info(string.Format("File '{0}' updated, notifying listener.", fileName));
+				Log.Info(string.Format(CultureInfo.InvariantCulture, "File '{0}' updated, notifying listener.", fileName));
 				listener.FileUpdated(fileName);
 			}
 			else
 			{
-				Log.Debug(string.Format("File '{0}' unchanged.", fileName));
+				Log.Debug(string.Format(CultureInfo.InvariantCulture, "File '{0}' unchanged.", fileName));
 			}
 
 			data.Put(LastModifiedTime, newDate);

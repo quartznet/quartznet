@@ -20,6 +20,7 @@
 */
 
 using System;
+using System.Globalization;
 
 using Common.Logging;
 
@@ -109,9 +110,9 @@ namespace Quartz.Job
 				replyTo = null;
 			}
 
-			string mailDesc = string.Format("'{0}' to: {1}", subject, to);
+			string mailDesc = string.Format(CultureInfo.InvariantCulture, "'{0}' to: {1}", subject, to);
 
-			Log.Info(string.Format("Sending message {0}", mailDesc));
+			Log.Info(string.Format(CultureInfo.InvariantCulture, "Sending message {0}", mailDesc));
 
 			try
 			{
@@ -119,7 +120,7 @@ namespace Quartz.Job
 			}
 			catch (Exception ex)
 			{
-				throw new JobExecutionException(string.Format("Unable to send mail: {0}", mailDesc), ex, false);
+				throw new JobExecutionException(string.Format(CultureInfo.InvariantCulture, "Unable to send mail: {0}", mailDesc), ex, false);
 			}
 		}
 

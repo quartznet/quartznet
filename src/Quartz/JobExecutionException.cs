@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 
 namespace Quartz
 {
@@ -148,7 +149,7 @@ namespace Quartz
 	    public override string ToString()
 	    {
             return
-                string.Format(
+                string.Format(CultureInfo.InvariantCulture,
                     "Parameters: refire = {0}, unscheduleFiringTrigger = {1}, unscheduleAllTriggers = {2} \n {3}",
                     RefireImmediately, UnscheduleFiringTrigger, UnscheduleAllTriggers, base.ToString());
 	    }

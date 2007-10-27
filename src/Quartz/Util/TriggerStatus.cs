@@ -19,6 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
+using System.Globalization;
+
 #if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
@@ -93,7 +95,7 @@ namespace Quartz.Util
         /// </summary>
         public override string ToString()
         {
-            return string.Format("status: {0}, next fire = {1}", Status, NextFireTimeUtc.Value.ToString("r"));
+            return string.Format(CultureInfo.InvariantCulture, "status: {0}, next fire = {1}", Status, NextFireTimeUtc.Value.ToString("r", CultureInfo.InvariantCulture));
         }
     }
 }

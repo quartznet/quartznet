@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 
 #if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
@@ -168,7 +169,7 @@ namespace Quartz
 
 			try
 			{
-				trig.CronExpressionString = string.Format("0 {0} {1} ? * *", minute, hour);
+				trig.CronExpressionString = string.Format(CultureInfo.InvariantCulture, "0 {0} {1} ? * *", minute, hour);
 			}
 			catch (Exception)
 			{
@@ -218,7 +219,7 @@ namespace Quartz
 
 			try
 			{
-				trig.CronExpressionString = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) dayOfWeek + 1));
+				trig.CronExpressionString = string.Format(CultureInfo.InvariantCulture, "0 {0} {1} ? * {2}", minute, hour, ((int) dayOfWeek + 1));
 			}
 			catch (Exception)
 			{
@@ -279,11 +280,11 @@ namespace Quartz
 			{
 				if (dayOfMonth != LastDayOfMonth)
 				{
-					trig.CronExpressionString = string.Format("0 {0} {1} {2} * ?", minute, hour, dayOfMonth);
+					trig.CronExpressionString = string.Format(CultureInfo.InvariantCulture, "0 {0} {1} {2} * ?", minute, hour, dayOfMonth);
 				}
 				else
 				{
-					trig.CronExpressionString = string.Format("0 {0} {1} L * ?", minute, hour);
+					trig.CronExpressionString = string.Format(CultureInfo.InvariantCulture, "0 {0} {1} L * ?", minute, hour);
 				}
 			}
 			catch (Exception)

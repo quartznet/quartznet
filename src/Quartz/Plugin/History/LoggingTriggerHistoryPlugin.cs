@@ -19,6 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Globalization;
 
 using Common.Logging;
 
@@ -314,7 +315,7 @@ namespace Quartz.Plugin.History
                         context.JobDetail.Name, context.JobDetail.Group, context.RefireCount
                     };
 
-            Log.Info(String.Format(TriggerFiredMessage, args));
+            Log.Info(String.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
         }
 
         /// <summary>
@@ -342,7 +343,7 @@ namespace Quartz.Plugin.History
                         trigger.JobGroup, trigger.JobGroup
                     };
 
-            Log.Info(String.Format(TriggerMisfiredMessage, args));
+            Log.Info(String.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
         }
 
         /// <summary>
@@ -391,7 +392,7 @@ namespace Quartz.Plugin.History
                         context.JobDetail.Name, context.JobDetail.Group, context.RefireCount, triggerInstructionCode, instrCode
                     };
 
-            Log.Info(String.Format(TriggerCompleteMessage, args));
+            Log.Info(String.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
         }
 
         /// <summary>

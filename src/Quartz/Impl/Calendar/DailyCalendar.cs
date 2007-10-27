@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text;
 
 using Quartz;
@@ -535,21 +536,21 @@ namespace Quartz.Impl.Calendar
             const string TWO_DIGIT_FORMAT = "00";
 
             buffer.Append("], time range: '");
-            buffer.Append(rangeStartingHourOfDay.ToString(TWO_DIGIT_FORMAT));
+            buffer.Append(rangeStartingHourOfDay.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeStartingMinute.ToString(TWO_DIGIT_FORMAT));
+            buffer.Append(rangeStartingMinute.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeStartingSecond.ToString(TWO_DIGIT_FORMAT));
+            buffer.Append(rangeStartingSecond.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeStartingMillis.ToString(THREE_DIGIT_FORMAT));
+            buffer.Append(rangeStartingMillis.ToString(THREE_DIGIT_FORMAT, CultureInfo.InvariantCulture));
             buffer.Append(" - ");
-            buffer.Append(rangeEndingHourOfDay.ToString(TWO_DIGIT_FORMAT));
+            buffer.Append(rangeEndingHourOfDay.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeEndingMinute.ToString(TWO_DIGIT_FORMAT));
+            buffer.Append(rangeEndingMinute.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeEndingSecond.ToString(TWO_DIGIT_FORMAT));
+            buffer.Append(rangeEndingSecond.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeEndingMillis.ToString(THREE_DIGIT_FORMAT));
+            buffer.Append(rangeEndingMillis.ToString(THREE_DIGIT_FORMAT, CultureInfo.InvariantCulture));
             buffer.AppendFormat("', inverted: {0}]", invertTimeRange);
             return buffer.ToString();
         }
@@ -565,14 +566,10 @@ namespace Quartz.Impl.Calendar
                                   string rangeEndingTimeString)
         {
             string[] rangeStartingTime;
-            int rangeStartingHourOfDay;
-            int rangeStartingMinute;
             int rangeStartingSecond;
             int rangeStartingMillis;
 
             string[] rangeEndingTime;
-            int rangeEndingHourOfDay;
-            int rangeEndingMinute;
             int rangeEndingSecond;
             int rangeEndingMillis;
 
@@ -580,14 +577,15 @@ namespace Quartz.Impl.Calendar
 
             if ((rangeStartingTime.Length < 2) || (rangeStartingTime.Length > 4))
             {
-                throw new ArgumentException(string.Format("Invalid time string '{0}'", rangeStartingTimeString));
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid time string '{0}'", rangeStartingTimeString));
             }
 
-            rangeStartingHourOfDay = Convert.ToInt32(rangeStartingTime[0]);
-            rangeStartingMinute = Convert.ToInt32(rangeStartingTime[1]);
+            int rangeStartingHourOfDay = Convert.ToInt32(rangeStartingTime[0], CultureInfo.InvariantCulture);
+            int rangeStartingMinute = Convert.ToInt32(rangeStartingTime[1], CultureInfo.InvariantCulture);
+
             if (rangeStartingTime.Length > 2)
             {
-                rangeStartingSecond = Convert.ToInt32(rangeStartingTime[2]);
+                rangeStartingSecond = Convert.ToInt32(rangeStartingTime[2], CultureInfo.InvariantCulture);
             }
             else
             {
@@ -595,7 +593,7 @@ namespace Quartz.Impl.Calendar
             }
             if (rangeStartingTime.Length == 4)
             {
-                rangeStartingMillis = Convert.ToInt32(rangeStartingTime[3]);
+                rangeStartingMillis = Convert.ToInt32(rangeStartingTime[3], CultureInfo.InvariantCulture);
             }
             else
             {
@@ -606,14 +604,14 @@ namespace Quartz.Impl.Calendar
 
             if ((rangeEndingTime.Length < 2) || (rangeEndingTime.Length > 4))
             {
-                throw new ArgumentException(string.Format("Invalid time string '{0}'", rangeEndingTimeString));
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid time string '{0}'", rangeEndingTimeString));
             }
 
-            rangeEndingHourOfDay = Convert.ToInt32(rangeEndingTime[0]);
-            rangeEndingMinute = Convert.ToInt32(rangeEndingTime[1]);
+            int rangeEndingHourOfDay = Convert.ToInt32(rangeEndingTime[0], CultureInfo.InvariantCulture);
+            int rangeEndingMinute = Convert.ToInt32(rangeEndingTime[1], CultureInfo.InvariantCulture);
             if (rangeEndingTime.Length > 2)
             {
-                rangeEndingSecond = Convert.ToInt32(rangeEndingTime[2]);
+                rangeEndingSecond = Convert.ToInt32(rangeEndingTime[2], CultureInfo.InvariantCulture);
             }
             else
             {
@@ -621,7 +619,7 @@ namespace Quartz.Impl.Calendar
             }
             if (rangeEndingTime.Length == 4)
             {
-                rangeEndingMillis = Convert.ToInt32(rangeEndingTime[3]);
+                rangeEndingMillis = Convert.ToInt32(rangeEndingTime[3], CultureInfo.InvariantCulture);
             }
             else
             {
@@ -683,7 +681,7 @@ namespace Quartz.Impl.Calendar
 
             if (! (startCal < endCal))
             {
-                throw new ArgumentException(string.Format("{0}{1}:{2}:{3}:{4}{5}{6}:{7}:{8}:{9}",
+                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "{0}{1}:{2}:{3}:{4}{5}{6}:{7}:{8}:{9}",
                                                           invalidTimeRange, rangeStartingHourOfDay, rangeStartingMinute,
                                                           rangeStartingSecond, rangeStartingMillis, separator,
                                                           rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond,

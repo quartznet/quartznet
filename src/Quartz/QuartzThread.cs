@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading;
 
 namespace Quartz
@@ -228,7 +229,7 @@ namespace Quartz
         /// <returns>A string that represents the current object</returns>
         public override string ToString()
         {
-            return string.Format("Thread[{0},{1},]", Name, Priority);
+            return string.Format(CultureInfo.InvariantCulture, "Thread[{0},{1},]", Name, Priority);
         }
 
         /// <summary>

@@ -387,6 +387,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Impl\AdoJobStore\AdoJobStoreUtil.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "Impl\AdoJobStore\AdoUtil.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
@@ -473,11 +478,6 @@
                 />
                 <File
                     RelPath = "Impl\AdoJobStore\UpdateRowLockSemaphore.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Impl\AdoJobStore\Util.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

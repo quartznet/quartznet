@@ -20,6 +20,7 @@
 */
 
 using System;
+using System.Globalization;
 using System.Threading;
 
 using Common.Logging;
@@ -314,7 +315,7 @@ namespace Quartz.Core
                                 catch (JobPersistenceException jpe)
                                 {
                                     qs.NotifySchedulerListenersError(
-                                        string.Format("An error occured while releasing trigger '{0}'", trigger.FullName),
+                                        string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'", trigger.FullName),
                                         jpe);
                                     // db connection must have failed... keep
                                     // retrying until it's up...
@@ -348,13 +349,13 @@ namespace Quartz.Core
                                     catch (SchedulerException se)
                                     {
                                         qs.NotifySchedulerListenersError(
-                                            string.Format("An error occured while firing trigger '{0}'",
+                                            string.Format(CultureInfo.InvariantCulture, "An error occured while firing trigger '{0}'",
                                                           trigger.FullName), se);
                                     }
                                     catch (Exception e)
                                     {
                                         Log.Error(
-                                            string.Format("RuntimeException while firing trigger {0}", trigger.FullName),
+                                            string.Format(CultureInfo.InvariantCulture, "RuntimeException while firing trigger {0}", trigger.FullName),
                                             e);
                                         // db connection must have failed... keep
                                         // retrying until it's up...
@@ -375,7 +376,7 @@ namespace Quartz.Core
                                     catch (SchedulerException se)
                                     {
                                         qs.NotifySchedulerListenersError(
-                                            string.Format("An error occured while releasing trigger '{0}'",
+                                            string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'",
                                                           trigger.FullName), se);
                                         // db connection must have failed... keep retrying
                                         // until it's up...
@@ -411,6 +412,7 @@ namespace Quartz.Core
                                     {
                                         qs.NotifySchedulerListenersError(
                                             string.Format(
+                                                CultureInfo.InvariantCulture,
                                                 "An error occured while placing job's triggers in error state '{0}'",
                                                 trigger.FullName), se2);
                                         // db connection must have failed... keep retrying
@@ -437,7 +439,7 @@ namespace Quartz.Core
                                     catch (SchedulerException se2)
                                     {
                                         qs.NotifySchedulerListenersError(
-                                            string.Format(
+                                            string.Format(CultureInfo.InvariantCulture,
                                                 "An error occured while placing job's triggers in error state '{0}'",
                                                 trigger.FullName), se2);
                                         // db connection must have failed... keep retrying
@@ -524,17 +526,17 @@ namespace Quartz.Core
                         if (retryCount%4 == 0)
                         {
                             qs.NotifySchedulerListenersError(
-                                string.Format("An error occured while releasing trigger '{0}'", bndle.Trigger.FullName),
+                                string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'", bndle.Trigger.FullName),
                                 jpe);
                         }
                     }
                     catch (ThreadInterruptedException e)
                     {
-                        Log.Error(string.Format("ReleaseTriggerRetryLoop: InterruptedException {0}", e.Message), e);
+                        Log.Error(string.Format(CultureInfo.InvariantCulture, "ReleaseTriggerRetryLoop: InterruptedException {0}", e.Message), e);
                     }
                     catch (Exception e)
                     {
-                        Log.Error(string.Format("ReleaseTriggerRetryLoop: Exception {0}", e.Message), e);
+                        Log.Error(string.Format(CultureInfo.InvariantCulture, "ReleaseTriggerRetryLoop: Exception {0}", e.Message), e);
                     }
                 }
             }
@@ -572,16 +574,16 @@ namespace Quartz.Core
                         if (retryCount%4 == 0)
                         {
                             qs.NotifySchedulerListenersError(
-                                string.Format("An error occured while releasing trigger '{0}'", trigger.FullName), jpe);
+                                string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'", trigger.FullName), jpe);
                         }
                     }
                     catch (ThreadInterruptedException e)
                     {
-                        Log.Error(string.Format("ReleaseTriggerRetryLoop: InterruptedException {0}", e.Message), e);
+                        Log.Error(string.Format(CultureInfo.InvariantCulture, "ReleaseTriggerRetryLoop: InterruptedException {0}", e.Message), e);
                     }
                     catch (Exception e)
                     {
-                        Log.Error(string.Format("ReleaseTriggerRetryLoop: Exception {0}", e.Message), e);
+                        Log.Error(string.Format(CultureInfo.InvariantCulture, "ReleaseTriggerRetryLoop: Exception {0}", e.Message), e);
                     }
                 }
             }

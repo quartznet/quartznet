@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 
 using Quartz.Util;
 
@@ -95,7 +96,7 @@ namespace Quartz.Listener
                 return;
             }
 
-            Log.Info(string.Format("Job '{0}' will now chain to Job '{1}'", context.JobDetail.FullName, sj));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, "Job '{0}' will now chain to Job '{1}'", context.JobDetail.FullName, sj));
 
             try
             {
@@ -110,7 +111,7 @@ namespace Quartz.Listener
             }
             catch (SchedulerException se)
             {
-                Log.Error(string.Format("Error encountered during chaining to Job '{0}'", sj), se);
+                Log.Error(string.Format(CultureInfo.InvariantCulture, "Error encountered during chaining to Job '{0}'", sj), se);
             }
         }
     }

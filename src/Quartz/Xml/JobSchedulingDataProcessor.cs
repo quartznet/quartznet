@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Xml;
@@ -173,7 +174,7 @@ namespace Quartz.Xml
 		/// <param name="systemId">The system id.</param>
 		public virtual void ProcessFile(string fileName, string systemId)
 		{
-			Log.Info(string.Format("Parsing XML file: {0} with systemId: {1} validating: {2} validating schema: {3}", fileName, systemId, validateXml, validateSchema));
+			Log.Info(string.Format(CultureInfo.InvariantCulture, "Parsing XML file: {0} with systemId: {1} validating: {2} validating schema: {3}", fileName, systemId, validateXml, validateSchema));
             using (StreamReader sr = new StreamReader(fileName))
             {
                 ProcessInternal(sr.ReadToEnd());
@@ -188,7 +189,7 @@ namespace Quartz.Xml
 		/// <param name="systemId">The system id.</param>
 		public virtual void ProcessStream(Stream stream, string systemId)
 		{
-			Log.Info(string.Format("Parsing XML from stream with systemId: {0} validating: {1} validating schema: {2}", systemId, validateXml, validateSchema));
+			Log.Info(string.Format(CultureInfo.InvariantCulture, "Parsing XML from stream with systemId: {0} validating: {1} validating schema: {2}", systemId, validateXml, validateSchema));
             using (StreamReader sr = new StreamReader(stream))
             {
                 ProcessInternal(sr.ReadToEnd());
@@ -281,7 +282,7 @@ namespace Quartz.Xml
                             s.starttime, 
                             s.endtime, 
                             ParseSimpleTriggerRepeatCount(s.repeatcount), 
-                            Convert.ToInt64(s.repeatinterval));
+                            Convert.ToInt64(s.repeatinterval, CultureInfo.InvariantCulture));
 
 	                    trigger = st;
 	                }
@@ -310,7 +311,7 @@ namespace Quartz.Xml
 	        }
             else
 	        {
-                value = Convert.ToInt32(repeatcount);
+                value = Convert.ToInt32(repeatcount, CultureInfo.InvariantCulture);
 	        }
 
             return value;
@@ -420,7 +421,7 @@ namespace Quartz.Xml
 		/// <param name="overwriteExistingJobs">if set to <c>true</c> [over write existing jobs].</param>
 		public virtual void ScheduleJobs(IDictionary jobBundles, IScheduler sched, bool overwriteExistingJobs)
 		{
-			Log.Info(string.Format("Scheduling {0} parsed jobs.", jobsToSchedule.Count));
+			Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduling {0} parsed jobs.", jobsToSchedule.Count));
 
 			foreach (CalendarBundle bndle in calsToSchedule)
 			{
@@ -434,10 +435,10 @@ namespace Quartz.Xml
 
 			foreach (IJobListener listener in listenersToSchedule)
 			{
-				Log.Info(string.Format("adding listener {0} of type {1}", listener.Name, listener.GetType().FullName));
+				Log.Info(string.Format(CultureInfo.InvariantCulture, "adding listener {0} of type {1}", listener.Name, listener.GetType().FullName));
 				sched.AddJobListener(listener);
 			}
-			Log.Info(string.Format("{0} scheduled jobs.", jobBundles.Count));
+			Log.Info(string.Format(CultureInfo.InvariantCulture, "{0} scheduled jobs.", jobBundles.Count));
 		}
 
 		/// <summary>
@@ -519,11 +520,11 @@ namespace Quartz.Xml
 
 				if (dupeJ != null)
 				{
-					Log.Info(string.Format("Replacing job: {0}", detail.FullName));
+					Log.Info(string.Format(CultureInfo.InvariantCulture, "Replacing job: {0}", detail.FullName));
 				}
 				else
 				{
-					Log.Info(string.Format("Adding job: {0}", detail.FullName));
+					Log.Info(string.Format(CultureInfo.InvariantCulture, "Adding job: {0}", detail.FullName));
 				}
 
 				if (job.Triggers.Count == 0 && !job.JobDetail.Durable)
@@ -548,7 +549,7 @@ namespace Quartz.Xml
 
 					if (dupeT != null)
 					{
-						Log.Debug(string.Format("Rescheduling job: {0} with updated trigger: {1}", detail.FullName, trigger.FullName));
+						Log.Debug(string.Format(CultureInfo.InvariantCulture, "Rescheduling job: {0} with updated trigger: {1}", detail.FullName, trigger.FullName));
 						if (!dupeT.JobGroup.Equals(trigger.JobGroup) || !dupeT.JobName.Equals(trigger.JobName))
 						{
 							Log.Warn("Possibly duplicately named triggers in jobs xml file!");
@@ -557,7 +558,7 @@ namespace Quartz.Xml
 					}
 					else
 					{
-						Log.Debug(string.Format("Scheduling job: {0} with trigger: {1}", detail.FullName, trigger.FullName));
+						Log.Debug(string.Format(CultureInfo.InvariantCulture, "Scheduling job: {0} with trigger: {1}", detail.FullName, trigger.FullName));
 						sched.ScheduleJob(trigger);
 					}
 				}
@@ -643,12 +644,12 @@ namespace Quartz.Xml
                 FieldInfo fi = type.GetField(field);
                 if (fi != null)
                 {
-                    return Convert.ToInt32(fi.GetValue(null));
+                    return Convert.ToInt32(fi.GetValue(null), CultureInfo.InvariantCulture);
                 }
             }
 
             // not found
-            throw new Exception(string.Format("Unknown field '{0}'", field));
+            throw new Exception(string.Format(CultureInfo.InvariantCulture, "Unknown field '{0}'", field));
         }
     }
 }

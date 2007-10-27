@@ -385,7 +385,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="dateUtc">The date to evaluate.</param>
         /// <returns>a boolean indicating whether the given date satisfies the cron expression</returns>
-        public bool IsSatisfiedBy(DateTime dateUtc)
+        public virtual bool IsSatisfiedBy(DateTime dateUtc)
         {
             DateTime test =
                 new DateTime(dateUtc.Year, dateUtc.Month, dateUtc.Day, dateUtc.Hour, dateUtc.Minute, dateUtc.Second).AddSeconds(-1);
@@ -408,7 +408,7 @@ namespace Quartz
         /// </summary>
         /// <param name="date">the date/time at which to begin the search for the next valid date/time</param>
         /// <returns>the next valid date/time</returns>
-        public NullableDateTime GetNextValidTimeAfter(DateTime date)
+        public virtual NullableDateTime GetNextValidTimeAfter(DateTime date)
         {
             return GetTimeAfter(date);
         }
@@ -419,15 +419,13 @@ namespace Quartz
         /// </summary>
         /// <param name="date">the date/time at which to begin the search for the next invalid date/time</param>
         /// <returns>the next valid date/time</returns>
-        public NullableDateTime GetNextInvalidTimeAfter(DateTime date)
+        public virtual NullableDateTime GetNextInvalidTimeAfter(DateTime date)
         {
             long difference = 1000;
 
             //move back to the nearest second so differences will be accurate
             DateTime lastDate =
                 new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second).AddSeconds(-1);
-
-            DateTime newDate;
 
             //TODO: IMPROVE THIS! The following is a BAD solution to this problem. Performance will be very bad here, depending on the cron expression. It is, however A solution.
 
@@ -436,7 +434,7 @@ namespace Quartz
             // the second immediately following it.
             while (difference == 1000)
             {
-                newDate = GetTimeAfter(lastDate).Value;
+                DateTime newDate = GetTimeAfter(lastDate).Value;
 
                 difference = (long) (newDate - lastDate).TotalMilliseconds;
 
@@ -453,7 +451,7 @@ namespace Quartz
         /// Sets or gets the time zone for which the <see cref="CronExpression" /> of this
         /// <see cref="CronTrigger" /> will be resolved.
         /// </summary>
-        public TimeZone TimeZone
+        public virtual TimeZone TimeZone
         {
             set { timeZone = value; }
             get
@@ -584,7 +582,7 @@ namespace Quartz
             }
             catch (Exception e)
             {
-                throw new FormatException(string.Format("Illegal cron expression format ({0})", e));
+                throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Illegal cron expression format ({0})", e));
             }
         }
 
@@ -595,7 +593,7 @@ namespace Quartz
 		/// <param name="s">The string to traverse.</param>
 		/// <param name="type">The type of value.</param>
 		/// <returns></returns>
-        protected int StoreExpressionVals(int pos, string s, int type)
+        protected virtual int StoreExpressionVals(int pos, string s, int type)
         {
             int incr = 0;
             int i = SkipWhiteSpace(pos, s);
@@ -614,7 +612,7 @@ namespace Quartz
                     sval = GetMonthNumber(sub) + 1;
                     if (sval <= 0)
                     {
-                        throw new FormatException(string.Format("Invalid Month value: '{0}'", sub));
+                        throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Invalid Month value: '{0}'", sub));
                     }
                     if (s.Length > i + 3)
                     {
@@ -627,7 +625,7 @@ namespace Quartz
                             if (eval <= 0)
                             {
                                 throw new FormatException(
-                                    string.Format("Invalid Month value: '{0}'", sub));
+                                    string.Format(CultureInfo.InvariantCulture, "Invalid Month value: '{0}'", sub));
                             }
                         }
                     }
@@ -637,7 +635,7 @@ namespace Quartz
                     sval = GetDayOfWeekNumber(sub);
                     if (sval < 0)
                     {
-                        throw new FormatException(string.Format("Invalid Day-of-Week value: '{0}'", sub));
+                        throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Invalid Day-of-Week value: '{0}'", sub));
                     }
                     if (s.Length > i + 3)
                     {
@@ -650,12 +648,12 @@ namespace Quartz
                             if (eval < 0)
                             {
                                 throw new FormatException(
-                                    string.Format("Invalid Day-of-Week value: '{0}'", sub));
+                                    string.Format(CultureInfo.InvariantCulture, "Invalid Day-of-Week value: '{0}'", sub));
                             }
                             if (sval > eval)
                             {
                                 throw new FormatException(
-                                    string.Format("Invalid Day-of-Week sequence: {0} > {1}", sval, eval));
+                                    string.Format(CultureInfo.InvariantCulture, "Invalid Day-of-Week sequence: {0} > {1}", sval, eval));
                             }
                         }
                         else if (c == '#')
@@ -663,7 +661,7 @@ namespace Quartz
                             try
                             {
                                 i += 4;
-                                nthdayOfWeek = Convert.ToInt32(s.Substring(i));
+                                nthdayOfWeek = Convert.ToInt32(s.Substring(i), CultureInfo.InvariantCulture);
                                 if (nthdayOfWeek < 1 || nthdayOfWeek > 5)
                                 {
                                     throw new Exception();
@@ -685,7 +683,7 @@ namespace Quartz
                 else
                 {
                     throw new FormatException(
-                        string.Format("Illegal characters for this position: '{0}'", sub));
+                        string.Format(CultureInfo.InvariantCulture, "Illegal characters for this position: '{0}'", sub));
                 }
                 if (eval != -1)
                 {
@@ -759,26 +757,26 @@ namespace Quartz
                     if (incr > 59 && (type == Second || type == Minute))
                     {
                         throw new FormatException(
-                            string.Format("Increment > 60 : {0}", incr));
+                            string.Format(CultureInfo.InvariantCulture, "Increment > 60 : {0}", incr));
                     }
                     else if (incr > 23 && (type == Hour))
                     {
                         throw new FormatException(
-                            string.Format("Increment > 24 : {0}", incr));
+                            string.Format(CultureInfo.InvariantCulture, "Increment > 24 : {0}", incr));
                     }
                     else if (incr > 31 && (type == DayOfMonth))
                     {
                         throw new FormatException(
-                            string.Format("Increment > 31 : {0}", incr));
+                            string.Format(CultureInfo.InvariantCulture, "Increment > 31 : {0}", incr));
                     }
                     else if (incr > 7 && (type == DayOfWeek))
                     {
                         throw new FormatException(
-                            string.Format("Increment > 7 : {0}", incr));
+                            string.Format(CultureInfo.InvariantCulture, "Increment > 7 : {0}", incr));
                     }
                     else if (incr > 12 && (type == Month))
                     {
-                        throw new FormatException(string.Format("Increment > 12 : {0}", incr));
+                        throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Increment > 12 : {0}", incr));
                     }
                 }
                 else
@@ -813,7 +811,7 @@ namespace Quartz
             }
             else if (c >= '0' && c <= '9')
             {
-                int val = Convert.ToInt32(c.ToString());
+                int val = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 i++;
                 if (i >= s.Length)
                 {
@@ -834,7 +832,7 @@ namespace Quartz
             }
             else
             {
-                throw new FormatException(string.Format("Unexpected character: {0}", c));
+                throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Unexpected character: {0}", c));
             }
 
             return i;
@@ -848,7 +846,7 @@ namespace Quartz
 		/// <param name="val">The value.</param>
 		/// <param name="type">The type to search.</param>
 		/// <returns></returns>
-        protected int CheckNext(int pos, string s, int val, int type)
+        protected virtual int CheckNext(int pos, string s, int val, int type)
         {
             int end = -1;
             int i = pos;
@@ -869,7 +867,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException(string.Format("'L' option is not valid here. (pos={0})", i));
+                    throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'L' option is not valid here. (pos={0})", i));
                 }
                 TreeSet data = GetSet(type);
                 data.Add(val);
@@ -885,7 +883,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException(string.Format("'W' option is not valid here. (pos={0})", i));
+                    throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'W' option is not valid here. (pos={0})", i));
                 }
                 TreeSet data = GetSet(type);
                 data.Add(val);
@@ -898,12 +896,12 @@ namespace Quartz
                 if (type != DayOfWeek)
                 {
                     throw new FormatException(
-                        string.Format("'#' option is not valid here. (pos={0})", i));
+                        string.Format(CultureInfo.InvariantCulture, "'#' option is not valid here. (pos={0})", i));
                 }
                 i++;
                 try
                 {
-                    nthdayOfWeek = Convert.ToInt32(s.Substring(i));
+                    nthdayOfWeek = Convert.ToInt32(s.Substring(i), CultureInfo.InvariantCulture);
                     if (nthdayOfWeek < 1 || nthdayOfWeek > 5)
                     {
                         throw new Exception();
@@ -933,7 +931,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException(string.Format("'C' option is not valid here. (pos={0})", i));
+                    throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'C' option is not valid here. (pos={0})", i));
                 }
                 TreeSet data = GetSet(type);
                 data.Add(val);
@@ -945,7 +943,7 @@ namespace Quartz
             {
                 i++;
                 c = s[i];
-                int v = Convert.ToInt32(c.ToString());
+                int v = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 end = v;
                 i++;
                 if (i >= s.Length)
@@ -965,7 +963,7 @@ namespace Quartz
                 {
                     i++;
                     c = s[i];
-                    int v2 = Convert.ToInt32(c.ToString());
+                    int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                     i++;
                     if (i >= s.Length)
                     {
@@ -998,7 +996,7 @@ namespace Quartz
             {
                 i++;
                 c = s[i];
-                int v2 = Convert.ToInt32(c.ToString());
+                int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 i++;
                 if (i >= s.Length)
                 {
@@ -1016,7 +1014,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException(string.Format("Unexpected character '{0}' after '/'", c));
+                    throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Unexpected character '{0}' after '/'", c));
                 }
             }
 
@@ -1038,7 +1036,7 @@ namespace Quartz
 		/// Gets the expression summary.
 		/// </summary>
 		/// <returns></returns>
-        public string GetExpressionSummary()
+        public virtual string GetExpressionSummary()
         {
             StringBuilder buf = new StringBuilder();
 
@@ -1090,7 +1088,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="data">The data.</param>
 		/// <returns></returns>
-        protected string GetExpressionSetSummary(ISet data)
+        protected virtual string GetExpressionSetSummary(ISet data)
         {
             if (data.Contains(NoSpec))
             {
@@ -1106,7 +1104,7 @@ namespace Quartz
             bool first = true;
             foreach (int iVal in data)
             {
-                String val = iVal.ToString();
+                string val = iVal.ToString(CultureInfo.InvariantCulture);
                 if (!first)
                 {
                     buf.Append(",");
@@ -1124,7 +1122,7 @@ namespace Quartz
 		/// <param name="i">The i.</param>
 		/// <param name="s">The s.</param>
 		/// <returns></returns>
-        protected int SkipWhiteSpace(int i, string s)
+        protected virtual int SkipWhiteSpace(int i, string s)
         {
             for (; i < s.Length && (s[i] == ' ' || s[i] == '\t'); i++)
             {
@@ -1140,7 +1138,7 @@ namespace Quartz
         /// <param name="i">The i.</param>
         /// <param name="s">The s.</param>
         /// <returns></returns>
-        protected int FindNextWhiteSpace(int i, string s)
+        protected virtual int FindNextWhiteSpace(int i, string s)
         {
             for (; i < s.Length && (s[i] != ' ' || s[i] != '\t'); i++)
             {
@@ -1157,7 +1155,7 @@ namespace Quartz
         /// <param name="end">The end.</param>
         /// <param name="incr">The incr.</param>
         /// <param name="type">The type.</param>
-        protected void AddToSet(int val, int end, int incr, int type)
+        protected virtual void AddToSet(int val, int end, int incr, int type)
         {
             TreeSet data = GetSet(type);
 
@@ -1304,7 +1302,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="type">The type of set to get.</param>
 		/// <returns></returns>
-        protected TreeSet GetSet(int type)
+        protected virtual TreeSet GetSet(int type)
         {
             switch (type)
             {
@@ -1334,10 +1332,10 @@ namespace Quartz
         /// <param name="s">The s.</param>
         /// <param name="i">The i.</param>
         /// <returns></returns>
-        protected ValueSet GetValue(int v, string s, int i)
+        protected virtual ValueSet GetValue(int v, string s, int i)
         {
             char c = s[i];
-            String s1 = v.ToString();
+            string s1 = v.ToString(CultureInfo.InvariantCulture);
             while (c >= '0' && c <= '9')
             {
                 s1 += c;
@@ -1357,7 +1355,7 @@ namespace Quartz
             {
                 val.pos = i + 1;
             }
-            val.theValue = Convert.ToInt32(s1);
+            val.theValue = Convert.ToInt32(s1, CultureInfo.InvariantCulture);
             return val;
         }
 
@@ -1367,11 +1365,11 @@ namespace Quartz
         /// <param name="s">The string to parse from.</param>
         /// <param name="i">The i.</param>
         /// <returns></returns>
-        protected int GetNumericValue(string s, int i)
+        protected virtual int GetNumericValue(string s, int i)
         {
             int endOfVal = FindNextWhiteSpace(i, s);
-            String val = s.Substring(i, endOfVal - i);
-            return Convert.ToInt32((val));
+            string val = s.Substring(i, endOfVal - i);
+            return Convert.ToInt32(val, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -1379,7 +1377,7 @@ namespace Quartz
         /// </summary>
         /// <param name="s">The string to map with.</param>
         /// <returns></returns>
-        protected int GetMonthNumber(string s)
+        protected virtual int GetMonthNumber(string s)
         {
             if (monthMap.ContainsKey(s))
             {
@@ -1396,7 +1394,7 @@ namespace Quartz
         /// </summary>
         /// <param name="s">The s.</param>
         /// <returns></returns>
-        protected int GetDayOfWeekNumber(string s)
+        protected virtual int GetDayOfWeekNumber(string s)
         {
             if (dayMap.ContainsKey(s))
             {
@@ -1417,7 +1415,7 @@ namespace Quartz
 		/// <param name="dayofmn">The day of month.</param>
 		/// <param name="mon">The month.</param>
 		/// <returns></returns>
-        protected NullableDateTime GetTime(int sc, int mn, int hr, int dayofmn, int mon)
+        protected virtual NullableDateTime GetTime(int sc, int mn, int hr, int dayofmn, int mon)
         {
             try
             {
@@ -1454,7 +1452,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="afterTimeUtc">The UTC time to start searching from.</param>
 		/// <returns></returns>
-        public NullableDateTime GetTimeAfter(DateTime afterTimeUtc)
+        public virtual NullableDateTime GetTimeAfter(DateTime afterTimeUtc)
         {
             // move ahead one second, since we're computing the time *after/// the
             // given time
@@ -1862,7 +1860,7 @@ namespace Quartz
         /// </summary>
         /// <param name="time">The time.</param>
         /// <returns></returns>
-        private static DateTime CreateDateTimeWithoutMillis(DateTime time)
+        protected static DateTime CreateDateTimeWithoutMillis(DateTime time)
         {
             return new DateTime(time.Year, time.Month, time.Day, time.Hour, time.Minute, time.Second);
         }
@@ -1899,7 +1897,7 @@ namespace Quartz
         /// </summary>
         /// <param name="endTime">The end time.</param>
         /// <returns></returns>
-        public NullableDateTime GetTimeBefore(NullableDateTime endTime)
+        public virtual NullableDateTime GetTimeBefore(NullableDateTime endTime)
         {
             // TODO: implement
             return null;
@@ -1910,7 +1908,7 @@ namespace Quartz
         /// <see cref="CronExpression" /> will match.
         /// </summary>
         /// <returns></returns>
-        public NullableDateTime GetFinalFireTime()
+        public virtual NullableDateTime GetFinalFireTime()
         {
             // TODO: implement QUARTZ-423
             return null;
@@ -1923,7 +1921,7 @@ namespace Quartz
         /// <returns>
         /// 	<c>true</c> if the specified year is a leap year; otherwise, <c>false</c>.
         /// </returns>
-        protected bool IsLeapYear(int year)
+        protected virtual bool IsLeapYear(int year)
         {
             return DateTime.IsLeapYear(year);
         }
@@ -1934,7 +1932,7 @@ namespace Quartz
         /// <param name="monthNum">The month num.</param>
         /// <param name="year">The year.</param>
         /// <returns></returns>
-        protected int GetLastDayOfMonth(int monthNum, int year)
+        protected virtual int GetLastDayOfMonth(int monthNum, int year)
         {
             return DateTime.DaysInMonth(year, monthNum);
         }

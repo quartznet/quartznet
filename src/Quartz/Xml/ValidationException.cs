@@ -29,7 +29,7 @@ namespace Quartz.Xml
 	/// </summary>
 	/// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	[Serializable]
-	public class ValidationException : ApplicationException
+	public class ValidationException : Exception
 	{
 		private readonly ICollection validationExceptions = new ArrayList();
 
@@ -76,7 +76,7 @@ namespace Quartz.Xml
 		/// <summary>
 		/// Constructor for ValidationException.
 		/// </summary>
-		public ValidationException() : base()
+		public ValidationException()    
 		{
 		}
 

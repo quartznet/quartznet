@@ -22,6 +22,7 @@
 using System;
 using System.Collections;
 using System.Data;
+using System.Globalization;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -113,7 +114,7 @@ namespace Quartz.Util
             IDbProvider provider = (IDbProvider)providers[dsName];
             if (provider == null)
             {
-                throw new Exception(string.Format("There is no DataSource named '{0}'", dsName));
+                throw new Exception(string.Format(CultureInfo.InvariantCulture, "There is no DataSource named '{0}'", dsName));
             }
 	        return provider;
         }

@@ -201,7 +201,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
 
     private void SetExpandedSQL() {
         if (TablePrefix != null) {
-            expandedSQL = Util.ReplaceTablePrefix(sql, TablePrefix);
+            expandedSQL = AdoJobStoreUtil.ReplaceTablePrefix(sql, TablePrefix);
         }
     }
 

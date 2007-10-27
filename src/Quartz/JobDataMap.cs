@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 
 using Quartz.Util;
 
@@ -88,7 +89,7 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, char value)
         {
-            string strValue = value.ToString();
+            string strValue = value.ToString(CultureInfo.InvariantCulture);
             base.Put(key, strValue);
         }
 
@@ -98,7 +99,7 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, double value)
         {
-            string strValue = value.ToString();
+            string strValue = value.ToString(CultureInfo.InvariantCulture);
             base.Put(key, strValue);
         }
 
@@ -109,7 +110,7 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, float value)
         {
-            string strValue = value.ToString();
+            string strValue = value.ToString(CultureInfo.InvariantCulture);
             base.Put(key, strValue);
         }
 
@@ -120,7 +121,7 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, int value)
         {
-            string strValue = value.ToString();
+            string strValue = value.ToString(CultureInfo.InvariantCulture);
             base.Put(key, strValue);
         }
 
@@ -131,7 +132,7 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, long value)
         {
-            string strValue = value.ToString();
+            string strValue = value.ToString(CultureInfo.InvariantCulture);
             base.Put(key, strValue);
         }
 
@@ -143,7 +144,7 @@ namespace Quartz
         {
             object obj = this[key];
 
-            return Int32.Parse((string) obj);
+            return Int32.Parse((string)obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -170,7 +171,7 @@ namespace Quartz
         {
             object obj = this[key];
 
-            return Int32.Parse((string) obj);
+            return Int32.Parse((string)obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -180,7 +181,7 @@ namespace Quartz
         {
             object obj = this[key];
 
-            return ((string) obj).ToUpper().Equals("TRUE");
+            return ((string)obj).ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
         }
 
         /// <summary>
@@ -208,7 +209,7 @@ namespace Quartz
         {
             object obj = this[key];
 
-            return ((string) obj).ToUpper().Equals("TRUE");
+            return ((string)obj).ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
         }
 
         /// <summary>
@@ -227,7 +228,7 @@ namespace Quartz
         public virtual double GetDoubleValueFromString(string key)
         {
             object obj = this[key];
-            return Double.Parse((string) obj);
+            return Double.Parse((string)obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -253,7 +254,7 @@ namespace Quartz
         public virtual Double GetDoubleFromString(string key)
         {
             object obj = this[key];
-            return Double.Parse((string) obj);
+            return Double.Parse((string)obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -262,7 +263,7 @@ namespace Quartz
         public virtual float GetFloatValueFromString(string key)
         {
             object obj = this[key];
-            return Single.Parse((string) obj);
+            return Single.Parse((string)obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -288,7 +289,7 @@ namespace Quartz
         public virtual Single GetFloatFromString(string key)
         {
             object obj = this[key];
-            return Single.Parse((string) obj);
+            return Single.Parse((string)obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -297,7 +298,7 @@ namespace Quartz
         public virtual long GetLongValueFromString(string key)
         {
             object obj = this[key];
-            return Int64.Parse((string) obj);
+            return Int64.Parse((string)obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -329,7 +330,7 @@ namespace Quartz
 
             try
             {
-                return ((DateTime) obj);
+                return (DateTime) obj;
             }
             catch (Exception)
             {

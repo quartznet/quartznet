@@ -381,7 +381,7 @@
     <Compile Include="Impl\AdoJobStore\StdAdoDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\StdRowLockSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\UpdateRowLockSemaphore.cs" />
-    <Compile Include="Impl\AdoJobStore\Util.cs" />
+    <Compile Include="Impl\AdoJobStore\AdoJobStoreUtil.cs" />
     <Compile Include="MisfirePolicy.cs" />
     <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
     <Compile Include="SchedulerInstruction.cs" />
