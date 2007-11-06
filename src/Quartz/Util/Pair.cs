@@ -62,7 +62,22 @@ namespace Quartz.Util
             if (that is Pair)
             {
                 Pair other = (Pair) that;
-                return (first.Equals(other.first) && second.Equals(other.second));
+                if (first == null && second == null)
+                {
+                    return (other.first == null && other.second == null);
+                }
+                else if (first == null)
+                {
+                    return second.Equals(other.second);
+                }
+                else if (second == null)
+                {
+                    return first.Equals(other.first);
+                }
+                else
+                {
+                    return (first.Equals(other.first) && second.Equals(other.second));
+                }
             }
             else
             {

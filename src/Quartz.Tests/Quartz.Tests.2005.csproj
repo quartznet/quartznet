@@ -165,6 +165,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Unit\Utils\ObjectUtilsTest.cs" />
+    <Compile Include="Unit\Utils\PairTest.cs" />
     <Compile Include="Unit\Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -173,6 +174,14 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Unit\Xml\TestData\RichConfiguration.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Unit\Serialized\AnnualCalendar-0.7.0.1.ser" />
+    <EmbeddedResource Include="Unit\Serialized\CronExpression-0.7.0.1.ser" />
+    <EmbeddedResource Include="Unit\Serialized\DailyCalendar-0.7.0.1.ser" />
+    <EmbeddedResource Include="Unit\Serialized\JobDataMap-0.7.0.1.ser" />
+    <EmbeddedResource Include="Unit\Serialized\NthIncludedDayTrigger-0.7.0.1.ser" />
+    <EmbeddedResource Include="Unit\Serialized\SimpleTrigger-0.7.0.1.ser" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
