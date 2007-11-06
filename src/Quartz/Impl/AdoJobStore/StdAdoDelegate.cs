@@ -111,7 +111,7 @@ namespace Quartz.Impl.AdoJobStore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-        protected internal virtual bool CanUseProperties
+        protected virtual bool CanUseProperties
         {
             get { return useProperties; }
         }
@@ -791,16 +791,11 @@ namespace Quartz.Impl.AdoJobStore
         private IDictionary GetMapFromProperties(IDataReader rs, int idx)
         {
             IDictionary map;
-            Stream stream = (Stream) GetJobDetailFromBlob(rs, idx);
-            if (stream == null)
+            NameValueCollection properties = (NameValueCollection) GetJobDetailFromBlob(rs, idx);
+            if (properties == null)
             {
                 return null;
             }
-#if NET_20
-            NameValueCollection properties = new NameValueCollection(ConfigurationManager.AppSettings);
-#else
-            NameValueCollection properties = new NameValueCollection(ConfigurationSettings.AppSettings);
-#endif
             map = ConvertFromProperty(properties);
             return map;
         }
@@ -2961,17 +2956,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary> 
         /// Convert the JobDataMap into a list of properties.
         /// </summary>
-        protected internal virtual IDictionary ConvertFromProperty(NameValueCollection properties)
+        protected virtual IDictionary ConvertFromProperty(NameValueCollection properties)
         {
-            // TODO return new Hashtable(properties);
             IDictionary data = new Hashtable();
-            HashSet keys = new HashSet(properties);
-            IEnumerator it = keys.GetEnumerator();
-            while (it.MoveNext())
+            foreach (string key in properties.AllKeys)
             {
-                object key = it.Current;
-                object val = properties[(string) key];
-                data[key] = val;
+                data[key] = properties[key];
             }
 
             return data;
@@ -3129,15 +3119,14 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="rs">The result set, already queued to the correct row.</param>
         /// <param name="colIndex">The column index for the BLOB.</param>
         /// <returns>The deserialized Object from the ResultSet BLOB.</returns>
-        protected internal virtual object GetJobDetailFromBlob(IDataReader rs, int colIndex)
+        protected virtual object GetJobDetailFromBlob(IDataReader rs, int colIndex)
         {
             if (CanUseProperties)
             {
                 if (!rs.IsDBNull(colIndex))
                 {
-                    // TODO
-
-                    return null;
+                    // should be NameValueCollection
+                    return GetObjectFromBlob(rs, colIndex);                
                 }
                 else
                 {
