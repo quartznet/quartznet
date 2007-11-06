@@ -463,13 +463,19 @@ namespace Quartz
 			}
 		}
 
-
 		/// <summary>
-		/// Returns the next time at which the <see cref="Trigger" /> will fire. If
-		/// the trigger will not fire again, <see langword="null" /> will be returned.
-		/// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
-		/// has been added to the scheduler.
-		/// </summary>
+		/// Returns the next time at which the <see cref="Trigger" /> is scheduled to fire. If
+        /// the trigger will not fire again, <code>null</code> will be returned.  Note that
+        /// the time returned can possibly be in the past, if the time that was computed
+        /// for the trigger to next fire has already arrived, but the scheduler has not yet
+        /// been able to fire the trigger (which would likely be due to lack of resources
+        /// e.g. threads).
+        /// </summary>
+        ///<remarks>
+        /// The value returned is not guaranteed to be valid until after the <code>Trigger</code>
+        /// has been added to the scheduler.
+        /// </remarks>
+        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTime, DateTime)" />
         /// <returns></returns>
         public override NullableDateTime GetNextFireTimeUtc()
         {
