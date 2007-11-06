@@ -384,10 +384,16 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the date/time on which the trigger may begin firing. This 
-		/// defines the initial boundary for trigger firings &#x8212; the trigger
-		/// will not fire prior to this date and time.
-		/// </summary>
+        /// The time at which the trigger's scheduling should start.  May or may not
+        /// be the first actual fire time of the trigger, depending upon the type of
+        /// trigger and the settings of the other properties of the trigger.  However
+        /// the first actual first time will not be before this date.
+        /// </summary>
+        /// <remarks>
+        /// Setting a value in the past may cause a new trigger to compute a first
+        /// fire time that is in the past, which may cause an immediate misfire
+        /// of the trigger.
+        /// </remarks>
 		public virtual DateTime StartTimeUtc
 		{
 			get { return startTimeUtc; }
@@ -618,14 +624,23 @@ namespace Quartz
 		/// </summary>
 		public abstract bool GetMayFireAgain();
 
-		/// <summary>
-		/// Returns the next time at which the <see cref="Trigger" /> will fire. If
-		/// the trigger will not fire again, <see langword="null" /> will be returned.
-		/// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
-		/// has been added to the scheduler.
-		/// </summary>
+        /// <summary>
+        /// Returns the next time at which the <see cref="Trigger" /> is scheduled to fire. If
+        /// the trigger will not fire again, <code>null</code> will be returned.  Note that
+        /// the time returned can possibly be in the past, if the time that was computed
+        /// for the trigger to next fire has already arrived, but the scheduler has not yet
+        /// been able to fire the trigger (which would likely be due to lack of resources
+        /// e.g. threads).
+        /// </summary>
+        ///<remarks>
+        /// The value returned is not guaranteed to be valid until after the <code>Trigger</code>
+        /// has been added to the scheduler.
+        /// </remarks>
+        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTime, DateTime)" />
+        /// <returns></returns>
 		public abstract NullableDateTime GetNextFireTimeUtc();
-		/// <summary>
+		
+        /// <summary>
 		/// Returns the previous time at which the <see cref="Trigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>

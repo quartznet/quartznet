@@ -240,11 +240,11 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Sets or gets the fire time for the <CODE>NthIncludedDayTrigger</CODE>, which
-		/// should be represented as a string with the format 
-		/// &quot;HH:MM[:SS]&quot;, with HH representing the 24-hour clock hour
-		/// of the fire time. Hours can be represented as either a one-digit or 
-		/// two-digit number. Seconds are optional.
+		/// Returns the fire time for the <see cref="NthIncludedDayTrigger" /> as a
+        /// string with the format &quot;HH:MM[:SS]&quot;, with HH representing the 
+        /// 24-hour clock hour of the fire time. Seconds are optional and their 
+        /// inclusion depends on whether or not they were provided to 
+        /// <see cref="FireAtTime" />. 
 		/// </summary>
 		public virtual string FireAtTime
 		{

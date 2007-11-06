@@ -3007,9 +3007,8 @@ namespace Quartz.Impl.AdoJobStore
         {
             object obj = null;
 
-            // TODO CHECK WITH QUARTZ 1.6   
             byte[] data = ReadBytesFromBlob(rs, colIndex);
-            if (data != null)
+            if (data != null && data.Length > 0)
             {
                 MemoryStream ms = new MemoryStream(data);
                 BinaryFormatter bf = new BinaryFormatter();

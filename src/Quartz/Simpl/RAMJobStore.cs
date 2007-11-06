@@ -1368,10 +1368,14 @@ namespace Quartz.Simpl
 
                 NullableDateTime prevFireTime = trigger.GetPreviousFireTimeUtc();
                 
+                // in case trigger was replaced between acquiring and firering
+                timeTriggers.Remove(tw);   
+
                 // call triggered on our copy, and the scheduler's copy
 				tw.trigger.Triggered(cal);
 				trigger.Triggered(cal);
-				//tw.state = TriggerWrapper.StateExecuting;
+				
+                //tw.state = TriggerWrapper.StateExecuting;
                 tw.state = InternalTriggerState.Waiting;
 
 				TriggerFiredBundle bndle =
