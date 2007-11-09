@@ -213,10 +213,13 @@ namespace Quartz.Xml
             // process data
             
             // add calendars
-            foreach (calendarType ct in data.calendar)
+            if (data.calendar != null)
             {
-                CalendarBundle c = CreateCalendarFromXmlObject(ct);
-                AddCalendarToSchedule(c);
+                foreach (calendarType ct in data.calendar)
+                {
+                    CalendarBundle c = CreateCalendarFromXmlObject(ct);
+                    AddCalendarToSchedule(c);
+                }
             }
 
             // add job scheduling bundles
