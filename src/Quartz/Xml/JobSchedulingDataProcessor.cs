@@ -258,6 +258,15 @@ namespace Quartz.Xml
 	            jd.Description = j.description;
 	            jsb.JobDetail = jd;
 
+                // read job data map
+                if (j.jobdatamap != null && j.jobdatamap.entry != null)
+                {
+                    foreach (entryType entry in j.jobdatamap.entry)
+                    {
+                        jd.JobDataMap.Put(entry.key, entry.value);
+                    }
+                }
+
 	            triggerType[] tArr = jt.trigger;
 	            foreach (triggerType t in tArr)
 	            {

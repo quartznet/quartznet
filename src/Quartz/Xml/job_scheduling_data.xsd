@@ -164,11 +164,6 @@
     <sequence minOccurs="0" maxOccurs="unbounded">
       <element name="entry" type="quartz:entryType" />
     </sequence>
-    <attribute name="allows-transient-data" type="xsd:boolean" default="false">
-      <annotation>
-        <documentation>Whether the JobDataMap allows transient data.</documentation>
-      </annotation>
-    </attribute>
   </complexType>
   <complexType name="entryType">
     <annotation>

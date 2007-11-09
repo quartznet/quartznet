@@ -178,11 +178,6 @@ namespace Quartz.Xml {
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("entry")]
         public entryType[] entry;
-        
-        /// <remarks/>
-        [System.Xml.Serialization.XmlAttributeAttribute("allows-transient-data")]
-        [System.ComponentModel.DefaultValueAttribute(false)]
-        public bool allowstransientdata = false;
     }
     
     /// <remarks/>
