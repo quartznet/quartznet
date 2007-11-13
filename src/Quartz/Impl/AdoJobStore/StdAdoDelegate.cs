@@ -522,7 +522,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 3, "jobDurable", GetDbBooleanValue(job.Durable));
                 AddCommandParameter(cmd, 4, "jobVolatile", GetDbBooleanValue(job.Volatile));
                 AddCommandParameter(cmd, 5, "jobStateful", GetDbBooleanValue(job.Stateful));
-                AddCommandParameter(cmd, 6, "jobRequestsRecovery", job.RequestsRecovery);
+                AddCommandParameter(cmd, 6, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
                 AddCommandParameter(cmd, 7, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
                 AddCommandParameter(cmd, 8, "jobName", job.Name);
                 AddCommandParameter(cmd, 9, "jobGroup", job.Group);
