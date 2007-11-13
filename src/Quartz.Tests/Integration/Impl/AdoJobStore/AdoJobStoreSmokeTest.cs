@@ -28,7 +28,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             dbConnectionStrings["PostgreSQL"] =
                 "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Protocol=3;SSL=false; Pooling=true;MinPoolSize=1;MaxPoolSize=20;Encoding=UTF8;Timeout=15;SslMode=Disable;";
             dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
-            dbConnectionStrings[""] = "";
+            dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=c:\\quartznet;DataSource=localhost;Port=3050;Dialect=3; Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
+        }
+
+        [Test]
+        public void TestFirebird()
+        {
+            RunAdoJobStoreTest("Firebird-201", "Firebird");
         }
 
         [Test]
