@@ -100,7 +100,7 @@ namespace Quartz
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
         /// <param name="cause">The cause.</param>
-        public SchedulerException(Exception cause) : base(cause.ToString())
+        public SchedulerException(Exception cause) : base(cause.ToString(), cause)
         {
             this.cause = cause;
         }
@@ -110,7 +110,7 @@ namespace Quartz
         /// </summary>
         /// <param name="msg">The MSG.</param>
         /// <param name="cause">The cause.</param>
-        public SchedulerException(string msg, Exception cause) : base(msg)
+        public SchedulerException(string msg, Exception cause) : base(msg, cause)
         {
             this.cause = cause;
         }
@@ -121,7 +121,7 @@ namespace Quartz
         /// <param name="msg">The MSG.</param>
         /// <param name="cause">The cause.</param>
         /// <param name="errorCode">The error code.</param>
-        public SchedulerException(string msg, Exception cause, int errorCode) : base(msg)
+        public SchedulerException(string msg, Exception cause, int errorCode) : base(msg, cause)
         {
             this.cause = cause;
             ErrorCode = errorCode;
