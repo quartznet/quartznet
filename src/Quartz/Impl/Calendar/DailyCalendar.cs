@@ -532,25 +532,25 @@ namespace Quartz.Impl.Calendar
                 buffer.Append("null");
             }
 
-            const string THREE_DIGIT_FORMAT = "000";
-            const string TWO_DIGIT_FORMAT = "00";
+            const string ThreeDigitFormat = "000";
+            const string TwoDigitFormat = "00";
 
             buffer.Append("], time range: '");
-            buffer.Append(rangeStartingHourOfDay.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
+            buffer.Append(rangeStartingHourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeStartingMinute.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
+            buffer.Append(rangeStartingMinute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeStartingSecond.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
+            buffer.Append(rangeStartingSecond.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeStartingMillis.ToString(THREE_DIGIT_FORMAT, CultureInfo.InvariantCulture));
+            buffer.Append(rangeStartingMillis.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture));
             buffer.Append(" - ");
-            buffer.Append(rangeEndingHourOfDay.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
+            buffer.Append(rangeEndingHourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeEndingMinute.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
+            buffer.Append(rangeEndingMinute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeEndingSecond.ToString(TWO_DIGIT_FORMAT, CultureInfo.InvariantCulture));
+            buffer.Append(rangeEndingSecond.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
             buffer.Append(":");
-            buffer.Append(rangeEndingMillis.ToString(THREE_DIGIT_FORMAT, CultureInfo.InvariantCulture));
+            buffer.Append(rangeEndingMillis.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture));
             buffer.AppendFormat("', inverted: {0}]", invertTimeRange);
             return buffer.ToString();
         }

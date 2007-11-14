@@ -35,7 +35,7 @@ namespace Quartz.Impl.Calendar
 	[Serializable]
 	public class MonthlyCalendar : BaseCalendar, ICalendar
 	{
-        private const int MAX_DAYS_IN_MONTH = 31;
+        private const int MaxDaysInMonth = 31;
 
 		/// <summary>
 		/// Get or set the array which defines the exclude-value of each day of month
@@ -60,7 +60,7 @@ namespace Quartz.Impl.Calendar
 
 		// An array to store a months days which are to be excluded.
 		// Day as index.
-        private bool[] excludeDays = new bool[MAX_DAYS_IN_MONTH];
+        private bool[] excludeDays = new bool[MaxDaysInMonth];
 
 		// Will be set to true, if all week days are excluded
 		private bool excludeAll = false;
@@ -97,10 +97,10 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual bool IsDayExcluded(int day)
 		{
-			if ((day < 1) || (day > MAX_DAYS_IN_MONTH)) 
+			if ((day < 1) || (day > MaxDaysInMonth)) 
 			{
 				throw new ArgumentException(
-					string.Format(CultureInfo.InvariantCulture, "The day parameter must be in the range of 1 to {0}", MAX_DAYS_IN_MONTH));
+					string.Format(CultureInfo.InvariantCulture, "The day parameter must be in the range of 1 to {0}", MaxDaysInMonth));
 			}
 			return excludeDays[day - 1];
 		}

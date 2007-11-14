@@ -852,7 +852,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 Log.Debug(
                     "Found 0 triggers that missed their scheduled fire-time.");
-                return RecoverMisfiredJobsResult.NO_OP;
+                return RecoverMisfiredJobsResult.NoOp;
             }
 
             foreach (Key triggerKey in misfiredTriggers)
@@ -3638,7 +3638,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
             try
             {
-                RecoverMisfiredJobsResult result = RecoverMisfiredJobsResult.NO_OP;
+                RecoverMisfiredJobsResult result = RecoverMisfiredJobsResult.NoOp;
 
                 // Before we make the potentially expensive call to acquire the 
                 // trigger lock, peek ahead to see if it is likely we would find
@@ -4524,7 +4524,7 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         numFails++;
                     }
-                    return RecoverMisfiredJobsResult.NO_OP;
+                    return RecoverMisfiredJobsResult.NoOp;
                 }
 
                 public override void Run()
@@ -4577,7 +4577,7 @@ namespace Quartz.Impl.AdoJobStore
             /// </summary>
             public class RecoverMisfiredJobsResult
             {
-                public static readonly RecoverMisfiredJobsResult NO_OP = new RecoverMisfiredJobsResult(false, 0);
+                public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0);
 
                 private bool _hasMoreMisfiredTriggers;
                 private int _processedMisfiredTriggerCount;

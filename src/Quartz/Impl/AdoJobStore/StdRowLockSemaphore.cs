@@ -42,7 +42,7 @@ namespace Quartz.Impl.AdoJobStore
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-        public static readonly string SELECT_FOR_LOCK =
+        public static readonly string SelectForLock =
             string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = @lockName FOR UPDATE", TablePrefixSubst, TableLocks,
                           ColumnLockName);
 
@@ -60,7 +60,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="tablePrefix">The table prefix.</param>
         /// <param name="selectWithLockSQL">The select with lock SQL.</param>
         /// <param name="dbProvider"></param>
-        public StdRowLockSemaphore(string tablePrefix, string selectWithLockSQL, IDbProvider dbProvider) : base(tablePrefix, selectWithLockSQL, SELECT_FOR_LOCK, dbProvider)
+        public StdRowLockSemaphore(string tablePrefix, string selectWithLockSQL, IDbProvider dbProvider) : base(tablePrefix, selectWithLockSQL, SelectForLock, dbProvider)
         {
         }
     /**

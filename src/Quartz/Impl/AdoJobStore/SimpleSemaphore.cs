@@ -39,7 +39,7 @@ namespace Quartz.Impl.AdoJobStore
 	/// <author>James House</author>
 	public class SimpleSemaphore : ISemaphore
 	{
-	    private const string KEY_THREAD_LOCK_OWNERS = "qrtz_ssemaphore_lock_owners";
+	    private const string KeyThreadLockOwners = "qrtz_ssemaphore_lock_owners";
 
 		private ILog log = LogManager.GetLogger(typeof(SimpleSemaphore));
 		private HashSet locks = new HashSet();
@@ -52,11 +52,11 @@ namespace Quartz.Impl.AdoJobStore
 		{
 			get
 			{
-				HashSet threadLocks = (HashSet) LogicalThreadContext.GetData(KEY_THREAD_LOCK_OWNERS);
+				HashSet threadLocks = (HashSet) LogicalThreadContext.GetData(KeyThreadLockOwners);
 				if (threadLocks == null)
 				{
 					threadLocks = new HashSet();
-					LogicalThreadContext.SetData(KEY_THREAD_LOCK_OWNERS, threadLocks);
+					LogicalThreadContext.SetData(KeyThreadLockOwners, threadLocks);
 				}
 				return threadLocks;
 			}

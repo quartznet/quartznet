@@ -19,8 +19,8 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma</author>
     public class RemotingSchedulerExporter : ISchedulerExporter
     {
-        private const string CHANNEL_TYPE_TCP = "tcp";
-        private const string CHANNEL_TYPE_HTTP = "http";
+        private const string ChannelTypeTcp = "tcp";
+        private const string ChannelTypeHttp = "http";
 
         private readonly ILog log;
         private int port = -1;
@@ -70,11 +70,11 @@ namespace Quartz.Simpl
             {
                 // try remoting bind
                 IChannel chan;
-                if (channelType == CHANNEL_TYPE_HTTP)
+                if (channelType == ChannelTypeHttp)
                 {
                     chan = new HttpChannel(port);
                 }
-                else if (channelType == CHANNEL_TYPE_TCP)
+                else if (channelType == ChannelTypeTcp)
                 {
                     chan = new TcpChannel(port);
                 }

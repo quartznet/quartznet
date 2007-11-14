@@ -54,9 +54,9 @@ namespace Quartz.Core
 
         // When the scheduler finds there is no current trigger to fire, how long
         // it should wait until checking again...
-        private static readonly long DEFAULT_IDLE_WAIT_TIME = 30*1000;
+        private const long DefaultIdleWaitTime = 30*1000;
 
-        private long idleWaitTime = DEFAULT_IDLE_WAIT_TIME;
+        private long idleWaitTime = DefaultIdleWaitTime;
         private int idleWaitVariablness = 7*1000;
         private int dbFailureRetryInterval = 15*1000;
 

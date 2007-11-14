@@ -35,7 +35,7 @@ namespace Quartz.Impl.AdoJobStore
 public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAware {
 
     private readonly ILog log;
-    private const string THREAD_CONTEXT_KEY_LOCK_OWNERS = "qrtz_dbs_lck_owners";
+    private const string ThreadContextKeyLockOwners = "qrtz_dbs_lck_owners";
     private string sql;
     private string tablePrefix;
     private string expandedSQL;
@@ -62,8 +62,8 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     /// <value>The lock owners.</value>
     private static HashSet LockOwners
     {
-        get { return (HashSet) LogicalThreadContext.GetData(THREAD_CONTEXT_KEY_LOCK_OWNERS); }
-        set { LogicalThreadContext.SetData(THREAD_CONTEXT_KEY_LOCK_OWNERS, value); }
+        get { return (HashSet) LogicalThreadContext.GetData(ThreadContextKeyLockOwners); }
+        set { LogicalThreadContext.SetData(ThreadContextKeyLockOwners, value); }
     }
 
 
