@@ -1,6 +1,0 @@
-
-			<h1>Still under development</h1>
-			<div class="descr"></div>
-			<br />
-			<p>This part of the web site is still under development, please check back soon.</p>
-		

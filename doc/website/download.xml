@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<document>
+	<properties>
+	    <title>Download Quartz.NET</title>
+	</properties>
+	<body>
+		<intro>
+		</intro>
+
+		<section id="main">
+			<h1>Download</h1>
+			<div class="descr"></div>
+			<br />
+			<p>
+				Latest version of Quartz.NET is 0.6, grap it from 
+				<a href="http://sourceforge.net/project/showfiles.php?group_id=174134&amp;package_id=199615&amp;release_id=529844">Source Forge</a>.
+			</p>
+		</section>
+	</body>
+</document>
