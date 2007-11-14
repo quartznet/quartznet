@@ -22,7 +22,7 @@ namespace Quartz.Tests.Unit
 	/// </summary>
 	public class JobDataMapTest : SerializationTestSupport
 	{
-		private static readonly string[] VERSIONS = new string[] {"1.4.5", "1.5.1"};
+		private static readonly string[] Versions = new string[] {"0.6.0"};
 
 		/// <summary>
 		/// Get the object to serialize when generating serialized file for future
@@ -43,7 +43,7 @@ namespace Quartz.Tests.Unit
 		/// <returns></returns>
 		protected override string[] GetVersions()
 		{
-			return VERSIONS;
+			return Versions;
 		}
 
 

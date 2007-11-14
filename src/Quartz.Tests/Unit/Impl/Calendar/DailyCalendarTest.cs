@@ -25,9 +25,9 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 	/// Unit test for DailyCalendar.
 	/// </summary>
 	[TestFixture]
-	public class DailyCalendarTest
+	public class DailyCalendarTest : SerializationTestSupport
 	{
-		private static string[] VERSIONS = new string[] {"1.5.2"};
+		private static readonly string[] Versions = new string[] {"0.6.0"};
 
 		[Test]
 		public void TestStringStartEndTimes()
@@ -70,7 +70,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 		/// tests, and against which to validate deserialized object.
 		/// </summary>
 		/// <returns></returns>
-		protected object GetTargetObject()
+		protected override object GetTargetObject()
 		{
 			DailyCalendar c = new DailyCalendar("01:20:01:456", "14:50:15:002");
 			c.Description = "description";
@@ -84,9 +84,9 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 		/// serialization backwards compatibility.
 		/// </summary>
 		/// <returns></returns>
-		protected string[] GetVersions()
+		protected override string[] GetVersions()
 		{
-			return VERSIONS;
+			return Versions;
 		}
 
 
@@ -96,7 +96,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 		/// </summary>
 		/// <param name="target"></param>
 		/// <param name="deserialized"></param>
-		protected void VerifyMatch(object target, object deserialized)
+		protected override void VerifyMatch(object target, object deserialized)
 		{
 			DailyCalendar targetCalendar = (DailyCalendar) target;
 			DailyCalendar deserializedCalendar = (DailyCalendar) deserialized;

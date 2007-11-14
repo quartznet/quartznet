@@ -28,15 +28,15 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     {
         private AnnualCalendar cal;
 
-        private static string[] VERSIONS = new string[] { "1.5.1" };
+        private static readonly string[] Versions = new string[] { "0.6.0" };
 
-        private static readonly TimeZone TEST_TIME_ZONE = TimeZone.CurrentTimeZone; 
+        private static readonly TimeZone TestTimeZone = TimeZone.CurrentTimeZone; 
 
         [SetUp]
         public void Setup()
         {
             cal = new AnnualCalendar();
-            cal.TimeZone = TEST_TIME_ZONE;
+            cal.TimeZone = TestTimeZone;
         }
     
         [Test]
@@ -110,7 +110,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// <returns></returns>
         protected override string[] GetVersions()
         {
-            return VERSIONS;
+            return Versions;
         }
 
         /// <summary>

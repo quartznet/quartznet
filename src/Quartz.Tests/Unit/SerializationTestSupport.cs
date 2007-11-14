@@ -13,8 +13,11 @@
  * License for the specific language governing permissions and limitations 
  * under the License.
  */
+
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 
 using NUnit.Framework;
@@ -57,7 +60,7 @@ namespace Quartz.Tests.Unit
 		/// Test that we can successfully deserialize our target
 		/// class for all of the given Quartz versions. 
 		/// </summary>
-		[Ignore]
+		[Test]
 		public void TestSerialization()
 		{
 			object targetObject = GetTargetObject();
@@ -79,10 +82,12 @@ namespace Quartz.Tests.Unit
 		protected object Deserialize(string version, Type type)
 		{
 			// should load from assembly
-			using (Stream input = null)
+            Stream s = GetType().Assembly.GetManifestResourceStream("SQM.Tests.Unit." + GetSerializedFileName(version, type));
+            Assert.IsNotNull(s, string.Format("Could not load serialized object data for version {0} of type {1}", version, type));
+			using (s)
 			{
 				BinaryFormatter bf = new BinaryFormatter();
-				return bf.Deserialize(input);
+				return bf.Deserialize(s);
 			}
 		}
 
@@ -90,9 +95,13 @@ namespace Quartz.Tests.Unit
 		/// Use this method in the future to generate other versions of
 		/// of the serialized object file.
 		/// </summary>
-		/// <param name="version"></param>
-		public void WriteJobDataFile(string version)
+		[Test]
+		public void WriteJobDataFile()
 		{
+		    Assembly asm = Assembly.GetExecutingAssembly();
+		    FileVersionInfo info = FileVersionInfo.GetVersionInfo(asm.Location);
+
+		    string version = info.FileVersion;
 			object obj = GetTargetObject();
 
 			string fileName = GetSerializedFileName(version, obj.GetType());
@@ -110,7 +119,7 @@ namespace Quartz.Tests.Unit
 		/// <param name="version"></param>
 		/// <param name="type"></param>
 		/// <returns></returns>
-		private string GetSerializedFileName(string version, Type type)
+		private static string GetSerializedFileName(string version, Type type)
 		{
 			string className = type.Name;
 			int index = className.LastIndexOf(".");

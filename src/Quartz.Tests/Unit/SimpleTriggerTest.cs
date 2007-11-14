@@ -33,18 +33,18 @@ namespace Quartz.Tests.Unit
 	/// </summary>
 	public class SimpleTriggerTest : SerializationTestSupport
 	{
-		private static readonly string[] VERSIONS = new string[] {"1.5.2"};
+		private static readonly string[] Versions = new string[] {"0.6"};
 
 		//private static TimeZone EST_TIME_ZONE = TimeZone.CurrentTimeZone; 
-		private static DateTime START_TIME = DateTime.Now;
-		private static DateTime END_TIME = DateTime.Now;
+		private static readonly DateTime StartTime;
+		private static readonly DateTime EndTime;
 
 		static SimpleTriggerTest()
 		{
-			START_TIME = new DateTime(2006, 6, 1, 10, 5, 15);
-			// START_TIME.setTimeZone(EST_TIME_ZONE);
-			END_TIME = new DateTime(2008, 5, 2, 20, 15, 30);
-			// END_TIME.setTimeZone(EST_TIME_ZONE);
+			StartTime = new DateTime(2006, 6, 1, 10, 5, 15);
+			// StartTime.setTimeZone(EST_TIME_ZONE);
+			EndTime = new DateTime(2008, 5, 2, 20, 15, 30);
+			// EndTime.setTimeZone(EST_TIME_ZONE);
 		}
 
 
@@ -59,8 +59,8 @@ namespace Quartz.Tests.Unit
 			jobDataMap.Put("A", "B");
 
 			SimpleTrigger t = new SimpleTrigger("SimpleTrigger", "SimpleGroup",
-			                                    "JobName", "JobGroup", START_TIME,
-			                                    END_TIME, 5, 1000);
+			                                    "JobName", "JobGroup", StartTime,
+			                                    EndTime, 5, 1000);
 			t.CalendarName = "MyCalendar";
 			t.Description = "SimpleTriggerDesc";
 			t.JobDataMap = jobDataMap;
@@ -81,7 +81,7 @@ namespace Quartz.Tests.Unit
 		/// <returns></returns>
 		protected override String[] GetVersions()
 		{
-			return VERSIONS;
+			return Versions;
 		}
 
 		/// <summary>

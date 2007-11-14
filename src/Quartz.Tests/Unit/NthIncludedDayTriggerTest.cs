@@ -31,8 +31,7 @@ namespace Quartz.Tests.Unit
 	/// </summary>
 	public class NthIncludedDayTriggerTest : SerializationTestSupport 
 	{
-    
-		private static string[] VERSIONS = new string[] {"1.5.2"};
+		private static readonly string[] Versions = new string[] {"0.6"};
     
 		[Test]
 		public void TestGetFireTimeAfter()
@@ -211,12 +210,13 @@ namespace Quartz.Tests.Unit
 			}
 		}
 		*/
-    
-    
-		/**
-		 * Get the object to serialize when generating serialized file for future
-		 * tests, and against which to validate deserialized object.
-		 */
+
+
+        /// <summary>
+        /// Get the object to serialize when generating serialized file for future
+        /// tests, and against which to validate deserialized object.
+        /// </summary>
+        /// <returns></returns>
 		protected override object GetTargetObject() 
 		{
 			DateTime startTime = new DateTime(2005, 6, 1, 11, 30, 0);
@@ -230,20 +230,25 @@ namespace Quartz.Tests.Unit
         
 			return t;
 		}
-    
-		/**
-		 * Get the Quartz versions for which we should verify
-		 * serialization backwards compatibility.
-		 */
+
+
+        /// <summary>
+        /// Get the Quartz versions for which we should verify
+        /// serialization backwards compatibility.
+        /// </summary>
+        /// <returns></returns>
 		protected override string[] GetVersions() 
 		{
-			return VERSIONS;
+			return Versions;
 		}
-    
-		/**
-		 * Verify that the target object and the object we just deserialized 
-		 * match.
-		 */
+
+
+        /// <summary>
+        /// Verify that the target object and the object we just deserialized
+        /// match.
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="deserialized"></param>
 		protected override void VerifyMatch(object target, object deserialized) 
 		{
 			NthIncludedDayTrigger targetTrigger = (NthIncludedDayTrigger)target;

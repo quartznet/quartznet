@@ -28,21 +28,21 @@ using NUnit.Framework;
 namespace Quartz.Tests.Unit
 {
     [TestFixture]
-    public class CronExpressionTest
+    public class CronExpressionTest : SerializationTestSupport
     {
-        private static readonly string[] VERSIONS = new String[] {"1.5.2"};
+        private static readonly string[] Versions = new string[] {"0.6.0"};
 
-        private static readonly TimeZone TEST_TIME_ZONE = TimeZone.CurrentTimeZone;
+        private static readonly TimeZone TestTimeZone = TimeZone.CurrentTimeZone;
 
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected object GetTargetObject()
+        protected override object GetTargetObject()
         {
             CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
-            cronExpression.TimeZone = TEST_TIME_ZONE;
+            cronExpression.TimeZone = TestTimeZone;
 
             return cronExpression;
         }
@@ -52,9 +52,9 @@ namespace Quartz.Tests.Unit
         /// serialization backwards compatibility.
         /// </summary>
         /// <returns></returns>
-        protected string[] GetVersions()
+        protected override string[] GetVersions()
         {
-            return VERSIONS;
+            return Versions;
         }
 
         /// <summary>
@@ -63,7 +63,7 @@ namespace Quartz.Tests.Unit
         /// </summary>
         /// <param name="target"></param>
         /// <param name="deserialized"></param>
-        protected void VerifyMatch(object target, object deserialized)
+        protected override void VerifyMatch(object target, object deserialized)
         {
             CronExpression targetCronExpression = (CronExpression) target;
             CronExpression deserializedCronExpression = (CronExpression) deserialized;
