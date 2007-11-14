@@ -36,7 +36,7 @@
                     NoStdLib = "false"
                     NoWarn = ""
                     Optimize = "false"
-                    OutputPath = "..\..\build\1.1\Debug\Quartz.Tests\"
+                    OutputPath = "..\..\build\1.1\Debug\Quartz.Tests.Unit\"
                     RegisterForComInterop = "false"
                     RemoveIntegerChecks = "false"
                     TreatWarningsAsErrors = "true"
@@ -56,7 +56,7 @@
                     NoStdLib = "false"
                     NoWarn = ""
                     Optimize = "true"
-                    OutputPath = "..\..\build\1.1\Release\Quartz.Examples\"
+                    OutputPath = "..\..\build\1.1\Release\Quartz.Tests.Unit\"
                     RegisterForComInterop = "false"
                     RemoveIntegerChecks = "false"
                     TreatWarningsAsErrors = "true"
@@ -115,162 +115,161 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "CollectionUtilTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "CronExpressionTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "JobDataMapTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "JobDetailTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "JobExecutionContextTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "NthIncludedDayTriggerTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "PriorityTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "SerializationTestSupport.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "SimpleTriggerTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "TestUtil.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Integration\IntegrationTest.cs"
+                    RelPath = "Core\QuartzSchedulerTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Integration\TestJob.cs"
+                    RelPath = "Impl\DirectSchedulerFactoryTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Integration\ExceptionPolicy\ExceptionJob.cs"
+                    RelPath = "Impl\AdoJobStore\StdAdoDelegateTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Integration\ExceptionPolicy\ExceptionJobTest.cs"
+                    RelPath = "Impl\AdoJobStore\Common\DbMetadataTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Integration\Impl\AdoJobStore\AdoJobStoreSmokeTest.cs"
+                    RelPath = "Impl\AdoJobStore\Common\DbProviderTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Integration\Impl\Calendar\AnnualCalendarTest.cs"
+                    RelPath = "Impl\Calendar\AnnualCalendarTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\CollectionUtilTest.cs"
+                    RelPath = "Impl\Calendar\CronCalendarTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\CronExpressionTest.cs"
+                    RelPath = "Impl\Calendar\DailyCalendarTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\JobDataMapTest.cs"
+                    RelPath = "Plugin\History\LoggingJobHistoryPluginTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\JobDetailTest.cs"
+                    RelPath = "Plugin\History\LoggingTriggerHistoryPluginTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\JobExecutionContextTest.cs"
+                    RelPath = "Serialized\AnnualCalendar-0.7.0.1.ser"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
+                    RelPath = "Serialized\CronExpression-0.7.0.1.ser"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
+                    RelPath = "Serialized\DailyCalendar-0.7.0.1.ser"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
+                    RelPath = "Serialized\JobDataMap-0.7.0.1.ser"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
+                    RelPath = "Serialized\NthIncludedDayTrigger-0.7.0.1.ser"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
+                    RelPath = "Serialized\SimpleTrigger-0.7.0.1.ser"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
+                    RelPath = "Simpl\PropertySettingJobFactoryTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\NthIncludedDayTriggerTest.cs"
+                    RelPath = "Simpl\RAMJobStoreTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\PriorityTest.cs"
+                    RelPath = "Utils\DirtyFlagMapTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\SerializationTestSupport.cs"
+                    RelPath = "Utils\PropertiesParserTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\SimpleTriggerTest.cs"
+                    RelPath = "Xml\JobSchedulingBundleTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\Core\QuartzSchedulerTest.cs"
+                    RelPath = "Xml\JobSchedulingDataProcessorTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "Unit\Impl\DirectSchedulerFactoryTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Impl\AdoJobStore\StdAdoDelegateTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Impl\AdoJobStore\Common\DbMetadataTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Impl\AdoJobStore\Common\DbProviderTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Impl\Calendar\AnnualCalendarTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Impl\Calendar\CronCalendarTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Impl\Calendar\DailyCalendarTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Plugin\History\LoggingJobHistoryPluginTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Plugin\History\LoggingTriggerHistoryPluginTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Simpl\PropertySettingJobFactoryTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Simpl\RAMJobStoreTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Utils\DirtyFlagMapTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Utils\PropertiesParserTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Xml\JobSchedulingDataProcessorTest.cs"
-                    SubType = "Code"
-                    BuildAction = "Compile"
-                />
-                <File
-                    RelPath = "Unit\Xml\TestData\RichConfiguration.xml"
+                    RelPath = "Xml\TestData\RichConfiguration.xml"
                     BuildAction = "EmbeddedResource"
                 />
             </Include>

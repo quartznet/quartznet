@@ -31,26 +31,29 @@
   </target>
 
 
-  <target name="build" depends="init">
+  <target name="build">
+    <property name="defines" value="" overwrite="false" />
     <call target="build-${target.framework}" />
   </target>
 
-  <target name="build-all" depends="init">
+  <target name="build-all">
+    <property name="defines" value="" overwrite="false" />
     <call target="build-1.1" />
-    <call target="build-2.0" />
     <call target="build-mono-1.0" />
+    <call target="build-2.0" />
     <call target="build-mono-2.0" />
   </target>
   
   <target name="build-1.1" >
     <property name="target.framework" value="1.1" />
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
+    <property name="defines" value="${defines}" />
     <call target="build-all-csc" />
   </target>
 
   <target name="build-2.0">
     <property name="net20" value="true" />
-    <property name="defines" value="NET_20" />
+    <property name="defines" value="${defines},NET_20" />
 
     <property name="target.framework" value="2.0" />
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
@@ -61,7 +64,7 @@
 
   <target name="build-mono-1.0">
     <property name="net20" value="false" />
-    <property name="defines" value="MONO" />
+    <property name="defines" value="${defines},MONO" />
 
     <property name="target.framework" value="mono-1.0" />
     <property name="nant.settings.currentframework" value="${target.framework}" />
@@ -72,7 +75,7 @@
   
   <target name="build-mono-2.0">
     <property name="net20" value="true" />
-    <property name="defines" value="NET_20,MONO" />
+    <property name="defines" value="${defines},NET_20,MONO" />
 
     <property name="target.framework" value="mono-2.0" />
     <property name="nant.settings.currentframework" value="${target.framework}" />
@@ -114,6 +117,7 @@
         <include name="System.dll" />
         <include name="System.Configuration.dll" />
         <include name="System.Data.dll" />
+        <include name="System.Runtime.Remoting.dll" />
         <include name="System.Web.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
@@ -134,7 +138,11 @@
 
     <mkdir dir="build\${target.framework}\${configuration}\Quartz.Examples\" />
 
-    <csc target="exe" output="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe" debug="true" define="${defines}">
+    <csc 
+      target="exe" 
+      output="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe" 
+      debug="true" 
+      define="${defines}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -165,11 +173,18 @@
     <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
   </target>
 
-  <target name="build-tests" depends="build-quartz">
+  <target name="build-tests">
+	<property name="test.project" value="Integration" />
+	<call target="build-tests-internal" />
+	<property name="test.project" value="Unit" />
+	<call target="build-tests-internal" />
+  </target>
+  
+  <target name="build-tests-internal" depends="build-quartz">
 
-    <mkdir dir="build\${target.framework}\${configuration}\Quartz.Tests\" />
+    <mkdir dir="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\" />
 
-    <csc target="library" output="build\${target.framework}\${configuration}\Quartz.Tests\Quartz.Tests.dll" debug="true" define="${defines}">
+    <csc target="library" output="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\Quartz.Tests.${test.project}.dll" debug="true" define="${defines}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -179,7 +194,7 @@
       </nowarn>
       <sources>
         <include name="src/AssemblyInfo.cs" />
-        <include name="src/Quartz.Tests/**/*.cs" />
+        <include name="src/Quartz.Tests.${test.project}/**/*.cs" />
       </sources>
       <references>
         <include name="System.dll" />
@@ -192,7 +207,7 @@
       </references>
     </csc>
 
-    <copy todir="build\${target.framework}\${configuration}\Quartz.Tests\" flatten="true" >
+    <copy todir="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
@@ -215,7 +230,7 @@
 
 
   <target name="unit" depends="build">
-    <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests\Quartz.Tests.dll" />
+    <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests.Unit\Quartz.Tests.Unit.dll" />
     <echo message="Testing dll: ${test.dll}"  />
     <nunit2 verbose="true" failonerror="false">
       <formatter type="Plain" />
@@ -319,7 +334,18 @@
     </delete>
   </target>
 
-  <target name="package" depends="clean, build-all, doc">
+  <target name="package-release">
+
+    <property name="configuration" value="Release" />
+    <call target="init" />
+    
+    <property name="defines" value="STRONG" />
+
+    <call target="clean" />
+    <call target="build-1.1" />
+    <call target="build-2.0" />
+    <call target="doc" />
+    
     <delete dir="package" failonerror="false" />
     <mkdir dir="package" />
     <mkdir dir="package\bin" />
@@ -330,7 +356,7 @@
     <copy todir="package">
       <fileset>
         <include name="${dir.src}\**" />
-        <include name="build\**" />
+        <include name="build\**\Quartz\**" />
         <include name="${dir.doc}\apidoc\**" />
         <include name="database\**" />
         <include name="lib\**" />
@@ -346,6 +372,8 @@
       </fileset>
     </copy>
 
+    <move file="package/build" todir="package/bin" />    
+    
     <zip zipfile="Quartz.NET-x.x.zip">
       <fileset basedir="package">
         <include name="**/*" />
@@ -364,5 +392,26 @@
     <call target="build-tests" />
 
   </target>
+  
+  <loadtasks assembly="lib\other\Anakia.dll" verbose="true" /> 
+
+	<mkdir dir="website" failonerror="false" />
+	<target name="build-website">
+        <anakia
+            navigationfile="doc\website\navigation.xml"
+            templatefile="doc\website\site.vsl"
+            projectfile="doc\website\project.xml"
+            targetdir="website\"
+            >
+            
+            <source basedir="doc\website">
+                <include name="**.*" />
+                
+                <exclude name="**/project.xml" />
+                <exclude name="**/*.vsl" />
+                <exclude name="**/*.dtd" />
+            </source>
+        </anakia>
+    </target>
   
 </project>

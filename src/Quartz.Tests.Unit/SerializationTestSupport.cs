@@ -61,6 +61,7 @@ namespace Quartz.Tests.Unit
 		/// class for all of the given Quartz versions. 
 		/// </summary>
 		[Test]
+        [Ignore("Currently no working implementation for serialization testing")]
 		public void TestSerialization()
 		{
 			object targetObject = GetTargetObject();

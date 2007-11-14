@@ -10,7 +10,7 @@
     </ApplicationIcon>
     <AssemblyKeyContainerName>
     </AssemblyKeyContainerName>
-    <AssemblyName>Quartz.Tests</AssemblyName>
+    <AssemblyName>Quartz.Tests.Integration</AssemblyName>
     <AssemblyOriginatorKeyFile>
     </AssemblyOriginatorKeyFile>
     <DefaultClientScript>JScript</DefaultClientScript>
@@ -18,7 +18,7 @@
     <DefaultTargetSchema>IE50</DefaultTargetSchema>
     <DelaySign>false</DelaySign>
     <OutputType>Library</OutputType>
-    <RootNamespace>Quartz.Tests</RootNamespace>
+    <RootNamespace>Quartz.Tests.Integration</RootNamespace>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
     <StartupObject>
     </StartupObject>
@@ -28,7 +28,7 @@
     </UpgradeBackupLocation>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <OutputPath>..\..\build\2.0\Debug\Quartz.Tests\</OutputPath>
+    <OutputPath>..\..\build\2.0\Debug\Quartz.Tests.Integration\</OutputPath>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
@@ -51,7 +51,7 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <OutputPath>..\..\build\2.0\Release\Quartz.Examples\</OutputPath>
+    <OutputPath>..\..\build\2.0\Release\Quartz.Tests.Integration\</OutputPath>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
@@ -110,78 +110,17 @@
       <Link>AssemblyInfo.cs</Link>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Integration\ExceptionPolicy\ExceptionJob.cs" />
-    <Compile Include="Integration\ExceptionPolicy\ExceptionJobTest.cs" />
-    <Compile Include="Integration\Impl\AdoJobStore\AdoJobStoreSmokeTest.cs" />
-    <Compile Include="Integration\Impl\Calendar\AnnualCalendarTest.cs" />
-    <Compile Include="Integration\IntegrationTest.cs" />
-    <Compile Include="Integration\TestJob.cs" />
-    <Compile Include="TestUtil.cs" />
-    <Compile Include="Unit\CollectionUtilTest.cs" />
-    <Compile Include="Unit\Core\QuartzSchedulerTest.cs" />
-    <Compile Include="Unit\CronExpressionTest.cs">
+    <Compile Include="ExceptionPolicy\ExceptionJob.cs" />
+    <Compile Include="ExceptionPolicy\ExceptionJobTest.cs" />
+    <Compile Include="Impl\AdoJobStore\AdoJobStoreSmokeTest.cs" />
+    <Compile Include="Impl\Calendar\AnnualCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Unit\Impl\AdoJobStore\Common\DbMetadataTest.cs" />
-    <Compile Include="Unit\Impl\AdoJobStore\Common\DbProviderTest.cs" />
-    <Compile Include="Unit\Impl\AdoJobStore\StdAdoDelegateTest.cs" />
-    <Compile Include="Unit\Impl\Calendar\AnnualCalendarTest.cs" />
-    <Compile Include="Unit\Impl\Calendar\MonthlyCalendarTest.cs" />
-    <Compile Include="Unit\Impl\Calendar\WeeklyCalendarTest.cs" />
-    <Compile Include="Unit\Impl\Calendar\HolidayCalendarTest.cs" />
-    <Compile Include="Unit\Impl\Calendar\CronCalendarTest.cs" />
-    <Compile Include="Unit\Impl\Calendar\DailyCalendarTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\Impl\DirectSchedulerFactoryTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\JobDataMapTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\JobDetailTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\JobExecutionContextTest.cs" />
-    <Compile Include="Unit\NthIncludedDayTriggerTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\Plugin\History\LoggingJobHistoryPluginTest.cs" />
-    <Compile Include="Unit\Plugin\History\LoggingTriggerHistoryPluginTest.cs" />
-    <Compile Include="Unit\PriorityTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\SerializationTestSupport.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\SimpleTriggerTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\Simpl\PropertySettingJobFactoryTest.cs" />
-    <Compile Include="Unit\Simpl\RAMJobStoreTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\Utils\DirtyFlagMapTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\Utils\ObjectUtilsTest.cs" />
-    <Compile Include="Unit\Utils\PairTest.cs" />
-    <Compile Include="Unit\Utils\PropertiesParserTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Unit\Xml\JobSchedulingBundleTest.cs" />
-    <Compile Include="Unit\Xml\JobSchedulingDataProcessorTest.cs" />
+    <Compile Include="IntegrationTest.cs" />
+    <Compile Include="TestJob.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Unit\Xml\TestData\RichConfiguration.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Unit\Serialized\AnnualCalendar-0.7.0.1.ser" />
-    <EmbeddedResource Include="Unit\Serialized\CronExpression-0.7.0.1.ser" />
-    <EmbeddedResource Include="Unit\Serialized\DailyCalendar-0.7.0.1.ser" />
-    <EmbeddedResource Include="Unit\Serialized\JobDataMap-0.7.0.1.ser" />
-    <EmbeddedResource Include="Unit\Serialized\NthIncludedDayTrigger-0.7.0.1.ser" />
-    <EmbeddedResource Include="Unit\Serialized\SimpleTrigger-0.7.0.1.ser" />
+    <Folder Include="Impl\AdoJobStore\Common\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

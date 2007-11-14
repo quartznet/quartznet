@@ -7,7 +7,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples", "src\Quar
 	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests", "src\Quartz.Tests\Quartz.Tests.csproj", "{5587AF00-160F-4EC1-98A2-BEABA411256C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Integration", "src\Quartz.Tests.Integration\Quartz.Tests.Integration.csproj", "{5587AF00-160F-4EC1-98A2-BEABA411256C}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Unit", "src\Quartz.Tests.Unit\Quartz.Tests.Unit.csproj", "{5587AF00-160F-4EC1-98A2-BEABA411256C}"
 	ProjectSection(ProjectDependencies) = postProject
 	EndProjectSection
 EndProject
@@ -27,6 +31,10 @@ Global
 		{70A37974-17DE-474C-8A1C-19637622E75F}.Debug.Build.0 = Debug|.NET
 		{70A37974-17DE-474C-8A1C-19637622E75F}.Release.ActiveCfg = Release|.NET
 		{70A37974-17DE-474C-8A1C-19637622E75F}.Release.Build.0 = Release|.NET
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Debug.ActiveCfg = Debug|.NET
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Debug.Build.0 = Debug|.NET
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Release.ActiveCfg = Release|.NET
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Release.Build.0 = Release|.NET
 		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Debug.ActiveCfg = Debug|.NET
 		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Debug.Build.0 = Debug|.NET
 		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Release.ActiveCfg = Release|.NET

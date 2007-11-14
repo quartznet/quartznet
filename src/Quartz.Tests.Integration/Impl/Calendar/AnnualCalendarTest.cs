@@ -19,7 +19,6 @@ using System.Threading;
 
 using NUnit.Framework;
 
-using Quartz.Impl;
 using Quartz.Impl.Calendar;
 
 namespace Quartz.Tests.Integration.Impl.Calendar
