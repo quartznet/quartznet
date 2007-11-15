@@ -5,7 +5,7 @@ using Quartz.Impl.AdoJobStore.Common;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
 {
     [TestFixture]
-    [Ignore("Run these by hand, need to have correct drivers installed")]
+    [Explicit("Run these by hand, need to have correct drivers installed")]
     public class DbMetadataTest
     {
         [Test]
