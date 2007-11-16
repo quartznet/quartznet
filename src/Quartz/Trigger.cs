@@ -94,7 +94,7 @@ namespace Quartz
 		/// Get or sets the name of this <see cref="Trigger" />.
 		/// </summary>
 		/// <exception cref="ArgumentException">If name is null or empty.</exception>
-		public string Name
+		public virtual string Name
 		{
 			get { return name; }
 
@@ -115,7 +115,7 @@ namespace Quartz
 		/// <exception cref="ArgumentException"> 
 		/// if group is an empty string.
 		/// </exception>
-		public string Group
+		public virtual string Group
 		{
 			get { return group; }
 
@@ -141,7 +141,7 @@ namespace Quartz
 		/// <exception cref="ArgumentException"> 
 		/// if jobName is null or empty.
 		/// </exception>
-		public string JobName
+		public virtual string JobName
 		{
 			get { return jobName; }
 
@@ -163,7 +163,7 @@ namespace Quartz
 		/// <exception cref="ArgumentException"> ArgumentException
 		/// if group is an empty string.
 		/// </exception>
-		public string JobGroup
+		public virtual string JobGroup
 		{
 			get { return jobGroup; }
 
@@ -196,7 +196,7 @@ namespace Quartz
 		/// Gets the key.
 		/// </summary>
 		/// <value>The key.</value>
-		public Key Key 
+		public virtual Key Key 
 		{
 			get
 			{
@@ -298,7 +298,7 @@ namespace Quartz
 		/// <summary>
 		/// Remove all <see cref="ITriggerListener" />s from the <see cref="Trigger" />.
 		/// </summary>
-		public void ClearAllTriggerListeners() 
+		public virtual void ClearAllTriggerListeners() 
 		{
 			triggerListeners.Clear();
 		}
@@ -490,7 +490,7 @@ namespace Quartz
 		/// </remarks>
 		/// <returns></returns>
 		/// <see cref="DefaultPriority" />
-		public int Priority
+		public virtual int Priority
 		{
 			get { return priority; }
 			set { priority = value; }
@@ -843,4 +843,5 @@ namespace Quartz
 	}
 
 }
+
 
