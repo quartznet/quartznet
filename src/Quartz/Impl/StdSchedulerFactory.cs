@@ -49,7 +49,7 @@ namespace Quartz.Impl
     /// If that fails, then the "quartz.properties"
     /// file located (as a embedded resource) in Quartz.dll is loaded. If you
     /// wish to use a file other than these defaults, you must define the system
-    /// property 'quartz.properties' to* point to the file you want.
+    /// property 'quartz.properties' to point to the file you want.
     /// </p>
     /// 
     /// <p>
@@ -68,10 +68,10 @@ namespace Quartz.Impl
     /// by name, and then any additional properties specified for them in the config
     /// file will be set on the instance by calling an equivalent 'set' method. For
     /// example if the properties file contains the property 'quartz.jobStore.
-    /// myProp = 10' then after the JobStore class has been instantiated, the method
-    /// 'setMyProp()' will be called on it. Type conversion to primitive Java types
-    /// (int, long, float, double, boolean, and String) are performed before calling
-    /// the propertie's setter method.
+    /// myProp = 10' then after the JobStore class has been instantiated, the property
+    /// 'MyProp' will be set with the value. Type conversion to primitive CLR types
+    /// (int, long, float, double, boolean, enum and string) are performed before calling
+    /// the property's setter method.
     /// </p>
     /// </remarks>
     /// <author>James House</author>
@@ -412,7 +412,7 @@ Please add configuration to your application config file to correctly initialize
             // Get ThreadPool Properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            string tpType = cfg.GetStringProperty(PropertyThreadPoolType, null);
+            string tpType = cfg.GetStringProperty(PropertyThreadPoolType, typeof(SimpleThreadPool).AssemblyQualifiedName);
 
             if (tpType == null)
             {

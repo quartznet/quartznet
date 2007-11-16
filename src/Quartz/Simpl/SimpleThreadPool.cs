@@ -48,11 +48,13 @@ namespace Quartz.Simpl
     public class SimpleThreadPool : IThreadPool
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(SimpleThreadPool));
+        private const int DefaultThreadPoolSize = 10;
+
         private readonly object nextRunnableLock = new object();
         private readonly ArrayList availWorkers = new ArrayList();
         private readonly ArrayList busyWorkers = new ArrayList();
 
-        private int count = -1;
+        private int count = DefaultThreadPoolSize;
         private bool handoffPending = false;
         private bool isShutdown = false;
         private bool makeThreadsDaemons = false;

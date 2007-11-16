@@ -9,7 +9,7 @@
             <Settings
                 ApplicationIcon = ""
                 AssemblyKeyContainerName = ""
-                AssemblyName = "Quartz.Tests"
+                AssemblyName = "Quartz.Tests.Unit"
                 AssemblyOriginatorKeyFile = ""
                 DefaultClientScript = "JScript"
                 DefaultHTMLPageLayout = "Grid"
@@ -18,7 +18,7 @@
                 OutputType = "Library"
                 PreBuildEvent = ""
                 PostBuildEvent = ""
-                RootNamespace = "Quartz.Tests"
+                RootNamespace = "Quartz.Tests.Unit"
                 RunPostBuildEvent = "OnBuildSuccess"
                 StartupObject = ""
             >
@@ -171,6 +171,11 @@
                 />
                 <File
                     RelPath = "Impl\DirectSchedulerFactoryTest.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
+                    RelPath = "Impl\StdSchedulerFactoryTest.cs"
                     SubType = "Code"
                     BuildAction = "Compile"
                 />

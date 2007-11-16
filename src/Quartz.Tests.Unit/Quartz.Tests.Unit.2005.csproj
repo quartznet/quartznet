@@ -110,6 +110,7 @@
       <Link>AssemblyInfo.cs</Link>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="CollectionUtilTest.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
