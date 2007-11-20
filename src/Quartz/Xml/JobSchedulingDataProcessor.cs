@@ -20,6 +20,13 @@
 */
 
 using System;
+
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
+using Nullables;
+#endif
+
 using System.Collections;
 using System.Globalization;
 using System.IO;
@@ -274,7 +281,11 @@ namespace Quartz.Xml
 	                if (t.Item is cronType)
 	                {
 	                    cronType c = (cronType) t.Item;
-	                    CronTrigger ct = new CronTrigger(c.name, c.group, c.jobname, c.jobgroup, c.starttime, c.endtime, c.cronexpression);
+
+                        DateTime startTime = (c.starttime == DateTime.MinValue ? DateTime.UtcNow : c.starttime);
+                        NullableDateTime endTime = (c.endtime == DateTime.MinValue ? null : (NullableDateTime)c.endtime);
+
+                        CronTrigger ct = new CronTrigger(c.name, c.group, c.jobname, c.jobgroup, startTime, endTime, c.cronexpression);
 	                    if (c.timezone != null && c.timezone.Trim().Length > 0)
 	                    {
 	                        TimeZone tz = (TimeZone) ObjectUtils.InstantiateType(Type.GetType(c.timezone));
@@ -286,13 +297,16 @@ namespace Quartz.Xml
 	                {
 	                    simpleType s = (simpleType) t.Item;
 	                    
+	                    DateTime startTime = (s.starttime == DateTime.MinValue ? DateTime.UtcNow : s.starttime);
+                        NullableDateTime endTime = (s.endtime == DateTime.MinValue ? null : (NullableDateTime)s.endtime);
+
                         SimpleTrigger st = new SimpleTrigger(
                             s.name, 
                             s.group, 
                             s.jobname, 
                             s.jobgroup,
-                            s.starttime, 
-                            s.endtime, 
+                            startTime, 
+                            endTime, 
                             ParseSimpleTriggerRepeatCount(s.repeatcount), 
                             Convert.ToInt64(s.repeatinterval, CultureInfo.InvariantCulture));
 

@@ -178,6 +178,9 @@
     <EmbeddedResource Include="Serialized\NthIncludedDayTrigger-0.7.0.1.ser" />
     <EmbeddedResource Include="Serialized\SimpleTrigger-0.7.0.1.ser" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Xml\TestData\MinimalConfiguration.xml" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

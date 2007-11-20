@@ -132,7 +132,7 @@ namespace Quartz.Job
 				Log.Debug(string.Format(CultureInfo.InvariantCulture, "File '{0}' unchanged.", fileName));
 			}
 
-			data.Put(LastModifiedTime, newDate);
+			context.JobDetail.JobDataMap.Put(LastModifiedTime, newDate);
 		}
 
 		/// <summary>
