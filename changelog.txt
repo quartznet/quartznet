@@ -2,12 +2,60 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+Release 0.x, November xx, 2007
+-----------------------------
+
+Bug
+    * [QRTZNET-45] - TriggerUtils.GetEvenMinuteDate Bug
+    * [QRTZNET-48] - JobExecutionContext.ToString() Bug
+    * [QRTZNET-50] - CronExpression and CronTrigger fail when date passes year boundary
+    * [QRTZNET-53] - log format message strings in logging history plugin listeners
+    * [QRTZNET-58] - Scheduler thread daemon information is not passed to scheduler correctly
+    * [QRTZNET-65] - Bug in XmlDataProcessor end time and start time handling & filescanjob last modified date storing
+
+Improvement
+    * [QRTZNET-36] - Add set accessor to Trigger.TriggerListenerNames
+    * [QRTZNET-38] - Replace NullableDateTime with DateTime? in 2.0 build
+    * [QRTZNET-41] - Add extra configuration examples as part of the distribution
+    * [QRTZNET-43] - Refacftory misfire instructions outside implementation classes
+    * [QRTZNET-46] - Change time handling to work internally on UTC times only
+    * [QRTZNET-52] - Allow default SimpleThreadPool initialization if StdSchedulerFactory isn't fed thread pool properties
+    * [QRTZNET-54] - RemoteScheduler
+    * [QRTZNET-55] - Add strong naming to Quartz.NET assembly
+    * [QRTZNET-57] - Better error reporting when problems with database initialization
+    * [QRTZNET-62] - Better exception reporting when Quartz is unable to load database driver
+    * [QRTZNET-64] - Make all Trigger members virtual
+    * [QRTZNET-66] - Clean up NAnt build script
+
+New Feature
+    * [QRTZNET-2] - XML configuration support
+    * [QRTZNET-32] - Allow inherited trigger implementations to be saved as non-blobs when applicable
+    * [QRTZNET-39] - Remotable scheduler support
+    * [QRTZNET-40] - Quartz server console for running jobs
+    * [QRTZNET-42] - Mono support
+    * [QRTZNET-67] - Support for Firebird database
+
+Task
+    * [QRTZNET-49] - useProperties configuration does not work as expected
+    * [QRTZNET-56] - Upgrade Common.Logging to 1.2.0
+    * [QRTZNET-60] - Go through web documentation and check for errors
+
+Other:
+
+Breaking changes:
+
+ * Quartz.NET now uses internally UTC times only
+   
+ * Misfire instructions are now encapsulated in MisfirePolicy
+   
+ * Constants are CamelCase instead of ALL_UPPER_CASE
+
+
 
 Release 0.6, August 4, 2007
 -----------------------------
 
 Bug
-
     * [QRTZNET-18] - JobDataMap cannot convert Int32 values correctly from string representation
     * [QRTZNET-20] - CronExpression fails when minute is incremented to 60
     * [QRTZNET-21] - DailyCalendar.GetTimeRangeEndingTime reports starting time instead of ending time
@@ -19,7 +67,6 @@ Bug
     * [QRTZNET-31] - CronExpression GetTimeAfter() fails with System.ArgumentOutOfRangeException
 
 Improvement
-
     * [QRTZNET-7] - Load balanced database support
     * [QRTZNET-22] - CronExpression should all extra white space from expression
     * [QRTZNET-23] - IScheduler.SchedulerJob should throw always exception if trigger's calendar cannot be found
@@ -27,12 +74,10 @@ Improvement
     * [QRTZNET-33] - Remove confusing Durability and Volatility properties from JobDetail
 
 New Feature
-
     * [QRTZNET-3] - AdoJobStore support
     * [QRTZNET-16] - Quartz default properties should be read from embedded resource inside the assembly
 
 Task
-
     * [QRTZNET-17] - CronTrigger misfire instruction constants should be made public
     * [QRTZNET-30] - Upgrade Common.Logging libraries to 1.1
     * [QRTZNET-34] - Rename Schedulder_Fields class to more describing SchedulerConstants
@@ -61,16 +106,13 @@ for Quartz and its tests.
 Release 0.5, June 17, 2007
 -----------------------------
 Bug
-
     * [QRTZNET-13] - CronExpressions don't handle time shift from 24th hour correctly
     * [QRTZNET-14] - CronExpression does not handle weekdays correctly
 
 Improvement
-
     * [QRTZNET-10] - Bring unit tests from Java side
 
 Task
-
     * [QRTZNET-1] - Merge changes between 1.5.1 and 1.5.2
     * [QRTZNET-12] - Fix API documentation, wrong usage of <code> tags makes MSDN doc look terrible
     * [QRTZNET-15] - Bring changes from Quartz 1.6 to .NET side
@@ -87,7 +129,6 @@ Release 0.4.1, March 24, 2007
 Summary: Bug fix release
 
 Bugs:
-
 * [QRTZNET-8] - CronExpression problems
 
 Other:

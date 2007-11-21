@@ -28,6 +28,43 @@
 		<section id="news">
 			<title>News</title>
 			<section>
+				<title>Quartz.NET 0.x Released</title>
+				<p>
+				<div class="descr">November XX, 2007 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 0.x has been released. 
+				</p>
+				<p>
+					This is again a big feature release and this release also constains 
+					some minor bug fixes. The biggest new features are support for XML
+					configuration of jobs and triggers and remoting support for scheduler.
+					XML configuration should make it easier
+					to define your scheduling out-of-code regardless of the used job store and
+					remoting allows you to control scheduler over application domain boundaries.
+				</p>
+				<p>
+					<strong>
+						This release has also major breaking change: all times
+						are now expected to be in UTC format for Quartz.NET to work
+						correctly.
+					</strong>
+					<br />
+					Please check <a href="migration_guide.html">migration guide</a>
+					before upgrading.
+				</p>
+				<p>
+					Complete release notes available in JIRA TODO.
+				</p>
+				<p>
+					
+				</p>
+				<p>
+					Grap it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>
+
+			<section>
 				<title>Project News</title>
 				<p>
 				<div class="descr">August 8, 2007 by Marko Lahma</div>
