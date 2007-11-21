@@ -123,15 +123,15 @@ namespace Quartz
         /// group, or <see cref="JobDetail" />. This will result initially in a
         /// default monthly trigger that fires on the first day of every month at
         /// 12:00 PM (n = 1, 
-        /// intervalType={@link #IntervalTypeMonthly" />, 
+        /// intervalType=<see cref="IntervalTypeMonthly" />, 
         /// fireAtTime="12:00").
-        /// <p>
+        /// </summary>
+        /// <remarks>
         /// Note that <see cref="Trigger.Name" />, <see cref="Trigger.Group" />, 
         /// <see cref="Trigger.JobName" />, and <see cref="Trigger.JobGroup" />, must be 
         /// called before the <see cref="NthIncludedDayTrigger" /> can be placed into
         /// a <see cref="IScheduler" />.
-        /// </p>
-        /// </summary>
+        /// </remarks>
         public NthIncludedDayTrigger()
         {
         }
@@ -203,11 +203,11 @@ namespace Quartz
 		/// </summary>
 		/// <remarks>
 		/// Sets the interval type for the <see cref="NthIncludedDayTrigger" />. If
-		/// {@link #IntervalTypeMonthly}, the trigger will fire on the 
+        /// <see cref="IntervalTypeMonthly" />, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every month. If 
-		/// {@link #IntervalTypeYearly}, the trigger will fire on the 
+        /// <see cref="IntervalTypeYearly" />, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every year. If 
-		/// {@link #IntervalTypeWeekly}, the trigger will fire on the 
+        /// <see cref="IntervalTypeWeekly" />, the trigger will fire on the 
 		/// N<SUP>th</SUP> included day of every week. 
         /// </remarks>
 		/// <seealso cref="IntervalTypeWeekly" />
@@ -313,8 +313,7 @@ namespace Quartz
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <I>never</I> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
-		/// {@link #setNextFireCutoffInterval(int)} and 
-		/// {@link #getNextFireCutoffInterval()} methods. The default cutoff is 12
+        /// <see cref="NextFireCutoffInterval" /> property. The default cutoff is 12
 		/// of the intervals specified by <see cref="IntervalType"/> intervalType" />.
 		/// </p>
 		/// <p>
@@ -531,7 +530,7 @@ namespace Quartz
 		/// </summary>
 		/// <returns> the first time at which the <see cref="Trigger" /> will be fired
 		/// by the scheduler, which is also the same value 
-		/// {@link #getNextFireTime()} will return (until after the first 
+        /// <see cref="GetNextFireTimeUtc" /> will return (until after the first 
 		/// firing of the <see cref="Trigger" />).
 		/// </returns>
         public override NullableDateTime ComputeFirstFireTimeUtc(ICalendar cal)
@@ -617,12 +616,12 @@ namespace Quartz
 		}
 
 		/// <summary> Updates the <see cref="NthIncludedDayTrigger" />'s state based on the
-		/// MISFIRE_INSTRUCTION_XXX that was selected when the 
+        /// MisfirePolicy that was selected when the 
 		/// <see cref="NthIncludedDayTrigger" /> was created
 		/// <P>
 		/// If the misfire instruction is set to MISFIRE_INSTRUCTION_SMART_POLICY,
 		/// then the instruction will be interpreted as 
-		/// {@link #MISFIRE_INSTRUCTION_FIRE_ONCE_NOW}.
+        /// <see cref="MisfirePolicy.NthIncludedDayTrigger.FireOnceNow" />.
 		/// </P>
 		/// </summary>
 		/// <param name="cal">a new or updated calendar to use for the trigger

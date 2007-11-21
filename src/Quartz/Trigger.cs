@@ -428,19 +428,15 @@ namespace Quartz
 			get;
 		}
 
-		
-
-		/// <summary> <p>
+		/// <summary>
 		/// Create a <see cref="Trigger" /> with no specified name, group, or <see cref="JobDetail" />.
-		/// </p>
-		/// 
-		/// <p>
-		/// Note that the {@link #setName(String)},{@link #setGroup(String)}and
-		/// the {@link #setJobName(String)}and {@link #setJobGroup(String)}methods
-		/// must be called before the <see cref="Trigger" /> can be placed into a
-		/// {@link Scheduler}.
-		/// </p>
 		/// </summary>
+		/// <remarks>
+		/// Note that the <see cref="Name" />, <see cref="Group" /> and
+		/// the <see cref="JobName" /> and <see cref="JobGroup" /> properties
+		/// must be set before the <see cref="Trigger" /> can be placed into a
+		/// <see cref="IScheduler" />.
+        /// </remarks>
 		public Trigger()
 		{
 			// do nothing...
@@ -448,11 +444,12 @@ namespace Quartz
 
         /// <summary>
         /// Create a <see cref="Trigger" /> with the given name, and group.
-        /// <p>
-        /// Note that the JobName and JobGroup properties must be set before the <see cref="Trigger" />
-        /// can be placed into a {@link Scheduler}.
-        /// </p>
         /// </summary>
+        /// <remarks>
+        /// Note that the <see cref="JobName" /> and <see cref="JobGroup" />
+        /// properties must be set before the <see cref="Trigger" />
+        /// can be placed into a <see cref="IScheduler" />.
+        /// </remarks>
         /// <param name="name">The name.</param>
         /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
 		public Trigger(string name, string group)

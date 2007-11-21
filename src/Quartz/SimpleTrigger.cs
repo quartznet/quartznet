@@ -103,7 +103,7 @@ namespace Quartz
         /// <param name="endTimeUtc">A UTC <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
-        /// firing, use {@link #RepeatIndefinitely}for unlimited times.</param>
+        /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, DateTime startTimeUtc,
             NullableDateTime endTimeUtc, 
@@ -124,20 +124,20 @@ namespace Quartz
         /// <param name="group">The group.</param>
         /// <param name="jobName">Name of the job.</param>
         /// <param name="jobGroup">The job group.</param>
-        /// <param name="startTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
+        /// <param name="startTimeUtc">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to fire.</param>
-        /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
+        /// <param name="endTimeUtc">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use RepeatIndefinitely for unlimited times.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTime,
-                 NullableDateTime endTime,
+		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTimeUtc,
+                 NullableDateTime endTimeUtc,
                  int repeatCount, long repeatInterval)
 			: base(name, group, jobName, jobGroup)
 		{
-			StartTimeUtc = startTime;
-			EndTimeUtc = endTime;
+			StartTimeUtc = startTimeUtc;
+			EndTimeUtc = endTimeUtc;
 			RepeatCount = repeatCount;
 			RepeatInterval = repeatInterval;
 		}
