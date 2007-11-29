@@ -116,7 +116,7 @@ Once you've selected your delegate, set its class name as the delegate for AdoJo
 </p>
 <strong>Configuring AdoJobStore to use a DriverDelegate</strong>
 <div class="code">
-quartz.jobStore.driverDelegateClass = Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz
+quartz.jobStore.driverDelegateType = Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz
 </div>
 
 <p>
