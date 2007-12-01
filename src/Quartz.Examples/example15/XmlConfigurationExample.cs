@@ -55,6 +55,8 @@ namespace Quartz.Examples.example15
 
             // job initialization plugin handles our xml reading, without it defaults are used
             properties["quartz.plugin.xml.type"] = "Quartz.Plugin.Xml.JobInitializationPlugin, Quartz";
+            properties["quartz.plugin.xml.fileNames"] = "~/quartz_jobs.xml";
+
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = sf.GetScheduler();
