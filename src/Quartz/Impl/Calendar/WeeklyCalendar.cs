@@ -57,8 +57,8 @@ namespace Quartz.Impl.Calendar
         }
 
         // An array to store the week days which are to be excluded.
-        // java.util.Calendar.MONDAY etc. are used as index.
-        private bool[] excludeDays = new bool[8];
+        // DayOfWeek enumeration values are used as index.
+        private bool[] excludeDays = new bool[7];
 
         // Will be set to true, if all week days are excluded
         private bool excludeAll = false;
