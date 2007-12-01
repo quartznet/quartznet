@@ -341,10 +341,10 @@
     
     <property name="defines" value="STRONG" />
 
-    <!-- <call target="clean" /> -->
+    <call target="clean" />
     <call target="build-1.1" />
     <call target="build-2.0" />
-    <!-- <call target="doc" /> -->
+    <call target="doc" />
 
    
     <delete dir="package" failonerror="false" />

@@ -7,11 +7,11 @@
 	<body>
 		<strong>This document outlines changes needed per version upgrade basis.</strong>
 		<section id="from06">
-			<title>Upgrading from 0.6 to 0.x</title>
+			<title>Upgrading from 0.6 to 0.9</title>
 			<section id="utc">
 				<title>Quartz.NET now uses UTC times instead of local times</title>
 				<p>
-					0.x was a real breaking change release behaviour wise when
+					Version 0.9 has a real breaking change behaviour-wise when
 					it comes to internal time handling. Quartz.NET will from now
 					do all its internal calculations based on UTC times. This
 					means that <strong>public API always expects times in UTC
@@ -50,10 +50,10 @@
 					when doing the migration.
 				</p>
 			</section>
-			<section id="misfirepolicy">
+			<section id="misfireinstruction">
 				<title>Misfire instructions have been refactored out of Triggers</title>
 				<p>
-					Misfire instructions are now encapsulated within MisfirePolicy
+					Misfire instructions are now encapsulated within MisfireInstruction
 					and its sub-containers.
 				</p>
 				<p>
@@ -65,7 +65,7 @@
 					It's now written like this:<br />
 					<pre format="cs">
 						CronTrigger ct = new CronTrigger();
-						st.MisfireInstruction = MisfirePolicy.CronTrigger.FireOnceNow;
+						st.MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
 					</pre>
 				</p>
 			</section>	

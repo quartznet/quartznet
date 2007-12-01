@@ -20,33 +20,40 @@
 			</p>
 			<p>
 				Quartz.NET is a pure .NET library written in C# which currently targets Framework version 1.1 and above.
-				Quartz.NET has already almost caught up with Quartz Java 1.6 and there aren't so many things missing. Quartz.NET
-				is running in some production systems and has received good feedback.
+				Quartz.NET is feature-wise equal to Quartz Java 1.6 excluding Java specifics. Quartz.NET
+				is already running in production systems and has received good feedback.
 			</p>
 		</section>
 
 		<section id="news">
 			<title>News</title>
 			<section>
-				<title>Quartz.NET 0.x Released</title>
+				<title>Quartz.NET 0.9 Released</title>
 				<p>
-				<div class="descr">November XX, 2007 by Marko Lahma</div>
+				<div class="descr">December 1, 2007 by Marko Lahma</div>
 				</p>
 				<p>
-					Quartz.NET 0.x has been released. 
+					Quartz.NET 0.9 has been released. This is the earlier 0.7
+					version renamed to indicate maturity and feature completeness.
 				</p>
 				<p>
-					This is again a big feature release and this release also constains 
+					This is again a feature release also containing
 					some minor bug fixes. The biggest new features are support for XML
-					configuration of jobs and triggers and remoting support for scheduler.
-					XML configuration should make it easier
-					to define your scheduling out-of-code regardless of the used job store and
-					remoting allows you to control scheduler over application domain boundaries.
+					based configuration for setting up the scheduler and remoting 
+					exporting support for the scheduler.
+					XML configuration should make it now easier
+					to define your scheduling out-of-code regardless of the used job store.
+					Remoting functionality allows you to control scheduler over 
+					application domain boundaries.
+				</p>
+				<p>
+					The Quartz.NET DLL is now also finally signed assembly and
+					you can add it to the GAC.
 				</p>
 				<p>
 					<strong>
 						This release has also major breaking change: all times
-						are now expected to be in UTC format for Quartz.NET to work
+						are now expected to be in UTC time zone for Quartz.NET to work
 						correctly.
 					</strong>
 					<br />
@@ -54,10 +61,8 @@
 					before upgrading.
 				</p>
 				<p>
-					Complete release notes available in JIRA TODO.
-				</p>
-				<p>
-					
+					Please refer to examples to see XML configuration and remoting
+					in action. The documentation is still work in progress.
 				</p>
 				<p>
 					Grap it from <a href="download.html">downloads page</a>.

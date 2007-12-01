@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, release 0.6, August 4 2007
+QUARTZ JOB SCHEDULER .NET, release 0.9, December 1 2007
 -----------------------------------------------------------------
 
 http://quartznet.sourceforge.net/
@@ -27,12 +27,11 @@ Also, to keep the legal people happy:
 2. KNOWN ISSUES
 ---------------
 
-XML based job loading is still missing and AdoJobStore may still contain some bugs.
+No known issues.
 
 
 3. RELEASE INFO
 ----------------
 
-Work in progress version. Important bug fixes and long waited AdoJobStore & 
-clustering support.
-
+Now with XML configuration and scheduler remoting support. Distribution
+DLLs are now also strongly named (signed) assemblies.

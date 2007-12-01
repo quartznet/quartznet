@@ -2,7 +2,7 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
-Release 0.x, November xx, 2007
+Release 0.9, December 1, 2007
 -----------------------------
 
 Bug
@@ -32,7 +32,7 @@ New Feature
     * [QRTZNET-32] - Allow inherited trigger implementations to be saved as non-blobs when applicable
     * [QRTZNET-39] - Remotable scheduler support
     * [QRTZNET-40] - Quartz server console for running jobs
-    * [QRTZNET-42] - Mono support
+    * [QRTZNET-42] - Add support for building with Mono
     * [QRTZNET-67] - Support for Firebird database
 
 Task
