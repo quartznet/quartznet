@@ -402,7 +402,19 @@ namespace Quartz.Plugin.Xml
             {
                 string furl = null;
 
-                FileInfo file = new FileInfo(FileName); // files in filesystem
+                string fName = FileName;
+                if (fName.StartsWith("~"))
+                {
+                    // relative to run directory
+                    fName = fName.Substring(1);
+                    if (fName.StartsWith("/") || fName.StartsWith("\\"))
+                    {
+                        fName = fName.Substring(1);
+                    }
+                    fName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fName);
+                }
+
+                FileInfo file = new FileInfo(fName); // files in filesystem
                 if (!file.Exists)
                 {
                     Uri url = plugin.classLoadHelper.GetResource(FileName);

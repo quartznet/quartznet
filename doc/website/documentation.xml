@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<document>
+	<properties>
+		<title>Documentation</title>
+	</properties>
+	<body>
+		<intro>
+			Quartz.NET documentation was adapted from Java Quartz.
+		</intro>
+
+		<section>
+			<title>Documentation</title>
+			<ul>
+				<li> </li>
+			</ul>
+		</section>
+	</body>
+</document>

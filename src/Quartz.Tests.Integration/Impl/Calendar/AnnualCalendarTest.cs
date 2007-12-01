@@ -19,6 +19,7 @@ using System.Threading;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Impl.Calendar;
 
 namespace Quartz.Tests.Integration.Impl.Calendar
@@ -26,6 +27,13 @@ namespace Quartz.Tests.Integration.Impl.Calendar
     [TestFixture]
     public class AnnualCalendarTest : IntegrationTest
     {
+        [SetUp]
+        public void SetUp()
+        {
+            ISchedulerFactory sf = new StdSchedulerFactory();
+            sched = sf.GetScheduler();      
+        }
+
         [Test]
         public void TestTriggerFireExclusion()
         {

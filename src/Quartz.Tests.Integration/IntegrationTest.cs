@@ -15,9 +15,8 @@
  */
 
 using Common.Logging;
-using NUnit.Framework;
 
-using Quartz.Impl;
+using NUnit.Framework;
 
 namespace Quartz.Tests.Integration
 {

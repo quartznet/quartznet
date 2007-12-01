@@ -1,0 +1,80 @@
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{69B269BD-CB8C-438A-A32E-4CB7CEA47BB2}"
+	ProjectSection(SolutionItems) = preProject
+		src\AssemblyInfo.cs = src\AssemblyInfo.cs
+		Quartz.build = Quartz.build
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "database", "database", "{A4C0607E-7BEA-4A00-90ED-A3EFB812D045}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tables", "tables", "{E1A1F944-609E-400B-A7CC-EC5CE0F3BADC}"
+	ProjectSection(SolutionItems) = preProject
+		database\tables\tables_cloudscape.sql = database\tables\tables_cloudscape.sql
+		database\tables\tables_db2.sql = database\tables\tables_db2.sql
+		database\tables\tables_db2_v72.sql = database\tables\tables_db2_v72.sql
+		database\tables\tables_db2_v8.sql = database\tables\tables_db2_v8.sql
+		database\tables\tables_derby.sql = database\tables\tables_derby.sql
+		database\tables\tables_firebird.sql = database\tables\tables_firebird.sql
+		database\tables\tables_hsqldb.sql = database\tables\tables_hsqldb.sql
+		database\tables\tables_hsqldb_old.sql = database\tables\tables_hsqldb_old.sql
+		database\tables\tables_informix.sql = database\tables\tables_informix.sql
+		database\tables\tables_mysql.sql = database\tables\tables_mysql.sql
+		database\tables\tables_mysql_innodb.sql = database\tables\tables_mysql_innodb.sql
+		database\tables\tables_oracle.sql = database\tables\tables_oracle.sql
+		database\tables\tables_pointbase.sql = database\tables\tables_pointbase.sql
+		database\tables\tables_postgres.sql = database\tables\tables_postgres.sql
+		database\tables\tables_postgres7.sql = database\tables\tables_postgres7.sql
+		database\tables\tables_sapdb.sql = database\tables\tables_sapdb.sql
+		database\tables\tables_solid.sql = database\tables\tables_solid.sql
+		database\tables\tables_sqlServer.sql = database\tables\tables_sqlServer.sql
+		database\tables\tables_sybase.sql = database\tables\tables_sybase.sql
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{95F36186-4305-42A3-B57B-2F23769A5BB0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Quartz", "Quartz", "{6EBE10AB-07CE-4C04-AD4D-75660778D4C2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.2005", "src\Quartz\Quartz.2005.csproj", "{AEF8823B-E45B-4B35-A4D0-C08C1196D017}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.2005", "src\Quartz.Examples\Quartz.Examples.2005.csproj", "{70A37974-17DE-474C-8A1C-19637622E75F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Integration.2005", "src\Quartz.Tests.Integration\Quartz.Tests.Integration.2005.csproj", "{5587AF00-160F-4EC1-98A2-BEABA411256C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Unit.2005", "src\Quartz.Tests.Unit\Quartz.Tests.Unit.2005.csproj", "{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Release|Any CPU.Build.0 = Release|Any CPU
+		{70A37974-17DE-474C-8A1C-19637622E75F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70A37974-17DE-474C-8A1C-19637622E75F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70A37974-17DE-474C-8A1C-19637622E75F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70A37974-17DE-474C-8A1C-19637622E75F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5587AF00-160F-4EC1-98A2-BEABA411256C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A4C0607E-7BEA-4A00-90ED-A3EFB812D045} = {69B269BD-CB8C-438A-A32E-4CB7CEA47BB2}
+		{E1A1F944-609E-400B-A7CC-EC5CE0F3BADC} = {A4C0607E-7BEA-4A00-90ED-A3EFB812D045}
+		{5587AF00-160F-4EC1-98A2-BEABA411256C} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
+		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017} = {6EBE10AB-07CE-4C04-AD4D-75660778D4C2}
+		{70A37974-17DE-474C-8A1C-19637622E75F} = {6EBE10AB-07CE-4C04-AD4D-75660778D4C2}
+	EndGlobalSection
+EndGlobal
