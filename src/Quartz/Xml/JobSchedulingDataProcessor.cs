@@ -345,7 +345,7 @@ namespace Quartz.Xml
 
 	    private static int ReadMisfireInstructionFromString(string misfireinstruction)
 	    {
-	       Constants c = new Constants(typeof(MisfirePolicy), typeof(MisfirePolicy.CronTrigger), typeof(MisfirePolicy.SimpleTrigger));
+	       Constants c = new Constants(typeof(MisfireInstruction), typeof(MisfireInstruction.CronTrigger), typeof(MisfireInstruction.SimpleTrigger));
 	       return c.AsNumber(misfireinstruction);
 	    }
 

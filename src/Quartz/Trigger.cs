@@ -80,7 +80,7 @@ namespace Quartz
         private string calendarName = null;
         private string fireInstanceId = null;
 
-        private int misfireInstruction = MisfirePolicy.InstructionNotSet;
+        private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
 	    private ArrayList triggerListeners = new ArrayList();
 
@@ -320,10 +320,10 @@ namespace Quartz
 		/// defined a set of additional MISFIRE_INSTRUCTION_XXX
 		/// constants that may be passed to this method.
 		/// <p>
-        /// If not explicitly set, the default value is <see cref="MisfirePolicy.InstructionNotSet" />.
+        /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.InstructionNotSet" />.
 		/// </p>
 		/// </summary>
-        /// <seealso cref="MisfirePolicy.InstructionNotSet" />
+        /// <seealso cref="Quartz.MisfireInstruction.InstructionNotSet" />
 		/// <seealso cref="UpdateAfterMisfire" />
 		/// <seealso cref="SimpleTrigger" />
 		/// <seealso cref="CronTrigger" />

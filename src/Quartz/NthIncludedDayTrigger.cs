@@ -609,19 +609,19 @@ namespace Quartz
         /// <returns>Whether <see param="misfireInstruction" /> is valid.</returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-            return (misfireInstruction == MisfirePolicy.NthIncludedDayTrigger.DoNothing) 
-                || (misfireInstruction == MisfirePolicy.NthIncludedDayTrigger.FireOnceNow)
-                || (misfireInstruction == MisfirePolicy.SmartPolicy);
+            return (misfireInstruction == Quartz.MisfireInstruction.NthIncludedDayTrigger.DoNothing) 
+                || (misfireInstruction == Quartz.MisfireInstruction.NthIncludedDayTrigger.FireOnceNow)
+                || (misfireInstruction == Quartz.MisfireInstruction.SmartPolicy);
 		
 		}
 
 		/// <summary> Updates the <see cref="NthIncludedDayTrigger" />'s state based on the
-        /// MisfirePolicy that was selected when the 
+        /// MisfireInstruction that was selected when the 
 		/// <see cref="NthIncludedDayTrigger" /> was created
 		/// <P>
 		/// If the misfire instruction is set to MISFIRE_INSTRUCTION_SMART_POLICY,
 		/// then the instruction will be interpreted as 
-        /// <see cref="MisfirePolicy.NthIncludedDayTrigger.FireOnceNow" />.
+        /// <see cref="MisfireInstruction.NthIncludedDayTrigger.FireOnceNow" />.
 		/// </P>
 		/// </summary>
 		/// <param name="cal">a new or updated calendar to use for the trigger
@@ -632,16 +632,16 @@ namespace Quartz
 
 			calendar = cal;
 
-			if (instruction == MisfirePolicy.SmartPolicy)
+			if (instruction == Quartz.MisfireInstruction.SmartPolicy)
 			{
-				instruction = MisfirePolicy.NthIncludedDayTrigger.FireOnceNow;
+				instruction = Quartz.MisfireInstruction.NthIncludedDayTrigger.FireOnceNow;
 			}
 
-			if (instruction == MisfirePolicy.NthIncludedDayTrigger.DoNothing)
+			if (instruction == Quartz.MisfireInstruction.NthIncludedDayTrigger.DoNothing)
 			{
                 nextFireTimeUtc = GetFireTimeAfter(DateTime.UtcNow);
 			}
-			else if (instruction == MisfirePolicy.NthIncludedDayTrigger.FireOnceNow)
+			else if (instruction == Quartz.MisfireInstruction.NthIncludedDayTrigger.FireOnceNow)
 			{
 				nextFireTimeUtc = DateTime.UtcNow;
 			}

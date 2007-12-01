@@ -64,7 +64,7 @@ namespace Quartz.Tests.Unit
 			t.CalendarName = "MyCalendar";
 			t.Description = "SimpleTriggerDesc";
 			t.JobDataMap = jobDataMap;
-            t.MisfireInstruction = (MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount);
+            t.MisfireInstruction = (MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount);
 			t.Volatile = true;
 
 			t.AddTriggerListener("L1");
@@ -120,7 +120,7 @@ namespace Quartz.Tests.Unit
 			DateTime endTime = new DateTime(2005, 7, 5, 10, 0, 0);
 
 			SimpleTrigger simpleTrigger = new SimpleTrigger();
-			simpleTrigger.MisfireInstruction = MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
+			simpleTrigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
 			simpleTrigger.RepeatCount = 5;
 			simpleTrigger.StartTimeUtc = startTime;
 			simpleTrigger.EndTimeUtc = endTime;

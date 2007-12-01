@@ -274,6 +274,10 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Xml\TestData\MinimalConfiguration.xml"
+                    BuildAction = "EmbeddedResource"
+                />
+                <File
                     RelPath = "Xml\TestData\RichConfiguration.xml"
                     BuildAction = "EmbeddedResource"
                 />

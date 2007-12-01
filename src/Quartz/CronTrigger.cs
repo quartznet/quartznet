@@ -643,9 +643,9 @@ namespace Quartz
 		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-            return (misfireInstruction == MisfirePolicy.CronTrigger.DoNothing) 
-                || (misfireInstruction == MisfirePolicy.CronTrigger.FireOnceNow)
-                || (misfireInstruction == MisfirePolicy.SmartPolicy);
+            return (misfireInstruction == Quartz.MisfireInstruction.CronTrigger.DoNothing) 
+                || (misfireInstruction == Quartz.MisfireInstruction.CronTrigger.FireOnceNow)
+                || (misfireInstruction == Quartz.MisfireInstruction.SmartPolicy);
 			
 		}
 
@@ -666,12 +666,12 @@ namespace Quartz
 		{
 			int instr = MisfireInstruction;
 
-			if (instr == MisfirePolicy.SmartPolicy)
+			if (instr == Quartz.MisfireInstruction.SmartPolicy)
 			{
-				instr = MisfirePolicy.CronTrigger.FireOnceNow;
+				instr = Quartz.MisfireInstruction.CronTrigger.FireOnceNow;
 			}
 
-			if (instr == MisfirePolicy.CronTrigger.DoNothing)
+			if (instr == Quartz.MisfireInstruction.CronTrigger.DoNothing)
 			{
                 NullableDateTime newFireTime = GetFireTimeAfter(DateTime.UtcNow);
 
@@ -682,7 +682,7 @@ namespace Quartz
 				}
 				SetNextFireTime(newFireTime);
 			}
-			else if (instr == MisfirePolicy.CronTrigger.FireOnceNow)
+			else if (instr == Quartz.MisfireInstruction.CronTrigger.FireOnceNow)
 			{
 				SetNextFireTime(DateTime.UtcNow);
 			}

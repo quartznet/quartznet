@@ -3983,7 +3983,7 @@ namespace Quartz.Impl.AdoJobStore
                                             SchedulerConstants.DefaultRecoveryGroup, tempAux);
                                     rcvryTrig.JobName = jKey.Name;
                                     rcvryTrig.JobGroup = jKey.Group;
-                                    rcvryTrig.MisfireInstruction = MisfirePolicy.SimpleTrigger.FireNow;
+                                    rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
                                     rcvryTrig.Priority = ftRec.Priority;
                                     JobDataMap jd = Delegate.SelectTriggerJobDataMap(conn, tKey.Name, tKey.Group);
                                     jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, tKey.Name);

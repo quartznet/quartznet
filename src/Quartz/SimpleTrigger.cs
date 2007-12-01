@@ -252,18 +252,18 @@ namespace Quartz
 		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-            return (misfireInstruction == MisfirePolicy.SimpleTrigger.FireNow) 
-                || (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount) 
-                || (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount)
-                || (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
-                || (misfireInstruction == MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
-                || (misfireInstruction == MisfirePolicy.SmartPolicy);
+            return (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.FireNow) 
+                || (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount) 
+                || (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
+                || (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
+                || (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
+                || (misfireInstruction == Quartz.MisfireInstruction.SmartPolicy);
 		           
 		}
 
 		/// <summary>
 		/// Updates the <see cref="SimpleTrigger" />'s state based on the
-        /// MisfirePolicy value that was selected when the <see cref="SimpleTrigger" />
+        /// MisfireInstruction value that was selected when the <see cref="SimpleTrigger" />
 		/// was created.
 		/// </summary>
 		/// <remarks>
@@ -271,47 +271,47 @@ namespace Quartz
 		/// then the following scheme will be used: <br />
 		/// <ul>
 		/// <li>If the Repeat Count is 0, then the instruction will
-        /// be interpreted as <see cref="MisfirePolicy.SimpleTrigger.FireNow" />.</li>
+        /// be interpreted as <see cref="MisfireInstruction.SimpleTrigger.FireNow" />.</li>
 		/// <li>If the Repeat Count is <see cref="RepeatIndefinitely" />, then
-        /// the instruction will be interpreted as <see cref="MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount" />.
+        /// the instruction will be interpreted as <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount" />.
         /// <b>WARNING:</b> using MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount 
 		/// with a trigger that has a non-null end-time may cause the trigger to 
 		/// never fire again if the end-time arrived during the misfire time span. 
 		/// </li>
 		/// <li>If the Repeat Count is > 0, then the instruction
-        /// will be interpreted as <see cref="MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />.
+        /// will be interpreted as <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />.
 		/// </li>
 		/// </ul>
 		/// </remarks>
 		public override void UpdateAfterMisfire(ICalendar cal)
 		{
 			int instr = MisfireInstruction;
-			if (instr == MisfirePolicy.SmartPolicy)
+			if (instr == Quartz.MisfireInstruction.SmartPolicy)
 			{
 				if (RepeatCount == 0)
 				{
-                    instr = MisfirePolicy.SimpleTrigger.FireNow;
+                    instr = Quartz.MisfireInstruction.SimpleTrigger.FireNow;
 				}
 				else if (RepeatCount == RepeatIndefinitely)
 				{
-                    instr = MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount;
+                    instr = Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
 					    
 				}
 				else
 				{
-                    instr = MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
+                    instr = Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
 				}
 			}
-            else if (instr == MisfirePolicy.SimpleTrigger.FireNow && RepeatCount != 0)
+            else if (instr == Quartz.MisfireInstruction.SimpleTrigger.FireNow && RepeatCount != 0)
 			{
-                instr = MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;
+                instr = Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;
 			}
 
-            if (instr == MisfirePolicy.SimpleTrigger.FireNow)
+            if (instr == Quartz.MisfireInstruction.SimpleTrigger.FireNow)
 			{
 				SetNextFireTime(DateTime.UtcNow);
 			}
-			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount)
+			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
 			{
                 NullableDateTime newFireTime = GetFireTimeAfter(DateTime.UtcNow);
 
@@ -321,7 +321,7 @@ namespace Quartz
 				}
 				SetNextFireTime(newFireTime);
 			}
-			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount)
+			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
 			{
                 NullableDateTime newFireTime = GetFireTimeAfter(DateTime.UtcNow);
 
@@ -338,7 +338,7 @@ namespace Quartz
 
 				SetNextFireTime(newFireTime);
 			}
-			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
+			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
 			{
 				DateTime newFireTime = DateTime.UtcNow;
 				if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
@@ -357,7 +357,7 @@ namespace Quartz
 					SetNextFireTime(newFireTime);
 				}
 			}
-			else if (instr == MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
+			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
 			{
 				DateTime newFireTime = DateTime.UtcNow;
 				int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc, newFireTime);

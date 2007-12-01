@@ -2,12 +2,12 @@
 namespace Quartz
 {
     ///<summary>
-    /// Misfire policies.
+    /// Misfire instructions.
     ///</summary>
-    public struct MisfirePolicy
+    public struct MisfireInstruction
     {
         /// <summary>
-        /// Instruction no set (yet).
+        /// Instruction not set (yet).
         /// </summary>
         public const int InstructionNotSet = 0;
 
