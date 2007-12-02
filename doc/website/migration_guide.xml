@@ -28,7 +28,7 @@
 					It's now written like this:<br />
 					<pre format="cs">
 						SimpleTrigger st = new SimpleTrigger();
-						st.StartTime = new DateTime(2010, 6, 28, 3, 0, 0).ToUniversalTime();					
+						st.StartTimeUtc = new DateTime(2010, 6, 28, 3, 0, 0).ToUniversalTime();					
 					</pre>
 					<br />
 					<br />
