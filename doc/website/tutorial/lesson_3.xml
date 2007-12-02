@@ -40,7 +40,7 @@ JobDetail jobDetail = new JobDetail("myJob", null, typeof(DumbJob));
 // fire every hour
 Trigger trigger = TriggerUtils.MakeHourlyTrigger();
 // start on the next even hour
-trigger.StartTime = TriggerUtils.GetEvenHourDate(DateTime.Now);  
+trigger.StartTime = TriggerUtils.GetEvenHourDate(DateTime.UtcNow);  
 trigger.Name = "myTrigger";
 sched.ScheduleJob(jobDetail, trigger); 
 </pre>
@@ -110,7 +110,7 @@ public class DumbJob : IJob
         string jobSays = dataMap.GetString("jobSays");
         float myFloatValue = dataMap.GetFloat("myFloatValue");
         ArrayList state = (ArrayList) dataMap["myStateData"];
-        state.Add(DateTime.Now);
+        state.Add(DateTime.UtcNow);
 
         Console.WriteLine("Instance {0} of DumbJob says: {1}", instName, jobSays);
     }
@@ -159,7 +159,7 @@ public class DumbJob : IJob
         string jobSays = dataMap.GetString("jobSays");
         float myFloatValue = dataMap.GetFloat("myFloatValue");
         ArrayList state = (ArrayList) dataMap.Get("myStateData");
-        state.Add(DateTime.Now);
+        state.Add(DateTime.UtcNow);
 
         Console.WriteLine("Instance {0} of DumbJob says: {1}", instName, jobSays);
     }

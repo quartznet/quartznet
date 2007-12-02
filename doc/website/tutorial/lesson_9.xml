@@ -96,7 +96,7 @@ Quartz configuration to be either "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz" o
 
 <strong>Configuring Quartz to use JobStoreTx</strong>
 <div class="code">
-org.quartz.jobStore.class = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
+org.quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
 </div>
 
 <p>

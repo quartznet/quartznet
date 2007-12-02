@@ -50,8 +50,8 @@ SimpleTrigger has a few different constructors, but we'll examine this one, and 
 <pre format="cs">
 public SimpleTrigger(string name, 
                        string group, 
-                       DateTime startTime,
-                       NullableDateTime endTime endTime, 
+                       DateTime startTimeUtc,
+                       NullableDateTime endTime endTimeUtc, 
                        int repeatCount, 
                        long repeatInterval)
 </pre>
@@ -60,7 +60,7 @@ public SimpleTrigger(string name,
 <pre format="cs">
 SimpleTrigger trigger = new SimpleTrigger("myTrigger",
                                           null,
-                                          DateTime.Now.AddSeconds(10),
+                                          DateTime.UtcNow.AddSeconds(10),
                                           null,
                                           0,
                                           0L); 
@@ -71,9 +71,9 @@ SimpleTrigger trigger = new SimpleTrigger("myTrigger",
 <pre format="cs">
 SimpleTrigger trigger2 = new SimpleTrigger("myTrigger",
                                 null,
-                                DateTime.Now,
+                                DateTime.UtcNow,
                                 null,
-                                SimpleTrigger.REPEAT_INDEFINITELY,
+                                SimpleTrigger.RepeatIndefinitely,
                                 60 * 1000); 
 </pre>
 
@@ -81,9 +81,9 @@ SimpleTrigger trigger2 = new SimpleTrigger("myTrigger",
 <pre format="cs">
 SimpleTrigger trigger = new SimpleTrigger("myTrigger",
                                           "myGroup",
-                                          DateTime.Now,
-                                          DateTime.Now.AddSeconds(40),
-                                          SimpleTrigger.REPEAT_INDEFINITELY,
+                                          DateTime.UtcNow,
+                                          DateTime.UtcNow.AddSeconds(40),
+                                          SimpleTrigger.RepeatIndefinitely,
                                           10 * 1000);
 </pre>
 
@@ -92,7 +92,7 @@ SimpleTrigger Example 4 - Create a trigger that fires on March 17 of the year 20
 (for a total of 6 firings) - with a 30 second delay between each firing
 </strong>
 <pre format="cs">
-DateTime startTime = new DateTime(2002, 3, 17, 10, 30, 0);
+DateTime startTime = new DateTime(2002, 3, 17, 10, 30, 0).ToUniversalTime();
 
 SimpleTrigger trigger = new SimpleTrigger("myTrigger",
                                           null,

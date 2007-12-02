@@ -34,9 +34,9 @@ namespace Quartz
 
         ICalendar CalendarBase { set; get; }
 
-        bool IsTimeIncluded(DateTime time);
+        bool IsTimeIncluded(DateTime timeUtc);
 
-        DateTime GetNextIncludedTime(DateTime time);
+        DateTime GetNextIncludedTimeUtc(DateTime timeUtc);
     }
 } 
 </pre>
@@ -65,7 +65,7 @@ sched.AddCalendar("myHolidays", cal, false);
 // fire every one hour interval
 Trigger trigger = TriggerUtils.MakeHourlyTrigger();
 // start on the next even hour
-trigger.StartTime = TriggerUtils.GetEvenHourDate(DateTime.Now); 
+trigger.StartTimeUtc = TriggerUtils.GetEvenHourDate(DateTime.Now); 
 trigger.Name = "myTrigger1";
 
 trigger.CalendarName = "myHolidays";
@@ -75,7 +75,7 @@ trigger.CalendarName = "myHolidays";
 // fire every day at 08:00
 Trigger trigger2 = TriggerUtils.MakeDailyTrigger(8, 0);
 // begin immediately
-trigger.StartTime = DateTime.Now; 
+trigger.StartTimeUtc = DateTime.UtcNow; 
 trigger2.Name = "myTrigger2";
 trigger2.CalendarName = "myHolidays";
 
@@ -108,7 +108,7 @@ Note: When a Trigger is detected to require recovery, its recovery is scheduled 
 
 <pre format="cs">
 // All three Triggers will be scheduled to fire 5 minutes from now.
-DateTime d = DateTime.Now.AddMinutes(5);
+DateTime d = DateTime.UtcNow.AddMinutes(5);
 
 Trigger trig1 = new SimpleTrigger("T1", "MyGroup", d);
 Trigger trig2 = new SimpleTrigger("T2", "MyGroup", d);
