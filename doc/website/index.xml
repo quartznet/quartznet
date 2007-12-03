@@ -65,6 +65,14 @@
 					in action. The documentation is still work in progress.
 				</p>
 				<p>
+					<strong>
+						UPDATE: XML configuration example's XML file isn't valid
+						according to its schema. The "allows-transient-data"
+						attribute hsa been removed from the Quartz.NET XML schema
+						and can be safely removed from the XML file aswell.
+					</strong>
+				</p>
+				<p>
 					Grap it from <a href="download.html">downloads page</a>.
 				</p>
 			</section>
