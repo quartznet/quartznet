@@ -16,15 +16,16 @@
 using System;
 using System.Collections;
 
+using NUnit.Framework;
+
+using Quartz.Collection;
+using Quartz.Impl.Calendar;
+
 #if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;
 #endif
-
-using NUnit.Framework;
-
-using Quartz.Collection;
 
 namespace Quartz.Tests.Unit
 {
@@ -238,5 +239,22 @@ namespace Quartz.Tests.Unit
             Assert.IsEmpty(simpleTrigger.TriggerListenerNames);
             
         }
+
+        // QRTZNET-73
+        [Test]
+        public void TestGetFireTimeAfter_WithCalendar()
+        {
+            DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+            SimpleTrigger simpleTrigger = new SimpleTrigger();
+            simpleTrigger.RepeatInterval = 10;
+            simpleTrigger.RepeatCount = 1;
+            DateTime neverFireTime = TriggerUtils.GetEvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(DateTime.Now)); 
+            simpleTrigger.StartTimeUtc = neverFireTime;
+
+            simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
+            NullableDateTime fireTimeAfter = simpleTrigger.GetNextFireTimeUtc();
+
+            Assert.IsNull(fireTimeAfter);
+        } 
 	}
 }

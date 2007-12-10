@@ -451,7 +451,7 @@ namespace Quartz
 		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
         public override NullableDateTime ComputeFirstFireTimeUtc(ICalendar cal)
-		{
+    	{
 			nextFireTimeUtc = StartTimeUtc;
 
 			while (nextFireTimeUtc.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
@@ -459,7 +459,7 @@ namespace Quartz
 				nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 			}
 
-			return nextFireTimeUtc.Value;
+			return nextFireTimeUtc;
 		}
 
 		
