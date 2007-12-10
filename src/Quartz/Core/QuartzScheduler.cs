@@ -2060,6 +2060,17 @@ namespace Quartz.Core
         {
             return resources.JobStore.IsTriggerGroupPaused(ctxt, groupName);
         }
+
+        ///<summary>
+        ///Obtains a lifetime service object to control the lifetime policy for this instance.
+        ///</summary>
+        public override object InitializeLifetimeService()
+        {
+            // overriden to initialize null life time service,
+            // this basically means that remoting object will live as long
+            // as the application lives
+            return null;
+        }
     }
 
     /// <summary>
