@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <quartz xmlns="http://quartznet.sourceforge.net/JobSchedulingData"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
- xsi:schemaLocation="http://quartznet.sourceforge.net/JobSchedulingData file:/C:/Work/Quartz/Quartz.NET/src/Quartz/Xml/job_scheduling_data.xsd"
-				version="1.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ 				version="1.0"
 				overwrite-existing-jobs="true">
+  
   <calendar type="Quartz.Impl.Calendar.AnnualCalendar, Quartz" replace="false">
     <name>cal1</name>
     <description>description0</description>
@@ -12,6 +12,7 @@
       <description>description1</description>
     </base-calendar>
   </calendar>
+  
   <calendar type="Quartz.Impl.Calendar.AnnualCalendar, Quartz" replace="false">
     <name>cal2</name>
     <description>description0</description>
@@ -20,6 +21,7 @@
       <description>description1</description>
     </base-calendar>
   </calendar>
+  
   <job>
     <job-detail>
       <name>jobName1</name>
@@ -29,7 +31,7 @@
       <volatile>false</volatile>
       <durable>true</durable>
       <recover>false</recover>
-      <job-data-map allows-transient-data="false">
+      <job-data-map>
         <entry>
           <key>key0</key>
           <value>value0</value>
@@ -44,6 +46,7 @@
         </entry>
       </job-data-map>
     </job-detail>
+  
     <trigger>
       <simple>
         <name>simpleName</name>
