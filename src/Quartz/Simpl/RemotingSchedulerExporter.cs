@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Globalization;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
 using System.Runtime.Remoting.Channels.Tcp;
+using System.Runtime.Serialization.Formatters;
 using System.Security;
 
 using Common.Logging;
@@ -19,13 +21,15 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma</author>
     public class RemotingSchedulerExporter : ISchedulerExporter
     {
-        private const string ChannelTypeTcp = "tcp";
-        private const string ChannelTypeHttp = "http";
+        public const string ChannelTypeTcp = "tcp";
+        public const string ChannelTypeHttp = "http";
+        private const string DefaultBindName = "QuartzScheduler";
 
         private readonly ILog log;
         private int port = -1;
-        private string bindName;
-        private string channelType;
+        private string bindName = DefaultBindName;
+        private string channelType = ChannelTypeTcp;
+        private TypeFilterLevel typeFilgerLevel = TypeFilterLevel.Full;
 
         public RemotingSchedulerExporter()
         {
@@ -64,28 +68,44 @@ namespace Quartz.Simpl
             } 
         }
 
-        private void RegisterRemotingChannelIfNeeded()
+        /// <summary>
+        /// Registers remoting channel if needed. This is determined
+        /// by checking whether there is a positive value for port.
+        /// </summary>
+        protected virtual void RegisterRemotingChannelIfNeeded()
         {
             if (port > -1 && channelType != null)
             {
                 // try remoting bind
+
+                IDictionary props = new Hashtable();
+                props["port"] = port;
+                
+                // use binary formatter
+                BinaryServerFormatterSinkProvider formatprovider = new BinaryServerFormatterSinkProvider(props, null);
+                formatprovider.TypeFilterLevel = typeFilgerLevel;
+
                 IChannel chan;
                 if (channelType == ChannelTypeHttp)
                 {
-                    chan = new HttpChannel(port);
+                    chan = new HttpChannel(props, null, formatprovider);
                 }
                 else if (channelType == ChannelTypeTcp)
                 {
-                    chan = new TcpChannel(port);
+                    chan = new TcpChannel(props, null, formatprovider);
                 }
                 else
                 {
                     throw new ArgumentException("Unknown remoting channel type '" + channelType + "'");
                 }
-
+               
                 Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1})", chan.GetType(), port));
                 ChannelServices.RegisterChannel(chan);
                 Log.Info("Remoting channel registered successfully");
+            }
+            else
+            {
+                log.Error("Cannot register remoting if port or channel type not specified");
             }
         }
 
@@ -119,28 +139,49 @@ namespace Quartz.Simpl
             } 
         }
 
-        protected ILog Log
+        protected virtual ILog Log
         {
             get { return log; }
         }
 
-        public int Port
+        /// <summary>
+        /// Gets or sets the port used for remoting.
+        /// </summary>
+        public virtual int Port
         {
             get { return port; }
             set { port = value; }
         }
 
-        public string BindName
+        /// <summary>
+        /// Gets or sets the name to use when exporting
+        /// scheduler to remoting context.
+        /// </summary>
+        public virtual string BindName
         {
             get { return bindName; }
             set { bindName = value; }
         }
 
-
-        public string ChannelType
+        /// <summary>
+        /// Sets the channel type when registering remoting.
+        /// 
+        /// </summary>
+        public virtual string ChannelType
         {
             get { return channelType; }
             set { channelType = value; }
+        }
+
+        /// <summary>
+        /// Sets the <see cref="TypeFilterLevel" /> used when
+        /// exporting to remoting context. Defaults to
+        /// <see cref="System.Runtime.Serialization.Formatters.TypeFilterLevel.Full" />.
+        /// </summary>
+        public virtual TypeFilterLevel TypeFilterLevel
+        {
+            set { typeFilgerLevel = value; }
+            get { return typeFilgerLevel; }
         }
     }
 }
