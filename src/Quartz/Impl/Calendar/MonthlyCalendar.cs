@@ -193,7 +193,7 @@ namespace Quartz.Impl.Calendar
 			while (IsDayExcluded(day))
 			{
 				newTimeStamp = newTimeStamp.AddDays(1);
-				day = (int) newTimeStamp.DayOfWeek + 1;
+				day = (int) newTimeStamp.Day;
 			}
 
 			return newTimeStamp.ToUniversalTime();

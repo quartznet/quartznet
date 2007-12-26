@@ -54,6 +54,21 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             cal.SetDayExcluded(3, true);
             Assert.AreEqual(excluded.AddDays(1), cal.GetNextIncludedTimeUtc(excluded));
         }
+
+        [Test]
+        public void TestForInfiniteLoop()
+        {
+            MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
+
+            for (int i = 1; i < 9; i++)
+            {
+                monthlyCalendar.SetDayExcluded(i, true);
+            }
+
+            DateTime d = new DateTime(2007, 11, 8, 12, 0, 0);
+
+            monthlyCalendar.GetNextIncludedTimeUtc(d.ToUniversalTime());
+        }
     
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
