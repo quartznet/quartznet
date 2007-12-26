@@ -150,7 +150,7 @@ namespace Quartz
         /// <summary>
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public virtual long GetIntValue(string key)
+        public virtual int GetIntValue(string key)
         {
             object obj = this[key];
 
@@ -167,7 +167,7 @@ namespace Quartz
         /// <summary>
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public virtual Int32 GetIntegerFromString(string key)
+        public virtual int GetIntegerFromString(string key)
         {
             object obj = this[key];
 
