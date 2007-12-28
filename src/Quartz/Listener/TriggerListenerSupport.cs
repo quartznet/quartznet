@@ -60,23 +60,20 @@ namespace Quartz.Listener
         /// <value></value>
         public abstract string Name { get; }
 
-        public void TriggerFired(Trigger trigger, JobExecutionContext context)
+        public virtual void TriggerFired(Trigger trigger, JobExecutionContext context)
         {
         }
 
-        public bool VetoJobExecution(Trigger trigger, JobExecutionContext context)
+        public virtual bool VetoJobExecution(Trigger trigger, JobExecutionContext context)
         {
             return false;
         }
 
-        public void TriggerMisfired(Trigger trigger)
+        public virtual void TriggerMisfired(Trigger trigger)
         {
         }
 
-        public void TriggerComplete(
-            Trigger trigger,
-            JobExecutionContext context,
-            SchedulerInstruction triggerInstructionCode)
+        public virtual void TriggerComplete(Trigger trigger, JobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
         }
     }

@@ -164,7 +164,7 @@ namespace Quartz.Listener
             get { return namePatterns; }
         }
 
-        protected bool ShouldDispatch(Trigger trigger)
+        protected virtual bool ShouldDispatch(Trigger trigger)
         {
             if (namePatterns.Count == 0 && groupPatterns.Count == 0)
             {

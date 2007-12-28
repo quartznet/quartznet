@@ -168,7 +168,7 @@ namespace Quartz.Listener
             get { return namePatterns; }
         }
 
-        protected bool ShouldDispatch(JobExecutionContext context)
+        protected virtual bool ShouldDispatch(JobExecutionContext context)
         {
             JobDetail job = context.JobDetail;
 
