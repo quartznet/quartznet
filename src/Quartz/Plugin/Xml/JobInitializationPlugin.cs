@@ -436,7 +436,7 @@ namespace Quartz.Plugin.Xml
                 {
                     try
                     {
-                        f = new FileStream(file.FullName, FileMode.Open);
+                        f = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
                     }
                     catch (FileNotFoundException)
                     {
