@@ -174,6 +174,14 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        public void TestYearChange()
+        {
+            // QRTZNET-85
+            CronExpression cronExpression = new CronExpression("0 12 4 ? * 3");
+            cronExpression.GetNextValidTimeAfter(new DateTime(2007, 12, 28));
+        }
+
+        [Test]
         public void TestCronExpressionParsingIncorrectDayOfWeek()
         {
             // test failed before because of improper trimming

@@ -1687,7 +1687,15 @@ namespace Quartz
                         {
                             // did we already miss the
                             // last one?
-                            d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                            if (mon == 12)
+                            {
+                                //will we pass the end of the year?
+                                d = new DateTime(d.Year, mon - 11, 1, 0, 0, 0).AddYears(1);
+                            }
+                            else
+                            {
+                            	d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                            }
                             // we are promoting the month
                             continue;
                         }
@@ -1776,9 +1784,17 @@ namespace Quartz
 
                         if (day + daysToAdd > lDay)
                         {
-                            // will we pass the end of
-                            // the month?
-                            d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                            // will we pass the end of the month?
+
+                            if (mon == 12)
+                            {
+                                //will we pass the end of the year?
+                                d = new DateTime(d.Year, mon - 11, 1, 0, 0, 0).AddYears(1);
+                            }
+                            else
+                            {
+                            	d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                            }
                             // we are promoting the month
                             continue;
                         }
