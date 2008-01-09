@@ -171,6 +171,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     ICalendar cronCalendar = new CronCalendar("0/5 * * * * ?");
                     ICalendar holidayCalendar = new HolidayCalendar();
 
+                    // QRTZNET-86
+                    Trigger t = sched.GetTrigger("NonExistingTrigger", "NonExistingGroup");
+                    Assert.IsNull(t);
+
                     sched.AddCalendar("annualCalendar", new AnnualCalendar(), false, true);
                     sched.AddCalendar("baseCalendar", new BaseCalendar(), false, true);
                     sched.AddCalendar("cronCalendar", cronCalendar, false, true);
@@ -208,6 +212,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     trigger.AddTriggerListener(new DummyTriggerListener().Name);
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                     sched.ScheduleJob(job, trigger);
+
+                    // check that trigger was stored
+                    Trigger persisted = sched.GetTrigger("trig_" + count, schedId);
+                    Assert.IsNotNull(persisted);
+                    Assert.IsTrue(persisted is SimpleTrigger);
 
                     count++;
                     job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));

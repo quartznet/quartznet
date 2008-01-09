@@ -189,7 +189,7 @@ namespace Quartz.Impl.AdoJobStore
                         list.Add(new Key(GetString(rs[0]), GetString(rs[1])));
                     }
 
-                    Key[] sArr = (Key[]) list.ToArray(typeof (Key));
+                    Key[] sArr = (Key[])list.ToArray(typeof(Key));
                     return sArr;
                 }
             }
@@ -369,7 +369,7 @@ namespace Quartz.Impl.AdoJobStore
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     long dumId = DateTime.UtcNow.Ticks;
-                    
+
                     while (rs.Read())
                     {
                         string jobName = GetString(rs[ColumnJobName]);
@@ -406,8 +406,8 @@ namespace Quartz.Impl.AdoJobStore
             Trigger[] tArr = new Trigger[oArr.Length];
             Array.Copy(oArr, 0, tArr, 0, oArr.Length);
             return tArr;
-               
-           
+
+
         }
 
         /// <summary>
@@ -501,7 +501,7 @@ namespace Quartz.Impl.AdoJobStore
             idx = jobType.AssemblyQualifiedName.IndexOf(',', idx + 1);
 
             string retValue = jobType.AssemblyQualifiedName.Substring(0, idx);
-            
+
             return retValue;
         }
 
@@ -632,7 +632,7 @@ namespace Quartz.Impl.AdoJobStore
                 object o = cmd.ExecuteScalar();
                 if (o != null)
                 {
-                    return (bool) o;
+                    return (bool)o;
                 }
                 else
                 {
@@ -730,7 +730,7 @@ namespace Quartz.Impl.AdoJobStore
                         list.Add(dr[0]);
                     }
 
-                    return (string[]) list.ToArray(typeof (string));
+                    return (string[])list.ToArray(typeof(string));
                 }
             }
         }
@@ -773,7 +773,7 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         else
                         {
-                            map = (IDictionary) GetObjectFromBlob(rs, 8);
+                            map = (IDictionary)GetObjectFromBlob(rs, 8);
                         }
 
                         if (null != map)
@@ -791,7 +791,7 @@ namespace Quartz.Impl.AdoJobStore
         private IDictionary GetMapFromProperties(IDataReader rs, int idx)
         {
             IDictionary map;
-            NameValueCollection properties = (NameValueCollection) GetJobDetailFromBlob(rs, idx);
+            NameValueCollection properties = (NameValueCollection)GetJobDetailFromBlob(rs, idx);
             if (properties == null)
             {
                 return null;
@@ -809,7 +809,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumJobs)))
             {
-                return (int) cmd.ExecuteScalar();
+                return (int)cmd.ExecuteScalar();
             }
         }
 
@@ -897,7 +897,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 6, "triggerDescription", trigger.Description);
                 AddCommandParameter(cmd, 7, "triggerNextFireTime",
                                     Convert.ToDecimal(trigger.GetNextFireTimeUtc().Value.Ticks));
-                long prevFireTime = - 1;
+                long prevFireTime = -1;
                 if (trigger.GetPreviousFireTimeUtc().HasValue)
                 {
                     prevFireTime = trigger.GetPreviousFireTimeUtc().Value.Ticks;
@@ -1048,14 +1048,14 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, 2, "triggerJobGroup", trigger.JobGroup);
             AddCommandParameter(cmd, 3, "triggerVolatile", GetDbBooleanValue(trigger.Volatile));
             AddCommandParameter(cmd, 4, "triggerDescription", trigger.Description);
-            long nextFireTime = - 1;
+            long nextFireTime = -1;
 
             if (trigger.GetNextFireTimeUtc().HasValue)
             {
                 nextFireTime = trigger.GetNextFireTimeUtc().Value.Ticks;
             }
             AddCommandParameter(cmd, 5, "triggerNextFireTime", Convert.ToDecimal(nextFireTime));
-            long prevFireTime = - 1;
+            long prevFireTime = -1;
 
             if (trigger.GetPreviousFireTimeUtc().HasValue)
             {
@@ -1476,7 +1476,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         list.Add(rs[0]);
                     }
-                    return (string[]) list.ToArray(typeof (string));
+                    return (string[])list.ToArray(typeof(string));
                 }
             }
         }
@@ -1643,7 +1643,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 AddCommandParameter(cmd, 1, "jobName", jobName);
                 AddCommandParameter(cmd, 2, "jobGroup", groupName);
-                
+
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     while (rs.Read())
@@ -1659,14 +1659,14 @@ namespace Quartz.Impl.AdoJobStore
             ArrayList trigList = new ArrayList();
             foreach (Pair p in triggerIdentifiers)
             {
-                Trigger t = SelectTrigger(conn, (string) p.First, (string) p.Second);
+                Trigger t = SelectTrigger(conn, (string)p.First, (string)p.Second);
                 if (t != null)
                 {
                     trigList.Add(t);
                 }
             }
 
-            return (Trigger[]) trigList.ToArray(typeof (Trigger));
+            return (Trigger[])trigList.ToArray(typeof(Trigger));
         }
 
 
@@ -1695,7 +1695,7 @@ namespace Quartz.Impl.AdoJobStore
             }
 
 
-            return (Trigger[]) trigList.ToArray(typeof (Trigger));
+            return (Trigger[])trigList.ToArray(typeof(Trigger));
         }
 
 
@@ -1772,22 +1772,22 @@ namespace Quartz.Impl.AdoJobStore
                         calendarName = GetString(rs[ColumnCalendarName]);
                         misFireInstr = Convert.ToInt32(rs[ColumnMifireInstruction], CultureInfo.InvariantCulture);
                         priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
-                        
+
                         if (CanUseProperties)
                         {
                             map = GetMapFromProperties(rs, 15);
                         }
                         else
                         {
-                            map = (IDictionary) GetObjectFromBlob(rs, 15);
+                            map = (IDictionary)GetObjectFromBlob(rs, 15);
                         }
 
-                        
+
                         if (nextFireTime > 0)
                         {
                             nft = new DateTime(nextFireTime);
                         }
-                        
+
                         if (prevFireTime > 0)
                         {
                             pft = new DateTime(prevFireTime);
@@ -1799,115 +1799,117 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             endTimeD = new DateTime(endTime);
                         }
+
+                        // done reading
+                        rs.Close();
+
+                        if (triggerType.Equals(TriggerTypeSimple))
+                        {
+                            using (IDbCommand cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectSimpleTrigger)))
+                            {
+                                AddCommandParameter(cmd2, 1, "triggerName", triggerName);
+                                AddCommandParameter(cmd2, 2, "triggerGroup", groupName);
+                                using (IDataReader rs2 = cmd2.ExecuteReader())
+                                {
+                                    if (rs2.Read())
+                                    {
+                                        int repeatCount = Convert.ToInt32(rs2[ColumnRepeatCount], CultureInfo.InvariantCulture);
+                                        long repeatInterval = Convert.ToInt64(rs2[ColumnRepeatInterval], CultureInfo.InvariantCulture);
+                                        int timesTriggered = Convert.ToInt32(rs2[ColumnTimesTriggered], CultureInfo.InvariantCulture);
+
+                                        SimpleTrigger st =
+                                            new SimpleTrigger(triggerName, groupName, jobName, jobGroup, startTimeD, endTimeD,
+                                                              repeatCount,
+                                                              repeatInterval);
+                                        st.CalendarName = calendarName;
+                                        st.MisfireInstruction = misFireInstr;
+                                        st.TimesTriggered = timesTriggered;
+                                        st.Volatile = volatility;
+                                        st.SetNextFireTime(nft);
+                                        st.SetPreviousFireTime(pft);
+                                        st.Description = description;
+                                        st.Priority = priority;
+                                        if (null != map)
+                                        {
+                                            st.JobDataMap = new JobDataMap(map);
+                                        }
+                                        trigger = st;
+                                    }
+                                }
+                            }
+                        }
+                        else if (triggerType.Equals(TriggerTypeCron))
+                        {
+                            using (IDbCommand cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCronTriggers)))
+                            {
+                                AddCommandParameter(cmd2, 1, "triggerName", triggerName);
+                                AddCommandParameter(cmd2, 2, "triggerGroup", groupName);
+                                using (IDataReader rs2 = cmd2.ExecuteReader())
+                                {
+                                    if (rs2.Read())
+                                    {
+                                        string cronExpr = GetString(rs2[ColumnCronExpression]);
+                                        string timeZoneId = GetString(rs2[ColumnTimeZoneId]);
+
+                                        CronTrigger ct = null;
+                                        try
+                                        {
+                                            TimeZone timeZone = null;
+                                            if (timeZoneId != null)
+                                            {
+                                                // TODO should we do something actually here
+                                            }
+                                            ct =
+                                                new CronTrigger(triggerName, groupName, jobName, jobGroup, startTimeD, endTimeD,
+                                                                cronExpr, timeZone);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            logger.Warn("Got error from expression, still continuing", ex);
+                                            // expr must be valid, or it never would have
+                                            // gotten to the store...
+                                        }
+                                        if (null != ct)
+                                        {
+                                            ct.CalendarName = calendarName;
+                                            ct.MisfireInstruction = misFireInstr;
+                                            ct.Volatile = volatility;
+                                            ct.SetNextFireTime(nft);
+                                            ct.SetPreviousFireTime(pft);
+                                            ct.Description = description;
+                                            if (null != map)
+                                            {
+                                                ct.JobDataMap = new JobDataMap(map);
+                                            }
+                                            trigger = ct;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else if (triggerType.Equals(TriggerTypeBlob))
+                        {
+                            using (IDbCommand cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectBlobTrigger)))
+                            {
+                                AddCommandParameter(cmd2, 1, "triggerName", triggerName);
+                                AddCommandParameter(cmd2, 2, "triggerGroup", groupName);
+                                using (IDataReader rs2 = cmd2.ExecuteReader())
+                                {
+                                    if (rs2.Read())
+                                    {
+                                        trigger = (Trigger)GetObjectFromBlob(rs2, 2);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            throw new Exception("Class for trigger type '" + triggerType + "' not found.");
+                        }
+
                     }
                 }
             }
-
-            if (triggerType.Equals(TriggerTypeSimple))
-            {
-                    using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectSimpleTrigger)))
-                    {
-                        AddCommandParameter(cmd, 1, "triggerName", triggerName);
-                        AddCommandParameter(cmd, 2, "triggerGroup", groupName);
-                        using (IDataReader rs = cmd.ExecuteReader())
-                        {
-                            if (rs.Read())
-                            {
-                                int repeatCount = Convert.ToInt32(rs[ColumnRepeatCount], CultureInfo.InvariantCulture);
-                                long repeatInterval = Convert.ToInt64(rs[ColumnRepeatInterval], CultureInfo.InvariantCulture);
-                                int timesTriggered = Convert.ToInt32(rs[ColumnTimesTriggered], CultureInfo.InvariantCulture);
-
-                                SimpleTrigger st =
-                                    new SimpleTrigger(triggerName, groupName, jobName, jobGroup, startTimeD, endTimeD,
-                                                      repeatCount,
-                                                      repeatInterval);
-                                st.CalendarName = calendarName;
-                                st.MisfireInstruction = misFireInstr;
-                                st.TimesTriggered = timesTriggered;
-                                st.Volatile = volatility;
-                                st.SetNextFireTime(nft);
-                                st.SetPreviousFireTime(pft);
-                                st.Description = description;
-                                st.Priority = priority;
-                                if (null != map)
-                                {
-                                    st.JobDataMap = new JobDataMap(map);
-                                }
-                                trigger = st;
-                            }
-                        }
-                    }
-                }
-                else if (triggerType.Equals(TriggerTypeCron))
-                {
-                    using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCronTriggers)))
-                    {
-                        AddCommandParameter(cmd, 1, "triggerName", triggerName);
-                        AddCommandParameter(cmd, 2, "triggerGroup", groupName);
-                        using (IDataReader rs = cmd.ExecuteReader())
-                        {
-                            if (rs.Read())
-                            {
-                                string cronExpr = GetString(rs[ColumnCronExpression]);
-                                string timeZoneId = GetString(rs[ColumnTimeZoneId]);
-
-                                CronTrigger ct = null;
-                                try
-                                {
-                                    TimeZone timeZone = null;
-                                    if (timeZoneId != null)
-                                    {
-                                        // TODO should we do something actually here
-                                    }
-                                    ct =
-                                        new CronTrigger(triggerName, groupName, jobName, jobGroup, startTimeD, endTimeD,
-                                                        cronExpr, timeZone);
-                                }
-                                catch (Exception ex)
-                                {
-                                    logger.Warn("Got error from expression, still continuing", ex);
-                                    // expr must be valid, or it never would have
-                                    // gotten to the store...
-                                }
-                                if (null != ct)
-                                {
-                                    ct.CalendarName = calendarName;
-                                    ct.MisfireInstruction = misFireInstr;
-                                    ct.Volatile = volatility;
-                                    ct.SetNextFireTime(nft);
-                                    ct.SetPreviousFireTime(pft);
-                                    ct.Description = description;
-                                    if (null != map)
-                                    {
-                                        ct.JobDataMap = new JobDataMap(map);
-                                    }
-                                    trigger = ct;
-                                }
-                            }
-                        }
-                    }
-                }
-                else if (triggerType.Equals(TriggerTypeBlob))
-                {
-                    using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectBlobTrigger)))
-                    {
-                        AddCommandParameter(cmd, 1, "triggerName", triggerName);
-                        AddCommandParameter(cmd, 2, "triggerGroup", groupName);
-                        using (IDataReader rs = cmd.ExecuteReader())
-                        {
-                            if (rs.Read())
-                            {
-                                trigger = (Trigger) GetObjectFromBlob(rs, 2);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    throw new Exception("Class for trigger type '" + triggerType + "' not found.");
-                }
-            
-
 
             return trigger;
         }
@@ -1920,7 +1922,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             else
             {
-                return (string) columnValue;
+                return (string)columnValue;
             }
         }
 
@@ -1965,7 +1967,7 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         else
                         {
-                            map = (IDictionary) GetObjectFromBlob(rs, 0);
+                            map = (IDictionary)GetObjectFromBlob(rs, 0);
                         }
 
                         if (null != map)
@@ -2098,7 +2100,7 @@ namespace Quartz.Impl.AdoJobStore
                         list.Add(rs[0]);
                     }
 
-                    return (string[]) list.ToArray(typeof (string));
+                    return (string[])list.ToArray(typeof(string));
                 }
             }
         }
@@ -2124,7 +2126,7 @@ namespace Quartz.Impl.AdoJobStore
                         list.Add(rs[0]);
                     }
 
-                    return (string[]) list.ToArray(typeof (string));
+                    return (string[])list.ToArray(typeof(string));
                 }
             }
         }
@@ -2318,7 +2320,7 @@ namespace Quartz.Impl.AdoJobStore
                     ICalendar cal = null;
                     if (rs.Read())
                     {
-                        cal = (ICalendar) GetObjectFromBlob(rs, 1);
+                        cal = (ICalendar)GetObjectFromBlob(rs, 1);
                     }
                     if (null == cal)
                     {
@@ -2410,7 +2412,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         list.Add(rs[0]);
                     }
-                    return (string[]) list.ToArray(typeof (string));
+                    return (string[])list.ToArray(typeof(string));
                 }
             }
         }
@@ -2990,7 +2992,7 @@ namespace Quartz.Impl.AdoJobStore
                                           "when the 'useProperties' property is set. " +
                                           " Key of offending value: " + key);
                 }
-                properties[(string) key] = (string) val;
+                properties[(string)key] = (string)val;
             }
             return properties;
         }
@@ -3037,7 +3039,7 @@ namespace Quartz.Impl.AdoJobStore
             // Read the bytes into outbyte[] and retain the number of bytes returned.
 
             int retval; // The bytes returned from GetBytes.
-            retval = (int) dr.GetBytes(colIndex, startIndex, outbyte, 0, bufferSize);
+            retval = (int)dr.GetBytes(colIndex, startIndex, outbyte, 0, bufferSize);
 
             // Continue reading and writing while there are bytes beyond the size of the buffer.
             while (retval == bufferSize)
@@ -3046,7 +3048,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 // Reposition the start index to the end of the last buffer and fill the buffer.
                 startIndex += bufferSize;
-                retval = (int) dr.GetBytes(colIndex, startIndex, outbyte, 0, bufferSize);
+                retval = (int)dr.GetBytes(colIndex, startIndex, outbyte, 0, bufferSize);
             }
 
             // Write the remaining buffer.
@@ -3099,8 +3101,8 @@ namespace Quartz.Impl.AdoJobStore
                     ArrayList list = new ArrayList();
                     while (dr.Read())
                     {
-                        string triggerName = (string) dr[ColumnJobName];
-                        string groupName = (string) dr[ColumnJobGroup];
+                        string triggerName = (string)dr[ColumnJobName];
+                        string groupName = (string)dr[ColumnJobGroup];
                         list.Add(new Key(triggerName, groupName));
                     }
                     Object[] oArr = list.ToArray();
@@ -3125,7 +3127,7 @@ namespace Quartz.Impl.AdoJobStore
                 if (!rs.IsDBNull(colIndex))
                 {
                     // should be NameValueCollection
-                    return GetObjectFromBlob(rs, colIndex);                
+                    return GetObjectFromBlob(rs, colIndex);
                 }
                 else
                 {
@@ -3153,7 +3155,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     while (dr.Read())
                     {
-                        string groupName = (string) dr[ColumnTriggerGroup];
+                        string groupName = (string)dr[ColumnTriggerGroup];
                         retValue.Add(groupName);
                     }
                 }
