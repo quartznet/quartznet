@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, release 0.9, December 1 2007
+QUARTZ JOB SCHEDULER .NET, release 0.9.1, January 20 2007
 -----------------------------------------------------------------
 
 http://quartznet.sourceforge.net/
@@ -33,5 +33,5 @@ No known issues.
 3. RELEASE INFO
 ----------------
 
-Now with XML configuration and scheduler remoting support. Distribution
-DLLs are now also strongly named (signed) assemblies.
+This is a bug fix release for issues found in 0.9 and 
+this release adds no new features.

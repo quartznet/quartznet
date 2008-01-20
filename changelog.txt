@@ -2,6 +2,30 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+Release 0.9.1, January 20, 2007
+-------------------------------
+
+Bug
+
+    * [QRTZNET-68] - XML configuration example's XML does not conform to schema
+    * [QRTZNET-73] - ComputeFirstFireTimeUtc fails when GetFireTimeAfter returns null
+    * [QRTZNET-80] - MonthlyCalendar GetNextIncludedTime: infinite loop if included date > 7
+    * [QRTZNET-81] - TriggerListenerSupport's methods should be virtual
+    * [QRTZNET-83] - CronExample outputs next scheduled fire times misleadingly in UTC format
+    * [QRTZNET-84] - Quartz's exceptions are not properly serializable when using remoting
+    * [QRTZNET-85] - Cron expression fails when month is incorrectly incremented to 13
+    * [QRTZNET-86] - StdAdoDelegate works incorrectly when Trigger is not found from database
+
+Improvement
+
+    * [QRTZNET-72] - DailyCalendar's parameter names should contain Utc in them
+    * [QRTZNET-75] - Remoting should initialize life time service to forever by default
+    * [QRTZNET-77] - Allow TypeFilterLevel configuration for RemotingExporter and default to Full
+    * [QRTZNET-79] - JobDataMap GetIntValue returns long
+    * [QRTZNET-82] - Xml Job plugin doesn't need write access to schedule file
+
+
+
 Release 0.9, December 1, 2007
 -----------------------------
 

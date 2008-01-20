@@ -27,6 +27,25 @@
 
 		<section id="news">
 			<title>News</title>
+
+			<section>
+				<title>Quartz.NET 0.9.1 Released</title>
+				<p>
+				<div class="descr">January 20, 2007 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 0.9.1 has been released. This a bug fix version
+					which fixes problems and inconveniences found in earlier
+					0.9 release. Please refer to the
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21760">release notes</a> 
+					for more information.
+				</p>
+				<p>
+					Grap it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>
+
+
 			<section>
 				<title>Quartz.NET 0.9 Released</title>
 				<p>
