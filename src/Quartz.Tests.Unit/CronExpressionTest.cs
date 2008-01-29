@@ -30,7 +30,7 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class CronExpressionTest : SerializationTestSupport
     {
-        private static readonly string[] Versions = new string[] {"0.6.0"};
+        private static readonly string[] Versions = new string[] { "0.6.0" };
 
         private static readonly TimeZone TestTimeZone = TimeZone.CurrentTimeZone;
 
@@ -65,8 +65,8 @@ namespace Quartz.Tests.Unit
         /// <param name="deserialized"></param>
         protected override void VerifyMatch(object target, object deserialized)
         {
-            CronExpression targetCronExpression = (CronExpression) target;
-            CronExpression deserializedCronExpression = (CronExpression) deserialized;
+            CronExpression targetCronExpression = (CronExpression)target;
+            CronExpression deserializedCronExpression = (CronExpression)deserialized;
 
             Assert.IsNotNull(deserializedCronExpression);
             Assert.AreEqual(targetCronExpression.CronExpressionString, deserializedCronExpression.CronExpressionString);
@@ -126,7 +126,7 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
             int[] arrJuneDaysThatShouldFire =
-                new int[] {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
+                new int[] { 1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29 };
             ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -137,7 +137,7 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
             int[] arrJuneDaysThatShouldFire =
-                new int[] {1, 8, 15, 22, 29};
+                new int[] { 1, 8, 15, 22, 29 };
             ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -147,7 +147,7 @@ namespace Quartz.Tests.Unit
         public void TestCronExpressionLastDayOfMonth()
         {
             CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
-            int[] arrJuneDaysThatShouldFire = new int[] {30};
+            int[] arrJuneDaysThatShouldFire = new int[] { 30 };
             ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -170,7 +170,7 @@ namespace Quartz.Tests.Unit
             CronExpression cronExpression = new CronExpression("* * 1 * * ?");
             DateTime cal = new DateTime(2005, 7, 31, 22, 59, 57).ToUniversalTime();
             DateTime nextExpectedFireTime = new DateTime(2005, 8, 1, 1, 0, 0).ToUniversalTime();
-            Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);            
+            Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);
         }
 
         [Test]
@@ -185,17 +185,17 @@ namespace Quartz.Tests.Unit
         public void TestCronExpressionParsingIncorrectDayOfWeek()
         {
             // test failed before because of improper trimming
-			try
-			{
-				string expr = string.Format(" * * * * * {0}", DateTime.Now.Year);
-				CronExpression ce = new CronExpression(expr);
-				ce.IsSatisfiedBy(DateTime.UtcNow.AddMinutes(2));
-				Assert.Fail("Accepted wrong format");
-			}
-			catch (FormatException fe)
-			{
-				Assert.AreEqual("Day-of-Week values must be between 1 and 7", fe.Message);
-			}
+            try
+            {
+                string expr = string.Format(" * * * * * {0}", DateTime.Now.Year);
+                CronExpression ce = new CronExpression(expr);
+                ce.IsSatisfiedBy(DateTime.UtcNow.AddMinutes(2));
+                Assert.Fail("Accepted wrong format");
+            }
+            catch (FormatException fe)
+            {
+                Assert.AreEqual("Day-of-Week values must be between 1 and 7", fe.Message);
+            }
         }
 
         [Test]
@@ -235,5 +235,36 @@ namespace Quartz.Tests.Unit
             Assert.IsEmpty(correctFireDays,
                            string.Format("CronExpression did not evaluate true for all expected days (count: {0}).", correctFireDays.Count));
         }
+
+        [Test]
+        [ExpectedException(
+            typeof(FormatException),
+            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.",
+            UserMessage = "Expected FormatException did not fire for wildcard day-of-month and day-of-week")]
+        public void TestFormatExceptionWildCardDayOfMonthAndDayOfWeek()
+        {
+            CronExpression cronExpression = new CronExpression("0 0 * * * *");
+        }
+
+        [Test]
+        [ExpectedException(
+            typeof(FormatException),
+            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.",
+            UserMessage = "Expected FormatException did not fire for specified day-of-month and wildcard day-of-week")]
+        public void TestFormatExceptionSpecifiedDayOfMonthAndWildCardDayOfWeek()
+        {
+            CronExpression cronExpression = new CronExpression("0 0 * 4 * *");
+        }
+
+        [Test]
+        [ExpectedException(
+            typeof(FormatException),
+            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.",
+            UserMessage = "Expected FormatException did not fire for wildcard day-of-month and specified day-of-week")]
+        public void TestFormatExceptionWildCardDayOfMonthAndSpecifiedDayOfWeek()
+        {
+            CronExpression cronExpression = new CronExpression("0 0 * * * 4");
+        }
+
     }
 }

@@ -575,6 +575,26 @@ namespace Quartz
                 {
                     StoreExpressionVals(0, "*", Year);
                 }
+
+                TreeSet dow = GetSet(DayOfWeek);
+                TreeSet dom = GetSet(DayOfMonth);
+
+                // Copying the logic from the UnsupportedOperationException below
+                bool dayOfMSpec = !dom.Contains(NoSpec);
+                bool dayOfWSpec = !dow.Contains(NoSpec);
+
+                if (dayOfMSpec && !dayOfWSpec)
+                {
+                    // skip
+                }
+                else if (dayOfWSpec && !dayOfMSpec)
+                {
+                    // skip
+                }
+                else
+                {
+                    throw new FormatException("Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
+                }
             }
             catch (FormatException)
             {
