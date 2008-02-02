@@ -285,7 +285,18 @@ namespace Quartz.Xml
                         DateTime startTime = (c.starttime == DateTime.MinValue ? DateTime.UtcNow : c.starttime);
                         NullableDateTime endTime = (c.endtime == DateTime.MinValue ? null : (NullableDateTime)c.endtime);
 
-                        CronTrigger ct = new CronTrigger(c.name, c.group, c.jobname, c.jobgroup, startTime, endTime, c.cronexpression);
+	                    string jobName = c.jobname != null ? c.jobname : j.name;
+	                    string jobGroup = c.jobgroup != null ? c.jobgroup : j.group;
+
+                        CronTrigger ct = new CronTrigger(
+                            c.name,
+                            c.group,
+                            jobName,
+                            jobGroup,
+                            startTime,
+                            endTime,
+                            c.cronexpression);
+
 	                    if (c.timezone != null && c.timezone.Trim().Length > 0)
 	                    {
 	                        TimeZone tz = (TimeZone) ObjectUtils.InstantiateType(Type.GetType(c.timezone));
@@ -300,11 +311,14 @@ namespace Quartz.Xml
 	                    DateTime startTime = (s.starttime == DateTime.MinValue ? DateTime.UtcNow : s.starttime);
                         NullableDateTime endTime = (s.endtime == DateTime.MinValue ? null : (NullableDateTime)s.endtime);
 
+                        string jobName = s.jobname != null ? s.jobname : j.name;
+                        string jobGroup = s.jobgroup != null ? s.jobgroup : j.group;
+
                         SimpleTrigger st = new SimpleTrigger(
                             s.name, 
                             s.group, 
-                            s.jobname, 
-                            s.jobgroup,
+                            jobName, 
+                            jobGroup,
                             startTime, 
                             endTime, 
                             ParseSimpleTriggerRepeatCount(s.repeatcount), 
