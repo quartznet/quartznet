@@ -106,7 +106,7 @@ namespace Quartz
     /// <p>
     /// The '?' character is allowed for the day-of-month and day-of-week fields. It
     /// is used to specify 'no specific value'. This is useful when you need to
-    /// specify something in one of the two fileds, but not the other.
+    /// specify something in one of the two fields, but not the other.
     /// </p>
     /// <p>
     /// The '-' character is used to specify ranges For example &quot;10-12&quot; in
@@ -188,8 +188,15 @@ namespace Quartz
     /// <b>NOTES:</b>
     /// <ul>
     /// <li>Support for specifying both a day-of-week and a day-of-month value is
-    /// not complete (you'll need to use the '?' character in on of these fields).
+    /// not complete (you'll need to use the '?' character in one of these fields).
     /// </li>
+    /// <li>Overflowing ranges is supported - that is, having a larger number on 
+    /// the left hand side than the right. You might do 22-2 to catch 10 o'clock 
+    /// at night until 2 o'clock in the morning, or you might have NOV-FEB. It is 
+    /// very important to note that overuse of overflowing ranges creates ranges 
+    /// that don't make sense and no effort has been made to determine which 
+    /// interpretation CronExpression chooses. An example would be 
+    /// "0 0 14-6 ? * FRI-MON". </li>
     /// </ul>
     /// </p>
     /// </remarks>
@@ -669,11 +676,6 @@ namespace Quartz
                             {
                                 throw new FormatException(
                                     string.Format(CultureInfo.InvariantCulture, "Invalid Day-of-Week value: '{0}'", sub));
-                            }
-                            if (sval > eval)
-                            {
-                                throw new FormatException(
-                                    string.Format(CultureInfo.InvariantCulture, "Invalid Day-of-Week sequence: {0} > {1}", sval, eval));
                             }
                         }
                         else if (c == '#')
@@ -1311,9 +1313,46 @@ namespace Quartz
                 }
             }
 
+            // if the end of the range is before the start, then we need to overflow into 
+            // the next day, month etc. This is done by adding the maximum amount for that 
+            // type, and using modulus max to determine the value being added.
+            int max = -1;
+            if (stopAt < startAt)
+            {
+                switch (type)
+                {
+                    case Second: max = 60; break;
+                    case Minute: max = 60; break;
+                    case Hour: max = 24; break;
+                    case Month: max = 12; break;
+                    case DayOfWeek: max = 7; break;
+                    case DayOfMonth: max = 31; break;
+                    case Year: throw new ArgumentException("Start year must be less than stop year");
+                    default: throw new ArgumentException("Unexpected type encountered");
+                }
+                stopAt += max;
+            }
+
             for (int i = startAt; i <= stopAt; i += incr)
             {
-                data.Add(i);
+                if (max == -1)
+                {
+                    // ie: there's no max to overflow over
+                    data.Add(i);
+                }
+                else
+                {
+                    // take the modulus to get the real value
+                    int i2 = i % max;
+
+                    // 1-indexed ranges should not include 0, and should include their max
+                    if (i2 == 0 && (type == Month || type == DayOfWeek || type == DayOfMonth))
+                    {
+                        i2 = max;
+                    }
+
+                    data.Add(i2);
+                }
             }
         }
 

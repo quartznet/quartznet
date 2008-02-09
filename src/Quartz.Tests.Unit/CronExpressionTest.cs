@@ -18,6 +18,8 @@ using System;
 using System.Collections;
 
 #if NET_20
+using Quartz.Collection;
+
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;
@@ -266,5 +268,97 @@ namespace Quartz.Tests.Unit
             CronExpression cronExpression = new CronExpression("0 0 * * * 4");
         }
 
+        [Test]
+        public void TestNormal()
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                AssertParsesForField("0 15 10 * * ? 2005", i);
+            }
+        }
+
+        [Test]
+        public void TestSecond()
+        {
+            AssertParsesForField("58-4 5 21 ? * MON-FRI", 0);
+        }
+
+        [Test]
+        public void TestMinute()
+        {
+            AssertParsesForField("0 58-4 21 ? * MON-FRI", 1);
+        }
+        
+        [Test]
+        public void TestHour()
+        {
+            AssertParsesForField("0 0/5 21-3 ? * MON-FRI", 2);
+        }
+        
+        [Test]
+        public void TestDayOfWeekNumber()
+        {
+            AssertParsesForField("58 5 21 ? * 6-2", 5);
+        }
+
+        [Test]
+        public void TestDayOfWeek()
+        {
+            AssertParsesForField("58 5 21 ? * FRI-TUE", 5);
+        }
+
+        [Test]
+        public void TestDayOfMonth()
+        {
+            AssertParsesForField("58 5 21 28-5 1 ?", 3);
+        }
+
+        [Test]
+        public void TestMonth()
+        {
+            AssertParsesForField("58 5 21 ? 11-2 FRI", 4);
+        }
+        
+        [Test]
+        public void TestAmbiguous()
+        {
+            Console.Error.WriteLine(AssertParsesForField("0 0 14-6 ? * FRI-MON", 2));
+            Console.Error.WriteLine(AssertParsesForField("0 0 14-6 ? * FRI-MON", 5));
+
+            Console.Error.WriteLine(AssertParsesForField("55-3 56-2 6 ? * FRI", 0));
+            Console.Error.WriteLine(AssertParsesForField("55-3 56-2 6 ? * FRI", 1));
+        }
+
+        private static ISet AssertParsesForField(String expression, int constant)
+        {
+            try
+            {
+                TestCronExpression cronExpression = new TestCronExpression(expression);
+                ISet set = cronExpression.getSetPublic(constant);
+                if (set.Count == 0)
+                {
+                    Assert.Fail("Empty field [" + constant + "] returned for " + expression);
+                }
+                return set;
+            }
+            catch (FormatException pe)
+            {
+                Assert.Fail("Exception thrown during parsing: " + pe);
+            }
+            return null;  // not reachable
+        }
+
     }
+
+    
+    class TestCronExpression : CronExpression 
+    {
+        public TestCronExpression(String cronExpression) : base(cronExpression)
+        {
+        }
+
+        public ISet getSetPublic(int constant) {
+            return base.GetSet(constant);
+        }
+    } 
 }
