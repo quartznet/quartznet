@@ -28,6 +28,7 @@ using Nullables;
 #endif
 
 using System.Collections;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -243,6 +244,18 @@ namespace Quartz.Xml
                         throw new SchedulerConfigException("Unknown job listener type " + jt.type);
                     }
                     IJobListener listener = (IJobListener) ObjectUtils.InstantiateType(listenerType);
+                    // set name of trigger with reflection, this might throw errors
+                    NameValueCollection properties = new NameValueCollection();
+                    properties.Add("Name", jt.name);
+
+                    try
+                    {
+                        ObjectUtils.SetObjectProperties(listener, properties);
+                    }
+                    catch (Exception)
+                    {
+                        throw new SchedulerConfigException(string.Format("Could not set name for job listener of type '{0}', do you have public set method defined for property 'Name'?", jt.type));
+                    }
                     AddListenerToSchedule(listener);
                 }
             }
