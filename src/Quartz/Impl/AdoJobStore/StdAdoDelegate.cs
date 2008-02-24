@@ -1683,17 +1683,20 @@ namespace Quartz.Impl.AdoJobStore
             ArrayList trigList = new ArrayList();
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForCalendar)))
             {
+                NameValueCollection triggers = new NameValueCollection();
                 AddCommandParameter(cmd, 1, "calendarName", calName);
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     while (rs.Read())
                     {
-                        trigList.Add(
-                            SelectTrigger(conn, GetString(rs[ColumnTriggerName]), GetString(rs[ColumnTriggerGroup])));
+                        triggers.Add(GetString(rs[ColumnTriggerName]), GetString(rs[ColumnTriggerGroup]));
                     }
                 }
+                foreach (string key in triggers)
+                {
+                    trigList.Add(SelectTrigger(conn, key, triggers[key]));
+                }
             }
-
 
             return (Trigger[])trigList.ToArray(typeof(Trigger));
         }
