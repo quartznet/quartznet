@@ -235,7 +235,7 @@ namespace Quartz
 		/// Gets the previous fire time.
 		/// </summary>
 		/// <value>The previous fire time.</value>
-        public NullableDateTime PreviousFireTime
+        public NullableDateTime PreviousFireTimeUtc
 		{
 			get { return prevFireTimeUtc; }
 		}
@@ -322,7 +322,7 @@ namespace Quartz
                 JobDetail.FullName, 
                 FireTimeUtc, 
                 ScheduledFireTimeUtc, 
-                PreviousFireTime, 
+                PreviousFireTimeUtc, 
                 NextFireTimeUtc, 
                 Recovering, 
                 RefireCount);
