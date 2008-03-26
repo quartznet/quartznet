@@ -411,7 +411,7 @@ namespace Quartz.Plugin.Xml
                     {
                         fName = fName.Substring(1);
                     }
-                    fName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fName);
+                    fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase, fName);
                 }
 
                 FileInfo file = new FileInfo(fName); // files in filesystem
