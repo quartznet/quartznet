@@ -320,6 +320,7 @@ namespace Quartz.Plugin.History
         public virtual string Name
         {
             get { return name; }
+			set { name = value; }
         }
 
         /// <summary>
