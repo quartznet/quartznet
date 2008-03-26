@@ -7,6 +7,7 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Job;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
@@ -175,7 +176,18 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     Trigger t = sched.GetTrigger("NonExistingTrigger", "NonExistingGroup");
                     Assert.IsNull(t);
 
-                    sched.AddCalendar("annualCalendar", new AnnualCalendar(), false, true);
+                    AnnualCalendar cal = new AnnualCalendar();
+                    sched.AddCalendar("annualCalendar", cal, false, true);
+
+                    SimpleTrigger calendarsTrigger = new SimpleTrigger("calendarsTrigger", "test", 20, 5000L);
+                    calendarsTrigger.CalendarName = "annualCalendar";
+
+                    JobDetail jd = new JobDetail("testJob", "test", typeof(NoOpJob));
+                    sched.ScheduleJob(jd, calendarsTrigger);
+
+                    // QRTZNET-93
+                    sched.AddCalendar("annualCalendar", cal, true, true);
+
                     sched.AddCalendar("baseCalendar", new BaseCalendar(), false, true);
                     sched.AddCalendar("cronCalendar", cronCalendar, false, true);
                     sched.AddCalendar("dailyCalendar", new DailyCalendar(DateTime.Now.Date, DateTime.Now.AddMinutes(1)), false, true);
