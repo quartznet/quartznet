@@ -1,0 +1,47 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.Core", "server\Quartz.Server.Core\Quartz.Server.Core.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.Console", "server\Quartz.Server.Console\Quartz.Server.Console.csproj", "{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.Service", "server\Quartz.Server.Service\Quartz.Server.Service.csproj", "{CF9B4A78-C688-40B3-B53A-20C963A6F138}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz", "src\Quartz\Quartz.csproj", "{AEF8823B-E45B-4B35-A4D0-C08C1196D017}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectDependencies) = postSolution
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Debug.ActiveCfg = Debug|.NET
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Debug.Build.0 = Debug|.NET
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Release.ActiveCfg = Release|.NET
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Release.Build.0 = Release|.NET
+		{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}.Debug.ActiveCfg = Debug|.NET
+		{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}.Debug.Build.0 = Debug|.NET
+		{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}.Release.ActiveCfg = Release|.NET
+		{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}.Release.Build.0 = Release|.NET
+		{CF9B4A78-C688-40B3-B53A-20C963A6F138}.Debug.ActiveCfg = Debug|.NET
+		{CF9B4A78-C688-40B3-B53A-20C963A6F138}.Debug.Build.0 = Debug|.NET
+		{CF9B4A78-C688-40B3-B53A-20C963A6F138}.Release.ActiveCfg = Release|.NET
+		{CF9B4A78-C688-40B3-B53A-20C963A6F138}.Release.Build.0 = Release|.NET
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Debug.ActiveCfg = Debug|.NET
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Debug.Build.0 = Debug|.NET
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Release.ActiveCfg = Release|.NET
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Release.Build.0 = Release|.NET
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

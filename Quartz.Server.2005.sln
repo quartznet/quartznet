@@ -1,0 +1,53 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.Core.2005", "server\Quartz.Server.Core\Quartz.Server.Core.2005.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
+	ProjectSection(WebsiteProperties) = preProject
+		Debug.AspNetCompiler.Debug = "True"
+		Release.AspNetCompiler.Debug = "False"
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.Console.2005", "server\Quartz.Server.Console\Quartz.Server.Console.2005.csproj", "{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}"
+	ProjectSection(WebsiteProperties) = preProject
+		Debug.AspNetCompiler.Debug = "True"
+		Release.AspNetCompiler.Debug = "False"
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.Service.2005", "server\Quartz.Server.Service\Quartz.Server.Service.2005.csproj", "{CF9B4A78-C688-40B3-B53A-20C963A6F138}"
+	ProjectSection(WebsiteProperties) = preProject
+		Debug.AspNetCompiler.Debug = "True"
+		Release.AspNetCompiler.Debug = "False"
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.2005", "src\Quartz\Quartz.2005.csproj", "{AEF8823B-E45B-4B35-A4D0-C08C1196D017}"
+	ProjectSection(WebsiteProperties) = preProject
+		Debug.AspNetCompiler.Debug = "True"
+		Release.AspNetCompiler.Debug = "False"
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF9B4A78-C688-40B3-B53A-20C963A6F138}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF9B4A78-C688-40B3-B53A-20C963A6F138}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF9B4A78-C688-40B3-B53A-20C963A6F138}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF9B4A78-C688-40B3-B53A-20C963A6F138}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEF8823B-E45B-4B35-A4D0-C08C1196D017}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

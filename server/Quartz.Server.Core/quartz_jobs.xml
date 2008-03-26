@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quartz xmlns="http://quartznet.sourceforge.net/JobSchedulingData"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ 				version="1.0"
+				overwrite-existing-jobs="true">
+
+  <job>
+    <job-detail>
+      <name>sampleJob</name>
+      <group>sampleGroup</group>
+      <description>Sample job for Quartz Server</description>
+      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <volatile>false</volatile>
+      <durable>true</durable>
+      <recover>false</recover>
+    </job-detail>
+  
+    <trigger>
+      <simple>
+        <name>sampleSimpleTrigger</name>
+        <group>sampleSimpleGroup</group>
+        <description>Simple trigger to simply fire sample job</description>
+        <misfire-instruction>SmartPolicy</misfire-instruction>
+        <volatile>false</volatile>
+        <job-name>sampleJob</job-name>
+        <job-group>sampleGroup</job-group>
+        <repeat-count>RepeatIndefinitely</repeat-count>
+        <repeat-interval>3000</repeat-interval>
+      </simple>
+    </trigger>
+
+  </job>
+</quartz>
+
