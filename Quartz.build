@@ -173,6 +173,75 @@
     <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
   </target>
 
+  <target name="build-server">
+	<call target="build-server-11" />
+	<call target="build-server-20" />
+  </target>
+  <target name="build-server-11">
+    <property name="lib-dir-version" value="1.1" />
+    <property name="net20" value="false" />
+    <property name="defines" value="" />
+
+    <property name="target.framework" value="1.1" />
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+	
+	<property name="server.project" value="Console" />
+	<call target="build-server-internal" />
+	<property name="server.project" value="Service" />
+	<call target="build-server-internal" />
+  </target>
+
+
+  <target name="build-server-20">
+    <property name="lib-dir-version" value="2.0" />
+    <property name="net20" value="true" />
+    <property name="defines" value="NET_20" />
+
+    <property name="target.framework" value="2.0" />
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+	
+	<property name="server.project" value="Console" />
+	<call target="build-server-internal" />
+	<property name="server.project" value="Service" />
+	<call target="build-server-internal" />
+  </target>
+  
+  	<target name="build-server-internal" depends="build-quartz">
+
+    <mkdir dir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\" />
+
+    <csc 
+      target="exe" 
+      output="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe" 
+      debug="true" 
+      define="${defines}">
+      <nowarn>
+      </nowarn>
+      <sources>
+        <include name="server/AssemblyInfo.cs" />
+        <include name="server/Quartz.Server.${server.project}/**/*.cs" />
+        <include name="server/Quartz.Server.Core/**/*.cs" />
+      </sources>
+      <references>
+        <include name="System.dll" />
+        <include name="System.Data.dll" />
+        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
+        <include name="lib\1.1\Nullables.dll" unless="${net20}" />
+        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+      </references>
+    </csc>
+    <copy todir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\" flatten="true" >
+      <fileset>
+        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
+        <include name="lib\1.1\Nullables.dll" unless="${net20}" />
+      </fileset>
+    </copy>
+    <copy file="server\Quartz.Server.Core\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe.config" />
+    <copy file="server\Quartz.Server.Core\quartz_jobs.xml" todir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}" />
+
+	</target>
+	
   <target name="build-tests">
 	<property name="test.project" value="Integration" />
 	<call target="build-tests-internal" />
