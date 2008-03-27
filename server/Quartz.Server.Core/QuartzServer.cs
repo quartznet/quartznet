@@ -10,7 +10,7 @@ namespace Quartz.Server.Core
 	/// <summary>
 	/// The main server logic.
 	/// </summary>
-	public class QuartzServer
+	public class QuartzServer : IQuartzServer
 	{
 		private readonly ILog logger = LogManager.GetLogger(typeof(QuartzServer));
 		private ISchedulerFactory schedulerFactory;
@@ -19,7 +19,7 @@ namespace Quartz.Server.Core
 		/// <summary>
 		/// Initializes the instance of the <see cref="QuartzServer"/> class.
 		/// </summary>
-		public void Initialize()
+		public virtual void Initialize()
 		{
 			try
 			{				
@@ -37,7 +37,7 @@ namespace Quartz.Server.Core
 		/// <summary>
 		/// Starts this instance.
 		/// </summary>
-		public void Start()
+		public virtual void Start()
 		{
 			scheduler.Start();
 
@@ -55,11 +55,18 @@ namespace Quartz.Server.Core
 		/// <summary>
 		/// Stops this instance.
 		/// </summary>
-		public void Stop()
+		public virtual void Stop()
 		{
 			scheduler.Shutdown(true);
 			logger.Info("Scheduler shutdown complete");
 		}
 
+        /// <summary>
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+	    public virtual void Dispose()
+	    {
+	        // no-op for now
+	    }
 	}
 }

@@ -1,7 +1,7 @@
 ﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
   <PropertyGroup>
     <ProjectType>Local</ProjectType>
-    <ProductVersion>8.0.50727</ProductVersion>
+    <ProductVersion>9.0.21022</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{09082B9A-906C-4A17-A2E5-6C947DAC7C85}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -103,9 +103,11 @@
     <Compile Include="Configuration.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="IQuartzServer.cs" />
     <Compile Include="QuartzServer.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="QuartzServerFactory.cs" />
     <Content Include="quartz_jobs.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />

@@ -4,21 +4,21 @@ using Quartz.Server.Core;
 
 namespace Quartz.Server.Console
 {
-	/// <summary>
-	/// Summary description for Class1.
-	/// </summary>
+    /// <summary>
+    /// Main entry point for Quartz.NET console server.
+    /// </summary>
 	class Program
 	{
 		/// <summary>
 		/// The main entry point for the application.
 		/// </summary>
 		[STAThread]
-		static void Main(string[] args)
+		static void Main()
 		{
-			QuartzServer server = null;
+			IQuartzServer server;
 			try
 			{
-				server = new QuartzServer();
+				server = QuartzServerFactory.CreateServer();
 				server.Initialize();
 				server.Start();
 			}
@@ -35,6 +35,7 @@ namespace Quartz.Server.Console
 			System.Console.WriteLine("The scheduler will now run until you type \"exit\"");
 			System.Console.WriteLine("   If it was configured to export itself via remoting,");
 			System.Console.WriteLine("   then other process may now use it.");
+		    System.Console.WriteLine();
 
 			while (true) 
 			{

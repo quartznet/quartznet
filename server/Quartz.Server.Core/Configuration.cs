@@ -12,12 +12,14 @@ namespace Quartz.Server.Core
 		private const string KeyServiceName = PrefixServerConfiguration + ".serviceName";
 		private const string KeyServiceDisplayName = PrefixServerConfiguration + ".serviceDisplayName";
 		private const string KeyServiceDescription = PrefixServerConfiguration + ".serviceDescription";
+        private const string KeyServerImplementationType = PrefixServerConfiguration + ".type";
 		
 		private const string DefaultServiceName = "QuartzServer";
 		private const string DefaultServiceDisplayName = "Quartz Server";
 		private const string DefaultServiceDescription = "Quartz Job Scheduling Server";
+	    private static readonly string DefaultServerImplementationType = typeof(QuartzServer).AssemblyQualifiedName;
 
-		private static readonly NameValueCollection configuration;
+	    private static readonly NameValueCollection configuration;
 
         /// <summary>
         /// Initializes the <see cref="Configuration"/> class.
@@ -57,6 +59,15 @@ namespace Quartz.Server.Core
 		{
 			get { return GetConfigurationOrDefault(KeyServiceDescription, DefaultServiceDescription); }
 		}
+
+        /// <summary>
+        /// Gets the type name of the server implementation.
+        /// </summary>
+        /// <value>The type of the server implementation.</value>
+	    public static string ServerImplementationType
+	    {
+            get { return GetConfigurationOrDefault(KeyServerImplementationType, DefaultServerImplementationType); }
+	    }
 
 		/// <summary>
 		/// Returns configuration value with given key. If configuration

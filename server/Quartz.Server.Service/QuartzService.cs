@@ -6,37 +6,51 @@ using Quartz.Server.Core;
 
 namespace Quartz.Server.Service
 {
+    /// <summary>
+    /// Main windows service to delegate calls to <see cref="IQuartzServer" />.
+    /// </summary>
 	public class QuartzService : ServiceBase
 	{
-		private static readonly ILog logger = LogManager.GetLogger(typeof (QuartzService));
-		private QuartzServer server = new QuartzServer();
+		private readonly ILog logger;
+		private readonly IQuartzServer server;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="QuartzService"/> class.
+        /// </summary>
 		public QuartzService()
 		{
-			server.Initialize();
+            logger = LogManager.GetLogger(GetType());
+
+            logger.Debug("Obtaining instance of an IQuartzServer");
+		    server = QuartzServerFactory.CreateServer();
+
+			logger.Debug("Initializing server");
+            server.Initialize();
+            logger.Debug("Server initialized");
 		}
 
-
-
-		/// <summary>
+	    /// <summary>
 		/// Clean up any resources being used.
 		/// </summary>
 		protected override void Dispose( bool disposing )
 		{
-			if( disposing )
+			if(disposing)
 			{
+                logger.Debug("Disposing service");
+                server.Dispose();
+                logger.Debug("Service disposed");
 			}
 			base.Dispose( disposing );
 		}
-
-
 
 		/// <summary>
 		/// Set things in motion so your service can do its work.
 		/// </summary>
 		protected override void OnStart(string[] args)
 		{
+            logger.Debug("Starting service");
 			server.Start();
+            logger.Debug("Service started");
 		}
  
 		/// <summary>
@@ -44,7 +58,9 @@ namespace Quartz.Server.Service
 		/// </summary>
 		protected override void OnStop()
 		{
-			server.Stop();
-		}
+            logger.Debug("Stopping service");
+            server.Stop();
+            logger.Debug("Service stopped");
+        }
 	}
 }
