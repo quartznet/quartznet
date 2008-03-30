@@ -49,7 +49,7 @@ namespace Quartz.Core
         private bool paused;
         private bool halted;
 
-        private readonly SchedulingContext ctxt = null;
+        private readonly SchedulingContext ctxt;
         private readonly Random random = new Random((int) DateTime.Now.Ticks);
 
         // When the scheduler finds there is no current trigger to fire, how long
@@ -238,7 +238,7 @@ namespace Quartz.Core
                     int availTreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
                     DateTime now;
                     int spinInterval;
-                    int numPauses;
+                    long numPauses;
                     if (availTreadCount > 0)
                     {
                         Trigger trigger = null;
@@ -290,7 +290,7 @@ namespace Quartz.Core
                             // timeUntilTrigger, we spin here... don't worry
                             // though, this spinning
                             // doesn't even register 0.2% cpu usage on a pentium 4.
-                            numPauses = (int) (timeUntilTrigger/spinInterval);
+                            numPauses = (timeUntilTrigger/spinInterval);
                             while (numPauses >= 0 && !signaled)
                             {
                                 try
@@ -303,7 +303,7 @@ namespace Quartz.Core
 
                                 now = DateTime.UtcNow;
                                 timeUntilTrigger = (long) (triggerTime - now).TotalMilliseconds;
-                                numPauses = (int) (timeUntilTrigger/spinInterval);
+                                numPauses = (timeUntilTrigger/spinInterval);
                             }
                             if (signaled)
                             {
@@ -473,7 +473,7 @@ namespace Quartz.Core
                     DateTime waitTime = now.AddMilliseconds(GetRandomizedIdleWaitTime());
                     long timeUntilContinue = (long) (waitTime - now).TotalMilliseconds;
                     spinInterval = 10;
-                    numPauses = (int) (timeUntilContinue/spinInterval);
+                    numPauses = (timeUntilContinue/spinInterval);
 
                     while (numPauses > 0 && !signaled)
                     {
@@ -486,7 +486,7 @@ namespace Quartz.Core
                         }
                         now = DateTime.UtcNow;
                         timeUntilContinue = (long) (waitTime - now).TotalMilliseconds;
-                        numPauses = (int) (timeUntilContinue/spinInterval);
+                        numPauses = (timeUntilContinue/spinInterval);
                     }
                 }
                 catch (Exception re)
