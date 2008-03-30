@@ -3,7 +3,6 @@ using System.IO;
 
 using NUnit.Framework;
 
-using Quartz.Listener;
 using Quartz.Xml;
 
 using Rhino.Mocks;
@@ -61,11 +60,27 @@ namespace Quartz.Tests.Unit.Xml
         }
     }
 
-    public class NoOpJobListener : JobListenerSupport
+    public class NoOpJobListener : IJobListener
     {
-        public override string Name
+        public string Name
         {
             get { return GetType().Name; }
+            set { }
+        }
+
+        public void JobToBeExecuted(JobExecutionContext context)
+        {
+            
+        }
+
+        public void JobExecutionVetoed(JobExecutionContext context)
+        {
+            
+        }
+
+        public void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
+        {
+            
         }
     }
 }
