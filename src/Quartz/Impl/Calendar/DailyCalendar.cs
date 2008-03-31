@@ -562,7 +562,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="rangeStartingTimeString">The range starting time string.</param>
         /// <param name="rangeEndingTimeString">The range ending time string.</param>
-        private void SetTimeRange(string rangeStartingTimeString,
+        public void SetTimeRange(string rangeStartingTimeString,
                                   string rangeEndingTimeString)
         {
             string[] rangeStartingTime;
@@ -649,7 +649,7 @@ namespace Quartz.Impl.Calendar
         /// <param name="rangeEndingMinute">The range ending minute.</param>
         /// <param name="rangeEndingSecond">The range ending second.</param>
         /// <param name="rangeEndingMillis">The range ending millis.</param>
-        private void SetTimeRange(int rangeStartingHourOfDay,
+        public void SetTimeRange(int rangeStartingHourOfDay,
                                   int rangeStartingMinute,
                                   int rangeStartingSecond,
                                   int rangeStartingMillis,
@@ -704,7 +704,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
         /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
-        private void SetTimeRange(DateTime rangeStartingCalendarUtc,
+        public void SetTimeRange(DateTime rangeStartingCalendarUtc,
                                   DateTime rangeEndingCalendarUtc)
         {
             SetTimeRange(
@@ -724,7 +724,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="rangeStartingTime">The range starting time.</param>
         /// <param name="rangeEndingTime">The range ending time.</param>
-        private void SetTimeRange(long rangeStartingTime,
+        public void SetTimeRange(long rangeStartingTime,
                                   long rangeEndingTime)
         {
             SetTimeRange(new DateTime(rangeStartingTime), new DateTime(rangeEndingTime));
