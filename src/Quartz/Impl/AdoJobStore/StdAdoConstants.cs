@@ -322,10 +322,12 @@ namespace Quartz.Impl.AdoJobStore
                           ColumnNextFireTime);
 
         public static readonly string SqlSelectNextTriggerToAcquire =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2} FROM {3}{4} WHERE {5} = @state AND {6} < @noLaterThan AND ({7} >= @noEarlierThan) ORDER BY {8} ASC, {9} DESC", 
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2}, {9} FROM {3}{4} WHERE {5} = @state AND {6} < @noLaterThan AND ({7} >= @noEarlierThan) ORDER BY {8} ASC, {9} DESC", 
             ColumnTriggerName, ColumnTriggerGroup, ColumnNextFireTime, 
             TablePrefixSubst, TableTriggers, 
-            ColumnTriggerState, ColumnNextFireTime, ColumnNextFireTime, ColumnNextFireTime, ColumnPriority);
+            ColumnTriggerState, ColumnNextFireTime, 
+            ColumnNextFireTime, ColumnNextFireTime, 
+            ColumnPriority);
 
         public static readonly string SqlSelectNumCalendars =
             string.Format(CultureInfo.InvariantCulture, "SELECT COUNT({0})  FROM {1}{2}", ColumnCalendarName, TablePrefixSubst,
