@@ -1339,24 +1339,10 @@ namespace Quartz.Simpl
 				{
 					return null;
 				}
-				// was the trigger completed since being acquired?
-                if (tw.state == InternalTriggerState.Complete)
-				{
-					return null;
-				}
-				// was the trigger paused since being acquired?
-                if (tw.state == InternalTriggerState.Paused)
-				{
-					return null;
-				}
-				// was the trigger blocked since being acquired?
-                if (tw.state == InternalTriggerState.Blocked)
-				{
-					return null;
-				}
-				// was the trigger paused and blocked since being acquired?
-                if (tw.state == InternalTriggerState.PausedAndBlocked)
-				{
+
+                // was the trigger completed, paused, blocked, etc. since being acquired?
+                if (tw.state != InternalTriggerState.Acquired)
+                {
 					return null;
 				}
 
@@ -1364,6 +1350,11 @@ namespace Quartz.Simpl
 				if (tw.trigger.CalendarName != null)
 				{
 					cal = RetrieveCalendar(ctxt, tw.trigger.CalendarName);
+
+                    if (cal == null)
+                    {
+                        return null;
+                    }
 				}
 
                 NullableDateTime prevFireTime = trigger.GetPreviousFireTimeUtc();
@@ -1672,45 +1663,46 @@ namespace Quartz.Simpl
 		}
 	}
 
-  /// <summary>
-  /// Possible internal trigger states 
-  /// in RAMJobStore
-  /// </summary>
-  public enum InternalTriggerState
-  {
-      /// <summary>
-      /// Waiting 
-      /// </summary>
-      Waiting,
-      /// <summary>
-      /// Acquired
-      /// </summary>
-      Acquired,
-      /// <summary>
-      /// Executing
-      /// </summary>
-      Executing,
-      /// <summary>
-      /// Complete
-      /// </summary>
-      Complete,
-      /// <summary>
-      /// Paused
-      /// </summary>
-      Paused,
-      /// <summary>
-      /// Blocked
-      /// </summary>
-      Blocked,
-      /// <summary>
-      /// Paused and Blocked
-      /// </summary>
-      PausedAndBlocked,
-      /// <summary>
-      /// Error
-      /// </summary>
-      Error
-  }
+    /// <summary>
+    /// Possible internal trigger states 
+    /// in RAMJobStore
+    /// </summary>
+    public enum InternalTriggerState
+    {
+        /// <summary>
+        /// Waiting 
+        /// </summary>
+        Waiting,
+        /// <summary>
+        /// Acquired
+        /// </summary>
+        Acquired,
+        /// <summary>
+        /// Executing
+        /// </summary>
+        Executing,
+        /// <summary>
+        /// Complete
+        /// </summary>
+        Complete,
+        /// <summary>
+        /// Paused
+        /// </summary>
+        Paused,
+        /// <summary>
+        /// Blocked
+        /// </summary>
+        Blocked,
+        /// <summary>
+        /// Paused and Blocked
+        /// </summary>
+        PausedAndBlocked,
+        /// <summary>
+        /// Error
+        /// </summary>
+        Error
+    }
+
     /// <summary>
     /// Helper wrapper class
     /// </summary>
