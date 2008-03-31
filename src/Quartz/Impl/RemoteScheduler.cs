@@ -469,6 +469,21 @@ namespace Quartz.Impl
 			}
 		}
 
+		/// <summary> 
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+		/// </summary>
+        public void StartDelayed(int seconds)
+        {
+            try 
+            {
+                GetRemoteScheduler().StartDelayed(seconds);
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
+            }
+        }
+
         /// <summary>
         /// Whether the scheduler has been started.
         /// </summary>

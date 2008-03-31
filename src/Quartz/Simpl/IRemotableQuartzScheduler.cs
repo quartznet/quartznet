@@ -36,6 +36,8 @@ namespace Quartz.Simpl
 		/// </summary>
 		void Start();
 
+	    void StartDelayed(int seconds);
+
 		/// <summary>
 		/// Standbies this instance.
 		/// </summary>

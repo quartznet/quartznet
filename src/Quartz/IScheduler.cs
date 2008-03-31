@@ -328,10 +328,21 @@ namespace Quartz
 		/// The misfire/recovery process will be started, if it is the initial call
 		/// to this method on this scheduler instance.
 		/// </remarks>
+		/// <seealso cref="StartDelayed(int)"/>
 		/// <seealso cref="Standby"/>
 		/// <seealso cref="Shutdown(bool)"/>
 		void Start();
 
+        /// <summary>
+        /// Calls <see cref="Start" /> after the indicated number of seconds.
+        /// (This call does not block). This can be useful within applications that
+        /// have initializers that create the scheduler immediately, before the
+        /// resources needed by the executing jobs have been fully initialized.
+        /// </summary>
+        /// <seealso cref="Start"/>
+        /// <seealso cref="Standby"/>
+        /// <seealso cref="Shutdown(bool)"/>
+        void StartDelayed(int seconds);
  
         /// <summary>
         /// Whether the scheduler has been started.  

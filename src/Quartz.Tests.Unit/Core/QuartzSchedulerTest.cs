@@ -1,7 +1,9 @@
 using System;
+using System.Threading;
 
 using NUnit.Framework;
 
+using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Job;
 
@@ -50,6 +52,17 @@ namespace Quartz.Tests.Unit.Core
             }
             
             sched.Shutdown(false);
+        }
+
+        [Test]
+        public void TestStartDelayed()
+        {
+            ISchedulerFactory sf = new StdSchedulerFactory();
+            IScheduler sched = sf.GetScheduler();
+            sched.StartDelayed(2);
+            Assert.IsFalse(sched.IsStarted);
+            Thread.Sleep(TimeSpan.FromSeconds(3));
+            Assert.IsTrue(sched.IsStarted);
         }
     }
 }

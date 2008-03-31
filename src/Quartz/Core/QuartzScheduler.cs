@@ -445,6 +445,53 @@ namespace Quartz.Core
             Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} started.", resources.GetUniqueIdentifier()));
         }
 
+        public void StartDelayed(int seconds)
+        {
+            if (closed) 
+            {
+                throw new SchedulerException(
+                        "The Scheduler cannot be restarted after Shutdown() has been called.");
+            }
+
+            DelayedSchedulerStarter starter = new DelayedSchedulerStarter(this, seconds, Log);
+            Thread t = new Thread(new ThreadStart(starter.Run));
+            t.Start();
+        }
+
+        /// <summary>
+        /// Helper class to start scheduler in a delayed fashion.
+        /// </summary>
+        private class DelayedSchedulerStarter
+        {
+            private readonly QuartzScheduler scheduler;
+            private readonly int seconds;
+            private readonly ILog logger;
+
+            public DelayedSchedulerStarter(QuartzScheduler scheduler, int seconds, ILog logger)
+            {
+                this.scheduler = scheduler;
+                this.seconds = seconds;
+                this.logger = logger;
+            }
+
+            public void Run()
+            {
+                try
+                {
+                    Thread.Sleep(TimeSpan.FromSeconds(seconds));
+                }
+                catch (ThreadInterruptedException) { }
+                try
+                {
+                    scheduler.Start();
+                }
+                catch (SchedulerException se)
+                {
+                    logger.Error("Unable to start secheduler after startup delay.", se);
+                }
+            }
+        }
+
         /// <summary>
         /// Temporarily halts the <see cref="QuartzScheduler" />'s firing of <see cref="Trigger" />s.
         /// <p>

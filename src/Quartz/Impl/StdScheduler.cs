@@ -281,7 +281,6 @@ namespace Quartz.Impl
 			this.schedCtxt = schedCtxt;
 		}
 
-
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
@@ -290,6 +289,13 @@ namespace Quartz.Impl
 			sched.Start();
 		}
 
+        /// <summary>
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+		/// </summary>
+        public void StartDelayed(int seconds)
+        {
+            sched.StartDelayed(seconds);
+        }
 
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
