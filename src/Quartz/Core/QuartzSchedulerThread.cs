@@ -364,7 +364,7 @@ namespace Quartz.Core
                                 }
 
                                 // it's possible to get 'null' if the trigger was paused,
-                                // blocked, or other similar occurances that prevent it being
+                                // blocked, or other similar occurences that prevent it being
                                 // fired at this time...  or if the scheduler was shutdown (halted)
                                 if (bndle == null)
                                 {
