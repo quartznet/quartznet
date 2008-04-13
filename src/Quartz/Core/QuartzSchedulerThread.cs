@@ -43,7 +43,7 @@ namespace Quartz.Core
         private readonly ILog log;
         private QuartzScheduler qs;
         private QuartzSchedulerResources qsRsrcs;
-        private readonly object pauseLock = new object();
+        private readonly object sigLock = new object();
 
         private bool signaled;
         private bool paused;
@@ -158,7 +158,7 @@ namespace Quartz.Core
         /// </summary>
         internal virtual void TogglePause(bool pause)
         {
-            lock (pauseLock)
+            lock (sigLock)
             {
                 paused = pause;
 
@@ -168,7 +168,7 @@ namespace Quartz.Core
                 }
                 else
                 {
-                    Monitor.Pulse(pauseLock);
+                    Monitor.Pulse(sigLock);
                 }
             }
         }
@@ -178,13 +178,13 @@ namespace Quartz.Core
         /// </summary>
         internal virtual void Halt()
         {
-            lock (pauseLock)
+            lock (sigLock)
             {
                 halted = true;
 
                 if (paused)
                 {
-                    Monitor.Pulse(pauseLock);
+                    Monitor.Pulse(sigLock);
                 }
                 else
                 {
@@ -198,9 +198,28 @@ namespace Quartz.Core
         /// made - in order to interrupt any sleeping that may be occuring while
         /// waiting for the fire time to arrive.
         /// </summary>
-        internal virtual void SignalSchedulingChange()
+        internal protected void SignalSchedulingChange() 
         {
-            signaled = true;
+            lock (sigLock) 
+            {
+                signaled = true;
+            }
+        }
+
+        private void ClearSignaledSchedulingChange() 
+        {
+            lock (sigLock) 
+            {
+                signaled = false;
+            }
+        }
+
+        private bool IsScheduleChanged() 
+        {
+            lock(sigLock) 
+            {
+                return signaled;
+            }
         }
 
         /// <summary>
@@ -215,14 +234,14 @@ namespace Quartz.Core
                 try
                 {
                     // check if we're supposed to pause...
-                    lock (pauseLock)
+                    lock (sigLock)
                     {
                         while (paused && !halted)
                         {
                             try
                             {
                                 // wait until togglePause(false) is called...
-                                Monitor.Wait(pauseLock, 100);
+                                Monitor.Wait(sigLock, 100);
                             }
                             catch (ThreadInterruptedException)
                             {
@@ -245,7 +264,7 @@ namespace Quartz.Core
 
                         now = DateTime.UtcNow;
 
-                        signaled = false;
+                        ClearSignaledSchedulingChange();
                         try
                         {
                             trigger = qsRsrcs.JobStore.AcquireNextTrigger(
@@ -291,7 +310,7 @@ namespace Quartz.Core
                             // though, this spinning
                             // doesn't even register 0.2% cpu usage on a pentium 4.
                             numPauses = (timeUntilTrigger/spinInterval);
-                            while (numPauses >= 0 && !signaled)
+                            while (numPauses >= 0 && !IsScheduleChanged())
                             {
                                 try
                                 {
@@ -305,7 +324,7 @@ namespace Quartz.Core
                                 timeUntilTrigger = (long) (triggerTime - now).TotalMilliseconds;
                                 numPauses = (timeUntilTrigger/spinInterval);
                             }
-                            if (signaled)
+                            if (IsScheduleChanged())
                             {
                                 try
                                 {
@@ -330,14 +349,14 @@ namespace Quartz.Core
                                     // retrying until it's up...
                                     ReleaseTriggerRetryLoop(trigger);
                                 }
-                                signaled = false;
+                                ClearSignaledSchedulingChange();
                                 continue;
                             }
 
                             // set trigger to 'executing'
                             TriggerFiredBundle bndle = null;
 
-                            lock (pauseLock)
+                            lock (sigLock)
                             {
                                 if (!halted)
                                 {
@@ -475,7 +494,7 @@ namespace Quartz.Core
                     spinInterval = 10;
                     numPauses = (timeUntilContinue/spinInterval);
 
-                    while (numPauses > 0 && !signaled)
+                    while (numPauses > 0 && !IsScheduleChanged())
                     {
                         try
                         {
