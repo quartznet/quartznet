@@ -695,8 +695,13 @@ namespace Quartz
 
             afterDateUtc = TimeZone.ToLocalTime(afterDateUtc);
             DateTime currCal = new DateTime(afterDateUtc.Year, afterDateUtc.Month, afterDateUtc.Day);
-            //move to the first day of the week (SUNDAY)
-            currCal = currCal.AddDays(((int)afterDateUtc.DayOfWeek) * -1);
+
+            // move to the first day of the week
+            // TODO, we are still bound to fixed local time zone as with TimeZone property
+            while (currCal.DayOfWeek != DateTimeFormatInfo.CurrentInfo.FirstDayOfWeek)
+            {
+                currCal = currCal.AddDays(-1);
+            }
 
 			currCal = new DateTime(currCal.Year, currCal.Month, currCal.Day, fireAtHour, fireAtMinute, fireAtSecond, 0);
 
@@ -734,7 +739,7 @@ namespace Quartz
 					}
 				}
 
-				//We found an "n" or we've checked the requisite number of weeks.
+				// We found an "n" or we've checked the requisite number of weeks.
 				// If we've found an "n", is it the right one? -- that is, we could
 				// be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
@@ -745,10 +750,16 @@ namespace Quartz
 					}
 					else
 					{
-						//resume checking on the first day of the next week
-						currCal = currCal.AddDays((- 1)*(currN - 1));
-						currCal = currCal.AddDays(7);
-						currN = 0;
+						// resume checking on the first day of the next week
+                        // move back to the beginning of the week and add 7 days
+                        // TODO, need to correlate with time zone in .NET 3.5
+                        while (currCal.DayOfWeek != DateTimeFormatInfo.CurrentInfo.FirstDayOfWeek)
+                        {
+                            currCal = currCal.AddDays(-1);
+                        }
+                        currCal = currCal.AddDays(7);
+
+                        currN = 0;
 					}
 				}
 			}

@@ -16,6 +16,8 @@
 using System;
 
 #if NET_20
+using System.Globalization;
+
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;
@@ -46,10 +48,10 @@ namespace Quartz.Tests.Unit
 			yearlyTrigger.FireAtTime = "14:35:15";
         
 			DateTime targetCalendar = new DateTime(2006, 1, 10, 14, 35, 15).ToUniversalTime();
-            NullableDateTime nextFireTime;
+            NullableDateTime nextFireTimeUtc;
 
-            nextFireTime = yearlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
-			Assert.AreEqual(targetCalendar, nextFireTime.Value);
+            nextFireTimeUtc = yearlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
+			Assert.AreEqual(targetCalendar, nextFireTimeUtc.Value);
         
 			// Test monthly
 			NthIncludedDayTrigger monthlyTrigger = new NthIncludedDayTrigger();
@@ -59,8 +61,8 @@ namespace Quartz.Tests.Unit
 			monthlyTrigger.FireAtTime = "14:35:15";
         
 			targetCalendar = new DateTime(2005, 6, 5, 14, 35, 15).ToUniversalTime();
-			nextFireTime = monthlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
-			Assert.AreEqual(targetCalendar, nextFireTime.Value);
+			nextFireTimeUtc = monthlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
+			Assert.AreEqual(targetCalendar, nextFireTimeUtc.Value);
         
 			// Test weekly
 			NthIncludedDayTrigger weeklyTrigger = new NthIncludedDayTrigger();
@@ -69,9 +71,20 @@ namespace Quartz.Tests.Unit
 			weeklyTrigger.N = 3;
 			weeklyTrigger.FireAtTime = "14:35:15";
 
-			targetCalendar = new DateTime(2005, 6, 7, 14, 35, 15).ToUniversalTime();
-			nextFireTime = weeklyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
-			Assert.AreEqual(targetCalendar, nextFireTime.Value);
+            //roll start date forward to first day of the next week
+            while (startCalendar.DayOfWeek != DateTimeFormatInfo.CurrentInfo.FirstDayOfWeek)
+            {
+                startCalendar = startCalendar.AddDays(1);
+            }
+
+            //calculate expected fire date
+		    targetCalendar = new DateTime(startCalendar.Year, startCalendar.Month, startCalendar.Day, 14, 35, 15);
+            
+            //first day of the week counts as one. add two more to get N=3.
+            targetCalendar = targetCalendar.AddDays(2);
+
+			nextFireTimeUtc = weeklyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
+			Assert.AreEqual(targetCalendar.ToUniversalTime(), nextFireTimeUtc.Value);
 		}
     
 		[Test]
@@ -169,47 +182,86 @@ namespace Quartz.Tests.Unit
 			{
 			}
 		}
-    
-		/*
-		public void testTimeZone() throws Exception {
-        
-			TimeZone GMT = TimeZone.getTimeZone("GMT-0:00");
-			TimeZone EST = TimeZone.getTimeZone("GMT-5:00");
-        
-			Calendar startTime = Calendar.getInstance(EST);
-			startTime.set(2006, Calendar.MARCH, 7, 7, 0, 0);
-        
-			// Same timezone, so should just get back 8:00 that day
-			{
-				NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
-				t.setIntervalType(NthIncludedDayTrigger.IntervalTypeWeekly);
-				t.setN(3);
-				t.setStartTime(startTime.getTime());
-				t.setFireAtTime("8:00");
-				t.setTimeZone(EST);
-            
-				Date firstTime = t.computeFirstFireTime(null);
-				Calendar firstTimeCal = Calendar.getInstance(EST);
-				firstTimeCal.setTime(firstTime);
-				assertEquals(7, firstTimeCal.get(Calendar.DATE));
-			}
 
-			// Timezone is 5 hours later, so should just get back 8:00 a week later
-			{
-				NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
-				t.setIntervalType(NthIncludedDayTrigger.IntervalTypeWeekly);
-				t.setN(3);
-				t.setStartTime(startTime.getTime());
-				t.setFireAtTime("8:00");
-				t.setTimeZone(GMT);
+        /* TODO, when we have 3.5 TimeZones..
+        public void testTimeZone() throws Exception 
+        {
+            TimeZone GMT = TimeZone.getTimeZone("GMT-0:00");
+            TimeZone EST = TimeZone.getTimeZone("GMT-5:00");
             
-				Date firstTime = t.computeFirstFireTime(null);
-				Calendar firstTimeCal = Calendar.getInstance(EST);
-				firstTimeCal.setTime(firstTime);
-				assertEquals(14, firstTimeCal.get(Calendar.DATE));
-			}
-		}
-		*/
+            Calendar startTime = Calendar.getInstance(EST);
+            startTime.set(2006, Calendar.MARCH, 7, 7, 0, 0);
+            
+            // Same timezone
+            {
+                NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
+                t.setIntervalType(NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY);
+                t.setN(3);
+                t.setStartTime(startTime.getTime());
+                t.setFireAtTime("8:00");
+                t.setTimeZone(EST);
+                
+                Date firstTime = t.computeFirstFireTime(null);
+                Calendar firstTimeCal = Calendar.getInstance(EST);
+                firstTimeCal.setTime(startTime.getTime());
+                firstTimeCal.set(Calendar.HOUR_OF_DAY, 8);
+                firstTimeCal.set(Calendar.MINUTE, 0);
+                firstTimeCal.set(Calendar.SECOND, 0);
+                firstTimeCal.set(Calendar.MILLISECOND, 0);
+                
+                //roll start date forward to first day of the next week
+                while (firstTimeCal.get(Calendar.DAY_OF_WEEK) != firstTimeCal.getFirstDayOfWeek()) {
+                    firstTimeCal.add(Calendar.DAY_OF_YEAR, -1);
+                }
+                
+                //first day of the week counts as one. add two more to get N=3.
+                firstTimeCal.add(Calendar.DAY_OF_WEEK, 2);
+                
+                //if we went back too far, shift forward a week.
+                if (firstTimeCal.getTime().before(startTime.getTime())) {
+                    firstTimeCal.add(Calendar.DAY_OF_MONTH, 7);
+                }
+
+                assertTrue(firstTime.equals(firstTimeCal.getTime()));
+            }
+
+            // Different timezones
+            {
+                NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
+                t.setIntervalType(NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY);
+                t.setN(3);
+                t.setStartTime(startTime.getTime());
+                t.setFireAtTime("8:00");
+                t.setTimeZone(GMT);
+                
+                Date firstTime = t.computeFirstFireTime(null);
+                Calendar firstTimeCal = Calendar.getInstance(EST);
+                firstTimeCal.setTime(startTime.getTime());
+                firstTimeCal.set(Calendar.HOUR_OF_DAY, 8);
+                firstTimeCal.set(Calendar.MINUTE, 0);
+                firstTimeCal.set(Calendar.SECOND, 0);
+                firstTimeCal.set(Calendar.MILLISECOND, 0);
+                
+                //EST is GMT-5
+                firstTimeCal.add(Calendar.HOUR_OF_DAY, -5);
+                
+                //roll start date forward to first day of the next week
+                while (firstTimeCal.get(Calendar.DAY_OF_WEEK) != firstTimeCal.getFirstDayOfWeek()) {
+                    firstTimeCal.add(Calendar.DAY_OF_YEAR, -1);
+                }
+                
+                //first day of the week counts as one. add two more to get N=3.
+                firstTimeCal.add(Calendar.DAY_OF_WEEK, 2);
+                
+                //if we went back too far, shift forward a week.
+                if (firstTimeCal.getTime().before(startTime.getTime())) {
+                    firstTimeCal.add(Calendar.DAY_OF_MONTH, 7);
+                }
+
+                assertTrue(firstTime.equals(firstTimeCal.getTime()));
+            }
+        }
+        */
 
 
         /// <summary>
