@@ -59,7 +59,6 @@ namespace Quartz.Simpl
 		private readonly TreeSet timeTriggers = new TreeSet(new TriggerComparator());
 		private readonly IDictionary calendarsByName = new Hashtable(25);
 		private readonly ArrayList triggers = new ArrayList(1000);
-		private readonly object jobLock = new object();
 		private readonly object triggerLock = new object();
 		private readonly HashSet pausedTriggerGroups = new HashSet();
         private readonly HashSet pausedJobGroups = new HashSet();
@@ -167,10 +166,9 @@ namespace Quartz.Simpl
 		}
 
 	    /// <summary>
-	    /// returns true if the given JobGroup
-	    /// is paused
+	    /// Returns true if the given job group is paused.
 	    /// </summary>
-	    /// <param name="groupName"></param>
+	    /// <param name="groupName">Job group name</param>
 	    /// <returns></returns>
 	    public virtual bool IsJobGroupPaused(SchedulingContext ctxt, string groupName)
 	    {
@@ -178,8 +176,7 @@ namespace Quartz.Simpl
 	    }
 
 	    /// <summary>
-	    /// returns true if the given TriggerGroup
-	    /// is paused
+	    /// returns true if the given TriggerGroup is paused.
 	    /// </summary>
 	    /// <param name="groupName"></param>
 	    /// <returns></returns>
@@ -211,7 +208,7 @@ namespace Quartz.Simpl
 				repl = true;
 			}
 
-			lock (jobLock)
+			lock (triggerLock)
 			{
 				if (!repl)
 				{
@@ -261,7 +258,7 @@ namespace Quartz.Simpl
 				RemoveTrigger(ctxt, trig.Name, trig.Group);
 				found = true;
 			}
-			lock (jobLock)
+            lock (triggerLock)
 			{
 				object tempObject;
 				tempObject = jobsByFQN[key];
@@ -345,26 +342,22 @@ namespace Quartz.Simpl
 				// add to triggers by FQN map
 				triggersByFQN[tw.key] = tw;
 
-				lock (pausedTriggerGroups)
-				{
-					if ((pausedTriggerGroups.Contains(newTrigger.Group)||
-					     (pausedJobGroups.Contains(newTrigger.JobGroup))))
-					{
-                        tw.state = InternalTriggerState.Paused;;
-						if (blockedJobs.Contains(tw.jobKey))
-						{
-                            tw.state = InternalTriggerState.PausedAndBlocked;
-						}
-					}
-					else if (blockedJobs.Contains(tw.jobKey))
-					{
-                        tw.state = InternalTriggerState.Blocked;
-					}
-					else
-					{
-						timeTriggers.Add(tw);
-					}
-				}
+                if (pausedTriggerGroups.Contains(newTrigger.Group) || pausedJobGroups.Contains(newTrigger.JobGroup))
+                {
+                    tw.state = InternalTriggerState.Paused;
+                    if (blockedJobs.Contains(tw.jobKey))
+                    {
+                        tw.state = InternalTriggerState.PausedAndBlocked;
+                    }
+                }
+                else if (blockedJobs.Contains(tw.jobKey))
+                {
+                    tw.state = InternalTriggerState.Blocked;
+                }
+                else
+                {
+                    timeTriggers.Add(tw);
+                }
 			}
 		}
 
@@ -735,7 +728,7 @@ namespace Quartz.Simpl
 			IDictionary grpMap = (Hashtable) jobsByGroup[groupName];
 			if (grpMap != null)
 			{
-				lock (jobLock)
+				lock (triggerLock)
 				{
 					outList = new string[grpMap.Count];
 					int outListPos = 0;
@@ -815,7 +808,7 @@ namespace Quartz.Simpl
 		{
 			string[] outList;
 
-			lock (jobLock)
+            lock (triggerLock)
 			{
 				outList = new string[jobsByGroup.Count];
 				int outListPos = 0;
@@ -969,7 +962,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual void PauseTriggerGroup(SchedulingContext ctxt, string groupName)
 		{
-			lock (pausedTriggerGroups)
+            lock (triggerLock)
 			{
 				if (pausedTriggerGroups.Contains(groupName))
 				{
@@ -991,7 +984,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
-			lock (pausedTriggerGroups)
+            lock (triggerLock)
 			{
 				Trigger[] t = GetTriggersForJob(ctxt, jobName, groupName);
 				for (int j = 0; j < t.Length; j++)
@@ -1012,10 +1005,12 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual void PauseJobGroup(SchedulingContext ctxt, string groupName)
 		{
-			lock (pausedTriggerGroups)
+            lock (triggerLock)
 			{
-               if (!pausedJobGroups.Contains(groupName))
+                if (!pausedJobGroups.Contains(groupName))
+                {
                     pausedJobGroups.Add(groupName);
+                }
 				string[] jobNames = GetJobNames(ctxt, groupName);
 
 				for (int i = 0; i < jobNames.Length; i++)
@@ -1086,7 +1081,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual void ResumeTriggerGroup(SchedulingContext ctxt, string groupName)
 		{
-			lock (pausedTriggerGroups)
+            lock (triggerLock)
 			{
 				string[] names = GetTriggerNames(ctxt, groupName);
                 
@@ -1097,7 +1092,9 @@ namespace Quartz.Simpl
 				    {
                         string jobGroup = ((TriggerWrapper) triggersByFQN[key]).Trigger.JobGroup;
 				        if (pausedJobGroups.Contains(jobGroup))
+				        {
 				            continue;
+				        }
 				    }
 				    ResumeTrigger(ctxt, names[i], groupName);
 				}
@@ -1116,7 +1113,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual void ResumeJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
-			lock (pausedTriggerGroups)
+            lock (triggerLock)
 			{
 				Trigger[] t = GetTriggersForJob(ctxt, jobName, groupName);
 				for (int j = 0; j < t.Length; j++)
@@ -1137,10 +1134,12 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual void ResumeJobGroup(SchedulingContext ctxt, string groupName)
 		{
-			lock (pausedTriggerGroups)
+            lock (triggerLock)
 			{
 			    if (pausedJobGroups.Contains(groupName))
+			    {
 			        pausedJobGroups.Remove(groupName);
+			    }
 				string[] jobNames = GetJobNames(ctxt, groupName);
 
 				for (int i = 0; i < jobNames.Length; i++)
@@ -1165,7 +1164,7 @@ namespace Quartz.Simpl
 		/// <seealso cref="ResumeAll(SchedulingContext)" /> 
 		public virtual void PauseAll(SchedulingContext ctxt)
 		{
-			lock (pausedTriggerGroups)
+            lock (triggerLock)
 			{
 				string[] names = GetTriggerGroupNames(ctxt);
 
@@ -1187,7 +1186,7 @@ namespace Quartz.Simpl
 		/// <seealso cref="PauseAll(SchedulingContext)" />
 		public virtual void ResumeAll(SchedulingContext ctxt)
 		{
-			lock (pausedTriggerGroups)
+            lock (triggerLock)
 			{
 			    pausedJobGroups.Clear();
 				string[] names = GetTriggerGroupNames(ctxt);
