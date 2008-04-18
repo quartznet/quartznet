@@ -183,7 +183,7 @@ namespace Quartz.Tests.Unit.Simpl
             JobDetail detail = new JobDetail(jobName1, jobGroup, typeof(NoOpJob));
             detail.Durable = true;
             fJobStore.StoreJob(null, detail, false);
-            fJobStore.PauseJobGroup(null,jobGroup);
+            fJobStore.PauseJobGroup(null, jobGroup);
             
 	        detail = new JobDetail(jobName2, jobGroup, typeof(NoOpJob));
             detail.Durable = true;
@@ -191,11 +191,11 @@ namespace Quartz.Tests.Unit.Simpl
 	        
 	        string trName = "PauseJobGroupPausesNewJobTrigger";
             string trGroup = "PauseJobGroupPausesNewJobTriggerGroup";
-            Trigger tr = new SimpleTrigger(trName, trGroup, DateTime.Now);
+            Trigger tr = new SimpleTrigger(trName, trGroup, DateTime.UtcNow);
             tr.JobGroup = jobGroup;
             tr.JobName = jobName2;
-	        fJobStore.StoreTrigger(null,tr,false);
-	        Assert.AreEqual(TriggerState.Paused,fJobStore.GetTriggerState(null,tr.Name,tr.Group));
+	        fJobStore.StoreTrigger(null, tr, false);
+	        Assert.AreEqual(TriggerState.Paused, fJobStore.GetTriggerState(null, tr.Name, tr.Group));
 	        
 	    }
 		public class SampleSignaler : ISchedulerSignaler

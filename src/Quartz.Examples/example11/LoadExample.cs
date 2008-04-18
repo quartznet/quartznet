@@ -51,12 +51,14 @@ namespace Quartz.Examples.Example11
 
 			log.Info("------- (Not Scheduling any Jobs - relying on XML definitions --");
 
+            Random r = new Random();
 			// schedule 500 jobs to run
 			for (int count = 1; count <= _numberOfJobs; count++)
 			{
 				JobDetail job = new JobDetail("job" + count, "group1", typeof (SimpleJob));
-				// tell the job to wait one minute (60 seconds)
-				job.JobDataMap.Put(SimpleJob.DELAY_TIME, 60000L);
+                // tell the job to delay some small amount... to simulate work...
+                long timeDelay = (long)(r.NextDouble() * 2500);
+                job.JobDataMap.Put(SimpleJob.DELAY_TIME, timeDelay);
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
 				job.RequestsRecovery = true;
