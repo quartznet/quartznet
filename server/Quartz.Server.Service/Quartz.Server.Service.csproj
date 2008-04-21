@@ -110,8 +110,12 @@
             <Include>
                 <File
                     RelPath = "App.config"
-                    Link = "..\Quartz.Server.Core\App.config"
-                    BuildAction = "None"
+                    BuildAction = "Content"
+                />
+                <File
+                    RelPath = "quartz.properties"
+                    Link = "..\Quartz.Server.Core\quartz.properties"
+                    BuildAction = "Content"
                 />
                 <File
                     RelPath = "AssemblyInfo.cs"
