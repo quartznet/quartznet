@@ -51,6 +51,7 @@ namespace Quartz
         /// ending timestamp.
         /// </summary>
         public const int RepeatIndefinitely = -1;
+        private const int YearToGiveupSchedulingAt = 2299;
 
         private NullableDateTime nextFireTimeUtc = null;
 		private NullableDateTime previousFireTimeUtc = null;
@@ -318,6 +319,17 @@ namespace Quartz
                 while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
 					newFireTime = GetFireTimeAfter(newFireTime);
+
+                    if (!newFireTime.HasValue)
+                    {
+                        break;
+                    }
+                    
+                    //avoid infinite loop
+                    if (newFireTime.Value.Year > YearToGiveupSchedulingAt)
+                    {
+                        newFireTime = null;
+                    }
 				}
 				SetNextFireTime(newFireTime);
 			}
@@ -328,6 +340,17 @@ namespace Quartz
 				while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
 					newFireTime = GetFireTimeAfter(newFireTime);
+
+                    if (!newFireTime.HasValue)
+                    {
+                        break;
+                    }
+
+                    //avoid infinite loop
+                    if (newFireTime.Value.Year > YearToGiveupSchedulingAt)
+                    {
+                        newFireTime = null;
+                    }
 				}
 
 				if (newFireTime.HasValue)
@@ -402,6 +425,17 @@ namespace Quartz
 			while (nextFireTimeUtc.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
 			{
 				nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+                if (!nextFireTimeUtc.HasValue)
+                {
+                     break;
+                }
+
+                //avoid infinite loop
+                if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+                {
+                    nextFireTimeUtc = null;
+                }
 			}
 		}
 
@@ -424,6 +458,17 @@ namespace Quartz
             while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+                if (!nextFireTimeUtc.HasValue)
+                {
+                    break;
+                }
+
+                //avoid infinite loop
+                if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+                {
+                    nextFireTimeUtc = null;
+                }
 
                 if (nextFireTimeUtc != null && nextFireTimeUtc.Value < now)
                 {
@@ -457,6 +502,17 @@ namespace Quartz
 			while (nextFireTimeUtc.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
 			{
 				nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+                if (!nextFireTimeUtc.HasValue)
+                {
+                    break;
+                }
+
+                //avoid infinite loop
+                if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+                {
+                    return null;
+                }
 			}
 
 			return nextFireTimeUtc;
