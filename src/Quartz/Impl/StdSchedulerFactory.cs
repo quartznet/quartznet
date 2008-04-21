@@ -216,7 +216,7 @@ namespace Quartz.Impl
                 {
                     PropertiesParser pp = PropertiesParser.ReadFromFileResource(propFileName);
                     props = pp.UnderlyingProperties;
-                    Log.Info("Default Quartz.NET properties loaded from embedded resource file");
+                    Log.Info(string.Format("Quartz.NET properties loaded from configuration file '{0}'", propFileName));
                 }
                 catch (Exception ex)
                 {
