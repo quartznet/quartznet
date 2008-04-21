@@ -24,6 +24,7 @@ using System.Collections;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 
 using Common.Logging;
@@ -205,6 +206,28 @@ namespace Quartz.Impl
 #else
 			NameValueCollection props = (NameValueCollection) ConfigurationSettings.GetConfig("quartz");
 #endif
+            string requestedFile = Environment.GetEnvironmentVariable(PropertiesFile);
+            string propFileName = requestedFile != null && requestedFile.Trim().Length > 0 ? requestedFile : "quartz.properties";
+
+            if (props == null && File.Exists(propFileName))
+            {
+                // file system
+                try
+                {
+                    PropertiesParser pp = PropertiesParser.ReadFromFileResource(propFileName);
+                    props = pp.UnderlyingProperties;
+                    Log.Info("Default Quartz.NET properties loaded from embedded resource file");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(
+                        string.Format(CultureInfo.InvariantCulture, 
+                        "Could not load properties for Quartz from file {0}: {1}",
+                        propFileName,              
+                        ex.Message), ex);
+                }
+
+            }
             if (props == null)
             {
                 // read from assembly
