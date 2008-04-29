@@ -19,6 +19,11 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using Common.Logging;
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
+using Nullables;
+#endif
 
 using Quartz.Spi;
 
@@ -33,12 +38,16 @@ namespace Quartz.Core
 	public class SchedulerSignalerImpl : ISchedulerSignaler
 	{
 		private ILog log = LogManager.GetLogger(typeof (SchedulerSignalerImpl));
-		private QuartzScheduler sched;
+        protected QuartzScheduler sched;
+        protected QuartzSchedulerThread schedThread;
 
-		internal SchedulerSignalerImpl(QuartzScheduler sched)
-		{
-			this.sched = sched;
-		}
+        public SchedulerSignalerImpl(QuartzScheduler sched, QuartzSchedulerThread schedThread)
+        {
+            this.sched = sched;
+            this.schedThread = schedThread;
+
+            log.Info("Initialized Scheduler Signaller of type: " + GetType());
+        }
 
 
         /// <summary>
@@ -71,9 +80,9 @@ namespace Quartz.Core
 		/// <summary>
 		/// Signals the scheduling change.
 		/// </summary>
-		public virtual void SignalSchedulingChange()
-		{
-			sched.NotifySchedulerThread();
-		}
+        public void SignalSchedulingChange(NullableDateTime candidateNewNextFireTime)
+        {
+            schedThread.SignalSchedulingChange(candidateNewNextFireTime);
+        }
 	}
 }

@@ -26,8 +26,8 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.Remoting;
 using System.Threading;
-using Common.Logging;
 
+using Common.Logging;
 #if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
@@ -372,7 +372,7 @@ namespace Quartz.Core
             errLogger = new ErrorLogger();
             AddSchedulerListener(errLogger);
 
-            signaler = new SchedulerSignalerImpl(this);
+            signaler = new SchedulerSignalerImpl(this, this.schedThread);
 
             Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz Scheduler v.{0} created.", Version));
         }
@@ -695,7 +695,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.StoreJobAndTrigger(ctxt, jobDetail, trigger);
-            NotifySchedulerThread();
+            NotifySchedulerThread(trigger.GetNextFireTimeUtc());
             NotifySchedulerListenersScheduled(trigger);
 
             return ft.Value;
@@ -737,7 +737,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.StoreTrigger(ctxt, trigger, false);
-            NotifySchedulerThread();
+            NotifySchedulerThread(trigger.GetNextFireTimeUtc());
             NotifySchedulerListenersScheduled(trigger);
 
             return ft.Value;
@@ -797,7 +797,7 @@ namespace Quartz.Core
 
             if (resources.JobStore.RemoveTrigger(ctxt, triggerName, groupName))
             {
-                NotifySchedulerThread();
+                NotifySchedulerThread(null);
                 NotifySchedulerListenersUnscheduled(triggerName, groupName);
             }
             else
@@ -850,7 +850,7 @@ namespace Quartz.Core
 
             if (resources.JobStore.ReplaceTrigger(ctxt, triggerName, groupName, newTrigger))
             {
-                NotifySchedulerThread();
+                NotifySchedulerThread(newTrigger.GetNextFireTimeUtc());
                 NotifySchedulerListenersUnscheduled(triggerName, groupName);
                 NotifySchedulerListenersScheduled(newTrigger);
             }
@@ -928,7 +928,7 @@ namespace Quartz.Core
                 }
             }
 
-            NotifySchedulerThread();
+            NotifySchedulerThread(trig.GetNextFireTimeUtc());
             NotifySchedulerListenersScheduled(trig);
         }
 
@@ -970,7 +970,7 @@ namespace Quartz.Core
                 }
             }
 
-            NotifySchedulerThread();
+            NotifySchedulerThread(trig.GetNextFireTimeUtc());
             NotifySchedulerListenersScheduled(trig);
         }
 
@@ -987,7 +987,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.PauseTrigger(ctxt, triggerName, groupName);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersPausedTrigger(triggerName, groupName);
         }
 
@@ -1004,7 +1004,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.PauseTriggerGroup(ctxt, groupName);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersPausedTrigger(null, groupName);
         }
 
@@ -1022,7 +1022,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.PauseJob(ctxt, jobName, groupName);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersPausedJob(jobName, groupName);
         }
 
@@ -1040,7 +1040,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.PauseJobGroup(ctxt, groupName);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersPausedJob(null, groupName);
         }
 
@@ -1062,7 +1062,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.ResumeTrigger(ctxt, triggerName, groupName);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersResumedTrigger(triggerName, groupName);
         }
 
@@ -1084,7 +1084,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.ResumeTriggerGroup(ctxt, groupName);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersResumedTrigger(null, groupName);
         }
 
@@ -1117,7 +1117,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.ResumeJob(ctxt, jobName, groupName);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersResumedJob(jobName, groupName);
         }
 
@@ -1140,7 +1140,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.ResumeJobGroup(ctxt, groupName);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersResumedJob(null, groupName);
         }
 
@@ -1159,7 +1159,7 @@ namespace Quartz.Core
             ValidateState();
 
             resources.JobStore.PauseAll(ctxt);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersPausedTrigger(null, null);
         }
 
@@ -1177,7 +1177,7 @@ namespace Quartz.Core
             ValidateState();
 
             resources.JobStore.ResumeAll(ctxt);
-            NotifySchedulerThread();
+            NotifySchedulerThread(null);
             NotifySchedulerListenersResumedTrigger(null, null);
         }
 
@@ -1617,11 +1617,11 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler thread.
         /// </summary>
-        protected internal virtual void NotifySchedulerThread()
+        protected internal virtual void NotifySchedulerThread(NullableDateTime candidateNewNextFireTimeUtc)
         {
             if (SignalOnSchedulingChange)
             {
-                schedThread.SignalSchedulingChange();
+                schedThread.SignalSchedulingChange(candidateNewNextFireTimeUtc);
             }
         }
 

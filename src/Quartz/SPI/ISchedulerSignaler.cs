@@ -19,6 +19,12 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
+using Nullables;
+#endif
+
 using Quartz.Core;
 
 namespace Quartz.Spi
@@ -45,6 +51,6 @@ namespace Quartz.Spi
 		/// <summary>
 		/// Signals the scheduling change.
 		/// </summary>
-		void SignalSchedulingChange();
+        void SignalSchedulingChange(NullableDateTime candidateNewNextFireTimeUtc);
 	}
 }

@@ -24,6 +24,12 @@ using System.Globalization;
 using System.Threading;
 
 using Common.Logging;
+#if NET_20
+using NullableDateTime = System.Nullable<System.DateTime>;
+#else
+using Nullables;
+#endif
+
 
 using Quartz.Spi;
 
@@ -46,6 +52,7 @@ namespace Quartz.Core
         private readonly object sigLock = new object();
 
         private bool signaled;
+        private NullableDateTime signaledNextFireTimeUtc;
         private bool paused;
         private bool halted;
 
@@ -164,7 +171,7 @@ namespace Quartz.Core
 
                 if (paused)
                 {
-                    SignalSchedulingChange();
+                    SignalSchedulingChange(null);
                 }
                 else
                 {
@@ -188,7 +195,7 @@ namespace Quartz.Core
                 }
                 else
                 {
-                    SignalSchedulingChange();
+                    SignalSchedulingChange(null);
                 }
             }
         }
@@ -198,29 +205,46 @@ namespace Quartz.Core
         /// made - in order to interrupt any sleeping that may be occuring while
         /// waiting for the fire time to arrive.
         /// </summary>
-        internal protected void SignalSchedulingChange() 
+        /// <param name="candidateNewNextFireTimeUtc">
+        /// the time when the newly scheduled trigger
+        /// will fire.  If this method is being called do to some other even (rather
+        /// than scheduling a trigger), the caller should pass null.
+        /// </param>
+        public void SignalSchedulingChange(NullableDateTime candidateNewNextFireTimeUtc) 
         {
             lock (sigLock) 
             {
                 signaled = true;
+                signaledNextFireTimeUtc = candidateNewNextFireTimeUtc;
             }
         }
 
-        private void ClearSignaledSchedulingChange() 
+        public void ClearSignaledSchedulingChange() 
         {
             lock (sigLock) 
             {
                 signaled = false;
+                signaledNextFireTimeUtc = null;
             }
         }
 
-        private bool IsScheduleChanged() 
+        public bool IsScheduleChanged() 
         {
             lock(sigLock) 
             {
                 return signaled;
             }
         }
+
+        
+        public NullableDateTime GetSignaledNextFireTimeUtc() 
+        {
+            lock (sigLock) 
+            {
+                return signaledNextFireTimeUtc;
+            }
+        }
+
 
         /// <summary>
         /// The main processing loop of the <see cref="QuartzSchedulerThread" />.
@@ -310,7 +334,7 @@ namespace Quartz.Core
                             // though, this spinning
                             // doesn't even register 0.2% cpu usage on a pentium 4.
                             numPauses = (timeUntilTrigger/spinInterval);
-                            while (numPauses >= 0 && !IsScheduleChanged())
+                            while (numPauses >= 0)
                             {
                                 try
                                 {
@@ -320,39 +344,49 @@ namespace Quartz.Core
                                 {
                                 }
 
+                                if (IsScheduleChanged())
+                                {
+                                    if (IsCandidateNewTimeEarlierWithinReason(triggerTime))
+                                    {
+                                        // above call does a clearSignaledSchedulingChange()
+                                        try
+                                        {
+                                            qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
+                                        }
+                                        catch (JobPersistenceException jpe)
+                                        {
+                                            qs.NotifySchedulerListenersError(
+                                                    "An error occured while releasing trigger '"
+                                                            + trigger.FullName + "'",
+                                                    jpe);
+                                            // db connection must have failed... keep
+                                            // retrying until it's up...
+                                            ReleaseTriggerRetryLoop(trigger);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Log.Error(
+                                                "releaseTriggerRetryLoop: RuntimeException "
+                                                + e.Message, e);
+                                            // db connection must have failed... keep
+                                            // retrying until it's up...
+                                            ReleaseTriggerRetryLoop(trigger);
+                                        }
+                                        trigger = null;
+                                        break;
+                                    }
+                                }
+
                                 now = DateTime.UtcNow;
                                 timeUntilTrigger = (long) (triggerTime - now).TotalMilliseconds;
                                 numPauses = (timeUntilTrigger/spinInterval);
                             }
-                            if (IsScheduleChanged())
+                        
+                            if (trigger == null)
                             {
-                                try
-                                {
-                                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(
-                                        ctxt, trigger);
-                                }
-                                catch (JobPersistenceException jpe)
-                                {
-                                    qs.NotifySchedulerListenersError(
-                                        string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'", trigger.FullName),
-                                        jpe);
-                                    // db connection must have failed... keep
-                                    // retrying until it's up...
-                                    ReleaseTriggerRetryLoop(trigger);
-                                }
-                                catch (Exception e)
-                                {
-                                    Log.Error(
-                                        "releaseTriggerRetryLoop: RuntimeException "
-                                        + e.Message, e);
-                                    // db connection must have failed... keep
-                                    // retrying until it's up...
-                                    ReleaseTriggerRetryLoop(trigger);
-                                }
-                                ClearSignaledSchedulingChange();
                                 continue;
                             }
-
+                        
                             // set trigger to 'executing'
                             TriggerFiredBundle bndle = null;
 
@@ -494,8 +528,12 @@ namespace Quartz.Core
                     spinInterval = 10;
                     numPauses = (timeUntilContinue/spinInterval);
 
-                    while (numPauses > 0 && !IsScheduleChanged())
+                    while (numPauses > 0)
                     {
+                        if (IsScheduleChanged())
+                        {
+                            break;
+                        }
                         try
                         {
                             Thread.Sleep(10);
@@ -518,6 +556,55 @@ namespace Quartz.Core
             qs = null;
             qsRsrcs = null;
         }
+
+        private bool IsCandidateNewTimeEarlierWithinReason(DateTime oldTimeUtc) 
+        {    	
+		    // So here's the deal: We know due to being signaled that 'the schedule'
+		    // has changed.  We may know (if getSignaledNextFireTime() != DateTime.MinValue) the
+		    // new earliest fire time.  We may not (in which case we will assume
+		    // that the new time is earlier than the trigger we have acquired).
+		    // In either case, we only want to abandon our acquired trigger and
+		    // go looking for a new one if "it's worth it".  It's only worth it if
+		    // the time cost incurred to abandon the trigger and acquire a new one 
+		    // is less than the time until the currently acquired trigger will fire,
+		    // otherwise we're just "thrashing" the job store (e.g. database).
+		    //
+		    // So the question becomes when is it "worth it"?  This will depend on
+		    // the job store implementation (and of course the particular database
+		    // or whatever behind it).  Ideally we would depend on the job store 
+		    // implementation to tell us the amount of time in which it "thinks"
+		    // it can abandon the acquired trigger and acquire a new one.  However
+		    // we have no current facility for having it tell us that, so we make
+		    // and somewhat educated but arbitrary guess ;-).
+
+    	    lock (sigLock) 
+            {	
+			    bool earlier = false;
+    			
+			    if(!GetSignaledNextFireTimeUtc().HasValue)
+			    {
+			        earlier = true;
+			    }
+			    else if (GetSignaledNextFireTimeUtc().Value < oldTimeUtc)
+			    {
+			        earlier = true;
+			    }
+    			
+			    if(earlier) 
+                {
+				    // so the new time is considered earlier, but is it enough earlier?
+				    TimeSpan diff = DateTime.UtcNow - oldTimeUtc;
+				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(120) : TimeSpan.FromMilliseconds(10)))
+				    {
+				        earlier = false;
+				    }
+			    }
+    			
+			    ClearSignaledSchedulingChange();
+    			
+			    return earlier;
+            }
+	    }
 
         /// <summary>
         /// Trigger retry loop that is executed on error condition.

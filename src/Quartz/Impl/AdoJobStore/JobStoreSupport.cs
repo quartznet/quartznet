@@ -828,6 +828,7 @@ namespace Quartz.Impl.AdoJobStore
             int maxMisfiresToHandleAtATime = (recovering) ? -1 : MaxMisfiresToHandleAtATime;
 
             IList misfiredTriggers = new ArrayList();
+            DateTime earliestNewTime = DateTime.MaxValue;
 
             // We must still look for the MISFIRED state in case triggers were left 
             // in this state when upgrading to this version that does not support it. 
@@ -866,10 +867,15 @@ namespace Quartz.Impl.AdoJobStore
 
                 DoUpdateOfMisfiredTrigger(conn, null, trig, false, StateWaiting, recovering);
 
-                signaler.NotifySchedulerListenersFinalized(trig);
+                if (trig.GetNextFireTimeUtc().Value < earliestNewTime)
+                {
+                    earliestNewTime = trig.GetNextFireTimeUtc().Value;
+                }
+
+                signaler.NotifyTriggerListenersMisfired(trig);
             }
 
-            return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count);
+            return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count, earliestNewTime);
         }
 
 
@@ -3689,9 +3695,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual void SignalSchedulingChange()
+        protected virtual void SignalSchedulingChange(NullableDateTime candidateNewNextFireTimeUtc)
         {
-            signaler.SignalSchedulingChange();
+            signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc);
         }
 
         //---------------------------------------------------------------------------
@@ -4465,7 +4471,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (!shutdown && Manage())
                         {
-                            jobStoreSupport.SignalSchedulingChange();
+                            jobStoreSupport.SignalSchedulingChange(null);
                         }
                     } //while !Shutdown
                 }
@@ -4537,7 +4543,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
                         {
-                            jobStoreSupport.SignalSchedulingChange();
+                            jobStoreSupport.SignalSchedulingChange(recoverMisfiredJobsResult.EarliestNewTime);
                         }
 
                         if (!shutdown)
@@ -4577,20 +4583,22 @@ namespace Quartz.Impl.AdoJobStore
             /// </summary>
             public class RecoverMisfiredJobsResult
             {
-                public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0);
+                public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0, DateTime.MaxValue);
 
-                private bool _hasMoreMisfiredTriggers;
-                private int _processedMisfiredTriggerCount;
+                private readonly bool _hasMoreMisfiredTriggers;
+                private readonly int _processedMisfiredTriggerCount;
+                private readonly DateTime _earliestNewTime;
 
                 /// <summary>
                 /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
                 /// </summary>
                 /// <param name="hasMoreMisfiredTriggers">if set to <c>true</c> [has more misfired triggers].</param>
                 /// <param name="processedMisfiredTriggerCount">The processed misfired trigger count.</param>
-                public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount)
+                public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount, DateTime earliestNewTime)
                 {
                     _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
                     _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
+                    _earliestNewTime = earliestNewTime;
                 }
 
                 /// <summary>
@@ -4611,6 +4619,11 @@ namespace Quartz.Impl.AdoJobStore
                 public int ProcessedMisfiredTriggerCount
                 {
                     get { return _processedMisfiredTriggerCount; }
+                }
+
+                public DateTime EarliestNewTime
+                {
+                    get { return _earliestNewTime; }
                 }
             }
         }
