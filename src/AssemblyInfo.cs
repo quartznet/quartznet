@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("net-2.0.win32; Release")]
 #endif
 
-[assembly: AssemblyProduct("Quarz.NET 0.9.1")]
+[assembly: AssemblyProduct("Quarz.NET 1.0")]
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
 [assembly : AssemblyCompany("http://quartznet.sourceforge.net/")]
 [assembly : AssemblyCopyright("Copyright 2007 OpenSymphony")]
@@ -22,9 +22,9 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 #if !NET_20
-[assembly: AssemblyVersion("0.9.1.1")]
+[assembly: AssemblyVersion("1.0.0.1")]
 #else
-[assembly: AssemblyVersion("0.9.1.2")]
+[assembly: AssemblyVersion("1.0.0.2")]
 #endif
 
 #if STRONG
