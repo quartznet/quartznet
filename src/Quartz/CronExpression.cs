@@ -1807,7 +1807,15 @@ namespace Quartz
                         day += daysToAdd;
                         if (daysToAdd < 0 || day > GetLastDayOfMonth(mon, d.Year))
                         {
-                            d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                            if (mon == 12)
+                            {
+                                d = new DateTime(d.Year, mon - 11, 1, 0, 0, 0).AddYears(1);
+                            }
+                            else
+                            {
+                                d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                            } 
+                            
                             // we are promoting the month
                             continue;
                         }
