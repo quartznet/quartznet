@@ -150,6 +150,7 @@ namespace Quartz.Impl
 		/// </summary>
 		/// <param name="schedulerName">The name for the scheduler.</param>
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+		/// <param name="proxyAddress"></param>
 		/// <throws>  SchedulerException </throws>
 		protected internal virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
 		{
@@ -225,6 +226,7 @@ namespace Quartz.Impl
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
 		/// <param name="threadPool">The thread pool for executing jobs</param>
 		/// <param name="jobStore">The type of job store</param>
+		/// <param name="schedulerPluginMap"></param>
 		/// <param name="idleWaitTime">The idle wait time in milliseconds. You can specify "-1" for
 		/// the default value, which is currently 30000 ms.</param>
 		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>

@@ -61,6 +61,7 @@ namespace Quartz.Impl.Calendar
         /// calendar functionality
         /// </param>
         /// <param name="expression">a String representation of the desired cron expression</param>
+        /// <param name="timeZone"></param>
         public CronCalendar(ICalendar baseCalendar,
                             string expression,
                             TimeZone timeZone)

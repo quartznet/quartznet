@@ -168,6 +168,7 @@ namespace Quartz.Simpl
 	    /// <summary>
 	    /// Returns true if the given job group is paused.
 	    /// </summary>
+	    /// <param name="ctxt"></param>
 	    /// <param name="groupName">Job group name</param>
 	    /// <returns></returns>
 	    public virtual bool IsJobGroupPaused(SchedulingContext ctxt, string groupName)
@@ -178,6 +179,7 @@ namespace Quartz.Simpl
 	    /// <summary>
 	    /// returns true if the given TriggerGroup is paused.
 	    /// </summary>
+	    /// <param name="ctxt"></param>
 	    /// <param name="groupName"></param>
 	    /// <returns></returns>
 	    public virtual bool IsTriggerGroupPaused(SchedulingContext ctxt, string groupName)

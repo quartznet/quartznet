@@ -95,6 +95,7 @@ namespace Quartz
 		/// be null. If all jobs were paused, then both parameters will be null.
 		/// </p>
 		/// </summary>
+		/// <param name="jobGroup">The job group.</param>
 		void JobsResumed(string jobName, string jobGroup);
 
 		/// <summary>

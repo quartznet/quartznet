@@ -953,6 +953,7 @@ namespace Quartz.Impl.AdoJobStore
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
+        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
         public bool IsJobGroupPaused(SchedulingContext ctxt, string groupName)
@@ -964,6 +965,7 @@ namespace Quartz.Impl.AdoJobStore
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
+        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
         public bool IsTriggerGroupPaused(SchedulingContext ctxt, string groupName)
@@ -4587,18 +4589,19 @@ namespace Quartz.Impl.AdoJobStore
 
                 private readonly bool _hasMoreMisfiredTriggers;
                 private readonly int _processedMisfiredTriggerCount;
-                private readonly DateTime _earliestNewTime;
+                private readonly DateTime _earliestNewTimeUtc;
 
                 /// <summary>
                 /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
                 /// </summary>
                 /// <param name="hasMoreMisfiredTriggers">if set to <c>true</c> [has more misfired triggers].</param>
                 /// <param name="processedMisfiredTriggerCount">The processed misfired trigger count.</param>
-                public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount, DateTime earliestNewTime)
+                /// <param name="earliestNewTimeUtc"></param>
+                public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount, DateTime earliestNewTimeUtc)
                 {
                     _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
                     _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
-                    _earliestNewTime = earliestNewTime;
+                    _earliestNewTimeUtc = earliestNewTimeUtc;
                 }
 
                 /// <summary>
@@ -4623,7 +4626,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 public DateTime EarliestNewTime
                 {
-                    get { return _earliestNewTime; }
+                    get { return _earliestNewTimeUtc; }
                 }
             }
         }

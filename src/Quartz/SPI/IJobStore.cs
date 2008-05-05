@@ -82,6 +82,7 @@ namespace Quartz.Spi
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
+        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
         bool IsJobGroupPaused(SchedulingContext ctxt, string groupName);
@@ -89,6 +90,7 @@ namespace Quartz.Spi
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
+        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
         bool IsTriggerGroupPaused(SchedulingContext ctxt, string groupName);
