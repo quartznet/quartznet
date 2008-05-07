@@ -5,16 +5,12 @@
   <target name="init">
 
     <!-- what kind of build -->
-    <if test="${property::exists('configuration') == false}">
-      <property name="configuration" value="Debug" />
-    </if>
-
+    <property name="configuration" value="Debug" overwrite="false" />
+	<property name="debug" value="true" overwrite="false" />
+    
     <!-- Check target framework -->
-    <if test="${property::exists('target.framework') == false}">
-      <!-- 2.0 is the default -->
-      <property name="target.framework" value="2.0" />
-    </if>
-
+    <property name="target.framework" value="2.0" overwrite="false" />
+    
     <!-- set global target framework -->
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
 
@@ -92,13 +88,13 @@
 		target="library"
 		output="build\${target.framework}\${configuration}\Quartz\Quartz.dll"
 		doc="build\${target.framework}\${configuration}\Quartz\Quartz.xml"
-		debug="true"
+		debug="${debug}"
 		define="${defines}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
         <warning number="0168" />
-        <!--<warning number="0246" />-->
+        <warning number="1591" />
         <warning number="0618" />
       </nowarn>
       <sources>
@@ -108,7 +104,7 @@
         <exclude name="**/RemotingInvokerJob.cs" />
       </sources>
       <resources dynamicprefix="false" prefix="Quartz">
-        <include name="src/Quartz/quartz.properties" />
+        <include name="src/Quartz/quartz.config" />
       </resources>
       <resources dynamicprefix="false" prefix="Quartz.Impl.AdoJobStore.Common">
         <include name="src/Quartz/Impl/AdoJobStore/Common/dbproviders.properties" />
@@ -141,7 +137,7 @@
     <csc 
       target="exe" 
       output="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe" 
-      debug="true" 
+      debug="${debug}" 
       define="${defines}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
@@ -174,23 +170,10 @@
   </target>
 
   <target name="build-server">
-	<call target="build-server-11" />
 	<call target="build-server-20" />
   </target>
-  <target name="build-server-11">
-    <property name="lib-dir-version" value="1.1" />
-    <property name="net20" value="false" />
-    <property name="defines" value="" />
 
-    <property name="target.framework" value="1.1" />
-    <property name="nant.settings.currentframework" value="net-${target.framework}" />
-	
-	<property name="server.project" value="Console" />
-	<call target="build-server-internal" />
-	<property name="server.project" value="Service" />
-	<call target="build-server-internal" />
-  </target>
-
+  
 
   <target name="build-server-20">
     <property name="lib-dir-version" value="2.0" />
@@ -213,7 +196,7 @@
     <csc 
       target="exe" 
       output="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe" 
-      debug="true" 
+      debug="${debug}" 
       define="${defines}">
       <nowarn>
       </nowarn>
@@ -234,11 +217,14 @@
       <fileset>
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\1.1\Nullables.dll" unless="${net20}" />
+        <include name="lib\${lib-dir-version}\Common.Logging.Log4Net.dll" />
+		<include name="lib\other\log4net.dll" />
       </fileset>
     </copy>
-    <copy file="server\Quartz.Server.Core\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe.config" />
+    <copy file="server\Quartz.Server.${server.project}\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe.config" />
     <copy file="server\Quartz.Server.Core\quartz_jobs.xml" todir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}" />
+	<copy file="server\Quartz.Server.Core\quartz.config" todir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}" />
+	
 
 	</target>
 	
@@ -253,7 +239,7 @@
 
     <mkdir dir="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\" />
 
-    <csc target="library" output="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\Quartz.Tests.${test.project}.dll" debug="true" define="${defines}">
+    <csc target="library" output="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\Quartz.Tests.${test.project}.dll" debug="${debug}" define="${defines}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -405,16 +391,21 @@
 
   <target name="package-release">
 
-    <!-- <property name="configuration" value="Release" /> -->
-    <call target="init" />
+    <property name="configuration" value="Release" />
+	<property name="debug" value="false" />
+
+
+	<call target="init" />
     
     <property name="defines" value="STRONG" />
 
     <call target="clean" />
     <call target="build-1.1" />
     <call target="build-2.0" />
-    <call target="doc" />
-
+	<call target="build-server" />
+    <!-- TODO
+	<call target="doc" />
+	-->
    
     <delete dir="package" failonerror="false" />
     <mkdir dir="package" />
@@ -422,6 +413,7 @@
     <mkdir dir="package\doc" />
     <mkdir dir="package\database" />
     <mkdir dir="package\src" />
+    <mkdir dir="package\server" />
 
     <copy todir="package">
       <fileset>
@@ -442,7 +434,20 @@
         <exclude name="**/*.pdb" />
       </fileset>
     </copy>
+    
+	<copy todir="package\server\console" flatten="true">
+      <fileset>
+        <include name="build\${target.framework}\${configuration}\Quartz.Server.Console\**" />
+      </fileset>
+    </copy>
 
+	<copy todir="package\server\service" flatten="true">
+      <fileset>
+        <include name="build\${target.framework}\${configuration}\Quartz.Server.Service\**" />
+      </fileset>
+    </copy>
+	
+	
     <!-- sorry *nix folks, couldn't get move to work as expected.. -->
     <exec program="cmd" commandline="/c move package\build package\bin" />
 

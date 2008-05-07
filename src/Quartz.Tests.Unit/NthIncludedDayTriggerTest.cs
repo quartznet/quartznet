@@ -14,10 +14,9 @@
  * under the License.
  */
 using System;
-
-#if NET_20
 using System.Globalization;
 
+#if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;

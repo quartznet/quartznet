@@ -17,9 +17,9 @@
 using System;
 using System.Collections;
 
-#if NET_20
 using Quartz.Collection;
 
+#if NET_20
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;
