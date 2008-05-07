@@ -233,7 +233,7 @@
                     BuildAction = "Compile"
                 />
                 <File
-                    RelPath = "quartz.properties"
+                    RelPath = "quartz.config"
                     BuildAction = "EmbeddedResource"
                 />
                 <File

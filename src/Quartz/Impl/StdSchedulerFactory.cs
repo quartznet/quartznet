@@ -81,7 +81,7 @@ namespace Quartz.Impl
     /// <author>Marko Lahma (.NET)</author>
     public class StdSchedulerFactory : ISchedulerFactory
     {
-        public const string PropertiesFile = "quartz.properties";
+        public const string PropertiesFile = "quartz.config";
         public const string PropertySchedulerInstanceName = "quartz.scheduler.instanceName";
         public const string PropertySchedulerInstanceId = "quartz.scheduler.instanceId";
         public const string PropertySchedulerInstanceIdGeneratorPrefix = "quartz.scheduler.instanceIdGenerator";
@@ -207,7 +207,10 @@ namespace Quartz.Impl
 			NameValueCollection props = (NameValueCollection) ConfigurationSettings.GetConfig("quartz");
 #endif
             string requestedFile = Environment.GetEnvironmentVariable(PropertiesFile);
-            string propFileName = requestedFile != null && requestedFile.Trim().Length > 0 ? requestedFile : "quartz.properties";
+            string propFileName = requestedFile != null && requestedFile.Trim().Length > 0 ? requestedFile : "~/quartz.config";
+
+            // check for specials
+            propFileName = FileUtil.ResolveFile(propFileName);
 
             if (props == null && File.Exists(propFileName))
             {
@@ -233,7 +236,7 @@ namespace Quartz.Impl
                 // read from assembly
                 try
                 {
-                    PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource("Quartz.quartz.properties");
+                    PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource("Quartz.quartz.config");
                     props = pp.UnderlyingProperties;
                     Log.Info("Default Quartz.NET properties loaded from embedded resource file");
                 }

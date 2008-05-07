@@ -115,9 +115,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Quartz.Server.Core\quartz.properties">
-      <Link>quartz.properties</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Include="..\Quartz.Server.Core\quartz.config">
+      <Link>quartz.config</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="App.config" />
   </ItemGroup>

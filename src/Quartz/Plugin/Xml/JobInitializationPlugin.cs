@@ -32,6 +32,7 @@ using Quartz.Collection;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 using Quartz.Xml;
 
 namespace Quartz.Plugin.Xml
@@ -403,16 +404,9 @@ namespace Quartz.Plugin.Xml
                 string furl = null;
 
                 string fName = FileName;
-                if (fName.StartsWith("~"))
-                {
-                    // relative to run directory
-                    fName = fName.Substring(1);
-                    if (fName.StartsWith("/") || fName.StartsWith("\\"))
-                    {
-                        fName = fName.Substring(1);
-                    }
-                    fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase, fName);
-                }
+                
+                // check for special lookup
+                fName = FileUtil.ResolveFile(fName);
 
                 FileInfo file = new FileInfo(fName); // files in filesystem
                 if (!file.Exists)
