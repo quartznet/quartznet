@@ -28,6 +28,10 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 using Nullables;
 #endif
 
+#if NET_35
+using TimeZone = System.TimeZoneInfo;
+#endif
+
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -189,7 +193,7 @@ namespace Quartz
         private NullableDateTime endTimeUtc = null;
 		private NullableDateTime nextFireTimeUtc = null;
 		private NullableDateTime previousFireTimeUtc = null;
-		[NonSerialized] private TimeZone timeZone = null;
+        [NonSerialized] private TimeZone timeZone = null;
 
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with no settings.
@@ -201,7 +205,11 @@ namespace Quartz
 		public CronTrigger()
 		{
 			StartTimeUtc = DateTime.UtcNow;
-			TimeZone = TimeZone.CurrentTimeZone;
+#if !NET_35
+            TimeZone = TimeZone.CurrentTimeZone;
+#else
+            TimeZone = TimeZoneInfo.Local;
+#endif
 		}
 
 		/// <summary>
@@ -216,8 +224,12 @@ namespace Quartz
 		public CronTrigger(string name, string group) : base(name, group)
 		{
 			StartTimeUtc = DateTime.UtcNow;
-			TimeZone = TimeZone.CurrentTimeZone;
-		}
+#if !NET_35
+            TimeZone = TimeZone.CurrentTimeZone;
+#else
+            TimeZone = TimeZoneInfo.Local;
+#endif
+        }
 
 
 		/// <summary>
@@ -235,8 +247,12 @@ namespace Quartz
 		{
 			CronExpressionString = cronExpression;
 			StartTimeUtc = DateTime.UtcNow;
-			TimeZone = TimeZone.CurrentTimeZone;
-		}
+#if !NET_35
+            TimeZone = TimeZone.CurrentTimeZone;
+#else
+            TimeZone = TimeZoneInfo.Local;
+#endif
+        }
 
 
 		/// <summary>
@@ -255,8 +271,12 @@ namespace Quartz
 			string jobGroup) : base(name, group, jobName, jobGroup)
 		{
 			StartTimeUtc = DateTime.UtcNow;
-			TimeZone = TimeZone.CurrentTimeZone;
-		}
+#if !NET_35
+            TimeZone = TimeZone.CurrentTimeZone;
+#else
+            TimeZone = TimeZoneInfo.Local;
+#endif
+        }
 
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with the given name and group,
@@ -274,7 +294,11 @@ namespace Quartz
 		/// <param name="cronExpression">The cron expression.</param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, string cronExpression)
+#if !NET_35
 			: this(name, group, jobName, jobGroup, DateTime.UtcNow, null, cronExpression, TimeZone.CurrentTimeZone)
+#else
+			: this(name, group, jobName, jobGroup, DateTime.UtcNow, null, cronExpression, TimeZoneInfo.Local)
+#endif
 		{
 		}
 
@@ -329,8 +353,12 @@ namespace Quartz
 			{
 				EndTimeUtc = endTime;
 			}
-			TimeZone = TimeZone.CurrentTimeZone;
-		}
+#if !NET_35
+            TimeZone = TimeZone.CurrentTimeZone;
+#else
+            TimeZone = TimeZoneInfo.Local;
+#endif
+        }
 
 
 		/// <summary>
@@ -348,7 +376,8 @@ namespace Quartz
 		public CronTrigger(string name, string group, string jobName,
             string jobGroup, DateTime startTimeUtc, 
             NullableDateTime endTime,
-			string cronExpression, TimeZone timeZone) : base(name, group, jobName, jobGroup)
+			string cronExpression, 
+            TimeZone timeZone) : base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
 
@@ -364,7 +393,11 @@ namespace Quartz
 			}
 			if (timeZone == null)
 			{
+#if !NET_35            
 				TimeZone = TimeZone.CurrentTimeZone;
+#else
+                timeZone = TimeZoneInfo.Local;
+#endif
 			}
 			else
 			{
@@ -421,10 +454,7 @@ namespace Quartz
 		/// <value></value>
 		public override DateTime StartTimeUtc
 		{
-			get
-			{
-				return startTimeUtc;
-			}
+			get {  return startTimeUtc; }
 			set
 			{
 				NullableDateTime eTime = EndTimeUtc;
@@ -447,10 +477,7 @@ namespace Quartz
 		/// </summary>
 		public override NullableDateTime EndTimeUtc
 		{
-			get
-			{
-				return endTimeUtc;
-			}
+			get { return endTimeUtc; }
 			set
 			{
 				DateTime sTime = StartTimeUtc;
@@ -534,8 +561,12 @@ namespace Quartz
 
 				if (timeZone == null)
 				{
+#if !NET_35
 					timeZone = TimeZone.CurrentTimeZone;
-				}
+#else
+                    timeZone = TimeZoneInfo.Local;
+#endif
+                }
 				return timeZone;
 			}
 			set
@@ -547,7 +578,6 @@ namespace Quartz
 				timeZone = value;
 			}
 		}
-
 
 		/// <summary>
 		/// Returns the next time at which the <see cref="Trigger" /> will fire,
@@ -730,7 +760,11 @@ namespace Quartz
             DateTimeUtil.AssumeUniversalTime(test);
 
             NullableDateTime fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));
+#if !NET_35
             DateTime p = TimeZone.ToLocalTime(fta.Value);
+#else
+            DateTime p = TimeZoneInfo.ConvertTimeFromUtc(fta.Value, TimeZone);
+#endif
 
 			if (dayOnly)
 			{

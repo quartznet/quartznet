@@ -38,6 +38,7 @@
     <call target="build-mono-1.0" />
     <call target="build-2.0" />
     <call target="build-mono-2.0" />
+    <call target="build-3.5" />
   </target>
   
   <target name="build-1.1" >
@@ -56,6 +57,16 @@
     <call target="build-all-csc" />
 
   </target>
+
+  <target name="build-3.5">
+    <property name="net20" value="true" />
+    <property name="defines" value="${defines},NET_20,NET_35" />
+
+    <property name="target.framework" value="3.5" />
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+    <call target="build-all-csc" />
+  </target>
+
 
 
   <target name="build-mono-1.0">

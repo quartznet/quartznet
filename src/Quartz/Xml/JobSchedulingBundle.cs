@@ -22,6 +22,11 @@
 using System;
 using System.Collections;
 
+#if NET_35
+using TimeZone = System.TimeZoneInfo;
+#endif
+
+
 namespace Quartz.Xml
 {
 	/// <summary> 
@@ -118,7 +123,11 @@ namespace Quartz.Xml
 				CronTrigger ct = (CronTrigger) trigger;
 				if (ct.TimeZone == null)
 				{
+#if !NET_35
 					ct.TimeZone = TimeZone.CurrentTimeZone;
+#else
+                    ct.TimeZone = TimeZoneInfo.Local;
+#endif
 				}
 			}
 

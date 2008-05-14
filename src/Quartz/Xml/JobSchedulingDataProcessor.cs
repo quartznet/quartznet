@@ -27,6 +27,10 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 using Nullables;
 #endif
 
+#if NET_35
+using TimeZone = System.TimeZoneInfo;
+#endif
+
 using System.Collections;
 using System.Collections.Specialized;
 using System.Globalization;

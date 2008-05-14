@@ -166,7 +166,11 @@ namespace Quartz.Impl.Calendar
 				return false;
 			}
 
+#if !NET_35
 			return !(IsDayExcluded(TimeZone.ToLocalTime(dateUtc)));
+#else
+            return !(IsDayExcluded(TimeZoneInfo.ConvertTimeFromUtc(dateUtc, TimeZoneInfo.Local)));
+#endif
 		}
 
 		/// <summary>
@@ -187,7 +191,11 @@ namespace Quartz.Impl.Calendar
 			}
 
 			// Get timestamp for 00:00:00
-			DateTime day = TimeZone.ToLocalTime(new DateTime(timeStampUtc.Year, timeStampUtc.Month, timeStampUtc.Day));
+#if !NET_35
+            DateTime day = TimeZone.ToLocalTime(new DateTime(timeStampUtc.Year, timeStampUtc.Month, timeStampUtc.Day));
+#else
+            DateTime day = TimeZoneInfo.ConvertTimeFromUtc(new DateTime(timeStampUtc.Year, timeStampUtc.Month, timeStampUtc.Day), TimeZoneInfo.Local);
+#endif
 
 			if (!IsDayExcluded(day))
 			{
@@ -200,7 +208,11 @@ namespace Quartz.Impl.Calendar
 				day = day.AddDays(1);
 			}
 
+#if !NET_35
 			return day.ToUniversalTime();
+#else
+            return TimeZoneInfo.ConvertTimeToUtc(day);
+#endif
 		}
 	    
 	    

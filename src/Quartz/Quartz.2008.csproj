@@ -1,0 +1,461 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
+  <PropertyGroup>
+    <ProjectType>Local</ProjectType>
+    <ProductVersion>9.0.21022</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ApplicationIcon>
+    </ApplicationIcon>
+    <AssemblyKeyContainerName>
+    </AssemblyKeyContainerName>
+    <AssemblyName>Quartz</AssemblyName>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+    <DefaultClientScript>JScript</DefaultClientScript>
+    <DefaultHTMLPageLayout>Grid</DefaultHTMLPageLayout>
+    <DefaultTargetSchema>IE50</DefaultTargetSchema>
+    <DelaySign>false</DelaySign>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Quartz</RootNamespace>
+    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
+    <StartupObject>
+    </StartupObject>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>2.0</OldToolsVersion>
+    <PublishUrl>http://localhost/Quartz/</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Web</InstallFrom>
+    <UpdateEnabled>true</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>true</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>..\..\build\2.0\Debug\Quartz\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
+    <DefineConstants>NET_20,NET_35</DefineConstants>
+    <DocumentationFile>Quartz.xml</DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn>618</NoWarn>
+    <Optimize>false</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>3</WarningLevel>
+    <DebugType>full</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>..\..\build\2.0\Release\Quartz\</OutputPath>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
+    <DefineConstants>NET_20</DefineConstants>
+    <DocumentationFile>Quartz.xml</DocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <NoStdLib>false</NoStdLib>
+    <NoWarn>618,1591</NoWarn>
+    <Optimize>false</Optimize>
+    <RegisterForComInterop>false</RegisterForComInterop>
+    <RemoveIntegerChecks>false</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <DebugType>full</DebugType>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Common.Logging">
+      <Name>Common.Logging</Name>
+      <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
+    </Reference>
+    <Reference Include="System">
+      <Name>System</Name>
+    </Reference>
+    <Reference Include="System.configuration" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Data">
+      <Name>System.Data</Name>
+    </Reference>
+    <Reference Include="System.Runtime.Remoting" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Xml">
+      <Name>System.Xml</Name>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\AssemblyInfo.cs">
+      <Link>AssemblyInfo.cs</Link>
+    </Compile>
+    <Compile Include="Collection\CollectionUtil.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Collection\HashSet.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Collection\ISet.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Collection\ISortedSet.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Collection\TreeSet.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Core\IJobRunShellFactory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Core\JobRunShell.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Core\QuartzScheduler.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Core\QuartzSchedulerResources.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Core\QuartzSchedulerThread.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Core\SchedulerSignalerImpl.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Core\SchedulingContext.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CriticalSchedulerException.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CronExpression.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="CronTrigger.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ICalendar.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IInterruptableJob.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IJob.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IJobListener.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\Calendar\AnnualCalendar.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\Calendar\BaseCalendar.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\Calendar\CronCalendar.cs" />
+    <Compile Include="Impl\Calendar\DailyCalendar.cs" />
+    <Compile Include="Impl\Calendar\HolidayCalendar.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\Calendar\MonthlyCalendar.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\Calendar\WeeklyCalendar.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\DirectSchedulerFactory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\QuartzServer.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\RemoteScheduler.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\SchedulerRepository.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\StdJobRunShellFactory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\StdScheduler.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Impl\StdSchedulerFactory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IScheduler.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ISchedulerFactory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ISchedulerListener.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IStatefulJob.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ITriggerListener.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="JobDataMap.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="JobDetail.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="JobExecutionContext.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="JobExecutionException.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="JobPersistenceException.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Job\FileScanJob.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Job\IFileScanListener.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Job\NativeJob.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Job\NoOpJob.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Job\SendMailJob.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="NthIncludedDayTrigger.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ObjectAlreadyExistsException.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Plugin\History\LoggingJobHistoryPlugin.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Plugin\History\LoggingTriggerHistoryPlugin.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Plugin\Management\ShutdownHookPlugin.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="QuartzThread.cs" />
+    <Compile Include="SchedulerConfigException.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SchedulerContext.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SchedulerException.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SchedulerMetaData.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SimpleTrigger.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\CascadingClassLoadHelper.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\IRemotableQuartzScheduler.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\LoadingLoaderClassLoadHelper.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\PropertySettingJobFactory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\RAMJobStore.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\SimpleClassLoadHelper.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\SimpleInstanceIdGenerator.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\SimpleJobFactory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Simpl\SimpleThreadPool.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SPI\ITypeLoadHelper.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SPI\IInstanceIdGenerator.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SPI\IJobFactory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SPI\IJobStore.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SPI\ISchedulerPlugin.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SPI\ISchedulerSignaler.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SPI\IThreadPool.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SPI\TriggerFiredBundle.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Trigger.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TriggerUtils.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="UnableToInterruptJobException.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util\DBConnectionManager.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util\DirtyFlagMap.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util\Key.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util\ObjectUtils.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util\Pair.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util\PropertiesParser.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util\TriggerStatus.cs">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Listener\BroadcastSchedulerListener.cs" />
+    <Compile Include="Listener\FilterAndBroadcastJobListener.cs" />
+    <Compile Include="Listener\FilterAndBroadcastTriggerListener.cs" />
+    <Compile Include="Listener\JobChainingJobListener.cs" />
+    <Compile Include="Listener\JobListenerSupport.cs" />
+    <Compile Include="Listener\SchedulerListenerSupport.cs" />
+    <Compile Include="Listener\TriggerListenerSupport.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
+    <Compile Include="Impl\AdoJobStore\AdoUtil.cs" />
+    <Compile Include="Impl\AdoJobStore\Common\DbMetadata.cs" />
+    <Compile Include="Impl\AdoJobStore\Common\DbProvider.cs" />
+    <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
+    <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
+    <Compile Include="Impl\AdoJobStore\PostgreSQLDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\DBSemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\FiredTriggerRecord.cs" />
+    <Compile Include="Impl\AdoJobStore\IDriverDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\InvalidConfigurationException.cs" />
+    <Compile Include="Impl\AdoJobStore\ISemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\ITablePrefixAware.cs" />
+    <Compile Include="Impl\AdoJobStore\JobStoreSupport.cs" />
+    <Compile Include="Impl\AdoJobStore\JobStoreTX.cs" />
+    <Compile Include="Impl\AdoJobStore\LockException.cs" />
+    <Compile Include="Impl\AdoJobStore\NoSuchDelegateException.cs" />
+    <Compile Include="Impl\AdoJobStore\SchedulerStateRecord.cs" />
+    <Compile Include="Impl\AdoJobStore\SimpleSemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\StdAdoConstants.cs" />
+    <Compile Include="Impl\AdoJobStore\StdAdoDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\StdRowLockSemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\UpdateRowLockSemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\AdoJobStoreUtil.cs" />
+    <Compile Include="MisfireInstruction.cs" />
+    <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
+    <Compile Include="SchedulerInstruction.cs" />
+    <Compile Include="Simpl\RemotingSchedulerExporter.cs" />
+    <Compile Include="SPI\ISchedulerExporter.cs" />
+    <Compile Include="TriggerState.cs" />
+    <Compile Include="Util\DateTimeUtil.cs" />
+    <Compile Include="Util\FileUtil.cs" />
+    <Compile Include="Util\LogicalThreadContext.cs" />
+    <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
+    <Compile Include="Xml\CalendarBundle.cs" />
+    <Compile Include="Xml\JobSchedulingBundle.cs" />
+    <Compile Include="Xml\JobSchedulingDataProcessor.cs" />
+    <Compile Include="Xml\job_scheduling_data.cs">
+      <DependentUpon>job_scheduling_data.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="Xml\ValidationException.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="quartz.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.properties" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Xml\job_scheduling_data.xsd">
+      <SubType>
+      </SubType>
+    </EmbeddedResource>
+    <None Include="Xml\job_scheduling_data.xsx">
+      <DependentUpon>job_scheduling_data.xsd</DependentUpon>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+</Project>

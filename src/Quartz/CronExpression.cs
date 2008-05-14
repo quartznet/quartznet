@@ -26,6 +26,10 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 using Nullables;
 #endif
 
+#if NET_35
+using TimeZone = System.TimeZoneInfo;
+#endif
+
 using Quartz.Collection;
 
 namespace Quartz
@@ -266,6 +270,7 @@ namespace Quartz
         private static readonly Hashtable dayMap = new Hashtable(60);
 
         private readonly string cronExpressionString = null;
+        
         private TimeZone timeZone = null;
 
         /// <summary>
@@ -465,7 +470,11 @@ namespace Quartz
             {
                 if (timeZone == null)
                 {
+#if !NET_35
                     timeZone = TimeZone.CurrentTimeZone;
+#else
+                    timeZone = TimeZoneInfo.Local;
+#endif
                 }
 
                 return timeZone;
@@ -1521,7 +1530,11 @@ namespace Quartz
             DateTime d = CreateDateTimeWithoutMillis(afterTimeUtc);
 
             // change to specified time zone
+#if !NET_35
             d = TimeZone.ToLocalTime(d);
+#else
+            d = TimeZoneInfo.ConvertTimeFromUtc(d, TimeZone);
+#endif
 
             bool gotOne = false;
             // loop until we've computed the next time, or we've past the endTime
@@ -1935,7 +1948,12 @@ namespace Quartz
                 gotOne = true;
             } // while( !done )
 
+#if !NET_35
             return d.ToUniversalTime();
+#else
+            return TimeZoneInfo.ConvertTimeToUtc(d, TimeZone);
+#endif
+
         }
 
         /// <summary>

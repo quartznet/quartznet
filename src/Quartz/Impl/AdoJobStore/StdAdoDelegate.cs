@@ -36,6 +36,10 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 using Nullables;
 #endif
 
+#if NET_35
+using TimeZone = System.TimeZoneInfo;
+#endif
+
 using Quartz;
 using Quartz.Collection;
 using Quartz.Spi;
@@ -1860,11 +1864,11 @@ namespace Quartz.Impl.AdoJobStore
                                             TimeZone timeZone = null;
                                             if (timeZoneId != null)
                                             {
-                                                // TODO should we do something actually here
+#if NET_35
+                                                timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+#endif
                                             }
-                                            ct =
-                                                new CronTrigger(triggerName, groupName, jobName, jobGroup, startTimeD, endTimeD,
-                                                                cronExpr, timeZone);
+                                            ct = new CronTrigger(triggerName, groupName, jobName, jobGroup, startTimeD, endTimeD, cronExpr, timeZone);
                                         }
                                         catch (Exception ex)
                                         {

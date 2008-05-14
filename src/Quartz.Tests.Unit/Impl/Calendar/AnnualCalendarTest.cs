@@ -16,6 +16,9 @@
 */
 
 using System;
+#if NET_35
+using TimeZone = System.TimeZoneInfo;
+#endif
 
 using NUnit.Framework;
 
@@ -30,7 +33,11 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 
         private static readonly string[] Versions = new string[] { "0.6.0" };
 
-        private static readonly TimeZone TestTimeZone = TimeZone.CurrentTimeZone; 
+#if !NET_35
+        private static readonly TimeZone TestTimeZone = TimeZone.CurrentTimeZone;
+#else
+        private static readonly TimeZone TestTimeZone = TimeZoneInfo.Local;
+#endif
 
         [SetUp]
         public void Setup()

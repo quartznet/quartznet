@@ -22,6 +22,10 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;
 #endif
+#if NET_35
+using TimeZone = System.TimeZoneInfo;
+#endif
+
 
 using Quartz.Spi;
 using Quartz.Util;
@@ -428,7 +432,11 @@ namespace Quartz
 	        {
 	            if (timeZone == null)
 	            {
+#if !NET_35
 	                timeZone = TimeZone.CurrentTimeZone;
+#else
+	                timeZone = TimeZoneInfo.Local;
+#endif
 	            }
 	            return timeZone;
 	        }
@@ -693,7 +701,12 @@ namespace Quartz
 			int weekCount = 0;
 			bool gotOne = false;
 
+#if !NET_35
             afterDateUtc = TimeZone.ToLocalTime(afterDateUtc);
+#else
+            // TODO, should use time zone?
+            afterDateUtc = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZoneInfo.Local);
+#endif
             DateTime currCal = new DateTime(afterDateUtc.Year, afterDateUtc.Month, afterDateUtc.Day);
 
             // move to the first day of the week
@@ -733,7 +746,11 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
+#if !NET_35
 					if (EndTimeUtc.HasValue && currCal.ToUniversalTime() > EndTimeUtc.Value)
+#else
+                    if (EndTimeUtc.HasValue && TimeZoneInfo.ConvertTimeToUtc(currCal) > EndTimeUtc.Value)
+#endif
 					{
 						return null;
 					}
@@ -744,7 +761,11 @@ namespace Quartz
 				// be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
-					if (afterDateUtc < currCal.ToUniversalTime())
+#if !NET_35
+                    if (afterDateUtc < currCal.ToUniversalTime())
+#else
+                    if (afterDateUtc < TimeZoneInfo.ConvertTimeToUtc(currCal))
+#endif
 					{
 						gotOne = true;
 					}
@@ -766,7 +787,11 @@ namespace Quartz
 
 			if (weekCount < nextFireCutoffInterval)
 			{
+#if !NET_35
 				return currCal.ToUniversalTime();
+#else
+                return TimeZoneInfo.ConvertTimeToUtc(currCal); 
+#endif
 			}
 			else
 			{
@@ -790,7 +815,11 @@ namespace Quartz
         private NullableDateTime GetMonthlyFireTimeAfter(DateTime afterDateUtc)
 		{
 			int currN = 0;
+#if !NET_35
             DateTime currCal = TimeZone.ToLocalTime(afterDateUtc);
+#else
+            DateTime currCal = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZoneInfo.Local);
+#endif
             currCal = new DateTime(currCal.Year, currCal.Month, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currMonth;
 			int monthCount = 0;
@@ -852,7 +881,11 @@ namespace Quartz
 
 			if (monthCount < nextFireCutoffInterval)
 			{
+#if !NET_35
 				return currCal.ToUniversalTime();
+#else
+                return TimeZoneInfo.ConvertTimeToUtc(currCal);
+#endif
 			}
 			else
 			{
@@ -878,7 +911,11 @@ namespace Quartz
         private NullableDateTime GetYearlyFireTimeAfter(DateTime afterDateUtc)
 		{
 			int currN = 0;
+#if !NET_35
             DateTime currCal = TimeZone.ToLocalTime(afterDateUtc);
+#else
+            DateTime currCal = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZoneInfo.Local);
+#endif
             currCal = new DateTime(currCal.Year, 1, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currYear;
 			int yearCount = 0;
@@ -912,8 +949,12 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
+#if !NET_35
 					if (EndTimeUtc.HasValue && currCal.ToUniversalTime() > EndTimeUtc.Value)
-					{
+#else
+                    if (EndTimeUtc.HasValue && TimeZoneInfo.ConvertTimeToUtc(currCal) > EndTimeUtc.Value)
+#endif
+                    {
 						return null;
 					}
 				}
@@ -923,7 +964,11 @@ namespace Quartz
 				// could be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
+#if !NET_35
 					if (afterDateUtc < currCal.ToUniversalTime())
+#else
+                    if (afterDateUtc < TimeZoneInfo.ConvertTimeToUtc(currCal))
+#endif
 					{
 						gotOne = true;
 					}
@@ -938,7 +983,11 @@ namespace Quartz
 
 			if (yearCount < nextFireCutoffInterval)
 			{
+#if !NET_35
 				return currCal.ToUniversalTime();
+#else
+                return TimeZoneInfo.ConvertTimeToUtc(currCal);
+#endif
 			}
 			else
 			{
@@ -950,7 +999,6 @@ namespace Quartz
 		private int GetWeekOfYear(DateTime date)
 		{
 			GregorianCalendar gCal = new GregorianCalendar();
-			// TODO, it isn't always monday..
 			return gCal.GetWeekOfYear(date, TriggerCalendarWeekRule, TriggerCalendarFirstDayOfWeek);
 		}
 

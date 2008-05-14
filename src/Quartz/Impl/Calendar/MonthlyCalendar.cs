@@ -72,7 +72,7 @@ namespace Quartz.Impl.Calendar
 		public MonthlyCalendar()
         {
 			Init();
-		}
+		}   
 
         /// <summary>
         /// Constructor
@@ -182,7 +182,12 @@ namespace Quartz.Impl.Calendar
 			}
 
 			// Get timestamp for 00:00:00
-			DateTime newTimeStamp = TimeZone.ToLocalTime(timeUtc.Date);
+#if !NET_35
+            DateTime newTimeStamp = TimeZone.ToLocalTime(timeUtc.Date);
+#else
+            // TODO is this correct?
+            DateTime newTimeStamp = TimeZoneInfo.ConvertTimeFromUtc(timeUtc.Date, TimeZoneInfo.Local);
+#endif
 			int day = newTimeStamp.Day;
 
 			if (!IsDayExcluded(day))
@@ -196,8 +201,11 @@ namespace Quartz.Impl.Calendar
 				day = (int) newTimeStamp.Day;
 			}
 
+#if !NET_35
 			return newTimeStamp.ToUniversalTime();
-	
+#else
+            return TimeZoneInfo.ConvertTimeToUtc(newTimeStamp);
+#endif
 		}
 
         public override int GetHashCode()
