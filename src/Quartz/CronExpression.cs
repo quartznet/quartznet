@@ -563,9 +563,11 @@ namespace Quartz
 #else
 				string[] exprsTok = expression.Trim().Split(new char[] { ' ', '\t', '\r', '\n' });
 #endif
-                foreach (string expr in exprsTok)
+                foreach (string exprTok in exprsTok)
                 {
-					if (expr.Trim().Length == 0)
+                    string expr = exprTok.Trim();
+
+					if (expr.Length == 0)
 					{
 						continue;
 					}
@@ -573,7 +575,19 @@ namespace Quartz
                     {
                         break;
                     }
-                    string[] vTok = expr.Trim().Split(',');
+
+                    // throw an exception if L is used with other days of the month
+                    if (exprOn == DayOfMonth && expr.IndexOf('L') != -1 && expr.Length > 1)
+                    {
+                        throw new FormatException("Support for specifying 'L' and 'LW' with other days of the month is not implemented");
+                    }
+                    // throw an exception if L is used with other days of the week
+                    if (exprOn == DayOfWeek && expr.IndexOf('L') != -1 && expr.Length > 1)
+                    {
+                        throw new FormatException("Support for specifying 'L' with other days of the week is not implemented");
+                    }
+
+                    string[] vTok = expr.Split(',');
                     foreach (string v in vTok)
                     {
                         StoreExpressionVals(0, v, exprOn);

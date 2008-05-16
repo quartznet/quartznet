@@ -314,13 +314,13 @@ namespace Quartz.Tests.Unit
         {
             AssertParsesForField("0 58-4 21 ? * MON-FRI", 1);
         }
-        
+
         [Test]
         public void TestHour()
         {
             AssertParsesForField("0 0/5 21-3 ? * MON-FRI", 2);
         }
-        
+
         [Test]
         public void TestDayOfWeekNumber()
         {
@@ -344,7 +344,7 @@ namespace Quartz.Tests.Unit
         {
             AssertParsesForField("58 5 21 ? 11-2 FRI", 4);
         }
-        
+
         [Test]
         public void TestAmbiguous()
         {
@@ -360,7 +360,7 @@ namespace Quartz.Tests.Unit
             try
             {
                 TestCronExpression cronExpression = new TestCronExpression(expression);
-                ISet set = cronExpression.getSetPublic(constant);
+                ISet set = cronExpression.GetSetPublic(constant);
                 if (set.Count == 0)
                 {
                     Assert.Fail("Empty field [" + constant + "] returned for " + expression);
@@ -374,17 +374,57 @@ namespace Quartz.Tests.Unit
             return null;  // not reachable
         }
 
+        [Test]
+        public void TestQuartz640()
+        {
+            try
+            {
+                new CronExpression("0 43 9 1,5,29,L * ?");
+                Assert.Fail("Expected FormatException did not fire for L combined with other days of the month");
+            }
+            catch (FormatException fe)
+            {
+                Assert.IsTrue(
+                    fe.Message.StartsWith("Support for specifying 'L' and 'LW' with other days of the month is not implemented"),
+                    "Incorrect FormatException thrown");
+            }
+            try
+            {
+                new CronExpression("0 43 9 ? * SAT,SUN,L");
+                Assert.Fail("Expected FormatException did not fire for L combined with other days of the week");
+            }
+            catch (FormatException pe)
+            {
+                Assert.IsTrue(
+                    pe.Message.StartsWith("Support for specifying 'L' with other days of the week is not implemented"),
+                    "Incorrect FormatException thrown");
+            }
+            try
+            {
+                new CronExpression("0 43 9 ? * 6,7,L");
+                Assert.Fail("Expected FormatException did not fire for L combined with other days of the week");
+            }
+            catch (FormatException pe)
+            {
+                Assert.IsTrue(
+                    pe.Message.StartsWith("Support for specifying 'L' with other days of the week is not implemented"),
+                    "Incorrect FormatException thrown");
+            }
+        }
+
     }
 
-    
-    class TestCronExpression : CronExpression 
+
+    class TestCronExpression : CronExpression
     {
-        public TestCronExpression(String cronExpression) : base(cronExpression)
+        public TestCronExpression(String cronExpression)
+            : base(cronExpression)
         {
         }
 
-        public ISet getSetPublic(int constant) {
+        public ISet GetSetPublic(int constant)
+        {
             return base.GetSet(constant);
         }
-    } 
+    }
 }
