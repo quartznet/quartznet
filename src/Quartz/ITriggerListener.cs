@@ -53,20 +53,19 @@ namespace Quartz
 		/// </param>
 		void TriggerFired(Trigger trigger, JobExecutionContext context);
 
-		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
-		/// has fired, and it's associated <see cref="JobDetail" />
-		/// is about to be executed.
-		/// <p>
-		/// It is called after the <see cref="TriggerFired" /> method of this
-		/// interface.
-		/// </p>
-		/// </summary>
-		/// <param name="trigger">The <see cref="Trigger" /> that has fired.</param>
-		/// <param name="context">
-		/// The <see cref="JobExecutionContext" /> that will be passed to
-		/// the <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
-		/// </param>
+        /// <summary>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
+        /// has fired, and it's associated <see cref="JobDetail"/>
+        /// is about to be executed.
+        /// <p>
+        /// It is called after the <see cref="TriggerFired"/> method of this
+        /// interface.
+        /// </p>
+        /// </summary>
+        /// <param name="trigger">The <see cref="Trigger"/> that has fired.</param>
+        /// <param name="context">The <see cref="JobExecutionContext"/> that will be passed to
+        /// the <see cref="IJob"/>'s<see cref="IJob.Execute"/> method.</param>
+        /// <returns>Returns true if job execution should be vetoed, false otherwise.</returns>
 		bool VetoJobExecution(Trigger trigger, JobExecutionContext context);
 
 
