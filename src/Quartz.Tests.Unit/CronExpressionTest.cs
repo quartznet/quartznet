@@ -87,7 +87,7 @@ namespace Quartz.Tests.Unit
         /// Test method for 'CronExpression.IsSatisfiedBy(DateTime)'.
         /// </summary>
         [Test]
-        public void TestIsSatisfiedBy(DateTime utcTimeToTest, bool shouldbeStatified)
+        public void TestIsSatisfiedBy()
         {
             CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
 

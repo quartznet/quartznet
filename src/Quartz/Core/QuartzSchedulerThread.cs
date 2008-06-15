@@ -548,7 +548,10 @@ namespace Quartz.Core
                 }
                 catch (Exception re)
                 {
-                    Log.Error("Runtime error occured in main trigger firing loop.", re);
+                    if (Log != null)
+                    {
+                        Log.Error("Runtime error occured in main trigger firing loop.", re);
+                    }
                 }
             } // loop...
 

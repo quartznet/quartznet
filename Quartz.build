@@ -23,7 +23,6 @@
     <mkdir dir="${dir.build}" />
 
     <property name="clover.home" value="C:\Program Files\Cenqua\Clover.NET 2.1 for .NET 2.0"/>
-    <loadtasks assembly="${clover.home}\CloverNAnt-0.85.dll"/>
   </target>
 
 
@@ -111,8 +110,6 @@
       <sources>
         <include name="src/AssemblyInfo.cs" />
         <include name="src/Quartz/**/*.cs" />
-        <exclude name="**/JNDIConnectionProvider.cs" />
-        <exclude name="**/RemotingInvokerJob.cs" />
       </sources>
       <resources dynamicprefix="false" prefix="Quartz">
         <include name="src/Quartz/quartz.config" />
@@ -262,6 +259,10 @@
         <include name="src/AssemblyInfo.cs" />
         <include name="src/Quartz.Tests.${test.project}/**/*.cs" />
       </sources>
+      <resources dynamicprefix="false" prefix="Quartz.Tests.Unit.Xml.TestData">
+        <include name="src/Quartz.Tests.Unit/Xml/TestData/MinimalConfiguration.xml" />
+        <include name="src/Quartz.Tests.Unit/Xml/TestData/RichConfiguration.xml" />
+      </resources>
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
@@ -269,7 +270,7 @@
         <include name="lib\${lib-dir-version}\nunit.framework.dll" />
         <include name="lib\1.1\Nullables.dll" unless="${net20}" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
-		<include name="lib\${lib-dir-version}\Rhino.Mocks.dll"  />
+		    <include name="lib\${lib-dir-version}\Rhino.Mocks.dll"  />
       </references>
     </csc>
 
@@ -322,6 +323,10 @@
   </target>
 
   <target name="with-clover">
+
+    <property name="defines" value="DEBUG" overwrite="false" />   
+    <loadtasks assembly="${clover.home}\CloverNAnt-0.85.dll"/>
+    
     <clover-setup initstring="CloverBuild\clover.cdb"
       builddir="CloverBuild"
       flushinterval="5000"

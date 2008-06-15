@@ -29,7 +29,6 @@ namespace Quartz.Tests.Unit
 	/// backwards compatibily of serialization with earlier versions
 	/// of Quartz.
 	/// </summary>
-	[TestFixture]
 	public abstract class SerializationTestSupport
 	{
 		/// <summary>

@@ -24,13 +24,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{95F36186
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Quartz", "Quartz", "{6EBE10AB-07CE-4C04-AD4D-75660778D4C2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.2005", "src\Quartz\Quartz.2008.csproj", "{AEF8823B-E45B-4B35-A4D0-C08C1196D017}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.2008", "src\Quartz\Quartz.2008.csproj", "{AEF8823B-E45B-4B35-A4D0-C08C1196D017}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.2005", "src\Quartz.Examples\Quartz.Examples.2008.csproj", "{70A37974-17DE-474C-8A1C-19637622E75F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.2008", "src\Quartz.Examples\Quartz.Examples.2008.csproj", "{70A37974-17DE-474C-8A1C-19637622E75F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Integration.2005", "src\Quartz.Tests.Integration\Quartz.Tests.Integration.2008.csproj", "{5587AF00-160F-4EC1-98A2-BEABA411256C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Integration.2008", "src\Quartz.Tests.Integration\Quartz.Tests.Integration.2008.csproj", "{5587AF00-160F-4EC1-98A2-BEABA411256C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Unit.2005", "src\Quartz.Tests.Unit\Quartz.Tests.Unit.2008.csproj", "{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Unit.2008", "src\Quartz.Tests.Unit\Quartz.Tests.Unit.2008.csproj", "{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
