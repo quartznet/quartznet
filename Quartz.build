@@ -19,6 +19,7 @@
     <property name="dir.doc" value="doc\" />
     <property name="dir.build" value="build\${target.framework}\${configuration}" />
     <property name="dir.deployment" value="deployment\${target.framework}" />
+	<property name="defines" value="" overwrite="false" />
 
     <mkdir dir="${dir.build}" />
 
@@ -286,17 +287,22 @@
 
   </target>
 
+  <target name="unit">
+	<call target="unit-1.1" />
+	<call target="unit-2.0" />
+  </target>
+  
   <target name="unit-2.0" depends="build-2.0">
-    <call target="unit" />
+    <call target="unit-internal" />
   </target>
 
   <target name="unit-1.1" depends="build-1.1">
-    <call target="unit" />
+    <call target="unit-internal" />
   </target>
 
 
 
-  <target name="unit" depends="build">
+  <target name="unit-internal" depends="build">
     <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests.Unit\Quartz.Tests.Unit.dll" />
     <echo message="Testing dll: ${test.dll}"  />
     <nunit2 verbose="true" failonerror="false">
