@@ -57,13 +57,13 @@ namespace Quartz
         private string description;
         private Type jobType;
         private JobDataMap jobDataMap;
-        private bool volatility = false;
-        private bool durability = false;
-        private bool shouldRecover = false;
+        private bool volatility;
+        private bool durability;
+        private bool shouldRecover;
 
         private HashSet jobListeners = new HashSet();
         [NonSerialized]
-        private Key key = null;
+        private Key key;
 
         /// <summary>
         /// Create a <see cref="JobDetail" /> with no specified name or group, and
@@ -476,7 +476,7 @@ namespace Quartz
 		/// </returns>
         public override int GetHashCode()
         {
-            return string.Format(CultureInfo.InvariantCulture, "{0}_$x$x$_{1}", Group, Name).GetHashCode();
+            return FullName.GetHashCode();
         }
     }
 }

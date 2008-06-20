@@ -212,14 +212,6 @@ namespace Quartz.Simpl
                         }
                     }
 
-                    /*
-                int activeCount = threadGroup.activeCount();
-                if (activeCount > 0) {
-                    getLog().info(
-                        "There are still " + activeCount + " worker threads active."
-                        + " See javadoc runInThread(Runnable) for a possible explanation");
-                }
-                */
                     Log.Debug("shutdown complete");
                 }
             }

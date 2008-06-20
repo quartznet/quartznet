@@ -359,6 +359,12 @@ namespace Quartz
 		{
 			get
 			{
+                if (!EndTimeUtc.HasValue)
+                {
+                    // short-circuit
+                    return null;
+                }
+
                 NullableDateTime finalTime = null;
 				NullableDateTime currCal = new NullableDateTime(EndTimeUtc.Value);
 

@@ -788,11 +788,14 @@ namespace Quartz
         /// </returns>
 		public override bool Equals(object obj)
 		{
-            if ((obj == null) || (!obj.GetType().IsSubclassOf(typeof(Trigger))))
-                return false;
-            else
-                return TriggerWrapper.GetTriggerNameKey(this).Equals(
-                                      TriggerWrapper.GetTriggerNameKey((Trigger) obj));
+            if ((obj == null) || !(obj is Trigger))
+		    {
+		        return false;
+		    }
+
+            Trigger trigger = (Trigger) obj;
+
+            return (trigger.Name == Name) && (trigger.Group == Group);
 		}
 
 
