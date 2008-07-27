@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, release 0.9.1, January 20 2007
+QUARTZ JOB SCHEDULER .NET, release 1.0 RC 1, July 20 2008
 -----------------------------------------------------------------
 
 http://quartznet.sourceforge.net/
@@ -23,7 +23,6 @@ Also, to keep the legal people happy:
     Apache Software Foundation (http://www.apache.org/)
 
 
-
 2. KNOWN ISSUES
 ---------------
 
@@ -33,5 +32,6 @@ No known issues.
 3. RELEASE INFO
 ----------------
 
-This is a bug fix release for issues found in 0.9 and 
-this release adds no new features.
+This is the release candidate 1 of Quartz.NET 1.0. This release contains
+the new Quartz.NET server for running jobs so that end user doesn't need to 
+create the server by hand for tasks.

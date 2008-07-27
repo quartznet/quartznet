@@ -2,7 +2,46 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
-Release 0.9.1, January 20, 2007
+Release 1.0 RC 1, July 20, 2008
+-------------------------------
+
+Bug
+
+    * [QRTZNET-91] - JobSchedulingDataProcessor does not handle job listeners from XML correctly
+    * [QRTZNET-93] - AdoJobStore calendar update fails because of an already open DataReader
+    * [QRTZNET-94] - Schema does not properly represent itself
+    * [QRTZNET-96] - Relative path names for xml configuration are not working under ASP.NET
+    * [QRTZNET-97] - QuartzSchedulerThread stops processing jobs if computer clock is advanced more than 248 days
+    * [QRTZNET-99] - The query SelectNextTriggerToAcquire is incorrect for certain SQL servers
+    * [QRTZNET-101] - RAMJobStore.TriggerFired() fails to return null in some cases
+    * [QRTZNET-102] - NthIncludedDayTrigger shouldn't use fixed start day of week Sunday
+    * [QRTZNET-103] - Deadlock in RAMJobStore
+    * [QRTZNET-105] - CronExpression fails if nth weekday of month is used and expression passes year
+    * [QRTZNET-107] - SimpleTrigger.ComputeFirstFireTime() method can get into infinite loop
+    * [QRTZNET-110] - Scheduling change causes a paused/blocked scheduler to do unnecessary trigger release
+
+Improvement
+
+    * [QRTZNET-90] - Allow XML configuration to inherit trigger's job name and job group from containing job definition
+    * [QRTZNET-92] - PreviousFireTime should be change to PreviousFireTimeUtc in JobExecutionContext
+    * [QRTZNET-106] - Add complete common logging libraries to distribution, offer log4net as server example
+    * [QRTZNET-109] - Update database scripts default column sizes to be reasonable for more applications
+
+New Feature
+
+    * [QRTZNET-40] - Quartz server for running jobs
+    * [QRTZNET-98] - Introduce mechanism for delaying the start-up of the scheduler
+    * [QRTZNET-108] - Support for reading configuration from properties file
+
+Task
+
+    * [QRTZNET-74] - Add SQLite database script to distribution
+    * [QRTZNET-76] - Update assembly version numbers to current builds in dbproviders.properties
+    * [QRTZNET-100] - Make SetTimeRange() methods public in DailyCalendar
+    * [QRTZNET-111] - Change quartz.properties to quartz.config for safer usage in ASP.NET applications
+
+
+Release 0.9.1, January 20, 2008
 -------------------------------
 
 Bug

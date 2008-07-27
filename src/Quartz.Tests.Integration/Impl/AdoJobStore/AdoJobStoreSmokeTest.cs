@@ -95,18 +95,18 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestSQLite1044()
+        public void TestSQLite10()
         {
-            RunAdoJobStoreTest("SQLite-1044", "SQLite");
+            RunAdoJobStoreTest("SQLite-10", "SQLite");
         }
 
         [Test]
-        public void TestSQLite1044NonClustered()
+        public void TestSQLite10Clustered()
         {
             clustered = true;
             try
             {
-                TestSQLite1044();
+                TestSQLite10();
             }
             finally
             {

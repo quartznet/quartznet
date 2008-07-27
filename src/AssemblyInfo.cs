@@ -6,10 +6,12 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 
-#if !NET_20
-[assembly: AssemblyConfiguration("net-1.1.win32; Release")]
-#else
+#if NET_35
+[assembly: AssemblyConfiguration("net-3.5.win32; Release")]
+#elif NET_20
 [assembly: AssemblyConfiguration("net-2.0.win32; Release")]
+#else
+[assembly: AssemblyConfiguration("net-1.1.win32; Release")]
 #endif
 
 [assembly: AssemblyProduct("Quarz.NET 1.0")]
