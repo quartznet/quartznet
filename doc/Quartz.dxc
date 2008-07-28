@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DocumentXComments Version="5.0" Moniker="L:\projects\Spring.Net\build\net\2.0\debug\Spring.Data.dll" DocType="dx.Net" Template="" ShowInherited="False" SpellLastCheckDateTime="30/12/1899 00:00:00" TreePath="Spring.Data" RelatedProject="Spring-1.1.0.dxp" RelatedHSProject="" LoadIncludeFilter="" LoadExcludeFilter="" LoadPrivate="True" LoadOnDemand="False" LoadSourceComments="False">
+    <IgnoreWordList/>
+<UserData>
+    <InPlaceEditor>
+        <dtscrollpos>704</dtscrollpos>
+        <inheritedMembers>on</inheritedMembers>
+        <protectedMembers>on</protectedMembers>
+    </InPlaceEditor>
+</UserData>
+<c eid="Spring.Data" tid="##PROJECT_INTRODUCTION" q="" cd="39053.9773611111"><![CDATA[<P>The Spring.Data assembly provides an implementation of best practice approaches to data access.</P>
+<P>Specifically, it contains an abstraction for transaction management that provides the following benefits</P>
+<UL>
+<UL>
+<LI>
+<P>Provides a consistent programming model across different transaction APIs such as ADO.NET, EnterpriseServices, System.Transactions, and NHibernate.</P>
+<LI>
+<P>Support for declarative transaction management with any of the above data access technologies</P>
+<LI>
+<P>Provides a simple API for programmatic transaction management</P>
+<LI>
+<P>Integrates with Spring's high level persistence integration APIs such as <A href="Spring.Data~Spring.Data.AdoTemplate.html">AdoTemplate</A>.</P></LI></UL></UL>
+<P>&nbsp;</P>
+<P>Spring.Data&nbsp;also contains&nbsp;an abstraction for data access via ADO.NET that provides the following benefits and features</P>
+<UL>
+<UL>
+<LI>
+<P>Consistent and comprehensive database provider interfaces for both .NET 1.1 and 2.0</P>
+<LI>
+<P>Integration with Spring's transaction management features.</P>
+<LI>
+<P>'One-liner' implementations for the most common database usage patterns lets you focus on the 'meat' of your ADO.NET code.</P>
+<LI>
+<P>Template style use of DbCommand that removes the need to write typical ADO.NET boiler-plate code.</P>
+<LI>
+<P>Easy database parameter creation/management</P>
+<LI>
+<P>Provider independent exceptions with database error codes and higher level DAO exception hierarchy.</P>
+<LI>
+<P>Centralized resource management for connections, commands, data readers, etc.</P>
+<LI>
+<P>Simple DataReader to Object mapping framework.</P></LI></UL></UL>
+<P>&nbsp;</P>
+<P>For more information refer to the Getting Started section within this documentation and the reference documentation, the latest copy of which can be found on the <A href="www.springframework.net">Spring.NET web site</A>.</P>]]></c>
+<c eid="Spring.Data" tid="##PROJECT_GETTINGSTARTED" q="" cd="39053.9774884259">The reference documentation and Spring.DataQuickStart are the best places to get started using the functionality contained in Spring.Data.</c>
+<c eid="Spring.Data~Spring.Dao_namespace" tid="##SUMMARY" q="" cd="39053.9757638889"><![CDATA[<P>Exception hierarchy enabling sophisticated error handling independent of the data access approach in use. </P>
+<P>For example, when DAOs and data access frameworks use the exceptions in this package (and custom subclasses), calling code can detect and handle common problems such as deadlocks without being tied to a particular data access strategy such as ADO.NET or ORM libraries, as well as vendor specific error codes.</P>]]></c>
+<c eid="Spring.Data~Spring.Dao.Support_namespace" tid="##SUMMARY" q="" cd="39053.975787037">Support classes for DAO implementations, providing miscellaneous utility methods.</c>
+<c eid="Spring.Data~Spring.Dao.Support.Generic_namespace" tid="##SUMMARY" q="" cd="39053.9759027778">Support classes for generic DAO implementations, providing miscellaneous utility methods.</c>
+<c eid="Spring.Data~Spring.Data_namespace" tid="##SUMMARY" q="" cd="39053.9760648148"><![CDATA[<P>The classes in this package make ADO.NET easier to use and<BR>reduce the likelihood of common errors. </P>
+<P>The central class in this namespace&nbsp;is AdoTemplate, which removes the need to manage&nbsp;resource management for connections, commands, data readers, etc. and integrates with Spring's Transaction management features.</P>]]></c>
+<c eid="Spring.Data~Spring.Data.Common_namespace" tid="##SUMMARY" q="" cd="39053.9761574074"><![CDATA[Consistent and comprehensive database provider interfaces for both .NET 1.1 and 2.0.&nbsp; Utility classes for easy database parameter creation.]]></c>
+<c eid="Spring.Data~Spring.Data.Config_namespace" tid="##SUMMARY" q="" cd="39423.612650463">Custom schema for DbProvider configuration</c>
+<c eid="Spring.Data~Spring.Data.Core_namespace" tid="##SUMMARY" q="" cd="39423.6130555556">Provides the core ADO.NET framework, based on AdoTemplate and its associated callback interfaces, delegates and helper objects.</c>
+<c eid="Spring.Data~Spring.Data.Generic_namespace" tid="##SUMMARY" q="" cd="39053.9766666667">Generic implementation of Spring.Data functionality such as AdoTemplate and RowMappers.</c>
+<c eid="Spring.Data~Spring.Data.Objects_namespace" tid="##SUMMARY" q="" cd="39053.9767361111"><![CDATA[The classes in this namespace represent RDBMS queries, updates,<BR>and stored procedures as thread-safe, reusable objects. 
+<P></P>
+<P>This ADO.NET abstraction depends on the features of AdoTemplate and as such exceptions thrown are in are thrown are within Spring' DAO exception class hierarchy.</P>]]></c>
+<c eid="Spring.Data~Spring.Data.Objects.Generic_namespace" tid="##SUMMARY" q="" cd="39423.6134027778">Generic implementation of functionality in the Spring.Data.Object namespace.</c>
+<c eid="Spring.Data~Spring.Data.Support_namespace" tid="##SUMMARY" q="" cd="39053.9768287037">Classes supporting the Spring.Data namespace</c>
+<c eid="Spring.Data~Spring.Transaction_namespace" tid="##SUMMARY" q="" cd="39053.9769097222"><![CDATA[Contains transaction manager, definition, and status interfaces.&nbsp; 
+<P></P>
+<P>Transaction callback interfaces and delegates&nbsp;for use with TransactionTemplate.</P>
+<P>Exception hierarchy for Spring's transaction infrastructure,<BR>independent of any specific transaction management system.</P>]]></c>
+<c eid="Spring.Data~Spring.Transaction.Config_namespace" tid="##SUMMARY" q="" cd="39423.6135763889">Custom schema for configuration of declarative transaction management.</c>
+<c eid="Spring.Data~Spring.Transaction.Interceptor_namespace" tid="##SUMMARY" q="" cd="39053.9769791667"><![CDATA[Aspect-Oriented Programming (AOP) based solution for declarative transaction demarcation.&nbsp; Builds on the AOP infrastructure within Spring.Aop.]]></c>
+<c eid="Spring.Data~Spring.Transaction.Support_namespace" tid="##SUMMARY" q="" cd="39053.977037037">Classes supporting the Spring.Transaction namespace.</c>
+    </DocumentXComments>

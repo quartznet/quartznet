@@ -31,7 +31,7 @@
 			<section>
 				<title>Quartz.NET 1.0 RC 1 Released</title>
 				<p>
-				<div class="descr">July xx, 2008 by Marko Lahma</div>
+				<div class="descr">July 28, 2008 by Marko Lahma</div>
 				</p>
 				<p>
 					Quartz.NET 1.0 RC 1 has been released. This release is the 
@@ -40,8 +40,8 @@
 					the new Quartz.NET simple server for running jobs. 
 					
 					Please refer to the
-					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&styleName=Html&version=21750">release notes</a> 
-					for more information.
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21750">release notes</a> 
+					and the readme.txt in the release bundle for more information.
 				</p>
 				<p>
 					Grab it from <a href="download.html">downloads page</a>.
@@ -155,38 +155,7 @@
 					to hear about projects/products using Quartz.NET!
 				</p>
 			</section>
-			<section>
-				<title>Quartz.NET 0.6 Released</title>
-				<p>
-				<div class="descr">August 4, 2007 by Marko Lahma</div>
-				</p>
-				<p>
-					Quartz.NET 0.6 has been released. 
-				</p>
-				<p>
-					This both feature and bug fix release. The new biggest feature is AdoJobStore
-					that currently supports SQL Server, Oracle, MySQL, PostgreSQL and SQLite.
-					With AdoJobStore comes also clustering. Please give it a go (Example 13 has an example 
-					for SQL Server) and give us feedback!
-				</p>
-				<p>
-					This release also fixes many problems found by users, most notably CronExpression problems
-					when having a more frequent firing schedule, like every nth second or minute.
-				</p>
-				<p>
-					Now minimal configuration is also automatically loaded from Quartz.NET embedded resource, 
-					so if you don't want to change the default configuration, you don't need to type anything anymore.
-					See <a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21710">
-					release notes</a> for more details.
-				</p>
-				<p>
-					You should be also aware of some <strong>breaking changes</strong>, please check 
-					changelog.txt in the distribution root.
-				</p>
-				<p>
-					Grab it from <a href="download.html">downloads page</a>.
-				</p>
-			</section>
+
 
 			<section>
 				<title></title>

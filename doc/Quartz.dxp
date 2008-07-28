@@ -1,0 +1,94 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<DocumentXProject Version="5.0" CompileHelpFile="False" RefreshIfExists="False" DocumentSourceCode="False" AlwaysCopySupportFiles="True" PropertyCommentsFrom="0" RelationshipsFrom="2" DefaultRelsOnlyForCollections="True" ProjectGroupName="Quartz.NET 1.0" HTMLHelpVersion="1" HHNamespace="Quartz.NET" HHIdentifier="Quartz.NET-1.0" H2PlugIn="True" H2PlugInNamespace="MS.VSIPCC.v80" LocaleID="0" ExcludeFiltersRegExp="False" OutputFileExtension=".html">
+    <OutputLocation OutputFolder="apidoc\" HelpFileName="apidoc\Quartz.NET.chm" UseFilenameAliases="True" StripMetadata="False" ClearBeforeBuild="True" RemoveOutputFilesAfterCompile="False"/>
+    <HTMLHelpOptions UseALinkMenus="False"/>
+    <OtherOptions CreateContextLinks="True" WriteHelpDescriptions="True" CopySourceCode="False" CreateWinHelpStub="False" Language="English"/>
+    <IncludeFilters IncludePrivate="False" IncludeFriend="False" IncludeProtected="True" IdentifyVisibility="False">
+        <Namespaces>
+            <Property Name="DX.NET:Method">True</Property>
+            <Property Name="DX.NET:Property">True</Property>
+            <Property Name="DX.NET:Field">True</Property>
+            <Property Name="DX.NET:Event">True</Property>
+            <Property Name="DX.NET:Constructor">True</Property>
+            <Property Name="DX.NET:Operator">True</Property>
+        </Namespaces>
+    </IncludeFilters>
+    <CommentExtraction UnTaggedBlocks="False" UnTaggedEnumerations="False" UnTaggedEvents="False" UnTaggedModules="False" UnTaggedUDTs="False" UnTaggedVariables="False" HelpDescriptionImport="3"/>
+    <Diagrams PageNestingLevels="2" OverviewNestingLevels="3" SupressSingleObjectDiagrams="True" DiagramStyleSource="0" ObjFillColor="0" ObjTextColor="0" ObjBorderColor="0" ColFillColor="0" ColTextColor="0" ColBorderColor="0" UseDropShadow="False" CenterCaptions="False" DiagramBold="False" BorderWidth="0" UseDiagramShapes="False"/>
+    <VariableValues>
+        <VariableValue Name="CopyrightNotice" Value="&amp;copy; 2007-2008 Quartz.NET Authors. All Rights Reserved."/>
+        <VariableValue Name="FeedbackLink" Value=""/>
+    </VariableValues>
+    <AdditionalFiles/>
+    <ModelComments/>
+    <IgnoreRelationships/>
+    <NamespaceExclusions>
+        <e>Quartz~Quartz.Core.JobRunShell+VetoedException</e>
+        <e>Quartz~Quartz.Core.QuartzScheduler+DelayedSchedulerStarter</e>
+        <e>Quartz~Quartz.Core.ErrorLogger</e>
+        <e>Quartz~Quartz.Core.ExecutingJobsManager</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+CallbackSupport</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+IVoidTransactionCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+CleanVolatileTriggerAndJobsCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+RecoverJobsCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+StoreJobAndTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+StoreJobCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+StoreTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ITransactionCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+RemoveJobCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+RetrieveJobCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+RemoveTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ReplaceTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+RetrieveTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetTriggerStateCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+StoreCalendarCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+RemoveCalendarCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+RetrieveCalendarCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetNumberOfJobsCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetNumberOfTriggersCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetNumberOfCalendarsCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetJobNamesCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetTriggerNamesCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetJobGroupNamesCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetTriggerGroupNamesCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetCalendarNamesCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetTriggersForJobCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+PauseTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+PauseJobCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+PauseJobGroupCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ResumeTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ResumeJobCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ResumeJobGroupCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+PauseTriggerGroupCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+GetPausedTriggerGroupsCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ResumeTriggerGroupCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+PauseAllCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ResumeAllCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+AcquireNextTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ReleaseAcquiredTriggerCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+TriggerFiredCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+TriggeredJobCompleteCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ExecuteInLockCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ExecuteInNonManagedTXLockCallback</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+ClusterManager</e>
+        <e>Quartz~Quartz.Impl.AdoJobStore.JobStoreSupport+MisfireHandler</e>
+        <e>Quartz~Quartz.Job.NativeJob+StreamConsumer</e>
+        <e>Quartz~Quartz.Plugin.Xml.JobInitializationPlugin+JobFile</e>
+        <e>Quartz~Quartz.Simpl.TriggerComparator</e>
+        <e>Quartz~Quartz.Simpl.JobWrapper</e>
+        <e>Quartz~Quartz.Simpl.SimpleThreadPool+WorkerThread</e>
+        <e>Quartz~Quartz.Xml_namespace</e>
+    </NamespaceExclusions>
+    <DotNetProperties IncludeRelationshipDiagrams="True" IncludeInheritanceHierarchies="True" IncludeBaseMembers="False" StandardInterfaces="System.*,Microsoft.*" OnlyLinkInherited="True" ExternalDocs="True" UseCommentFiles="True" DrillCommentFiles="True" GenerateXMLLinks="False" XMLIsland="" NoInheritedTopics="True" NoInheritedInLists="False" CreateXMLCommentFile="False" ExcludedLanguages="Delphi,JScript,CPP,CPP2005" GenerateAttributes="True" AttributeFilter="" AttributeFilterInclude="False" VBNETDefaultConstructor="False" LinkOverridenMembersToBaseImplementation="False" UseOverloadSummaryForMasterSummary="False" ExcludeEditorBrowsable="True" GenerateBreadCrumbs="True" IncludeAssemblyBreadCrumb="False"/>
+    <DatabaseProperties DocumentViewSource="True" DocumentTriggerSource="True" DocumentProcedureSource="True" RetainTaggedComments="False"/>
+    <XSDProperties UseCustomSettings="False" PageNestingLevels="2" SuppressSingleObjectDiagrams="True" ElementFillColor="15780518" ElementTextColor="0" ElementBorderColor="10789024" ElementBorders="True" ElementRefFillColor="12648447" ElementRefTextColor="0" ElementRefBorderColor="10789024" ElementRefBorders="True" ComplexTypeFillColor="15780518" ComplexTypeTextColor="0" ComplexTypeBorderColor="10789024" ComplexTypeBorders="True" AnyFillColor="13421772" AnyTextColor="0" AnyBorderColor="10789024" AnyBorders="True" NotationTextColor="8421504" RootLinesColor="10789024" DropShadows="False" BoldCaptions="True" GroupParticleSequenceImageFilename="K:\Program Files\Innovasys\documentx5\Configuration\Templates\XMLSchema\xDiagramImages\sequence.gif" GroupParticleChoiceImageFilename="K:\Program Files\Innovasys\documentx5\Configuration\Templates\XMLSchema\xDiagramImages\choice.gif" GroupParticleAllImageFilename="K:\Program Files\Innovasys\documentx5\Configuration\Templates\XMLSchema\xDiagramImages\all.gif"/>
+    <CommentFiles/>
+    <DocType Name="dx.net" Template="Visual Studio 2005 Style" UseHelpTemplates="False">
+        <TOCSource TOCSource="0" SpecificTOCName=""/>
+        <ModelCommentProfile Version="5.0" Namespace="dx.net" Name="" Description=""/>
+    </DocType>
+    <NetAssemblies RootAssemblyName="">
+        <Assembly Version="5.0" FileName="..\build\2.0\Release\Quartz\Quartz.dll" mRootModule="" AssemblyName="Quartz" AssemblyType="1" ExamplesOnly="False" LoadIncludeFilter="" LoadExcludeFilter="" LoadPrivateItems="True"/>
+    </NetAssemblies>
+    <PropertyBag/>
+</DocumentXProject>

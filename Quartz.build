@@ -178,13 +178,8 @@
     <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
   </target>
 
-  <target name="build-server">
-	<call target="build-server-20" />
-  </target>
 
-  
-
-  <target name="build-server-20">
+  <target name="build-server-2.0">
     <property name="lib-dir-version" value="2.0" />
     <property name="net20" value="true" />
     <property name="defines" value="NET_20" />
@@ -197,6 +192,21 @@
 	<property name="server.project" value="Service" />
 	<call target="build-server-internal" />
   </target>
+
+  <target name="build-server-3.5">
+    <property name="lib-dir-version" value="2.0" />
+    <property name="net20" value="true" />
+    <property name="defines" value="NET_20,NET_35" />
+
+    <property name="target.framework" value="3.5" />
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+	
+	<property name="server.project" value="Console" />
+	<call target="build-server-internal" />
+	<property name="server.project" value="Service" />
+	<call target="build-server-internal" />
+  </target>
+
   
   	<target name="build-server-internal" depends="build-quartz">
 
@@ -424,15 +434,12 @@
     <call target="clean" />
     <call target="build-1.1" />
     <call target="build-2.0" />
-	<call target="build-server" />
-    <!-- TODO
-	<call target="doc" />
-	-->
+	<call target="build-3.5" />
+	<call target="build-server-2.0" />
+	<call target="build-server-3.5" />
    
     <delete dir="package" failonerror="false" />
     <mkdir dir="package" />
-    <!-- <mkdir dir="package\bin" /> -->
-    <mkdir dir="package\doc" />
     <mkdir dir="package\database" />
     <mkdir dir="package\src" />
     <mkdir dir="package\server" />
@@ -457,15 +464,28 @@
       </fileset>
     </copy>
     
-	<copy todir="package\server\console" flatten="true">
+	<copy todir="package\server\2.0\console" flatten="true">
       <fileset>
-        <include name="build\${target.framework}\${configuration}\Quartz.Server.Console\**" />
+        <include name="build\2.0\${configuration}\Quartz.Server.Console\**" />
+      </fileset>
+    </copy>
+	
+	<copy todir="package\server\3.5\console" flatten="true">
+      <fileset>
+        <include name="build\3.5\${configuration}\Quartz.Server.Console\**" />
       </fileset>
     </copy>
 
-	<copy todir="package\server\service" flatten="true">
+	
+	<copy todir="package\server\2.0\service" flatten="true">
       <fileset>
-        <include name="build\${target.framework}\${configuration}\Quartz.Server.Service\**" />
+        <include name="build\2.0\${configuration}\Quartz.Server.Service\**" />
+      </fileset>
+    </copy>
+
+	<copy todir="package\server\3.5\service" flatten="true">
+      <fileset>
+        <include name="build\3.5\${configuration}\Quartz.Server.Service\**" />
       </fileset>
     </copy>
 	

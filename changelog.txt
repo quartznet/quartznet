@@ -2,7 +2,7 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
-Release 1.0 RC 1, July 20, 2008
+Release 1.0 RC 1, July 28, 2008
 -------------------------------
 
 Bug

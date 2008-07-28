@@ -17,16 +17,18 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("Quarz.NET 1.0")]
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
 [assembly : AssemblyCompany("http://quartznet.sourceforge.net/")]
-[assembly : AssemblyCopyright("Copyright 2007 OpenSymphony")]
+[assembly : AssemblyCopyright("Copyright 2007-2008 OpenSymphony")]
 [assembly:  AssemblyTrademark("Apache License, Version 2.0")]
 [assembly : AssemblyCulture("")]
 //[assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
-#if !NET_20
-[assembly: AssemblyVersion("1.0.0.1")]
-#else
+#if NET_35
+[assembly: AssemblyVersion("1.0.0.3")]
+#elif NET_20
 [assembly: AssemblyVersion("1.0.0.2")]
+#else
+[assembly: AssemblyVersion("1.0.0.1")]
 #endif
 
 #if STRONG
