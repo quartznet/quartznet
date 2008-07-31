@@ -24,6 +24,8 @@ using System.Collections;
 using System.Data;
 using System.Globalization;
 
+using Common.Logging;
+
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -40,7 +42,9 @@ namespace Quartz.Util
 	public class DBConnectionManager
 	{
         public const string PropertyDbPrefix = "quartz.db.";
+        
         private static readonly DBConnectionManager instance = new DBConnectionManager();
+	    private static readonly ILog log = LogManager.GetLogger(typeof (DBConnectionManager));
 
         private readonly IDictionary providers = new Hashtable();
 
@@ -74,6 +78,7 @@ namespace Quartz.Util
         /// <param name="provider">The provider.</param>
         public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
 		{
+            log.Info(string.Format("Registering datasource '{0}' with db provider: '{1}'", dataSourceName, provider));
 			providers[dataSourceName] = provider;
 		}
 
@@ -111,12 +116,16 @@ namespace Quartz.Util
         /// <returns></returns>
 	    public IDbProvider GetDbProvider(string dsName)
 	    {
-            IDbProvider provider = (IDbProvider)providers[dsName];
-            if (provider == null)
+            if (dsName == null || dsName.Length == 0)
+            {
+                throw new ArgumentException("DataSource name cannot be null or empty", "dsName");
+            }
+
+            if (!providers.Contains(dsName) || providers[dsName] == null)
             {
                 throw new Exception(string.Format(CultureInfo.InvariantCulture, "There is no DataSource named '{0}'", dsName));
             }
-	        return provider;
+            return (IDbProvider) providers[dsName];
         }
 	}
 }

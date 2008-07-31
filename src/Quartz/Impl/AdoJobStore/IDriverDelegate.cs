@@ -31,20 +31,20 @@ namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
     /// This is the base interface for all driver delegate classes.
+    /// </summary>
+    /// <remarks>
     /// <p>
-    /// This interface is very similar to the <code>IJobStore</code>
-    /// interface except each method has an additional <code>Connection}</code>
+    /// This interface is very similar to the <see cref="IJobStore" />
+    /// interface except each method has an additional <see cref="ConnectionAndTransactionHolder" />
     /// parameter.
     /// </p>
-    /// 	<p>
+    /// <p>
     /// Unless a database driver has some <strong>extremely-DB-specific</strong>
     /// requirements, any IDriverDelegate implementation classes should extend the
-    /// <code>StdAdoDelegate</code> class.
+    /// <see cref="StdAdoDelegate" /> class.
     /// </p>
-    /// </summary>
-    /// <author>
-    /// 	<a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a>
-    /// </author>
+    /// </remarks>
+    /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
 	public interface IDriverDelegate

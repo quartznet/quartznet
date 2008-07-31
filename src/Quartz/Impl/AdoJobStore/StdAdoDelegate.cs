@@ -48,7 +48,7 @@ using Quartz.Util;
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
-    /// This is meant to be an abstract base class for most, if not all, <code>IDriverDelegate</code>
+    /// This is meant to be an abstract base class for most, if not all, <see cref="IDriverDelegate" />
     /// implementations. Subclasses should override only those methods that need
     /// special handling for the DBMS driver in question.
     /// </summary>

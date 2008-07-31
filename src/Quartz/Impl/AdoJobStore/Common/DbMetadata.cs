@@ -54,7 +54,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         /// <summary>Gets or sets the name of the assembly that holds the connection library.</summary>
         /// <value>The name of the assembly.</value>
-        public string AssemblyName
+        public virtual string AssemblyName
         {
             get { return assemblyName; }
             set { assemblyName = value; }
@@ -64,7 +64,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets or sets the name of the product.
         /// </summary>
         /// <value>The name of the product.</value>
-        public string ProductName
+        public virtual string ProductName
         {
             get { return productName; }
             set { productName = value; }
@@ -75,7 +75,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets or sets the type of the connection.
         /// </summary>
         /// <value>The type of the connection.</value>
-        public Type ConnectionType
+        public virtual Type ConnectionType
         {
             get { return connectionType; }
             set { connectionType = value; }
@@ -85,7 +85,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets or sets the type of the command.
         /// </summary>
         /// <value>The type of the command.</value>
-        public Type CommandType
+        public virtual Type CommandType
         {
             get { return commandType; }
             set { commandType = value; }
@@ -95,7 +95,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets or sets the type of the parameter.
         /// </summary>
         /// <value>The type of the parameter.</value>
-        public Type ParameterType
+        public virtual Type ParameterType
         {
             get { return parameterType; }
             set { parameterType = value; }
@@ -105,7 +105,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the type of the command builder.
         /// </summary>
         /// <value>The type of the command builder.</value>
-        public Type CommandBuilderType
+        public virtual Type CommandBuilderType
         {
             get { return commandBuilderType; }
             set { commandBuilderType = value;  }
@@ -113,7 +113,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         /// <summary>Gets the command builder's derive parameters method.</summary>
         /// <value>The command builder derive parameters method.</value>
-        public MethodInfo CommandBuilderDeriveParametersMethod
+        public virtual MethodInfo CommandBuilderDeriveParametersMethod
         {
             get { return commandBuilderDeriveParametersMethod; }
             set { commandBuilderDeriveParametersMethod = value; }
@@ -123,7 +123,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets or sets the parameter name prefix.
         /// </summary>
         /// <value>The parameter name prefix.</value>
-        public string ParameterNamePrefix
+        public virtual string ParameterNamePrefix
         {
             get { return parameterNamePrefix; }
             set { parameterNamePrefix = value;  }
@@ -134,7 +134,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// library.
         /// </summary>
         /// <value>The type of the exception.</value>
-        public Type ExceptionType
+        public virtual Type ExceptionType
         {
             get { return exceptionType; }
             set { exceptionType = value; }
@@ -145,7 +145,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// ADO.NET parameters.
         /// </summary>
         /// <value><c>true</c> if parameters are bind by name; otherwise, <c>false</c>.</value>
-        public bool BindByName
+        public virtual bool BindByName
         {
             get { return bindByName; }
             set { bindByName = value; }
@@ -153,7 +153,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         /// <summary>Gets or sets the type of the database parameters.</summary>
         /// <value>The type of the parameter db.</value>
-        public Type ParameterDbType
+        public virtual Type ParameterDbType
         {
             get { return parameterDbType; }
             set { parameterDbType = value; }
@@ -163,7 +163,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the parameter db type property.
         /// </summary>
         /// <value>The parameter db type property.</value>
-        public PropertyInfo ParameterDbTypeProperty
+        public virtual PropertyInfo ParameterDbTypeProperty
         {
             get { return parameterDbTypeProperty; }
             set { parameterDbTypeProperty = value;  }
@@ -173,7 +173,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the parameter is nullable property.
         /// </summary>
         /// <value>The parameter is nullable property.</value>
-        public PropertyInfo ParameterIsNullableProperty
+        public virtual PropertyInfo ParameterIsNullableProperty
         {
             get { return parameterIsNullableProperty; }
             set { parameterIsNullableProperty = value; }
@@ -184,14 +184,14 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Enum element because this information is database driver specific.
         /// </summary>
         /// <value>The type of the db binary.</value>
-        public string DbBinaryTypeName
+        public virtual string DbBinaryTypeName
         {
             set { dbBinaryTypeName = value; }
         }
 
         /// <summary>Gets the type of the db binary.</summary>
         /// <value>The type of the db binary.</value>
-        public Enum DbBinaryType
+        public virtual Enum DbBinaryType
         {
             get { return dbBinaryType; }
         }
@@ -201,7 +201,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Sets the name of the parameter db type property.
         /// </summary>
         /// <value>The name of the parameter db type property.</value>
-        public string ParameterDbTypePropertyName
+        public virtual string ParameterDbTypePropertyName
         {
             set { parameterDbTypePropertyName = value; }
         }
@@ -213,7 +213,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <value>
         /// 	<c>true</c> if [use parameter name prefix in parameter collection]; otherwise, <c>false</c>.
         /// </value>
-        public bool UseParameterNamePrefixInParameterCollection
+        public virtual bool UseParameterNamePrefixInParameterCollection
         {
             get { return useParameterNamePrefixInParameterCollection; }
             set { useParameterNamePrefixInParameterCollection = value; }
@@ -224,7 +224,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// database.
         /// </summary>
         /// <param name="parameterName">Name of the parameter.</param>
-        public string GetParameterName(string parameterName)
+        public virtual string GetParameterName(string parameterName)
         {
             return parameterNamePrefix + parameterName; 
         }

@@ -100,7 +100,11 @@ namespace Quartz.Simpl
                 }
                
                 Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1})", chan.GetType(), port));
+#if NET_20
+                ChannelServices.RegisterChannel(chan, false);
+#else
                 ChannelServices.RegisterChannel(chan);
+#endif
                 Log.Info("Remoting channel registered successfully");
             }
             else

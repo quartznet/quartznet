@@ -118,7 +118,7 @@ namespace Quartz.Impl
         public const string PropertyListenerType = "type";
         public const string DefaultInstanceId = "NON_CLUSTERED";
         public const string AutoGenerateInstanceId = "AUTO";
-        private SchedulerException initException = null;
+        private SchedulerException initException;
 
         private PropertiesParser cfg;
 

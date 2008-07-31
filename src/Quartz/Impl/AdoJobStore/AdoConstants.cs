@@ -22,7 +22,7 @@
 namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary>
-	/// This interface can be implemented by any <code>IDriverDelegate</code>
+	/// This interface can be implemented by any <see cref="IDriverDelegate" />
 	/// class that needs to use the constants contained herein.
 	/// </summary>
 	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
