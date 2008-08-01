@@ -370,7 +370,11 @@ namespace Quartz.Impl.AdoJobStore
 
         protected abstract ConnectionAndTransactionHolder GetNonManagedTXConnection();
 
-        protected ConnectionAndTransactionHolder GetConnection()
+        /// <summary>
+        /// Gets the connection and starts a new transaction.
+        /// </summary>
+        /// <returns></returns>
+        protected virtual ConnectionAndTransactionHolder GetConnection()
         {
             IDbConnection conn;
             IDbTransaction tx;
@@ -382,12 +386,12 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 throw new JobPersistenceException(
-                    "Failed to obtain DB connection from data source '" + DataSource + "': " + e, e,
+                    string.Format("Failed to obtain DB connection from data source '{0}': {1}", DataSource, e), e,
                     SchedulerException.ErrorPersistenceCriticalFailure);
             }
             if (conn == null)
             {
-                throw new JobPersistenceException("Could not get connection from DataSource '" + DataSource + "'");
+                throw new JobPersistenceException(string.Format("Could not get connection from DataSource '{0}'", DataSource));
             }
 
             try

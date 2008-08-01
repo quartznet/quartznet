@@ -188,9 +188,6 @@
     <Compile Include="Impl\DirectSchedulerFactory.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Impl\QuartzServer.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Impl\RemoteScheduler.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -383,6 +380,7 @@
     <Compile Include="Impl\AdoJobStore\Common\DbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
+    <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
     <Compile Include="Impl\AdoJobStore\PostgreSQLDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\DBSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\FiredTriggerRecord.cs" />
