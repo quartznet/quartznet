@@ -2,6 +2,19 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+Release 1.0 RC 2, Aug 6, 2008
+-------------------------------
+
+Improvement
+
+    * [QRTZNET-114] - Express intervals and durations using TimeSpan instead of ints and longs
+
+Breaking changes:
+
+	* Public API has changed with the introduction of TimeSpan usage,
+	  changes should show only as compile time errors and should be easily
+	  fixable.
+	
 Release 1.0 RC 1, July 28, 2008
 -------------------------------
 
