@@ -59,7 +59,7 @@ namespace Quartz.Tests.Unit.Core
         {
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = sf.GetScheduler();
-            sched.StartDelayed(2);
+            sched.StartDelayed(TimeSpan.FromSeconds(2));
             Assert.IsFalse(sched.IsStarted);
             Thread.Sleep(TimeSpan.FromSeconds(3));
             Assert.IsTrue(sched.IsStarted);

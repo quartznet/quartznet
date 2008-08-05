@@ -472,11 +472,11 @@ namespace Quartz.Impl
 		/// <summary> 
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-        public void StartDelayed(int seconds)
+        public void StartDelayed(TimeSpan delay)
         {
             try 
             {
-                GetRemoteScheduler().StartDelayed(seconds);
+                GetRemoteScheduler().StartDelayed(delay);
             }
             catch (RemotingException re)
             {

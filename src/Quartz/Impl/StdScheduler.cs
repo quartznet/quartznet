@@ -292,9 +292,9 @@ namespace Quartz.Impl
         /// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-        public void StartDelayed(int seconds)
+        public void StartDelayed(TimeSpan delay)
         {
-            sched.StartDelayed(seconds);
+            sched.StartDelayed(delay);
         }
 
 		/// <summary>

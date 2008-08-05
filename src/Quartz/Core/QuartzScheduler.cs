@@ -444,7 +444,7 @@ namespace Quartz.Core
             Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} started.", resources.GetUniqueIdentifier()));
         }
 
-        public void StartDelayed(int seconds)
+        public void StartDelayed(TimeSpan delay)
         {
             if (closed) 
             {
@@ -452,7 +452,7 @@ namespace Quartz.Core
                         "The Scheduler cannot be restarted after Shutdown() has been called.");
             }
 
-            DelayedSchedulerStarter starter = new DelayedSchedulerStarter(this, seconds, Log);
+            DelayedSchedulerStarter starter = new DelayedSchedulerStarter(this, delay, Log);
             Thread t = new Thread(new ThreadStart(starter.Run));
             t.Start();
         }
@@ -463,13 +463,13 @@ namespace Quartz.Core
         private class DelayedSchedulerStarter
         {
             private readonly QuartzScheduler scheduler;
-            private readonly int seconds;
+            private readonly TimeSpan delay;
             private readonly ILog logger;
 
-            public DelayedSchedulerStarter(QuartzScheduler scheduler, int seconds, ILog logger)
+            public DelayedSchedulerStarter(QuartzScheduler scheduler, TimeSpan delay, ILog logger)
             {
                 this.scheduler = scheduler;
-                this.seconds = seconds;
+                this.delay = delay;
                 this.logger = logger;
             }
 
@@ -477,7 +477,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    Thread.Sleep(TimeSpan.FromSeconds(seconds));
+                    Thread.Sleep(delay);
                 }
                 catch (ThreadInterruptedException) { }
                 try
