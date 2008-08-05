@@ -106,7 +106,7 @@ namespace Quartz.Impl.AdoJobStore
         protected Type delegateType;
         protected Hashtable calendarCache = new Hashtable();
         private IDriverDelegate driverDelegate;
-        private long misfireThreshold = 60000L; // one minute
+        private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
         private bool dontSetAutoCommitFalse;
         private bool clustered;
         private bool useDBLocks;
@@ -114,14 +114,14 @@ namespace Quartz.Impl.AdoJobStore
         private bool lockOnInsert = true;
         private ISemaphore lockHandler; // set in Initialize() method...
         private string selectWithLockSQL;
-        private long clusterCheckinInterval = 7500L;
+        private TimeSpan clusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
         private ClusterManager clusterManagementThread;
         private MisfireHandler misfireHandler;
         private ITypeLoadHelper typeLoadHelper;
         private ISchedulerSignaler signaler;
         protected int maxToRecoverAtATime = 20;
         private bool setTxIsolationLevelSequential;
-        private long dbRetryInterval = 10000;
+        private TimeSpan dbRetryInterval = TimeSpan.FromSeconds(10);
         private bool makeThreadsDaemons;
         private bool doubleCheckLockMisfireHandler = true;
         private readonly ILog log;
@@ -215,11 +215,12 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Get or set the frequency (in milliseconds) at which this instance "checks-in"
+        /// Get or set the frequency at which this instance "checks-in"
         /// with the other instances of the cluster. -- Affects the rate of
         /// detecting failed instances.
         /// </summary>
-        public virtual long ClusterCheckinInterval
+        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+        public virtual TimeSpan ClusterCheckinInterval
         {
             get { return clusterCheckinInterval; }
             set { clusterCheckinInterval = value; }
@@ -240,7 +241,8 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the database retry interval.
         /// </summary>
         /// <value>The db retry interval.</value>
-        public virtual long DbRetryInterval
+        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+        public virtual TimeSpan DbRetryInterval
         {
             get { return dbRetryInterval; }
             set { dbRetryInterval = value; }
@@ -274,16 +276,17 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary> 
-        /// The the number of milliseconds by which a trigger must have missed its
+        /// The time span by which a trigger must have missed its
         /// next-fire-time, in order for it to be considered "misfired" and thus
         /// have its misfire instruction applied.
         /// </summary>
-        public virtual long MisfireThreshold
+        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+        public virtual TimeSpan MisfireThreshold
         {
             get { return misfireThreshold; }
             set
             {
-                if (value < 1)
+                if (value.TotalMilliseconds < 1)
                 {
                     throw new ArgumentException("MisfireThreshold must be larger than 0");
                 }
@@ -420,9 +423,9 @@ namespace Quartz.Impl.AdoJobStore
             get
             {
                 DateTime misfireTime = DateTime.UtcNow;
-                if (MisfireThreshold > 0)
+                if (MisfireThreshold > TimeSpan.Zero)
                 {
-                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold);
+                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
                 }
 
                 return misfireTime;
@@ -845,9 +848,9 @@ namespace Quartz.Impl.AdoJobStore
                 Trigger trig = Delegate.SelectTrigger(conn, triggerName, groupName);
 
                 DateTime misfireTime = DateTime.UtcNow;
-                if (MisfireThreshold > 0)
+                if (MisfireThreshold > TimeSpan.Zero)
                 {
-                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold);
+                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
                 }
 
                 if (trig.GetNextFireTimeUtc().Value > misfireTime)
@@ -3708,7 +3711,9 @@ namespace Quartz.Impl.AdoJobStore
 
         protected DateTime CalcFailedIfAfter(SchedulerStateRecord rec)
         {
-            return rec.CheckinTimestamp.AddMilliseconds(Math.Max(rec.CheckinInterval, (long)(DateTime.UtcNow - lastCheckin).TotalMilliseconds) + 7500L);
+            TimeSpan passed = DateTime.UtcNow - lastCheckin;
+            TimeSpan ts = rec.CheckinInterval > passed ? rec.CheckinInterval : passed;
+            return rec.CheckinTimestamp.Add(ts).Add(TimeSpan.FromMilliseconds(7500));
         }
 
         protected virtual IList ClusterCheckIn(ConnectionAndTransactionHolder conn)
@@ -3728,8 +3733,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Failure updating scheduler state when checking-in: "
-                                                  + e.Message, e);
+                throw new JobPersistenceException("Failure updating scheduler state when checking-in: " + e.Message, e);
             }
 
             return failedInstances;
@@ -4245,22 +4249,22 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (!shutdown)
                     {
-                        long timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-                        long transpiredTime = (long)(DateTime.UtcNow - jobStoreSupport.lastCheckin).TotalMilliseconds;
+                        TimeSpan timeToSleep = jobStoreSupport.ClusterCheckinInterval;
+                        TimeSpan transpiredTime = DateTime.UtcNow - jobStoreSupport.lastCheckin;
                         timeToSleep = timeToSleep - transpiredTime;
-                        if (timeToSleep <= 0)
+                        if (timeToSleep <= TimeSpan.Zero)
                         {
-                            timeToSleep = 100L;
+                            timeToSleep = TimeSpan.FromMilliseconds(100);
                         }
 
                         if (numFails > 0)
                         {
-                            timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
+                            timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
                         }
 
                         try
                         {
-                            Thread.Sleep((int)timeToSleep);
+                            Thread.Sleep(timeToSleep);
                         }
                         catch (ThreadInterruptedException)
                         {
@@ -4346,25 +4350,24 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (!shutdown)
                         {
-                            long timeToSleep = 50L; // At least a short pause to help balance threads
+                            TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
                             if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
                             {
-                                timeToSleep = jobStoreSupport.MisfireThreshold -
-                                              (long)(DateTime.UtcNow - sTime).TotalMilliseconds;
-                                if (timeToSleep <= 0)
+                                timeToSleep = jobStoreSupport.MisfireThreshold - (DateTime.UtcNow - sTime);
+                                if (timeToSleep <= TimeSpan.Zero)
                                 {
-                                    timeToSleep = 50L;
+                                    timeToSleep = TimeSpan.FromMilliseconds(50);
                                 }
 
                                 if (numFails > 0)
                                 {
-                                    timeToSleep = Math.Max(jobStoreSupport.DbRetryInterval, timeToSleep);
+                                    timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
                                 }
                             }
 
                             try
                             {
-                                Thread.Sleep((int)timeToSleep);
+                                Thread.Sleep(timeToSleep);
                             }
                             catch (ThreadInterruptedException)
                             {

@@ -57,7 +57,7 @@ namespace Quartz
 		private NullableDateTime previousFireTimeUtc = null;
 
         private int repeatCount = 0;
-        private long repeatInterval = 0;
+        private TimeSpan repeatInterval = TimeSpan.Zero;
         private int timesTriggered = 0;
         private bool complete = false;
 
@@ -72,7 +72,7 @@ namespace Quartz
 		/// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
 		/// not repeat.
 		/// </summary>
-		public SimpleTrigger(string name, string group) : this(name, group, DateTime.UtcNow, null, 0, 0)
+		public SimpleTrigger(string name, string group) : this(name, group, DateTime.UtcNow, null, 0, TimeSpan.Zero)
 		{
 		}
 
@@ -80,7 +80,7 @@ namespace Quartz
 		/// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
 		/// repeat at the the given interval the given number of times.
 		/// </summary>
-		public SimpleTrigger(string name, string group, int repeatCount, long repeatInterval)
+		public SimpleTrigger(string name, string group, int repeatCount, TimeSpan repeatInterval)
 			: this(name, group, DateTime.UtcNow, null, repeatCount, repeatInterval)
 		{
 		}
@@ -89,7 +89,7 @@ namespace Quartz
 		/// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
 		/// and not repeat.
 		/// </summary>
-		public SimpleTrigger(string name, string group, DateTime startTimeUtc) : this(name, group, startTimeUtc, null, 0, 0)
+		public SimpleTrigger(string name, string group, DateTime startTimeUtc) : this(name, group, startTimeUtc, null, 0, TimeSpan.Zero)
 		{
 		}
 
@@ -105,10 +105,10 @@ namespace Quartz
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
-        /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+        /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, DateTime startTimeUtc,
             NullableDateTime endTimeUtc, 
-            int repeatCount, long repeatInterval) : base(name, group)
+            int repeatCount, TimeSpan repeatInterval) : base(name, group)
 		{
 			StartTimeUtc = startTimeUtc;
 			EndTimeUtc = endTimeUtc;
@@ -131,10 +131,10 @@ namespace Quartz
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use RepeatIndefinitely for unlimited times.</param>
-        /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+        /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTimeUtc,
                  NullableDateTime endTimeUtc,
-                 int repeatCount, long repeatInterval)
+                 int repeatCount, TimeSpan repeatInterval)
 			: base(name, group, jobName, jobGroup)
 		{
 			StartTimeUtc = startTimeUtc;
@@ -164,16 +164,15 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Get or set the the time interval (in milliseconds) at which the <see cref="SimpleTrigger" />
-        /// should repeat.
+        /// Get or set the the time interval at which the <see cref="SimpleTrigger" /> should repeat.
         /// </summary>
-        public long RepeatInterval
+        public TimeSpan RepeatInterval
         {
             get { return repeatInterval; }
 
             set
             {
-                if (value < 0)
+                if (value < TimeSpan.Zero)
                 {
                     throw new ArgumentException("Repeat interval must be >= 0");
                 }
@@ -222,7 +221,7 @@ namespace Quartz
                     return GetFireTimeBefore(EndTimeUtc);
                 }
 
-                DateTime lastTrigger = StartTimeUtc.AddMilliseconds(repeatCount * repeatInterval);
+                DateTime lastTrigger = StartTimeUtc.AddMilliseconds(repeatCount * repeatInterval.TotalMilliseconds);
 
                 if (!EndTimeUtc.HasValue || lastTrigger < EndTimeUtc.Value)
                 {
@@ -445,7 +444,7 @@ namespace Quartz
         /// </summary>
         /// <param name="calendar">The calendar.</param>
         /// <param name="misfireThreshold">The misfire threshold.</param>
-		public override void UpdateWithNewCalendar(ICalendar calendar, long misfireThreshold)
+		public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
 		{
 			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
@@ -472,7 +471,7 @@ namespace Quartz
 
                 if (nextFireTimeUtc != null && nextFireTimeUtc.Value < now)
                 {
-                    long diff = (long) (now - nextFireTimeUtc.Value).TotalMilliseconds;
+                    TimeSpan diff = now - nextFireTimeUtc.Value;
                     if (diff >= misfireThreshold)
                     {
                         nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
@@ -602,7 +601,7 @@ namespace Quartz
 				return startMillis;
 			}
 
-			long numberOfTimesExecuted = ((long) (afterMillis - startMillis).TotalMilliseconds / repeatInterval) + 1;
+			long numberOfTimesExecuted = (long) (((long) (afterMillis - startMillis).TotalMilliseconds / repeatInterval.TotalMilliseconds) + 1);
 
 			if ((numberOfTimesExecuted > repeatCount) && 
 				(repeatCount != RepeatIndefinitely)) 
@@ -610,7 +609,7 @@ namespace Quartz
 				return null;
 			}
 
-			DateTime time = startMillis.AddMilliseconds(numberOfTimesExecuted * repeatInterval);
+			DateTime time = startMillis.AddMilliseconds(numberOfTimesExecuted * repeatInterval.TotalMilliseconds);
 
 			if (endMillis <= time) 
 			{
@@ -636,7 +635,7 @@ namespace Quartz
 			}
 
 			int numFires = ComputeNumTimesFiredBetween(StartTimeUtc, endUtc);
-			return StartTimeUtc.AddMilliseconds(numFires*repeatInterval);
+			return StartTimeUtc.AddMilliseconds(numFires*repeatInterval.TotalMilliseconds);
 		}
 
         /// <summary>
@@ -651,7 +650,7 @@ namespace Quartz
             endTimeUtc = DateTimeUtil.AssumeUniversalTime(endTimeUtc);
 
 			long time = (long) (endTimeUtc.Value - startTimeUtc.Value).TotalMilliseconds;
-			return (int) (time/repeatInterval);
+			return (int) (time/repeatInterval.TotalMilliseconds);
 		}
 
 		/// <summary> 
@@ -671,7 +670,7 @@ namespace Quartz
 		{
 			base.Validate();
 
-			if (repeatCount != 0 && repeatInterval < 1)
+			if (repeatCount != 0 && repeatInterval.TotalMilliseconds < 1)
 			{
 				throw new SchedulerException("Repeat Interval cannot be zero.", SchedulerException.ErrorClientError);
 			}

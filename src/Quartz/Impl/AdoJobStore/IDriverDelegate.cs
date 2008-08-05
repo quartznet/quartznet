@@ -837,7 +837,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="checkInTime">The check in time.</param>
         /// <param name="interval">The interval.</param>
         /// <returns>The number of inserted rows.</returns>
-		int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, DateTime checkInTime, long interval);
+		int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, DateTime checkInTime, TimeSpan interval);
 
         /// <summary>
         /// Delete a scheduler-instance state record.

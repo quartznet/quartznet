@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations 
  * under the License.
  */
+using System;
 using System.Collections;
 using System.Text;
 using System.Threading;
@@ -41,7 +42,7 @@ namespace Quartz.Tests.Unit.Impl
 			DirectSchedulerFactory.Instance.CreateScheduler(
 				"MyScheduler", "Instance1", threadPool,
 				new RAMJobStore(), data, 
-				0, 0);
+				TimeSpan.Zero, TimeSpan.Zero);
             
 
 			IScheduler scheduler = DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");

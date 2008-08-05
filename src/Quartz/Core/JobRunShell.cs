@@ -206,7 +206,7 @@ namespace Quartz.Core
                         jobExEx.ErrorCode = JobExecutionException.ErrorJobExecutionThrewException;
                     }
 
-                    jec.JobRunTime = (long) (endTime - startTime).TotalMilliseconds;
+                    jec.JobRunTime = endTime - startTime;
 
                     // notify all job listeners
                     if (!NotifyJobListenersComplete(jec, jobExEx))

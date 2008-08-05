@@ -147,7 +147,16 @@ namespace Quartz.Util
 					MethodInfo mi = pi.GetSetMethod();
 
 					object value = props[name];
-					value = ConvertValueIfNecessary(mi.GetParameters()[0].ParameterType, value);
+
+				    if (mi.GetParameters()[0].ParameterType == typeof(TimeSpan))
+				    {
+				        // special handling
+				        value = GetTimeSpanValueForProperty(pi, value);
+				    }
+				    else
+                    {
+                        value = ConvertValueIfNecessary(mi.GetParameters()[0].ParameterType, value);
+                    }
 
 					mi.Invoke(obj, new object[] {value});
 
@@ -160,6 +169,31 @@ namespace Quartz.Util
 			
 		}
 
+	    public static TimeSpan GetTimeSpanValueForProperty(PropertyInfo pi, object value)
+	    {
+            object[] attributes = pi.GetCustomAttributes(typeof(TimeSpanParseRuleAttribute), false);
+
+            if (attributes.Length == 0)
+            {
+                return (TimeSpan) ConvertValueIfNecessary(typeof(TimeSpan), value);
+            }
+
+            TimeSpanParseRuleAttribute attribute = (TimeSpanParseRuleAttribute)attributes[0];
+            long longValue = Convert.ToInt64(value);
+            switch (attribute.Rule)
+            {
+                case TimeSpanParseRule.Milliseconds:
+                    return TimeSpan.FromMilliseconds(longValue);
+                case TimeSpanParseRule.Seconds:
+                    return TimeSpan.FromSeconds(longValue);
+                case TimeSpanParseRule.Minutes:
+                    return TimeSpan.FromMinutes(longValue);
+                case TimeSpanParseRule.Hours:
+                    return TimeSpan.FromHours(longValue);
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+	    }
 	}
 
 }

@@ -24,13 +24,10 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary> <p>
+	/// <summary>
 	/// Conveys the state of a fired-trigger record.
-	/// </p>
-	/// 
 	/// </summary>
-	/// <author>  James House
-	/// </author>
+	/// <author>James House</author>
 	[Serializable]
 	public class FiredTriggerRecord
 	{

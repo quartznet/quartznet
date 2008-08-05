@@ -77,18 +77,18 @@ namespace Quartz.Examples.Example14
 
             // First trigger has priority of -5, and will repeat after 5 seconds
             SimpleTrigger trigger1 =
-                new SimpleTrigger("PriorityNeg5Trigger5SecondRepeat", null, startTime, null, 1, 5L*1000L);
+                new SimpleTrigger("PriorityNeg5Trigger5SecondRepeat", null, startTime, null, 1, TimeSpan.FromSeconds(5));
             trigger1.Priority = -5;
             trigger1.JobName = "TriggerEchoJob";
 
             // Second trigger has default priority of 5, and will repeat after 10 seconds
             SimpleTrigger trigger2 =
-                new SimpleTrigger("Priority5Trigger10SecondRepeat", null, startTime, null, 1, 10L*1000L);
+                new SimpleTrigger("Priority5Trigger10SecondRepeat", null, startTime, null, 1, TimeSpan.FromSeconds(10));
             trigger2.JobName = "TriggerEchoJob";
 
             // Third trigger has priority 10, and will repeat after 15 seconds
             SimpleTrigger trigger3 =
-                new SimpleTrigger("Priority10Trigger15SecondRepeat", null, startTime, null, 1, 15L*1000L);
+                new SimpleTrigger("Priority10Trigger15SecondRepeat", null, startTime, null, 1, TimeSpan.FromSeconds(15));
             trigger3.Priority = 10;
             trigger3.JobName = "TriggerEchoJob";
 

@@ -74,7 +74,7 @@ namespace Quartz.Examples.Example8
 			// at 10 am
 			DateTime runDate = new DateTime(DateTime.UtcNow.Year, 10, 31, 10, 0, 0).ToUniversalTime();
 			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob));
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runDate, null, SimpleTrigger.RepeatIndefinitely, 60 * 60 * 1000);
+			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runDate, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromHours(1));
 			// tell the trigger to obey the Holidays calendar!
 			trigger.CalendarName = "holidays";
 			
@@ -84,7 +84,7 @@ namespace Quartz.Examples.Example8
 			// print out the first execution date.
 			// Note:  Since Halloween (Oct 31) is a holiday, then
 			// we will not run unti the next day! (Nov 1)
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, firstRunTime.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, firstRunTime.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			
 			// All of the jobs have been added to the scheduler, but none of the jobs
 			// will run until the scheduler has been started

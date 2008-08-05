@@ -970,7 +970,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 1, "triggerName", trigger.Name);
                 AddCommandParameter(cmd, 2, "triggerGroup", trigger.Group);
                 AddCommandParameter(cmd, 3, "triggerRepeatCount", trigger.RepeatCount);
-                AddCommandParameter(cmd, 4, "triggerRepeatInterval", trigger.RepeatInterval);
+                AddCommandParameter(cmd, 4, "triggerRepeatInterval", trigger.RepeatInterval.TotalMilliseconds);
                 AddCommandParameter(cmd, 5, "triggerTimesTriggered", trigger.TimesTriggered);
 
                 return cmd.ExecuteNonQuery();
@@ -1141,7 +1141,7 @@ namespace Quartz.Impl.AdoJobStore
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSimpleTrigger)))
             {
                 AddCommandParameter(cmd, 1, "triggerRepeatCount", trigger.RepeatCount);
-                AddCommandParameter(cmd, 2, "triggerRepeatInterval", trigger.RepeatInterval);
+                AddCommandParameter(cmd, 2, "triggerRepeatInterval", trigger.RepeatInterval.TotalMilliseconds);
                 AddCommandParameter(cmd, 3, "triggerTimesTriggered", trigger.TimesTriggered);
                 AddCommandParameter(cmd, 4, "triggerName", trigger.Name);
                 AddCommandParameter(cmd, 5, "triggerGroup", trigger.Group);
@@ -1827,7 +1827,7 @@ namespace Quartz.Impl.AdoJobStore
                                         SimpleTrigger st =
                                             new SimpleTrigger(triggerName, groupName, jobName, jobGroup, startTimeD, endTimeD,
                                                               repeatCount,
-                                                              repeatInterval);
+                                                              TimeSpan.FromMilliseconds(repeatInterval));
                                         st.CalendarName = calendarName;
                                         st.MisfireInstruction = misFireInstr;
                                         st.TimesTriggered = timesTriggered;
@@ -2775,13 +2775,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="checkInTime">The check in time.</param>
         /// <param name="interval">The interval.</param>
         /// <returns></returns>
-        public virtual int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceName, DateTime checkInTime, long interval)
+        public virtual int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceName, DateTime checkInTime, TimeSpan interval)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertSchedulerState)))
             {
                 AddCommandParameter(cmd, 1, "instanceName", instanceName);
                 AddCommandParameter(cmd, 2, "lastCheckinTime", checkInTime.Ticks);
-                AddCommandParameter(cmd, 3, "checkinInterval", interval);
+                AddCommandParameter(cmd, 3, "checkinInterval", interval.TotalMilliseconds);
 
                 return cmd.ExecuteNonQuery();
             }
@@ -2856,7 +2856,7 @@ namespace Quartz.Impl.AdoJobStore
                     SchedulerStateRecord rec = new SchedulerStateRecord();
                     rec.SchedulerInstanceId = GetString(rs[ColumnInstanceName]);
                     rec.CheckinTimestamp = new DateTime(Convert.ToInt64(rs[ColumnLastCheckinTime], CultureInfo.InvariantCulture));
-                    rec.CheckinInterval = Convert.ToInt64(rs[ColumnCheckinInterval], CultureInfo.InvariantCulture);
+                    rec.CheckinInterval = TimeSpan.FromMilliseconds(Convert.ToInt64(rs[ColumnCheckinInterval], CultureInfo.InvariantCulture));
                     list.Add(rec);
                 }
             }

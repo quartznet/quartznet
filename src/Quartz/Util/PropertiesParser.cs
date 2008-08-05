@@ -502,6 +502,30 @@ namespace Quartz.Util
 		}
 
         /// <summary>
+        /// Gets the TimeSpan property.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="def">The def.</param>
+        /// <returns></returns>
+        public virtual TimeSpan GetTimeSpanProperty(string name, TimeSpan def)
+        {
+            string val = GetStringProperty(name);
+            if (val == null)
+            {
+                return def;
+            }
+
+            try
+            {
+                return TimeSpan.FromMilliseconds(Int64.Parse(val, CultureInfo.InvariantCulture));
+            }
+            catch (FormatException)
+            {
+                throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+            }
+        }
+
+        /// <summary>
         /// Gets the short property.
         /// </summary>
         /// <param name="name">The name.</param>

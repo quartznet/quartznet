@@ -666,11 +666,11 @@ namespace Quartz
 		/// given new version of the associated <see cref="ICalendar" />. 
 		/// </summary>
 		/// <param name="cal">A new or updated calendar to use for the trigger</param>
-		/// <param name="misfireThreshold">the amount of time (in milliseconds) that must
+		/// <param name="misfireThreshold">the amount of time that must
 		/// be between &quot;now&quot; and the time the next
 		/// firing of the trigger is supposed to occur.
 		/// </param>
-		public override void UpdateWithNewCalendar(ICalendar cal, long misfireThreshold)
+		public override void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold)
 		{
 		    calendar = cal;
 			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
@@ -678,7 +678,7 @@ namespace Quartz
 			DateTime now = DateTime.UtcNow;
 			if ((nextFireTimeUtc.HasValue) && ((nextFireTimeUtc.Value < now)))
 			{
-			    long diff = (long) (now - nextFireTimeUtc.Value).TotalMilliseconds;
+			    TimeSpan diff = now - nextFireTimeUtc.Value;
 			    if (diff >= misfireThreshold)
 				{
 					nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);

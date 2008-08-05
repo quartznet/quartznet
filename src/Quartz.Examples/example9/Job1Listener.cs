@@ -24,36 +24,37 @@ namespace Quartz.Examples.Example9
 	/// <author>wkratzer</author>
 	public class Job1Listener : IJobListener
 	{
-		virtual public string Name
+        private readonly ILog log;
+
+	    public Job1Listener()
+	    {
+	        log = LogManager.GetLogger(GetType());
+	    }
+
+	    public virtual string Name
 		{
-			get
-			{
-				return "job1_to_job2";
-			}
-			
+			get { return "job1_to_job2"; }
 		}
-		
-		private static ILog _log = LogManager.GetLogger(typeof(Job1Listener)); 
-		
+				
 		public virtual void  JobToBeExecuted(JobExecutionContext inContext)
 		{
-			_log.Info("Job1Listener says: Job Is about to be executed.");
+			log.Info("Job1Listener says: Job Is about to be executed.");
 		}
 		
 		public virtual void  JobExecutionVetoed(JobExecutionContext inContext)
 		{
-			_log.Info("Job1Listener says: Job Execution was vetoed.");
+			log.Info("Job1Listener says: Job Execution was vetoed.");
 		}
 		
 		public virtual void  JobWasExecuted(JobExecutionContext inContext, JobExecutionException inException)
 		{
-			_log.Info("Job1Listener says: Job was executed.");
+			log.Info("Job1Listener says: Job was executed.");
 			
 			// Simple job #2
 			JobDetail job2 = new JobDetail("job2", SchedulerConstants.DefaultGroup, typeof(SimpleJob2));
 			
 			// Simple trigger to fire immediately
-			SimpleTrigger trigger = new SimpleTrigger("job2Trigger", SchedulerConstants.DefaultGroup, System.DateTime.Now, null, 0, 0L);
+			SimpleTrigger trigger = new SimpleTrigger("job2Trigger", SchedulerConstants.DefaultGroup, DateTime.UtcNow, null, 0, TimeSpan.Zero);
 			
 			try
 			{
@@ -62,7 +63,7 @@ namespace Quartz.Examples.Example9
 			}
 			catch (SchedulerException e)
 			{
-				_log.Warn("Unable to schedule job2!");
+				log.Warn("Unable to schedule job2!");
 				Console.Error.WriteLine(e.StackTrace);
 			}
 		}

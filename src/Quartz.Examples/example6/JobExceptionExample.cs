@@ -54,18 +54,18 @@ namespace Quartz.Examples.Example6
 			// this job will throw an exception and refire
 			// immediately
 			JobDetail job = new JobDetail("badJob1", "group1", typeof(BadJob1));
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, 3000L);
+			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
 			DateTime ft = sched.ScheduleJob(job, trigger);
 
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			
 			// badJob2 will run every three seconds
 			// this job will throw an exception and never
 			// refire
 			job = new JobDetail("badJob2", "group1", typeof(BadJob2));
-			trigger = new SimpleTrigger("trigger2", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, 3000L);
+			trigger = new SimpleTrigger("trigger2", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
 			ft = sched.ScheduleJob(job, trigger);
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			
 			log.Info("------- Starting Scheduler ----------------");
 			
@@ -77,7 +77,7 @@ namespace Quartz.Examples.Example6
 			// sleep for 60 seconds
 			try
 			{
-			    Thread.Sleep(60 * 1000);
+			    Thread.Sleep(TimeSpan.FromSeconds(60));
 			}
             catch (ThreadInterruptedException)
             {

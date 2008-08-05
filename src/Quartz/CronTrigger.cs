@@ -811,7 +811,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="calendar">The calendar to update with.</param>
 		/// <param name="misfireThreshold">The misfire threshold.</param>
-		public override void UpdateWithNewCalendar(ICalendar calendar, long misfireThreshold)
+		public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
 		{
 			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
@@ -826,7 +826,7 @@ namespace Quartz
 
 				if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < (now))
 				{
-					long diff = (long) (now - nextFireTimeUtc.Value).TotalMilliseconds;
+					TimeSpan diff = now - nextFireTimeUtc.Value;
 					if (diff >= misfireThreshold)
 					{
 						nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);

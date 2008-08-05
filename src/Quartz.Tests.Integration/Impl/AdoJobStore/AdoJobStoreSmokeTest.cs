@@ -179,7 +179,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     AnnualCalendar cal = new AnnualCalendar();
                     sched.AddCalendar("annualCalendar", cal, false, true);
 
-                    SimpleTrigger calendarsTrigger = new SimpleTrigger("calendarsTrigger", "test", 20, 5000L);
+                    SimpleTrigger calendarsTrigger = new SimpleTrigger("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
                     calendarsTrigger.CalendarName = "annualCalendar";
 
                     JobDetail jd = new JobDetail("testJob", "test", typeof(NoOpJob));
@@ -219,7 +219,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = true;
-                    SimpleTrigger trigger = new SimpleTrigger("trig_" + count, schedId, 20, 5000L);
+                    SimpleTrigger trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
 
                     trigger.AddTriggerListener(new DummyTriggerListener().Name);
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
@@ -235,7 +235,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, 5000L);
+                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
 
                     trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(2000L));
                     sched.ScheduleJob(job, trigger);
@@ -245,7 +245,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, 3000L);
+                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(3));
 
                     trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(1000L));
                     sched.ScheduleJob(job, trigger);
@@ -255,7 +255,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, 4000L);
+                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(4));
 
                     trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(1000L));
                     sched.ScheduleJob(job, trigger);
@@ -265,7 +265,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, 4500L);
+                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
                     sched.ScheduleJob(job, trigger);
 
                     count++;
@@ -427,7 +427,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
     public class SimpleRecoveryJob : IJob
     {
-        private const string COUNT = "count";
+        private const string Count = "count";
 
         /// <summary> 
         /// Called by the <see cref="IScheduler" /> when a
@@ -447,16 +447,16 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             JobDataMap data = context.JobDetail.JobDataMap;
             int count;
-            if (data.Contains(COUNT))
+            if (data.Contains(Count))
             {
-                count = data.GetInt(COUNT);
+                count = data.GetInt(Count);
             }
             else
             {
                 count = 0;
             }
             count++;
-            data.Put(COUNT, count);
+            data.Put(Count, count);
         }
     }
 

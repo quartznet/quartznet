@@ -14,6 +14,9 @@
  * under the License.
  */
 
+using System;
+using System.Collections.Specialized;
+
 using NUnit.Framework;
 
 using Quartz.Util;
@@ -51,5 +54,74 @@ namespace Quartz.Tests.Unit.Utils
             }
         }
 
+        [Test]
+        public void TestTimeSpanConversion()
+        {
+            TimeSpan ts = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof (TimeSpan), "1");
+            Assert.AreEqual(1, ts.TotalDays);
+            
+        }
+
+        [Test]
+        public void TestSetObjectTimeSpanProperties()
+        {
+            TimeSpanPropertyTest o = new TimeSpanPropertyTest();
+            NameValueCollection props = new NameValueCollection();
+            props["TimeHours"] = "1";
+            props["TimeMinutes"] = "1";
+            props["TimeSeconds"] = "1";
+            props["TimeMilliseconds"] = "1";
+            props["TimeDefault"] = "1"; 
+            ObjectUtils.SetObjectProperties(o, props);
+
+            Assert.AreEqual(1, o.TimeHours.TotalHours);
+            Assert.AreEqual(1, o.TimeMilliseconds.TotalMilliseconds);
+            Assert.AreEqual(1, o.TimeMinutes.TotalMinutes);
+            Assert.AreEqual(1, o.TimeSeconds.TotalSeconds);
+            Assert.AreEqual(1, o.TimeDefault.TotalDays);
+        }
+
+        public class TimeSpanPropertyTest
+        {
+            private TimeSpan timeMinutes;
+            private TimeSpan timeSeconds;
+            private TimeSpan timeMilliseconds;
+            private TimeSpan timeHours;
+            private TimeSpan timeDefault;
+
+            [TimeSpanParseRule(TimeSpanParseRule.Hours)]
+            public TimeSpan TimeHours
+            {
+                get { return timeHours; }
+                set { timeHours = value; }
+            }
+
+            [TimeSpanParseRule(TimeSpanParseRule.Minutes)]
+            public TimeSpan TimeMinutes
+            {
+                get { return timeMinutes; }
+                set { timeMinutes = value; }
+            }
+
+            [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
+            public TimeSpan TimeSeconds
+            {
+                get { return timeSeconds; }
+                set { timeSeconds = value; }
+            }
+
+            [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+            public TimeSpan TimeMilliseconds
+            {
+                get { return timeMilliseconds; }
+                set { timeMilliseconds = value; }
+            }
+
+            public TimeSpan TimeDefault
+            {
+                get { return timeDefault; }
+                set { timeDefault = value; }
+            }
+        }
     }
 }

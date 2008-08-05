@@ -681,7 +681,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="cal"> </param>
 		/// <param name="misfireThreshold"></param>
-		public abstract void UpdateWithNewCalendar(ICalendar cal, long misfireThreshold);
+		public abstract void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
 
 		/// <summary>
 		/// Validates whether the properties of the <see cref="JobDetail" /> are

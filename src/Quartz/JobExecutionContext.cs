@@ -87,7 +87,7 @@ namespace Quartz
         private readonly NullableDateTime scheduledFireTimeUtc;
         private readonly NullableDateTime prevFireTimeUtc;
         private readonly NullableDateTime nextFireTimeUtc;
-        private long jobRunTime = -1;
+        private TimeSpan jobRunTime = TimeSpan.MinValue;
         private object result;
 
         private readonly IDictionary data = new Hashtable();
@@ -279,26 +279,17 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// The amount of time the job ran for (in milliseconds).  The returned 
-		/// value will be -1 until the job has actually completed (or thrown an 
+		/// The amount of time the job ran for.  The returned 
+		/// value will be <see cref="TimeSpan.MinValue" /> until the job has actually completed (or thrown an 
 		/// exception), and is therefore generally only useful to 
 		/// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
 		/// </summary>
-		public virtual long JobRunTime
+		public virtual TimeSpan JobRunTime
 		{
 			get { return jobRunTime; }
 			set { jobRunTime = value; }
 		}
 
-
-
-		/*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Interface.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
 
 		/// <summary>
 		/// Increments the refire count.

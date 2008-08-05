@@ -59,15 +59,15 @@ namespace Quartz.Tests.Unit.Simpl
 			Trigger trigger1 =
 				new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name,
 				                  fJobDetail.Group, d.AddSeconds(200),
-				                  d.AddSeconds(200), 2, 2000);
+				                  d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
 			Trigger trigger2 =
 				new SimpleTrigger("trigger2", "triggerGroup1", fJobDetail.Name,
 				                  fJobDetail.Group, d.AddSeconds(-100),
-				                  d.AddSeconds(20), 2, 2000);
+                                  d.AddSeconds(20), 2, TimeSpan.FromSeconds(2));
 			Trigger trigger3 =
 				new SimpleTrigger("trigger1", "triggerGroup2", fJobDetail.Name,
 				                  fJobDetail.Group, d.AddSeconds(100),
-				                  d.AddSeconds(200), 2, 2000);
+                                  d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
 
 			trigger1.ComputeFirstFireTimeUtc(null);
 			trigger2.ComputeFirstFireTimeUtc(null);
@@ -105,7 +105,7 @@ namespace Quartz.Tests.Unit.Simpl
 		{
 			Trigger trigger =
 				new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
-				                  DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, 2000);
+                                  DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
 			trigger.ComputeFirstFireTimeUtc(null);
 			Assert.AreEqual(TriggerState.None, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
 			fJobStore.StoreTrigger(null, trigger, false);
@@ -134,7 +134,7 @@ namespace Quartz.Tests.Unit.Simpl
             // QRTZNET-29
 
             Trigger trigger = new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
-                                  DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, 2000);
+                                  DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
             ICalendar cal = new MonthlyCalendar();
             fJobStore.StoreTrigger(null, trigger, false);

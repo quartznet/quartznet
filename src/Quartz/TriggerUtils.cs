@@ -328,14 +328,14 @@ namespace Quartz
 
 		/// <summary>
 		/// Make a trigger that will fire <param name="repeatCount" /> times, waiting
-		/// <param name="repeatInterval" /> milliseconds between each fire.
+		/// <param name="repeatInterval" /> between each fire.
 		/// </summary>
 		/// <remarks>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
         /// </remarks>
 		/// <returns>the newly created trigger</returns>
-		public static Trigger MakeImmediateTrigger(int repeatCount, long repeatInterval)
+		public static Trigger MakeImmediateTrigger(int repeatCount, TimeSpan repeatInterval)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 			trig.StartTimeUtc = DateTime.UtcNow;
@@ -346,7 +346,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Make a trigger that will fire <param name="repeatCount" /> times, waiting
-		/// <param name="repeatInterval" /> milliseconds between each fire.
+		/// <param name="repeatInterval" /> between each fire.
 		/// <p>
 		/// The generated trigger will not have its name, group,
 		/// or end-time set.  The Start time defaults to 'now'.
@@ -354,7 +354,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="trigName">the trigger's name</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeImmediateTrigger(string trigName, int repeatCount, long repeatInterval)
+		public static Trigger MakeImmediateTrigger(string trigName, int repeatCount, TimeSpan repeatInterval)
 		{
 			Trigger trig = MakeImmediateTrigger(repeatCount, repeatInterval);
 			trig.Name = trigName;
@@ -418,7 +418,7 @@ namespace Quartz
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 
-			trig.RepeatInterval = intervalInSeconds*1000L;
+			trig.RepeatInterval = TimeSpan.FromSeconds(intervalInSeconds);
 			trig.RepeatCount = repeatCount;
             trig.StartTimeUtc = DateTime.UtcNow;
 
@@ -499,7 +499,7 @@ namespace Quartz
 		public static Trigger MakeMinutelyTrigger(int intervalInMinutes, int repeatCount)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
-			trig.RepeatInterval = intervalInMinutes*MillisecondsInMinute;
+			trig.RepeatInterval = TimeSpan.FromMinutes(intervalInMinutes);
 			trig.RepeatCount = repeatCount;
 			trig.StartTimeUtc = DateTime.UtcNow;
 
@@ -581,7 +581,7 @@ namespace Quartz
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 
-			trig.RepeatInterval = intervalInHours*MillisecondsInHour;
+			trig.RepeatInterval = TimeSpan.FromHours(intervalInHours);
 			trig.RepeatCount = repeatCount;
 			trig.StartTimeUtc = DateTime.UtcNow;
 

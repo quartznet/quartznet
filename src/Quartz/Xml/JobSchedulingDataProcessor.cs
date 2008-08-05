@@ -339,7 +339,7 @@ namespace Quartz.Xml
                             startTime, 
                             endTime, 
                             ParseSimpleTriggerRepeatCount(s.repeatcount), 
-                            Convert.ToInt64(s.repeatinterval, CultureInfo.InvariantCulture));
+                            TimeSpan.FromMilliseconds(Convert.ToInt64(s.repeatinterval, CultureInfo.InvariantCulture)));
 
 	                    trigger = st;
 	                }

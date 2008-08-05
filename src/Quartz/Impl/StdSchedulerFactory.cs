@@ -306,8 +306,8 @@ Please add configuration to your application config file to correctly initialize
             string instanceIdGeneratorType = null;
             NameValueCollection tProps;
             bool autoId = false;
-            long idleWaitTime = - 1;
-            int dbFailureRetry = - 1;
+            TimeSpan idleWaitTime = TimeSpan.Zero;
+            TimeSpan dbFailureRetry = TimeSpan.Zero;
             string typeLoadHelperType;
             string jobFactoryType;
 
@@ -335,8 +335,8 @@ Please add configuration to your application config file to correctly initialize
                                       "Quartz.Simpl.CascadingClassLoadHelper, Quartz");
             jobFactoryType = cfg.GetStringProperty(PropertySchedulerJobFactoryType, null);
 
-            idleWaitTime = cfg.GetLongProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
-            dbFailureRetry = cfg.GetIntProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
+            idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
+            dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
 
             NameValueCollection schedCtxtProps = cfg.GetPropertyGroup(PropertySchedulerContextPrefix, true);
@@ -883,7 +883,7 @@ Please add configuration to your application config file to correctly initialize
 			{
 				JobStoreSupport jjs = (JobStoreSupport) js;
 				jjs.InstanceId = schedInstId;
-				jjs.DbRetryInterval = dbFailureRetry;
+                jjs.DbRetryInterval = dbFailureRetry;
 			}
 
             QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();

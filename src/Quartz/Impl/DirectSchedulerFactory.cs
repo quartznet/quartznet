@@ -197,7 +197,7 @@ namespace Quartz.Impl
 		public virtual void CreateScheduler(String schedulerName, string schedulerInstanceId, IThreadPool threadPool,
 		                                    IJobStore jobStore)
 		{
-			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, - 1, - 1);
+			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, TimeSpan.Zero, TimeSpan.Zero);
 		}
 
         		/// <summary>
@@ -208,12 +208,12 @@ namespace Quartz.Impl
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
 		/// <param name="threadPool">The thread pool for executing jobs</param>
 		/// <param name="jobStore">The type of job store</param>
-		/// <param name="idleWaitTime">The idle wait time in milliseconds. You can specify "-1" for
+		/// <param name="idleWaitTime">The idle wait time. You can specify "-1" for
 		/// the default value, which is currently 30000 ms.</param>
 		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
         public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-                                            IJobStore jobStore, long idleWaitTime,
-                                            int dbFailureRetryInterval)
+                                            IJobStore jobStore, TimeSpan idleWaitTime,
+                                            TimeSpan dbFailureRetryInterval)
         {
             CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime, dbFailureRetryInterval);
         }
@@ -227,12 +227,12 @@ namespace Quartz.Impl
 		/// <param name="threadPool">The thread pool for executing jobs</param>
 		/// <param name="jobStore">The type of job store</param>
 		/// <param name="schedulerPluginMap"></param>
-		/// <param name="idleWaitTime">The idle wait time in milliseconds. You can specify "-1" for
+		/// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
 		/// the default value, which is currently 30000 ms.</param>
 		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
 		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-                                            IJobStore jobStore, IDictionary schedulerPluginMap, long idleWaitTime,
-		                                    int dbFailureRetryInterval)
+                                            IJobStore jobStore, IDictionary schedulerPluginMap, TimeSpan idleWaitTime,
+		                                    TimeSpan dbFailureRetryInterval)
 		{
 			// Currently only one run-shell factory is available...
 			IJobRunShellFactory jrsf = new StdJobRunShellFactory();

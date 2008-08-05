@@ -30,10 +30,75 @@ using Common.Logging;
 
 using Quartz.Collection;
 using Quartz.Job;
+using Quartz.Plugin.Xml;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
+
+namespace Quartz
+{
+    /// <summary>
+    /// Attribute to use with public <see cref="TimeSpan" /> properties that
+    /// can be set with Quartz configuration. Attribute can be used to advice
+    /// parsing to use correct type of time span (milliseconds, seconds, minutes, hours)
+    /// as it may depend on property.
+    /// </summary>
+    /// <seealso cref="TimeSpanParseRuleAttribute" />
+    public class TimeSpanParseRuleAttribute : Attribute
+    {
+        private readonly TimeSpanParseRule rule;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TimeSpanParseRuleAttribute"/> class.
+        /// </summary>
+        /// <param name="rule">The rule.</param>
+        public TimeSpanParseRuleAttribute(TimeSpanParseRule rule)
+        {
+            this.rule = rule;
+        }
+
+        /// <summary>
+        /// Gets the rule.
+        /// </summary>
+        /// <value>The rule.</value>
+        public TimeSpanParseRule Rule
+        {
+            get { return rule; }
+        }
+    }
+
+    /// <summary>
+    /// Possible parse rules for <see cref="TimeSpan" />s.
+    /// </summary>
+    public enum TimeSpanParseRule
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        Milliseconds = 0,
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        Seconds = 1,
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        Minutes = 2,
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        Hours = 3,
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        Days = 3
+    }
+}
 
 namespace Quartz.Plugin.Xml
 {
@@ -65,7 +130,7 @@ namespace Quartz.Plugin.Xml
         private bool useContextClassLoader = true;
         private bool validating = false;
         private bool validatingSchema = true;
-        private long scanInterval = 0;
+        private TimeSpan scanInterval = TimeSpan.Zero;
 
         private bool started = false;
 
@@ -125,14 +190,15 @@ namespace Quartz.Plugin.Xml
         }
 
         /// <summary> 
-        /// The interval (in seconds) at which to scan for changes to the file.  
+        /// The interval at which to scan for changes to the file.  
         /// If the file has been changed, it is re-loaded and parsed.   The default 
         /// value for the interval is 0, which disables scanning.
         /// </summary>
-        public virtual long ScanInterval
+        [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
+        public virtual TimeSpan ScanInterval
         {
-            get { return scanInterval/1000; }
-            set { scanInterval = value*1000; }
+            get { return scanInterval; }
+            set { scanInterval = value; }
         }
 
         /// <summary> 
@@ -228,7 +294,7 @@ namespace Quartz.Plugin.Xml
             {
                 if (jobFiles.Count > 0)
                 {
-                    if (scanInterval > 0)
+                    if (scanInterval > TimeSpan.Zero)
                     {
                         scheduler.Context.Put(JobInitializationPluginName + '_' + Name, this);
                     }
@@ -236,7 +302,7 @@ namespace Quartz.Plugin.Xml
                     foreach (JobFile jobFile in jobFiles.Values)
                     {
 
-                        if (scanInterval > 0)
+                        if (scanInterval > TimeSpan.Zero)
                         {
                             String jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
 
@@ -475,5 +541,4 @@ namespace Quartz.Plugin.Xml
     }
 
     }
-
 }

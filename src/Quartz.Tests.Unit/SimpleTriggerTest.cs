@@ -61,7 +61,7 @@ namespace Quartz.Tests.Unit
 
 			SimpleTrigger t = new SimpleTrigger("SimpleTrigger", "SimpleGroup",
 			                                    "JobName", "JobGroup", StartTime,
-			                                    EndTime, 5, 1000);
+			                                    EndTime, 5, TimeSpan.FromSeconds(1));
 			t.CalendarName = "MyCalendar";
 			t.Description = "SimpleTriggerDesc";
 			t.JobDataMap = jobDataMap;
@@ -137,10 +137,10 @@ namespace Quartz.Tests.Unit
 		{
 			SimpleTrigger simpleTrigger = new SimpleTrigger();
 
-			DateTime startTime = TriggerUtils.GetEvenSecondDate(DateTime.Now);
+			DateTime startTime = TriggerUtils.GetEvenSecondDate(DateTime.UtcNow);
 
 			simpleTrigger.StartTimeUtc = startTime;
-			simpleTrigger.RepeatInterval = 10;
+			simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
 			simpleTrigger.RepeatCount = 4;
 
             NullableDateTime fireTimeAfter;
@@ -246,7 +246,7 @@ namespace Quartz.Tests.Unit
         {
             DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
             SimpleTrigger simpleTrigger = new SimpleTrigger();
-            simpleTrigger.RepeatInterval = 10;
+            simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
             simpleTrigger.RepeatCount = 1;
             DateTime neverFireTime = TriggerUtils.GetEvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(DateTime.Now)); 
             simpleTrigger.StartTimeUtc = neverFireTime;

@@ -50,7 +50,7 @@ namespace Quartz.Examples.Example9
 			
 			// schedule a job to run immediately
 			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob1));
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", DateTime.UtcNow, null, 0, 0);
+			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", DateTime.UtcNow, null, 0, TimeSpan.Zero);
 			
 			// Set up the listener
 			IJobListener listener = new Job1Listener();
@@ -73,7 +73,7 @@ namespace Quartz.Examples.Example9
 			try
 			{
 				// wait 30 seconds to show jobs
-				Thread.Sleep(30 * 1000);
+				Thread.Sleep(TimeSpan.FromSeconds(30));
 				// executing...
 			}
             catch (ThreadInterruptedException)

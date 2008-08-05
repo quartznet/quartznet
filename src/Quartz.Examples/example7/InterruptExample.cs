@@ -37,7 +37,7 @@ namespace Quartz.Examples.Example7
 	/// time the jobs complete their execution, the triggers have already "misfired"
 	/// (unless the scheduler's "misfire threshold" has been set to more than 7
 	/// seconds). You should see that one of the jobs has its misfire instruction
-	/// set to <see cref="SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT" />-
+	/// set to <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />-
 	/// which causes it to fire immediately, when the misfire is detected. The other
 	/// trigger uses the default "smart policy" misfire instruction, which causes
 	/// the trigger to advance to its next fire time (skipping those that it has
@@ -73,9 +73,9 @@ namespace Quartz.Examples.Example7
 			DateTime ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
 			
 			JobDetail job = new JobDetail("interruptableJob1", "group1", typeof(DumbInterruptableJob));
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, 5000L);
+			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(5));
 			DateTime ft = sched.ScheduleJob(job, trigger);
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			
 			// start up the scheduler (jobs do not start to fire until
 			// the scheduler has been started)

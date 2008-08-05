@@ -343,8 +343,7 @@ namespace Quartz.Core
         /// properties.
         /// </summary>
         /// <seealso cref="QuartzSchedulerResources" />
-        public QuartzScheduler(QuartzSchedulerResources resources, SchedulingContext ctxt, long idleWaitTime,
-                               int dbRetryInterval)
+        public QuartzScheduler(QuartzSchedulerResources resources, SchedulingContext ctxt, TimeSpan idleWaitTime, TimeSpan dbRetryInterval)
         {
             Log = LogManager.GetLogger(GetType());
             this.resources = resources;
@@ -354,15 +353,15 @@ namespace Quartz.Core
             }
             catch (Exception re)
             {
-                throw new SchedulerException("Unable to bind scheduler to RMI Registry.", re);
+                throw new SchedulerException("Unable to bind scheduler to remoting context.", re);
             }
 
             schedThread = new QuartzSchedulerThread(this, resources, ctxt);
-            if (idleWaitTime > 0)
+            if (idleWaitTime > TimeSpan.Zero)
             {
                 schedThread.IdleWaitTime = idleWaitTime;
             }
-            if (dbRetryInterval > 0)
+            if (dbRetryInterval > TimeSpan.Zero)
             {
                 schedThread.DbFailureRetryInterval = dbRetryInterval;
             }
@@ -906,7 +905,7 @@ namespace Quartz.Core
 
             Trigger trig =
                 new SimpleTrigger(NewTriggerId(), SchedulerConstants.DefaultManualTriggers, jobName, groupName, DateTime.UtcNow,
-                                  null, 0, 0);
+                                  null, 0, TimeSpan.Zero);
             trig.Volatile = false;
             trig.ComputeFirstFireTimeUtc(null);
             if (data != null)
@@ -948,7 +947,7 @@ namespace Quartz.Core
 
             Trigger trig =
                 new SimpleTrigger(NewTriggerId(), SchedulerConstants.DefaultManualTriggers, jobName, groupName, DateTime.UtcNow,
-                                  null, 0, 0);
+                                  null, 0, TimeSpan.Zero);
             trig.Volatile = true;
             trig.ComputeFirstFireTimeUtc(null);
             if (data != null)

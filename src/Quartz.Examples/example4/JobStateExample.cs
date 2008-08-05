@@ -55,18 +55,18 @@ namespace Quartz.Examples.Example4
 			
 			// job1 will only run 5 times, every 10 seconds
 			JobDetail job1 = new JobDetail("job1", "group1", typeof(ColorJob));
-			SimpleTrigger trigger1 = new SimpleTrigger("trigger1", "group1", "job1", "group1", ts, null, 4, 10000);
+			SimpleTrigger trigger1 = new SimpleTrigger("trigger1", "group1", "job1", "group1", ts, null, 4, TimeSpan.FromSeconds(10));
 			// pass initialization parameters into the job
 			job1.JobDataMap.Put(ColorJob.FAVORITE_COLOR, "Green");
 			job1.JobDataMap.Put(ColorJob.EXECUTION_COUNT, 1);
 			
 			// schedule the job to run
 			DateTime scheduleTime1 = sched.ScheduleJob(job1, trigger1);
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job1.FullName, scheduleTime1.ToString("r"), trigger1.RepeatCount, (trigger1.RepeatInterval / 1000)));
+            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job1.FullName, scheduleTime1.ToString("r"), trigger1.RepeatCount, trigger1.RepeatInterval.TotalSeconds));
 			
 			// job2 will also run 5 times, every 10 seconds
 			JobDetail job2 = new JobDetail("job2", "group1", typeof(ColorJob));
-			SimpleTrigger trigger2 = new SimpleTrigger("trigger2", "group1", "job2", "group1", ts.AddSeconds(1), null, 4, 10000);
+			SimpleTrigger trigger2 = new SimpleTrigger("trigger2", "group1", "job2", "group1", ts.AddSeconds(1), null, 4, TimeSpan.FromSeconds(10));
 			// pass initialization parameters into the job
 			// this job has a different favorite color!
 			job2.JobDataMap.Put(ColorJob.FAVORITE_COLOR, "Red");
@@ -74,7 +74,7 @@ namespace Quartz.Examples.Example4
 			
 			// schedule the job to run
 			DateTime scheduleTime2 = sched.ScheduleJob(job2, trigger2);
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job1.FullName, scheduleTime1.ToString("r"), trigger1.RepeatCount, (trigger1.RepeatInterval / 1000)));
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job2.FullName, scheduleTime2.ToString("r"), trigger2.RepeatCount, trigger2.RepeatInterval.TotalSeconds));
 			
 			
 			
@@ -93,7 +93,7 @@ namespace Quartz.Examples.Example4
 				Thread.Sleep(300 * 1000);
 				// executing...
 			}
-			catch (Exception)
+			catch (ThreadInterruptedException)
 			{
 			}
 			

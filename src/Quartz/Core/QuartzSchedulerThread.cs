@@ -61,11 +61,11 @@ namespace Quartz.Core
 
         // When the scheduler finds there is no current trigger to fire, how long
         // it should wait until checking again...
-        private const long DefaultIdleWaitTime = 30*1000;
+        private static readonly TimeSpan DefaultIdleWaitTime = TimeSpan.FromSeconds(30);
 
-        private long idleWaitTime = DefaultIdleWaitTime;
+        private TimeSpan idleWaitTime = DefaultIdleWaitTime;
         private int idleWaitVariablness = 7*1000;
-        private int dbFailureRetryInterval = 15*1000;
+        private TimeSpan dbFailureRetryInterval = TimeSpan.FromSeconds(15);
 
 
         /// <summary>
@@ -89,12 +89,13 @@ namespace Quartz.Core
         /// Sets the idle wait time.
         /// </summary>
         /// <value>The idle wait time.</value>
-        internal virtual long IdleWaitTime
+        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+        internal virtual TimeSpan IdleWaitTime
         {
             set
             {
                 idleWaitTime = value;
-                idleWaitVariablness = (int) (value*0.2);
+                idleWaitVariablness = (int) (value.TotalMilliseconds*0.2);
             }
         }
 
@@ -102,9 +103,9 @@ namespace Quartz.Core
         /// Gets the randomized idle wait time.
         /// </summary>
         /// <value>The randomized idle wait time.</value>
-        private long GetRandomizedIdleWaitTime()
+        private TimeSpan GetRandomizedIdleWaitTime()
         {
-            return idleWaitTime - random.Next(idleWaitVariablness);
+            return idleWaitTime.Add(TimeSpan.FromMilliseconds(random.Next(idleWaitVariablness)));
         }
 
         /// <summary>
@@ -154,7 +155,8 @@ namespace Quartz.Core
         /// Gets or sets the db failure retry interval.
         /// </summary>
         /// <value>The db failure retry interval.</value>
-        public int DbFailureRetryInterval
+        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+        public TimeSpan DbFailureRetryInterval
         {
             get { return dbFailureRetryInterval; }
             set { dbFailureRetryInterval = value; }
@@ -291,8 +293,7 @@ namespace Quartz.Core
                         ClearSignaledSchedulingChange();
                         try
                         {
-                            trigger = qsRsrcs.JobStore.AcquireNextTrigger(
-                                ctxt, now.AddMilliseconds(idleWaitTime));
+                            trigger = qsRsrcs.JobStore.AcquireNextTrigger(ctxt, now.Add(idleWaitTime));
                             lastAcquireFailed = false;
                         }
                         catch (JobPersistenceException jpe)
@@ -319,7 +320,7 @@ namespace Quartz.Core
                         {
                             now = DateTime.UtcNow;
                             DateTime triggerTime = trigger.GetNextFireTimeUtc().Value;
-                            long timeUntilTrigger = (long) (triggerTime - now).TotalMilliseconds;
+                            TimeSpan timeUntilTrigger =  triggerTime - now;
                             spinInterval = 10;
 
                             // this looping may seem a bit silly, but it's the
@@ -333,7 +334,7 @@ namespace Quartz.Core
                             // timeUntilTrigger, we spin here... don't worry
                             // though, this spinning
                             // doesn't even register 0.2% cpu usage on a pentium 4.
-                            numPauses = (timeUntilTrigger/spinInterval);
+                            numPauses = (long) timeUntilTrigger.TotalMilliseconds / spinInterval;
                             while (numPauses >= 0)
                             {
                                 try
@@ -378,8 +379,8 @@ namespace Quartz.Core
                                 }
 
                                 now = DateTime.UtcNow;
-                                timeUntilTrigger = (long) (triggerTime - now).TotalMilliseconds;
-                                numPauses = (timeUntilTrigger/spinInterval);
+                                timeUntilTrigger = triggerTime - now;
+                                numPauses = (long) timeUntilTrigger.TotalMilliseconds / spinInterval;
                             }
                         
                             if (trigger == null)
@@ -523,10 +524,10 @@ namespace Quartz.Core
                     // CPU usage of this spinning can't even be measured on a pentium
                     // 4.
                     now = DateTime.UtcNow;
-                    DateTime waitTime = now.AddMilliseconds(GetRandomizedIdleWaitTime());
-                    long timeUntilContinue = (long) (waitTime - now).TotalMilliseconds;
+                    DateTime waitTime = now.Add(GetRandomizedIdleWaitTime());
+                    TimeSpan timeUntilContinue = waitTime - now;
                     spinInterval = 10;
-                    numPauses = (timeUntilContinue/spinInterval);
+                    numPauses = (long) timeUntilContinue.TotalMilliseconds / spinInterval;
 
                     while (numPauses > 0)
                     {
@@ -542,8 +543,8 @@ namespace Quartz.Core
                         {
                         }
                         now = DateTime.UtcNow;
-                        timeUntilContinue = (long) (waitTime - now).TotalMilliseconds;
-                        numPauses = (timeUntilContinue/spinInterval);
+                        timeUntilContinue = waitTime - now;
+                        numPauses = (long) timeUntilContinue.TotalMilliseconds / spinInterval;
                     }
                 }
                 catch (Exception re)

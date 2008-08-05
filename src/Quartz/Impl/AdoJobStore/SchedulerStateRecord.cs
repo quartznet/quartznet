@@ -31,13 +31,13 @@ namespace Quartz.Impl.AdoJobStore
 	{
 		private string schedulerInstanceId;
         private DateTime checkinTimestamp;
-		private long checkinInterval;
+		private TimeSpan checkinInterval;
 
 		/// <summary>
 		/// Gets or sets the checkin interval.
 		/// </summary>
 		/// <value>The checkin interval.</value>
-		public virtual long CheckinInterval
+		public virtual TimeSpan CheckinInterval
 		{
 			get { return checkinInterval; }
 			set { checkinInterval = value; }

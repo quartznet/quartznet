@@ -63,7 +63,7 @@ namespace Quartz.Simpl
 		private readonly HashSet pausedTriggerGroups = new HashSet();
         private readonly HashSet pausedJobGroups = new HashSet();
         private readonly HashSet blockedJobs = new HashSet();
-		private long misfireThreshold = 5000L;
+		private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
 		private ISchedulerSignaler signaler;
 		
 		private readonly ILog log;
@@ -78,16 +78,17 @@ namespace Quartz.Simpl
 	    }
 
 	    /// <summary> 
-		/// The the number of milliseconds by which a trigger must have missed its
+		/// The time span by which a trigger must have missed its
 		/// next-fire-time, in order for it to be considered "misfired" and thus
 		/// have its misfire instruction applied.
 		/// </summary>
-		public virtual long MisfireThreshold
+		[TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+		public virtual TimeSpan MisfireThreshold
 		{
 			get { return misfireThreshold; }
 			set
 			{
-				if (value < 1)
+				if (value.TotalMilliseconds < 1)
 				{
 					throw new ArgumentException("Misfirethreashold must be larger than 0");
 				}
@@ -1208,9 +1209,9 @@ namespace Quartz.Simpl
 		protected internal virtual bool ApplyMisfire(TriggerWrapper tw)
 		{
 			DateTime misfireTime = DateTime.UtcNow;
-			if (MisfireThreshold > 0)
+			if (MisfireThreshold > TimeSpan.Zero)
 			{
-				misfireTime = misfireTime.AddMilliseconds(-1 *MisfireThreshold);
+				misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
 			}
 
             NullableDateTime tnft = tw.trigger.GetNextFireTimeUtc();

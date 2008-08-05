@@ -36,7 +36,7 @@ namespace Quartz.Examples.Example5
 	/// time the jobs complete their execution, the triggers have already "misfired"
 	/// (unless the scheduler's "misfire threshold" has been set to more than 7
 	/// seconds). You should see that one of the jobs has its misfire instruction
-	/// set to <see cref="SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT" />,
+	/// set to <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />,
 	/// which causes it to fire immediately, when the misfire is detected. The other
 	/// trigger uses the default "smart policy" misfire instruction, which causes
 	/// the trigger to advance to its next fire time (skipping those that it has
@@ -78,20 +78,20 @@ namespace Quartz.Examples.Example5
 			JobDetail job = new JobDetail("statefulJob1", "group1", typeof(StatefulDumbJob));
 			job.JobDataMap.Put(MisfireJob.EXECUTION_DELAY, 10);
 			
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, 3000L);
+			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
 			DateTime ft = sched.ScheduleJob(job, trigger);
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			
 			// statefulJob2 will run every three seconds
 			// (but it will delay for ten seconds)
 			job = new JobDetail("statefulJob2", "group1", typeof(StatefulDumbJob));
 			job.JobDataMap.Put(MisfireJob.EXECUTION_DELAY, 10);
 
-			trigger = new SimpleTrigger("trigger2", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, 3000L);
+			trigger = new SimpleTrigger("trigger2", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
             trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
 			ft = sched.ScheduleJob(job, trigger);
 
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, (trigger.RepeatInterval / 1000)));
+            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			
 			log.Info("------- Starting Scheduler ----------------");
 			
@@ -103,7 +103,7 @@ namespace Quartz.Examples.Example5
 			try
 			{
 				// sleep for ten minutes for triggers to file....
-				Thread.Sleep(600 * 1000);
+				Thread.Sleep(TimeSpan.FromMinutes(10));
 			}
             catch (ThreadInterruptedException)
 			{
