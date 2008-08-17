@@ -280,7 +280,13 @@ namespace Quartz.Xml
 
 	            JobDetail jd = new JobDetail(j.name, j.group, jobType, j.@volatile, j.durable, j.recover);
 	            jd.Description = j.description;
-	            jsb.JobDetail = jd;
+
+                if (j.joblistenerref != null && j.joblistenerref.Trim().Length > 0)
+                {
+                    jd.AddJobListener(j.joblistenerref);
+                }
+                
+                jsb.JobDetail = jd;
 
                 // read job data map
                 if (j.jobdatamap != null && j.jobdatamap.entry != null)

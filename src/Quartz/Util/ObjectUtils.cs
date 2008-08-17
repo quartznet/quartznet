@@ -141,10 +141,15 @@ namespace Quartz.Util
 				{
 					if (pi == null)
 					{
-						throw new MethodAccessException(string.Format(CultureInfo.InvariantCulture, "No property '{0}'", propertyName));
+						throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "No property '{0}'", propertyName));
 					}
 					
 					MethodInfo mi = pi.GetSetMethod();
+
+                    if (mi == null)
+                    {
+                        throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "Property '{0}' has no setter", propertyName));
+                    }
 
 					object value = props[name];
 
