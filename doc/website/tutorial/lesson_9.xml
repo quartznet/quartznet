@@ -39,20 +39,12 @@ of Quartz.NET uses RAMJobStore as job store implementation.
 <h2>ADO.NET Job Store (AdoJobStore)</h2>
 
 <p>
-<strong>
-ADO.NET based job store is still experimental and may contain bugs. <br />
-AdoJobStore is available from version 0.6 onwards.
-</strong>
-</p>
-
-<p>
 AdoJobStore is also aptly named - it keeps all of its data in a database via ADO.NET. 
 Because of this it is a bit more complicated to configure than RAMJobStore, and it also is not as fast. 
 However, the performance draw-back is not terribly bad, especially if you build the database tables with indexes on the primary keys. 
 </p>
 
 <p>
-<!-- AdoJobStore works with nearly any database, it has been used widely with Oracle, MySQL, MS SQLServer2000, HSQLDB, PostreSQL and DB2.  -->
 To use AdoJobStore, you must first create a set of database tables for Quartz.NET to use. 
 You can find table-creation SQL scripts in the "database/dbtables" directory of the Quartz.NET distribution. 
 If there is not already a script for your database type, just look at one of the existing ones, and modify it in any way necessary for your DB. 
@@ -73,12 +65,6 @@ You need to decide what type of transactions your application needs. If you don'
 JobStoreTX as your JobStore (this is the most common selection).
 -->
 </p>
-
-<!--
-<p>
-If you need Quartz to work along with other transactions (i.e. within a J2EE application server), then you should use JobStoreCMT - in which case Quartz will let the app server container manage the transactions.
-</p>
--->
 
 <p>
 The last piece of the puzzle is setting up a data source from which AdoJobStore can get connections to your database. 
@@ -105,9 +91,6 @@ The DriverDelegate is responsible for doing any ADO.NET work that may be needed 
 StdAdoDelegate is a delegate that uses "vanilla" ADO.NET code (and SQL statements) to do its work. 
 If there isn't another delegate made specifically for your database, try using this delegate - we've only made database-specific delegates for databases
 that we've found problems using StdAdoDelegate with (which seems to be most . Other delegates can be found in the "Quartz.Impl.AdoJobStore" namespace, or in its sub-namespaces. 
-<!-- 
-Other delegates include DB2v6Delegate (for DB2 version 6 and earlier), HSQLDBDelegate (for HSQLDB), MSSQLDelegate (for microsoft SQLServer 2000), PostgreSQLDelegate (for PostgreSQL 7.x), WeblogicDelegate (for using JDBC drivers made by Weblogic), and OracleDelegate (for using Oracle 8i and 9i).
--->
 </p>
 
 <p>
@@ -160,8 +143,9 @@ Currently following database providers are supported:
 	<li>MySql-109 - MySQL Connector/.NET v. 1.0.9 </li>
 	<li>MySql-50 - MySQL Connector/.NET v. 5.0 (.NET 2.0)</li>
 	<li>MySql-51 - MySQL Connector/:NET v. 5.1 (.NET 2.0)</li>
-	<li>SQLite-1044 - SQLite ADO.NET 2.0 Provider v. 1.0.44 (.NET 2.0)</li>
+	<li>SQLite-10 - SQLite ADO.NET 2.0 Provider v. 1.0.56 (.NET 2.0)</li>
 	<li>Firebird-201 - Firebird ADO.NET 2.0 Provider v. 2.0.1 (.NET 2.0)</li>
+	<li>Firebird-210 - Firebird ADO.NET 2.0 Provider v. 2.1.0 (.NET 2.0)</li>
 </ul>
 </p>
 

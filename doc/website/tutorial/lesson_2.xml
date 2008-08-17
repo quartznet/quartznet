@@ -72,7 +72,7 @@ Jobs and Triggers are given identifying names as they are registered with the Qu
 Jobs and triggers can also be placed into 'groups' which can be useful for organizing your jobs and triggers 
 into categories for later maintenance. The name of a job or trigger must be unique within its group - or in other
 words, the true identifier of a job or trigger is its name + group. If you leave the group of the 
-Job or Trigger 'null', it is equivalent to having specified Scheduler_Fields.DEFAULT_GROUP.
+Job or Trigger 'null', it is equivalent to having specified SchedulerConstants.DefaultGroup.
 </p> 
 <p> 
 You now have a general idea about what Jobs and Triggers are, you can learn more about them in 

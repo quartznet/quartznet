@@ -23,21 +23,21 @@ only a couple special notes related to the end-time property.
 </p>
 
 <p>
-The repeat count can be zero, a positive integer, or the constant value SimpleTrigger.REPEAT_INDEFINITELY. 
-The repeat interval property must be zero, or a positive long value, and represents a number of milliseconds. 
+The repeat count can be zero, a positive integer, or the constant value SimpleTrigger.RepeatIndefinitely. 
+The repeat interval property must be TimeSpan.Zero, or a positive TimeSpan value. 
 Note that a repeat interval of zero will cause 'repeat count' firings of the trigger to happen concurrently 
 (or as close to concurrently as the scheduler can manage).
 </p>
 
 <p>
 If you're not already familiar with the DateTime class, you may find it helpful for computing your trigger fire-times, 
-depending on the startTime (or endTime) that you're trying to create. The TriggerUtils class is also helpful in this respect.
+depending on the startTimeUtc (or endTimeUtc) that you're trying to create. The TriggerUtils class is also helpful in this respect.
 </p>
 
 <p>
-The endTime property (if it is specified) over-rides the repeat count property. This can be useful if you wish to create a trigger
+The EndTimeUtc property (if it is specified) over-rides the repeat count property. This can be useful if you wish to create a trigger
 such as one that fires every 10 seconds until a given moment in time - rather than having to compute the number of times it would 
-repeat between the start-time and the end-time, you can simply specify the end-time and then use a repeat count of REPEAT_INDEFINITELY 
+repeat between the start-time and the end-time, you can simply specify the end-time and then use a repeat count of RepeatIndefinitely 
 (you could even specify a repeat count of some huge number that is sure to be more than the number of times the trigger will actually 
 fire before the end-time arrives).
 </p>
@@ -53,7 +53,7 @@ public SimpleTrigger(string name,
                        DateTime startTimeUtc,
                        NullableDateTime endTime endTimeUtc, 
                        int repeatCount, 
-                       long repeatInterval)
+                       TimeSpan repeatInterval)
 </pre>
 
 <strong>SimpleTrigger Example 1 - Create a trigger that fires exactly once, ten seconds from now</strong>
@@ -63,7 +63,7 @@ SimpleTrigger trigger = new SimpleTrigger("myTrigger",
                                           DateTime.UtcNow.AddSeconds(10),
                                           null,
                                           0,
-                                          0L); 
+                                          TimeSpan.Zero); 
 </pre>
 
 
@@ -74,7 +74,7 @@ SimpleTrigger trigger2 = new SimpleTrigger("myTrigger",
                                 DateTime.UtcNow,
                                 null,
                                 SimpleTrigger.RepeatIndefinitely,
-                                60 * 1000); 
+                                TimeSpan.FromSeconds(60)); 
 </pre>
 
 <strong>SimpleTrigger Example 3 - Create a trigger that fires immediately, then repeats every 10 seconds until 40 seconds from now</strong>
@@ -84,7 +84,7 @@ SimpleTrigger trigger = new SimpleTrigger("myTrigger",
                                           DateTime.UtcNow,
                                           DateTime.UtcNow.AddSeconds(40),
                                           SimpleTrigger.RepeatIndefinitely,
-                                          10 * 1000);
+                                          TimeSpan.FromSeconds(10));
 </pre>
 
 <strong>
@@ -99,7 +99,7 @@ SimpleTrigger trigger = new SimpleTrigger("myTrigger",
                                           startTime,
                                           null,
                                           5,
-                                          30 * 1000);
+                                          TimeSpan.FromSeconds(30));
 </pre>
 
 <p>
