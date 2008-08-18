@@ -178,9 +178,10 @@ a trigger attempts to 'fire' the job while it is already executing, the trigger 
 </p>
 
 <p>
-You 'mark' a Job as stateful by having it implement the StatefulJob interface, rather than the Job interface.
-Job 'Instances'
+You 'mark' a Job as stateful by having it implement the IStatefulJob interface, rather than the IJob interface.
 </p>
+
+<h2>Job 'Instances'</h2>
 
 <p>
 One final point on this topic that may or may not be obvious by now: You can create a single job class, and store many 
