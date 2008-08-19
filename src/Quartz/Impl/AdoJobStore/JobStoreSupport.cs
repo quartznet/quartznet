@@ -3803,6 +3803,7 @@ namespace Quartz.Impl.AdoJobStore
                                         new SimpleTrigger(
                                             "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++, CultureInfo.InvariantCulture),
                                             SchedulerConstants.DefaultRecoveryGroup, tempAux);
+                                    rcvryTrig.Volatile = ftRec.TriggerIsVolatile;
                                     rcvryTrig.JobName = jKey.Name;
                                     rcvryTrig.JobGroup = jKey.Group;
                                     rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;

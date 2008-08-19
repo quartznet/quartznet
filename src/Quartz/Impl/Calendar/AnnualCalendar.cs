@@ -91,6 +91,12 @@ namespace Quartz.Impl.Calendar
 
         protected virtual bool IsDateTimeExcluded(DateTime day)
         {
+            // Check baseCalendar first
+            if (!base.IsTimeIncluded(day))
+            {
+                return true;
+            } 
+
             int dmonth = day.Month;
             int dday = day.Day;
 

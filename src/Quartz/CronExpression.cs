@@ -173,7 +173,9 @@ namespace Quartz
     /// Other examples: &quot;2#1&quot; = the first Monday of the month and 
     /// &quot;4#5&quot; = the fifth Wednesday of the month. Note that if you specify
     /// &quot;#5&quot; and there is not 5 of the given day-of-week in the month, then
-    /// no firing will occur that month.
+    /// no firing will occur that month. If the '#' character is used, there can
+    /// only be one expression in the day-of-week field (&quot;3#1,6#3&quot; is 
+    /// not valid, since there are two expressions).
     /// </p>
     /// <p>
     /// <!--The 'C' character is allowed for the day-of-month and day-of-week fields.

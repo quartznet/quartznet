@@ -188,6 +188,7 @@ namespace Quartz
     [Serializable]
 	public class CronTrigger : Trigger
 	{
+        private const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx = null;
 		private DateTime startTimeUtc = DateTime.MinValue;
         private NullableDateTime endTimeUtc = null;
@@ -815,25 +816,38 @@ namespace Quartz
 		{
 			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-			DateTime now = DateTime.UtcNow;
-			do
-			{
-				while (nextFireTimeUtc.HasValue && calendar != null
-				       && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
-				{
-					nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
-				}
+            if (!nextFireTimeUtc.HasValue || calendar == null)
+            {
+                return;
+            }
 
-				if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < (now))
-				{
-					TimeSpan diff = now - nextFireTimeUtc.Value;
-					if (diff >= misfireThreshold)
-					{
-						nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
-						continue;
-					}
-				}
-			} while (false);
+			DateTime now = DateTime.UtcNow;
+
+			while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+			{
+				nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+                if (!nextFireTimeUtc.HasValue)
+                {
+                    break;
+                }
+
+                // avoid infinite loop
+                if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+                {
+                    nextFireTimeUtc = null;
+                }
+
+			    if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < (now))
+			    {
+				    TimeSpan diff = now - nextFireTimeUtc.Value;
+				    if (diff >= misfireThreshold)
+				    {
+					    nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+					    continue;
+				    }
+			    }
+            }
 		}
 
 

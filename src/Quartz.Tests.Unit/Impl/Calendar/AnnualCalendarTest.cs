@@ -97,6 +97,42 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         }
 
         /// <summary>
+        /// QUARTZ-679 Test if the annualCalendar works over years.
+        /// </summary>
+        [Test]
+        public void TestDaysExcludedOverTime() 
+        {
+            AnnualCalendar annualCalendar = new AnnualCalendar();
+
+            DateTime day = new DateTime(2005, 6, 23);
+            annualCalendar.SetDayExcluded(day, true);
+            
+            day = new DateTime(2008, 2, 1);
+    	    annualCalendar.SetDayExcluded(day, true);
+
+            Assert.IsTrue(annualCalendar.IsDayExcluded(day), "The day 1 February is expected to be excluded but it is not");    	
+        }
+
+        /// <summary>
+        /// Part 2 of the tests of QUARTZ-679
+        /// </summary>
+        [Test]
+        public void TestRemoveInTheFuture() 
+        {
+            AnnualCalendar annualCalendar = new AnnualCalendar();
+
+            DateTime day = new DateTime(2005, 6, 23);
+            annualCalendar.SetDayExcluded(day, true);
+
+    	    // Trying to remove the 23th of June
+            day = new DateTime(2008, 6, 23);
+            annualCalendar.SetDayExcluded(day, false);
+
+            Assert.IsFalse(annualCalendar.IsDayExcluded(day), "The day 23 June is not expected to be excluded but it is");
+        }
+
+
+        /// <summary>
         /// Get the object to serialize when generating serialized file for future
         /// tests, and against which to validate deserialized object.
         /// </summary>
