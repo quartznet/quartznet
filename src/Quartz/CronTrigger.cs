@@ -428,14 +428,16 @@ namespace Quartz
 		{
 			set
 			{
+			    TimeZone orginalTimeZone = TimeZone;
 				cronEx = new CronExpression(value);
-				cronEx.TimeZone = TimeZone;
+				cronEx.TimeZone = orginalTimeZone;
 			}
 			get { return cronEx == null ? null : cronEx.CronExpressionString; }
 		}
 
 		/// <summary>
-		/// Sets the cron expression.
+		/// Set the CronExpression to the given one.  The TimeZone on the passed-in
+        /// CronExpression over-rides any that was already set on the Trigger.
 		/// </summary>
 		/// <value>The cron expression.</value>
 		public CronExpression CronExpression
@@ -548,8 +550,16 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Gets or sets the time zone.
-		/// </summary>
+		/// Sets the time zone for which the <code>cronExpression</code> of this
+        /// <code>CronTrigger</code> will be resolved.
+        /// </summary>
+        /// <remarks>
+        /// If <see cref="CronTrigger.CronExpression" /> is set after this
+        /// property, the TimeZone setting on the CronExpression will "win".  However
+        /// if <see cref="CronExpressionString" /> is set after this property, the
+        /// time zone applied by this method will remain in effect, since the 
+        /// string cron expression does not carry a time zone!
+        /// </remarks>
 		/// <value>The time zone.</value>
 		public TimeZone TimeZone
 		{
