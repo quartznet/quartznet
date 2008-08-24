@@ -282,7 +282,7 @@ namespace Quartz.Core
                     }
 
                     int availTreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
-                    if (availTreadCount > 0)
+                    if (availTreadCount > 0) // will always be true, due to semantics of blockForAvailableThreads...
                     {
                         Trigger trigger = null;
 
@@ -320,7 +320,7 @@ namespace Quartz.Core
                             DateTime triggerTime = trigger.GetNextFireTimeUtc().Value;
                             TimeSpan timeUntilTrigger =  triggerTime - now;
 
-                            if (timeUntilTrigger.TotalMilliseconds > 5) 
+                            while (timeUntilTrigger > TimeSpan.Zero) 
                             {
 	                            lock (sigLock) 
                                 {
@@ -361,10 +361,17 @@ namespace Quartz.Core
                                                 ReleaseTriggerRetryLoop(trigger);
                                             }
                                             trigger = null;
-                                            continue;
+                                            break;
                                         }
                                     }
                                 }
+                                now = DateTime.UtcNow;
+                                timeUntilTrigger = triggerTime - now;
+                            }
+
+                            if (trigger == null)
+                            {
+                                continue;
                             }
                                               
                             // set trigger to 'executing'
@@ -558,7 +565,7 @@ namespace Quartz.Core
                 {
 				    // so the new time is considered earlier, but is it enough earlier?
 				    TimeSpan diff = DateTime.UtcNow - oldTimeUtc;
-				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(120) : TimeSpan.FromMilliseconds(10)))
+				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(90) : TimeSpan.FromMilliseconds(7)))
 				    {
 				        earlier = false;
 				    }
