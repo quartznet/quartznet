@@ -168,7 +168,7 @@ namespace Quartz
 		/// <see cref="JobDetail" /> and the one found on the <see cref="Trigger" />, with 
 		/// the value in the latter overriding any same-named values in the former.
 		/// <i>It is thus considered a 'best practice' that the Execute code of a Job
-		/// retrieve data from the JobDataMap found on this object</i>
+		/// retrieve data from the JobDataMap found on this object.</i>
 		/// </p>
 		/// 
 		/// <p>NOTE: Do not expect value 'set' into this JobDataMap to somehow be 

@@ -177,7 +177,7 @@ namespace Quartz.Core
                 }
                 else
                 {
-                    Monitor.Pulse(sigLock);
+                    Monitor.PulseAll(sigLock);
                 }
             }
         }
@@ -193,7 +193,7 @@ namespace Quartz.Core
 
                 if (paused)
                 {
-                    Monitor.Pulse(sigLock);
+                    Monitor.PulseAll(sigLock);
                 }
                 else
                 {
@@ -218,6 +218,7 @@ namespace Quartz.Core
             {
                 signaled = true;
                 signaledNextFireTimeUtc = candidateNewNextFireTimeUtc;
+                Monitor.PulseAll(sigLock);
             }
         }
 
@@ -267,7 +268,7 @@ namespace Quartz.Core
                             try
                             {
                                 // wait until togglePause(false) is called...
-                                Monitor.Wait(sigLock, 100);
+                                Monitor.Wait(sigLock, 1000);
                             }
                             catch (ThreadInterruptedException)
                             {
@@ -281,14 +282,11 @@ namespace Quartz.Core
                     }
 
                     int availTreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
-                    DateTime now;
-                    int spinInterval;
-                    long numPauses;
                     if (availTreadCount > 0)
                     {
                         Trigger trigger = null;
 
-                        now = DateTime.UtcNow;
+                        DateTime now = DateTime.UtcNow;
 
                         ClearSignaledSchedulingChange();
                         try
@@ -321,73 +319,54 @@ namespace Quartz.Core
                             now = DateTime.UtcNow;
                             DateTime triggerTime = trigger.GetNextFireTimeUtc().Value;
                             TimeSpan timeUntilTrigger =  triggerTime - now;
-                            spinInterval = 10;
 
-                            // this looping may seem a bit silly, but it's the
-                            // current work-around
-                            // for a dead-lock that can occur if the Thread.sleep()
-                            // is replaced with
-                            // a obj.wait() that gets notified when the signal is
-                            // set...
-                            // so to be able to detect the signal change without
-                            // sleeping the entire
-                            // timeUntilTrigger, we spin here... don't worry
-                            // though, this spinning
-                            // doesn't even register 0.2% cpu usage on a pentium 4.
-                            numPauses = (long) timeUntilTrigger.TotalMilliseconds / spinInterval;
-                            while (numPauses >= 0)
+                            if (timeUntilTrigger.TotalMilliseconds > 5) 
                             {
-                                try
+	                            lock (sigLock) 
                                 {
-                                    Thread.Sleep(spinInterval);
-                                }
-                                catch (ThreadInterruptedException)
-                                {
-                                }
-
-                                if (IsScheduleChanged())
-                                {
-                                    if (IsCandidateNewTimeEarlierWithinReason(triggerTime))
+                                    try
                                     {
-                                        // above call does a clearSignaledSchedulingChange()
-                                        try
+                                        Monitor.Wait(sigLock, timeUntilTrigger);
+                                    }
+                                    catch (ThreadInterruptedException)
+                                    {
+                                    }
+
+                                    if (IsScheduleChanged())
+                                    {
+                                        if (IsCandidateNewTimeEarlierWithinReason(triggerTime))
                                         {
-                                            qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
-                                        }
-                                        catch (JobPersistenceException jpe)
-                                        {
-                                            qs.NotifySchedulerListenersError(
+                                            // above call does a clearSignaledSchedulingChange()
+                                            try
+                                            {
+                                                qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
+                                            }
+                                            catch (JobPersistenceException jpe)
+                                            {
+                                                qs.NotifySchedulerListenersError(
                                                     "An error occured while releasing trigger '"
-                                                            + trigger.FullName + "'",
+                                                    + trigger.FullName + "'",
                                                     jpe);
-                                            // db connection must have failed... keep
-                                            // retrying until it's up...
-                                            ReleaseTriggerRetryLoop(trigger);
+                                                // db connection must have failed... keep
+                                                // retrying until it's up...
+                                                ReleaseTriggerRetryLoop(trigger);
+                                            }
+                                            catch (Exception e)
+                                            {
+                                                Log.Error(
+                                                    "releaseTriggerRetryLoop: RuntimeException "
+                                                    + e.Message, e);
+                                                // db connection must have failed... keep
+                                                // retrying until it's up...
+                                                ReleaseTriggerRetryLoop(trigger);
+                                            }
+                                            trigger = null;
+                                            continue;
                                         }
-                                        catch (Exception e)
-                                        {
-                                            Log.Error(
-                                                "releaseTriggerRetryLoop: RuntimeException "
-                                                + e.Message, e);
-                                            // db connection must have failed... keep
-                                            // retrying until it's up...
-                                            ReleaseTriggerRetryLoop(trigger);
-                                        }
-                                        trigger = null;
-                                        break;
                                     }
                                 }
-
-                                now = DateTime.UtcNow;
-                                timeUntilTrigger = triggerTime - now;
-                                numPauses = (long) timeUntilTrigger.TotalMilliseconds / spinInterval;
                             }
-                        
-                            if (trigger == null)
-                            {
-                                continue;
-                            }
-                        
+                                              
                             // set trigger to 'executing'
                             TriggerFiredBundle bndle = null;
 
@@ -403,103 +382,105 @@ namespace Quartz.Core
                                     catch (SchedulerException se)
                                     {
                                         qs.NotifySchedulerListenersError(
-                                            string.Format(CultureInfo.InvariantCulture, "An error occured while firing trigger '{0}'",
+                                            string.Format(CultureInfo.InvariantCulture,
+                                                          "An error occured while firing trigger '{0}'",
                                                           trigger.FullName), se);
                                     }
                                     catch (Exception e)
                                     {
                                         Log.Error(
-                                            string.Format(CultureInfo.InvariantCulture, "RuntimeException while firing trigger {0}", trigger.FullName),
+                                            string.Format(CultureInfo.InvariantCulture,
+                                                          "RuntimeException while firing trigger {0}", trigger.FullName),
                                             e);
                                         // db connection must have failed... keep
                                         // retrying until it's up...
                                         ReleaseTriggerRetryLoop(trigger);
                                     }
                                 }
+                            }
 
-                                // it's possible to get 'null' if the trigger was paused,
-                                // blocked, or other similar occurences that prevent it being
-                                // fired at this time...  or if the scheduler was shutdown (halted)
-                                if (bndle == null)
-                                {
-                                    try
-                                    {
-                                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt,
-                                                                                trigger);
-                                    }
-                                    catch (SchedulerException se)
-                                    {
-                                        qs.NotifySchedulerListenersError(
-                                            string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'",
-                                                          trigger.FullName), se);
-                                        // db connection must have failed... keep retrying
-                                        // until it's up...
-                                        ReleaseTriggerRetryLoop(trigger);
-                                    }
-                                    continue;
-                                }
-
-                                // TODO: improvements:
-                                //
-                                // 2- make sure we can get a job runshell before firing trigger, or
-                                //   don't let that throw an exception (right now it never does,
-                                //   but the signature says it can).
-                                // 3- acquire more triggers at a time (based on num threads available?)
-
-
-                                JobRunShell shell;
+                            // it's possible to get 'null' if the trigger was paused,
+                            // blocked, or other similar occurences that prevent it being
+                            // fired at this time...  or if the scheduler was shutdown (halted)
+                            if (bndle == null)
+                            {
                                 try
                                 {
-                                    shell = qsRsrcs.JobRunShellFactory.BorrowJobRunShell();
-                                    shell.Initialize(qs, bndle);
+                                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt,
+                                                                            trigger);
                                 }
-                                catch (SchedulerException)
+                                catch (SchedulerException se)
                                 {
-                                    try
-                                    {
-                                        qsRsrcs.JobStore.TriggeredJobComplete(ctxt,
-                                                                              trigger, bndle.JobDetail,
-                                                                              SchedulerInstruction.
-                                                                                  SetAllJobTriggersError);
-                                    }
-                                    catch (SchedulerException se2)
-                                    {
-                                        qs.NotifySchedulerListenersError(
-                                            string.Format(
-                                                CultureInfo.InvariantCulture,
-                                                "An error occured while placing job's triggers in error state '{0}'",
-                                                trigger.FullName), se2);
-                                        // db connection must have failed... keep retrying
-                                        // until it's up...
-                                        ErrorTriggerRetryLoop(bndle);
-                                    }
-                                    continue;
+                                    qs.NotifySchedulerListenersError(
+                                        string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'",
+                                                      trigger.FullName), se);
+                                    // db connection must have failed... keep retrying
+                                    // until it's up...
+                                    ReleaseTriggerRetryLoop(trigger);
                                 }
+                                continue;
+                            }
 
-                                if (qsRsrcs.ThreadPool.RunInThread(shell) == false)
+                            // TODO: improvements:
+                            //
+                            // 2- make sure we can get a job runshell before firing trigger, or
+                            //   don't let that throw an exception (right now it never does,
+                            //   but the signature says it can).
+                            // 3- acquire more triggers at a time (based on num threads available?)
+
+
+                            JobRunShell shell;
+                            try
+                            {
+                                shell = qsRsrcs.JobRunShellFactory.BorrowJobRunShell();
+                                shell.Initialize(qs, bndle);
+                            }
+                            catch (SchedulerException)
+                            {
+                                try
                                 {
-                                    try
-                                    {
-                                        // this case should never happen, as it is indicative of the
-                                        // scheduler being shutdown or a bug in the thread pool or
-                                        // a thread pool being used concurrently - which the docs
-                                        // say not to do...
-                                        Log.Error("ThreadPool.runInThread() return false!");
-                                        qsRsrcs.JobStore.TriggeredJobComplete(ctxt,
-                                                                              trigger, bndle.JobDetail,
-                                                                              SchedulerInstruction.
-                                                                                  SetAllJobTriggersError);
-                                    }
-                                    catch (SchedulerException se2)
-                                    {
-                                        qs.NotifySchedulerListenersError(
-                                            string.Format(CultureInfo.InvariantCulture,
-                                                "An error occured while placing job's triggers in error state '{0}'",
-                                                trigger.FullName), se2);
-                                        // db connection must have failed... keep retrying
-                                        // until it's up...
-                                        ReleaseTriggerRetryLoop(trigger);
-                                    }
+                                    qsRsrcs.JobStore.TriggeredJobComplete(ctxt,
+                                                                          trigger, bndle.JobDetail,
+                                                                          SchedulerInstruction.
+                                                                              SetAllJobTriggersError);
+                                }
+                                catch (SchedulerException se2)
+                                {
+                                    qs.NotifySchedulerListenersError(
+                                        string.Format(
+                                            CultureInfo.InvariantCulture,
+                                            "An error occured while placing job's triggers in error state '{0}'",
+                                            trigger.FullName), se2);
+                                    // db connection must have failed... keep retrying
+                                    // until it's up...
+                                    ErrorTriggerRetryLoop(bndle);
+                                }
+                                continue;
+                            }
+
+                            if (qsRsrcs.ThreadPool.RunInThread(shell) == false)
+                            {
+                                try
+                                {
+                                    // this case should never happen, as it is indicative of the
+                                    // scheduler being shutdown or a bug in the thread pool or
+                                    // a thread pool being used concurrently - which the docs
+                                    // say not to do...
+                                    Log.Error("ThreadPool.runInThread() return false!");
+                                    qsRsrcs.JobStore.TriggeredJobComplete(ctxt,
+                                                                          trigger, bndle.JobDetail,
+                                                                          SchedulerInstruction.
+                                                                              SetAllJobTriggersError);
+                                }
+                                catch (SchedulerException se2)
+                                {
+                                    qs.NotifySchedulerListenersError(
+                                        string.Format(CultureInfo.InvariantCulture,
+                                            "An error occured while placing job's triggers in error state '{0}'",
+                                            trigger.FullName), se2);
+                                    // db connection must have failed... keep retrying
+                                    // until it's up...
+                                    ReleaseTriggerRetryLoop(trigger);
                                 }
                             }
 
@@ -512,39 +493,18 @@ namespace Quartz.Core
                         continue; // should never happen, if threadPool.blockForAvailableThreads() follows contract
                     }
 
-                    // this looping may seem a bit silly, but it's the current
-                    // work-around
-                    // for a dead-lock that can occur if the Thread.sleep() is replaced
-                    // with
-                    // a obj.wait() that gets notified when the signal is set...
-                    // so to be able to detect the signal change without sleeping the
-                    // entier
-                    // getRandomizedIdleWaitTime(), we spin here... don't worry though,
-                    // the
-                    // CPU usage of this spinning can't even be measured on a pentium
-                    // 4.
-                    now = DateTime.UtcNow;
-                    DateTime waitTime = now.Add(GetRandomizedIdleWaitTime());
-                    TimeSpan timeUntilContinue = waitTime - now;
-                    spinInterval = 10;
-                    numPauses = (long) timeUntilContinue.TotalMilliseconds / spinInterval;
-
-                    while (numPauses > 0)
+                    DateTime utcNow = DateTime.UtcNow;
+                    DateTime waitTime = utcNow.Add(GetRandomizedIdleWaitTime());
+                    TimeSpan timeUntilContinue = waitTime - utcNow;
+                    lock (sigLock) 
                     {
-                        if (IsScheduleChanged())
+                	    try 
                         {
-                            break;
-                        }
-                        try
+						    Monitor.Wait(sigLock, timeUntilContinue);
+					    } 
+                        catch (ThreadInterruptedException) 
                         {
-                            Thread.Sleep(10);
-                        }
-                        catch (ThreadInterruptedException)
-                        {
-                        }
-                        now = DateTime.UtcNow;
-                        timeUntilContinue = waitTime - now;
-                        numPauses = (long) timeUntilContinue.TotalMilliseconds / spinInterval;
+					    }
                     }
                 }
                 catch (Exception re)

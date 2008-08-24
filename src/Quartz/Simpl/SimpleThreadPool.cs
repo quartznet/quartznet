@@ -55,9 +55,9 @@ namespace Quartz.Simpl
         private readonly ArrayList busyWorkers = new ArrayList();
 
         private int count = DefaultThreadPoolSize;
-        private bool handoffPending = false;
-        private bool isShutdown = false;
-        private bool makeThreadsDaemons = false;
+        private bool handoffPending;
+        private bool isShutdown;
+        private bool makeThreadsDaemons;
         private ThreadPriority prio = ThreadPriority.Normal;
         private string threadNamePrefix = "SimpleThreadPoolWorker";
 
@@ -190,7 +190,7 @@ namespace Quartz.Simpl
                         {
                             Monitor.Wait(nextRunnableLock, 100);
                         }
-                        catch
+                        catch (ThreadInterruptedException)
                         {
                         }
                     }
@@ -207,7 +207,7 @@ namespace Quartz.Simpl
                             // application may appear to 'hang'.
                             Monitor.Wait(nextRunnableLock, 2000);
                         }
-                        catch
+                        catch (ThreadInterruptedException)
                         {
                         }
                     }
@@ -242,7 +242,7 @@ namespace Quartz.Simpl
                     {
                         Monitor.Wait(nextRunnableLock, 500);
                     }
-                    catch
+                    catch (ThreadInterruptedException)
                     {
                     }
                 }
@@ -283,7 +283,7 @@ namespace Quartz.Simpl
                     {
                         Monitor.Wait(nextRunnableLock, 500);
                     }
-                    catch
+                    catch (ThreadInterruptedException)
                     {
                     }
                 }
@@ -344,7 +344,7 @@ namespace Quartz.Simpl
             // A flag that signals the WorkerThread to terminate.
             private bool run = true;
 
-            private IThreadRunnable runnable = null;
+            private IThreadRunnable runnable;
             private readonly SimpleThreadPool tp;
 
             /// <summary>
@@ -372,13 +372,15 @@ namespace Quartz.Simpl
                 IsBackground = isDaemon;
             }
 
-            /// <summary> <p>
+            /// <summary>
             /// Signal the thread that it should terminate.
-            /// </p>
             /// </summary>
             internal virtual void Shutdown()
             {
-                run = false;
+                lock (this)
+                {
+                    run = false;
+                }
             }
 
 
@@ -401,10 +403,16 @@ namespace Quartz.Simpl
             /// </summary>
             public override void Run()
             {
-                bool runOnce = (runnable != null);
-
                 bool ran = false;
-                while (run)
+        	    bool runOnce;
+                bool shouldRun;
+                lock (this) 
+                {
+            	    runOnce = (runnable != null);
+            	    shouldRun = run;
+                }
+            
+                while (shouldRun) 
                 {
                     try
                     {
@@ -428,7 +436,10 @@ namespace Quartz.Simpl
                     }
                     finally
                     {
-                        runnable = null;
+                        lock (this)
+                        {
+                            runnable = null;
+                        }
                         // repair the thread in case the runnable mucked it up...
                         if (Priority != tp.ThreadPriority)
                         {
@@ -437,7 +448,10 @@ namespace Quartz.Simpl
 
                         if (runOnce)
                         {
-                            run = false;
+                            lock (this)
+                            {
+                                run = false;
+                            }
                         }
                         else if (ran)
                         {
@@ -446,12 +460,18 @@ namespace Quartz.Simpl
                         }
 
                     }
+                    
+                    // read value of run within synchronized block to be 
+                    // sure of its value
+                    lock (this) 
+                    {
+                	    shouldRun = run;
+                    }
                 }
 
+                
                 Log.Debug("WorkerThread is shutting down");
-
             }
-
         }
     }
 }
