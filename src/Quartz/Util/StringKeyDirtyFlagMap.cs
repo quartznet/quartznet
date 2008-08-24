@@ -22,7 +22,7 @@ using Quartz.Collection;
 namespace Quartz.Util
 {
     /// <summary>
-    /// An implementation of <code>Map</code> that wraps another <code>Map</code>
+    /// An implementation of <see cref="IDictionary" /> that wraps another <see cref="IDictionary" />
     /// and flags itself 'dirty' when it is modified, enforces that all keys are
     /// strings. 
     ///  </summary>

@@ -495,14 +495,14 @@ namespace Quartz
 
 		/// <summary>
 		/// Returns the next time at which the <see cref="Trigger" /> is scheduled to fire. If
-        /// the trigger will not fire again, <code>null</code> will be returned.  Note that
+        /// the trigger will not fire again, <see langword="null" /> will be returned.  Note that
         /// the time returned can possibly be in the past, if the time that was computed
         /// for the trigger to next fire has already arrived, but the scheduler has not yet
         /// been able to fire the trigger (which would likely be due to lack of resources
         /// e.g. threads).
         /// </summary>
         ///<remarks>
-        /// The value returned is not guaranteed to be valid until after the <code>Trigger</code>
+        /// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
         /// has been added to the scheduler.
         /// </remarks>
         /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTime, DateTime)" />
@@ -550,8 +550,8 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Sets the time zone for which the <code>cronExpression</code> of this
-        /// <code>CronTrigger</code> will be resolved.
+        /// Sets the time zone for which the <see cref="CronTrigger.CronExpression" /> of this
+        /// <see cref="CronTrigger" /> will be resolved.
         /// </summary>
         /// <remarks>
         /// If <see cref="CronTrigger.CronExpression" /> is set after this
@@ -922,7 +922,7 @@ namespace Quartz
 
 		/// <summary>
 		/// NOT YET IMPLEMENTED: Returns the time before the given time
-        /// that this <code>CronTrigger</code> will fire.
+        /// that this <see cref="CronTrigger" /> will fire.
 		/// </summary>
 		/// <param name="date">The date.</param>
 		/// <returns></returns> 

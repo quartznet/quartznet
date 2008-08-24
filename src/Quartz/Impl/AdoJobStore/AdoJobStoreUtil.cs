@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="jobName">The job name</param>
 		/// <param name="groupName">The group containing the job
 		/// </param>
-		/// <returns>A unique <code>string</code> key </returns>
+        /// <returns>A unique <see cref="string" /> key </returns>
 		internal static string GetJobNameKey(string jobName, string groupName)
 		{
 			return String.Intern(string.Format(CultureInfo.InvariantCulture, "{0}_$x$x$_{1}", groupName, jobName));
@@ -62,7 +62,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <param name="triggerName">The trigger name</param>
 		/// <param name="groupName">The group containing the trigger</param>
-		/// <returns>A unique <code>string</code> key</returns>
+        /// <returns>A unique <see cref="string" /> key</returns>
 		internal static string GetTriggerNameKey(string triggerName, string groupName)
 		{
 			return String.Intern(string.Format(CultureInfo.InvariantCulture, "{0}_$x$x$_{1}", groupName, triggerName));

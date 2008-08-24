@@ -44,7 +44,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// For <code>JobStoreTX</code>, the non-managed TX connection is just 
+        /// For <see cref="JobStoreTX" />, the non-managed TX connection is just 
         /// the normal connection because it is not CMT.
         /// </summary> 
         /// <seealso cref="JobStoreSupport.GetConnection()" />
@@ -55,7 +55,7 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Execute the given callback having optionally aquired the given lock.
-        /// For <code>JobStoreTX</code>, because it manages its own transactions
+        /// For <see cref="JobStoreTX" />, because it manages its own transactions
         /// and only has the one datasource, this is the same behavior as 
         /// <see cref="JobStoreSupport.ExecuteInNonManagedTXLock(string,JobStoreSupport.ITransactionCallback)" />.
         /// </summary>

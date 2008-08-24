@@ -14,8 +14,7 @@ namespace Quartz.Impl.AdoJobStore
     /// container-managed-transactions. No commit / rollback will be handled by this class.
     /// </summary>
     /// <remarks>
-    /// If you need commit / rollback, use <code>{@link
-    /// org.quartz.impl.jdbcjobstore.JobStoreTX}</code>
+    /// If you need commit / rollback, use <see cref="JobStoreTX" />
     /// instead.
     /// </remarks>
     /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
@@ -44,7 +43,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+        /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>

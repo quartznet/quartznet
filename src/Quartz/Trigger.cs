@@ -477,13 +477,13 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// The priority of a <code>Trigger</code> acts as a tiebreaker such that if 
-		/// two <code>Trigger</code>s have the same scheduled fire time, then the
-		/// one with the higher priority will get first access to a worker
-		/// thread.
+		/// The priority of a <see cref="Trigger" /> acts as a tie breaker such that if 
+        /// two <see cref="Trigger" />s have the same scheduled fire time, then Quartz
+        /// will do its best to give the one with the higher priority first access 
+        /// to a worker thread.
 		/// </summary>
 		/// <remarks>
-		/// If not explicitly set, the default value is <code>5</code>.
+		/// If not explicitly set, the default value is <i>5</i>.
 		/// </remarks>
 		/// <returns></returns>
 		/// <see cref="DefaultPriority" />
@@ -623,14 +623,14 @@ namespace Quartz
 
         /// <summary>
         /// Returns the next time at which the <see cref="Trigger" /> is scheduled to fire. If
-        /// the trigger will not fire again, <code>null</code> will be returned.  Note that
+        /// the trigger will not fire again, <see langword="null" /> will be returned.  Note that
         /// the time returned can possibly be in the past, if the time that was computed
         /// for the trigger to next fire has already arrived, but the scheduler has not yet
         /// been able to fire the trigger (which would likely be due to lack of resources
         /// e.g. threads).
         /// </summary>
         ///<remarks>
-        /// The value returned is not guaranteed to be valid until after the <code>Trigger</code>
+        /// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
         /// has been added to the scheduler.
         /// </remarks>
         /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTime, DateTime)" />

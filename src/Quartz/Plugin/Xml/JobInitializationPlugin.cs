@@ -127,7 +127,6 @@ namespace Quartz.Plugin.Xml
         // Populated by initialization
         private readonly IDictionary jobFiles = new Hashtable();
 
-        private bool useContextClassLoader = true;
         private bool validating = false;
         private bool validatingSchema = true;
         private TimeSpan scanInterval = TimeSpan.Zero;
@@ -203,7 +202,7 @@ namespace Quartz.Plugin.Xml
 
         /// <summary> 
         /// Whether or not initialization of the plugin should fail (throw an
-        /// exception) if the file cannot be found. Default is <code>true</code>.
+        /// exception) if the file cannot be found. Default is <see langword="true" />.
         /// </summary>
         public virtual bool FailOnFileNotFound
         {
@@ -212,16 +211,7 @@ namespace Quartz.Plugin.Xml
         }
 
         /// <summary> 
-        /// Whether or not the context class loader should be used. Default is <code>true</code>.
-        /// </summary>
-        public virtual bool UseContextClassLoader
-        {
-            get { return useContextClassLoader; }
-            set { useContextClassLoader = value; }
-        }
-
-        /// <summary> 
-        /// Whether or not the XML should be validated. Default is <code>false</code>.
+        /// Whether or not the XML should be validated. Default is <see langword="false" />.
         /// </summary>
         public virtual bool Validating
         {
@@ -230,7 +220,7 @@ namespace Quartz.Plugin.Xml
         }
 
         /// <summary> 
-        /// Whether or not the XML schema should be validated. Default is <code>true</code>.
+        /// Whether or not the XML schema should be validated. Default is <see langword="true" />.
         /// </summary>
         public virtual bool ValidatingSchema
         {
@@ -385,7 +375,7 @@ namespace Quartz.Plugin.Xml
         }
 
         /// <summary>
-        /// Called in order to inform the <code>SchedulerPlugin</code> that it
+        /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>

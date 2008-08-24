@@ -349,8 +349,8 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// Note: This only reflects whether <see cref="Start" /> has ever
-        /// been called on this Scheduler, so it will return <code>true</code> even 
-        /// if the <code>Scheduler</code> is currently in standby mode or has been 
+        /// been called on this Scheduler, so it will return <see langword="true" /> even 
+        /// if the <see cref="IScheduler" /> is currently in standby mode or has been 
         /// since shutdown.
         /// </remarks>
         /// <seealso cref="Start" />

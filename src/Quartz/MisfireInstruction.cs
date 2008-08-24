@@ -40,7 +40,7 @@ namespace Quartz
             /// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
             /// excludes 'now') with the repeat count left as-is.   This does obey the
             /// <see cref="Trigger" /> end-time however, so if 'now' is after the
-            /// end-time the <code>Trigger</code> will not fire again.
+            /// end-time the <see cref="Trigger" /> will not fire again.
             /// </summary>
             /// <remarks>
             /// <p>

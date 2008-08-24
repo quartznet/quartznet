@@ -128,8 +128,8 @@ namespace Quartz.Impl
         /// <value></value>
         /// <remarks>
         /// Note: This only reflects whether <see cref="Start"/> has ever
-        /// been called on this Scheduler, so it will return <code>true</code> even
-        /// if the <code>Scheduler</code> is currently in standby mode or has been
+        /// been called on this Scheduler, so it will return <see langword="true" /> even
+        /// if the <see cref="IScheduler" /> is currently in standby mode or has been
         /// since shutdown.
         /// </remarks>
         /// <seealso cref="Start"/>
@@ -746,17 +746,11 @@ namespace Quartz.Impl
 
         /// <summary>
         /// Request the interruption, within this Scheduler instance, of all
-        /// currently executing instances of the identified <code>Job</code>, which
+        /// currently executing instances of the identified <see cref="IJob" />, which
         /// must be an implementor of the <see cref="IInterruptableJob"/> interface.
         /// </summary>
-        /// <param name="jobName"></param>
-        /// <param name="groupName"></param>
-        /// <returns>
-        /// true is at least one instance of the identified job was found
-        /// and interrupted.
-        /// </returns>
         /// <remarks>
-        /// 	<p>
+        /// <p>
         /// If more than one instance of the identified job is currently executing,
         /// the <see cref="IInterruptableJob.Interrupt"/> method will be called on
         /// each instance.  However, there is a limitation that in the case that
@@ -764,19 +758,22 @@ namespace Quartz.Impl
         /// remaining  instances (that have not yet been interrupted) will not have
         /// their <see cref="Interrupt"/> method called.
         /// </p>
-        /// 	<p>
+        /// <p>
         /// If you wish to interrupt a specific instance of a job (when more than
         /// one is executing) you can do so by calling
         /// <see cref="GetCurrentlyExecutingJobs"/> to obtain a handle
         /// to the job instance, and then invoke <see cref="Interrupt"/> on it
         /// yourself.
         /// </p>
-        /// 	<p>
+        /// <p>
         /// This method is not cluster aware.  That is, it will only interrupt
         /// instances of the identified InterruptableJob currently executing in this
         /// Scheduler instance, not across the entire cluster.
         /// </p>
         /// </remarks>
+        /// <param name="jobName"></param>
+        /// <param name="groupName"></param>
+        /// <returns>true is at least one instance of the identified job was found and interrupted.</returns>
         /// <throws>  UnableToInterruptJobException if the job does not implement </throws>
         /// <seealso cref="IInterruptableJob"/>
         /// <seealso cref="GetCurrentlyExecutingJobs"/>

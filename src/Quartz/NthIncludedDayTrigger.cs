@@ -427,7 +427,7 @@ namespace Quartz
 
 
 	    /// <summary>
-	    /// Sets or gets the time zone in which the <code>fireAtTime</code> will be resolved.
+	    /// Sets or gets the time zone in which the <see cref="FireAtTime" /> will be resolved.
 	    /// If no time zone is provided, then the default time zone will be used. 
 	    /// </summary>
 	    /// <see cref="System.TimeZone.CurrentTimeZone" />

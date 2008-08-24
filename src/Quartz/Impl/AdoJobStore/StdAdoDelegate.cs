@@ -151,7 +151,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">the DB Connection</param>
         /// <param name="ts">The ts.</param>
-        /// <returns>an array of <code>Key</code> objects</returns>
+        /// <returns>an array of <see cref="Key" /> objects</returns>
         public virtual Key[] SelectMisfiredTriggers(ConnectionAndTransactionHolder conn, long ts)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggers)))
@@ -179,7 +179,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection</param>
         /// <param name="state">The state the triggers must be in</param>
-        /// <returns> an array of trigger <code>Key</code>s </returns>
+        /// <returns> an array of trigger <see cref="Key" />s </returns>
         public virtual Key[] SelectTriggersInState(ConnectionAndTransactionHolder conn, string state)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersInState)))
@@ -207,7 +207,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="state">The state.</param>
         /// <param name="ts">The time stamp.</param>
-        /// <returns>An array of <code>Key</code> objects</returns>
+        /// <returns>An array of <see cref="Key" /> objects</returns>
         public virtual Key[] SelectMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, long ts)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInState)))
@@ -313,7 +313,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">Name of the group.</param>
         /// <param name="state">The state.</param>
         /// <param name="ts">The timestamp.</param>
-        /// <returns>an array of <code>Key</code> objects</returns>
+        /// <returns>an array of <see cref="Key" /> objects</returns>
         public virtual Key[] SelectMisfiredTriggersInGroupInState(ConnectionAndTransactionHolder conn, string groupName,
                                                                   string state,
                                                                   long ts)
@@ -341,25 +341,21 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> <p>
+        /// <summary>
         /// Select all of the triggers for jobs that are requesting recovery. The
         /// returned trigger objects will have unique "recoverXXX" trigger names and
-        /// will be in the <code>{@link
-        /// org.quartz.Scheduler}.DefaultRecoveryGroup</code>
+        /// will be in the <see cref="SchedulerConstants.DefaultRecoveryGroup" />
         /// trigger group.
-        /// </p>
-        /// 
-        /// <p>
+        /// </summary>
+        /// <remarks>
         /// In order to preserve the ordering of the triggers, the fire time will be
-        /// set from the <code>ColumnFiredTime</code> column in the <code>TableFiredTriggers</code>
-        /// table. The caller is responsible for calling <code>computeFirstFireTime</code>
+        /// set from the <i>ColumnFiredTime</i> column in the <i>TableFiredTriggers</i>
+        /// table. The caller is responsible for calling <see cref="Trigger.ComputeFirstFireTimeUtc" />
         /// on each returned trigger. It is also up to the caller to insert the
         /// returned triggers to ensure that they are fired.
-        /// </p>
-        /// 
-        /// </summary>
+        /// </remarks>
         /// <param name="conn">The DB Connection</param>
-        /// <returns> an array of <code>Trigger</code> objects</returns>
+        /// <returns> an array of <see cref="Trigger" /> objects</returns>
         public virtual Trigger[] SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn)
         {
             ArrayList list = new ArrayList();
@@ -554,7 +550,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="jobName">The name of the job.</param>
         /// <param name="groupName">The group containing the job.</param>
-        /// <returns>An array of <code>Key</code> objects</returns>
+        /// <returns>An array of <see cref="Key" /> objects</returns>
         public virtual Key[] SelectTriggerNamesForJob(ConnectionAndTransactionHolder conn, string jobName,
                                                       string groupName)
         {
@@ -717,7 +713,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="jobName">The job name whose listeners are wanted.</param>
         /// <param name="groupName">The group containing the job.</param>
-        /// <returns>Array of <code>String</code> listener names.</returns>
+        /// <returns>Array of <see cref="String" /> listener names.</returns>
         public virtual string[] SelectJobListeners(ConnectionAndTransactionHolder conn, string jobName, string groupName)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobListeners)))
@@ -821,7 +817,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Select all of the job group names that are stored.
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
-        /// <returns>An array of <code>String</code> group names.</returns>
+        /// <returns>An array of <see cref="String" /> group names.</returns>
         public virtual string[] SelectJobGroups(ConnectionAndTransactionHolder conn)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobGroups)))
@@ -847,7 +843,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <param name="groupName">The group containing the jobs.</param>
-        /// <returns>An array of <code>String</code> job names.</returns>
+        /// <returns>An array of <see cref="String" /> job names.</returns>
         public virtual String[] SelectJobsInGroup(ConnectionAndTransactionHolder conn, string groupName)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobsInGroup)))
@@ -1464,7 +1460,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">the name of the trigger</param>
         /// <param name="groupName">the group containing the trigger</param>
         /// <returns>
-        /// array of <code>String</code> trigger listener names
+        /// array of <see cref="String" /> trigger listener names
         /// </returns>
         public virtual String[] SelectTriggerListeners(ConnectionAndTransactionHolder conn, string triggerName,
                                                        string groupName)
@@ -1592,10 +1588,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">the name of the trigger</param>
         /// <param name="groupName">the group containing the trigger</param>
         /// <param name="loadHelper">The load helper.</param>
-        /// <returns>
-        /// the <code>{@link org.quartz.JobDetail}</code> object
-        /// associated with the given trigger
-        /// </returns>
+        /// <returns>The <see cref="JobDetail" /> object associated with the given trigger</returns>
         public virtual JobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, string triggerName,
                                                      string groupName,
                                                      ITypeLoadHelper loadHelper)
@@ -1636,7 +1629,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobName">the name of the trigger</param>
         /// <param name="groupName">the group containing the trigger</param>
         /// <returns>
-        /// an array of <code>(@link org.quartz.Trigger)</code> objects
+        /// an array of <see cref="Trigger" /> objects
         /// associated with a given job.
         /// </returns>
         public virtual Trigger[] SelectTriggersForJob(ConnectionAndTransactionHolder conn, string jobName,
@@ -1680,7 +1673,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="calName">Name of the calendar.</param>
         /// <returns>
-        /// An array of <code>Trigger</code> objects associated with a given job.
+        /// An array of <see cref="Trigger" /> objects associated with a given job.
         /// </returns>
         public virtual Trigger[] SelectTriggersForCalendar(ConnectionAndTransactionHolder conn, string calName)
         {
@@ -1738,9 +1731,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="triggerName">the name of the trigger</param>
         /// <param name="groupName">the group containing the trigger</param>
-        /// <returns>
-        /// the <code>{@link org.quartz.Trigger}</code> object
-        /// </returns>
+        /// <returns>The <see cref="Trigger" /> object</returns>
         public virtual Trigger SelectTrigger(ConnectionAndTransactionHolder conn, string triggerName, string groupName)
         {
             Trigger trigger = null;
@@ -1951,10 +1942,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="triggerName">the name of the trigger</param>
         /// <param name="groupName">the group containing the trigger</param>
-        /// <returns>
-        /// the <code>{@link org.quartz.JobDataMap}</code> of the Trigger,
-        /// never null, but possibly empty.
-        /// </returns>
+        /// <returns>The <see cref="JobDataMap" /> of the Trigger, never null, but possibly empty. </returns>
         public virtual JobDataMap SelectTriggerJobDataMap(ConnectionAndTransactionHolder conn, string triggerName,
                                                           string groupName)
         {
@@ -1995,9 +1983,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="triggerName">the name of the trigger</param>
         /// <param name="groupName">the group containing the trigger</param>
-        /// <returns>
-        /// the <code>{@link org.quartz.Trigger}</code> object
-        /// </returns>
+        /// <returns>The <see cref="Trigger" /> object</returns>
         public virtual string SelectTriggerState(ConnectionAndTransactionHolder conn, string triggerName,
                                                  string groupName)
         {
@@ -2029,7 +2015,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">the name of the trigger</param>
         /// <param name="groupName">the group containing the trigger</param>
         /// <returns>
-        /// a <code>TriggerStatus</code> object, or null
+        /// a <see cref="TriggerStatus" /> object, or null
         /// </returns>
         public virtual TriggerStatus SelectTriggerStatus(ConnectionAndTransactionHolder conn, string triggerName,
                                                          string groupName)
@@ -2093,7 +2079,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">the DB Connection</param>
         /// <returns>
-        /// an array of <code>String</code> group names
+        /// an array of <see cref="String" /> group names
         /// </returns>
         public virtual string[] SelectTriggerGroups(ConnectionAndTransactionHolder conn)
         {
@@ -2118,7 +2104,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="groupName">the group containing the triggers</param>
         /// <returns>
-        /// an array of <code>String</code> trigger names
+        /// an array of <see cref="String" /> trigger names
         /// </returns>
         public virtual string[] SelectTriggersInGroup(ConnectionAndTransactionHolder conn, string groupName)
         {
@@ -2406,7 +2392,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">the DB Connection</param>
         /// <returns>
-        /// an array of <code>String</code> calendar names
+        /// an array of <see cref="String" /> calendar names
         /// </returns>
         public virtual String[] SelectCalendars(ConnectionAndTransactionHolder conn)
         {
@@ -2434,7 +2420,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="fireTime">the time that the trigger will be fired</param>
         /// <returns>
-        /// a <code>{@link org.quartz.utils.Key}</code> representing the
+        /// a <see cref="Key" /> representing the
         /// trigger that will be fired at the given fire time, or null if no
         /// trigger will be fired at that time
         /// </returns>
@@ -2535,12 +2521,12 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Select the states of all fired-trigger records for a given trigger, or
-        /// trigger group if trigger name is <code>null</code>.
+        /// trigger group if trigger name is <see langword="null" />.
         /// </summary>
         /// <param name="conn">The DB connection.</param>
         /// <param name="triggerName">Name of the trigger.</param>
         /// <param name="groupName">Name of the group.</param>
-        /// <returns>a List of FiredTriggerRecord objects.</returns>
+        /// <returns>a List of <see cref="FiredTriggerRecord" /> objects.</returns>
         public virtual IList SelectFiredTriggerRecords(ConnectionAndTransactionHolder conn, string triggerName,
                                                        string groupName)
         {
@@ -2588,12 +2574,12 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Select the states of all fired-trigger records for a given job, or job
-        /// group if job name is <code>null</code>.
+        /// group if job name is <see langword="null" />.
         /// </summary>
         /// <param name="conn">The DB connection.</param>
         /// <param name="jobName">Name of the job.</param>
         /// <param name="groupName">Name of the group.</param>
-        /// <returns>a List of FiredTriggerRecord objects.</returns>
+        /// <returns>a List of <see cref="FiredTriggerRecord" /> objects.</returns>
         public virtual IList SelectFiredTriggerRecordsByJob(ConnectionAndTransactionHolder conn, string jobName,
                                                             string groupName)
         {
@@ -2825,7 +2811,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// A List of all current <code>SchedulerStateRecords</code>.
+        /// A List of all current <see cref="SchedulerStateRecord" />s.
         /// <p>
         /// If instanceId is not null, then only the record for the identified
         /// instance will be returned.
@@ -2879,8 +2865,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Create a serialized <code>java.util.ByteArrayOutputStream</code>
-        /// version of an Object.
+        /// Create a serialized <see lanword="byte[]"/> version of an Object.
         /// </summary>
         /// <param name="obj">the object to serialize</param>
         /// <returns>Serialized object as byte array.</returns>
@@ -2898,8 +2883,8 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Remove the transient data from and then create a serialized <code>MemoryStream</code>
-        /// version of a <code>JobDataMap</code> and returns the underlying bytes.
+        /// Remove the transient data from and then create a serialized <see cref="MemoryStream" />
+        /// version of a <see cref="JobDataMap" /> and returns the underlying bytes.
         /// </summary>
         /// <param name="data">The data.</param>
         /// <returns>the serialized data as byte array</returns>
@@ -3069,7 +3054,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the names of all of the triggers that are volatile.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
-        /// <returns>An array of <code>Key</code> objects.</returns>
+        /// <returns>An array of <see cref="Key" /> objects.</returns>
         public virtual Key[] SelectVolatileTriggers(ConnectionAndTransactionHolder conn)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectVolatileTriggers)))
@@ -3097,7 +3082,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the names of all of the jobs that are volatile.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
-        /// <returns>An array of <code>Key</code> objects.</returns>
+        /// <returns>An array of <see cref="Key" /> objects.</returns>
         public virtual Key[] SelectVolatileJobs(ConnectionAndTransactionHolder conn)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectVolatileJobs)))
