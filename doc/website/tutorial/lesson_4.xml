@@ -124,14 +124,14 @@ trig2.JobName = jobDetail.Name;
 trig2.Priority = 10;
 sched.ScheduleJob(trig2);
 
-// Trigger2 has its priority set to -40
+// Trigger2 has its priority set to 1
 trig3.JobName = jobDetail.Name;
-trig2.Priority = -40;
+trig3.Priority = 1;
 sched.ScheduleJob(trig3);
 
 // Five minutes from now, when the scheduler invokes these three triggers
 // they will be allocated worker threads in decreasing order of their
-// priority: Trigger2(10), Trigger1(5), Trigger3(-40) 
+// priority: Trigger2(10), Trigger1(5), Trigger3(1) 
 </pre>
 
 
