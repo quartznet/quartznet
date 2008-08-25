@@ -410,6 +410,14 @@ namespace Quartz.Tests.Unit
                     pe.Message.StartsWith("Support for specifying 'L' with other days of the week is not implemented"),
                     "Incorrect FormatException thrown");
             }
+            try 
+            { 
+                new CronExpression("0 43 9 ? * 5L"); 
+            }
+            catch (FormatException) 
+            { 
+                Assert.Fail("Unexpected ParseException thrown for supported '5L' expression."); 
+            } 
         }
 
     }

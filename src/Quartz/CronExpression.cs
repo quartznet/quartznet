@@ -579,12 +579,12 @@ namespace Quartz
                     }
 
                     // throw an exception if L is used with other days of the month
-                    if (exprOn == DayOfMonth && expr.IndexOf('L') != -1 && expr.Length > 1)
+                    if (exprOn == DayOfMonth && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(",") >= 0)
                     {
                         throw new FormatException("Support for specifying 'L' and 'LW' with other days of the month is not implemented");
                     }
                     // throw an exception if L is used with other days of the week
-                    if (exprOn == DayOfWeek && expr.IndexOf('L') != -1 && expr.Length > 1)
+                    if (exprOn == DayOfWeek && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(",") >= 0)
                     {
                         throw new FormatException("Support for specifying 'L' with other days of the week is not implemented");
                     }
