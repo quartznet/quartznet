@@ -67,20 +67,11 @@ namespace Quartz.Core
         private int idleWaitVariablness = 7*1000;
         private TimeSpan dbFailureRetryInterval = TimeSpan.FromSeconds(15);
 
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="QuartzSchedulerThread"/> class.
-        /// </summary>
-        public QuartzSchedulerThread()
-        {
-            log = LogManager.GetLogger(GetType());
-        }
-
         /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        public ILog Log
+        protected ILog Log
         {
             get { return log; }
         }
@@ -136,6 +127,7 @@ namespace Quartz.Core
         internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, SchedulingContext ctxt,
                                        bool setDaemon, int threadPrio) : base(qsRsrcs.ThreadName)
         {
+            log = LogManager.GetLogger(GetType());
             //ThreadGroup generatedAux = qs.SchedulerThreadGroup;
             this.qs = qs;
             this.qsRsrcs = qsRsrcs;
