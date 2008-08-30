@@ -30,6 +30,7 @@ namespace Quartz.Simpl
         private string bindName = DefaultBindName;
         private string channelType = ChannelTypeTcp;
         private TypeFilterLevel typeFilgerLevel = TypeFilterLevel.Full;
+        private static readonly Hashtable registeredChannels = new Hashtable();
 
         public RemotingSchedulerExporter()
         {
@@ -85,6 +86,12 @@ namespace Quartz.Simpl
                 BinaryServerFormatterSinkProvider formatprovider = new BinaryServerFormatterSinkProvider(props, null);
                 formatprovider.TypeFilterLevel = typeFilgerLevel;
 
+                string channelRegistrationKey = channelType + "_" + port;
+                if (registeredChannels.ContainsKey(channelRegistrationKey))
+                {
+                    Log.Warn(string.Format("Channel '{0}' already registered for port {1}, not registering again", channelType, port));
+                    return;
+                }
                 IChannel chan;
                 if (channelType == ChannelTypeHttp)
                 {
@@ -105,6 +112,7 @@ namespace Quartz.Simpl
 #else
                 ChannelServices.RegisterChannel(chan);
 #endif
+                registeredChannels.Add(channelRegistrationKey, new object());
                 Log.Info("Remoting channel registered successfully");
             }
             else
