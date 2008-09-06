@@ -2,6 +2,27 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+Release 1.0 RC 3, Sep 6, 2008
+-------------------------------
+
+Bug
+
+    * [QRTZNET-91] - JobSchedulingDataProcessor does not handle job listeners from XML correctly
+    * [QRTZNET-115] - AnnualCalendar isDayExcluded doesn't take the basecalendar into account
+    * [QRTZNET-116] - Error saving recovery trigger during cluster recovery for volatile jobs
+    * [QRTZNET-117] - CronTrigger may return a firing time not included in the calender
+    * [QRTZNET-118] - TimeZone setting lost when CronExpressionString is set
+    * [QRTZNET-119] - Port Java Quartz's threading fixes that help with multi-core machines
+    * [QRTZNET-121] - Remoting Scheduler - re-start scheduler throws remoting binding error.
+    * [QRTZNET-122] - Triggering a job remotely often does not fire the job
+    * [QRTZNET-123] - QuartzSchedulerThread Log property is null.
+    * [QRTZNET-124] - SendMailJob throws a NullReferenceException
+
+Task
+
+    * [QRTZNET-113] - Include server source in distribution
+
+
 Release 1.0 RC 2, Aug 6, 2008
 -------------------------------
 
