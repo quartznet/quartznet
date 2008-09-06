@@ -29,6 +29,31 @@
 			<title>News</title>
 
 			<section>
+				<title>Quartz.NET 1.0 RC 3 Released</title>
+				<p>
+				<div class="descr">September 6, 2008 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 1.0 RC 3 has been released. This release is the 
+					third release candidate for final 1.0 release. 
+				</p>
+
+				<p>
+					This release is a bug fix release and also adds the Quartz.NET
+					server source to standard distribution. Everyone using earlier
+					release candidate is adviced to upgrade.
+				</p>
+				<p>
+					Please refer to the
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21785">release notes</a> 
+					and the readme.txt in the release bundle for more information.
+				</p>
+				<p>
+					Grab it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>			
+			
+			<section>
 				<title>Quartz.NET 1.0 RC 2 Released</title>
 				<p>
 				<div class="descr">August 6, 2008 by Marko Lahma</div>
