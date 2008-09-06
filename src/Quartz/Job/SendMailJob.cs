@@ -124,20 +124,29 @@ namespace Quartz.Job
 			}
 		}
 
-		private void SendMail(string smtpHost, string to, string cc, string from, string replyTo, string subject,
+
+	    private void SendMail(string smtpHost, string to, string cc, string from, string replyTo, string subject,
 		                      string message)
 		{
 #if NET_20
             MailMessage mimeMessage = new MailMessage(from, to, subject, message);
-		    mimeMessage.CC.Add(cc);
-            mimeMessage.ReplyTo = new MailAddress(replyTo);
+	        if (!String.IsNullOrEmpty(cc))
+	        {
+	            mimeMessage.CC.Add(cc);
+	        }
+	        if (!String.IsNullOrEmpty(replyTo))
+	        {
+	            mimeMessage.ReplyTo = new MailAddress(replyTo);
+	        }
 
-            SmtpClient client = new SmtpClient(smtpHost);
-            client.Send(mimeMessage);
+	        Send(mimeMessage, smtpHost);
 #else
             MailMessage mimeMessage = new MailMessage();
 			mimeMessage.To = to;
-			mimeMessage.Cc = cc;
+            if (cc != null && cc.Length > 0) 
+            {
+                mimeMessage.Cc = cc;
+            }
 			mimeMessage.From = from;
 			mimeMessage.Subject = subject;
 			mimeMessage.Body = message;
@@ -147,5 +156,12 @@ namespace Quartz.Job
 #endif
         }
 
+#if NET_20
+	    protected virtual void Send(MailMessage mimeMessage, string smtpHost) 
+        {
+	        SmtpClient client = new SmtpClient(smtpHost);
+	        client.Send(mimeMessage);
+	    }
+#endif
 	}
 }

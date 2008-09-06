@@ -117,6 +117,7 @@
     </Compile>
     <Compile Include="CronTriggerTest.cs" />
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
+    <Compile Include="Job\SendMailJobTest.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="CollectionUtilTest.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />

@@ -3,6 +3,7 @@ using System.Collections;
 
 using NUnit.Framework;
 
+using Quartz.Job;
 using Quartz.Spi;
 
 namespace Quartz.Tests
@@ -37,6 +38,20 @@ namespace Quartz.Tests
             JobDetail jd = new JobDetail("jobName", "jobGroup", jobType);
             TriggerFiredBundle bundle = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
             return bundle;
+        }
+
+        public static TriggerFiredBundle NewMinimalTriggerFiredBundle()
+        {
+            JobDetail jd = new JobDetail("jobName", "jobGroup", typeof(NoOpJob));
+            SimpleTrigger trigger = new SimpleTrigger("triggerName", "triggerGroup");
+            TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
+
+            return retValue;
+        }
+
+        public static JobExecutionContext NewJobExecutionContextFor(IJob job)
+        {
+            return new JobExecutionContext(null, NewMinimalTriggerFiredBundle(), job);
         }
 	}
 }

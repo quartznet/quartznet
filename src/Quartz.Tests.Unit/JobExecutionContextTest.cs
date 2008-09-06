@@ -13,12 +13,9 @@
  * License for the specific language governing permissions and limitations 
  * under the License.
  */
-using System;
 
 using NUnit.Framework;
 
-using Quartz.Job;
-using Quartz.Spi;
 
 namespace Quartz.Tests.Unit
 {
@@ -32,17 +29,8 @@ namespace Quartz.Tests.Unit
         public void TestToString()
         {
             // QRTZNET-48
-            JobExecutionContext ctx = new JobExecutionContext(null, ConstructMinimalTriggerFiredBundle(), null);
+            JobExecutionContext ctx = new JobExecutionContext(null, TestUtil.NewMinimalTriggerFiredBundle(), null);
             ctx.ToString();
-        }
-
-        private static TriggerFiredBundle ConstructMinimalTriggerFiredBundle()
-        {
-            JobDetail jd = new JobDetail("jobName", "jobGroup", typeof(NoOpJob));
-            SimpleTrigger trigger = new SimpleTrigger("triggerName", "triggerGroup");
-            TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
-
-            return retValue;
         }
     }
 }
