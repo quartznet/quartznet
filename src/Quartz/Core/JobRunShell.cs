@@ -289,7 +289,6 @@ namespace Quartz.Core
                     break;
                 } while (true);
 
-                qs.NotifySchedulerThread(null);
             }
 		    finally
             {

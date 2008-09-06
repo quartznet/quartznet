@@ -1459,6 +1459,8 @@ namespace Quartz.Simpl
                                 ttw.state = InternalTriggerState.Paused;
 							}
 						}
+
+                        signaler.SignalSchedulingChange(null);
 					}
 				}
 				else
@@ -1491,26 +1493,31 @@ namespace Quartz.Simpl
 						else
 						{
 							RemoveTrigger(ctxt, trigger.Name, trigger.Group);
+                            signaler.SignalSchedulingChange(null);
 						}
 					}
 					else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
 					{
                         tw.state = InternalTriggerState.Complete;
 						timeTriggers.Remove(tw);
+                        signaler.SignalSchedulingChange(null);
 					}
                     else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
 					{
 						Log.Info(string.Format(CultureInfo.InvariantCulture, "Trigger {0} set to ERROR state.", trigger.FullName));
                         tw.state = InternalTriggerState.Error;
+                        signaler.SignalSchedulingChange(null);
 					}
                     else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
 					{
 						Log.Info(string.Format(CultureInfo.InvariantCulture, "All triggers of Job {0} set to ERROR state.", trigger.FullJobName));
                         SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, InternalTriggerState.Error);
+                        signaler.SignalSchedulingChange(null);
 					}
 					else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
 					{
 						SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, InternalTriggerState.Complete);
+                        signaler.SignalSchedulingChange(null);
 					}
 				}
 			}

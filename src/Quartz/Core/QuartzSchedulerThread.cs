@@ -538,7 +538,7 @@ namespace Quartz.Core
 		    // implementation to tell us the amount of time in which it "thinks"
 		    // it can abandon the acquired trigger and acquire a new one.  However
 		    // we have no current facility for having it tell us that, so we make
-		    // and somewhat educated but arbitrary guess ;-).
+		    // a somewhat educated but arbitrary guess ;-).
 
     	    lock (sigLock) 
             {	
@@ -556,8 +556,8 @@ namespace Quartz.Core
 			    if(earlier) 
                 {
 				    // so the new time is considered earlier, but is it enough earlier?
-				    TimeSpan diff = DateTime.UtcNow - oldTimeUtc;
-				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(90) : TimeSpan.FromMilliseconds(7)))
+                    TimeSpan diff = oldTimeUtc - DateTime.UtcNow;
+				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(80) : TimeSpan.FromMilliseconds(7)))
 				    {
 				        earlier = false;
 				    }

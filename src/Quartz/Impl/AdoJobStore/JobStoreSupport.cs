@@ -3388,25 +3388,30 @@ namespace Quartz.Impl.AdoJobStore
                     else
                     {
                         RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                        signaler.SignalSchedulingChange(null);
                     }
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, StateComplete);
+                    signaler.SignalSchedulingChange(null);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
                     Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, StateError);
+                    signaler.SignalSchedulingChange(null);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, StateComplete);
+                    signaler.SignalSchedulingChange(null);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
                     Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, StateError);
+                    signaler.SignalSchedulingChange(null);
                 }
 
                 if (jobDetail.Stateful)
@@ -3417,6 +3422,7 @@ namespace Quartz.Impl.AdoJobStore
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
                                                                      StatePaused,
                                                                      StatePausedBlocked);
+                    signaler.SignalSchedulingChange(null);
 
                     try
                     {
