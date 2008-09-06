@@ -14,9 +14,9 @@
  * under the License.
  */
 
-#if NET_35
 using NUnit.Framework;
 
+#if NET_35
 using TimeZone = System.TimeZoneInfo;
 #endif
 
