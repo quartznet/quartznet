@@ -42,7 +42,6 @@ using System.Xml.Serialization;
 
 using Common.Logging;
 
-using Quartz;
 using Quartz.Util;
 
 namespace Quartz.Xml
@@ -268,6 +267,12 @@ namespace Quartz.Xml
 
 	    private void ProcessJobs(quartz data)
 	    {
+            if (data.job == null)
+            {
+                // no jobs to process, file is empty
+                return;
+            }
+
 	        foreach (jobType jt in data.job)
 	        {
 	            JobSchedulingBundle jsb = new JobSchedulingBundle();
@@ -322,8 +327,12 @@ namespace Quartz.Xml
 
 	                    if (c.timezone != null && c.timezone.Trim().Length > 0)
 	                    {
-	                        TimeZone tz = (TimeZone) ObjectUtils.InstantiateType(Type.GetType(c.timezone));
-	                        ct.TimeZone = tz;
+#if NET_35
+                            ct.TimeZone = TimeZoneInfo.FindSystemTimeZoneById(c.timezone);
+#else
+	                        throw new ArgumentException(
+	                            "Specifying time zone for cron trigger is only supported in .NET 3.5 builds");
+#endif
 	                    }
 	                    trigger = ct;
 	                }
