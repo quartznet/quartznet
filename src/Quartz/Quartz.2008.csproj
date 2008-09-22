@@ -72,7 +72,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>NET_20</DefineConstants>
+    <DefineConstants>NET_20,NET_35</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
