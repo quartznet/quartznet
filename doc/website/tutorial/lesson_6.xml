@@ -111,7 +111,27 @@ Note that the trigger will NOT fire at 10:00 am, just at 8:00, 8:30, 9:00 and 9:
 <code>"0 0/30 8-9 5,20 * ?"</code>
 
 <p>
-Note that some scheduling requirements are too complicated to express with a single trigger - such as "every 5 minutes between 9:00 am 
+Note that some scheduling requirements are too complicated to express with a single trigger - such as "every 5 minutes between 9:00 am and 10:00 am, 
+and every 20 minutes between 1:00 pm and 10:00 pm". The solution in this scenario is to simply create two triggers, and register both of them to run the same job.
+</p>
+
+<h2>CronTrigger Misfire Instructions</h2>
+
+<p>
+The following instructions can be used to inform Quartz what it should do when a misfire occurs for CronTrigger. 
+(Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in MisfireInstruction.CronTrigger as
+constants (and API documentation has description for their behavior). The instructions include:
+</p>
+
+<ul>
+	<li>DoNothing</li>
+	<li>FireOnceNow</li>
+</ul>
+
+<p>
+All triggers have the MisfireInstrution.SmartPolicy instruction available for use, and this instruction is also the default for all trigger types. 
+The 'smart policy' instruction is interpreted by CronTrigger as MisfireInstruction.CronTrigger.FireOnceNow. The API documentation for the 
+CronTrigger.UpdateAfterMisfire() method explains the exact details of this behavior.
 </p>
 
 <p>
