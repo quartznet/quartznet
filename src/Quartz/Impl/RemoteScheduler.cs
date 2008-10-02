@@ -72,8 +72,8 @@ namespace Quartz.Impl
 	    /// <returns></returns>
 	    public virtual bool IsJobGroupPaused(string groupName)
 	    {
-	        throw new NotImplementedException();
-	    }
+            return GetRemoteScheduler().IsJobGroupPaused(schedCtxt, groupName);
+        }
 
 	    /// <summary>
 	    /// returns true if the given TriggerGroup
@@ -83,8 +83,8 @@ namespace Quartz.Impl
 	    /// <returns></returns>
 	    public virtual bool IsTriggerGroupPaused(string groupName)
 	    {
-	        throw new NotImplementedException();
-	    }
+	        return GetRemoteScheduler().IsTriggerGroupPaused(schedCtxt, groupName);
+        }
 
 	    /// <summary>
 		/// Returns the name of the <see cref="IScheduler" />.
