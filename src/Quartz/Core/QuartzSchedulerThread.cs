@@ -314,48 +314,52 @@ namespace Quartz.Core
 
                             while (timeUntilTrigger > TimeSpan.Zero) 
                             {
-	                            lock (sigLock) 
+                                lock (sigLock)
                                 {
                                     try
                                     {
+                                        // we chould have blocked a long while
+                                        // on 'synchronize', so we must recompute
+                                        now = DateTime.UtcNow;
+                                        timeUntilTrigger = triggerTime - now;
                                         Monitor.Wait(sigLock, timeUntilTrigger);
                                     }
                                     catch (ThreadInterruptedException)
                                     {
                                     }
-
-                                    if (IsScheduleChanged())
+                                }
+                                if (IsScheduleChanged())
+                                {
+                                    if (IsCandidateNewTimeEarlierWithinReason(triggerTime))
                                     {
-                                        if (IsCandidateNewTimeEarlierWithinReason(triggerTime))
+                                        // above call does a clearSignaledSchedulingChange()
+                                        try
                                         {
-                                            // above call does a clearSignaledSchedulingChange()
-                                            try
-                                            {
-                                                qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
-                                            }
-                                            catch (JobPersistenceException jpe)
-                                            {
-                                                qs.NotifySchedulerListenersError(
-                                                    "An error occured while releasing trigger '"
-                                                    + trigger.FullName + "'",
-                                                    jpe);
-                                                // db connection must have failed... keep
-                                                // retrying until it's up...
-                                                ReleaseTriggerRetryLoop(trigger);
-                                            }
-                                            catch (Exception e)
-                                            {
-                                                Log.Error(
-                                                    "releaseTriggerRetryLoop: RuntimeException "
-                                                    + e.Message, e);
-                                                // db connection must have failed... keep
-                                                // retrying until it's up...
-                                                ReleaseTriggerRetryLoop(trigger);
-                                            }
-                                            trigger = null;
-                                            break;
+                                            qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
                                         }
+                                        catch (JobPersistenceException jpe)
+                                        {
+                                            qs.NotifySchedulerListenersError(
+                                                "An error occured while releasing trigger '"
+                                                + trigger.FullName + "'",
+                                                jpe);
+                                            // db connection must have failed... keep
+                                            // retrying until it's up...
+                                            ReleaseTriggerRetryLoop(trigger);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Log.Error(
+                                                "releaseTriggerRetryLoop: RuntimeException "
+                                                + e.Message, e);
+                                            // db connection must have failed... keep
+                                            // retrying until it's up...
+                                            ReleaseTriggerRetryLoop(trigger);
+                                        }
+                                        trigger = null;
+                                        break;
                                     }
+                                    
                                 }
                                 now = DateTime.UtcNow;
                                 timeUntilTrigger = triggerTime - now;
