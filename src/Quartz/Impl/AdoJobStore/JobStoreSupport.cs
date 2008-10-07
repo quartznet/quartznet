@@ -1196,12 +1196,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                string jobName = "null job";
-                if (job != null)
-                {
-                    jobName = job.Name;
-                }
-                throw new JobPersistenceException(string.Format("Couldn't store trigger for '{0}' job:{1}", jobName, e.Message), e);
+                string message = String.Format("Couldn't store trigger '{0}' for '{1}' job: {2}", newTrigger.Name, newTrigger.JobName, e.Message);
+                throw new JobPersistenceException(message, e);
             }
         }
 
