@@ -369,37 +369,39 @@ namespace Quartz.Core
                             // set trigger to 'executing'
                             TriggerFiredBundle bndle = null;
 
-                            lock (sigLock)
+                            bool goAhead = true;
+                            lock (sigLock) 
                             {
-                                if (!halted)
+                        	    goAhead = !halted;
+                            }
+                            if(goAhead) 
+                            {
+                                try
                                 {
-                                    try
-                                    {
-                                        bndle = qsRsrcs.JobStore.TriggerFired(ctxt,
-                                                                              trigger);
-                                    }
-                                    catch (SchedulerException se)
-                                    {
-                                        qs.NotifySchedulerListenersError(
-                                            string.Format(CultureInfo.InvariantCulture,
-                                                          "An error occured while firing trigger '{0}'",
-                                                          trigger.FullName), se);
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        Log.Error(
-                                            string.Format(CultureInfo.InvariantCulture,
-                                                          "RuntimeException while firing trigger {0}", trigger.FullName),
-                                            e);
-                                        // db connection must have failed... keep
-                                        // retrying until it's up...
-                                        ReleaseTriggerRetryLoop(trigger);
-                                    }
+                                    bndle = qsRsrcs.JobStore.TriggerFired(ctxt,
+                                                                          trigger);
+                                }
+                                catch (SchedulerException se)
+                                {
+                                    qs.NotifySchedulerListenersError(
+                                        string.Format(CultureInfo.InvariantCulture,
+                                                      "An error occured while firing trigger '{0}'",
+                                                      trigger.FullName), se);
+                                }
+                                catch (Exception e)
+                                {
+                                    Log.Error(
+                                        string.Format(CultureInfo.InvariantCulture,
+                                                      "RuntimeException while firing trigger {0}", trigger.FullName),
+                                        e);
+                                    // db connection must have failed... keep
+                                    // retrying until it's up...
+                                    ReleaseTriggerRetryLoop(trigger);
                                 }
                             }
-
+                            
                             // it's possible to get 'null' if the trigger was paused,
-                            // blocked, or other similar occurences that prevent it being
+                            // blocked, or other similar occurrences that prevent it being
                             // fired at this time...  or if the scheduler was shutdown (halted)
                             if (bndle == null)
                             {
