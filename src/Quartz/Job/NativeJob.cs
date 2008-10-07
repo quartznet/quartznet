@@ -232,18 +232,24 @@ namespace Quartz.Job
 					}
 					cmd = args;
 				}
-					//will work with the rest
-				else
-				{
-					if (cmd == null)
-					{
-						cmd = new string[args.Length];
-					}
-					cmd = args;
-				}
+                else if (osName.Equals("Linux")) 
+                {
+       		        if (cmd == null) 
+                    {
+                        cmd = new String[3];
+        	        }
+                    cmd[0] = "/bin/sh";
+                    cmd[1] = "-c";
+                    cmd[2] = args[0] + " " + args[1];
+                } 
+                else 
+                { 
+                    // try this... 
+                    cmd = args;
+                }
 
 				// Executes the command
-				Log.Info(string.Format(CultureInfo.InvariantCulture, "About to run {0}{1}", cmd[0], cmd[1]));
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "About to run {0}{1}{2}...", cmd[0], cmd[1], cmd.Length > 2 ? cmd[2] : ""));
 				string temp = "";
 				for (int i = 1; i < cmd.Length; i++)
 				{
