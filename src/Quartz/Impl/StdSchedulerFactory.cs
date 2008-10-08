@@ -110,6 +110,7 @@ namespace Quartz.Impl
         public const string PropertyDbProviderType = "connectionProvider.type";
         public const string PropertyDataSourceProvider = "provider";
         public const string PropertyDataSourceConnectionString = "connectionString";
+        public const string PropertyDataSourceConnectionStringName = "connectionStringName";
         public const string PropertyDataSourceValidationQuery = "validationQuery";
         public const string PropertyPluginPrefix = "quartz.plugin";
         public const string PropertyPluginType = "type";
@@ -526,6 +527,21 @@ Please add configuration to your application config file to correctly initialize
                 {
                     string dsProvider = pp.GetStringProperty(PropertyDataSourceProvider, null);
                     string dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
+                    string dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
+
+                    if (dsConnectionString == null && dsConnectionStringName != null && dsConnectionStringName.Length > 0)
+                    {
+#if NET_20
+                        ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
+                        if (connectionStringSettings == null)
+                        {
+                            initException =
+                                new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Named connection string '{0}' not found for DataSource: {1}", dsConnectionStringName,  dsNames[i]));
+                            throw initException;
+                        }
+                        dsConnectionString = connectionStringSettings.ConnectionString;
+#endif
+                    }
 
                     if (dsProvider == null)
                     {
