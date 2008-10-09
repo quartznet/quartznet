@@ -1965,7 +1965,7 @@ namespace Quartz
             } // while( !done )
 
 #if !NET_35
-            return d.ToUniversalTime();
+            return TimeZone.ToUniversalTime(d);
 #else
             return TimeZoneInfo.ConvertTimeToUtc(d, TimeZone);
 #endif
