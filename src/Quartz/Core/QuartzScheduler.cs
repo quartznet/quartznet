@@ -78,6 +78,7 @@ namespace Quartz.Core
         private readonly ArrayList holdToPreventGC = new ArrayList(5);
         private bool signalOnSchedulingChange = true;
         private bool closed = false;
+        private bool shuttingDown = false;
         private NullableDateTime initialStart = null;
 
         /// <summary>
@@ -427,7 +428,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual void Start()
         {
-            if (closed)
+            if (shuttingDown || closed)
             {
                 throw new SchedulerException("The Scheduler cannot be restarted after Shutdown() has been called.");
             }
@@ -446,7 +447,7 @@ namespace Quartz.Core
 
         public void StartDelayed(TimeSpan delay)
         {
-            if (closed) 
+            if (shuttingDown || closed) 
             {
                 throw new SchedulerException(
                         "The Scheduler cannot be restarted after Shutdown() has been called.");
@@ -556,15 +557,15 @@ namespace Quartz.Core
         /// </param>
         public virtual void Shutdown(bool waitForJobsToComplete)
         {
-            if (closed)
+            if (shuttingDown || closed)
             {
                 return;
             }
 
+            shuttingDown = true;
+
             Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} shutting down.", resources.GetUniqueIdentifier()));
             Standby();
-
-            closed = true;
 
             schedThread.Halt();
 
@@ -595,6 +596,8 @@ namespace Quartz.Core
             {
                 ;
             }
+
+            closed = true;
 
             resources.JobStore.Shutdown();
 
