@@ -615,7 +615,7 @@ namespace Quartz
             }
 
             NullableDateTime pot = GetTimeAfter(afterTimeUtc.Value);
-            if (EndTimeUtc.HasValue && pot.Value > EndTimeUtc.Value)
+            if (EndTimeUtc.HasValue && pot.HasValue && pot.Value > EndTimeUtc.Value)
 			{
 				return null;
 			}

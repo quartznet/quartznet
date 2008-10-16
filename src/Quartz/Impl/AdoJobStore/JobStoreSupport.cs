@@ -826,9 +826,10 @@ namespace Quartz.Impl.AdoJobStore
 
                 DoUpdateOfMisfiredTrigger(conn, null, trig, false, StateWaiting, recovering);
 
-                if (trig.GetNextFireTimeUtc().Value < earliestNewTime)
+                NullableDateTime nextTime = trig.GetNextFireTimeUtc();
+                if (nextTime.HasValue && nextTime.Value < earliestNewTime)
                 {
-                    earliestNewTime = trig.GetNextFireTimeUtc().Value;
+                    earliestNewTime = nextTime.Value;
                 }
 
                 signaler.NotifyTriggerListenersMisfired(trig);
