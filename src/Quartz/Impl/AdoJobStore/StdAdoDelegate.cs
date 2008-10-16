@@ -895,8 +895,16 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 4, "triggerJobGroup", trigger.JobGroup);
                 AddCommandParameter(cmd, 5, "triggerVolatile", GetDbBooleanValue(trigger.Volatile));
                 AddCommandParameter(cmd, 6, "triggerDescription", trigger.Description);
-                AddCommandParameter(cmd, 7, "triggerNextFireTime",
+                
+                if (trigger.GetNextFireTimeUtc().HasValue)
+                {
+                    AddCommandParameter(cmd, 7, "triggerNextFireTime",
                                     Convert.ToDecimal(trigger.GetNextFireTimeUtc().Value.Ticks));
+                }
+                else
+                {
+                    AddCommandParameter(cmd, 7, "triggerNextFireTime", null);
+                }
                 long prevFireTime = -1;
                 if (trigger.GetPreviousFireTimeUtc().HasValue)
                 {
