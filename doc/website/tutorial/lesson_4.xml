@@ -139,10 +139,10 @@ sched.ScheduleJob(trig3);
 
 <p>
 Another important property of a Trigger is its "misfire instruction". A misfire occurs if a persistent trigger "misses"
-its firing time because of the scheduler being shutdown. The different trigger types have different misfire instructions
-available to them. By default they use a 'smart policy' instruction - which has dynamic behavior based on trigger type 
-and configuration. When the scheduler starts, it searches for any persistent triggers that have misfired, and it then 
-updates each of them based on their individually configured misfire instructions. 
+its firing time because of the scheduler being shutdown, or because there are no available threads in Quartz's thread pool for executing the job. 
+The different trigger types have different misfire instructions available to them. By default they use a 'smart policy' instruction 
+- which has dynamic behavior based on trigger type and configuration. When the scheduler starts, it searches for any persistent triggers that 
+have misfired, and it then updates each of them based on their individually configured misfire instructions. 
 </p>
 <p>
 When you start using Quartz in your 
