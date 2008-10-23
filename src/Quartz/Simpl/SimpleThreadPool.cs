@@ -313,7 +313,7 @@ namespace Quartz.Simpl
         protected internal virtual IList CreateWorkerThreads(int threadCount)
         {
             workers = new ArrayList();
-            for (int i = 1; i <= count; ++i)
+            for (int i = 1; i <= threadCount; ++i)
             {
                 WorkerThread wt = new WorkerThread(
                     this,
