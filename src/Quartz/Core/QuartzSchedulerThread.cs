@@ -318,11 +318,14 @@ namespace Quartz.Core
                                 {
                                     try
                                     {
-                                        // we chould have blocked a long while
+                                        // we could have blocked a long while
                                         // on 'synchronize', so we must recompute
                                         now = DateTime.UtcNow;
                                         timeUntilTrigger = triggerTime - now;
-                                        Monitor.Wait(sigLock, timeUntilTrigger);
+                                        if (timeUntilTrigger.TotalMilliseconds > 1)
+                                        {
+                                            Monitor.Wait(sigLock, timeUntilTrigger);
+                                        }
                                     }
                                     catch (ThreadInterruptedException)
                                     {
