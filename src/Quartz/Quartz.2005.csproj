@@ -305,6 +305,9 @@
     <Compile Include="Simpl\SimpleThreadPool.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Simpl\ZeroSizeThreadPool.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="SPI\ITypeLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>

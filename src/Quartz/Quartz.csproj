@@ -676,6 +676,11 @@
                     BuildAction = "Compile"
                 />
                 <File
+                    RelPath = "Simpl\ZeroSizeThreadPool.cs"
+                    SubType = "Code"
+                    BuildAction = "Compile"
+                />
+                <File
                     RelPath = "SPI\IInstanceIdGenerator.cs"
                     SubType = "Code"
                     BuildAction = "Compile"

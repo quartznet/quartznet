@@ -1,7 +1,7 @@
 ﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
   <PropertyGroup>
     <ProjectType>Local</ProjectType>
-    <ProductVersion>9.0.21022</ProductVersion>
+    <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -403,6 +403,7 @@
     <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
     <Compile Include="SchedulerInstruction.cs" />
     <Compile Include="Simpl\RemotingSchedulerExporter.cs" />
+    <Compile Include="Simpl\ZeroSizeThreadPool.cs" />
     <Compile Include="SPI\ISchedulerExporter.cs" />
     <Compile Include="TriggerState.cs" />
     <Compile Include="Util\DateTimeUtil.cs" />
