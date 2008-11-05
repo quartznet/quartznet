@@ -7,6 +7,8 @@ using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Job;
 
+using Rhino.Mocks;
+
 namespace Quartz.Tests.Unit.Core
 {
     [TestFixture]
@@ -63,6 +65,40 @@ namespace Quartz.Tests.Unit.Core
             Assert.IsFalse(sched.IsStarted);
             Thread.Sleep(TimeSpan.FromSeconds(3));
             Assert.IsTrue(sched.IsStarted);
+        }
+
+        [Test]
+        public void TestRescheduleJob_SchedulerListenersCalledOnReschedule()
+        {
+            const string TriggerName = "triggerName";
+            const string TriggerGroup = "triggerGroup";
+            const string JobName = "jobName";
+            const string JobGroup = "jobGroup";
+
+            ISchedulerFactory sf = new StdSchedulerFactory();
+            IScheduler scheduler = sf.GetScheduler();
+            DateTime startTimeUtc = DateTime.UtcNow.AddSeconds(2);
+            JobDetail jobDetail = new JobDetail(JobName, JobGroup, typeof(NoOpJob));
+            SimpleTrigger jobTrigger = new SimpleTrigger(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
+
+            MockRepository mockery = new MockRepository();
+            ISchedulerListener listener = (ISchedulerListener) mockery.CreateMock(typeof(ISchedulerListener));
+
+            scheduler.ScheduleJob(jobDetail, jobTrigger);
+            // add listener after scheduled
+            scheduler.AddSchedulerListener(listener);
+
+            // expect unschedule and schedule
+            listener.JobUnscheduled(TriggerName, TriggerGroup);
+            listener.JobScheduled(jobTrigger);
+
+            mockery.ReplayAll();
+
+            // act
+            scheduler.RescheduleJob(TriggerName, TriggerGroup, jobTrigger);
+
+            // verify
+            mockery.VerifyAll();
         }
     }
 }
