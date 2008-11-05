@@ -752,7 +752,7 @@ namespace Quartz
                 if (type != DayOfWeek && type != DayOfMonth)
                 {
                     throw new FormatException(
-                        "'?' can only be specfied for Day-of-Month or Day-of-Week.");
+                        "'?' can only be specified for Day-of-Month or Day-of-Week.");
                 }
                 if (type == DayOfWeek && !lastdayOfMonth)
                 {
@@ -760,7 +760,7 @@ namespace Quartz
                     if (val == NoSpecInt)
                     {
                         throw new FormatException(
-                            "'?' can only be specfied for Day-of-Month -OR- Day-of-Week.");
+                            "'?' can only be specified for Day-of-Month -OR- Day-of-Week.");
                     }
                 }
 
