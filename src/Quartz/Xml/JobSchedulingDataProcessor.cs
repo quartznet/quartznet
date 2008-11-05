@@ -367,6 +367,17 @@ namespace Quartz.Xml
                     {
                         trigger.MisfireInstruction = ReadMisfireInstructionFromString(t.Item.misfireinstruction);
                     }
+                    if (t.Item.jobdatamap != null && t.Item.jobdatamap.entry != null)
+                    {
+                        foreach (entryType entry in t.Item.jobdatamap.entry)
+                        {
+                            if (trigger.JobDataMap.Contains(entry.key))
+                            {
+                                Log.Warn("Overriding key '" + entry.key + "' with another value in same trigger job data map");
+                            }
+                            trigger.JobDataMap[entry.key] = entry.value;
+                        }
+                    }
 	                jsb.Triggers.Add(trigger);
 	            }
 

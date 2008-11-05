@@ -3,6 +3,7 @@ using System.IO;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Xml;
 
 using Rhino.Mocks;
@@ -33,6 +34,31 @@ namespace Quartz.Tests.Unit.Xml
             mockery.ReplayAll();
             
             processor.ScheduleJobs(new Hashtable(), mockScheduler, false);
+        }
+
+        [Test]
+        public void TestScheduling_RichConfiguration_ShouldReadJobDataMapFromTrigger()
+        {
+            Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration.xml");
+            processor.ProcessStream(s, null);
+
+            mockery.ReplayAll();
+
+            processor.ScheduleJobs(new Hashtable(), mockScheduler, false);
+
+            JobSchedulingBundle job = processor.GetScheduledJob("jobGroup1.jobName1");
+            foreach (Trigger trigger in job.Triggers)
+            {
+                string keyValuePrefix = trigger is CronTrigger ? "Cron" : "Simple";
+                Assert.AreEqual(2, trigger.JobDataMap.Count, "Should have had 2 items in job data map");
+                for (int i = 1; i <= 2; ++i)
+                {
+                    string entryKey = keyValuePrefix + "Entry_" + i;
+                    Assert.Contains(entryKey, trigger.JobDataMap.Keys);
+                    Assert.AreEqual(keyValuePrefix + "Value_" + i, trigger.JobDataMap[entryKey]);
+                }
+            }
+
         }
 
 

@@ -204,6 +204,7 @@
       <element name="misfire-instruction" type="quartz:misfire-instructionType" minOccurs="0" />
       <element ref="quartz:calendar-name" minOccurs="0" />
       <element ref="quartz:volatile" minOccurs="0" />
+      <element name="job-data-map" type="quartz:job-data-mapType" minOccurs="0" />
     </sequence>
   </complexType>
   <simpleType name="misfire-instructionType">

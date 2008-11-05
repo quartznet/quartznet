@@ -86,6 +86,30 @@ namespace Quartz.Xml {
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool volatileSpecified;
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlElementAttribute("job-data-map")]
+        public jobdatamapType jobdatamap;
+    }
+    
+    /// <remarks/>
+    [System.Xml.Serialization.XmlTypeAttribute(TypeName="job-data-mapType", Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
+    public class jobdatamapType {
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlElementAttribute("entry")]
+        public entryType[] entry;
+    }
+    
+    /// <remarks/>
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
+    public class entryType {
+        
+        /// <remarks/>
+        public string key;
+        
+        /// <remarks/>
+        public string value;
     }
     
     /// <remarks/>
@@ -158,26 +182,6 @@ namespace Quartz.Xml {
         [System.Xml.Serialization.XmlElementAttribute("cron", typeof(cronType))]
         [System.Xml.Serialization.XmlElementAttribute("simple", typeof(simpleType))]
         public abstractTriggerType Item;
-    }
-    
-    /// <remarks/>
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
-    public class entryType {
-        
-        /// <remarks/>
-        public string key;
-        
-        /// <remarks/>
-        public string value;
-    }
-    
-    /// <remarks/>
-    [System.Xml.Serialization.XmlTypeAttribute(TypeName="job-data-mapType", Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
-    public class jobdatamapType {
-        
-        /// <remarks/>
-        [System.Xml.Serialization.XmlElementAttribute("entry")]
-        public entryType[] entry;
     }
     
     /// <remarks/>
