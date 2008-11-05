@@ -14,6 +14,8 @@
  * under the License.
  */
 
+using System;
+
 using NUnit.Framework;
 
 #if NET_35
@@ -50,5 +52,19 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(tz, trigger.TimeZone, "TimeZone was changed");
         }
 #endif
+
+        [Test]
+        public void BasicCronTriggerTest()
+        {
+            CronTrigger trigger = new CronTrigger();
+            trigger.Name = "Quartz-Sample";
+            trigger.Group = SchedulerConstants.DefaultGroup;
+            trigger.TimeZone = TimeZoneInfo.Utc;
+            trigger.CronExpressionString = "0 0 12 1 1 ? 2099";
+            trigger.StartTimeUtc = new DateTime(2099, 1, 1, 12, 0, 1);
+            trigger.EndTimeUtc = new DateTime(2099, 1, 1, 12, 0, 1);
+
+            Assert.IsNull(trigger.ComputeFirstFireTimeUtc(null));
+        }
     }
 }
