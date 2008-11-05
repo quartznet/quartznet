@@ -139,7 +139,7 @@ namespace Quartz.Job
 
 		private int RunNativeCommand(String command, string parameters, bool wait, bool consumeStreams)
 		{
-			string[] cmd = null;
+			string[] cmd;
 			string[] args = new string[2];
 			args[0] = command;
 			args[1] = parameters;
@@ -148,96 +148,25 @@ namespace Quartz.Job
 			try
 			{
 				//with this variable will be done the swithcing
-				String osName = Environment.GetEnvironmentVariable("OS");
-
-				//only will work with Windows NT
-				if (osName.Equals("Windows NT"))
-				{
-					if (cmd == null)
-					{
-						cmd = new string[args.Length + 2];
-					}
-					cmd[0] = "cmd.exe";
-					cmd[1] = "/C";
-					for (int i = 0; i < args.Length; i++)
-					{
-						cmd[i + 2] = args[i];
-					}
-				}
-					//only will work with Windows 95
-				else if (osName.Equals("Windows 95"))
-				{
-					if (cmd == null)
-					{
-						cmd = new string[args.Length + 2];
-					}
-					cmd[0] = "command.com";
-					cmd[1] = "/C";
-					for (int i = 0; i < args.Length; i++)
-					{
-						cmd[i + 2] = args[i];
-					}
-				}
-					//only will work with Windows 2003
-				else if (osName.Equals("Windows 2003"))
-				{
-					if (cmd == null)
-					{
-						cmd = new string[args.Length + 2];
-					}
-					cmd[0] = "cmd.exe";
-					cmd[1] = "/C";
-
-					for (int i = 0; i < args.Length; i++)
-					{
-						cmd[i + 2] = args[i];
-					}
-				}
-					//only will work with Windows 2000
-				else if (osName.Equals("Windows 2000"))
-				{
-					if (cmd == null)
-					{
-						cmd = new string[args.Length + 2];
-					}
-					cmd[0] = "cmd.exe";
-					cmd[1] = "/C";
-
-					for (int i = 0; i < args.Length; i++)
-					{
-						cmd[i + 2] = args[i];
-					}
-				}
-					//only will work with Windows XP
-				else if (osName.Equals("Windows XP"))
-				{
-					if (cmd == null)
-					{
-						cmd = new string[args.Length + 2];
-					}
-					cmd[0] = "cmd.exe";
-					cmd[1] = "/C";
-
-					for (int i = 0; i < args.Length; i++)
-					{
-						cmd[i + 2] = args[i];
-					}
-				}
-					//only will work with Linux
-				else if (osName.Equals("Linux"))
-				{
-					if (cmd == null)
-					{
-						cmd = new string[args.Length];
-					}
-					cmd = args;
-				}
-                else if (osName.Equals("Linux")) 
+				string osName = Environment.GetEnvironmentVariable("OS");
+                if (osName == null)
                 {
-       		        if (cmd == null) 
-                    {
-                        cmd = new String[3];
-        	        }
+                    throw new JobExecutionException("Could not read environment variable for OS");
+                }
+
+				if (osName.Contains("Windows"))
+				{
+    				cmd = new string[args.Length + 2];
+					cmd[0] = "cmd.exe";
+					cmd[1] = "/C";
+					for (int i = 0; i < args.Length; i++)
+					{
+						cmd[i + 2] = args[i];
+					}
+				}
+                else if (osName.Contains("Linux")) 
+                {
+                    cmd = new String[3];
                     cmd[0] = "/bin/sh";
                     cmd[1] = "-c";
                     cmd[2] = args[0] + " " + args[1];
@@ -249,23 +178,29 @@ namespace Quartz.Job
                 }
 
 				// Executes the command
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "About to run {0}{1}{2}...", cmd[0], cmd[1], cmd.Length > 2 ? cmd[2] : ""));
 				string temp = "";
 				for (int i = 1; i < cmd.Length; i++)
 				{
-					if (i == 1)
-					{
-						temp = cmd[i];
-					}
-					else
-					{
-						temp = string.Format(CultureInfo.InvariantCulture, "{0} {1}", temp, cmd[i]);
-					}
+					temp += cmd[i] + " ";
 				}
 
-				Process proc = Process.Start(cmd[0], temp);
+                temp = temp.Trim();
+
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "About to run {0} {1}...", cmd[0], temp));
+
+				Process proc = new Process();
+			    
+                proc.StartInfo.FileName = cmd[0];
+                proc.StartInfo.Arguments = temp;
+                proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+			    proc.StartInfo.CreateNoWindow = true;
+			    proc.StartInfo.UseShellExecute = false;
+			    proc.StartInfo.RedirectStandardError = true;
+                proc.StartInfo.RedirectStandardOutput = true;
+			    proc.Start();
+
 				// Consumes the stdout from the process
-				StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardInput.BaseStream, "stdout");
+				StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardOutput.BaseStream, "stdout");
 
 				// Consumes the stderr from the process
 				if (consumeStreams)
@@ -285,7 +220,7 @@ namespace Quartz.Job
 			}
 			catch (Exception x)
 			{
-				throw new JobExecutionException("Error launching native command: ", x, false);
+				throw new JobExecutionException("Error launching native command: " + x.Message, x, false);
 			}
             return result;
 		}
@@ -320,41 +255,29 @@ namespace Quartz.Job
 			/// </summary>
 			public override void Run()
 			{
-				StreamReader br = null;
-				try
-				{
-					br = new StreamReader(inputStream);
-					string line;
+			    try
+			    {
+                    using (StreamReader br = new StreamReader(inputStream))
+                    {
+                        string line;
 
-					while ((line = br.ReadLine()) != null)
-					{
-						if (type.ToUpper(CultureInfo.InvariantCulture).Equals("stderr".ToUpper(CultureInfo.InvariantCulture)))
-						{
-							outer.Log.Warn(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
-						}
-						else
-						{
-							outer.Log.Info(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
-						}
-					}
-				}
+                        while ((line = br.ReadLine()) != null)
+                        {
+                            if (type == "stderr")
+                            {
+                                outer.Log.Warn(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
+                            }
+                            else
+                            {
+                                outer.Log.Info(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
+                            }
+                        }
+                    }
+
+			    }
 				catch (IOException ioe)
 				{
 					outer.Log.Error(string.Format(CultureInfo.InvariantCulture, "Error consuming {0} stream of spawned process.", type), ioe);
-				}
-				finally
-				{
-					if (br != null)
-					{
-						try
-						{
-							br.Close();
-						}
-						catch
-						{
-						    ;
-						}
-					}
 				}
 			}
 		}
