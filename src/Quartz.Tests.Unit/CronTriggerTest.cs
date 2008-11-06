@@ -59,7 +59,6 @@ namespace Quartz.Tests.Unit
             CronTrigger trigger = new CronTrigger();
             trigger.Name = "Quartz-Sample";
             trigger.Group = SchedulerConstants.DefaultGroup;
-            trigger.TimeZone = TimeZoneInfo.Utc;
             trigger.CronExpressionString = "0 0 12 1 1 ? 2099";
             trigger.StartTimeUtc = new DateTime(2099, 1, 1, 12, 0, 1);
             trigger.EndTimeUtc = new DateTime(2099, 1, 1, 12, 0, 1);

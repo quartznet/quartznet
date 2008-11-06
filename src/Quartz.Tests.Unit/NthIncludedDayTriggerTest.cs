@@ -21,6 +21,9 @@ using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;
 #endif
+#if NET_35
+using TimeZone = System.TimeZoneInfo;
+#endif
 
 using NUnit.Framework;
 
@@ -30,6 +33,7 @@ namespace Quartz.Tests.Unit
 	/// <summary>
 	/// Unit test for NthIncludedDayTrigger serialization backwards compatibility.
 	/// </summary>
+    [TestFixture]
 	public class NthIncludedDayTriggerTest : SerializationTestSupport 
 	{
 		private static readonly string[] Versions = new string[] {"0.6"};
@@ -182,85 +186,86 @@ namespace Quartz.Tests.Unit
 			}
 		}
 
-        /* TODO, when we have 3.5 TimeZones..
-        public void testTimeZone() throws Exception 
+#if NET_35
+        [Test]
+        [Ignore]
+        public void TestTimeZone() 
         {
-            TimeZone GMT = TimeZone.getTimeZone("GMT-0:00");
-            TimeZone EST = TimeZone.getTimeZone("GMT-5:00");
+            TimeZone GMT = TimeZone.FindSystemTimeZoneById("GMT Standard Time");
+            TimeZone EST = TimeZone.FindSystemTimeZoneById("Eastern Standard Time");
             
-            Calendar startTime = Calendar.getInstance(EST);
-            startTime.set(2006, Calendar.MARCH, 7, 7, 0, 0);
+            // Calendar startTime = Calendar.getInstance(EST);
+            var startTime = new DateTime(2006, 3, 7, 7, 0, 0, DateTimeKind.Utc);
+            startTime = TimeZone.ConvertTimeFromUtc(startTime, EST);
+
             
             // Same timezone
             {
                 NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
-                t.setIntervalType(NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY);
-                t.setN(3);
-                t.setStartTime(startTime.getTime());
-                t.setFireAtTime("8:00");
-                t.setTimeZone(EST);
+                t.IntervalType = NthIncludedDayTrigger.IntervalTypeWeekly;
+                t.N = 3;
+                t.StartTimeUtc = startTime.ToUniversalTime();
+                t.FireAtTime = "8:00";
+                t.TimeZone = EST;
                 
-                Date firstTime = t.computeFirstFireTime(null);
-                Calendar firstTimeCal = Calendar.getInstance(EST);
-                firstTimeCal.setTime(startTime.getTime());
-                firstTimeCal.set(Calendar.HOUR_OF_DAY, 8);
-                firstTimeCal.set(Calendar.MINUTE, 0);
-                firstTimeCal.set(Calendar.SECOND, 0);
-                firstTimeCal.set(Calendar.MILLISECOND, 0);
+                DateTime? firstTime = t.ComputeFirstFireTimeUtc(null);
                 
+                // Calendar firstTimeCal = Calendar.getInstance(EST);
+                DateTime firstTimeCal = new DateTime(startTime.Year, startTime.Month, startTime.Day, 8, 0, 0, 0, DateTimeKind.Utc);
+                firstTimeCal = TimeZone.ConvertTimeFromUtc(firstTimeCal, EST);
                 //roll start date forward to first day of the next week
-                while (firstTimeCal.get(Calendar.DAY_OF_WEEK) != firstTimeCal.getFirstDayOfWeek()) {
-                    firstTimeCal.add(Calendar.DAY_OF_YEAR, -1);
+                while (firstTimeCal.DayOfWeek != t.TriggerCalendarFirstDayOfWeek) 
+                {
+                    firstTimeCal = firstTimeCal.AddDays(-1);
                 }
                 
                 //first day of the week counts as one. add two more to get N=3.
-                firstTimeCal.add(Calendar.DAY_OF_WEEK, 2);
+                firstTimeCal = firstTimeCal.AddDays(2);
                 
                 //if we went back too far, shift forward a week.
-                if (firstTimeCal.getTime().before(startTime.getTime())) {
-                    firstTimeCal.add(Calendar.DAY_OF_MONTH, 7);
+                if (firstTimeCal < startTime) 
+                {
+                    firstTimeCal = firstTimeCal.AddDays(7);
                 }
 
-                assertTrue(firstTime.equals(firstTimeCal.getTime()));
+                Assert.AreEqual(firstTime, firstTimeCal);
             }
 
             // Different timezones
             {
                 NthIncludedDayTrigger t = new NthIncludedDayTrigger("name", "group");
-                t.setIntervalType(NthIncludedDayTrigger.INTERVAL_TYPE_WEEKLY);
-                t.setN(3);
-                t.setStartTime(startTime.getTime());
-                t.setFireAtTime("8:00");
-                t.setTimeZone(GMT);
+                t.IntervalType = NthIncludedDayTrigger.IntervalTypeWeekly;
+                t.N = 3;
+                t.StartTimeUtc = startTime;
+                t.FireAtTime = "8:00";
+                t.TimeZone = GMT;
                 
-                Date firstTime = t.computeFirstFireTime(null);
-                Calendar firstTimeCal = Calendar.getInstance(EST);
-                firstTimeCal.setTime(startTime.getTime());
-                firstTimeCal.set(Calendar.HOUR_OF_DAY, 8);
-                firstTimeCal.set(Calendar.MINUTE, 0);
-                firstTimeCal.set(Calendar.SECOND, 0);
-                firstTimeCal.set(Calendar.MILLISECOND, 0);
+                DateTime? firstTime = t.ComputeFirstFireTimeUtc(null);
+                // Calendar firstTimeCal = Calendar.getInstance(EST);
+                DateTime firstTimeCal = new DateTime(startTime.Year, startTime.Month, startTime.Day, 8, 0, 0, 0);
                 
                 //EST is GMT-5
-                firstTimeCal.add(Calendar.HOUR_OF_DAY, -5);
+                firstTimeCal.AddHours(-5);
                 
                 //roll start date forward to first day of the next week
-                while (firstTimeCal.get(Calendar.DAY_OF_WEEK) != firstTimeCal.getFirstDayOfWeek()) {
-                    firstTimeCal.add(Calendar.DAY_OF_YEAR, -1);
+                while (firstTimeCal.DayOfWeek != t.TriggerCalendarFirstDayOfWeek)
+                {
+                    firstTimeCal = firstTimeCal.AddDays(-1);
                 }
                 
                 //first day of the week counts as one. add two more to get N=3.
-                firstTimeCal.add(Calendar.DAY_OF_WEEK, 2);
+                firstTimeCal = firstTimeCal.AddDays(2);
                 
                 //if we went back too far, shift forward a week.
-                if (firstTimeCal.getTime().before(startTime.getTime())) {
-                    firstTimeCal.add(Calendar.DAY_OF_MONTH, 7);
+                if (firstTimeCal < startTime) 
+                {
+                    firstTimeCal = firstTimeCal.AddDays(7);
                 }
 
-                assertTrue(firstTime.equals(firstTimeCal.getTime()));
+                Assert.AreEqual(firstTime, firstTimeCal);
             }
         }
-        */
+#endif
 
 
         /// <summary>
