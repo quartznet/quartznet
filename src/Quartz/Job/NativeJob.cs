@@ -154,7 +154,7 @@ namespace Quartz.Job
                     throw new JobExecutionException("Could not read environment variable for OS");
                 }
 
-				if (osName.Contains("Windows"))
+				if (osName.ToLower().IndexOf("windows") > -1)
 				{
     				cmd = new string[args.Length + 2];
 					cmd[0] = "cmd.exe";
@@ -164,7 +164,7 @@ namespace Quartz.Job
 						cmd[i + 2] = args[i];
 					}
 				}
-                else if (osName.Contains("Linux")) 
+                else if (osName.ToLower().IndexOf("linux") > -1) 
                 {
                     cmd = new String[3];
                     cmd[0] = "/bin/sh";
