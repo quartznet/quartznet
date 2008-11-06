@@ -2,6 +2,30 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+Release 1.0, Nov 6, 2008
+-------------------------------
+
+Bug
+
+    * [QRTZNET-125] - TimeZones are not handled correctly when reading XML job configuration
+    * [QRTZNET-127] - CronExpression does not handle custom TimeZone correctly in GetTimeAfter in 2.0 build
+    * [QRTZNET-128] - RemoteScheduler does not delegate IsJobGroupPaused and IsTriggerGroupPaused to remote scheduler
+    * [QRTZNET-131] - NthIncludeDayTrigger doesn't utilize custom TimeZone correctly
+    * [QRTZNET-132] - NullReferenceException when computing next fire time for misfired triggers
+    * [QRTZNET-133] - SimpleThreadPool.CreateWorkerThreads does not respect threadCount parameter value
+    * [QRTZNET-136] - NativeJob is broken
+
+Improvement
+
+    * [QRTZNET-126] - Apply AllowPartiallyTrustedCallersAttribute to DLL
+
+New Feature
+
+    * [QRTZNET-129] - Support for connectionStrings section in App.config
+    * [QRTZNET-134] - New pool implementation -- ZeroSizeThreadPool
+    * [QRTZNET-135] - Support job-data-map for triggers in XML
+
+
 Release 1.0 RC 3, Sep 6, 2008
 -------------------------------
 

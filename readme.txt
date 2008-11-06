@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, release 1.0 RC 3, Sep 6 2008
+QUARTZ JOB SCHEDULER .NET, release 1.0, Nov 6 2008
 -----------------------------------------------------------------
 
 http://quartznet.sourceforge.net/
@@ -26,24 +26,14 @@ Also, to keep the legal people happy:
 2. KNOWN ISSUES
 ---------------
 
-The .NET Framework 3.5 build with support for TimeZoneInfo isn't very thorougly
-tested yet. Please perform testing and report any problems you may find.
+None.
 
 
 3. RELEASE INFO
 ----------------
 
-This is the release candidate 3 for Quartz.NET 1.0. After 0.9.1 release this
-release contains the new Quartz.NET server for running jobs so that end user 
-doesn't need to create the server by hand for tasks. Besides the new server this 
-release incorporates small bug fixes and minor feature enhancements.
-
-Since 0.9.1 public API has changed towards moving from using long and int values
-for time intervals to using more correct .NET Framework provided TimeSpan 
-structures.
-
-This release also contains .NET Framwork 3.5 compiled build with preliminary
-support for TimeZoneInfo for more useful time zone aware CrontTrigger scheduling.
+This is the official Quartz.NET 1.0 final release. This release corresponds
+to Java Quartz version 1.6.2.
 
 For API documentation, please refer to Quartz.NET site: 
 

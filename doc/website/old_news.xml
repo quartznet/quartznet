@@ -6,8 +6,118 @@
 	<body>
 		<intro>
 		</intro>
+	
 		<section>
 			<title>News archive</title>
+
+			<section>
+				<title>Quartz.NET 0.9.1 Released</title>
+				<p>
+				<div class="descr">January 20, 2008 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 0.9.1 has been released. This a bug fix version
+					which fixes problems and inconveniences found in earlier
+					0.9 release. Please refer to the
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21760">release notes</a> 
+					for more information.
+				</p>
+				<p>
+					Grab it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>
+
+
+			<section>
+				<title>Quartz.NET 0.9 Released</title>
+				<p>
+				<div class="descr">December 1, 2007 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 0.9 has been released. This is the earlier 0.7
+					version renamed to indicate maturity and feature completeness.
+				</p>
+				<p>
+					This is again a feature release also containing
+					some minor bug fixes. The biggest new features are support for XML
+					based configuration for setting up the scheduler and remoting 
+					exporting support for the scheduler.
+					XML configuration should make it now easier
+					to define your scheduling out-of-code regardless of the used job store.
+					Remoting functionality allows you to control scheduler over 
+					application domain boundaries.
+				</p>
+				<p>
+					The Quartz.NET DLL is now also finally signed assembly and
+					you can add it to the GAC.
+				</p>
+				<p>
+					<strong>
+						This release has also major breaking change: all times
+						are now expected to be in UTC time zone for Quartz.NET to work
+						correctly.
+					</strong>
+					<br />
+					Please check <a href="migration_guide.html">migration guide</a>
+					before upgrading.
+				</p>
+				<p>
+					Please refer to examples to see XML configuration and remoting
+					in action. The documentation is still work in progress.
+				</p>
+				<p>
+					<strong>
+						UPDATE: XML configuration example's XML file isn't valid
+						according to its schema. The "allows-transient-data"
+						attribute hsa been removed from the Quartz.NET XML schema
+						and can be safely removed from the XML file aswell.
+					</strong>
+				</p>
+				<p>
+					Grab it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>
+
+			<section>
+				<title>Project News</title>
+				<p>
+				<div class="descr">August 8, 2007 by Marko Lahma</div>
+				</p>
+				<p>
+					Now that version 0.6 was released with quite impressive feature set
+					it's a good time to sit back and elaborate a bit what's been up with the project.
+				</p>
+				<p>
+					Project has received free license for Clover.NET from kind folks at <a href="http://www.cenqua.com/">Cenqua</a>
+					(actually now Atlassian - the're cool people too!),
+					and did we receive it right on time - product will be discontinued and I believe no 
+					further licenses will be given. Cenqua also has opened a 
+					<a href="http://fisheye3.cenqua.com/browse/quartznet">FishEye view of the source code</a>.
+				</p>
+				<p>
+					The folks at <a href="http://www.innovasys.com">Innovasys</a> also support open source and they gave us a free license
+					for their excellent source code documentation management software <a href="http://www.innovasys.com/products/documentx.asp">Document! X</a>
+				</p>
+				<p>
+					So what's going to happen next? We've caught up with Java version 1.6 already quite nicely but there are still a couple of big things to do:
+				</p>
+				<ul>
+					<li>XML based configuration support - ability to define jobs and triggers in XML configuration file</li>
+					<li>Spring.NET support - actually I've already got running code that seems to work but there are still some issues to solve</li>
+				</ul>
+				<p>
+					After XML configuration is working and released (planned for 0.7) it's getting close to 1.0 time. Even though
+					Quartz.NET is quite production ready as-is, it'll be considered 1.0 when it's also feature ready.
+				</p>
+				<p>
+					Please remember, It's your feedback that drives this project! So don't hesitate to bring up the the good and the bad
+					in Quartz.NET. We gladly accept bug reports (better yet with test code to illustrate and maybe even a patch to fix it!)
+					to our <a href="http://jira.opensymphony.com/browse/QRTZNET">JIRA issue tracker</a> and welcome questions and help 
+					requests to <a href="http://groups.google.com/group/quartznet">Quartz.NET mailing list</a>. It would also be great
+					to hear about projects/products using Quartz.NET!
+				</p>
+			</section>
+
 			<section>
 				<title>Quartz.NET 0.6 Released</title>
 				<p>
