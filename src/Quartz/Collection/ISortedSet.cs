@@ -20,13 +20,13 @@ namespace Quartz.Collection
 	/// <summary>
 	/// A sorted set.
 	/// </summary>
-	public interface ISortedSet : ISet
+	public interface ISortedSet<T> : ISet<T>
 	{
 		/// <summary>
 		/// Returns a portion of the list whose elements are greater than the limit object parameter.
 		/// </summary>
 		/// <param name="limit">The start element of the portion to extract.</param>
 		/// <returns>The portion of the collection whose elements are greater than the limit object parameter.</returns>
-		ISortedSet TailSet(object limit);
+		ISortedSet<T> TailSet(T limit);
 	}
 }

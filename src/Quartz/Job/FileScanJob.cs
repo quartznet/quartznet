@@ -108,7 +108,7 @@ namespace Quartz.Job
 			}
 
 			DateTime lastDate = DateTime.MinValue;
-			if (data.Contains(LastModifiedTime))
+			if (data.ContainsKey(LastModifiedTime))
 			{
 				lastDate = data.GetDateTime(LastModifiedTime);
 			}

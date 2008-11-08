@@ -20,12 +20,10 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
-
-using Quartz.Collection;
 
 namespace Quartz.Util
 {
@@ -35,7 +33,7 @@ namespace Quartz.Util
 	/// <author> James House</author>
 	public class PropertiesParser
 	{
-        internal NameValueCollection props = null;
+        internal NameValueCollection props;
 
         /// <summary>
         /// Gets the underlying properties.
@@ -78,7 +76,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual string GetStringProperty(string name, string defaultValue)
 		{
-			string val = props[name] == null ? defaultValue : props[name];
+			string val = props[name] ?? defaultValue;
 			if (val == null)
 			{
 				return defaultValue;
@@ -117,7 +115,7 @@ namespace Quartz.Util
             }
 
             string[] items = vals.Split(',');
-            ArrayList strs = new ArrayList();
+            List<string> strs = new List<string>();
             try
             {
                 foreach (string s in items)
@@ -125,7 +123,7 @@ namespace Quartz.Util
                     strs.Add(s.Trim());
                 }
 
-                return (string[]) strs.ToArray(typeof(string));
+                return strs.ToArray();
             }
             catch (Exception)
             {
@@ -424,7 +422,7 @@ namespace Quartz.Util
 			if (!vals.Trim().Equals(""))
 			{
 				string[] stok = vals.Split(',');
-				ArrayList ints = ArrayList.Synchronized(new ArrayList(10));
+				List<int> ints = new List<int>();
 				try
 				{
 					foreach (string s in stok)
@@ -438,12 +436,7 @@ namespace Quartz.Util
 							throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", vals));
 						}
 					}
-					int[] outInts = new int[ints.Count];
-					for (int i = 0; i < ints.Count; i++)
-					{
-						outInts[i] = ((Int32) ints[i]);
-					}
-					return outInts;
+					return ints.ToArray();
 				}
 				catch (Exception)
 				{
@@ -579,7 +572,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual string[] GetPropertyGroups(string prefix)
 		{
-            HashSet groups = new HashSet(10);
+            List<string> groups = new List<string>(10);
 
 			if (!prefix.EndsWith("."))
 			{
@@ -595,7 +588,7 @@ namespace Quartz.Util
 				}
 			}
 
-            return (string[]) groups.ToArray(typeof (string));
+            return groups.ToArray();
 		}
 
         /// <summary>

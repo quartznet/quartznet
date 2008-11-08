@@ -30,14 +30,9 @@ namespace Quartz.Util
 	/// Utility methods that are used to convert objects from one type into another.
 	/// </summary>
 	/// <author>Aleksandar Seovic</author>
-	public sealed class ObjectUtils
+	public static class ObjectUtils
 	{
-        private ObjectUtils()
-        {
-            
-        }
-
-		/// <summary>
+	    /// <summary>
 		/// Convert the value to the required <see cref="System.Type"/> (if necessary from a string).
 		/// </summary>
 		/// <param name="newValue">The proposed change value.</param>
@@ -107,16 +102,15 @@ namespace Quartz.Util
 		/// <summary>
 		/// Instantiates an instance of the type specified.
 		/// </summary>
-		/// <param name="t">The type to instantiate.</param>
 		/// <returns></returns>
-		public static object InstantiateType(Type t)
+		public static T InstantiateType<T>(Type t)
 		{
-			ConstructorInfo ci = t.GetConstructor(Type.EmptyTypes);
+            ConstructorInfo ci = t.GetConstructor(Type.EmptyTypes);
 			if (ci == null)
 			{
-				throw new ArgumentException("Cannot instantiate type which has no empty constructor", t.Name);
+                throw new ArgumentException("Cannot instantiate type which has no empty constructor", t.Name);
 			}
-			return ci.Invoke(new object[0]);
+			return (T) ci.Invoke(new object[0]);
 		}
 
 		

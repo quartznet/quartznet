@@ -51,12 +51,12 @@ namespace Quartz.Core
 	{
 		private readonly ILog log;
 
-		private JobExecutionContext jec = null;
-		private QuartzScheduler qs = null;
-		private readonly IScheduler scheduler = null;
-		private readonly SchedulingContext schdCtxt = null;
-		private readonly IJobRunShellFactory jobRunShellFactory = null;
-		private bool shutdownRequested = false;
+		private JobExecutionContext jec;
+		private QuartzScheduler qs;
+		private readonly IScheduler scheduler;
+		private readonly SchedulingContext schdCtxt;
+		private readonly IJobRunShellFactory jobRunShellFactory;
+		private bool shutdownRequested;
 
 
 		/// <summary>

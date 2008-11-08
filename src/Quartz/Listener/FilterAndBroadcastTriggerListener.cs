@@ -15,7 +15,7 @@
  */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Quartz.Listener
@@ -49,9 +49,9 @@ namespace Quartz.Listener
     public class FilterAndBroadcastTriggerListener : ITriggerListener
     {
         private readonly string name;
-        private readonly IList listeners;
-        private readonly IList namePatterns = new ArrayList();
-        private readonly IList groupPatterns = new ArrayList();
+        private readonly List<ITriggerListener> listeners;
+        private readonly List<string> namePatterns = new List<string>();
+        private readonly List<string> groupPatterns = new List<string>();
 
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace Quartz.Listener
                 throw new ArgumentException("Listener name cannot be null!");
             }
             this.name = name;
-            listeners = new ArrayList();
+            listeners = new List<ITriggerListener>();
         }
 
         /// <summary>
@@ -75,9 +75,9 @@ namespace Quartz.Listener
         /// </summary>
         /// <param name="name">the name of this instance</param>
         /// <param name="listeners">the initial List of TriggerListeners to broadcast to</param>
-        public FilterAndBroadcastTriggerListener(string name, IList listeners) : this(name)
+        public FilterAndBroadcastTriggerListener(string name, IEnumerable<ITriggerListener> listeners) : this(name)
         {
-            this.listeners.Add(listeners);
+            this.listeners.AddRange(listeners);
         }
 
         public string Name
@@ -117,9 +117,9 @@ namespace Quartz.Listener
             return false;
         }
 
-        public IList GetListeners()
+        public IList<ITriggerListener> GetListeners()
         {
-            return ArrayList.ReadOnly(listeners);
+            return listeners.AsReadOnly();
         }
 
         /// <summary>
@@ -138,7 +138,7 @@ namespace Quartz.Listener
             namePatterns.Add(regularExpression);
         }
 
-        public IList TriggerNamePatterns
+        public IList<string> TriggerNamePatterns
         {
             get { return namePatterns; }
         }
@@ -159,7 +159,7 @@ namespace Quartz.Listener
             groupPatterns.Add(regularExpression);
         }
 
-        public IList TriggerGroupPatterns
+        public IList<string> TriggerGroupPatterns
         {
             get { return namePatterns; }
         }

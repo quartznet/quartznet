@@ -56,7 +56,7 @@ namespace Quartz.Examples.Example5
 			
 			// use the delay passed in as a job parameter (if it exists)
 			JobDataMap map = context.JobDetail.JobDataMap;
-			if (map.Contains(EXECUTION_DELAY))
+			if (map.ContainsKey(EXECUTION_DELAY))
 			{
 				delay = map.GetInt(EXECUTION_DELAY);
 			}

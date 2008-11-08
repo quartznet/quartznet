@@ -19,14 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
-
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -76,19 +70,19 @@ namespace Quartz
         private string jobGroup = SchedulerConstants.DefaultGroup;
         private string description;
         private JobDataMap jobDataMap;
-        private bool volatility = false;
-        private string calendarName = null;
-        private string fireInstanceId = null;
+        private bool volatility;
+        private string calendarName;
+        private string fireInstanceId;
 
         private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
-	    private ArrayList triggerListeners = new ArrayList();
+        private List<string> triggerListeners = new List<string>();
 
-        private NullableDateTime endTimeUtc;
+        private DateTime? endTimeUtc;
         private DateTime startTimeUtc;
 		private int priority = DefaultPriority;
 		[NonSerialized] 
-		private Key key = null;
+		private Key key;
 
 		/// <summary>
 		/// Get or sets the name of this <see cref="Trigger" />.
@@ -280,7 +274,7 @@ namespace Quartz
 		/// </summary>
 		public virtual string[] TriggerListenerNames
 		{
-			get { return (string[]) triggerListeners.ToArray(typeof (string)); }
+			get { return triggerListeners.ToArray(); }
             set 
             { 
                 ClearAllTriggerListeners();
@@ -311,7 +305,7 @@ namespace Quartz
 		/// Note that the return time *may* be in the past.
 		/// </p>
 		/// </summary>
-        public abstract NullableDateTime FinalFireTimeUtc { get; }
+        public abstract DateTime? FinalFireTimeUtc { get; }
 
         /// <summary>
 		/// Get or set the instruction the <see cref="IScheduler" /> should be given for
@@ -366,7 +360,7 @@ namespace Quartz
 		/// fire after to this date and time. If this value is null, no end time
 		/// boundary is assumed, and the trigger can continue indefinitely.
         /// </summary>
-        public virtual NullableDateTime EndTimeUtc
+        public virtual DateTime? EndTimeUtc
 		{
 			get { return endTimeUtc; }
 
@@ -559,7 +553,7 @@ namespace Quartz
         /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="Trigger" />).
         /// </returns>        
-		public abstract NullableDateTime ComputeFirstFireTimeUtc(ICalendar cal);
+		public abstract DateTime? ComputeFirstFireTimeUtc(ICalendar cal);
 
         /// <summary>
         /// This method should not be used by the Quartz client.
@@ -635,20 +629,20 @@ namespace Quartz
         /// </remarks>
         /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTime, DateTime)" />
         /// <returns></returns>
-		public abstract NullableDateTime GetNextFireTimeUtc();
+		public abstract DateTime? GetNextFireTimeUtc();
 		
         /// <summary>
 		/// Returns the previous time at which the <see cref="Trigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
-		public abstract NullableDateTime GetPreviousFireTimeUtc();
+		public abstract DateTime? GetPreviousFireTimeUtc();
 
 		/// <summary>
 		/// Returns the next time at which the <see cref="Trigger" /> will fire,
 		/// after the given time. If the trigger will not fire after the given time,
 		/// <see langword="null" /> will be returned.
 		/// </summary>
-		public abstract NullableDateTime GetFireTimeAfter(NullableDateTime afterTime);
+		public abstract DateTime? GetFireTimeAfter(DateTime? afterTime);
 
         /// <summary>
 		/// Validates the misfire instruction.
@@ -748,8 +742,8 @@ namespace Quartz
 		{
 			Trigger other = (Trigger) obj;
 
-            NullableDateTime myTime = GetNextFireTimeUtc();
-			NullableDateTime otherTime = other.GetNextFireTimeUtc();
+            DateTime? myTime = GetNextFireTimeUtc();
+			DateTime? otherTime = other.GetNextFireTimeUtc();
 
             if (!myTime.HasValue && !otherTime.HasValue)
 			{
@@ -822,8 +816,8 @@ namespace Quartz
 			try
 			{
 				copy = (Trigger) MemberwiseClone();
-				
-				copy.triggerListeners = (ArrayList) triggerListeners.Clone();
+
+                copy.triggerListeners = new List<string>(triggerListeners);
 
 				// Shallow copy the jobDataMap.  Note that this means that if a user
 				// modifies a value object in this map from the cloned Trigger

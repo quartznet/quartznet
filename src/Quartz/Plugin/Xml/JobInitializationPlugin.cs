@@ -20,7 +20,7 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -30,7 +30,6 @@ using Common.Logging;
 
 using Quartz.Collection;
 using Quartz.Job;
-using Quartz.Plugin.Xml;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -120,22 +119,22 @@ namespace Quartz.Plugin.Xml
         private const string JobInitializationPluginName = "JobInitializationPlugin";
         private const char FileNameDelimiter = ',';
 
-        private bool overwriteExistingJobs = false;
+        private bool overwriteExistingJobs;
         private bool failOnFileNotFound = true;
         private string fileNames = JobSchedulingDataProcessor.QuartzXmlFileName;
 
         // Populated by initialization
-        private readonly IDictionary jobFiles = new Hashtable();
+        private readonly IDictionary<string, JobFile> jobFiles = new Dictionary<string, JobFile>();
 
-        private bool validating = false;
+        private bool validating;
         private bool validatingSchema = true;
         private TimeSpan scanInterval = TimeSpan.Zero;
 
-        private bool started = false;
+        private bool started;
 
-        protected ITypeLoadHelper classLoadHelper = null;
+        protected ITypeLoadHelper classLoadHelper;
 
-        private readonly ISet jobTriggerNameSet = new HashSet();
+        private readonly Collection.HashSet<string> jobTriggerNameSet = new Collection.HashSet<string>();
         private IScheduler scheduler;
         private string name;
 
@@ -412,7 +411,9 @@ namespace Quartz.Plugin.Xml
 
         public void ProcessFile(string filePath)
         {
-            ProcessFile((JobFile) jobFiles[filePath]);
+            JobFile file;
+            jobFiles.TryGetValue(filePath, out file);
+            ProcessFile(file);
         }
 
     internal class JobFile
@@ -509,7 +510,7 @@ namespace Quartz.Plugin.Xml
                 else
                 {
                     fileFound = true;
-                    filePath = (furl != null) ? furl : file.FullName;
+                    filePath = furl ?? file.FullName;
                     fileBasename = file.Name;
                 }
             }

@@ -18,11 +18,6 @@ using System;
 using System.Threading;
 
 using Common.Logging;
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
 using Quartz.Impl;
 
@@ -155,7 +150,7 @@ namespace Quartz.Examples.Example2
 
             trigger = new SimpleTrigger("trigger7", "group1", "job7", "group1", DateTime.UtcNow, null, 10, TimeSpan.FromSeconds(1));
             
-            NullableDateTime ft2 = sched.RescheduleJob("trigger7", "group1", trigger);
+            DateTime? ft2 = sched.RescheduleJob("trigger7", "group1", trigger);
 
             if (ft2.HasValue)
 			{

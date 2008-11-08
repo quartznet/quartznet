@@ -20,14 +20,9 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 #if NET_35
 using TimeZone = System.TimeZoneInfo;
 #endif
@@ -46,7 +41,7 @@ namespace Quartz
 	/// <seealso cref="CronTrigger" />
 	/// <seealso cref="SimpleTrigger" />
 	/// <author>James House</author>
-	public sealed class TriggerUtils
+	public static class TriggerUtils
 	{
 		/// <summary>
 		/// Constant indicating last day of month.
@@ -74,14 +69,7 @@ namespace Quartz
 		public const long MillisecondsInDay = SecondsInDay * 1000;
 
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TriggerUtils"/> class.
-        /// </summary>
-	    private TriggerUtils()
-	    {
-	    }
-
-		private static void ValidateHour(int hour)
+	    private static void ValidateHour(int hour)
 		{
 			if (hour < 0 || hour > 23)
 			{
@@ -97,15 +85,7 @@ namespace Quartz
 			}
 		}
 
-		private static void ValidateSecond(int second)
-		{
-			if (second < 0 || second > 59)
-			{
-				throw new ArgumentException("Invalid second (must be >= 0 and <= 59).");
-			}
-		}
-
-		private static void ValidateDayOfMonth(int day)
+	    private static void ValidateDayOfMonth(int day)
 		{
 			if ((day < 1 || day > 31) && day != LastDayOfMonth)
 			{
@@ -113,23 +93,7 @@ namespace Quartz
 			}
 		}
 
-		private static void ValidateMonth(int month)
-		{
-			if (month < 1 || month > 12)
-			{
-				throw new ArgumentException("Invalid month (must be >= 1 and <= 12.");
-			}
-		}
-
-		private static void ValidateYear(int year)
-		{
-			if (year < 1970 || year > 2099)
-			{
-				throw new ArgumentException("Invalid year (must be >= 1970 and <= 2099.");
-			}
-		}
-
-		/// <summary>
+	    /// <summary>
 		/// Set the given <see cref="Trigger" />'s name to the given value, and its
 		/// group to the default group (<see cref="SchedulerConstants.DefaultGroup" />).
 		/// </summary>
@@ -619,7 +583,7 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenHourDate(NullableDateTime dateUtc)
+        public static DateTime GetEvenHourDate(DateTime? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
@@ -640,7 +604,7 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenHourDateBefore(NullableDateTime dateUtc)
+        public static DateTime GetEvenHourDateBefore(DateTime? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
@@ -660,7 +624,7 @@ namespace Quartz
 		/// </summary>
         /// <param name="dateUtc">The Date to round, if <see langword="null" /> the current time will  be used</param>
 		/// <returns>The new rounded date</returns>
-        public static DateTime GetEvenMinuteDate(NullableDateTime dateUtc)
+        public static DateTime GetEvenMinuteDate(DateTime? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
@@ -683,7 +647,7 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenMinuteDateBefore(NullableDateTime dateUtc)
+        public static DateTime GetEvenMinuteDateBefore(DateTime? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
@@ -701,7 +665,7 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenSecondDate(NullableDateTime dateUtc)
+        public static DateTime GetEvenSecondDate(DateTime? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
@@ -723,7 +687,7 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenSecondDateBefore(NullableDateTime dateUtc)
+        public static DateTime GetEvenSecondDateBefore(DateTime? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
@@ -824,7 +788,7 @@ namespace Quartz
 		/// the base-minute to set the time on
 		/// </param>
 		/// <returns> the new rounded date</returns>
-        public static DateTime GetNextGivenMinuteDate(NullableDateTime dateUtc, int minuteBase)
+        public static DateTime GetNextGivenMinuteDate(DateTime? dateUtc, int minuteBase)
 		{
 			if (minuteBase < 0 || minuteBase > 59)
 			{
@@ -851,11 +815,9 @@ namespace Quartz
 			{
 				return new DateTime(d.Year, d.Month, d.Day, d.Hour, nextMinuteOccurance, 0);
 			}
-			else
-			{
-				d = d.AddHours(1);
-				return new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0);
-			}
+		    
+            d = d.AddHours(1);
+		    return new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0);
 		}
 
 		/// <summary>
@@ -870,7 +832,7 @@ namespace Quartz
         /// <param name="dateUtc">The date.</param>
 		/// <param name="secondBase">The second base.</param>
 		/// <returns></returns>
-        public static DateTime GetNextGivenSecondDate(NullableDateTime dateUtc, int secondBase)
+        public static DateTime GetNextGivenSecondDate(DateTime? dateUtc, int secondBase)
 		{
 			if (secondBase < 0 || secondBase > 59)
 			{
@@ -917,9 +879,9 @@ namespace Quartz
 		/// <param name="cal">The calendar to apply to the trigger's schedule</param>
 		/// <param name="numTimes">The number of next fire times to produce</param>
 		/// <returns>List of java.util.Date objects</returns>
-		public static IList ComputeFireTimes(Trigger trigg, ICalendar cal, int numTimes)
+		public static IList<DateTime> ComputeFireTimes(Trigger trigg, ICalendar cal, int numTimes)
 		{
-			ArrayList lst = new ArrayList();
+			List<DateTime> lst = new List<DateTime>();
 
 			Trigger t = (Trigger) trigg.Clone();
 
@@ -930,10 +892,10 @@ namespace Quartz
 
 			for (int i = 0; i < numTimes; i++)
 			{
-                NullableDateTime d = t.GetNextFireTimeUtc();
+                DateTime? d = t.GetNextFireTimeUtc();
                 if (d.HasValue)
 				{
-					lst.Add(d);
+					lst.Add(d.Value);
 					t.Triggered(cal);
 				}
 				else
@@ -942,7 +904,7 @@ namespace Quartz
 				}
 			}
 
-			return ArrayList.ReadOnly(new ArrayList(lst));
+			return lst.AsReadOnly();
 		}
 
 		/// <summary>
@@ -961,9 +923,9 @@ namespace Quartz
 		/// <param name="from">The starting date at which to find fire times</param>
 		/// <param name="to">The ending date at which to stop finding fire times</param>
 		/// <returns>List of java.util.Date objects</returns>
-		public static IList ComputeFireTimesBetween(Trigger trigg, ICalendar cal, DateTime from, DateTime to)
+		public static IList<DateTime> ComputeFireTimesBetween(Trigger trigg, ICalendar cal, DateTime from, DateTime to)
 		{
-			ArrayList lst = new ArrayList();
+			List<DateTime> lst = new List<DateTime>();
 
 			Trigger t = (Trigger) trigg.Clone();
 
@@ -978,7 +940,7 @@ namespace Quartz
 			//        to the type of trigger ...
 			while (true)
 			{
-                NullableDateTime d = t.GetNextFireTimeUtc();
+                DateTime? d = t.GetNextFireTimeUtc();
                 if (d.HasValue)
 				{
 					if (d.Value < from)
@@ -990,7 +952,7 @@ namespace Quartz
 					{
 						break;
 					}
-					lst.Add(d);
+					lst.Add(d.Value);
 					t.Triggered(cal);
 				}
 				else
@@ -998,7 +960,7 @@ namespace Quartz
 					break;
 				}
 			}
-			return ArrayList.ReadOnly(new ArrayList(lst));
+			return lst.AsReadOnly();
 		}
 
 		/// <summary>

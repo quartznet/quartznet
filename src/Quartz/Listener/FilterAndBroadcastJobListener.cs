@@ -15,7 +15,7 @@
  */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Quartz.Listener
@@ -49,9 +49,9 @@ namespace Quartz.Listener
     public class FilterAndBroadcastJobListener : IJobListener
     {
         private readonly string name;
-        private readonly IList listeners;
-        private readonly IList namePatterns = new ArrayList();
-        private readonly IList groupPatterns = new ArrayList();
+        private readonly List<IJobListener> listeners;
+        private readonly List<string> namePatterns = new List<string>();
+        private readonly List<string> groupPatterns = new List<string>();
 
         /**
      * Construct an instance with the given name.
@@ -68,7 +68,7 @@ namespace Quartz.Listener
                 throw new ArgumentException("Listener name cannot be null!");
             }
             this.name = name;
-            listeners = new ArrayList();
+            listeners = new List<IJobListener>();
         }
 
         /**
@@ -78,9 +78,9 @@ namespace Quartz.Listener
      * @param listeners the initial List of JobListeners to broadcast to.
      */
 
-        public FilterAndBroadcastJobListener(string name, IList listeners) : this(name)
+        public FilterAndBroadcastJobListener(string name, IEnumerable<IJobListener> listeners) : this(name)
         {
-            this.listeners.Add(listeners);
+            this.listeners.AddRange(listeners);
         }
 
         public string Name
@@ -100,17 +100,15 @@ namespace Quartz.Listener
                 listeners.Remove(listener);
                 return true;
             }
-            else
-            {
-                return false;
-            }
+            
+            return false;
         }
 
         public bool RemoveListener(string listenerName)
         {
             for (int i = 0; i < listeners.Count; ++i)
             {
-                IJobListener jl = (IJobListener) listeners[i];
+                IJobListener jl = listeners[i];
                 if (jl.Name.Equals(listenerName))
                 {
                     listeners.RemoveAt(i);
@@ -120,9 +118,9 @@ namespace Quartz.Listener
             return false;
         }
 
-        public IList GetListeners()
+        public IList<IJobListener> GetListeners()
         {
-            return ArrayList.ReadOnly(listeners);
+            return listeners.AsReadOnly();
         }
 
 
@@ -142,7 +140,7 @@ namespace Quartz.Listener
             namePatterns.Add(regularExpression);
         }
 
-        public IList JobNamePatterns
+        public IList<string> JobNamePatterns
         {
             get { return namePatterns; }
         }
@@ -163,7 +161,7 @@ namespace Quartz.Listener
             groupPatterns.Add(regularExpression);
         }
 
-        public IList JobGroupPatterns
+        public IList<string> JobGroupPatterns
         {
             get { return namePatterns; }
         }

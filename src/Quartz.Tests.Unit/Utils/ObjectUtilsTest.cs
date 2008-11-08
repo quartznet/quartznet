@@ -45,7 +45,7 @@ namespace Quartz.Tests.Unit.Utils
         {
             try
             {
-                ObjectUtils.ConvertValueIfNecessary(typeof(int), new DirtyFlagMap());
+                ObjectUtils.ConvertValueIfNecessary(typeof(int), new DirtyFlagMap<int, string>());
                 Assert.Fail("Accepted null");
             }
             catch

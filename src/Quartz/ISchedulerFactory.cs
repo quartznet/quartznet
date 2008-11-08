@@ -19,7 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
-using System.Collections;
+using System.Collections.Generic;
 using Quartz.Impl;
 
 namespace Quartz
@@ -37,7 +37,7 @@ namespace Quartz
 		/// Returns handles to all known Schedulers (made by any SchedulerFactory
 		/// within this app domain.).
 		/// </summary>
-		ICollection AllSchedulers { get; }
+		ICollection<IScheduler> AllSchedulers { get; }
 
 		/// <summary>
 		/// Returns a client-usable handle to a <see cref="IScheduler" />.

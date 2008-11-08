@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Globalization;
@@ -29,7 +30,6 @@ using System.Reflection;
 
 using Common.Logging;
 
-using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -156,7 +156,7 @@ namespace Quartz.Impl
         /// StdSchedulerFactory instance.).
         /// </p>
         /// </summary>
-        public virtual ICollection AllSchedulers
+        public virtual ICollection<IScheduler> AllSchedulers
         {
             get { return SchedulerRepository.Instance.LookupAll(); }
         }
@@ -202,11 +202,9 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-#if NET_20
+
             NameValueCollection props = (NameValueCollection) ConfigurationManager.GetSection("quartz");
-#else
-			NameValueCollection props = (NameValueCollection) ConfigurationSettings.GetConfig("quartz");
-#endif
+
             string requestedFile = Environment.GetEnvironmentVariable(PropertiesFile);
             string propFileName = requestedFile != null && requestedFile.Trim().Length > 0 ? requestedFile : "~/quartz.config";
 
@@ -369,7 +367,7 @@ Please add configuration to your application config file to correctly initialize
             ITypeLoadHelper loadHelper;
             try
             {
-                loadHelper = (ITypeLoadHelper)ObjectUtils.InstantiateType(LoadType(typeLoadHelperType));
+                loadHelper = ObjectUtils.InstantiateType<ITypeLoadHelper>(LoadType(typeLoadHelperType));
             }
             catch (Exception e)
             {
@@ -383,7 +381,7 @@ Please add configuration to your application config file to correctly initialize
             {
                 try
                 {
-                    jobFactory = (IJobFactory) ObjectUtils.InstantiateType(loadHelper.LoadType(jobFactoryType));
+                    jobFactory = ObjectUtils.InstantiateType<IJobFactory>(loadHelper.LoadType(jobFactoryType));
                 }
                 catch (Exception e)
                 {
@@ -411,9 +409,7 @@ Please add configuration to your application config file to correctly initialize
             {
                 try
                 {
-                    instanceIdGenerator =
-                        (IInstanceIdGenerator)
-                        ObjectUtils.InstantiateType(loadHelper.LoadType(instanceIdGeneratorType));
+                    instanceIdGenerator = ObjectUtils.InstantiateType<IInstanceIdGenerator>(loadHelper.LoadType(instanceIdGeneratorType));
                 }
                 catch (Exception e)
                 {
@@ -450,7 +446,7 @@ Please add configuration to your application config file to correctly initialize
 
             try
             {
-                tp = (IThreadPool) ObjectUtils.InstantiateType(loadHelper.LoadType(tpType));
+                tp = ObjectUtils.InstantiateType<IThreadPool>(loadHelper.LoadType(tpType));
             }
             catch (Exception e)
             {
@@ -492,7 +488,7 @@ Please add configuration to your application config file to correctly initialize
                     IDbProvider cp;
                     try
                     {
-                        cp = (IDbProvider) ObjectUtils.InstantiateType(loadHelper.LoadType(cpType));
+                        cp = ObjectUtils.InstantiateType<IDbProvider>(loadHelper.LoadType(cpType));
                     }
                     catch (Exception e)
                     {
@@ -529,9 +525,9 @@ Please add configuration to your application config file to correctly initialize
                     string dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
                     string dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
 
-                    if (dsConnectionString == null && dsConnectionStringName != null && dsConnectionStringName.Length > 0)
+                    if (dsConnectionString == null && !String.IsNullOrEmpty(dsConnectionStringName))
                     {
-#if NET_20
+
                         ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
                         if (connectionStringSettings == null)
                         {
@@ -540,7 +536,6 @@ Please add configuration to your application config file to correctly initialize
                             throw initException;
                         }
                         dsConnectionString = connectionStringSettings.ConnectionString;
-#endif
                     }
 
                     if (dsProvider == null)
@@ -586,7 +581,7 @@ Please add configuration to your application config file to correctly initialize
 
             try
             {
-                js = (IJobStore) ObjectUtils.InstantiateType(loadHelper.LoadType(jsType));
+                js = ObjectUtils.InstantiateType<IJobStore>(loadHelper.LoadType(jsType));
             }
             catch (Exception e)
             {
@@ -637,7 +632,7 @@ Please add configuration to your application config file to correctly initialize
                         }
                         else
                         {
-                            lockHandler = (ISemaphore)ObjectUtils.InstantiateType(lockHandlerType);
+                            lockHandler = ObjectUtils.InstantiateType<ISemaphore>(lockHandlerType);
                         }
 
                         tProps = cfg.GetPropertyGroup(PropertyJobStoreLockHandlerPrefix, true);
@@ -681,7 +676,7 @@ Please add configuration to your application config file to correctly initialize
                 NameValueCollection pp =
                     cfg.GetPropertyGroup(string.Format(CultureInfo.InvariantCulture, "{0}.{1}", PropertyPluginPrefix, pluginNames[i]), true);
 
-                string plugInType = pp[PropertyPluginType] == null ? null : pp[PropertyPluginType];
+                string plugInType = pp[PropertyPluginType] ?? null;
 
                 if (plugInType == null)
                 {
@@ -694,7 +689,7 @@ Please add configuration to your application config file to correctly initialize
                 ISchedulerPlugin plugin;
                 try
                 {
-                    plugin = (ISchedulerPlugin) ObjectUtils.InstantiateType(LoadType(plugInType));
+                    plugin = ObjectUtils.InstantiateType<ISchedulerPlugin>(LoadType(plugInType));
                 }
                 catch (Exception e)
                 {
@@ -744,7 +739,7 @@ Please add configuration to your application config file to correctly initialize
                 IJobListener listener;
                 try
                 {
-                    listener = (IJobListener) ObjectUtils.InstantiateType(loadHelper.LoadType(listenerType));
+                    listener = ObjectUtils.InstantiateType<IJobListener>(loadHelper.LoadType(listenerType));
                 }
                 catch (Exception e)
                 {
@@ -756,8 +751,7 @@ Please add configuration to your application config file to correctly initialize
                 }
                 try
                 {
-                    MethodInfo nameSetter =
-                        listener.GetType().GetMethod("setName", (strArg == null) ? new Type[0] : strArg);
+                    MethodInfo nameSetter = listener.GetType().GetMethod("setName", strArg);
                     if (nameSetter != null)
                     {
                         nameSetter.Invoke(listener, new object[] {jobListenerNames[i]});
@@ -800,7 +794,7 @@ Please add configuration to your application config file to correctly initialize
                 ITriggerListener listener;
                 try
                 {
-                    listener = (ITriggerListener) ObjectUtils.InstantiateType(loadHelper.LoadType(listenerType));
+                    listener = ObjectUtils.InstantiateType<ITriggerListener>(loadHelper.LoadType(listenerType));
                 }
                 catch (Exception e)
                 {
@@ -840,7 +834,7 @@ Please add configuration to your application config file to correctly initialize
             {
                 try
                 {
-                    exporter = (ISchedulerExporter)ObjectUtils.InstantiateType(loadHelper.LoadType(exporterType));
+                    exporter = ObjectUtils.InstantiateType<ISchedulerExporter>(loadHelper.LoadType(exporterType));
                 }
                 catch (Exception e)
                 {
@@ -956,12 +950,9 @@ Please add configuration to your application config file to correctly initialize
             }
 
             // set scheduler context data...
-            IEnumerator itr = new HashSet(schedCtxtProps).GetEnumerator();
-            while (itr.MoveNext())
+            foreach (string key in schedCtxtProps)
             {
-                string key = (String) itr.Current;
                 string val = schedCtxtProps.Get(key);
-
                 sched.Context.Put(key, val);
             }
 

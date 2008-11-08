@@ -20,7 +20,7 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.IO;
@@ -28,13 +28,7 @@ using System.Reflection;
 using System.Threading;
 
 using Common.Logging;
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
-using Quartz;
 using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore.Common;
@@ -104,7 +98,7 @@ namespace Quartz.Impl.AdoJobStore
         protected string instanceName;
         protected string delegateTypeName;
         protected Type delegateType;
-        protected Hashtable calendarCache = new Hashtable();
+        protected Dictionary<string, ICalendar> calendarCache = new Dictionary<string, ICalendar>();
         private IDriverDelegate driverDelegate;
         private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
         private bool dontSetAutoCommitFalse;
@@ -786,7 +780,7 @@ namespace Quartz.Impl.AdoJobStore
             // triggers right away.
             int maxMisfiresToHandleAtATime = (recovering) ? -1 : MaxMisfiresToHandleAtATime;
 
-            IList misfiredTriggers = new ArrayList();
+            IList<Key> misfiredTriggers = new List<Key>();
             DateTime earliestNewTime = DateTime.MaxValue;
 
             // We must still look for the MISFIRED state in case triggers were left 
@@ -826,7 +820,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 DoUpdateOfMisfiredTrigger(conn, null, trig, false, StateWaiting, recovering);
 
-                NullableDateTime nextTime = trig.GetNextFireTimeUtc();
+                DateTime? nextTime = trig.GetNextFireTimeUtc();
                 if (nextTime.HasValue && nextTime.Value < earliestNewTime)
                 {
                     earliestNewTime = nextTime.Value;
@@ -1908,7 +1902,11 @@ namespace Quartz.Impl.AdoJobStore
         {
             // all calendars are persistent, but we lazy-cache them during run
             // time as long as we aren't running clustered.
-            ICalendar cal = Clustered ? null : (ICalendar)calendarCache[calName];
+            ICalendar cal = null;
+            if (!Clustered)
+            {
+                calendarCache.TryGetValue(calName, out cal);   
+            }
             if (cal != null)
             {
                 return cal;
@@ -2497,12 +2495,12 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn,
+                IList<FiredTriggerRecord> lst = Delegate.SelectFiredTriggerRecordsByJob(conn,
                                                                     jobName, jobGroupName);
 
                 if (lst.Count > 0)
                 {
-                    FiredTriggerRecord rec = (FiredTriggerRecord)lst[0];
+                    FiredTriggerRecord rec = lst[0];
                     if (rec.JobIsStateful)
                     {
                         // TODO: worry about
@@ -2533,11 +2531,11 @@ namespace Quartz.Impl.AdoJobStore
             {
                 String newState = StateWaiting;
 
-                IList lst = Delegate.SelectFiredTriggerRecordsByJob(conn, jobName, groupName);
+                IList<FiredTriggerRecord> lst = Delegate.SelectFiredTriggerRecordsByJob(conn, jobName, groupName);
 
                 if (lst.Count > 0)
                 {
-                    FiredTriggerRecord rec = (FiredTriggerRecord)lst[0];
+                    FiredTriggerRecord rec = lst[0];
                     if (rec.JobIsStateful)
                     {
                         // TODO: worry about
@@ -2804,10 +2802,10 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        public ISet GetPausedTriggerGroups(SchedulingContext ctxt)
+        public ICollection<string> GetPausedTriggerGroups(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (ISet)ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
+            return (ICollection<string>) ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
         }
 
         protected class GetPausedTriggerGroupsCallback : CallbackSupport, ITransactionCallback
@@ -2833,7 +2831,7 @@ namespace Quartz.Impl.AdoJobStore
         /// given group.
         /// </summary>
         /// <seealso cref="SchedulingContext()" />
-        public virtual ISet GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        public virtual ICollection<string> GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
         {
             try
             {
@@ -3277,7 +3275,7 @@ namespace Quartz.Impl.AdoJobStore
                 throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
             }
 
-            NullableDateTime prevFireTime = trigger.GetPreviousFireTimeUtc();
+            DateTime? prevFireTime = trigger.GetPreviousFireTimeUtc();
 
             // call triggered - to update the trigger's next-fire-time state...
             trigger.Triggered(cal);
@@ -3515,7 +3513,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual void SignalSchedulingChange(NullableDateTime candidateNewNextFireTimeUtc)
+        protected virtual void SignalSchedulingChange(DateTime? candidateNewNextFireTimeUtc)
         {
             signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc);
         }
@@ -3541,7 +3539,7 @@ namespace Quartz.Impl.AdoJobStore
                 // work to be done before we aquire the lock (since that is expensive, 
                 // and is almost never necessary).  This must be done in a separate
                 // transaction to prevent a deadlock under recovery conditions.
-                IList failedRecords = null;
+                IList<SchedulerStateRecord> failedRecords = null;
                 if (firstCheckIn == false)
                 {
                     bool succeeded = false;
@@ -3622,14 +3620,14 @@ namespace Quartz.Impl.AdoJobStore
         /// Get a list of all scheduler instances in the cluster that may have failed.
         /// This includes this scheduler if it is checking in for the first time.
         /// </summary>
-        protected virtual IList FindFailedInstances(ConnectionAndTransactionHolder conn)
+        protected virtual IList<SchedulerStateRecord> FindFailedInstances(ConnectionAndTransactionHolder conn)
         {
             try
             {
-                ArrayList failedInstances = new ArrayList();
+                List<SchedulerStateRecord> failedInstances = new List<SchedulerStateRecord>();
                 bool foundThisScheduler = false;
 
-                IList states = Delegate.SelectSchedulerStateRecords(conn, null);
+                IList<SchedulerStateRecord> states = Delegate.SelectSchedulerStateRecords(conn, null);
 
                 foreach (SchedulerStateRecord rec in states)
                 {
@@ -3685,11 +3683,11 @@ namespace Quartz.Impl.AdoJobStore
         /// left as zero on these dummy <see cref="SchedulerStateRecord" /> objects.
         /// </summary>
         /// <param name="schedulerStateRecords">List of all current <see cref="SchedulerStateRecord" />s</param>
-        private IList FindOrphanedFailedInstances(ConnectionAndTransactionHolder conn, IList schedulerStateRecords)
+        private IList<SchedulerStateRecord> FindOrphanedFailedInstances(ConnectionAndTransactionHolder conn, IList<SchedulerStateRecord> schedulerStateRecords)
         {
-            IList orphanedInstances = new ArrayList();
+            IList<SchedulerStateRecord> orphanedInstances = new List<SchedulerStateRecord>();
 
-            ISet allFiredTriggerInstanceNames = Delegate.SelectFiredTriggerInstanceNames(conn);
+            ICollection<string> allFiredTriggerInstanceNames = Delegate.SelectFiredTriggerInstanceNames(conn);
             if (allFiredTriggerInstanceNames.Count > 0)
             {
                 foreach (SchedulerStateRecord rec in schedulerStateRecords)
@@ -3718,9 +3716,9 @@ namespace Quartz.Impl.AdoJobStore
             return rec.CheckinTimestamp.Add(ts).Add(TimeSpan.FromMilliseconds(7500));
         }
 
-        protected virtual IList ClusterCheckIn(ConnectionAndTransactionHolder conn)
+        protected virtual IList<SchedulerStateRecord> ClusterCheckIn(ConnectionAndTransactionHolder conn)
         {
-            IList failedInstances = FindFailedInstances(conn);
+            IList<SchedulerStateRecord> failedInstances = FindFailedInstances(conn);
             try
             {
                 // TODO: handle self-failed-out
@@ -3742,7 +3740,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual void ClusterRecover(ConnectionAndTransactionHolder conn, IList failedInstances)
+        protected virtual void ClusterRecover(ConnectionAndTransactionHolder conn, IList<SchedulerStateRecord> failedInstances)
         {
             if (failedInstances.Count > 0)
             {
@@ -3757,14 +3755,14 @@ namespace Quartz.Impl.AdoJobStore
                         Log.Info("ClusterManager: Scanning for instance \"" + rec.SchedulerInstanceId +
                                  "\"'s failed in-progress jobs.");
 
-                        IList firedTriggerRecs =
+                        IList<FiredTriggerRecord> firedTriggerRecs =
                             Delegate.SelectInstancesFiredTriggerRecords(conn, rec.SchedulerInstanceId);
 
                         int acquiredCount = 0;
                         int recoveredCount = 0;
                         int otherCount = 0;
 
-                        ISet triggerKeys = new HashSet();
+                        HashSet<Key> triggerKeys = new HashSet<Key>();
 
                         foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                         {
@@ -3856,7 +3854,7 @@ namespace Quartz.Impl.AdoJobStore
                                 Delegate.SelectTriggerState(conn, triggerKey.Name, triggerKey.Group).Equals(
                                     StateComplete))
                             {
-                                IList firedTriggers =
+                                IList<FiredTriggerRecord> firedTriggers =
                                     Delegate.SelectFiredTriggerRecords(conn, triggerKey.Name, triggerKey.Group);
                                 if (firedTriggers.Count == 0)
                                 {

@@ -1,5 +1,5 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading;
 
@@ -15,7 +15,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
     [TestFixture]
     public class AdoJobStoreSmokeTest
     {
-        private static readonly Hashtable dbConnectionStrings = new Hashtable();
+        private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>();
         private bool clearJobs = true;
         private bool scheduleJobs = true;
         private bool clustered = true;
@@ -447,7 +447,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             JobDataMap data = context.JobDetail.JobDataMap;
             int count;
-            if (data.Contains(Count))
+            if (data.ContainsKey(Count))
             {
                 count = data.GetInt(Count);
             }

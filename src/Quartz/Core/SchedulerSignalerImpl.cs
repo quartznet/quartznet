@@ -18,12 +18,9 @@
 /*
 * Previously Copyright (c) 2001-2004 James House
 */
+using System;
+
 using Common.Logging;
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
 using Quartz.Spi;
 
@@ -80,7 +77,7 @@ namespace Quartz.Core
 		/// <summary>
 		/// Signals the scheduling change.
 		/// </summary>
-        public void SignalSchedulingChange(NullableDateTime candidateNewNextFireTime)
+        public void SignalSchedulingChange(DateTime? candidateNewNextFireTime)
         {
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
         }

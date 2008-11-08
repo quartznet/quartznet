@@ -177,11 +177,7 @@ namespace Quartz
         public void Resume()
         {
             // TODO, FIX THIS
-#if NET_20
             thread.Resume();
-#else
-            thread.Resume();
-#endif
         }
 
         /// <summary>
@@ -215,12 +211,7 @@ namespace Quartz
         public void Suspend()
         {
             // TODO, FIX THIS!
-#if NET_20
-            thread.Suspend();
-#else
 			thread.Suspend();
-#endif
-
         }
 
         /// <summary>

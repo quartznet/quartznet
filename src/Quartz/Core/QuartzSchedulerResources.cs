@@ -19,7 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 
 using Quartz.Spi;
@@ -41,8 +41,8 @@ namespace Quartz.Core
         private IThreadPool threadPool;
         private IJobStore jobStore;
         private IJobRunShellFactory jobRunShellFactory;
-        private readonly ArrayList schedulerPlugins = new ArrayList(10);
-        private bool makeSchedulerThreadDaemon = false;
+        private readonly List<ISchedulerPlugin> schedulerPlugins = new List<ISchedulerPlugin>(10);
+        private bool makeSchedulerThreadDaemon;
 	    private ISchedulerExporter exporter;
 
 		/// <summary>
@@ -214,12 +214,11 @@ namespace Quartz.Core
         }
 
 	    /// <summary>
-        /// Get the <see cref="IList" /> of all 
-        /// <see cref="ISchedulerPlugin" />s for the 
+        /// Get the <see cref="IList&lt;ISchedulerPlugin&gt;" /> of all  <see cref="ISchedulerPlugin" />s for the 
         /// <see cref="QuartzScheduler" /> to use.
 	    /// </summary>
 	    /// <returns></returns>
-	    public IList SchedulerPlugins
+	    public IList<ISchedulerPlugin> SchedulerPlugins
 	    {
 	        get { return schedulerPlugins; }
 	    }

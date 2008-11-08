@@ -20,15 +20,8 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
-
-using Quartz.Collection;
 using Quartz.Spi;
 
 namespace Quartz
@@ -237,7 +230,7 @@ namespace Quartz
 		/// </p>
         /// </remarks>
 		/// <seealso cref="JobExecutionContext" />
-		IList GetCurrentlyExecutingJobs();
+		IList<JobExecutionContext> GetCurrentlyExecutingJobs();
 
 		/// <summary>
 		/// Set the <see cref="JobFactory" /> that will be responsible for producing 
@@ -264,7 +257,7 @@ namespace Quartz
 		/// <summary> 
 		/// Get the names of all <see cref="Trigger" /> groups that are paused.
 		/// </summary>
-		ISet GetPausedTriggerGroups();
+		ICollection<string> GetPausedTriggerGroups();
 
 		/// <summary>
 		/// Get the names of all registered <see cref="ICalendar" />s.
@@ -275,13 +268,13 @@ namespace Quartz
 		/// Get a List containing all of the <see cref="IJobListener" /> s in
 		/// the <see cref="IScheduler" />'s<i>global</i> list.
 		/// </summary>
-		IList GlobalJobListeners { get; }
+		IList<IJobListener> GlobalJobListeners { get; }
 
 		/// <summary>
 		/// Get a Set containing the names of all the <i>non-global</i><see cref="IJobListener" />
 		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
-		ISet JobListenerNames { get; }
+		ICollection<string> JobListenerNames { get; }
 
         /// <summary>
         /// Get the <i>global</i><see cref="IJobListener" /> that has
@@ -303,19 +296,19 @@ namespace Quartz
 		/// Get a List containing all of the <see cref="ITriggerListener" />
 		/// s in the <see cref="IScheduler" />'s<i>global</i> list.
 		/// </summary>
-		IList GlobalTriggerListeners { get; }
+		IList<ITriggerListener> GlobalTriggerListeners { get; }
 
 		/// <summary>
 		/// Get a Set containing the names of all the <i>non-global</i><see cref="ITriggerListener" />
 		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
-		ISet TriggerListenerNames { get; }
+		ICollection<string> TriggerListenerNames { get; }
 
 		/// <summary>
 		/// Get a List containing all of the <see cref="ISchedulerListener" />
 		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
-		IList SchedulerListeners { get; }
+		IList<ISchedulerListener> SchedulerListeners { get; }
 
 
 		/// <summary>
@@ -449,7 +442,7 @@ namespace Quartz
 		/// name and group was not found and removed from the store, otherwise
 		/// the first fire time of the newly scheduled trigger.
 		/// </returns>
-        NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
+        DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
 
         /// <summary>
 		/// Add the given <see cref="IJob" /> to the Scheduler - with no associated

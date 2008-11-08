@@ -29,6 +29,7 @@ using Quartz.Collection;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
 
+
 namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary> 
@@ -41,21 +42,27 @@ namespace Quartz.Impl.AdoJobStore
 	{
 	    private const string KeyThreadLockOwners = "qrtz_ssemaphore_lock_owners";
 
-		private ILog log = LogManager.GetLogger(typeof(SimpleSemaphore));
-		private HashSet locks = new HashSet();
+		private readonly ILog log;
+		private readonly HashSet<string> locks = new HashSet<string>();
 
-        /// <summary>
+	    public SimpleSemaphore()
+	    {
+	        log = LogManager.GetLogger(GetType());
+	    }
+
+
+	    /// <summary>
         /// Gets the thread locks.
         /// </summary>
         /// <value>The thread locks.</value>
-		private static HashSet ThreadLocks
+		private static HashSet<string> ThreadLocks
 		{
 			get
 			{
-				HashSet threadLocks = (HashSet) LogicalThreadContext.GetData(KeyThreadLockOwners);
+				HashSet<string> threadLocks = (HashSet<string>) LogicalThreadContext.GetData(KeyThreadLockOwners);
 				if (threadLocks == null)
 				{
-					threadLocks = new HashSet();
+					threadLocks = new HashSet<string>();
 					LogicalThreadContext.SetData(KeyThreadLockOwners, threadLocks);
 				}
 				return threadLocks;

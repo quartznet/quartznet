@@ -20,7 +20,7 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using Common.Logging;
@@ -77,7 +77,7 @@ namespace Quartz.Impl
         public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";
         public const string DefaultSchedulerName = "SimpleQuartzScheduler";
 
-        private bool initialized = false;
+        private bool initialized;
         private static readonly DirectSchedulerFactory instance = new DirectSchedulerFactory();
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace Quartz.Impl
 		/// StdSchedulerFactory instance.).
 		/// </p>
 		/// </summary>
-		public virtual ICollection AllSchedulers
+		public virtual ICollection<IScheduler> AllSchedulers
 		{
 			get { return SchedulerRepository.Instance.LookupAll(); }
 		}
@@ -231,7 +231,7 @@ namespace Quartz.Impl
 		/// the default value, which is currently 30000 ms.</param>
 		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
 		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-                                            IJobStore jobStore, IDictionary schedulerPluginMap, TimeSpan idleWaitTime,
+                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
 		                                    TimeSpan dbFailureRetryInterval)
 		{
 			// Currently only one run-shell factory is available...
@@ -272,10 +272,9 @@ namespace Quartz.Impl
             // Initialize plugins now that we have a Scheduler instance.
             if (schedulerPluginMap != null)
             {
-                foreach (DictionaryEntry pluginEntry in schedulerPluginMap)
+                foreach (KeyValuePair<string, ISchedulerPlugin> pluginEntry in schedulerPluginMap)
                 {
-                    ((ISchedulerPlugin)pluginEntry.Value).Initialize(
-                            (string) pluginEntry.Key, scheduler);
+                    pluginEntry.Value.Initialize(pluginEntry.Key, scheduler);
                 }
             }
 

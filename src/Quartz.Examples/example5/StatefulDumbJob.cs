@@ -43,7 +43,7 @@ namespace Quartz.Examples.Example5
 			JobDataMap map = context.JobDetail.JobDataMap;
 			
 			int executeCount = 0;
-			if (map.Contains(NUM_EXECUTIONS))
+			if (map.ContainsKey(NUM_EXECUTIONS))
 				executeCount = map.GetInt(NUM_EXECUTIONS);
 			
 			executeCount++;
@@ -51,7 +51,7 @@ namespace Quartz.Examples.Example5
 			map.Put(NUM_EXECUTIONS, executeCount);
 			
 			int delay = 5;
-			if (map.Contains(EXECUTION_DELAY))
+			if (map.ContainsKey(EXECUTION_DELAY))
 				delay = map.GetInt(EXECUTION_DELAY);
 			
 			try

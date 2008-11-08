@@ -22,12 +22,6 @@ using System;
 using System.Text;
 using System.Threading;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
-
 using Quartz.Spi;
 
 namespace Quartz
@@ -47,7 +41,7 @@ namespace Quartz
 		private bool started;
 		private bool isInStandbyMode;
 		private bool shutdown;
-        private NullableDateTime startTime;
+        private DateTime? startTime;
         private int numJobsExec;
 		private Type jsType;
 		private bool jsPersistent;
@@ -74,7 +68,7 @@ namespace Quartz
 		/// <param name="version">The version string.</param>
 		public SchedulerMetaData(string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
 			bool shutdown,
-            NullableDateTime startTime, 
+            DateTime? startTime, 
             int numJobsExec, Type jsType, bool jsPersistent,
 			Type tpType, int tpSize, string version)
 		{
@@ -289,7 +283,7 @@ namespace Quartz
 		/// </summary>
 		/// <returns> null if the scheduler has not been started.
 		/// </returns>
-        public virtual NullableDateTime RunningSince
+        public virtual DateTime? RunningSince
 		{
 			get { return startTime; }
 		}

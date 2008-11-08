@@ -20,7 +20,7 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
 #if NET_35
 using TimeZone = System.TimeZoneInfo;
@@ -37,7 +37,7 @@ namespace Quartz.Xml
 	public class JobSchedulingBundle
 	{
 		protected JobDetail jobDetail;
-		protected IList triggers = new ArrayList();
+		protected IList<Trigger> triggers = new List<Trigger>();
 		
 		/// <summary>
 		/// Gets or sets the job detail.
@@ -53,7 +53,7 @@ namespace Quartz.Xml
 		/// Gets or sets the triggers associated with this bundle.
 		/// </summary>
 		/// <value>The triggers.</value>
-		public virtual IList Triggers
+		public virtual IList<Trigger> Triggers
 		{
 			get { return triggers; }
 			set { triggers = value; }

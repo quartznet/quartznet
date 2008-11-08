@@ -14,8 +14,8 @@
 * under the License.
 * 
 */
+
 using Common.Logging;
-using Quartz;
 
 namespace Quartz.Examples.Example6
 {

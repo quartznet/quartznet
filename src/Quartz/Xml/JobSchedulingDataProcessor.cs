@@ -21,17 +21,12 @@
 
 using System;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
-
 #if NET_35
+using System.Collections.Generic;
+
 using TimeZone = System.TimeZoneInfo;
 #endif
-
-using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
@@ -95,12 +90,12 @@ namespace Quartz.Xml
 		/// </summary>
 		protected const string XsdDateFormat = "yyyy-MM-dd'T'hh:mm:ss";
 
-		protected IDictionary scheduledJobs = new Hashtable();
-		protected IList jobsToSchedule = new ArrayList();
-		protected IList calsToSchedule = new ArrayList();
-		protected IList listenersToSchedule = new ArrayList();
+		protected IDictionary<string, JobSchedulingBundle> scheduledJobs = new Dictionary<string, JobSchedulingBundle>();
+		protected IList<JobSchedulingBundle> jobsToSchedule = new List<JobSchedulingBundle>();
+		protected IList<CalendarBundle> calsToSchedule = new List<CalendarBundle>();
+		protected IList<IJobListener> listenersToSchedule = new List<IJobListener>();
 
-		protected ArrayList validationExceptions = new ArrayList();
+		protected List<Exception> validationExceptions = new List<Exception>();
 
 		private bool overwriteExistingJobs = true;
 
@@ -125,15 +120,15 @@ namespace Quartz.Xml
 	    }
 
 	    /// <summary> 
-        /// Returns a <see cref="IDictionary" /> of scheduled jobs.
+        /// Returns a <see cref="IDictionary{TKey,TValue}" /> of scheduled jobs.
 		/// <p>
 		/// The key is the job name and the value is a <see cref="JobSchedulingBundle" />
 		/// containing the <see cref="JobDetail" /> and <see cref="Trigger" />.
 		/// </p>
 		/// </summary>
-        /// <returns> a <see cref="IDictionary" /> of scheduled jobs.
+        /// <returns> a <see cref="IDictionary{TKey,TValue}" /> of scheduled jobs.
 		/// </returns>
-		public virtual IDictionary ScheduledJobs
+		public virtual IDictionary<string, JobSchedulingBundle> ScheduledJobs
 		{
 			get { return scheduledJobs; }
 		}
@@ -246,7 +241,7 @@ namespace Quartz.Xml
                     {
                         throw new SchedulerConfigException("Unknown job listener type " + jt.type);
                     }
-                    IJobListener listener = (IJobListener) ObjectUtils.InstantiateType(listenerType);
+                    IJobListener listener = ObjectUtils.InstantiateType<IJobListener>(listenerType);
                     // set name of trigger with reflection, this might throw errors
                     NameValueCollection properties = new NameValueCollection();
                     properties.Add("Name", jt.name);
@@ -311,7 +306,7 @@ namespace Quartz.Xml
 	                    cronType c = (cronType) t.Item;
 
                         DateTime startTime = (c.starttime == DateTime.MinValue ? DateTime.UtcNow : c.starttime);
-                        NullableDateTime endTime = (c.endtime == DateTime.MinValue ? null : (NullableDateTime)c.endtime);
+                        DateTime? endTime = (c.endtime == DateTime.MinValue ? null : (DateTime?)c.endtime);
 
 	                    string jobName = c.jobname != null ? c.jobname : j.name;
 	                    string jobGroup = c.jobgroup != null ? c.jobgroup : j.group;
@@ -341,7 +336,7 @@ namespace Quartz.Xml
 	                    simpleType s = (simpleType) t.Item;
 	                    
 	                    DateTime startTime = (s.starttime == DateTime.MinValue ? DateTime.UtcNow : s.starttime);
-                        NullableDateTime endTime = (s.endtime == DateTime.MinValue ? null : (NullableDateTime)s.endtime);
+                        DateTime? endTime = (s.endtime == DateTime.MinValue ? null : (DateTime?)s.endtime);
 
                         string jobName = s.jobname != null ? s.jobname : j.name;
                         string jobGroup = s.jobgroup != null ? s.jobgroup : j.group;
@@ -371,7 +366,7 @@ namespace Quartz.Xml
                     {
                         foreach (entryType entry in t.Item.jobdatamap.entry)
                         {
-                            if (trigger.JobDataMap.Contains(entry.key))
+                            if (trigger.JobDataMap.ContainsKey(entry.key))
                             {
                                 Log.Warn("Overriding key '" + entry.key + "' with another value in same trigger job data map");
                             }
@@ -502,7 +497,7 @@ namespace Quartz.Xml
 		/// <param name="jobBundles">The job bundles.</param>
 		/// <param name="sched">The sched.</param>
 		/// <param name="overwriteExistingJobs">if set to <c>true</c> [over write existing jobs].</param>
-		public virtual void ScheduleJobs(IDictionary jobBundles, IScheduler sched, bool overwriteExistingJobs)
+		public virtual void ScheduleJobs(IDictionary<string, JobSchedulingBundle> jobBundles, IScheduler sched, bool overwriteExistingJobs)
 		{
 			Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduling {0} parsed jobs.", jobsToSchedule.Count));
 
@@ -533,7 +528,9 @@ namespace Quartz.Xml
 		/// </returns>
 		public virtual JobSchedulingBundle GetScheduledJob(string name)
 		{
-			return (JobSchedulingBundle) ScheduledJobs[name];
+		    JobSchedulingBundle bundle;
+		    ScheduledJobs.TryGetValue(name, out bundle);
+		    return bundle;
 		}
 
 		/// <summary>

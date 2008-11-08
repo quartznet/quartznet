@@ -20,10 +20,8 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
-using Quartz;
-using Quartz.Collection;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -543,7 +541,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection</param>
         /// <param name="groupName">The trigger group.</param>
 		/// <returns> a List of Keys to jobs. </returns>
-		IList SelectStatefulJobsOfTriggerGroup(ConnectionAndTransactionHolder conn, string groupName);
+		IList<Key> SelectStatefulJobsOfTriggerGroup(ConnectionAndTransactionHolder conn, string groupName);
 
 		/// <summary>
 		/// Select the triggers for a job>
@@ -674,7 +672,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns></returns>
-		ISet SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn);
+        ICollection<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn);
 
         /// <summary>
         /// Determines whether given trigger group already exists.
@@ -788,7 +786,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">Name of the trigger.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns>A list of FiredTriggerRecord objects.</returns>
-		IList SelectFiredTriggerRecords(ConnectionAndTransactionHolder conn, string triggerName, string groupName);
+		IList<FiredTriggerRecord> SelectFiredTriggerRecords(ConnectionAndTransactionHolder conn, string triggerName, string groupName);
 
         /// <summary>
         /// Select the states of all fired-trigger records for a given job, or job
@@ -798,7 +796,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobName">Name of the job.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns>A List of FiredTriggerRecord objects.</returns>
-		IList SelectFiredTriggerRecordsByJob(ConnectionAndTransactionHolder conn, string jobName, string groupName);
+        IList<FiredTriggerRecord> SelectFiredTriggerRecordsByJob(ConnectionAndTransactionHolder conn, string jobName, string groupName);
 
         /// <summary>
         /// Select the states of all fired-trigger records for a given scheduler
@@ -807,7 +805,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="instanceName">Name of the instance.</param>
         /// <returns>A list of FiredTriggerRecord objects.</returns>
-		IList SelectInstancesFiredTriggerRecords(ConnectionAndTransactionHolder conn, string instanceName);
+        IList<FiredTriggerRecord> SelectInstancesFiredTriggerRecords(ConnectionAndTransactionHolder conn, string instanceName);
 
 		/// <summary>
 		/// Delete a fired trigger.
@@ -866,7 +864,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="instanceName">The instance id.</param>
         /// <returns></returns>
-		IList SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string instanceName);
+		IList<SchedulerStateRecord> SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string instanceName);
 
         /// <summary>
         /// Select the next trigger which will fire to fire between the two given timestamps 
@@ -887,7 +885,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="conn">The conn.</param>
         /// <returns></returns>
-        ISet SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
+        ICollection<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
 
         /// <summary>
         /// Counts the misfired triggers in states.
@@ -909,6 +907,6 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="count">The count.</param>
         /// <param name="resultList">The result list.</param>
         /// <returns></returns>
-        bool SelectMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, DateTime ts, int count, IList resultList);
+        bool SelectMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, DateTime ts, int count, IList<Key> resultList);
 	}
 }

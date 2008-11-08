@@ -19,14 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
-
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
 using Quartz.Spi;
 
@@ -81,16 +75,16 @@ namespace Quartz
         private readonly IJob job;
 
         private readonly ICalendar calendar;
-        private readonly bool recovering = false;
+        private readonly bool recovering;
         private int numRefires = 0;
-        private readonly NullableDateTime fireTimeUtc;
-        private readonly NullableDateTime scheduledFireTimeUtc;
-        private readonly NullableDateTime prevFireTimeUtc;
-        private readonly NullableDateTime nextFireTimeUtc;
+        private readonly DateTime? fireTimeUtc;
+        private readonly DateTime? scheduledFireTimeUtc;
+        private readonly DateTime? prevFireTimeUtc;
+        private readonly DateTime? nextFireTimeUtc;
         private TimeSpan jobRunTime = TimeSpan.MinValue;
         private object result;
 
-        private readonly IDictionary data = new Hashtable();
+        private readonly IDictionary<object, object> data = new Dictionary<object, object>();
 
         /// <summary>
         /// Create a JobExcecutionContext with the given context data.
@@ -214,7 +208,7 @@ namespace Quartz
 		/// </summary>
 		/// <returns> Returns the fireTimeUtc.</returns>
 		/// <seealso cref="ScheduledFireTimeUtc" />
-        public NullableDateTime FireTimeUtc
+        public DateTime? FireTimeUtc
 		{
 			get { return fireTimeUtc; }
 		}
@@ -226,7 +220,7 @@ namespace Quartz
 		/// </summary>
 		/// <returns> Returns the scheduledFireTimeUtc.</returns>
 		/// <seealso cref="FireTimeUtc" />
-        public NullableDateTime ScheduledFireTimeUtc
+        public DateTime? ScheduledFireTimeUtc
 		{
 			get { return scheduledFireTimeUtc; }
 		}
@@ -235,7 +229,7 @@ namespace Quartz
 		/// Gets the previous fire time.
 		/// </summary>
 		/// <value>The previous fire time.</value>
-        public NullableDateTime PreviousFireTimeUtc
+        public DateTime? PreviousFireTimeUtc
 		{
 			get { return prevFireTimeUtc; }
 		}
@@ -244,7 +238,7 @@ namespace Quartz
 		/// Gets the next fire time.
 		/// </summary>
 		/// <value>The next fire time.</value>
-        public NullableDateTime NextFireTimeUtc
+        public DateTime? NextFireTimeUtc
 		{
 			get { return nextFireTimeUtc; }
 		}
@@ -344,7 +338,9 @@ namespace Quartz
 		/// </param>
 		public virtual object Get(object key)
 		{
-			return data[key];
+		    object retValue;
+		    data.TryGetValue(key, out retValue);
+            return retValue;
 		}
 	}
 }

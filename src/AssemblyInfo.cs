@@ -15,7 +15,7 @@ using System.Security;
 [assembly: AssemblyConfiguration("net-1.1.win32; Release")]
 #endif
 
-[assembly: AssemblyProduct("Quarz.NET 1.0")]
+[assembly: AssemblyProduct("Quarz.NET 1.2")]
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
 [assembly : AssemblyCompany("http://quartznet.sourceforge.net/")]
 [assembly : AssemblyCopyright("Copyright 2007-2008 OpenSymphony")]
@@ -25,11 +25,11 @@ using System.Security;
 [assembly: ComVisible(false)]
 
 #if NET_35
-[assembly: AssemblyVersion("1.0.0.3")]
+[assembly: AssemblyVersion("1.2.0.3")]
 #elif NET_20
-[assembly: AssemblyVersion("1.0.0.2")]
+[assembly: AssemblyVersion("1.2.0.2")]
 #else
-[assembly: AssemblyVersion("1.0.0.1")]
+[assembly: AssemblyVersion("1.2.0.1")]
 #endif
 
 #if STRONG

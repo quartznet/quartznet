@@ -65,7 +65,7 @@ namespace Quartz.Simpl
 					Log.Debug(string.Format(CultureInfo.InvariantCulture, "Producing instance of Job '{0}', class={1}", jobDetail.FullName, jobType.FullName));
 				}
 
-				return (IJob) ObjectUtils.InstantiateType(jobType);
+				return ObjectUtils.InstantiateType<IJob>(jobType);
 			}
 			catch (Exception e)
 			{

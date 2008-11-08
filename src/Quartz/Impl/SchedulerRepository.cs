@@ -19,8 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
-using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace Quartz.Impl
@@ -33,7 +32,7 @@ namespace Quartz.Impl
 	/// <author>Marko Lahma (.NET)</author>
 	public class SchedulerRepository
 	{
-        private readonly IDictionary schedulers;
+        private readonly Dictionary<string, IScheduler> schedulers;
         private static readonly SchedulerRepository inst = new SchedulerRepository();
         private readonly object syncRoot = new object();
         
@@ -48,7 +47,7 @@ namespace Quartz.Impl
 
 		private SchedulerRepository()
 		{
-			schedulers = new Hashtable();
+			schedulers = new Dictionary<string, IScheduler>();
 		}
 
         /// <summary>
@@ -59,7 +58,7 @@ namespace Quartz.Impl
 		{
 			lock (syncRoot)
 			{
-				if (schedulers[sched.SchedulerName] != null)
+				if (schedulers.ContainsKey(sched.SchedulerName))
 				{
 					throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Scheduler with name '{0}' already exists.", sched.SchedulerName),
 					                             SchedulerException.ErrorBadConfiguration);
@@ -78,10 +77,7 @@ namespace Quartz.Impl
 		{
 			lock (syncRoot)
 			{
-				Object tempObject;
-				tempObject = schedulers[schedName];
-				schedulers.Remove(schedName);
-				return (tempObject != null);
+				return schedulers.Remove(schedName);
 			}
 		}
 
@@ -94,7 +90,9 @@ namespace Quartz.Impl
 		{
 			lock (syncRoot)
 			{
-				return (IScheduler) schedulers[schedName];
+			    IScheduler retValue;
+			    schedulers.TryGetValue(schedName, out retValue);
+				return retValue;
 			}
 		}
 
@@ -102,11 +100,11 @@ namespace Quartz.Impl
         /// Lookups all.
         /// </summary>
         /// <returns></returns>
-		public virtual ICollection LookupAll()
+		public virtual ICollection<IScheduler> LookupAll()
 		{
 			lock (syncRoot)
 			{
-				return ArrayList.ReadOnly(new ArrayList(schedulers.Values));
+				return new List<IScheduler>(schedulers.Values).AsReadOnly();
 			}
 		}
 	}

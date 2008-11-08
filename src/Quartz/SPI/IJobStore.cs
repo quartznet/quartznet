@@ -19,6 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Collections.Generic;
+
 using Quartz.Collection;
 using Quartz.Core;
 
@@ -414,7 +416,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <param name="ctxt">The context.</param>
         /// <returns></returns>
-		ISet GetPausedTriggerGroups(SchedulingContext ctxt);
+		ICollection<string> GetPausedTriggerGroups(SchedulingContext ctxt);
 
 
 		/// <summary> 

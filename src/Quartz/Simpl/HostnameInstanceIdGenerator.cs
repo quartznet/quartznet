@@ -44,12 +44,7 @@ namespace Quartz.Simpl
 		{
 			try
 			{
-#if NET_20
-                return Dns.GetHostName();
-#else
-				return
-					Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName;
-#endif
+				return Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName;
 			}
 			catch (Exception e)
 			{

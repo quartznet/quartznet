@@ -21,14 +21,10 @@
 
 using System;
 using System.Globalization;
+using System.Net.Mail;
 
 using Common.Logging;
 
-#if NET_20
-using System.Net.Mail;
-#else
-using System.Web.Mail;
-#endif
 
 namespace Quartz.Job
 {
@@ -128,40 +124,28 @@ namespace Quartz.Job
 	    private void SendMail(string smtpHost, string to, string cc, string from, string replyTo, string subject,
 		                      string message)
 		{
-#if NET_20
-            MailMessage mimeMessage = new MailMessage(from, to, subject, message);
-	        if (!String.IsNullOrEmpty(cc))
-	        {
-	            mimeMessage.CC.Add(cc);
-	        }
-	        if (!String.IsNullOrEmpty(replyTo))
-	        {
-	            mimeMessage.ReplyTo = new MailAddress(replyTo);
-	        }
 
-	        Send(mimeMessage, smtpHost);
-#else
             MailMessage mimeMessage = new MailMessage();
-			mimeMessage.To = to;
-            if (cc != null && cc.Length > 0) 
+			mimeMessage.To.Add(to);
+            if (!String.IsNullOrEmpty(cc)) 
             {
-                mimeMessage.Cc = cc;
+                mimeMessage.CC.Add(cc);
             }
-			mimeMessage.From = from;
+			mimeMessage.From = new MailAddress(from);
+            if (!String.IsNullOrEmpty(replyTo))
+            {
+                mimeMessage.ReplyTo = new MailAddress(replyTo);
+            }
 			mimeMessage.Subject = subject;
 			mimeMessage.Body = message;
-			
-            SmtpMail.SmtpServer = smtpHost;
-            SmtpMail.Send(mimeMessage);
-#endif
-        }
 
-#if NET_20
-	    protected virtual void Send(MailMessage mimeMessage, string smtpHost) 
-        {
-	        SmtpClient client = new SmtpClient(smtpHost);
+            Send(mimeMessage, smtpHost);
+		}
+
+	    protected virtual void Send(MailMessage mimeMessage, string smtpHost)
+	    {
+            SmtpClient client = new SmtpClient(smtpHost);
 	        client.Send(mimeMessage);
 	    }
-#endif
 	}
 }

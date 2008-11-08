@@ -15,7 +15,7 @@
  */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 
 using Quartz.Util;
@@ -46,7 +46,7 @@ namespace Quartz.Listener
     public class JobChainingJobListener : JobListenerSupport
     {
         private readonly string name;
-        private readonly IDictionary chainLinks;
+        private readonly IDictionary<Key, Key> chainLinks;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -59,7 +59,7 @@ namespace Quartz.Listener
                 throw new ArgumentException("Listener name cannot be null!");
             }
             this.name = name;
-            chainLinks = new Hashtable();
+            chainLinks = new Dictionary<Key, Key>();
         }
 
         public override string Name
@@ -89,7 +89,8 @@ namespace Quartz.Listener
 
         public override void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
         {
-            Key sj = (Key) chainLinks[context.JobDetail.Key];
+            Key sj;
+            chainLinks.TryGetValue(context.JobDetail.Key, out sj);
 
             if (sj == null)
             {

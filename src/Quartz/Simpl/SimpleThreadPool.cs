@@ -20,7 +20,7 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 
@@ -51,8 +51,8 @@ namespace Quartz.Simpl
         private const int DefaultThreadPoolSize = 10;
 
         private readonly object nextRunnableLock = new object();
-        private readonly ArrayList availWorkers = new ArrayList();
-        private readonly ArrayList busyWorkers = new ArrayList();
+        private readonly List<WorkerThread> availWorkers = new List<WorkerThread>();
+        private readonly List<WorkerThread> busyWorkers = new List<WorkerThread>();
 
         private int count = DefaultThreadPoolSize;
         private bool handoffPending;
@@ -61,7 +61,7 @@ namespace Quartz.Simpl
         private ThreadPriority prio = ThreadPriority.Normal;
         private string threadNamePrefix = "SimpleThreadPoolWorker";
 
-        private IList workers;
+        private IList<WorkerThread> workers;
 
         /// <summary> 
         /// Create a new (unconfigured) <see cref="SimpleThreadPool" />.
@@ -175,7 +175,7 @@ namespace Quartz.Simpl
                 {
                     if (workers[i] != null)
                     {
-                        ((WorkerThread) workers[i]).Shutdown();
+                        workers[i].Shutdown();
                     }
                 }
                 Monitor.PulseAll(nextRunnableLock);
@@ -198,7 +198,7 @@ namespace Quartz.Simpl
                     // Wait until all worker threads are shut down
                     while (busyWorkers.Count > 0)
                     {
-                        WorkerThread wt = (WorkerThread)busyWorkers[0];
+                        WorkerThread wt = busyWorkers[0];
                         try
                         {
                             Log.Debug(string.Format(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Name));
@@ -249,7 +249,7 @@ namespace Quartz.Simpl
 
                 if (!isShutdown)
                 {
-                    WorkerThread wt = (WorkerThread)availWorkers[0];
+                    WorkerThread wt = availWorkers[0];
                     availWorkers.RemoveAt(0);
                     busyWorkers.Add(wt);
                     wt.Run(runnable);
@@ -310,9 +310,9 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="threadCount">The thread count.</param>
         /// <returns></returns>
-        protected internal virtual IList CreateWorkerThreads(int threadCount)
+        protected internal virtual IList<WorkerThread> CreateWorkerThreads(int threadCount)
         {
-            workers = new ArrayList();
+            workers = new List<WorkerThread>();
             for (int i = 1; i <= threadCount; ++i)
             {
                 WorkerThread wt = new WorkerThread(

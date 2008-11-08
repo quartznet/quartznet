@@ -20,7 +20,7 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 
@@ -46,7 +46,7 @@ namespace Quartz.Util
         private static readonly DBConnectionManager instance = new DBConnectionManager();
 	    private static readonly ILog log = LogManager.GetLogger(typeof (DBConnectionManager));
 
-        private readonly IDictionary providers = new Hashtable();
+        private readonly IDictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
 
 		/// <summary> 
 		/// Get the class instance.
@@ -116,16 +116,18 @@ namespace Quartz.Util
         /// <returns></returns>
 	    public IDbProvider GetDbProvider(string dsName)
 	    {
-            if (dsName == null || dsName.Length == 0)
+            if (String.IsNullOrEmpty(dsName))
             {
                 throw new ArgumentException("DataSource name cannot be null or empty", "dsName");
             }
 
-            if (!providers.Contains(dsName) || providers[dsName] == null)
+            IDbProvider provider;
+            providers.TryGetValue(dsName, out provider);
+            if (provider == null)
             {
                 throw new Exception(string.Format(CultureInfo.InvariantCulture, "There is no DataSource named '{0}'", dsName));
             }
-            return (IDbProvider) providers[dsName];
+            return provider;
         }
 	}
 }

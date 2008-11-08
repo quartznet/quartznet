@@ -14,73 +14,73 @@
  * under the License.
  */
 using System.Collections;
+using System.Collections.Generic;
 
 using NUnit.Framework;
 
 using Quartz.Collection;
 using Quartz.Util;
 
-namespace Quartz.Tests.Unit.Simpl
+namespace Quartz.Tests.Unit.Utils
 {
-
-	/// <summary>
-	/// Unit test for DirtyFlagMap.  These tests focus on making
-	/// sure the isDirty flag is set correctly.
-	/// </summary>
-	[TestFixture]
-	public class DirtyFlagMapTest 
-	{
+    /// <summary>
+    /// Unit test for DirtyFlagMap.  These tests focus on making
+    /// sure the isDirty flag is set correctly.
+    /// </summary>
+    [TestFixture]
+    public class DirtyFlagMapTest 
+    {
         [Test]
-		public void TestClear() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			Assert.IsFalse(dirtyFlagMap.Dirty);
+        public void TestClear() 
+        {
+            DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
+            Assert.IsFalse(dirtyFlagMap.Dirty);
         
-			dirtyFlagMap.Clear();
-			Assert.IsFalse(dirtyFlagMap.Dirty);
-			dirtyFlagMap.Put("X", "Y");
-			dirtyFlagMap.ClearDirtyFlag();
-			dirtyFlagMap.Clear();
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-		}
+            dirtyFlagMap.Clear();
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            dirtyFlagMap.Put("X", "Y");
+            dirtyFlagMap.ClearDirtyFlag();
+            dirtyFlagMap.Clear();
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+        }
     
         [Test]
-		public void TestPut() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			dirtyFlagMap.Put("a", "Y");
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-		}
+        public void TestPut() 
+        {
+            DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "Y");
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+        }
     
         [Test]
-		public void TestRemove() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			dirtyFlagMap.Put("a", "Y");
-			dirtyFlagMap.ClearDirtyFlag();
+        public void TestRemove() 
+        {
+            DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "Y");
+            dirtyFlagMap.ClearDirtyFlag();
         
-			dirtyFlagMap.Remove("b");
-			Assert.IsFalse(dirtyFlagMap.Dirty);
+            dirtyFlagMap.Remove("b");
+            Assert.IsFalse(dirtyFlagMap.Dirty);
 
-			dirtyFlagMap.Remove("a");
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-		}
+            dirtyFlagMap.Remove("a");
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+        }
 
-        [Test]
-        [Ignore]
-		public void TestEntrySetRemove() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			ISet entrySet = dirtyFlagMap.EntrySet();
-			dirtyFlagMap.Remove("a");
-			Assert.IsFalse(dirtyFlagMap.Dirty);
-			dirtyFlagMap.Put("a", "Y");
-			dirtyFlagMap.ClearDirtyFlag();
-			entrySet.Remove("b");
-			Assert.IsFalse(dirtyFlagMap.Dirty);
-			entrySet.Remove(entrySet.First());
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-		}
+        //[Test]
+        //[Ignore]
+        //public void TestEntrySetRemove() 
+        //{
+        //    DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
+        //    ISet<string> entrySet = dirtyFlagMap.EntrySet();
+        //    dirtyFlagMap.Remove("a");
+        //    Assert.IsFalse(dirtyFlagMap.Dirty);
+        //    dirtyFlagMap.Put("a", "Y");
+        //    dirtyFlagMap.ClearDirtyFlag();
+        //    entrySet.Remove("b");
+        //    Assert.IsFalse(dirtyFlagMap.Dirty);
+        //    entrySet.Remove(entrySet.First());
+        //    Assert.IsTrue(dirtyFlagMap.Dirty);
+        //}
 
 //		public void TestEntrySetRetainAll() 
 //		{
@@ -110,107 +110,107 @@ namespace Quartz.Tests.Unit.Simpl
 //			Assert.IsTrue(dirtyFlagMap.Dirty);
 //		}
 
-        [Test]
-        [Ignore]
-		public void TestEntrySetClear() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			ISet entrySet = dirtyFlagMap.EntrySet();
-			entrySet.Clear();
-			Assert.IsFalse(dirtyFlagMap.Dirty);
-			dirtyFlagMap.Put("a", "Y");
-			dirtyFlagMap.ClearDirtyFlag();
-			entrySet.Clear();
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-		}
+        //[Test]
+        //[Ignore]
+        //public void TestEntrySetClear() 
+        //{
+        //    DirtyFlagMap<string,string> dirtyFlagMap = new DirtyFlagMap<string, string>();
+        //    Dictionary<string, string>.Enumerator entrySet = dirtyFlagMap.EntrySet();
+        //    entrySet.Clear();
+        //    Assert.IsFalse(dirtyFlagMap.Dirty);
+        //    dirtyFlagMap.Put("a", "Y");
+        //    dirtyFlagMap.ClearDirtyFlag();
+        //    entrySet.Clear();
+        //    Assert.IsTrue(dirtyFlagMap.Dirty);
+        //}
 
-        [Test]
-        [Ignore]
-		public void TestEntrySetIterator() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			ISet entrySet = dirtyFlagMap.EntrySet();
-			dirtyFlagMap.Put("a", "A");
-			dirtyFlagMap.Put("b", "B");
-			dirtyFlagMap.Put("c", "C");
-			dirtyFlagMap.ClearDirtyFlag();
-			DictionaryEntry entryToBeRemoved = (DictionaryEntry) entrySet.First();
-			string removedKey = (string) entryToBeRemoved.Key;
-			entrySet.Remove(entryToBeRemoved);
-			Assert.AreEqual(2, dirtyFlagMap.Count);
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-			Assert.IsFalse(dirtyFlagMap.Contains(removedKey));
-			dirtyFlagMap.ClearDirtyFlag();
-			DictionaryEntry entry = (DictionaryEntry)entrySet.First();
-			entry.Value = "BB";
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-			Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
-		}
+        //[Test]
+        //[Ignore]
+        //public void TestEntrySetIterator() 
+        //{
+        //    DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
+        //    IDictionary<string, string> entrySet = dirtyFlagMap.EntrySet();
+        //    dirtyFlagMap.Put("a", "A");
+        //    dirtyFlagMap.Put("b", "B");
+        //    dirtyFlagMap.Put("c", "C");
+        //    dirtyFlagMap.ClearDirtyFlag();
+        //    DictionaryEntry entryToBeRemoved = (DictionaryEntry) entrySet.First();
+        //    string removedKey = (string) entryToBeRemoved.Key;
+        //    entrySet.Remove(entryToBeRemoved);
+        //    Assert.AreEqual(2, dirtyFlagMap.Count);
+        //    Assert.IsTrue(dirtyFlagMap.Dirty);
+        //    Assert.IsFalse(dirtyFlagMap.ContainsKey(removedKey));
+        //    dirtyFlagMap.ClearDirtyFlag();
+        //    DictionaryEntry entry = (DictionaryEntry)entrySet.First();
+        //    entry.Value = "BB";
+        //    Assert.IsTrue(dirtyFlagMap.Dirty);
+        //    Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
+        //}
 
-        [Test]
-        [Ignore]
-		public void TestEntrySetToArray() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			ISet entrySet = dirtyFlagMap.EntrySet();
-			dirtyFlagMap.Put("a", "A");
-			dirtyFlagMap.Put("b", "B");
-			dirtyFlagMap.Put("c", "C");
-			dirtyFlagMap.ClearDirtyFlag();
-			object[] array = (object[]) new ArrayList(entrySet).ToArray(typeof(DictionaryEntry));
-			Assert.AreEqual(3, array.Length);
-			DictionaryEntry entry = (DictionaryEntry) array[0];
-			entry.Value = "BB";
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-			Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
-		}
+        //[Test]
+        //[Ignore]
+        //public void TestEntrySetToArray() 
+        //{
+        //    DirtyFlagMap<string,string> dirtyFlagMap = new DirtyFlagMap<string, string>();
+        //    Dictionary<string, string>.Enumerator entrySet = dirtyFlagMap.EntrySet();
+        //    dirtyFlagMap.Put("a", "A");
+        //    dirtyFlagMap.Put("b", "B");
+        //    dirtyFlagMap.Put("c", "C");
+        //    dirtyFlagMap.ClearDirtyFlag();
+        //    object[] array = (object[]) new List<DictionaryEntry>(entrySet).ToArray();
+        //    Assert.AreEqual(3, array.Length);
+        //    DictionaryEntry entry = (DictionaryEntry) array[0];
+        //    entry.Value = "BB";
+        //    Assert.IsTrue(dirtyFlagMap.Dirty);
+        //    Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
+        //}
 
-        [Test]
-        [Ignore]
-		public void TestEntrySetToArrayWithArg() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			ISet entrySet = dirtyFlagMap.EntrySet();
-			dirtyFlagMap.Put("a", "A");
-			dirtyFlagMap.Put("b", "B");
-			dirtyFlagMap.Put("c", "C");
-			dirtyFlagMap.ClearDirtyFlag();
-			object[] array = (object[]) new ArrayList(entrySet).ToArray(typeof(DictionaryEntry));
-			Assert.AreEqual(3, array.Length);
-			DictionaryEntry entry = (DictionaryEntry)array[0];
-			entry.Value = "BB";
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-			Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
-		}
+        //[Test]
+        //[Ignore]
+        //public void TestEntrySetToArrayWithArg() 
+        //{
+        //    DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
+        //    ISet entrySet = dirtyFlagMap.EntrySet();
+        //    dirtyFlagMap.Put("a", "A");
+        //    dirtyFlagMap.Put("b", "B");
+        //    dirtyFlagMap.Put("c", "C");
+        //    dirtyFlagMap.ClearDirtyFlag();
+        //    object[] array = (object[]) new ArrayList(entrySet).ToArray(typeof(DictionaryEntry));
+        //    Assert.AreEqual(3, array.Length);
+        //    DictionaryEntry entry = (DictionaryEntry)array[0];
+        //    entry.Value = "BB";
+        //    Assert.IsTrue(dirtyFlagMap.Dirty);
+        //    Assert.IsTrue(dirtyFlagMap.ContainsValue("BB"));
+        //}
 
-        [Test]
-        [Ignore]
-		public void TestKeySetClear() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			ISet keySet = dirtyFlagMap.KeySet();
-			keySet.Clear();
-			Assert.IsFalse(dirtyFlagMap.Dirty);
-			dirtyFlagMap.Put("a", "Y");
-			dirtyFlagMap.ClearDirtyFlag();
-			keySet.Clear();
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-			Assert.AreEqual(0, dirtyFlagMap.Count);
-		}
+        //[Test]
+        //[Ignore]
+        //public void TestKeySetClear() 
+        //{
+        //    DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
+        //    ISet keySet = dirtyFlagMap.KeySet();
+        //    keySet.Clear();
+        //    Assert.IsFalse(dirtyFlagMap.Dirty);
+        //    dirtyFlagMap.Put("a", "Y");
+        //    dirtyFlagMap.ClearDirtyFlag();
+        //    keySet.Clear();
+        //    Assert.IsTrue(dirtyFlagMap.Dirty);
+        //    Assert.AreEqual(0, dirtyFlagMap.Count);
+        //}
 
-        [Test]
-        [Ignore]
-		public void TestValuesClear() 
-		{
-			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-			IList values = new ArrayList(dirtyFlagMap.Values);
-			values.Clear();
-			Assert.IsFalse(dirtyFlagMap.Dirty);
-			dirtyFlagMap.Put("a", "Y");
-			dirtyFlagMap.ClearDirtyFlag();
-			values.Clear();
-			Assert.IsTrue(dirtyFlagMap.Dirty);
-			Assert.AreEqual(0, dirtyFlagMap.Count);
-		}    
-	}
+        //[Test]
+        //[Ignore]
+        //public void TestValuesClear() 
+        //{
+        //    DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
+        //    IList values = new ArrayList(dirtyFlagMap.Values);
+        //    values.Clear();
+        //    Assert.IsFalse(dirtyFlagMap.Dirty);
+        //    dirtyFlagMap.Put("a", "Y");
+        //    dirtyFlagMap.ClearDirtyFlag();
+        //    values.Clear();
+        //    Assert.IsTrue(dirtyFlagMap.Dirty);
+        //    Assert.AreEqual(0, dirtyFlagMap.Count);
+        //}    
+    }
 }

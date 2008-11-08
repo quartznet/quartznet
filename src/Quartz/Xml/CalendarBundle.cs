@@ -121,7 +121,7 @@ namespace Quartz.Xml
             {
                 throw new SchedulerConfigException("Unknown calendar type " + typeName);
             }
-			Calendar = (ICalendar) ObjectUtils.InstantiateType(type);
+			Calendar = ObjectUtils.InstantiateType<ICalendar>(type);
 		}
 	}
 }

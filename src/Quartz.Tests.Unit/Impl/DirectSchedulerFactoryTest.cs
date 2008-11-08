@@ -14,7 +14,7 @@
  * under the License.
  */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
@@ -34,7 +34,7 @@ namespace Quartz.Tests.Unit.Impl
 		{
 			StringBuilder result = new StringBuilder();
 
-			IDictionary data = new Hashtable();
+			IDictionary<string, ISchedulerPlugin> data = new Dictionary<string, ISchedulerPlugin>();
 			data["TestPlugin"] = new TestPlugin(result);
 
 			IThreadPool threadPool = new SimpleThreadPool(1, ThreadPriority.Normal);
@@ -54,7 +54,7 @@ namespace Quartz.Tests.Unit.Impl
 
 		class TestPlugin : ISchedulerPlugin
 		{
-			StringBuilder result;
+		    readonly StringBuilder result;
 
 			public TestPlugin(StringBuilder result)
 			{

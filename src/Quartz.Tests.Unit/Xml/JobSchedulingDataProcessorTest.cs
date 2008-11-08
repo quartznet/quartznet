@@ -1,9 +1,8 @@
-using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 
 using NUnit.Framework;
 
-using Quartz.Impl;
 using Quartz.Xml;
 
 using Rhino.Mocks;
@@ -33,7 +32,7 @@ namespace Quartz.Tests.Unit.Xml
            
             mockery.ReplayAll();
             
-            processor.ScheduleJobs(new Hashtable(), mockScheduler, false);
+            processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
         }
 
         [Test]
@@ -44,7 +43,7 @@ namespace Quartz.Tests.Unit.Xml
 
             mockery.ReplayAll();
 
-            processor.ScheduleJobs(new Hashtable(), mockScheduler, false);
+            processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
 
             JobSchedulingBundle job = processor.GetScheduledJob("jobGroup1.jobName1");
             foreach (Trigger trigger in job.Triggers)
@@ -54,7 +53,7 @@ namespace Quartz.Tests.Unit.Xml
                 for (int i = 1; i <= 2; ++i)
                 {
                     string entryKey = keyValuePrefix + "Entry_" + i;
-                    Assert.Contains(entryKey, trigger.JobDataMap.Keys);
+                    Assert.IsTrue(trigger.JobDataMap.Keys.Contains(entryKey));
                     Assert.AreEqual(keyValuePrefix + "Value_" + i, trigger.JobDataMap[entryKey]);
                 }
             }
@@ -70,7 +69,7 @@ namespace Quartz.Tests.Unit.Xml
 
             mockery.ReplayAll();
 
-            processor.ScheduleJobs(new Hashtable(), mockScheduler, false);
+            processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
         }
 
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)

@@ -16,6 +16,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 using Common.Logging;
@@ -60,9 +61,9 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     /// Gets or sets the lock owners.
     /// </summary>
     /// <value>The lock owners.</value>
-    private static HashSet LockOwners
+    private static Collection.HashSet<string> LockOwners
     {
-        get { return (HashSet) LogicalThreadContext.GetData(ThreadContextKeyLockOwners); }
+        get { return (Collection.HashSet<string>)LogicalThreadContext.GetData(ThreadContextKeyLockOwners); }
         set { LogicalThreadContext.SetData(ThreadContextKeyLockOwners, value); }
     }
 
@@ -76,13 +77,13 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         get { return log; }
     }
 
-    private static HashSet ThreadLocks
+    private static Collection.HashSet<string> ThreadLocks
     {
         get
         {
             if (LockOwners == null)
             {
-                LockOwners = new HashSet();
+                LockOwners = new Collection.HashSet<string>();
             }
             return LockOwners;
         }

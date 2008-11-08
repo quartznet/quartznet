@@ -16,11 +16,6 @@
 using System;
 using System.Globalization;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 #if NET_35
 using TimeZone = System.TimeZoneInfo;
 #endif
@@ -51,7 +46,7 @@ namespace Quartz.Tests.Unit
 			yearlyTrigger.FireAtTime = "14:35:15";
         
 			DateTime targetCalendar = new DateTime(2006, 1, 10, 14, 35, 15).ToUniversalTime();
-            NullableDateTime nextFireTimeUtc;
+            DateTime? nextFireTimeUtc;
 
             nextFireTimeUtc = yearlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
 			Assert.AreEqual(targetCalendar, nextFireTimeUtc.Value);

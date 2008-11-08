@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations 
  * under the License.
  */
-using System.Collections;
+using System.Collections.Generic;
 
 using NUnit.Framework;
 
@@ -49,7 +49,7 @@ namespace Quartz.Tests.Unit.Simpl
 			jobDataMap.Put("charValue", 'a');
 			jobDataMap.Put("byteValue", (byte) 6);
 			jobDataMap.Put("stringValue", "S1");
-			Hashtable map = new Hashtable();
+            Dictionary<string, string> map = new Dictionary<string, string>();
 			map.Add("A", "B");
 			jobDataMap.Put("mapValue", map);
 
@@ -65,7 +65,7 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.AreEqual('a', myObject.CharValue);
 			Assert.AreEqual((byte) 6, myObject.ByteValue);
 			Assert.AreEqual("S1", myObject.StringValue);
-			Assert.IsTrue(myObject.MapValue.Contains("A"));
+			Assert.IsTrue(myObject.MapValue.ContainsKey("A"));
 		}
 
 		[Test]
@@ -104,7 +104,7 @@ namespace Quartz.Tests.Unit.Simpl
 			JobDataMap jobDataMap = new JobDataMap();
 			jobDataMap.Put("mapValue", null);
 			TestObject testObject = new TestObject();
-			Hashtable map = new Hashtable();
+            Dictionary<string, string> map = new Dictionary<string, string>();
 			map.Add("A", "B");
 			testObject.MapValue = map;
 			factory.SetObjectProperties(testObject, jobDataMap);
@@ -208,7 +208,7 @@ namespace Quartz.Tests.Unit.Simpl
 			private short shortValue;
 			private char charValue;
 			private string stringValue;
-			private IDictionary mapValue;
+            private Dictionary<string, string> mapValue;
 
 			public bool BooleanValue
 			{
@@ -240,7 +240,7 @@ namespace Quartz.Tests.Unit.Simpl
 				get { return longValue; }
 			}
 
-			public IDictionary MapValue
+            public Dictionary<string, string> MapValue
 			{
 				set { mapValue = value; }
 				get { return mapValue; }

@@ -14,11 +14,9 @@
  * under the License.
  */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
 using NUnit.Framework;
-
-using Quartz.Collection;
 
 namespace Quartz.Tests.Unit
 {
@@ -35,8 +33,8 @@ namespace Quartz.Tests.Unit
         
 			// Verify that a HashSet shuffles order, so we know that order test
 			// below is actually testing something
-			HashSet hashSet = new HashSet(listenerNames);
-			Assert.IsFalse(new ArrayList(listenerNames).Equals(new ArrayList(hashSet)));
+            Collection.HashSet<string> hashSet = new Collection.HashSet<string>(listenerNames);
+			Assert.IsFalse(new List<string>(listenerNames).Equals(new List<string>(hashSet)));
         
 			JobDetail jobDetail = new JobDetail();
 			for (int i = 0; i < listenerNames.Length; i++) 
@@ -45,7 +43,7 @@ namespace Quartz.Tests.Unit
 			}
 
 			// Make sure order was maintained
-			TestUtil.AssertCollectionEquality(new ArrayList(listenerNames), new ArrayList(jobDetail.JobListenerNames));
+			TestUtil.AssertCollectionEquality(listenerNames, jobDetail.JobListenerNames);
         
 			// Make sure uniqueness is enforced
 			for (int i = 0; i < listenerNames.Length; i++) 
@@ -74,16 +72,15 @@ namespace Quartz.Tests.Unit
             }
 
 			JobDetail clonedJobDetail = (JobDetail)jobDetail.Clone();
-			TestUtil.AssertCollectionEquality(new ArrayList(clonedJobDetail.JobListenerNames),
-				new ArrayList(jobDetail.JobListenerNames));
+			TestUtil.AssertCollectionEquality(clonedJobDetail.JobListenerNames, jobDetail.JobListenerNames);
         
 			jobDetail.AddJobListener("B");
         
 			// Verify deep clone of jobListenerNames 
-			Assert.IsTrue(new ArrayList(jobDetail.JobListenerNames).Contains("A"));
-			Assert.IsTrue(new ArrayList(jobDetail.JobListenerNames).Contains("B"));
-			Assert.IsTrue(new ArrayList(clonedJobDetail.JobListenerNames).Contains("A"));
-			Assert.IsFalse(new ArrayList(clonedJobDetail.JobListenerNames).Contains("B"));
+			Assert.IsTrue(new List<string>(jobDetail.JobListenerNames).Contains("A"));
+			Assert.IsTrue(new List<string>(jobDetail.JobListenerNames).Contains("B"));
+			Assert.IsTrue(new List<string>(clonedJobDetail.JobListenerNames).Contains("A"));
+			Assert.IsFalse(new List<string>(clonedJobDetail.JobListenerNames).Contains("B"));
 		}
 
 

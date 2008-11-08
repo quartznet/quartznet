@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 
 using Quartz.Collection;
 
@@ -32,11 +33,11 @@ namespace Quartz.Util
     /// </summary>
     /// <author>James House</author>
     [Serializable]
-    public class DirtyFlagMap : IDictionary, ICloneable
+    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ICloneable
     {
-        private bool dirty = false;
-        [NonSerialized] private bool locked = false;
-        private Hashtable map;
+        private bool dirty;
+        [NonSerialized] private bool locked;
+        private Dictionary<TKey, TValue> map;
         private readonly object syncRoot = new object();
 
         /// <summary>
@@ -44,7 +45,7 @@ namespace Quartz.Util
         /// </summary>
         public DirtyFlagMap()
         {
-            map = new Hashtable();
+            map = new Dictionary<TKey, TValue>();
         }
 
         /// <summary>
@@ -53,16 +54,7 @@ namespace Quartz.Util
         /// </summary>
         public DirtyFlagMap(int initialCapacity)
         {
-            map = new Hashtable(initialCapacity);
-        }
-
-        /// <summary>
-        /// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" /> that has the
-        /// given initial capacity and load factor.
-        /// </summary>
-        public DirtyFlagMap(int initialCapacity, float loadFactor)
-        {
-            map = new Hashtable(initialCapacity, loadFactor);
+            map = new Dictionary<TKey, TValue>(initialCapacity);
         }
 
         /// <summary>
@@ -76,7 +68,7 @@ namespace Quartz.Util
         /// <summary>
         /// Get a direct handle to the underlying Map.
         /// </summary>
-        public virtual IDictionary WrappedMap
+        public virtual IDictionary<TKey, TValue> WrappedMap
         {
             get { return map; }
         }
@@ -100,11 +92,11 @@ namespace Quartz.Util
         /// </returns>
         public virtual object Clone()
         {
-            DirtyFlagMap copy;
+            DirtyFlagMap<TKey, TValue> copy;
             try
             {
-                copy = (DirtyFlagMap) MemberwiseClone();
-                copy.map = (Hashtable) map.Clone();
+                copy = (DirtyFlagMap<TKey, TValue>) MemberwiseClone();
+                copy.map = new Dictionary<TKey, TValue>(map);
             }
             catch (Exception)
             {
@@ -118,18 +110,33 @@ namespace Quartz.Util
 
         #region IDictionary Members
 
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            return map.TryGetValue(key, out value);
+        }
+
         /// <summary>
         /// Gets or sets the <see cref="Object"/> with the specified key.
         /// </summary>
         /// <value></value>
-        public virtual object this[object key]
+        public virtual TValue this[TKey key]
         {
-            get { return map[key]; }
+            get 
+            {
+                TValue temp;
+                map.TryGetValue(key, out temp);
+                return temp;
+            }
             set
             {
                 map[key] = value;
                 dirty = true;
             }
+        }
+
+        public bool Remove(KeyValuePair<TKey, TValue> item)
+        {
+            return Remove(item.Key);
         }
 
         /// <summary>
@@ -142,13 +149,38 @@ namespace Quartz.Util
             get { return map.Count; }
         }
 
+        ICollection IDictionary.Keys
+        {
+            get { return map.Keys; }
+        }
+
+        ICollection IDictionary.Values
+        {
+            get { return map.Values; }
+        }
+
         /// <summary>
         /// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the values in the <see cref="T:System.Collections.IDictionary"/>.
         /// </summary>
         /// <value></value>
-        public virtual ICollection Values
+        public virtual ICollection<TValue> Values
         {
             get { return map.Values; }
+        }
+
+        public void Add(KeyValuePair<TKey, TValue> item)
+        {
+            Put(item.Key, item.Value);
+        }
+
+        public bool Contains(object key)
+        {
+            return ((IDictionary) map).Contains(key);
+        }
+
+        public void Add(object key, object value)
+        {
+            Put((TKey) key, (TValue) value);
         }
 
         /// <summary>
@@ -167,6 +199,32 @@ namespace Quartz.Util
             map.Clear();
         }
 
+        IDictionaryEnumerator IDictionary.GetEnumerator()
+        {
+            return ((IDictionary) map).GetEnumerator();
+        }
+
+        public void Remove(object key)
+        {
+            Remove((TKey) key);
+        }
+
+        object IDictionary.this[object key]
+        {
+            get { return this[(TKey) key]; }
+            set { this[(TKey) key] = (TValue) value; }
+        }
+
+        public bool Contains(KeyValuePair<TKey, TValue> item)
+        {
+            return Contains(item.Key);
+        }
+
+        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// When implemented by a class, determines whether the <see cref="T:System.Collections.IDictionary"/> contains an element with the specified key.
         /// </summary>
@@ -176,9 +234,9 @@ namespace Quartz.Util
         /// </returns>
         /// <exception cref="T:System.ArgumentNullException">
         /// 	<paramref name="key "/>is <see langword="null"/>.</exception>
-        public virtual bool Contains(object key)
+        public virtual bool ContainsKey(TKey key)
         {
-            return map.Contains(key);
+            return map.ContainsKey(key);
         }
 
         /// <summary>
@@ -193,17 +251,11 @@ namespace Quartz.Util
         /// 	<para>-or-</para>
         /// 	<para>The <see cref="T:System.Collections.IDictionary"/> has a fixed size.</para>
         /// </exception>
-        public virtual void Remove(object key)
+        public virtual bool Remove(TKey key)
         {
-            object tempObject;
-            tempObject = map[key];
-            map.Remove(key);
-            object obj = tempObject;
-
-            if (obj != null)
-            {
-                dirty = true;
-            }
+            bool remove = map.Remove(key);
+            dirty |= remove;
+            return remove;
         }
 
         /// <summary>
@@ -213,7 +265,7 @@ namespace Quartz.Util
         /// <returns>
         /// An <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
         /// </returns>
-        IDictionaryEnumerator IDictionary.GetEnumerator()
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return map.GetEnumerator();
         }
@@ -232,7 +284,7 @@ namespace Quartz.Util
         /// 	<para>-or-</para>
         /// 	<para>The <see cref="T:System.Collections.IDictionary"/> has a fixed size.</para>
         /// </exception>
-        public virtual void Add(object key, object value)
+        public virtual void Add(TKey key, TValue value)
         {
             map.Add(key, value);
             dirty = true;
@@ -260,8 +312,8 @@ namespace Quartz.Util
         /// <exception cref="T:System.InvalidCastException">The type of the source <see cref="T:System.Collections.ICollection"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
         public virtual void CopyTo(Array array, int index)
         {
-            object[] keys = new object[Count];
-            object[] values = new object[Count];
+            TKey[] keys = new TKey[Count];
+            TValue[] values = new TValue[Count];
             if (Keys != null)
             {
                 Keys.CopyTo(keys, index);
@@ -272,23 +324,18 @@ namespace Quartz.Util
             }
             for (int i = index; i < Count; i++)
             {
-                if (keys[i] != null || values[i] != null)
+                if (!Equals(keys[i], default(TKey)) || !Equals(values[i], default(TValue)))
                 {
                     array.SetValue(new DictionaryEntry(keys[i], values[i]), i);
                 }
             }
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return map.GetEnumerator();
-        }
-
         /// <summary>
         /// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the keys of the <see cref="T:System.Collections.IDictionary"/>.
         /// </summary>
         /// <value></value>
-        public virtual ICollection Keys
+        public virtual ICollection<TKey> Keys
         {
             get { return map.Keys; }
         }
@@ -308,7 +355,7 @@ namespace Quartz.Util
         /// has a fixed size.
         /// </summary>
         /// <value></value>
-        public virtual Boolean IsFixedSize
+        public virtual bool IsFixedSize
         {
             get { return false; }
         }
@@ -351,7 +398,7 @@ namespace Quartz.Util
         /// <returns>
         /// 	<c>true</c> if the specified obj contains value; otherwise, <c>false</c>.
         /// </returns>
-        public virtual bool ContainsValue(object obj)
+        public virtual bool ContainsValue(TValue obj)
         {
             return map.ContainsValue(obj);
         }
@@ -360,9 +407,9 @@ namespace Quartz.Util
         /// Gets the entries as a set.
         /// </summary>
         /// <returns></returns>
-        public virtual ISet EntrySet()
+        public virtual Dictionary<TKey, TValue>.Enumerator EntrySet()
         {
-            return new HashSet(map);
+            return map.GetEnumerator();
         }
 
         /// <summary>
@@ -375,7 +422,7 @@ namespace Quartz.Util
         /// </returns>
         public override bool Equals(object obj)
         {
-            if (obj == null || !(obj is DirtyFlagMap))
+            if (obj == null || !(obj is DirtyFlagMap<TKey, TValue>))
             {
                 return false;
             }
@@ -405,10 +452,8 @@ namespace Quartz.Util
             {
                 return true;
             }
-            else
-            {
-                return false;
-            }
+            
+            return false;
         }
 
         /// <summary>
@@ -423,13 +468,18 @@ namespace Quartz.Util
             return map.GetHashCode() ^ locked.GetHashCode() ^ dirty.GetHashCode();
         }
 
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
         /// <summary>
         /// Gets keyset for this map.
         /// </summary>
         /// <returns></returns>
-        public virtual ISet KeySet()
+        public virtual ICollection<TKey> KeySet()
         {
-            return new HashSet(map.Keys);
+            return new HashSet<TKey>(map.Keys);
         }
 
         /// <summary>
@@ -438,11 +488,11 @@ namespace Quartz.Util
         /// <param name="key">The key.</param>
         /// <param name="val">The val.</param>
         /// <returns></returns>
-        public virtual object Put(object key, object val)
+        public virtual object Put(TKey key, TValue val)
         {
             dirty = true;
-            object tempObject;
-            tempObject = map[key];
+            TValue tempObject;
+            map.TryGetValue(key, out tempObject);
             map[key] = val;
             return tempObject;
         }
@@ -451,14 +501,14 @@ namespace Quartz.Util
         /// Puts all.
         /// </summary>
         /// <param name="t">The t.</param>
-        public virtual void PutAll(IDictionary t)
+        public virtual void PutAll(IDictionary<TKey, TValue> t)
         {
             if (t != null && t.Count > 0)
             {
                 dirty = true;
 
-                ArrayList keys = new ArrayList(t.Keys);
-                ArrayList values = new ArrayList(t.Values);
+                List<TKey> keys = new List<TKey>(t.Keys);
+                List<TValue> values = new List<TValue>(t.Values);
 
                 for (int i = 0; i < keys.Count; i++)
                 {

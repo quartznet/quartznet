@@ -23,12 +23,6 @@ using System;
 
 using Quartz.Util;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
-
 namespace Quartz
 {
 	/// <summary> 
@@ -53,8 +47,8 @@ namespace Quartz
         public const int RepeatIndefinitely = -1;
         private const int YearToGiveupSchedulingAt = 2299;
 
-        private NullableDateTime nextFireTimeUtc = null;
-		private NullableDateTime previousFireTimeUtc = null;
+        private DateTime? nextFireTimeUtc = null;
+		private DateTime? previousFireTimeUtc = null;
 
         private int repeatCount = 0;
         private TimeSpan repeatInterval = TimeSpan.Zero;
@@ -107,7 +101,7 @@ namespace Quartz
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, DateTime startTimeUtc,
-            NullableDateTime endTimeUtc, 
+            DateTime? endTimeUtc, 
             int repeatCount, TimeSpan repeatInterval) : base(name, group)
 		{
 			StartTimeUtc = startTimeUtc;
@@ -133,7 +127,7 @@ namespace Quartz
         /// firing, use RepeatIndefinitely for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
 		public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTimeUtc,
-                 NullableDateTime endTimeUtc,
+                 DateTime? endTimeUtc,
                  int repeatCount, TimeSpan repeatInterval)
 			: base(name, group, jobName, jobGroup)
 		{
@@ -198,7 +192,7 @@ namespace Quartz
         /// Note that the return time may be in the past.
         /// </p>
         /// </summary>
-        public override NullableDateTime FinalFireTimeUtc
+        public override DateTime? FinalFireTimeUtc
         {
             get
             {
@@ -313,7 +307,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
 			{
-                NullableDateTime newFireTime = GetFireTimeAfter(DateTime.UtcNow);
+                DateTime? newFireTime = GetFireTimeAfter(DateTime.UtcNow);
 
                 while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
@@ -334,7 +328,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
 			{
-                NullableDateTime newFireTime = GetFireTimeAfter(DateTime.UtcNow);
+                DateTime? newFireTime = GetFireTimeAfter(DateTime.UtcNow);
 
 				while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
@@ -494,7 +488,7 @@ namespace Quartz
 		/// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
 		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
-        public override NullableDateTime ComputeFirstFireTimeUtc(ICalendar cal)
+        public override DateTime? ComputeFirstFireTimeUtc(ICalendar cal)
     	{
 			nextFireTimeUtc = StartTimeUtc;
 
@@ -524,7 +518,7 @@ namespace Quartz
 		/// returned. The value returned is not guaranteed to be valid until after
 		/// the <see cref="Trigger" /> has been added to the scheduler.
 		/// </summary>
-        public override NullableDateTime GetNextFireTimeUtc()
+        public override DateTime? GetNextFireTimeUtc()
 		{
 			return nextFireTimeUtc;
 		}
@@ -534,7 +528,7 @@ namespace Quartz
 		/// If the trigger has not yet fired, <see langword="null" /> will be
 		/// returned.
 		/// </summary>
-        public override NullableDateTime GetPreviousFireTimeUtc()
+        public override DateTime? GetPreviousFireTimeUtc()
 		{
 			return previousFireTimeUtc;
 		}
@@ -543,7 +537,7 @@ namespace Quartz
 		/// Set the next UTC time at which the <see cref="SimpleTrigger" /> should fire.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
-        public void SetNextFireTime(NullableDateTime fireTimeUtc)
+        public void SetNextFireTime(DateTime? fireTimeUtc)
 		{
 			nextFireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTimeUtc);
 		}
@@ -552,7 +546,7 @@ namespace Quartz
 		/// Set the previous UTC time at which the <see cref="SimpleTrigger" /> fired.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
-        public virtual void SetPreviousFireTime(NullableDateTime fireTimeUtc)
+        public virtual void SetPreviousFireTime(DateTime? fireTimeUtc)
 		{
 			previousFireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTimeUtc);
 		}
@@ -562,7 +556,7 @@ namespace Quartz
 		/// fire, after the given UTC time. If the trigger will not fire after the given
 		/// time, <see langword="null" /> will be returned.
 		/// </summary>
-        public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTimeUtc)
+        public override DateTime? GetFireTimeAfter(DateTime? afterTimeUtc)
 		{
             afterTimeUtc = DateTimeUtil.AssumeUniversalTime(afterTimeUtc);
 
@@ -625,7 +619,7 @@ namespace Quartz
 		/// fire, before the given time. If the trigger will not fire before the
 		/// given time, <see langword="null" /> will be returned.
 		/// </summary>
-        public virtual NullableDateTime GetFireTimeBefore(NullableDateTime endUtc)
+        public virtual DateTime? GetFireTimeBefore(DateTime? endUtc)
 		{
             endUtc = DateTimeUtil.AssumeUniversalTime(endUtc);
 
@@ -644,7 +638,7 @@ namespace Quartz
         /// <param name="startTimeUtc">The UTC start date and time.</param>
         /// <param name="endTimeUtc">The UTC end date and time.</param>
         /// <returns></returns>
-        public virtual int ComputeNumTimesFiredBetween(NullableDateTime startTimeUtc, NullableDateTime endTimeUtc)
+        public virtual int ComputeNumTimesFiredBetween(DateTime? startTimeUtc, DateTime? endTimeUtc)
 		{
             startTimeUtc = DateTimeUtil.AssumeUniversalTime(startTimeUtc);
             endTimeUtc = DateTimeUtil.AssumeUniversalTime(endTimeUtc);

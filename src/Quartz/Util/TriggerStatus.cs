@@ -19,13 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 
+using System;
 using System.Globalization;
-
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
 namespace Quartz.Util
 {
@@ -43,7 +38,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="status">The trigger's status</param>
         /// <param name="nextFireTimeUtc">The next UTC time the trigger will fire</param>
-        public TriggerStatus(string status, NullableDateTime nextFireTimeUtc)
+        public TriggerStatus(string status, DateTime? nextFireTimeUtc)
         {
             base.First = status;
             base.Second = nextFireTimeUtc;
@@ -83,9 +78,9 @@ namespace Quartz.Util
         /// Get the group portion of the key.
         /// </summary>
         /// <returns> the group </returns>
-        public virtual NullableDateTime NextFireTimeUtc
+        public virtual DateTime? NextFireTimeUtc
         {
-            get { return (NullableDateTime) Second; }
+            get { return (DateTime?) Second; }
         }
 
         // TODO: Repackage under spi or root pkg ?, put status constants here.

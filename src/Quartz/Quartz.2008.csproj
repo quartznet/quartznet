@@ -43,6 +43,8 @@
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkSubset>
+    </TargetFrameworkSubset>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\..\build\2.0\Debug\Quartz\</OutputPath>
@@ -87,9 +89,9 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Common.Logging">
-      <Name>Common.Logging</Name>
-      <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
+    <Reference Include="Common.Logging, Version=1.2.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>
@@ -110,12 +112,6 @@
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
-    </Compile>
-    <Compile Include="Collection\CollectionUtil.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Collection\HashSet.cs">
-      <SubType>Code</SubType>
     </Compile>
     <Compile Include="Collection\ISet.cs">
       <SubType>Code</SubType>
@@ -374,6 +370,7 @@
     <Compile Include="Listener\TriggerListenerSupport.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collection\HashSet.cs" />
     <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\AdoUtil.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbMetadata.cs" />
@@ -429,6 +426,7 @@
       <SubType>
       </SubType>
     </EmbeddedResource>
+    <None Include="app.config" />
     <None Include="Xml\job_scheduling_data.xsx">
       <DependentUpon>job_scheduling_data.xsd</DependentUpon>
     </None>

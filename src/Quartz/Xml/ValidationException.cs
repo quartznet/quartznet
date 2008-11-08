@@ -19,7 +19,7 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 
 namespace Quartz.Xml
@@ -31,13 +31,13 @@ namespace Quartz.Xml
 	[Serializable]
 	public class ValidationException : Exception
 	{
-		private readonly ICollection validationExceptions = new ArrayList();
+		private readonly ICollection<Exception> validationExceptions = new List<Exception>();
 
 		/// <summary>
 		/// Gets the validation exceptions.
 		/// </summary>
 		/// <value>The validation exceptions.</value>
-		public virtual ICollection ValidationExceptions
+		public virtual ICollection<Exception> ValidationExceptions
 		{
 			get { return validationExceptions; }
 		}
@@ -56,17 +56,9 @@ namespace Quartz.Xml
 
 				StringBuilder sb = new StringBuilder();
 
-				bool first = true;
-
 				foreach (Exception e in ValidationExceptions)
 				{
-					if (!first)
-					{
-						sb.Append('\n');
-						first = false;
-					}
-
-					sb.Append(e.Message);
+					sb.AppendLine(e.Message);
 				}
 
 				return sb.ToString();
@@ -92,9 +84,9 @@ namespace Quartz.Xml
 		/// Constructor for ValidationException.
 		/// </summary>
 		/// <param name="errors">collection of validation exceptions.</param>
-		public ValidationException(ICollection errors) : this()
+		public ValidationException(IEnumerable<Exception> errors) : this()
 		{
-			validationExceptions = ArrayList.ReadOnly(new ArrayList(errors));
+			validationExceptions = new List<Exception>(errors).AsReadOnly();
 		}
 	}
 }

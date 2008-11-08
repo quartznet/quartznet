@@ -63,7 +63,7 @@ namespace Quartz.Examples.Example13
 			
 			JobDataMap data = context.JobDetail.JobDataMap;
 			int count;
-			if (data.Contains(COUNT))
+			if (data.ContainsKey(COUNT))
 			{
 				count = data.GetInt(COUNT);
 			}

@@ -1,6 +1,5 @@
-#if NET_20
-
 using System.Net.Mail;
+
 using NUnit.Framework;
 using NUnit.Framework.SyntaxHelpers;
 
@@ -101,15 +100,15 @@ namespace Quartz.Tests.Unit.Job
 
     internal class TestSendMailJob : SendMailJob
     {
-        public MailMessage ActualMailSent;
-        public string ActualSmtpHost;
-
+        public MailMessage ActualMailSent = new MailMessage();
+        public string ActualSmtpHost = "ad";
+        
         protected override void Send(MailMessage mimeMessage, string smtpHost)
         {
             ActualMailSent = mimeMessage;
             ActualSmtpHost = smtpHost;
         }
+        
     }
 }
 
-#endif

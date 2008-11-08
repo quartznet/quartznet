@@ -19,15 +19,8 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
-
-using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Spi;
 
@@ -159,14 +152,14 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public IList GetCurrentlyExecutingJobs()
+		public IList<JobExecutionContext> GetCurrentlyExecutingJobs()
 		{
 			return sched.CurrentlyExecutingJobs;
 		}
 
 		/// <seealso cref="QuartzScheduler.GetPausedTriggerGroups(SchedulingContext)">
 		/// </seealso>
-		public ISet GetPausedTriggerGroups()
+		public ICollection<string> GetPausedTriggerGroups()
 		{
 			return sched.GetPausedTriggerGroups(schedCtxt);
 		}
@@ -204,7 +197,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public virtual IList GlobalJobListeners
+		public virtual IList<IJobListener> GlobalJobListeners
 		{
 			get { return sched.GlobalJobListeners; }
 		}
@@ -212,7 +205,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public virtual ISet JobListenerNames
+		public virtual ICollection<string> JobListenerNames
 		{
 			get { return sched.JobListenerNames; }
 		}
@@ -242,7 +235,7 @@ namespace Quartz.Impl
 	    /// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public virtual IList GlobalTriggerListeners
+		public virtual IList<ITriggerListener> GlobalTriggerListeners
 		{
 			get { return sched.GlobalTriggerListeners; }
 		}
@@ -250,7 +243,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public virtual ISet TriggerListenerNames
+		public virtual ICollection<string> TriggerListenerNames
 		{
 			get { return sched.TriggerListenerNames; }
 		}
@@ -258,7 +251,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public virtual IList SchedulerListeners
+		public virtual IList<ISchedulerListener> SchedulerListeners
 		{
 			get { return sched.SchedulerListeners; }
 		}
@@ -376,7 +369,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-        public virtual NullableDateTime RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+        public virtual DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
 		{
 			return sched.RescheduleJob(schedCtxt, triggerName, groupName, newTrigger);
 		}

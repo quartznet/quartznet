@@ -24,7 +24,7 @@ namespace Quartz.Tests.Integration
     public class IntegrationTest
     {
         protected IScheduler sched;
-        protected ILog log = null;
+        protected ILog log;
 
 
         public IntegrationTest()

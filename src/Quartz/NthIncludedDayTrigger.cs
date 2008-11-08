@@ -17,15 +17,9 @@
 using System;
 using System.Globalization;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 #if NET_35
 using TimeZone = System.TimeZoneInfo;
 #endif
-
 
 using Quartz.Spi;
 using Quartz.Util;
@@ -107,8 +101,8 @@ namespace Quartz
 		/// </summary>
 		public const int IntervalTypeWeekly = 3;
 
-        private NullableDateTime previousFireTimeUtc;
-		private NullableDateTime nextFireTimeUtc;
+        private DateTime? previousFireTimeUtc;
+		private DateTime? nextFireTimeUtc;
         private ICalendar calendar;
 
 		private int n = 1;
@@ -355,7 +349,7 @@ namespace Quartz
 		/// and <see name="endTime" />, <see langword="null" /> will be returned.
 		/// </summary>
 		/// <returns> the last time the trigger will fire.</returns>
-        public override NullableDateTime FinalFireTimeUtc
+        public override DateTime? FinalFireTimeUtc
 		{
 			get
 			{
@@ -365,8 +359,8 @@ namespace Quartz
                     return null;
                 }
 
-                NullableDateTime finalTime = null;
-				NullableDateTime currCal = EndTimeUtc.Value;
+                DateTime? finalTime = null;
+				DateTime? currCal = EndTimeUtc.Value;
 
                 while (!finalTime.HasValue && StartTimeUtc < currCal.Value)
 				{
@@ -409,7 +403,7 @@ namespace Quartz
         /// </remarks>
 		/// <returns> the next fire time for the trigger</returns>
 		/// <seealso cref="NextFireCutoffInterval" /> 
-        public override NullableDateTime GetNextFireTimeUtc()
+        public override DateTime? GetNextFireTimeUtc()
 		{
 			return nextFireTimeUtc;
 		}
@@ -420,7 +414,7 @@ namespace Quartz
 		/// fired, <see langword="null" /> will be returned.
 		/// </summary>
 		/// <returns> the previous fire time for the trigger</returns>
-        public override NullableDateTime GetPreviousFireTimeUtc()
+        public override DateTime? GetPreviousFireTimeUtc()
 		{
 			return previousFireTimeUtc;
 		}
@@ -488,7 +482,7 @@ namespace Quartz
 		/// <returns> 
 		/// the first time the trigger will fire following the specified date
 		/// </returns>
-        public override NullableDateTime GetFireTimeAfter(NullableDateTime afterTimeUtc)
+        public override DateTime? GetFireTimeAfter(DateTime? afterTimeUtc)
 		{
             afterTimeUtc = DateTimeUtil.AssumeUniversalTime(afterTimeUtc);
 			if (!afterTimeUtc.HasValue)
@@ -547,7 +541,7 @@ namespace Quartz
         /// <see cref="GetNextFireTimeUtc" /> will return (until after the first 
 		/// firing of the <see cref="Trigger" />).
 		/// </returns>
-        public override NullableDateTime ComputeFirstFireTimeUtc(ICalendar cal)
+        public override DateTime? ComputeFirstFireTimeUtc(ICalendar cal)
 		{
 			calendar = cal;
 			DateTime dt = StartTimeUtc.AddMilliseconds(-1*1000);
@@ -700,7 +694,7 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-        private NullableDateTime GetWeeklyFireTimeAfter(DateTime afterDateUtc)
+        private DateTime? GetWeeklyFireTimeAfter(DateTime afterDateUtc)
         {
 			int currN = 0;
 			int currWeek;
@@ -817,7 +811,7 @@ namespace Quartz
 		/// will not be returned as the next fire time.
 		/// </param>
 		/// <returns> the first time the trigger will fire following the specified date </returns>
-        private NullableDateTime GetMonthlyFireTimeAfter(DateTime afterDateUtc)
+        private DateTime? GetMonthlyFireTimeAfter(DateTime afterDateUtc)
 		{
 			int currN = 0;
 #if !NET_35
@@ -913,7 +907,7 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-        private NullableDateTime GetYearlyFireTimeAfter(DateTime afterDateUtc)
+        private DateTime? GetYearlyFireTimeAfter(DateTime afterDateUtc)
 		{
 			int currN = 0;
 #if !NET_35

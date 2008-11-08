@@ -15,7 +15,7 @@
 * 
 */
 
-using System.Collections;
+using System.Collections.Generic;
 
 namespace Quartz.Listener
 {
@@ -33,11 +33,11 @@ namespace Quartz.Listener
     /// <author>James House</author>
     public class BroadcastSchedulerListener : ISchedulerListener
     {
-        private readonly IList listeners;
+        private readonly List<ISchedulerListener> listeners;
 
         public BroadcastSchedulerListener()
         {
-            listeners = new ArrayList();
+            listeners = new List<ISchedulerListener>();
         }
 
 
@@ -45,9 +45,9 @@ namespace Quartz.Listener
         /// Construct an instance with the given List of listeners.
         /// </summary>
         /// <param name="listeners">The initial List of SchedulerListeners to broadcast to.</param>
-        public BroadcastSchedulerListener(IList listeners)
+        public BroadcastSchedulerListener(IEnumerable<ISchedulerListener> listeners)
         {
-            this.listeners.Add(listeners);
+            this.listeners.AddRange(listeners);
         }
 
 
@@ -58,20 +58,12 @@ namespace Quartz.Listener
 
         public bool RemoveListener(ISchedulerListener listener)
         {
-            if (listeners.Contains(listener))
-            {
-                listeners.Remove(listener);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return listeners.Remove(listener);
         }
 
-        public IList GetListeners()
+        public IList<ISchedulerListener> GetListeners()
         {
-            return ArrayList.ReadOnly(listeners);
+            return listeners.AsReadOnly();
         }
 
         public void JobScheduled(Trigger trigger)

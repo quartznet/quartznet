@@ -86,9 +86,9 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Common.Logging">
-      <Name>Common.Logging</Name>
-      <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
+    <Reference Include="Common.Logging, Version=1.2.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>
@@ -106,9 +106,6 @@
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
-    </Compile>
-    <Compile Include="Collection\CollectionUtil.cs">
-      <SubType>Code</SubType>
     </Compile>
     <Compile Include="Collection\HashSet.cs">
       <SubType>Code</SubType>

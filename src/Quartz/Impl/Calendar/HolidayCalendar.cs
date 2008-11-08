@@ -36,20 +36,20 @@ namespace Quartz.Impl.Calendar
 	/// <author>Sharada Jambula</author>
 	/// <author>Juergen Donnerstag</author>
 	[Serializable]
-	public class HolidayCalendar : BaseCalendar, ICalendar
+	public class HolidayCalendar : BaseCalendar
 	{
 		/// <summary>
-		/// Returns a <see cref="ISortedSet" /> of Dates representing the excluded
+		/// Returns a <see cref="ISortedSet&lt;DateTime&gt;" /> of Dates representing the excluded
 		/// days. Only the month, day and year of the returned dates are
 		/// significant.
 		/// </summary>
-		public virtual ISortedSet ExcludedDates
+		public virtual ISortedSet<DateTime> ExcludedDates
 		{
-			get { return TreeSet.UnmodifiableTreeSet(dates); }
+			get { return TreeSet<DateTime>.UnmodifiableTreeSet(dates); }
 		}
 
 		// A sorted set to store the holidays
-		private readonly TreeSet dates = new TreeSet();
+		private readonly TreeSet<DateTime> dates = new TreeSet<DateTime>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
@@ -141,7 +141,9 @@ namespace Quartz.Impl.Calendar
         {
             int baseHash = 0;
             if (GetBaseCalendar() != null)
+            {
                 baseHash = GetBaseCalendar().GetHashCode();
+            }
 
             return ExcludedDates.GetHashCode() + 5 * baseHash;
         }
@@ -149,7 +151,10 @@ namespace Quartz.Impl.Calendar
         public bool Equals(HolidayCalendar obj)
         {
             if (obj == null)
+            {
                 return false;
+            }
+
             bool baseEqual = GetBaseCalendar() != null ?
                              GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
 
@@ -161,12 +166,11 @@ namespace Quartz.Impl.Calendar
         public override bool Equals(object obj)
         {
             if ((obj == null) || !(obj is HolidayCalendar))
+            {
                 return false;
-            else
-                return Equals((HolidayCalendar)obj);
-
-
+            }
+            
+            return Equals((HolidayCalendar)obj);
         }
- 
 	}
 }

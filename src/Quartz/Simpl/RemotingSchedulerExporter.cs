@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
@@ -30,7 +31,7 @@ namespace Quartz.Simpl
         private string bindName = DefaultBindName;
         private string channelType = ChannelTypeTcp;
         private TypeFilterLevel typeFilgerLevel = TypeFilterLevel.Full;
-        private static readonly Hashtable registeredChannels = new Hashtable();
+        private static readonly Dictionary<string, object> registeredChannels = new Dictionary<string, object>();
 
         public RemotingSchedulerExporter()
         {
@@ -107,11 +108,9 @@ namespace Quartz.Simpl
                 }
                
                 Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1})", chan.GetType(), port));
-#if NET_20
+
                 ChannelServices.RegisterChannel(chan, false);
-#else
-                ChannelServices.RegisterChannel(chan);
-#endif
+
                 registeredChannels.Add(channelRegistrationKey, new object());
                 Log.Info("Remoting channel registered successfully");
             }

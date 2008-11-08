@@ -123,12 +123,12 @@ namespace Quartz.Job
 			}
 
 			bool wait = true;
-			if (data.Contains(PropertyWaitForProcess))
+			if (data.ContainsKey(PropertyWaitForProcess))
 			{
 				wait = data.GetBooleanValue(PropertyWaitForProcess);
 			}
 			bool consumeStreams = false;
-			if (data.Contains(PropertyConsumeStreams))
+			if (data.ContainsKey(PropertyConsumeStreams))
 			{
 				consumeStreams = data.GetBooleanValue(PropertyConsumeStreams);
 			}

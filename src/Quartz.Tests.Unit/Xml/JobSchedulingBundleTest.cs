@@ -16,7 +16,7 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
 using NUnit.Framework;
 
@@ -90,7 +90,7 @@ namespace Quartz.Tests.Unit.Xml
         public void TestSetTriggersAddsTrigger()
         {
             SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTime.MinValue);
-            ArrayList triggers = new ArrayList();
+            List<Trigger> triggers = new List<Trigger>();
             triggers.Add(st);
             bundle.Triggers = triggers;
             Assert.AreSame(triggers, bundle.Triggers);

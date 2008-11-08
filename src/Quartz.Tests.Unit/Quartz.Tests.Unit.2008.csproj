@@ -28,6 +28,8 @@
     </UpgradeBackupLocation>
     <OldToolsVersion>2.0</OldToolsVersion>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkSubset>
+    </TargetFrameworkSubset>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\..\build\2.0\Debug\Quartz.Tests.Unit\</OutputPath>
@@ -76,9 +78,9 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Common.Logging">
-      <Name>Common.Logging</Name>
-      <HintPath>..\..\lib\1.1\Common.Logging.dll</HintPath>
+    <Reference Include="Common.Logging, Version=1.2.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
     </Reference>
     <Reference Include="nunit.framework, Version=2.4.1.0, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -119,7 +121,6 @@
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
     <Compile Include="TestUtil.cs" />
-    <Compile Include="CollectionUtilTest.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
     <Compile Include="CronExpressionTest.cs">
       <SubType>Code</SubType>
@@ -163,9 +164,6 @@
     <Compile Include="Simpl\RAMJobStoreTest.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Utils\DirtyFlagMapTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Utils\ObjectUtilsTest.cs" />
     <Compile Include="Utils\PairTest.cs" />
     <Compile Include="Utils\PropertiesParserTest.cs">
@@ -187,6 +185,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\MinimalConfiguration.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

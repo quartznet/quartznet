@@ -15,15 +15,9 @@
  */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
 using Quartz.Collection;
-
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
 #if NET_35
 using TimeZone = System.TimeZoneInfo;
@@ -137,7 +131,7 @@ namespace Quartz.Tests.Unit
             CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
             int[] arrJuneDaysThatShouldFire =
                 new int[] { 1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29 };
-            ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
+            List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
         }
@@ -148,7 +142,7 @@ namespace Quartz.Tests.Unit
             CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
             int[] arrJuneDaysThatShouldFire =
                 new int[] { 1, 8, 15, 22, 29 };
-            ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
+            List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
         }
@@ -158,7 +152,7 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
             int[] arrJuneDaysThatShouldFire = new int[] { 30 };
-            ArrayList juneDays = new ArrayList(arrJuneDaysThatShouldFire);
+            List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
         }
@@ -217,14 +211,14 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(calendar.IsSatisfiedBy(DateTime.Now.AddMinutes(2)), "Time was included");
         }
 
-        private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList correctFireDays)
+        private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList<int> correctFireDays)
         {
-            ArrayList fireDays = new ArrayList();
+            List<int> fireDays = new List<int>();
 
             DateTime cal = new DateTime(2007, 6, 1, 11, 0, 0).ToUniversalTime();
             for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
             {
-                NullableDateTime nextFireTime = cronExpression.GetTimeAfter(cal);
+                DateTime? nextFireTime = cronExpression.GetTimeAfter(cal);
                 if (!fireDays.Contains(nextFireTime.Value.Day) && nextFireTime.Value.Month == 6)
                 {
                     // next fire day may be monday for several days..
@@ -242,8 +236,7 @@ namespace Quartz.Tests.Unit
             }
 
             // check that all fired
-            Assert.IsEmpty(correctFireDays,
-                           string.Format("CronExpression did not evaluate true for all expected days (count: {0}).", correctFireDays.Count));
+            Assert.IsTrue(correctFireDays.Count == 0, string.Format("CronExpression did not evaluate true for all expected days (count: {0}).", correctFireDays.Count));
         }
 
         [Test]
@@ -355,12 +348,12 @@ namespace Quartz.Tests.Unit
             Console.Error.WriteLine(AssertParsesForField("55-3 56-2 6 ? * FRI", 1));
         }
 
-        private static ISet AssertParsesForField(String expression, int constant)
+        private static ISet<int> AssertParsesForField(string expression, int constant)
         {
             try
             {
                 TestCronExpression cronExpression = new TestCronExpression(expression);
-                ISet set = cronExpression.GetSetPublic(constant);
+                ISet<int> set = cronExpression.GetSetPublic(constant);
                 if (set.Count == 0)
                 {
                     Assert.Fail("Empty field [" + constant + "] returned for " + expression);
@@ -430,7 +423,7 @@ namespace Quartz.Tests.Unit
         {
         }
 
-        public ISet GetSetPublic(int constant)
+        public TreeSet<int> GetSetPublic(int constant)
         {
             return base.GetSet(constant);
         }

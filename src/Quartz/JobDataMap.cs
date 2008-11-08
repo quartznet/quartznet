@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 
 using Quartz.Util;
@@ -66,11 +67,21 @@ namespace Quartz
         /// <summary> 
         /// Create a <see cref="JobDataMap" /> with the given data.
         /// </summary>
-        public JobDataMap(IDictionary map) : this()
+        public JobDataMap(IDictionary<string, object> map) : this()
         {
             PutAll(map);
         }
 
+        /// <summary> 
+        /// Create a <see cref="JobDataMap" /> with the given data.
+        /// </summary>
+        public JobDataMap(IDictionary map) : this()
+        {
+            foreach (DictionaryEntry entry in map)
+            {
+                Put((string) entry.Key, entry.Value);
+            }
+        }
 
         /// <summary>
         /// Adds the given <see cref="bool" /> value as a string version to the
@@ -196,10 +207,8 @@ namespace Quartz
             {
                 return GetBooleanValueFromString(key);
             }
-            else
-            {
-                return GetBoolean(key);
-            }
+            
+            return GetBoolean(key);
         }
 
         /// <summary>
@@ -242,10 +251,8 @@ namespace Quartz
             {
                 return GetDoubleValueFromString(key);
             }
-            else
-            {
-                return GetDouble(key);
-            }
+            
+            return GetDouble(key);
         }
 
         /// <summary>
@@ -277,10 +284,8 @@ namespace Quartz
             {
                 return GetFloatValueFromString(key);
             }
-            else
-            {
-                return GetFloat(key);
-            }
+            
+            return GetFloat(key);
         }
 
         /// <summary>
@@ -312,10 +317,8 @@ namespace Quartz
             {
                 return GetLongValueFromString(key);
             }
-            else
-            {
-                return GetLong(key);
-            }
+            
+            return GetLong(key);
         }
 
 
@@ -343,9 +346,11 @@ namespace Quartz
         /// </summary>
         /// <param name="key">The key.</param>
         /// <returns></returns>
-        public object Get(object key)
+        public object Get(string key)
         {
-            return this[key];
+            object retValue;
+            TryGetValue(key, out retValue);
+            return retValue;
         }
     }
 }

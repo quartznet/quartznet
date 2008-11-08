@@ -20,7 +20,7 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
 using Quartz.Util;
 
@@ -46,7 +46,7 @@ namespace Quartz
 		/// <summary>
 		/// Create a <see cref="JobDataMap" /> with the given data.
 		/// </summary>
-		public SchedulerContext(IDictionary map) : this()
+		public SchedulerContext(IDictionary<string, object> map) : this()
 		{
 			PutAll(map);
 		}

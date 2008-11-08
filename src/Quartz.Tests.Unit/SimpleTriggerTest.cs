@@ -14,18 +14,12 @@
  * under the License.
  */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
 using NUnit.Framework;
 
-using Quartz.Collection;
 using Quartz.Impl.Calendar;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
 namespace Quartz.Tests.Unit
 {
@@ -143,7 +137,7 @@ namespace Quartz.Tests.Unit
 			simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
 			simpleTrigger.RepeatCount = 4;
 
-            NullableDateTime fireTimeAfter;
+            DateTime? fireTimeAfter;
             fireTimeAfter = simpleTrigger.GetFireTimeAfter(startTime.AddMilliseconds(34));
 			Assert.AreEqual(startTime.AddMilliseconds(40), fireTimeAfter.Value);
 		}
@@ -155,8 +149,8 @@ namespace Quartz.Tests.Unit
 
 			// Verify that a HashSet shuffles order, so we know that order test
 			// below is actually testing something
-			HashSet hashSet = new HashSet(listenerNames);
-			Assert.IsFalse(new ArrayList(listenerNames).Equals(new ArrayList(hashSet)));
+            Collection.HashSet<string> hashSet = new Collection.HashSet<string>(listenerNames);
+			Assert.IsFalse(new List<string>(listenerNames).Equals(new List<string>(hashSet)));
 
 			SimpleTrigger simpleTrigger = new SimpleTrigger();
 			for (int i = 0; i < listenerNames.Length; i++)
@@ -165,8 +159,7 @@ namespace Quartz.Tests.Unit
 			}
 
 			// Make sure order was maintained
-			TestUtil.AssertCollectionEquality(new ArrayList(listenerNames),
-			                new ArrayList(simpleTrigger.TriggerListenerNames));
+			TestUtil.AssertCollectionEquality(listenerNames, simpleTrigger.TriggerListenerNames);
 
 			// Make sure uniqueness is enforced
 			for (int i = 0; i < listenerNames.Length; i++)
@@ -199,7 +192,7 @@ namespace Quartz.Tests.Unit
 			simpleTrigger.JobDataMap.Put("K2", "V2");
 			clone = (Trigger) simpleTrigger.Clone();
 			Assert.AreEqual(2, clone.TriggerListenerNames.Length);
-			TestUtil.AssertCollectionEquality(new ArrayList(new string[] {"L1", "L2"}), new ArrayList(clone.TriggerListenerNames));
+			TestUtil.AssertCollectionEquality(new string[] {"L1", "L2"}, clone.TriggerListenerNames);
 			Assert.AreEqual(2, clone.JobDataMap.Count);
 			Assert.AreEqual("V1", clone.JobDataMap.Get("K1"));
 			Assert.AreEqual("V2", clone.JobDataMap.Get("K2"));
@@ -208,12 +201,12 @@ namespace Quartz.Tests.Unit
 			// their modification does not change the source Trigger 
 			clone.RemoveTriggerListener("L2");
 			Assert.AreEqual(1, clone.TriggerListenerNames.Length);
-			TestUtil.AssertCollectionEquality(new ArrayList(new string[] {"L1"}), new ArrayList(clone.TriggerListenerNames));
+			TestUtil.AssertCollectionEquality(new string[] {"L1"}, clone.TriggerListenerNames);
 			clone.JobDataMap.Remove("K1");
 			Assert.AreEqual(1, clone.JobDataMap.Count);
 
 			Assert.AreEqual(2, simpleTrigger.TriggerListenerNames.Length);
-			TestUtil.AssertCollectionEquality(new ArrayList(new string[] {"L1", "L2"}), new ArrayList(simpleTrigger.TriggerListenerNames));
+			TestUtil.AssertCollectionEquality(new string[] {"L1", "L2"}, simpleTrigger.TriggerListenerNames);
 			Assert.AreEqual(2, simpleTrigger.JobDataMap.Count);
 			Assert.AreEqual("V1", simpleTrigger.JobDataMap.Get("K1"));
 			Assert.AreEqual("V2", simpleTrigger.JobDataMap.Get("K2"));
@@ -252,7 +245,7 @@ namespace Quartz.Tests.Unit
             simpleTrigger.StartTimeUtc = neverFireTime;
 
             simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
-            NullableDateTime fireTimeAfter = simpleTrigger.GetNextFireTimeUtc();
+            DateTime? fireTimeAfter = simpleTrigger.GetNextFireTimeUtc();
 
             Assert.IsNull(fireTimeAfter);
         } 

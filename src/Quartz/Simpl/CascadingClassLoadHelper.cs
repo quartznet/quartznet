@@ -19,10 +19,9 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 
-using Quartz.Simpl;
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -52,7 +51,7 @@ namespace Quartz.Simpl
 		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		*/
 
-		private ArrayList loadHelpers;
+		private List<ITypeLoadHelper> loadHelpers;
 
 		private ITypeLoadHelper bestCandidate;
 
@@ -64,7 +63,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual void Initialize()
 		{
-			loadHelpers = new ArrayList();
+			loadHelpers = new List<ITypeLoadHelper>();
 
 			loadHelpers.Add(new LoadingLoaderClassLoadHelper());
 			loadHelpers.Add(new SimpleClassLoadHelper());

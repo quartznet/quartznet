@@ -1,5 +1,5 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
 using System.Globalization;
@@ -18,10 +18,10 @@ namespace Quartz.Impl.AdoJobStore.Common
         protected const string DbProviderResourceName = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
 
         private string connectionString;
-        private DbMetadata dbMetadata;
+        private readonly DbMetadata dbMetadata;
 
-        protected static readonly Hashtable dbMetadataLookup = new Hashtable();
-        protected static readonly object notInitializedMetadata = new object();
+        protected static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
+        protected static readonly DbMetadata notInitializedMetadata = new DbMetadata();
 
         static DbProvider()
         {
@@ -46,7 +46,10 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         protected virtual DbMetadata GetDbMetadata(string providerName)
         {
-            if (dbMetadataLookup[providerName] == notInitializedMetadata)
+            DbMetadata data;
+            dbMetadataLookup.TryGetValue(providerName, out data);
+
+            if (data == notInitializedMetadata)
             {
                 try
                 {
@@ -66,10 +69,8 @@ namespace Quartz.Impl.AdoJobStore.Common
                                         ex);
                 }
             }
-            else
-            {
-                return (DbMetadata) dbMetadataLookup[providerName];
-            }
+            
+            return data;
         }
 
         /// <summary>
@@ -105,7 +106,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>An new <see cref="IDbCommand"/></returns>
         public virtual IDbCommand CreateCommand()
         {
-            return (IDbCommand) ObjectUtils.InstantiateType(dbMetadata.CommandType); 
+            return ObjectUtils.InstantiateType<IDbCommand>(dbMetadata.CommandType); 
         }
 
         /// <summary>
@@ -117,7 +118,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// be portable (but more loosely typed) across .NET 1.1/2.0</remarks>
         public virtual object CreateCommandBuilder()
         {
-            return ObjectUtils.InstantiateType(dbMetadata.CommandBuilderType); 
+            return ObjectUtils.InstantiateType<object>(dbMetadata.CommandBuilderType); 
         }
 
         /// <summary>
@@ -126,7 +127,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>A new <see cref="IDbConnection"/></returns>
         public virtual IDbConnection CreateConnection()
         {
-            IDbConnection conn = (IDbConnection)ObjectUtils.InstantiateType(dbMetadata.ConnectionType);
+            IDbConnection conn = ObjectUtils.InstantiateType<IDbConnection>(dbMetadata.ConnectionType);
             conn.ConnectionString = ConnectionString;
             return conn;
         }
@@ -138,7 +139,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>A new <see cref="IDbDataParameter"/></returns>
         public virtual IDbDataParameter CreateParameter()
         {
-            return (IDbDataParameter) ObjectUtils.InstantiateType(dbMetadata.ParameterType);
+            return ObjectUtils.InstantiateType<IDbDataParameter>(dbMetadata.ParameterType);
         }
 
         /// <summary>

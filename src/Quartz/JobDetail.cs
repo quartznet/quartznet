@@ -19,9 +19,9 @@
 * Previously Copyright (c) 2001-2004 James House
 */
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
-using Quartz.Collection;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -61,7 +61,7 @@ namespace Quartz
         private bool durability;
         private bool shouldRecover;
 
-        private HashSet jobListeners = new HashSet();
+        private List<string> jobListeners = new List<string>();
         [NonSerialized]
         private Key key;
 
@@ -321,7 +321,7 @@ namespace Quartz
         /// </summary>
         public virtual string[] JobListenerNames
         {
-            get { return (string[]) jobListeners.ToArray(typeof (string)); }
+            get { return new List<string>(jobListeners).ToArray(); }
             set
             {
                 jobListeners.Clear();
@@ -362,10 +362,11 @@ namespace Quartz
         /// </summary>
         public virtual void AddJobListener(string listenerName)
         {
-			if (!jobListeners.Add(listenerName)) 
+			if (jobListeners.Contains(listenerName)) 
 			{
 				throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Job listener '{0}' is already registered for job detail: {1}", listenerName, FullName));
 			}
+            jobListeners.Add(listenerName);
         }
 
         /// <summary>
@@ -375,16 +376,7 @@ namespace Quartz
         /// <returns>true if the given name was found in the list, and removed</returns>
         public virtual bool RemoveJobListener(string listenerName)
         {
-            for (int i = 0; i < jobListeners.Count; i++)
-            {
-                IJobListener listener = (IJobListener) jobListeners[i];
-                if (listener.Name == listenerName)
-                {
-                    jobListeners.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
+            return jobListeners.Remove(listenerName);
         }
 
         /// <summary>
@@ -411,7 +403,7 @@ namespace Quartz
             try
             {
                 copy = (JobDetail) MemberwiseClone();
-                copy.jobListeners = (HashSet) jobListeners.Clone();
+                copy.jobListeners = new List<string>(jobListeners);
                 if (jobDataMap != null)
                 {
                     copy.jobDataMap = (JobDataMap) jobDataMap.Clone();

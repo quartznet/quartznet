@@ -16,11 +16,6 @@
 using System;
 
 using NUnit.Framework;
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
 
 using Quartz.Impl.Calendar;
 using Quartz.Job;
@@ -217,7 +212,7 @@ namespace Quartz.Tests.Unit.Simpl
 		        
 		    }
 
-		    public void SignalSchedulingChange(NullableDateTime candidateNewNextFireTimeUtc)
+		    public void SignalSchedulingChange(DateTime? candidateNewNextFireTimeUtc)
 			{
 			}
 		}

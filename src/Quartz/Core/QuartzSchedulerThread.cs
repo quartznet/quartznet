@@ -24,12 +24,6 @@ using System.Globalization;
 using System.Threading;
 
 using Common.Logging;
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
-
 
 using Quartz.Spi;
 
@@ -52,7 +46,7 @@ namespace Quartz.Core
         private readonly object sigLock = new object();
 
         private bool signaled;
-        private NullableDateTime signaledNextFireTimeUtc;
+        private DateTime? signaledNextFireTimeUtc;
         private bool paused;
         private bool halted;
 
@@ -204,7 +198,7 @@ namespace Quartz.Core
         /// will fire.  If this method is being called do to some other even (rather
         /// than scheduling a trigger), the caller should pass null.
         /// </param>
-        public void SignalSchedulingChange(NullableDateTime candidateNewNextFireTimeUtc) 
+        public void SignalSchedulingChange(DateTime? candidateNewNextFireTimeUtc) 
         {
             lock (sigLock) 
             {
@@ -232,7 +226,7 @@ namespace Quartz.Core
         }
 
         
-        public NullableDateTime GetSignaledNextFireTimeUtc() 
+        public DateTime? GetSignaledNextFireTimeUtc() 
         {
             lock (sigLock) 
             {

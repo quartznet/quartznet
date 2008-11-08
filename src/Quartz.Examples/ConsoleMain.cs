@@ -1,5 +1,5 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using Quartz.Util;
 
@@ -18,14 +18,14 @@ namespace Quartz.Examples
 				Assembly asm = Assembly.GetExecutingAssembly();
 				Type[] types = asm.GetTypes();
 			
-				IDictionary typeMap = new Hashtable();
+				IDictionary<int, Type> typeMap = new Dictionary<int, Type>();
 				int counter = 1;
 			
 				Console.WriteLine("Select example to run: ");
-                ArrayList typeList = new ArrayList();
+                List<Type> typeList = new List<Type>();
 				foreach (Type t in types)
 				{
-					if (new ArrayList(t.GetInterfaces()).Contains(typeof(IExample)))
+					if (new List<Type>(t.GetInterfaces()).Contains(typeof(IExample)))
 					{
 					    typeList.Add(t);
 					}
@@ -44,8 +44,8 @@ namespace Quartz.Examples
 				Console.WriteLine();
 				Console.Write("> ");
 				int num = Convert.ToInt32(Console.ReadLine());
-				Type eType = (Type) typeMap[num];
-				IExample example = (IExample) ObjectUtils.InstantiateType(eType);
+				Type eType = typeMap[num];
+				IExample example = ObjectUtils.InstantiateType<IExample>(eType);
 				example.Run();
 				Console.WriteLine("Example run successfully.");
 			}
@@ -58,25 +58,21 @@ namespace Quartz.Examples
 			Console.Read();
 		}
 
-	    public class TypeNameComparer : IComparer
+	    public class TypeNameComparer : IComparer<Type>
 	    {
-	        public int Compare(object x, object y)
+	        public int Compare(Type t1, Type t2)
 	        {
-	            Type t1 = (Type) x;
-	            Type t2 = (Type) y;
-                
-                if (t1.Namespace.Length > t2.Namespace.Length)
+	            if (t1.Namespace.Length > t2.Namespace.Length)
                 {
                     return 1;
                 }
-                else if (t1.Namespace.Length < t2.Namespace.Length)
-                {
-                    return -1;
-                }
-                else
-                {
-                    return t1.Namespace.CompareTo(t2.Namespace);
-                }
+	            
+                if (t1.Namespace.Length < t2.Namespace.Length)
+	            {
+	                return -1;
+	            }
+	            
+                return t1.Namespace.CompareTo(t2.Namespace);
 	        }
 	    }
 	}

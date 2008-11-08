@@ -16,8 +16,7 @@
 
 using System;
 using System.Collections;
-
-using Quartz.Collection;
+using System.Collections.Generic;
 
 namespace Quartz.Util
 {
@@ -27,7 +26,7 @@ namespace Quartz.Util
     /// strings. 
     ///  </summary>
     [Serializable]
-    public class StringKeyDirtyFlagMap : DirtyFlagMap
+    public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
@@ -45,21 +44,12 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
-        /// </summary>
-        /// <param name="initialCapacity">The initial capacity.</param>
-        /// <param name="loadFactor">The load factor.</param>
-        public StringKeyDirtyFlagMap(int initialCapacity, float loadFactor) : base(initialCapacity, loadFactor)
-        {
-        }
-
-        /// <summary>
         /// Gets the keys.
         /// </summary>
         /// <returns></returns>
         public virtual string[] GetKeys()
         {
-            return (string[]) new ArrayList(KeySet()).ToArray(typeof (string));
+            return new List<string>(KeySet()).ToArray();
         }
 
         /// <summary>
@@ -68,15 +58,11 @@ namespace Quartz.Util
         /// All keys must be <see cref="String" />s, and all values must be serializable.
         /// </p>
         /// </summary>
-        public override void PutAll(IDictionary map)
+        public override void PutAll(IDictionary<string, object> map)
         {
-            IEnumerator itr = new HashSet(map.Keys).GetEnumerator();
-            while (itr.MoveNext())
+            foreach (KeyValuePair<string, object> pair in map)
             {
-                object key = itr.Current;
-                object val = map[key];
-
-                Put(key, val);
+                Put(pair.Key, pair.Value);
                 // will throw ArgumentException if value not serializable
             }
         }
@@ -144,17 +130,6 @@ namespace Quartz.Util
             base.Put(key, value);
         }
 
-        /// <summary>
-        /// Adds the given serializable object value to the <see cref="JobDataMap" />.
-        /// </summary>
-        public override object Put(object key, object value)
-        {
-            if (!(key is string))
-            {
-                throw new ArgumentException("Keys in map must be Strings.");
-            }
-            return base.Put(key, value);
-        }
 
         /// <summary> 
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.

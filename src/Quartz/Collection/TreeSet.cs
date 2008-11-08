@@ -16,7 +16,8 @@
 */
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace Quartz.Collection
 {
@@ -24,33 +25,31 @@ namespace Quartz.Collection
     /// SupportClass for the TreeSet class.
     /// </summary>
     [Serializable]
-    public class TreeSet : ArrayList, ISortedSet
+    public class TreeSet<T> : List<T>, ISortedSet<T>
     {
-        private readonly IComparer comparator = Comparer.Default;
+        private readonly IComparer<T> comparator = Comparer<T>.Default;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="TreeSet"/> class.
+        /// Initializes a new instance of the <see cref="TreeSet&lt;T&gt;"/> class.
         /// </summary>
         public TreeSet()
         {
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="TreeSet"/> class.
+        /// Initializes a new instance of the <see cref="TreeSet&lt;T&gt;"/> class.
         /// </summary>
-        /// <param name="c">The <see cref="T:System.Collections.ICollection"/> whose elements are copied to the new list.</param>
-        /// <exception cref="T:System.ArgumentNullException">
-        /// 	<paramref name="c"/> is <see langword="null"/>.</exception>
-        public TreeSet(ICollection c)
+        /// <param name="c">The c.</param>
+        public TreeSet(ICollection<T> c)
         {
             AddAll(c);
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="TreeSet"/> class.
+        /// Initializes a new instance of the <see cref="TreeSet&lt;T&gt;"/> class.
         /// </summary>
         /// <param name="c">The c.</param>
-        public TreeSet(IComparer c)
+        public TreeSet(IComparer<T> c)
         {
             comparator = c;
         }
@@ -60,22 +59,21 @@ namespace Quartz.Collection
         /// </summary>
         /// <param name="collection">The collection.</param>
         /// <returns></returns>
-        public static TreeSet UnmodifiableTreeSet(ICollection collection)
+        public static TreeSet<T> UnmodifiableTreeSet(ICollection<T> collection)
         {
-            ArrayList items = new ArrayList(collection);
-            items = ReadOnly(items);
-            return new TreeSet(items);
+            ReadOnlyCollection<T> items = new List<T>(collection).AsReadOnly();
+            return new TreeSet<T>(items);
         }
 
         /// <summary>
         /// Gets the IComparator object used to sort this set.
         /// </summary>
-        public IComparer Comparator
+        public IComparer<T> Comparator
         {
             get { return comparator; }
         }
 
-        private bool AddWithoutSorting(object obj)
+        private bool AddWithoutSorting(T obj)
         {
             bool inserted;
             if (!(inserted = Contains(obj)))
@@ -90,7 +88,7 @@ namespace Quartz.Collection
         /// </summary>
         /// <param name="obj">Element to insert to the ArrayList.</param>
         /// <returns>TRUE if the new element was inserted, FALSE otherwise.</returns>
-        public new bool Add(object obj)
+        public new bool Add(T obj)
         {
             bool inserted = AddWithoutSorting(obj);
             Sort(comparator);
@@ -102,9 +100,9 @@ namespace Quartz.Collection
         /// </summary>		
         /// <param name="c">Collection where the new elements will be added</param>
         /// <returns>Returns true if at least one element was added to the collection.</returns>
-        public bool AddAll(ICollection c)
+        public bool AddAll(ICollection<T> c)
         {
-            IEnumerator e = new ArrayList(c).GetEnumerator();
+            IEnumerator<T> e = new List<T>(c).GetEnumerator();
             bool added = false;
             while (e.MoveNext())
             {
@@ -121,40 +119,19 @@ namespace Quartz.Collection
         /// Returns the first item in the set.
         /// </summary>
         /// <returns>First object.</returns>
-        public object First()
+        public T First()
         {
             return this[0];
         }
-
-        /// <summary>
-        /// Determines whether an element is in the the current TreeSetSupport collection. The IComparer defined for 
-        /// the current set will be used to make comparisons between the elements already inserted in the collection and 
-        /// the item specified.
-        /// </summary>
-        /// <param name="item">The object to be locatet in the current collection.</param>
-        /// <returns>true if item is found in the collection; otherwise, false.</returns>
-        public override bool Contains(object item)
-        {
-            IEnumerator tempEnumerator = GetEnumerator();
-            while (tempEnumerator.MoveNext())
-            {
-                if (comparator.Compare(tempEnumerator.Current, item) == 0)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
 
         /// <summary>
         /// Returns a portion of the list whose elements are greater than the limit object parameter.
         /// </summary>
         /// <param name="limit">The start element of the portion to extract.</param>
         /// <returns>The portion of the collection whose elements are greater than the limit object parameter.</returns>
-        public ISortedSet TailSet(object limit)
+        public ISortedSet<T> TailSet(T limit)
         {
-            ISortedSet newList = new TreeSet();
+            ISortedSet<T> newList = new TreeSet<T>();
             int i = 0;
             while ((i < Count) && (comparator.Compare(this[i], limit) < 0))
             {

@@ -1,14 +1,6 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 
-#if NET_20
-using NullableDateTime = System.Nullable<System.DateTime>;
-#else
-using Nullables;
-#endif
-
-using Quartz;
-using Quartz.Collection;
 using Quartz.Core;
 
 namespace Quartz.Simpl
@@ -24,12 +16,12 @@ namespace Quartz.Simpl
 		Type JobStoreClass { get; }
 		Type ThreadPoolClass { get; }
 		int ThreadPoolSize { get; }
-		IList CurrentlyExecutingJobs { get; }
-		IList GlobalJobListeners { get; }
-		ISet JobListenerNames { get; }
-		IList GlobalTriggerListeners { get; }
-		ISet TriggerListenerNames { get; }
-		IList SchedulerListeners { get; }
+		IList<JobExecutionContext> CurrentlyExecutingJobs { get; }
+		IList<IJobListener> GlobalJobListeners { get; }
+		ICollection<string> JobListenerNames { get; }
+		IList<ITriggerListener> GlobalTriggerListeners { get; }
+		ICollection<string> TriggerListenerNames { get; }
+		IList<ISchedulerListener> SchedulerListeners { get; }
 
 		/// <summary>
 		/// Starts this instance.
@@ -50,7 +42,7 @@ namespace Quartz.Simpl
 
         void Shutdown(bool waitForJobsToComplete);
 
-        NullableDateTime RunningSince { get; }
+        DateTime? RunningSince { get; }
 
         int NumJobsExecuted { get; }
 
@@ -84,7 +76,7 @@ namespace Quartz.Simpl
 
 		bool UnscheduleJob(SchedulingContext ctxt, string triggerName, string groupName);
 
-        NullableDateTime RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger);
+        DateTime? RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger);
 
 		void TriggerJob(SchedulingContext ctxt, string jobName, string groupName, JobDataMap data);
 
@@ -102,7 +94,7 @@ namespace Quartz.Simpl
 
 		void ResumeTriggerGroup(SchedulingContext ctxt, string groupName);
 
-		ISet GetPausedTriggerGroups(SchedulingContext ctxt);
+		ICollection<string> GetPausedTriggerGroups(SchedulingContext ctxt);
 
 		void ResumeJob(SchedulingContext ctxt, string jobName, string groupName);
 
