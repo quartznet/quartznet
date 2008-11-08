@@ -35,18 +35,10 @@
 
   <target name="build-all">
     <property name="defines" value="" overwrite="false" />
-    <call target="build-1.1" />
     <call target="build-mono-1.0" />
     <call target="build-2.0" />
     <call target="build-mono-2.0" />
     <call target="build-3.5" />
-  </target>
-
-  <target name="build-1.1" >
-    <property name="target.framework" value="1.1" />
-    <property name="nant.settings.currentframework" value="net-${target.framework}" />
-    <property name="defines" value="${defines}" />
-    <call target="build-all-csc" />
   </target>
 
   <target name="build-2.0">
@@ -126,7 +118,6 @@
         <include name="System.Runtime.Remoting.dll" />
         <include name="System.Web.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\1.1\Nullables.dll" unless="${net20}" />
       </references>
     </csc>
 
@@ -164,7 +155,6 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\1.1\Nullables.dll" unless="${net20}" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
       </references>
     </csc>
@@ -299,19 +289,12 @@
   </target>
 
   <target name="unit">
-    <call target="unit-1.1" />
     <call target="unit-2.0" />
   </target>
 
   <target name="unit-2.0" depends="build-2.0">
     <call target="unit-internal" />
   </target>
-
-  <target name="unit-1.1" depends="build-1.1">
-    <call target="unit-internal" />
-  </target>
-
-
 
   <target name="unit-internal" depends="build">
     <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests.Unit\Quartz.Tests.Unit.dll" />
@@ -433,7 +416,6 @@
     <property name="defines" value="STRONG" />
 
     <call target="clean" />
-    <call target="build-1.1" />
     <call target="build-2.0" />
     <call target="build-3.5" />
     <call target="build-server-2.0" />

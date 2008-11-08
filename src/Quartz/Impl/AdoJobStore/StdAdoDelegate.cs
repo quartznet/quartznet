@@ -3100,7 +3100,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         public virtual ICollection<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn)
         {
-            HashSet<string> retValue = new HashSet<string>();
+            StringHashSet retValue = new StringHashSet();
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroups)))
             {

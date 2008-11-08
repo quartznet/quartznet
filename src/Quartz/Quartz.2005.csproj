@@ -272,25 +272,16 @@
     <Compile Include="SimpleTrigger.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Simpl\CascadingClassLoadHelper.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\IRemotableQuartzScheduler.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Simpl\LoadingLoaderClassLoadHelper.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Simpl\PropertySettingJobFactory.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\RAMJobStore.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Simpl\SimpleClassLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\SimpleInstanceIdGenerator.cs">
@@ -398,6 +389,7 @@
     <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
     <Compile Include="SchedulerInstruction.cs" />
     <Compile Include="Simpl\RemotingSchedulerExporter.cs" />
+    <Compile Include="Simpl\SimpleTypeLoadHelper.cs" />
     <Compile Include="SPI\ISchedulerExporter.cs" />
     <Compile Include="TriggerState.cs" />
     <Compile Include="Util\DateTimeUtil.cs" />
