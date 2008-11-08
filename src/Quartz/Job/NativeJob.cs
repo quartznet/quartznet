@@ -115,14 +115,9 @@ namespace Quartz.Job
 
 			String command = data.GetString(PropertyCommand);
 
-			String parameters = data.GetString(PropertyParameters);
+			String parameters = data.GetString(PropertyParameters) ?? "";
 
-			if (parameters == null)
-			{
-				parameters = "";
-			}
-
-			bool wait = true;
+		    bool wait = true;
 			if (data.ContainsKey(PropertyWaitForProcess))
 			{
 				wait = data.GetBooleanValue(PropertyWaitForProcess);

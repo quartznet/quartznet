@@ -15,7 +15,6 @@
 * 
 */
 
-using Quartz;
 using Quartz.Simpl;
 
 namespace Quartz.Spi
@@ -40,7 +39,6 @@ namespace Quartz.Spi
 		/// produce a <see cref="IJob" /> instance on which to call Execute.
 		/// </summary>
 		/// <remarks>
-		/// <p>
 		/// It should be extremely rare for this method to throw an exception -
 		/// basically only the the case where there is no way at all to instantiate
 		/// and prepare the Job for execution.  When the exception is thrown, the
@@ -48,8 +46,6 @@ namespace Quartz.Spi
 		/// <see cref="TriggerState.Error" /> state, which will require human
 		/// intervention (e.g. an application restart after fixing whatever 
 		/// configuration problem led to the issue wih instantiating the Job. 
-		/// </p>
-		/// 
         /// </remarks>
 		/// <param name="bundle">
 		/// The TriggerFiredBundle from which the <see cref="JobDetail" />

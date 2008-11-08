@@ -34,20 +34,20 @@ namespace Quartz
 	[Serializable]
 	public class SchedulerMetaData
 	{
-		private string schedName;
-		private string schedInst;
-		private Type schedType;
-		private bool isRemote;
-		private bool started;
-		private bool isInStandbyMode;
-		private bool shutdown;
-        private DateTime? startTime;
-        private int numJobsExec;
-		private Type jsType;
-		private bool jsPersistent;
-		private Type tpType;
-		private int tpSize;
-		private string version;
+		private readonly string schedName;
+		private readonly string schedInst;
+		private readonly Type schedType;
+		private readonly bool isRemote;
+		private readonly bool started;
+		private readonly bool isInStandbyMode;
+		private readonly bool shutdown;
+        private readonly DateTime? startTime;
+        private readonly int numJobsExec;
+		private readonly Type jsType;
+		private readonly bool jsPersistent;
+		private readonly Type tpType;
+		private readonly int tpSize;
+		private readonly string version;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.

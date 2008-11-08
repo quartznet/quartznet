@@ -726,7 +726,7 @@ Please add configuration to your application config file to correctly initialize
                 NameValueCollection lp =
                     cfg.GetPropertyGroup(string.Format(CultureInfo.InvariantCulture, "{0}.{1}", PropertyJobListenerPrefix, jobListenerNames[i]), true);
 
-                string listenerType = lp[PropertyListenerType] == null ? null : lp[PropertyListenerType];
+                string listenerType = lp[PropertyListenerType];
 
                 if (listenerType == null)
                 {
@@ -780,7 +780,7 @@ Please add configuration to your application config file to correctly initialize
                     cfg.GetPropertyGroup(
                         string.Format(CultureInfo.InvariantCulture, "{0}.{1}", PropertyTriggerListenerPrefix, triggerListenerNames[i]), true);
 
-                string listenerType = lp[PropertyListenerType] == null ? null : lp[PropertyListenerType];
+                string listenerType = lp[PropertyListenerType];
 
                 if (listenerType == null)
                 {
@@ -806,8 +806,7 @@ Please add configuration to your application config file to correctly initialize
                 }
                 try
                 {
-                    MethodInfo nameSetter =
-                        listener.GetType().GetMethod("setName", (strArg == null) ? new Type[0] : strArg);
+                    MethodInfo nameSetter = listener.GetType().GetMethod("setName", strArg);
                     if (nameSetter != null)
                     {
                         nameSetter.Invoke(listener, (new object[] {triggerListenerNames[i]}));

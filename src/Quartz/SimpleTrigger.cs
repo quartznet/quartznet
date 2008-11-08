@@ -47,13 +47,13 @@ namespace Quartz
         public const int RepeatIndefinitely = -1;
         private const int YearToGiveupSchedulingAt = 2299;
 
-        private DateTime? nextFireTimeUtc = null;
-		private DateTime? previousFireTimeUtc = null;
+        private DateTime? nextFireTimeUtc;
+		private DateTime? previousFireTimeUtc;
 
-        private int repeatCount = 0;
+        private int repeatCount;
         private TimeSpan repeatInterval = TimeSpan.Zero;
-        private int timesTriggered = 0;
-        private bool complete = false;
+        private int timesTriggered;
+        private bool complete;
 
 		/// <summary>
 		/// Create a <see cref="SimpleTrigger" /> with no settings.

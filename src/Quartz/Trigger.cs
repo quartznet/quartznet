@@ -57,7 +57,7 @@ namespace Quartz
 	/// <author>James House</author>
 	/// <author>Sharada Jambula</author>
 	[Serializable]
-	public abstract class Trigger : ICloneable, IComparable
+	public abstract class Trigger : ICloneable, IComparable<Trigger>, IEquatable<Trigger>
 	{
 	    /// <summary>
 		/// The default value for priority.
@@ -431,7 +431,7 @@ namespace Quartz
 		/// must be set before the <see cref="Trigger" /> can be placed into a
 		/// <see cref="IScheduler" />.
         /// </remarks>
-		public Trigger()
+		protected Trigger()
 		{
 			// do nothing...
 		}
@@ -446,7 +446,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="name">The name.</param>
         /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
-		public Trigger(string name, string group)
+        protected Trigger(string name, string group)
 		{
 			Name = name;
 			Group = group;
@@ -462,7 +462,7 @@ namespace Quartz
         /// <exception cref="ArgumentException"> ArgumentException
         /// if name is null or empty, or the group is an empty string.
         /// </exception>
-		public Trigger(string name, string group, string jobName, string jobGroup)
+        protected Trigger(string name, string group, string jobName, string jobGroup)
 		{
 			Name = name;
 			Group = group;
@@ -512,10 +512,7 @@ namespace Quartz
 		/// </returns>
 		public virtual bool RemoveTriggerListener(string listenerName)
 		{
-			Boolean tempBoolean;
-			tempBoolean = triggerListeners.Contains(listenerName);
-			triggerListeners.Remove(listenerName);
-			return tempBoolean;
+			return triggerListeners.Remove(listenerName);
 		}
 
 		/// <summary>
@@ -740,38 +737,41 @@ namespace Quartz
 		/// </summary>
 		public virtual int CompareTo(object obj)
 		{
-			Trigger other = (Trigger) obj;
+		    return CompareTo((Trigger) obj);
+		}
 
+        public virtual int CompareTo(Trigger other)
+        {
             DateTime? myTime = GetNextFireTimeUtc();
-			DateTime? otherTime = other.GetNextFireTimeUtc();
+            DateTime? otherTime = other.GetNextFireTimeUtc();
 
             if (!myTime.HasValue && !otherTime.HasValue)
-			{
-				return 0;
-			}
+            {
+                return 0;
+            }
 
-			if (!myTime.HasValue)
-			{
-				return 1;
-			}
+            if (!myTime.HasValue)
+            {
+                return 1;
+            }
 
-			if (!otherTime.HasValue)
-			{
-				return - 1;
-			}
+            if (!otherTime.HasValue)
+            {
+                return -1;
+            }
 
-			if ((myTime.Value < otherTime.Value))
-			{
-				return - 1;
-			}
+            if ((myTime.Value < otherTime.Value))
+            {
+                return -1;
+            }
 
-			if ((myTime.Value > otherTime.Value))
-			{
-				return 1;
-			}
+            if ((myTime.Value > otherTime.Value))
+            {
+                return 1;
+            }
 
-			return 0;
-		}
+            return 0;
+        }
 
         /// <summary>
         /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
@@ -782,16 +782,18 @@ namespace Quartz
         /// </returns>
 		public override bool Equals(object obj)
 		{
-            if ((obj == null) || !(obj is Trigger))
-		    {
-		        return false;
-		    }
-
-            Trigger trigger = (Trigger) obj;
-
-            return (trigger.Name == Name) && (trigger.Group == Group);
+            return Equals(obj as Trigger);
 		}
 
+        public virtual bool Equals(Trigger trigger)
+        {
+            if (trigger == null)
+            {
+                return false;
+            }
+
+            return (trigger.Name == Name) && (trigger.Group == Group);
+        }
 
         /// <summary>
         /// Serves as a hash function for a particular type. <see cref="M:System.Object.GetHashCode"></see> is suitable for use in hashing algorithms and data structures like a hash table.

@@ -30,6 +30,7 @@ namespace Quartz.Util
 	/// Utility methods that are used to convert objects from one type into another.
 	/// </summary>
 	/// <author>Aleksandar Seovic</author>
+	/// <author>Marko Lahma</author>
 	public static class ObjectUtils
 	{
 	    /// <summary>

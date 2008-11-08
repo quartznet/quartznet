@@ -28,7 +28,6 @@ using System.Web;
 
 using Common.Logging;
 
-using Quartz.Collection;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -132,7 +131,7 @@ namespace Quartz.Plugin.Xml
 
         private bool started;
 
-        protected ITypeLoadHelper classLoadHelper;
+        protected ITypeLoadHelper typeLoadHelper;
 
         private readonly Collection.HashSet<string> jobTriggerNameSet = new Collection.HashSet<string>();
         private IScheduler scheduler;
@@ -257,8 +256,8 @@ namespace Quartz.Plugin.Xml
         {
             name = pluginName;
             scheduler = sched;
-            classLoadHelper = new CascadingClassLoadHelper();
-            classLoadHelper.Initialize();
+            typeLoadHelper = new SimpleTypeLoadHelper();
+            typeLoadHelper.Initialize();
 
             Log.Info("Registering Quartz Job Initialization Plug-in.");
 
@@ -468,7 +467,7 @@ namespace Quartz.Plugin.Xml
                 FileInfo file = new FileInfo(fName); // files in filesystem
                 if (!file.Exists)
                 {
-                    Uri url = plugin.classLoadHelper.GetResource(FileName);
+                    Uri url = plugin.typeLoadHelper.GetResource(FileName);
                     if (url != null)
                     {
                         furl = HttpUtility.UrlDecode(url.AbsolutePath);

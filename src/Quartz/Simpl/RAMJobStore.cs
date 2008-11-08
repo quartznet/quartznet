@@ -211,7 +211,7 @@ namespace Quartz.Simpl
 				if (!repl)
 				{
 					// get job group
-					IDictionary<string, JobWrapper> grpMap = null;
+					IDictionary<string, JobWrapper> grpMap;
 					if (!jobsByGroup.TryGetValue(newJob.Group, out grpMap))
 					{
 						grpMap = new Dictionary<string, JobWrapper>(100);
@@ -258,7 +258,7 @@ namespace Quartz.Simpl
 			}
             lock (triggerLock)
 			{
-				JobWrapper tempObject = null;
+				JobWrapper tempObject;
 				if (jobsByFQN.TryGetValue(key, out tempObject))
 				{
 				    jobsByFQN.Remove(key);
@@ -619,12 +619,12 @@ namespace Quartz.Simpl
 			{
 				throw new ObjectAlreadyExistsException(string.Format(CultureInfo.InvariantCulture, "Calendar with name '{0}' already exists.", name));
 			}
-			else if (obj != null)
-			{
-				calendarsByName.Remove(name);
-			}
+		    if (obj != null)
+		    {
+		        calendarsByName.Remove(name);
+		    }
 
-			calendarsByName[name] = calendar;
+		    calendarsByName[name] = calendar;
 
 			if (obj != null && updateTriggers)
 			{
@@ -635,10 +635,7 @@ namespace Quartz.Simpl
 					{
 						TriggerWrapper tw = trigs[i];
 						Trigger trig = tw.Trigger;
-						Boolean tempBoolean;
-						tempBoolean = timeTriggers.Contains(tw);
-						timeTriggers.Remove(tw);
-						bool removed = tempBoolean;
+                        bool removed = timeTriggers.Remove(tw);
 
 						trig.UpdateWithNewCalendar(calendar, MisfireThreshold);
 
@@ -745,14 +742,11 @@ namespace Quartz.Simpl
 				{
 					outList = new string[grpMap.Count];
 					int outListPos = 0;
-                    IEnumerator<string> keys = new Collection.HashSet<string>(grpMap.Keys).GetEnumerator();
-					while (keys.MoveNext())
-					{
-						string key = keys.Current;
-						JobWrapper jw = grpMap[key];
-						if (jw != null)
+				    foreach (KeyValuePair<string, JobWrapper> pair in grpMap)
+				    {
+						if (pair.Value != null)
 						{
-							outList[outListPos++] = jw.jobDetail.Name;
+							outList[outListPos++] = pair.Value.jobDetail.Name;
 						}
 					}
 				}
@@ -775,8 +769,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual string[] GetCalendarNames(SchedulingContext ctxt)
 		{
-			List<string> names = new List<string>(calendarsByName.Keys);
-			return names.ToArray();
+			return new List<string>(calendarsByName.Keys).ToArray();
 		}
 
 		/// <summary>
@@ -793,14 +786,11 @@ namespace Quartz.Simpl
 				{
 					outList = new string[grpMap.Count];
 					int outListPos = 0;
-                    IEnumerator<string> keys = new Collection.HashSet<string>(grpMap.Keys).GetEnumerator();
-					while (keys.MoveNext())
-					{
-						string key = keys.Current;
-						TriggerWrapper tw = grpMap[key];
-						if (tw != null)
+				    foreach (KeyValuePair<string, TriggerWrapper> pair in grpMap)
+				    {
+						if (pair.Value != null)
 						{
-							outList[outListPos++] = tw.trigger.Name;
+							outList[outListPos++] = pair.Value.trigger.Name;
 						}
 					}
 				}
@@ -819,20 +809,10 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual string[] GetJobGroupNames(SchedulingContext ctxt)
 		{
-			string[] outList;
-
             lock (triggerLock)
 			{
-				outList = new string[jobsByGroup.Count];
-				int outListPos = 0;
-                IEnumerator<string> keys = new Collection.HashSet<string>(jobsByGroup.Keys).GetEnumerator();
-				while (keys.MoveNext())
-				{
-					outList[outListPos++] = keys.Current;
-				}
+			    return  new List<string>(jobsByGroup.Keys).ToArray();
 			}
-
-			return outList;
 		}
 
 		/// <summary>
@@ -840,20 +820,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual string[] GetTriggerGroupNames(SchedulingContext ctxt)
 		{
-			string[] outList;
-
-			lock (triggerLock)
-			{
-				outList = new string[triggersByGroup.Count];
-				int outListPos = 0;
-                IEnumerator<string> keys = new Collection.HashSet<string>(triggersByGroup.Keys).GetEnumerator();
-				while (keys.MoveNext())
-				{
-					outList[outListPos++] = keys.Current;
-				}
-			}
-
-			return outList;
+		    return new List<string>(triggersByGroup.Keys).ToArray();
 		}
 
 		/// <summary>
@@ -1720,7 +1687,7 @@ namespace Quartz.Simpl
     /// <summary>
     /// Helper wrapper class
     /// </summary>
-	public class TriggerWrapper
+	public class TriggerWrapper : IEquatable<TriggerWrapper>
 	{
         /// <summary>
         /// Gets the trigger
@@ -1751,9 +1718,6 @@ namespace Quartz.Simpl
 		/// </summary>
         public InternalTriggerState state = InternalTriggerState.Waiting;
 
-		
-		
-		
 		internal TriggerWrapper(Trigger trigger)
 		{
 			this.trigger = trigger;
@@ -1778,6 +1742,11 @@ namespace Quartz.Simpl
 			return groupName + "_$x$x$_" + triggerName;
 		}
 
+        public bool Equals(TriggerWrapper other)
+        {
+            return other != null && other.key.Equals(key);
+        }
+
         /// <summary>
         /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
         /// </summary>
@@ -1787,16 +1756,7 @@ namespace Quartz.Simpl
         /// </returns>
 		public override bool Equals(object obj)
 		{
-			if (obj is TriggerWrapper)
-			{
-				TriggerWrapper tw = (TriggerWrapper) obj;
-				if (tw.key.Equals(key))
-				{
-					return true;
-				}
-			}
-
-			return false;
+    	    return Equals(obj as TriggerWrapper);
 		}
 
         /// <summary>

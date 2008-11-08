@@ -38,10 +38,10 @@ namespace Quartz.Spi
         private readonly Trigger trigger;
         private readonly ICalendar cal;
         private readonly bool jobIsRecovering;
-        private DateTime? fireTimeUtc;
-        private DateTime? scheduledFireTimeUtc;
-        private DateTime? prevFireTimeUtc;
-        private DateTime? nextFireTimeUtc;
+        private readonly DateTime? fireTimeUtc;
+        private readonly DateTime? scheduledFireTimeUtc;
+        private readonly DateTime? prevFireTimeUtc;
+        private readonly DateTime? nextFireTimeUtc;
 
         /// <summary>
         /// Gets the job detail.

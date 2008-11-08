@@ -66,23 +66,18 @@ namespace Quartz.Util
                 {
                     return (other.first == null && other.second == null);
                 }
-                else if (first == null)
+                if (first == null)
                 {
                     return second.Equals(other.second);
                 }
-                else if (second == null)
+                if (second == null)
                 {
                     return first.Equals(other.first);
                 }
-                else
-                {
-                    return (first.Equals(other.first) && second.Equals(other.second));
-                }
+                return (first.Equals(other.first) && second.Equals(other.second));
             }
-            else
-            {
-                return false;
-            }
+            
+            return false;
         }
 
         /// <summary>

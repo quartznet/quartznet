@@ -33,8 +33,10 @@ using Common.Logging;
 
 #if NET_35
 using TimeZone = System.TimeZoneInfo;
+using StringHashSet = System.Collections.Generic.HashSet<string>;
+#else
+using StringHashSet = Quartz.Collection.HashSet<string>;
 #endif
-using Quartz.Collection;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -2648,7 +2650,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         public ICollection<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn)
         {
-            HashSet<string> instanceNames = new HashSet<string>();
+            StringHashSet instanceNames = new StringHashSet();
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames)))
             {
                 using (IDataReader rs = cmd.ExecuteReader())

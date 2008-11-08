@@ -183,12 +183,12 @@ namespace Quartz
 	public class CronTrigger : Trigger
 	{
         private const int YearToGiveupSchedulingAt = 2299;
-		private CronExpression cronEx = null;
+		private CronExpression cronEx;
 		private DateTime startTimeUtc = DateTime.MinValue;
-        private DateTime? endTimeUtc = null;
-		private DateTime? nextFireTimeUtc = null;
-		private DateTime? previousFireTimeUtc = null;
-        [NonSerialized] private TimeZone timeZone = null;
+        private DateTime? endTimeUtc;
+		private DateTime? nextFireTimeUtc;
+		private DateTime? previousFireTimeUtc;
+        [NonSerialized] private TimeZone timeZone;
 
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with no settings.
@@ -903,18 +903,16 @@ namespace Quartz
 		/// <param name="afterTime">The time to compute from.</param>
 		/// <returns></returns>
         protected DateTime? GetTimeAfter(DateTime afterTime)
-        {
-            if (cronEx != null)
+		{
+		    if (cronEx != null)
             {
                 return cronEx.GetTimeAfter(afterTime);
             }
-            else
-            {
-                return null;
-            }
+		    
+            return null;
 		}
 
-		/// <summary>
+	    /// <summary>
 		/// NOT YET IMPLEMENTED: Returns the time before the given time
         /// that this <see cref="CronTrigger" /> will fire.
 		/// </summary>

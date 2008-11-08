@@ -49,10 +49,7 @@ namespace Quartz.Util
             {
                 return AssumeUniversalTime(dt.Value);
             }
-            else
-            {
-                return null;
-            }
+            return null;
         }
     }
 }

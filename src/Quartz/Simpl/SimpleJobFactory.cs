@@ -19,7 +19,6 @@ using System.Globalization;
 
 using Common.Logging;
 
-using Quartz;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -27,7 +26,7 @@ namespace Quartz.Simpl
 {
 	/// <summary> 
 	/// The default JobFactory used by Quartz - simply calls 
-	/// <see cref="ObjectUtils.InstantiateType" /> on the job class.
+	/// <see cref="ObjectUtils.InstantiateType{T}" /> on the job class.
 	/// </summary>
 	/// <seealso cref="IJobFactory" />
 	/// <seealso cref="PropertySettingJobFactory" />

@@ -30,7 +30,7 @@ namespace Quartz.Simpl
 {
     /// <summary>
     /// This is class is a simple implementation of a zero size thread pool, based on the
-    /// <code>{@link org.quartz.spi.ThreadPool}</code> interface.
+    /// <see cref="IThreadPool" /> interface.
     /// </summary>
     /// <remarks>
     /// The pool has zero <see cref="Thread" />s and does not grow or shrink based on demand.

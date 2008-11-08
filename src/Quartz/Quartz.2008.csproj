@@ -275,16 +275,10 @@
     <Compile Include="SimpleTrigger.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Simpl\CascadingClassLoadHelper.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\IRemotableQuartzScheduler.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Simpl\LoadingLoaderClassLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\PropertySettingJobFactory.cs">
@@ -293,7 +287,7 @@
     <Compile Include="Simpl\RAMJobStore.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Simpl\SimpleClassLoadHelper.cs">
+    <Compile Include="Simpl\SimpleTypeLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\SimpleInstanceIdGenerator.cs">

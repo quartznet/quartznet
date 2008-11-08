@@ -22,8 +22,6 @@
 using System;
 
 #if NET_35
-using System.Collections.Generic;
-
 using TimeZone = System.TimeZoneInfo;
 #endif
 using System.Collections.Generic;
