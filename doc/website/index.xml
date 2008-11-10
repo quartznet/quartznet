@@ -11,7 +11,10 @@
 			<title>Welcome to the home of Quartz.NET!</title>
 			<p>
 				<br />
-				<cite>Quartz.NET is a full-featured, open source job scheduling system that can be used from smallest apps to large scale enterprise systems.</cite>
+				<cite>
+					Quartz.NET is a full-featured, open source job scheduling system 
+					that can be used from smallest apps to large scale enterprise systems.
+				</cite>
 			</p>
 			<p>
 				Quartz.NET is a port of very propular open source Java job scheduling framework, <a href="http://www.opensymphony.com/quartz">Quartz</a>. 
@@ -22,6 +25,16 @@
 				Quartz.NET is a pure .NET library written in C# which currently targets Framework version 1.1 and above.
 				Quartz.NET is feature-wise equal to Quartz Java 1.6 excluding Java specifics. Quartz.NET
 				is already running in production systems and has received good feedback.
+			</p>
+			<p>
+				With Quartz.NET you have more features available and you can have more 
+				programmatic control over scheduling compared to for example Windows Task Scheduler:
+				<ul>
+					<li>.NET API - you can control scheduler (remote / local) with .NET code and interact with it without any unmanaged code interop</li>
+					<li>Fine grained scheduling - CronTrigger should be a bit more feature-rich than standard windows scheduler and then you can have calendars added to the mix (rule based exclusions)</li>
+					<li>Programmatic control - you can put in glue code to handle misfire situations (windows scheduler has trouble with fine-grained failure scenario handling), listeners, custom triggers</li>
+					<li>Clustering - Quartz.NET can be ran on several computers to create load-balancing and fail over, job persistence with database</li>
+				</ul>
 			</p>
 		</section>
 
