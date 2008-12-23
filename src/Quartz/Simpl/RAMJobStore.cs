@@ -536,7 +536,8 @@ namespace Quartz.Simpl
 		/// </returns>
 		public virtual JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
-			JobWrapper jw = jobsByFQN[JobWrapper.GetJobNameKey(jobName, groupName)];
+			JobWrapper jw;
+			jobsByFQN.TryGetValue(JobWrapper.GetJobNameKey(jobName, groupName), out jw);
             return (jw != null) ? (JobDetail) jw.jobDetail.Clone() : null;
 		}
 
@@ -551,7 +552,8 @@ namespace Quartz.Simpl
 		/// </returns>
 		public virtual Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
 		{
-			TriggerWrapper tw = triggersByFQN[TriggerWrapper.GetTriggerNameKey(triggerName, groupName)];
+			TriggerWrapper tw;
+			triggersByFQN.TryGetValue(TriggerWrapper.GetTriggerNameKey(triggerName, groupName), out tw);
             return (tw != null) ? (Trigger)tw.Trigger.Clone() : null;
 		}
 
