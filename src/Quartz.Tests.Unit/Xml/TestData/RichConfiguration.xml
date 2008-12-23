@@ -5,6 +5,7 @@
 				overwrite-existing-jobs="true">
   
 	<job-listener type="Quartz.Tests.Unit.Xml.NoOpJobListener, Quartz.Tests.Unit" name="jobListener1"/>
+	<trigger-listener type="Quartz.Tests.Unit.Xml.NoOpTriggerListener, Quartz.Tests.Unit" name="triggerListener1"/>
 	<calendar type="Quartz.Impl.Calendar.AnnualCalendar, Quartz" replace="false">
 		<name>cal1</name>
 		<description>description0</description>
@@ -77,6 +78,7 @@
   		<cron>
   			<name>cronName</name>
   			<group>cronGroup</group>
+			<trigger-listener-ref>triggerListener1</trigger-listener-ref>
         <job-data-map>
           <entry>
             <key>CronEntry_1</key>

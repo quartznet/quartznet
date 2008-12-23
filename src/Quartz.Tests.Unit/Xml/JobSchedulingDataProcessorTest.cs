@@ -60,6 +60,27 @@ namespace Quartz.Tests.Unit.Xml
 
         }
 
+        [Test]
+        public void TestScheduling_RichConfiguration_ShouldReadTriggerListeners()
+        {
+            Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration.xml");
+            processor.ProcessStream(s, null);
+
+            mockery.ReplayAll();
+
+            processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
+
+            JobSchedulingBundle job = processor.GetScheduledJob("jobGroup1.jobName1");
+            foreach (Trigger trigger in job.Triggers)
+            {
+                if (trigger is CronTrigger)
+                {
+                    Assert.AreEqual(1, trigger.TriggerListenerNames.Length);
+                    Assert.AreEqual("triggerListener1", trigger.TriggerListenerNames[0]);
+                }
+            }
+
+        }
 
         [Test]
         public void TestScheduling_MinimalConfiguration()
@@ -108,4 +129,32 @@ namespace Quartz.Tests.Unit.Xml
             
         }
     }
+
+	public class NoOpTriggerListener : ITriggerListener 
+	{
+		private string _name;
+
+		public string Name
+		{
+			get { return _name ?? GetType().Name; }
+			set { _name = value; }
+		}
+
+		public void TriggerFired(Trigger trigger, JobExecutionContext context)
+		{
+		}
+
+		public bool VetoJobExecution(Trigger trigger, JobExecutionContext context)
+		{
+			return false;
+		}
+
+		public void TriggerMisfired(Trigger trigger)
+		{
+		}
+
+		public void TriggerComplete(Trigger trigger, JobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+		{
+		}
+	}
 }
