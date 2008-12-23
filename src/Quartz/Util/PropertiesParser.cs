@@ -572,7 +572,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual string[] GetPropertyGroups(string prefix)
 		{
-            List<string> groups = new List<string>(10);
+            HashSet<string> groups = new HashSet<string>();
 
 			if (!prefix.EndsWith("."))
 			{
@@ -588,7 +588,7 @@ namespace Quartz.Util
 				}
 			}
 
-            return groups.ToArray();
+            return new List<string>(groups).ToArray();
 		}
 
         /// <summary>
