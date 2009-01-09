@@ -2461,27 +2461,24 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The conn.</param>
         /// <param name="noLaterThan">highest value of <see cref="Trigger.GetNextFireTimeUtc"/> of the triggers (exclusive)</param>
         /// <param name="noEarlierThan">highest value of <see cref="Trigger.GetNextFireTimeUtc"/> of the triggers (inclusive)</param>
-        /// <returns></returns>
-        public virtual Key SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, DateTime noEarlierThan)
+        /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
+        public virtual IList SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, DateTime noEarlierThan)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNextTriggerToAcquire)))
             {
-                // Try to give jdbc driver a hint to hopefully not pull over 
-                // more than the one row we actually need.
-                // TODO ps.setFetchSize(1);
-                // TODO ps.setMaxRows(1);
+                ArrayList nextTriggers = new ArrayList();
 
                 AddCommandParameter(cmd, 1, "state", StateWaiting);
                 AddCommandParameter(cmd, 2, "noLaterThan", Convert.ToDecimal(noLaterThan.Ticks));
                 AddCommandParameter(cmd, 3, "noEarlierThan", Convert.ToDecimal(noEarlierThan.Ticks));
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    if (rs.Read())
+                    while (rs.Read() && nextTriggers.Count < 5)
                     {
-                        return new Key(GetString(rs[ColumnTriggerName]), GetString(rs[ColumnTriggerGroup]));
+                        nextTriggers.Add(new Key((string) rs[ColumnTriggerName] , (string) rs[ColumnTriggerGroup]));
                     }
                 }
-                return null;
+                return nextTriggers;
             }
         }
 
