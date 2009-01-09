@@ -25,11 +25,11 @@ using System.Security;
 [assembly: ComVisible(false)]
 
 #if NET_35
-[assembly: AssemblyVersion("1.0.0.3")]
+[assembly: AssemblyVersion("1.0.1.3")]
 #elif NET_20
-[assembly: AssemblyVersion("1.0.0.2")]
+[assembly: AssemblyVersion("1.0.1.2")]
 #else
-[assembly: AssemblyVersion("1.0.0.1")]
+[assembly: AssemblyVersion("1.0.1.1")]
 #endif
 
 #if STRONG
