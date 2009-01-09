@@ -45,6 +45,7 @@
     <complexType>
       <sequence>
         <element name="job-listener" type="quartz:job-listenerType" minOccurs="0" maxOccurs="unbounded" />
+		<element name="trigger-listener" type="quartz:trigger-listenerType" minOccurs="0" maxOccurs="unbounded" />
         <element name="calendar" type="quartz:calendarType" minOccurs="0" maxOccurs="unbounded" />
         <element name="job" type="quartz:jobType" minOccurs="0" maxOccurs="unbounded" />
       </sequence>
@@ -74,6 +75,21 @@
         <documentation>logical name for listener</documentation>
       </annotation>
     </attribute>
+  </complexType>
+  <complexType name="trigger-listenerType">
+	<annotation>
+		<documentation>Define a Trigger Listener</documentation>
+	</annotation>
+	<attribute name="type" type="xsd:string" use="required">
+		<annotation>
+			<documentation>Trigger Listener type name</documentation>
+		</annotation>
+	</attribute>
+	<attribute name="name" type="xsd:string" default="required">
+		<annotation>
+			<documentation>logical name for listener</documentation>
+		</annotation>
+	</attribute>	
   </complexType>
   <complexType name="calendarType">
     <annotation>
@@ -142,6 +158,11 @@
       <documentation>logical name of the Job Listener</documentation>
     </annotation>
   </element>
+  <element name="trigger-listener-ref" type="xsd:string">
+	<annotation>
+		<documentation>logical name of the Triiger Listener</documentation>
+	</annotation>
+  </element>
   <element name="volatile" type="xsd:boolean" default="false">
     <annotation>
       <documentation>Whether the Job is volatile</documentation>
@@ -204,6 +225,7 @@
       <element name="misfire-instruction" type="quartz:misfire-instructionType" minOccurs="0" />
       <element ref="quartz:calendar-name" minOccurs="0" />
       <element ref="quartz:volatile" minOccurs="0" />
+	  <element ref="quartz:trigger-listener-ref" minOccurs="0" />
       <element name="job-data-map" type="quartz:job-data-mapType" minOccurs="0" />
     </sequence>
   </complexType>

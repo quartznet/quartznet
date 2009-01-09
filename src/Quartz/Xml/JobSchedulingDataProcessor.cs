@@ -99,6 +99,7 @@ namespace Quartz.Xml
 		protected IList jobsToSchedule = new ArrayList();
 		protected IList calsToSchedule = new ArrayList();
 		protected IList listenersToSchedule = new ArrayList();
+		protected IList triggerListenersToSchedule = new ArrayList();
 
 		protected ArrayList validationExceptions = new ArrayList();
 
@@ -262,6 +263,9 @@ namespace Quartz.Xml
                     AddListenerToSchedule(listener);
                 }
             }
+
+			ProcessTriggerListeners(data);
+			
             MaybeThrowValidationException();
         }
 
@@ -378,6 +382,11 @@ namespace Quartz.Xml
                             trigger.JobDataMap[entry.key] = entry.value;
                         }
                     }
+					if (t.Item.triggerlistenerref != null && t.Item.triggerlistenerref.Trim().Length > 0)
+					{
+						trigger.AddTriggerListener(t.Item.triggerlistenerref);
+					}
+					
 	                jsb.Triggers.Add(trigger);
 	            }
 
@@ -385,6 +394,35 @@ namespace Quartz.Xml
 	        }
 	    }
 
+		private void ProcessTriggerListeners(quartz data)
+		{
+			if (data.triggerlistener != null)
+			{
+				// go through listeners
+				foreach (triggerlistenerType lt in data.triggerlistener)
+				{
+					Type listenerType = Type.GetType(lt.type);
+					if (listenerType == null)
+					{
+						throw new SchedulerConfigException("Unknown trigger listener type " + lt.type);
+					}
+					ITriggerListener listener = (ITriggerListener) ObjectUtils.InstantiateType(listenerType);
+					// set name of trigger with reflection, this might throw errors
+					NameValueCollection properties = new NameValueCollection();
+					properties.Add("Name", lt.name);
+
+					try
+					{
+						ObjectUtils.SetObjectProperties(listener, properties);
+					}
+					catch (Exception)
+					{
+						throw new SchedulerConfigException(string.Format("Could not set name for job listener of type '{0}', do you have public set method defined for property 'Name'?", lt.type));
+					}
+					AddTriggerListenerToSchedule(listener);
+				}
+			}
+		}
 	    private static int ParseSimpleTriggerRepeatCount(string repeatcount)
 	    {
 	        int value;
@@ -521,6 +559,12 @@ namespace Quartz.Xml
 				Log.Info(string.Format(CultureInfo.InvariantCulture, "adding listener {0} of type {1}", listener.Name, listener.GetType().FullName));
 				sched.AddJobListener(listener);
 			}
+
+			foreach (ITriggerListener listener in triggerListenersToSchedule)
+			{
+				Log.Info(string.Format(CultureInfo.InvariantCulture, "adding listener {0} of type {1}", listener.Name, listener.GetType().FullName));
+				sched.AddTriggerListener(listener);
+			}
 			Log.Info(string.Format(CultureInfo.InvariantCulture, "{0} scheduled jobs.", jobBundles.Count));
 		}
 
@@ -575,6 +619,11 @@ namespace Quartz.Xml
 		public virtual void AddListenerToSchedule(IJobListener listener)
 		{
 			listenersToSchedule.Add(listener);
+		}
+
+		public virtual void AddTriggerListenerToSchedule(ITriggerListener listener)
+		{
+			triggerListenersToSchedule.Add(listener);
 		}
 
 		/// <summary>

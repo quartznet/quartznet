@@ -109,4 +109,32 @@ namespace Quartz.Tests.Unit.Xml
             
         }
     }
+
+	public class NoOpTriggerListener : ITriggerListener 
+	{
+		private string name;
+
+		public string Name
+		{
+			get { return name == null ? GetType().Name : name; }
+			set { name = value; }
+		}
+
+		public void TriggerFired(Trigger trigger, JobExecutionContext context)
+		{
+		}
+
+		public bool VetoJobExecution(Trigger trigger, JobExecutionContext context)
+		{
+			return false;
+		}
+
+		public void TriggerMisfired(Trigger trigger)
+		{
+		}
+
+		public void TriggerComplete(Trigger trigger, JobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+		{
+		}
+	}
 }

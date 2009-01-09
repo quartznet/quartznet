@@ -25,6 +25,10 @@ namespace Quartz.Xml {
         public joblistenerType[] joblistener;
         
         /// <remarks/>
+        [System.Xml.Serialization.XmlElementAttribute("trigger-listener")]
+        public triggerlistenerType[] triggerlistener;
+        
+        /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("calendar")]
         public calendarType[] calendar;
         
@@ -86,6 +90,10 @@ namespace Quartz.Xml {
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         public bool volatileSpecified;
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlElementAttribute("trigger-listener-ref")]
+        public string triggerlistenerref;
         
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("job-data-map")]
@@ -257,5 +265,19 @@ namespace Quartz.Xml {
         [System.Xml.Serialization.XmlAttributeAttribute()]
         [System.ComponentModel.DefaultValueAttribute(false)]
         public bool replace = false;
+    }
+    
+    /// <remarks/>
+    [System.Xml.Serialization.XmlTypeAttribute(TypeName="trigger-listenerType", Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
+    public class triggerlistenerType {
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string type;
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.ComponentModel.DefaultValueAttribute("required")]
+        public string name = "required";
     }
 }
