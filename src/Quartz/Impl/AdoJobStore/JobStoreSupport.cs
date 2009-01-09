@@ -121,6 +121,7 @@ namespace Quartz.Impl.AdoJobStore
         protected int maxToRecoverAtATime = 20;
         private bool setTxIsolationLevelSequential;
         private TimeSpan dbRetryInterval = TimeSpan.FromSeconds(10);
+        private bool acquireTriggersWithinLock = false;
         private bool makeThreadsDaemons;
         private bool doubleCheckLockMisfireHandler = true;
         private readonly ILog log;
@@ -311,6 +312,19 @@ namespace Quartz.Impl.AdoJobStore
         {
             get { return setTxIsolationLevelSequential; }
             set { setTxIsolationLevelSequential = value; }
+        }
+
+        /// <summary>
+        /// Whether or not the query and update to acquire a Trigger for firing
+        /// should be performed after obtaining an explicit DB lock (to avoid 
+        /// possible race conditions on the trigger's db row).  This is
+        /// is considered unnecessary for most databases (due to the nature of
+        ///  the SQL update that is performed), and therefore a superfluous performance hit.
+        /// </summary>
+        public bool AcquireTriggersWithinLock
+        {
+            get { return acquireTriggersWithinLock; }
+            set { acquireTriggersWithinLock = value; }
         }
 
         /// <summary> 
@@ -3060,9 +3074,17 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="ReleaseAcquiredTrigger(SchedulingContext, Trigger)" />
         public virtual Trigger AcquireNextTrigger(SchedulingContext ctxt, DateTime noLaterThan)
         {
-           return
-                (Trigger)
-                ExecuteInNonManagedTXLock(LockTriggerAccess, new AcquireNextTriggerCallback(this, ctxt, noLaterThan));
+            if (AcquireTriggersWithinLock)
+            {
+                return
+                    (Trigger)
+                    ExecuteInNonManagedTXLock(LockTriggerAccess, new AcquireNextTriggerCallback(this, ctxt, noLaterThan));
+            }
+            else
+            {
+                // default behavior since Quartz 1.0.1 release
+                return (Trigger)ExecuteWithoutLock(new AcquireNextTriggerCallback(this, ctxt, noLaterThan));
+            }
         }
 
         protected class AcquireNextTriggerCallback : CallbackSupport, ITransactionCallback
@@ -3094,33 +3116,47 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    Key triggerKey = Delegate.SelectTriggerToAcquire(conn, noLaterThan, MisfireTime);
+            	    Trigger nextTrigger = null;
+                	
+            	    IList<Key> keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan, MisfireTime);
 
-                    // No trigger is ready to fire yet.
-                    if (triggerKey == null)
+            	    // No trigger is ready to fire yet.
+            	    if (keys == null || keys.Count == 0)
+            	    {
+            	        return null;
+            	    }
+                	
+            	    foreach (Key triggerKey in keys) 
                     {
-                        return null;
+	                
+                        int rowsUpdated = Delegate.UpdateTriggerStateFromOtherState(
+                            conn,
+                            triggerKey.Name, triggerKey.Group,
+                            StateAcquired, StateWaiting);
+
+                        // If our trigger was no longer in the expected state, try a new one.
+                        if (rowsUpdated <= 0)
+                        {
+                            continue;
+                        }
+
+                        nextTrigger = RetrieveTrigger(conn, ctxt, triggerKey.Name, triggerKey.Group);
+
+                        // If our trigger is no longer available, try a new one.
+                        if (nextTrigger == null)
+                        {
+                            continue;
+                        }
+                        break;
                     }
 
-                    int rowsUpdated = Delegate.UpdateTriggerStateFromOtherState(
-                        conn,
-                        triggerKey.Name, triggerKey.Group,
-                        StateAcquired, StateWaiting);
-
-                    // If our trigger was no longer in the expected state, try a new one.
-                    if (rowsUpdated <= 0)
-                    {
-                        continue;
-                    }
-
-                    Trigger nextTrigger = RetrieveTrigger(conn, ctxt, triggerKey.Name, triggerKey.Group);
-
-                    // If our trigger is no longer available, try a new one.
+                    // if we didn't end up with a trigger to fire from that first
+                    // batch, try again for another batch
                     if (nextTrigger == null)
                     {
                         continue;
                     }
-
+            	
                     nextTrigger.FireInstanceId = FiredTriggerRecordId;
                     Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null);
 
