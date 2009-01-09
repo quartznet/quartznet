@@ -138,6 +138,7 @@ namespace Quartz
         /// </remarks>
         public NthIncludedDayTrigger()
         {
+            StartTimeUtc = DateTime.UtcNow;
         }
 
         /// <summary> 
@@ -160,6 +161,7 @@ namespace Quartz
         public NthIncludedDayTrigger(string name, string group)
             : base(name, group)
         {
+            StartTimeUtc = DateTime.UtcNow;
         }
 
         /// <summary> 
@@ -177,6 +179,7 @@ namespace Quartz
         public NthIncludedDayTrigger(string name, string group, string jobName, string jobGroup)
             : base(name, group, jobName, jobGroup)
         {
+            StartTimeUtc = DateTime.UtcNow;
         }
 
 

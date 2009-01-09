@@ -17,6 +17,8 @@ using System;
 using System.Globalization;
 
 #if NET_20
+using Quartz.Job;
+
 using NullableDateTime = System.Nullable<System.DateTime>;
 #else
 using Nullables;
@@ -185,6 +187,18 @@ namespace Quartz.Tests.Unit
 			{
 			}
 		}
+
+        [Test]
+        public void TestComputeFirstFireTimeUtc_NoStartTimeForTrigger()
+        {
+            // QRTZNET145
+            NthIncludedDayTrigger trigger = new NthIncludedDayTrigger();
+            trigger.N = 1;
+            trigger.MisfireInstruction = MisfireInstruction.NthIncludedDayTrigger.FireOnceNow;
+            trigger.IntervalType = NthIncludedDayTrigger.IntervalTypeWeekly;
+
+            trigger.ComputeFirstFireTimeUtc(null);
+        }
 
 #if NET_35
         [Test]
