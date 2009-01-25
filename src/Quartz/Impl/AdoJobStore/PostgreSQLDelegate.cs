@@ -15,12 +15,7 @@
 * 
 */
 
-/*
-* Previously Copyright (c) 2001-2004 James House
-*/
-
 using System.Data;
-using System.IO;
 
 using Common.Logging;
 
@@ -76,7 +71,15 @@ namespace Quartz.Impl.AdoJobStore
             return data;
         }
 
+        /// <summary>
+        /// Gets the select next trigger to acquire SQL clause.
+        /// PostgreSQL version with LIMIT support.
+        /// </summary>
+        /// <returns></returns>
+	    protected override string GetSelectNextTriggerToAcquireSql()
+	    {
+            return SqlSelectNextTriggerToAcquire + " LIMIT " + TriggersToAcquireLimit;
+	    }
 	}
-
-	// EOF
+	
 }

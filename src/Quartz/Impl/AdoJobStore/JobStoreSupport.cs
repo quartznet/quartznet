@@ -494,6 +494,15 @@ namespace Quartz.Impl.AdoJobStore
                         }
 
                         driverDelegate = (IDriverDelegate)ctor.Invoke(ctorParams);
+
+                        Log.Info("Using " + driverDelegate.GetType() + " as AdoJobStore driver delegate implementation");
+
+                        if (driverDelegate.GetType() == typeof(StdAdoDelegate))
+                        {
+                            Log.Warn("Using StdAdoDelegate as IDriverDelegate, this implementation is sub-optimal for trigger selection (SelectTriggerToAcquire) when there are many triggers");
+                            Log.Warn("Please check whether you could use another driver delegate that is specific to your database, like SqlServerDelegate");
+                        }
+
                     }
                     catch (Exception e)
                     {

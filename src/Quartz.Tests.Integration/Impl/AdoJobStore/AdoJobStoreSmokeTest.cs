@@ -1,7 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Specialized;
+using System.Globalization;
 using System.Threading;
+
+using Common.Logging;
+using Common.Logging.Simple;
 
 using NUnit.Framework;
 
@@ -20,8 +24,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         private bool scheduleJobs = true;
         private bool clustered = true;
 
-        static AdoJobStoreSmokeTest()
+        [TestFixtureSetUp]
+        public void SetUpFixture()
         {
+            // configure logging
+            LogManager.Adapter = new ConsoleOutLoggerFactoryAdapter();
+
             dbConnectionStrings["Oracle"] =
                 "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=quartznet;Password=quartznet;";
             dbConnectionStrings["SQLServer"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
@@ -49,13 +57,17 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [Test]
         public void TestSqlServer11()
         {
-            RunAdoJobStoreTest("SqlServer-11", "SQLServer");
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+            RunAdoJobStoreTest("SqlServer-11", "SQLServer", properties);
         }
 
         [Test]
         public void TestSqlServer20()
         {
-            RunAdoJobStoreTest("SqlServer-20", "SQLServer");
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+            RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
         }
 
         [Test]

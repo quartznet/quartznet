@@ -57,6 +57,7 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public class StdAdoDelegate : StdAdoConstants, IDriverDelegate
     {
+        protected const int DefaultTriggersToAcquireLimit = 5;
         protected ILog logger = null;
         protected string tablePrefix = DefaultTablePrefix;
         protected string instanceId;
@@ -2464,7 +2465,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
         public virtual IList SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, DateTime noEarlierThan)
         {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNextTriggerToAcquire)))
+            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextTriggerToAcquireSql())))
             {
                 ArrayList nextTriggers = new ArrayList();
 
@@ -2473,13 +2474,34 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 3, "noEarlierThan", Convert.ToDecimal(noEarlierThan.Ticks));
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    while (rs.Read() && nextTriggers.Count < 5)
+                    int limit = TriggersToAcquireLimit;
+                    while (rs.Read() && nextTriggers.Count < limit)
                     {
                         nextTriggers.Add(new Key((string) rs[ColumnTriggerName] , (string) rs[ColumnTriggerGroup]));
                     }
                 }
                 return nextTriggers;
             }
+        }
+
+        /// <summary>
+        /// Gets the triggers to acquire limit.
+        /// </summary>
+        /// <value>The triggers to acquire limit.</value>
+        protected virtual int TriggersToAcquireLimit
+        {
+            get { return DefaultTriggersToAcquireLimit; }
+        }
+
+        /// <summary>
+        /// Gets the select next trigger to acquire SQL clause.
+        /// This can be overriden for a more performant, result limiting 
+        /// SQL. For Example SQL Server, MySQL and SQLite support limiting returned rows. 
+        /// </summary>
+        /// <returns></returns>
+        protected virtual string GetSelectNextTriggerToAcquireSql()
+        {
+            return SqlSelectNextTriggerToAcquire;
         }
 
         /// <summary>
