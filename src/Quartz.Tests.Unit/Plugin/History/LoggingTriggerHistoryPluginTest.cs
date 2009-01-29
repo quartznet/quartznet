@@ -16,7 +16,7 @@
 
 using Common.Logging;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Job;
 using Quartz.Plugin.History;
@@ -28,15 +28,13 @@ namespace Quartz.Tests.Unit.Plugin.History
     [TestFixture]
     public class LoggingTriggerHistoryPluginTest
     {
-        private MockRepository mockery;
         private LoggingTriggerHistoryPlugin plugin;
         private ILog mockLog;
 
         [SetUp]
         public void SetUp()
         {
-            mockery = new MockRepository();
-            mockLog = (ILog)mockery.CreateMock(typeof(ILog));
+            mockLog = MockRepository.GenerateMock<ILog>();
             plugin = new LoggingTriggerHistoryPlugin();
             plugin.Log = mockLog;
         }
@@ -44,12 +42,8 @@ namespace Quartz.Tests.Unit.Plugin.History
         [Test]
         public void TestTriggerFiredMessage()
         {
-            // expectations
-            Expect.Call(mockLog.IsInfoEnabled).Return(true);
-            mockLog.Info(null);
-            LastCall.IgnoreArguments();
-
-            mockery.ReplayAll();
+            // arrange
+            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
 
             Trigger t = new SimpleTrigger();
             
@@ -58,35 +52,34 @@ namespace Quartz.Tests.Unit.Plugin.History
                 TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t), 
                 null);
 
+            // act
             plugin.TriggerFired(t, ctx);
+
+            // assert
+            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
         }
 
 
         [Test]
         public void TestTriggerMisfiredMessage()
         {
-            // expectations
-            Expect.Call(mockLog.IsInfoEnabled).Return(true);
-            mockLog.Info(null);
-            LastCall.IgnoreArguments();
-
-            mockery.ReplayAll();
-
+            // arrange
+            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
             Trigger t = new SimpleTrigger();
 
+            // act
             plugin.TriggerMisfired(t);
+
+            // assert
+            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
         }
 
         [Test]
         public void TestTriggerCompleteMessage()
         {
-            // expectations
-            Expect.Call(mockLog.IsInfoEnabled).Return(true);
-            mockLog.Info(null);
-            LastCall.IgnoreArguments();
-
-            mockery.ReplayAll();
-
+            // arrange
+            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+            
             Trigger t = new SimpleTrigger();
             
             JobExecutionContext ctx = new JobExecutionContext(
@@ -94,7 +87,11 @@ namespace Quartz.Tests.Unit.Plugin.History
                 TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t),
                 null);
 
+            // act
             plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
+
+            // assert
+            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
         }
         
     }

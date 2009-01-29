@@ -184,9 +184,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz\Quartz.2005.csproj">
+    <ProjectReference Include="..\Quartz\Quartz.2008.csproj">
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
-      <Name>Quartz.2005</Name>
+      <Name>Quartz.2008</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

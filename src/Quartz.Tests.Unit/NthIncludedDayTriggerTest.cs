@@ -20,7 +20,7 @@ using System.Globalization;
 using TimeZone = System.TimeZoneInfo;
 #endif
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {
@@ -261,7 +261,17 @@ namespace Quartz.Tests.Unit
             }
         }
 #endif
+        [Test]
+        public void TestComputeFirstFireTimeUtc_NoStartTimeForTrigger()
+        {
+            // QRTZNET145
+            NthIncludedDayTrigger trigger = new NthIncludedDayTrigger();
+            trigger.N = 1;
+            trigger.MisfireInstruction = MisfireInstruction.NthIncludedDayTrigger.FireOnceNow;
+            trigger.IntervalType = NthIncludedDayTrigger.IntervalTypeWeekly;
 
+            trigger.ComputeFirstFireTimeUtc(null);
+        }
 
         /// <summary>
         /// Get the object to serialize when generating serialized file for future

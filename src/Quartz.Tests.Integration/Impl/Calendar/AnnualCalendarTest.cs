@@ -17,7 +17,7 @@
 using System;
 using System.Threading;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;

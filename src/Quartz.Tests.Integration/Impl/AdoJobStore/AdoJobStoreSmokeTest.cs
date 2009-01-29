@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;

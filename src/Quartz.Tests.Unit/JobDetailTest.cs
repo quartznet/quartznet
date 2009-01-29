@@ -16,7 +16,7 @@
 using System;
 using System.Collections.Generic;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {

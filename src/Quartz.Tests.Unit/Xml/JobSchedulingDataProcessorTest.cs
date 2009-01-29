@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.IO;
 
-using NUnit.Framework;
-
 using Quartz.Xml;
 
 using Rhino.Mocks;
+
+using MbUnit.Framework;
 
 namespace Quartz.Tests.Unit.Xml
 {

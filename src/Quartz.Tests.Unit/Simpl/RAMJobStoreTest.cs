@@ -15,7 +15,7 @@
  */
 using System;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Impl.Calendar;
 using Quartz.Job;
@@ -198,6 +198,23 @@ namespace Quartz.Tests.Unit.Simpl
 	        Assert.AreEqual(TriggerState.Paused, fJobStore.GetTriggerState(null, tr.Name, tr.Group));
 	        
 	    }
+
+        [Test]
+        public void TestRetrieveJob_NoJobFound()
+        {
+            RAMJobStore store = new RAMJobStore();
+            JobDetail job = store.RetrieveJob(null, "not", "existing");
+            Assert.IsNull(job);
+        }
+
+        [Test]
+        public void TestRetrieveTrigger_NoTriggerFound()
+        {
+            RAMJobStore store = new RAMJobStore();
+            Trigger trigger = store.RetrieveTrigger(null, "not", "existing");
+            Assert.IsNull(trigger);
+        }
+
 		public class SampleSignaler : ISchedulerSignaler
 		{
 			internal int fMisfireCount = 0;

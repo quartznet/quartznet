@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Job;
 using Quartz.Spi;

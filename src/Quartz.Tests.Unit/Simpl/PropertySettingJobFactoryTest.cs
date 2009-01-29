@@ -15,7 +15,7 @@
  */
 using System.Collections.Generic;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Simpl;
 
@@ -32,8 +32,7 @@ namespace Quartz.Tests.Unit.Simpl
 		[SetUp]
 		protected void SetUp()
 		{
-			factory = new PropertySettingJobFactory();
-			factory.ThrowIfPropertyNotFound = true;
+			factory = new PropertySettingJobFactory {ThrowIfPropertyNotFound = true};
 		}
 
 		[Test]
@@ -45,9 +44,9 @@ namespace Quartz.Tests.Unit.Simpl
 			jobDataMap.Put("floatValue", 3.0f);
 			jobDataMap.Put("doubleValue", 4.0);
 			jobDataMap.Put("booleanValue", true);
-			jobDataMap.Put("shortValue", (short) 5);
+			jobDataMap.Put("shortValue", 5);
 			jobDataMap.Put("charValue", 'a');
-			jobDataMap.Put("byteValue", (byte) 6);
+			jobDataMap.Put("byteValue", 6);
 			jobDataMap.Put("stringValue", "S1");
             Dictionary<string, string> map = new Dictionary<string, string>();
 			map.Add("A", "B");
@@ -58,8 +57,8 @@ namespace Quartz.Tests.Unit.Simpl
 
 			Assert.AreEqual(1, myObject.IntValue);
 			Assert.AreEqual(2, myObject.LongValue);
-			Assert.AreEqual(3.0f, myObject.FloatValue, 0.0001);
-			Assert.AreEqual(4.0, myObject.DoubleValue, 0.0001);
+			Assert.AreEqual(3.0f, myObject.FloatValue);
+			Assert.AreEqual(4.0, myObject.DoubleValue);
 			Assert.IsTrue(myObject.BooleanValue);
 			Assert.AreEqual(5, myObject.ShortValue);
 			Assert.AreEqual('a', myObject.CharValue);
@@ -189,86 +188,35 @@ namespace Quartz.Tests.Unit.Simpl
 
 			Assert.AreEqual(1, myObject.IntValue);
 			Assert.AreEqual(2L, myObject.LongValue);
-			Assert.AreEqual(3.0f, myObject.FloatValue, 0.0001);
-			Assert.AreEqual(4.0, myObject.DoubleValue, 0.0001);
+			Assert.AreEqual(3.0f, myObject.FloatValue);
+			Assert.AreEqual(4.0, myObject.DoubleValue);
 			Assert.AreEqual(true, myObject.BooleanValue);
 			Assert.AreEqual(5, myObject.ShortValue);
 			Assert.AreEqual('a', myObject.CharValue);
 			Assert.AreEqual((byte) 6, myObject.ByteValue);
 		}
 
-		private class TestObject
+		internal class TestObject
 		{
-			private int intValue;
-			private long longValue;
-			private float floatValue;
-			private double doubleValue;
-			private bool booleanValue;
-			private byte byteValue;
-			private short shortValue;
-			private char charValue;
-			private string stringValue;
-            private Dictionary<string, string> mapValue;
+		    public bool BooleanValue { get; set; }
 
-			public bool BooleanValue
-			{
-				set { booleanValue = value; }
-				get { return booleanValue; }
-			}
+		    public double DoubleValue { set; get; }
 
-			public double DoubleValue
-			{
-				set { doubleValue = value; }
-				get { return doubleValue; }
-			}
+		    public float FloatValue { set; get; }
 
-			public float FloatValue
-			{
-				set { floatValue = value; }
-				get { return floatValue; }
-			}
+		    public int IntValue { set; get; }
 
-			public int IntValue
-			{
-				set { intValue = value; }
-				get { return intValue; }
-			}
+		    public long LongValue { set; get; }
 
-			public long LongValue
-			{
-				set { longValue = value; }
-				get { return longValue; }
-			}
+		    public Dictionary<string, string> MapValue { set; get; }
 
-            public Dictionary<string, string> MapValue
-			{
-				set { mapValue = value; }
-				get { return mapValue; }
-			}
+		    public string StringValue { set; get; }
 
-			public string StringValue
-			{
-				set { stringValue = value; }
-				get { return stringValue; }
-			}
+		    public byte ByteValue { set; get; }
 
-			public byte ByteValue
-			{
-				set { byteValue = value; }
-				get { return byteValue; }
-			}
+		    public char CharValue { set; get; }
 
-			public char CharValue
-			{
-				set { charValue = value; }
-				get { return charValue; }
-			}
-
-			public short ShortValue
-			{
-				set { shortValue = value; }
-				get { return shortValue; }
-			}
+		    public short ShortValue { set; get; }
 		}
 	}
 }

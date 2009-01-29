@@ -18,7 +18,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Simpl;

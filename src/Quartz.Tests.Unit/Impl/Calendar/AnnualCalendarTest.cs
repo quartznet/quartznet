@@ -20,7 +20,7 @@ using System;
 using TimeZone = System.TimeZoneInfo;
 #endif
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Impl.Calendar;
 

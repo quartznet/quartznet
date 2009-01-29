@@ -14,7 +14,7 @@
  * under the License.
  */
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 
 namespace Quartz.Tests.Unit

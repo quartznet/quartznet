@@ -82,9 +82,13 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
     </Reference>
-    <Reference Include="nunit.framework, Version=2.4.1.0, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
+    <Reference Include="Gallio, Version=3.0.5.546, Culture=neutral, PublicKeyToken=eb9cfa67ee6ab36e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\2.0\nunit.framework.dll</HintPath>
+      <HintPath>..\..\lib\2.0\Gallio.dll</HintPath>
+    </Reference>
+    <Reference Include="MbUnit, Version=3.0.5.546, Culture=neutral, PublicKeyToken=eb9cfa67ee6ab36e, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\2.0\MbUnit.dll</HintPath>
     </Reference>
     <Reference Include="Rhino.Mocks, Version=3.2.0.781, Culture=neutral, PublicKeyToken=0b3305902db7183f, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -102,12 +106,12 @@
     <Reference Include="System.XML">
       <Name>System.XML</Name>
     </Reference>
-    <ProjectReference Include="..\Quartz.Examples\Quartz.Examples.2005.csproj">
+    <ProjectReference Include="..\Quartz.Examples\Quartz.Examples.2008.csproj">
       <Project>{70A37974-17DE-474C-8A1C-19637622E75F}</Project>
-      <Name>Quartz.Examples.2005</Name>
+      <Name>Quartz.Examples.2008</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Quartz\Quartz.2005.csproj">
-      <Name>Quartz.2005</Name>
+    <ProjectReference Include="..\Quartz\Quartz.2008.csproj">
+      <Name>Quartz.2008</Name>
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
       <Package>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Package>
     </ProjectReference>
@@ -164,6 +168,7 @@
     <Compile Include="Simpl\RAMJobStoreTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Utils\DirtyFlagMapTest.cs" />
     <Compile Include="Utils\ObjectUtilsTest.cs" />
     <Compile Include="Utils\PairTest.cs" />
     <Compile Include="Utils\PropertiesParserTest.cs">

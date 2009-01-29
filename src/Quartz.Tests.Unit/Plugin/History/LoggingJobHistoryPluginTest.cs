@@ -16,10 +16,11 @@
 
 using Common.Logging;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 using Quartz.Job;
 using Quartz.Plugin.History;
+using Quartz.Spi;
 
 using Rhino.Mocks;
 
@@ -28,15 +29,13 @@ namespace Quartz.Tests.Unit.Plugin.History
     [TestFixture]
     public class LoggingJobHistoryPluginTest
     {
-        private MockRepository mockery;
         private LoggingJobHistoryPlugin plugin;
         private ILog mockLog;
 
         [SetUp]
         public void SetUp()
         {
-            mockery = new MockRepository();
-            mockLog = (ILog) mockery.CreateMock(typeof (ILog));           
+            mockLog = MockRepository.GenerateMock<ILog>();           
             plugin = new LoggingJobHistoryPlugin();
             plugin.Log = mockLog;
         }
@@ -44,72 +43,64 @@ namespace Quartz.Tests.Unit.Plugin.History
         [Test]
         public void TestJobFailedMessage()
         {
-            // expectations
-            Expect.Call(mockLog.IsWarnEnabled).Return(true);
-            mockLog.Warn(null, null);
-            LastCall.IgnoreArguments();
+            // arrange
+            mockLog.Stub(log => log.IsWarnEnabled).Return(true);
 
-            mockery.ReplayAll();
-
+            // act
             JobExecutionException ex = new JobExecutionException("test error");
             plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
+            
+            // assert
+            mockLog.AssertWasCalled(log => log.Warn(null, null), options => options.IgnoreArguments());
         }
 
         [Test]
         public void TestJobSuccessMessage()
         {
-            // expectations
-            Expect.Call(mockLog.IsInfoEnabled).Return(true);
-            mockLog.Info(null);
-            LastCall.IgnoreArguments();
+            // arrange
+            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
 
-            mockery.ReplayAll();
-
+            // act
             plugin.JobWasExecuted(CreateJobExecutionContext(), null);
+
+            // assert
+            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
         }
 
         [Test]
         public void TestJobToBeFiredMessage()
         {
-            // expectations
-            Expect.Call(mockLog.IsInfoEnabled).Return(true);
-            mockLog.Info(null);
-            LastCall.IgnoreArguments();
+            // arrange
+            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
 
-            mockery.ReplayAll();
-
+            // act
             plugin.JobToBeExecuted(CreateJobExecutionContext());
+        
+            // assert
+            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
         }
 
         [Test]
         public void TestJobWasVetoedMessage()
         {
-            // expectations
-            Expect.Call(mockLog.IsInfoEnabled).Return(true);
-            mockLog.Info(null);
-            LastCall.IgnoreArguments();
+            // arrange
+            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
 
-            mockery.ReplayAll();
-
+            // act
             plugin.JobExecutionVetoed(CreateJobExecutionContext());
+
+            // assert
+            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
         }
 
         protected virtual JobExecutionContext CreateJobExecutionContext()
         {
             Trigger t = new SimpleTrigger();
+            TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
+            JobExecutionContext ctx = new JobExecutionContext(null,  firedBundle, null);
 
-            JobExecutionContext ctx = new JobExecutionContext(
-                null, 
-                TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t), 
-                null);
             return ctx;
         }
 
-
-        [TearDown]
-        public void TearDown()
-        {
-            mockery.VerifyAll();
-        }
     }
 }

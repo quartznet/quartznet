@@ -1,7 +1,6 @@
 using System.Net.Mail;
 
-using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
+using MbUnit.Framework;
 
 using Quartz.Job;
 
@@ -35,7 +34,7 @@ namespace Quartz.Tests.Unit.Job
 
             //Then
             expectedMail.IsEqualTo(job.ActualMailSent);
-            Assert.That(job.ActualSmtpHost, Is.EqualTo("someserver"));
+            Assert.AreEqual("someserver", job.ActualSmtpHost);
         }
 
 
@@ -65,7 +64,7 @@ namespace Quartz.Tests.Unit.Job
 
             //Then
             expectedMail.IsEqualTo(job.ActualMailSent);
-            Assert.That(job.ActualSmtpHost, Is.EqualTo("someserver"));
+            Assert.AreEqual("someserver", job.ActualSmtpHost);
         }
     }
 
@@ -88,13 +87,18 @@ namespace Quartz.Tests.Unit.Job
 
         public void IsEqualTo(MailMessage actualMail)
         {
-            Assert.That(actualMail.To.Contains(new MailAddress(Recipient)), Is.True, "Recipient equals");
-            Assert.That(actualMail.From, Is.EqualTo(new MailAddress(Sender)), "Sender equals");
-            Assert.That(actualMail.Subject, Is.EqualTo(Subject), "Subject equals");
-            Assert.That(actualMail.Body, Is.EqualTo(Message), "Message equals");
+            Assert.Contains(actualMail.To, new MailAddress(Recipient), "Recipient equals");
+            Assert.AreEqual(new MailAddress(Sender), actualMail.From, "Sender equals");
+            Assert.AreEqual(Subject, actualMail.Subject, "Subject equals");
+            Assert.AreEqual(Message, actualMail.Body, "Message equals");
             if (!string.IsNullOrEmpty(CcRecipient))
-                Assert.That(actualMail.CC.Contains(new MailAddress(CcRecipient)), Is.True, "CC equals");
-            if (!string.IsNullOrEmpty(ReplyTo)) Assert.That(actualMail.ReplyTo, Is.EqualTo(new MailAddress(ReplyTo)));
+            {
+                Assert.Contains(actualMail.CC, new MailAddress(CcRecipient), "CC equals");
+            }
+            if (!string.IsNullOrEmpty(ReplyTo))
+            {
+                Assert.AreEqual(new MailAddress(ReplyTo), actualMail.ReplyTo);
+            }
         }
     }
 

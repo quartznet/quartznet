@@ -1,9 +1,8 @@
 using System;
 using System.Threading;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
-using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Job;
 
@@ -81,24 +80,20 @@ namespace Quartz.Tests.Unit.Core
             JobDetail jobDetail = new JobDetail(JobName, JobGroup, typeof(NoOpJob));
             SimpleTrigger jobTrigger = new SimpleTrigger(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
 
-            MockRepository mockery = new MockRepository();
-            ISchedulerListener listener = (ISchedulerListener) mockery.CreateMock(typeof(ISchedulerListener));
+            ISchedulerListener listener = MockRepository.GenerateMock<ISchedulerListener>();
 
             scheduler.ScheduleJob(jobDetail, jobTrigger);
             // add listener after scheduled
             scheduler.AddSchedulerListener(listener);
 
-            // expect unschedule and schedule
-            listener.JobUnscheduled(TriggerName, TriggerGroup);
-            listener.JobScheduled(jobTrigger);
-
-            mockery.ReplayAll();
-
             // act
             scheduler.RescheduleJob(TriggerName, TriggerGroup, jobTrigger);
 
-            // verify
-            mockery.VerifyAll();
+            // assert
+            // expect unschedule and schedule
+            listener.AssertWasCalled(l => l.JobUnscheduled(TriggerName, TriggerGroup));
+            listener.AssertWasCalled(l => l.JobScheduled(jobTrigger));
+
         }
     }
 }

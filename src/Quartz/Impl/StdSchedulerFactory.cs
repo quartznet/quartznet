@@ -331,7 +331,7 @@ Please add configuration to your application config file to correctly initialize
 
             typeLoadHelperType =
                 cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType,
-                                      "Quartz.Simpl.CascadingClassLoadHelper, Quartz");
+                                      "Quartz.Simpl.SimpleTypeLoadHelper, Quartz");
             jobFactoryType = cfg.GetStringProperty(PropertySchedulerJobFactoryType, null);
 
             idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);

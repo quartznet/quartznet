@@ -16,7 +16,7 @@
 
 using Common.Logging;
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 namespace Quartz.Tests.Integration
 {

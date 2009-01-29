@@ -23,7 +23,7 @@ using Quartz.Collection;
 using TimeZone = System.TimeZoneInfo;
 #endif
 
-using NUnit.Framework;
+using MbUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {
@@ -230,7 +230,7 @@ namespace Quartz.Tests.Unit
             for (int i = 0; i < fireDays.Count; ++i)
             {
                 int idx = correctFireDays.IndexOf(fireDays[i]);
-                Assert.Greater(idx, -1,
+                Assert.GreaterThan(idx, -1,
                                string.Format("CronExpression evaluated true for {0} even when it shouldn't have", fireDays[i]));
                 correctFireDays.RemoveAt(idx);
             }
@@ -242,8 +242,7 @@ namespace Quartz.Tests.Unit
         [Test]
         [ExpectedException(
             typeof(FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.",
-            UserMessage = "Expected FormatException did not fire for wildcard day-of-month and day-of-week")]
+            "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionWildCardDayOfMonthAndDayOfWeek()
         {
             CronExpression cronExpression = new CronExpression("0 0 * * * *");
@@ -252,8 +251,7 @@ namespace Quartz.Tests.Unit
         [Test]
         [ExpectedException(
             typeof(FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.",
-            UserMessage = "Expected FormatException did not fire for specified day-of-month and wildcard day-of-week")]
+            "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionSpecifiedDayOfMonthAndWildCardDayOfWeek()
         {
             CronExpression cronExpression = new CronExpression("0 0 * 4 * *");
@@ -262,8 +260,7 @@ namespace Quartz.Tests.Unit
         [Test]
         [ExpectedException(
             typeof(FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.",
-            UserMessage = "Expected FormatException did not fire for wildcard day-of-month and specified day-of-week")]
+            "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionWildCardDayOfMonthAndSpecifiedDayOfWeek()
         {
             CronExpression cronExpression = new CronExpression("0 0 * * * 4");
