@@ -380,6 +380,8 @@
     <Compile Include="Impl\AdoJobStore\Common\DbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
+    <Compile Include="Impl\AdoJobStore\SQLiteDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\FirebirdDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
     <Compile Include="Impl\AdoJobStore\MySQLDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\OracleDelegate.cs" />
