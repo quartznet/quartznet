@@ -340,7 +340,7 @@ namespace Quartz.Plugin.History
                 new object[]
                     {
                         trigger.Name, trigger.Group, trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), DateTime.UtcNow,
-                        trigger.JobGroup, trigger.JobGroup
+                        trigger.JobName, trigger.JobGroup
                     };
 
             Log.Info(String.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
