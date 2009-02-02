@@ -420,6 +420,19 @@ namespace Quartz.Tests.Unit
             } 
         }
 
+        [Test(Description = "http://jira.opensymphony.com/browse/QRTZNET-149")]
+        public void TestGetTimeAfter_QRTZNET149()
+        {
+            CronExpression expression = new CronExpression("0 0 0 29 * ?");
+            NullableDateTime after = expression.GetNextValidTimeAfter(new DateTime(2009, 1, 30));
+            Assert.IsTrue(after.HasValue);
+            Assert.AreEqual(new DateTime(2009, 3, 29, 0, 0, 0).ToUniversalTime(), after.Value);
+
+            after = expression.GetNextValidTimeAfter(new DateTime(2009, 12, 30));
+            Assert.IsTrue(after.HasValue);
+            Assert.AreEqual(new DateTime(2010, 1, 29, 0, 0, 0).ToUniversalTime(), after.Value);
+        }
+
     }
 
 
