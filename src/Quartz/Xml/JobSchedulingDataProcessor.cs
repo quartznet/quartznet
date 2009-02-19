@@ -307,6 +307,11 @@ namespace Quartz.Xml
                 }
 
 	            triggerType[] tArr = jt.trigger;
+                if (tArr == null)
+                {
+                    // set to empty
+                    tArr = new triggerType[0];
+                }
 	            foreach (triggerType t in tArr)
 	            {
 	                Trigger trigger;
