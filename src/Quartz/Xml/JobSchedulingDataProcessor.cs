@@ -299,7 +299,7 @@ namespace Quartz.Xml
                     }
                 }
 
-	            triggerType[] tArr = jt.trigger;
+	            triggerType[] tArr = jt.trigger ?? new triggerType[0];
 	            foreach (triggerType t in tArr)
 	            {
 	                Trigger trigger;

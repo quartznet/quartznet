@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <quartz xmlns="http://quartznet.sourceforge.net/JobSchedulingData"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 				version="1.0"
@@ -33,5 +33,14 @@
   		</cron>
   	</trigger>
 	</job>
+
+  <job>
+		<job-detail>
+			<name>jobName2</name>
+			<group>jobGroup2</group>
+			<job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+			<durable>true</durable>
+		</job-detail>
+	</job>	
 </quartz>
 
