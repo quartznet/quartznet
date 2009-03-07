@@ -433,6 +433,16 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(new DateTime(2010, 1, 29, 0, 0, 0).ToUniversalTime(), after.Value);
         }
 
+        [Test]
+        public void TestQRTZNET152()
+        {
+            CronExpression expression = new CronExpression("0 5 13 5W 1-12 ?");
+            DateTime d = expression.GetNextValidTimeAfter(new DateTime(2009, 3, 8).ToUniversalTime()).Value;
+            Assert.AreEqual(new DateTime(2009, 4, 6, 13, 5, 0), d.ToLocalTime());
+            d = expression.GetNextValidTimeAfter(d).Value;
+            Assert.AreEqual(new DateTime(2009, 5, 5, 13, 5, 0), d.ToLocalTime());
+        }
+
     }
 
 

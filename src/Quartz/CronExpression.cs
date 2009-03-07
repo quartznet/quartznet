@@ -1676,7 +1676,7 @@ namespace Quartz
                             }
 
                             DateTime nTime = new DateTime(tcal.Year, mon, day, hr, min, sec, d.Millisecond);
-                            if (nTime < afterTimeUtc)
+                            if (nTime.ToUniversalTime() < afterTimeUtc)
                             {
                                 day = 1;
                                 mon++;
@@ -1711,7 +1711,7 @@ namespace Quartz
                         }
 
                         tcal = new DateTime(tcal.Year, mon, day, hr, min, sec);
-                        if (tcal < afterTimeUtc)
+                        if (tcal.ToUniversalTime() < afterTimeUtc)
                         {
                             day = ((int) daysOfMonth.First());
                             mon++;
