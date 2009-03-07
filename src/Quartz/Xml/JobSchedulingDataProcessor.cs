@@ -223,7 +223,8 @@ namespace Quartz.Xml
             quartz data = (quartz) xs.Deserialize(new StringReader(xml));
 
             // process data
-            
+            overwriteExistingJobs = data.overwriteexistingjobs;
+
             // add calendars
             if (data.calendar != null)
             {

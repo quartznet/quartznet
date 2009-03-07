@@ -73,6 +73,18 @@ namespace Quartz.Tests.Unit.Xml
             processor.ScheduleJobs(new Hashtable(), mockScheduler, false);
         }
 
+        [Test]
+        public void TestScheduling_MinimalConfiguration_ShouldNotOverwriteExistingJobsIfAdviced()
+        {
+            Stream s = ReadJobXmlFromEmbeddedResource("MinimalConfiguration.xml");
+            processor.ProcessStream(s, null);
+
+            mockery.ReplayAll();
+
+            processor.ScheduleJobs(new Hashtable(), mockScheduler, false);
+            Assert.IsFalse(processor.OverwriteExistingJobs);
+        }
+
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)
         {
             string fullName = "Quartz.Tests.Unit.Xml.TestData." + resourceName;
