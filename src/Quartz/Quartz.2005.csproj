@@ -407,7 +407,6 @@
     <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
     <Compile Include="SchedulerInstruction.cs" />
     <Compile Include="Simpl\RemotingSchedulerExporter.cs" />
-    <Compile Include="Simpl\ZeroSizeThreadPool.cs" />
     <Compile Include="SPI\ISchedulerExporter.cs" />
     <Compile Include="TriggerState.cs" />
     <Compile Include="Util\DateTimeUtil.cs" />
