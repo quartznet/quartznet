@@ -859,7 +859,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                Trigger trig = Delegate.SelectTrigger(conn, triggerName, groupName);
+                Trigger trig = RetrieveTrigger(conn, triggerName, groupName);
 
                 DateTime misfireTime = DateTime.UtcNow;
                 if (MisfireThreshold > TimeSpan.Zero)
@@ -3083,7 +3083,9 @@ namespace Quartz.Impl.AdoJobStore
             else
             {
                 // default behavior since Quartz 1.0.1 release
-                return (Trigger)ExecuteWithoutLock(new AcquireNextTriggerCallback(this, ctxt, noLaterThan));
+                return (Trigger)ExecuteInNonManagedTXLock(
+                    null, /* passing null as lock name causes no lock to be made */
+                    new AcquireNextTriggerCallback(this, ctxt, noLaterThan));
             }
         }
 
