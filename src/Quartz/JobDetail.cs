@@ -377,8 +377,7 @@ namespace Quartz
         {
             for (int i = 0; i < jobListeners.Count; i++)
             {
-                IJobListener listener = (IJobListener) jobListeners[i];
-                if (listener.Name == listenerName)
+                if ((string) jobListeners[i] == listenerName)
                 {
                     jobListeners.RemoveAt(i);
                     return true;

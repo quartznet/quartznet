@@ -60,6 +60,24 @@ namespace Quartz.Tests.Unit
 				}
 			}
 		}
+
+        [Test]
+        public void TestRemoveJobListener()
+        {
+            string[] listenerNames = new string[] { "X", "A", "B" };
+
+            JobDetail jobDetail = new JobDetail();
+            for (int i = 0; i < listenerNames.Length; i++)
+            {
+                jobDetail.AddJobListener(listenerNames[i]);
+            }
+
+            // Make sure uniqueness is enforced
+            for (int i = 0; i < listenerNames.Length; i++)
+            {
+                Assert.IsTrue(jobDetail.RemoveJobListener(listenerNames[i]));
+            }
+        }
     
 		[Test]
 		public void TestClone() 
