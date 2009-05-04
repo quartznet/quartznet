@@ -36,7 +36,7 @@ namespace Quartz.Tests.Unit.Simpl
 		private SampleSignaler fSignaler;
 
 		[SetUp]
-		protected void SetUp()
+		public void SetUp()
 		{
 			fJobStore = new RAMJobStore();
 			fSignaler = new SampleSignaler();

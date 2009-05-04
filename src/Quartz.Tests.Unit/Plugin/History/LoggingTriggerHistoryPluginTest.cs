@@ -56,7 +56,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.TriggerFired(t, ctx);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
+            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
         }
 
 
@@ -71,7 +71,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.TriggerMisfired(t);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
+            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
         }
 
         [Test]
@@ -91,7 +91,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
+            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
         }
         
     }

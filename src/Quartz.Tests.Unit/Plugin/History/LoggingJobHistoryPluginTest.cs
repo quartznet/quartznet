@@ -14,6 +14,8 @@
  * under the License.
  */
 
+using System;
+
 using Common.Logging;
 
 using MbUnit.Framework;
@@ -51,7 +53,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
             
             // assert
-            mockLog.AssertWasCalled(log => log.Warn(null, null), options => options.IgnoreArguments());
+            mockLog.AssertWasCalled(log => log.Warn(Arg<string>.Is.Anything, Arg<Exception>.Is.Anything));
         }
 
         [Test]
@@ -64,7 +66,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.JobWasExecuted(CreateJobExecutionContext(), null);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
+            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
         }
 
         [Test]
@@ -77,7 +79,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.JobToBeExecuted(CreateJobExecutionContext());
         
             // assert
-            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
+            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
         }
 
         [Test]
@@ -90,7 +92,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.JobExecutionVetoed(CreateJobExecutionContext());
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(null), options => options.IgnoreArguments());
+            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
         }
 
         protected virtual JobExecutionContext CreateJobExecutionContext()

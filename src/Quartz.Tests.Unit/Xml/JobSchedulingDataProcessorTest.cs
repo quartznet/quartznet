@@ -91,6 +91,7 @@ namespace Quartz.Tests.Unit.Xml
             mockery.ReplayAll();
 
             processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
+			Assert.IsFalse(processor.OverwriteExistingJobs);
         }
 
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)

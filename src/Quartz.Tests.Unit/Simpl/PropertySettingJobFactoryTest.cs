@@ -30,7 +30,7 @@ namespace Quartz.Tests.Unit.Simpl
 		private PropertySettingJobFactory factory;
 
 		[SetUp]
-		protected void SetUp()
+		public void SetUp()
 		{
 			factory = new PropertySettingJobFactory {ThrowIfPropertyNotFound = true};
 		}
