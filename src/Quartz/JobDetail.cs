@@ -443,10 +443,13 @@ namespace Quartz
 		/// </returns>
         public override bool Equals(object obj)
         {
-            if ((obj == null) || (!obj.GetType().IsSubclassOf(typeof(JobDetail))))
+            JobDetail jd = obj as JobDetail;
+            if (jd == null)
+            {
                 return false;
+            }
 
-            return IsEqual((JobDetail)obj);
+            return IsEqual(jd);
         }
 
         /// <summary>
