@@ -372,6 +372,8 @@
     <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
+    <Compile Include="Impl\AdoJobStore\MySQLDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\OracleDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\PostgreSQLDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\DBSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\FiredTriggerRecord.cs" />
@@ -385,6 +387,7 @@
     <Compile Include="Impl\AdoJobStore\NoSuchDelegateException.cs" />
     <Compile Include="Impl\AdoJobStore\SchedulerStateRecord.cs" />
     <Compile Include="Impl\AdoJobStore\SimpleSemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\SqlServerDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\StdAdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\StdAdoDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\StdRowLockSemaphore.cs" />
