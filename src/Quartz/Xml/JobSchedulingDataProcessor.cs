@@ -216,7 +216,8 @@ namespace Quartz.Xml
             quartz data = (quartz) xs.Deserialize(new StringReader(xml));
 
             // process data
-            
+            overwriteExistingJobs = data.overwriteexistingjobs;
+
             // add calendars
             if (data.calendar != null)
             {
@@ -359,7 +360,10 @@ namespace Quartz.Xml
 	                {
 	                    throw new ArgumentException("Unknown trigger type in XML");
 	                }
-	                trigger.CalendarName = t.Item.calendarname;
+                    
+                    trigger.Description = t.Item.description;
+                    trigger.CalendarName = t.Item.calendarname;
+                    
                     if (t.Item.misfireinstruction != null)
                     {
                         trigger.MisfireInstruction = ReadMisfireInstructionFromString(t.Item.misfireinstruction);

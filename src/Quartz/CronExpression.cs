@@ -1662,7 +1662,7 @@ namespace Quartz
                             }
 
                             DateTime nTime = new DateTime(tcal.Year, mon, day, hr, min, sec, d.Millisecond);
-                            if (nTime < afterTimeUtc)
+                            if (nTime.ToUniversalTime() < afterTimeUtc)
                             {
                                 day = 1;
                                 mon++;
@@ -1697,7 +1697,7 @@ namespace Quartz
                         }
 
                         tcal = new DateTime(tcal.Year, mon, day, hr, min, sec);
-                        if (tcal < afterTimeUtc)
+                        if (tcal.ToUniversalTime() < afterTimeUtc)
                         {
                             day = daysOfMonth.First();
                             mon++;
@@ -1730,7 +1730,18 @@ namespace Quartz
                         }
                         else
                         {
+                            // This is to avoid a bug when moving from a month
+                            //with 30 or 31 days to a month with less. Causes an invalid datetime to be instantiated.
+                            // ex. 0 29 0 30 1 ? 2009 with clock set to 1/30/2009
+                            int lDay = DateTime.DaysInMonth(d.Year, mon); 
+                            if (day <= lDay)
+                            {
                             d = new DateTime(d.Year, mon, day, 0, 0, 0);
+                        }
+                            else
+                            {
+                                d = new DateTime(d.Year, mon, lDay, 0, 0, 0).AddDays(day - lDay);
+                            } 
                         }
                         continue;
                     }

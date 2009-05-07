@@ -83,6 +83,25 @@ namespace Quartz.Tests.Unit.Xml
         }
 
         [Test]
+        public void TestScheduling_RichConfiguration_ShouldSetDecriptionToTriggers()
+        {
+            Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration.xml");
+            processor.ProcessStream(s, null);
+
+            mockery.ReplayAll();
+
+            processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
+
+            JobSchedulingBundle job = processor.GetScheduledJob("jobGroup1.jobName1");
+            foreach (Trigger trigger in job.Triggers)
+            {
+                string keyValuePrefix = trigger is CronTrigger ? "Cron" : "Simple";
+                Assert.AreEqual(keyValuePrefix + "TriggerDescription", trigger.Description, "Should have had correct description for trigger");
+            }
+
+        }
+
+        [Test]
         public void TestScheduling_MinimalConfiguration()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("MinimalConfiguration.xml");
