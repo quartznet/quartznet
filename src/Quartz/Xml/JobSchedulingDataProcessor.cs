@@ -372,7 +372,10 @@ namespace Quartz.Xml
 	                {
 	                    throw new ArgumentException("Unknown trigger type in XML");
 	                }
+
+                    trigger.Description = t.Item.description;
 	                trigger.CalendarName = t.Item.calendarname;
+                    
                     if (t.Item.misfireinstruction != null)
                     {
                         trigger.MisfireInstruction = ReadMisfireInstructionFromString(t.Item.misfireinstruction);

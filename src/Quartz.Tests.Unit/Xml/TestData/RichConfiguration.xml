@@ -78,7 +78,8 @@
   		<cron>
   			<name>cronName</name>
   			<group>cronGroup</group>
-			<trigger-listener-ref>triggerListener1</trigger-listener-ref>
+        <description>CronTriggerDescription</description>
+			  <trigger-listener-ref>triggerListener1</trigger-listener-ref>
         <job-data-map>
           <entry>
             <key>CronEntry_1</key>
