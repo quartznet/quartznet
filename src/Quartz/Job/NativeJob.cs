@@ -50,7 +50,6 @@ namespace Quartz.Job
 		/// </summary>
 		public const string PropertyParameters = "parameters";
 
-
 		/// <summary> 
 		/// Optional parameter (value should be 'true' or 'false') that specifies 
 		/// whether the job should wait for the execution of the native process to 
@@ -69,6 +68,12 @@ namespace Quartz.Job
 		/// <p>Defaults to <see langword="false" />.</p>  
 		/// </summary>
 		public const string PropertyConsumeStreams = "consumeStreams";
+
+        /// <summary> 
+        /// Optional parameter that specifies the workling directory to be used by 
+        /// the executed command.
+        /// </summary>
+        public const string PropertyWorkingDirectory = "workingDirectory";
 
 
         /// <summary>
@@ -128,11 +133,13 @@ namespace Quartz.Job
 				consumeStreams = data.GetBooleanValue(PropertyConsumeStreams);
 			}
 
-			int exitCode = RunNativeCommand(command, parameters, wait, consumeStreams);
+            string workingDirectory = data.GetString(PropertyWorkingDirectory);
+
+			int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
 		    context.Result = exitCode;
 		}
 
-		private int RunNativeCommand(String command, string parameters, bool wait, bool consumeStreams)
+		private int RunNativeCommand(String command, string parameters, string workingDirectory, bool wait, bool consumeStreams)
 		{
 			string[] cmd;
 			string[] args = new string[2];
@@ -192,6 +199,12 @@ namespace Quartz.Job
 			    proc.StartInfo.UseShellExecute = false;
 			    proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
+
+                if (!String.IsNullOrEmpty(workingDirectory))
+                {
+                    proc.StartInfo.WorkingDirectory = workingDirectory;
+                }
+
 			    proc.Start();
 
 				// Consumes the stdout from the process
