@@ -2,6 +2,38 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+Release 1.0.1, May 16, 2009
+-------------------------------
+
+Bug
+
+    * [QRTZNET-145] - NthIncludedDayTrigger.ComputeFirstFireTimeUtc fails if no start time given
+    * [QRTZNET-149] - CronExpression.GetTimeAfter(DateTime afterTimeUtc) does not account for day increment over days in month
+    * [QRTZNET-150] - LoggingTriggerHistoryPlugin.TriggerMisfired writes incorrect message
+    * [QRTZNET-151] - XML configuration fails with jobs that have no triggers
+    * [QRTZNET-152] - Nearest weekday 'W' expression does not work correctly in CronTrigger
+    * [QRTZNET-153] - JobInitializationPlugin overwrite-existing-jobs parameter ignored
+    * [QRTZNET-155] - JobSchedulingDataProcessor does not set Trigger description
+    * [QRTZNET-156] - JobDetail.RemoveJobListener throws InvalidCastException
+    * [QRTZNET-157] - JobDetail.Equals(object) is implemented wrong
+    * [QRTZNET-159] - Records in QRTZ_TRIGGER_LISTENERS table are deleted when trigger is paused and resumed
+    * [QRTZNET-160] - AcquireNextTrigger executing on managed Tx Connection when using JobStoreCMT and configured not to acquire triggers within lock
+    * [QRTZNET-161] - TimeZoneInfo's StandardName is incorrectly saved to database instead of Id
+
+Improvement
+
+    * [QRTZNET-142] - Xml Configuration support for Trigger Listeners
+    * [QRTZNET-144] - Locking around AcquireNextTrigger no longer necessary for AdoJobStore
+    * [QRTZNET-146] - Introduce result limiting ADO.NET delegates for better performance
+    * [QRTZNET-154] - Support for setting the working directory in NativeJob
+
+New Feature
+
+    * [QRTZNET-148] - Add SQL Server Compact Edition support for AdoJobStore
+
+
+
+
 Release 1.0, Nov 6, 2008
 -------------------------------
 
