@@ -205,7 +205,7 @@ namespace Quartz.Job
 			    proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
 
-                if (!String.IsNullOrEmpty(workingDirectory))
+                if (workingDirectory != null && workingDirectory.Length > 0)
                 {
                     proc.StartInfo.WorkingDirectory = workingDirectory;
                 }
