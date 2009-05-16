@@ -11,10 +11,7 @@
 			<title>Welcome to the home of Quartz.NET!</title>
 			<p>
 				<br />
-				<cite>
-					Quartz.NET is a full-featured, open source job scheduling system 
-					that can be used from smallest apps to large scale enterprise systems.
-				</cite>
+				<cite>Quartz.NET is a full-featured, open source job scheduling system that can be used from smallest apps to large scale enterprise systems.</cite>
 			</p>
 			<p>
 				Quartz.NET is a port of very propular open source Java job scheduling framework, <a href="http://www.opensymphony.com/quartz">Quartz</a>. 
@@ -26,20 +23,38 @@
 				Quartz.NET is feature-wise equal to Quartz Java 1.6 excluding Java specifics. Quartz.NET
 				is already running in production systems and has received good feedback.
 			</p>
-			<p>
-				With Quartz.NET you have more features available and you can have more 
-				programmatic control over scheduling compared to for example Windows Task Scheduler:
-				<ul>
-					<li>.NET API - you can control scheduler (remote / local) with .NET code and interact with it without any unmanaged code interop</li>
-					<li>Fine grained scheduling - CronTrigger should be a bit more feature-rich than standard windows scheduler and then you can have calendars added to the mix (rule based exclusions)</li>
-					<li>Programmatic control - you can put in glue code to handle misfire situations (windows scheduler has trouble with fine-grained failure scenario handling), listeners, custom triggers</li>
-					<li>Clustering - Quartz.NET can be ran on several computers to create load-balancing and fail over, job persistence with database</li>
-				</ul>
-			</p>
 		</section>
 
 		<section id="news">
 			<title>News</title>
+			
+			<section>
+				<title>Quartz.NET 1.0.1 Released</title>
+				<p>
+				<div class="descr">May 16, 2009 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 1.0.1 has been released and it's an advised update for everyone.
+				</p>
+				<p>
+					This release includes bug fixes to issues found in 1.0 release
+					and also includes performance optimization to AdoJobStore 
+					when Quartz.NET is handling a lot of triggers. Quarz.NET no 
+					longer loads all of them but is able limit the query results
+					by using a custom SQL delegate. Quartz.NET issues a warning
+					on startup if custom delegate is not used. Available delegates
+					include ones for SQL Server, Oracle, SQLite, MySQL, PostgreSQL
+					and Firebird.
+				</p>
+				<p>
+					Please refer to the
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21794">release notes</a> 
+					and the readme.txt in the release bundle for more information.
+				</p>
+				<p>
+					Grab it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>	
 
 			<section>
 				<title>Quartz.NET 1.0 Final Released</title>
@@ -71,79 +86,7 @@
 				</p>
 			</section>	
 			
-			<section>
-				<title>Quartz.NET 1.0 RC 3 Released</title>
-				<p>
-				<div class="descr">September 6, 2008 by Marko Lahma</div>
-				</p>
-				<p>
-					Quartz.NET 1.0 RC 3 has been released. This release is the 
-					third release candidate for final 1.0 release. 
-				</p>
 
-				<p>
-					This release is a bug fix release and also adds the Quartz.NET
-					server source to standard distribution. Everyone using earlier
-					release candidate is adviced to upgrade.
-				</p>
-				<p>
-					Please refer to the
-					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21785">release notes</a> 
-					and the readme.txt in the release bundle for more information.
-				</p>
-				<p>
-					Grab it from <a href="download.html">downloads page</a>.
-				</p>
-			</section>			
-			
-			<section>
-				<title>Quartz.NET 1.0 RC 2 Released</title>
-				<p>
-				<div class="descr">August 6, 2008 by Marko Lahma</div>
-				</p>
-				<p>
-					Quartz.NET 1.0 RC 2 has been released. This release is the 
-					second release candidate for final 1.0 release. 
-				</p>
-
-				<p>
-					This release contains late minute breaking change. All time
-					interval and duration related data that was presented with
-					longs or ints before is now presented with TimeSpans which
-					is a more natural way for .NET. This change will cause
-					compile time errors that should be quite easy to fix using
-					TimeSpan.FromXXX methods. Where you earlier had 5000 milliseconds
-					you can now use a more convenient form of TimeSpan.FromSeconds(5).
-				</p>
-				<p>
-					Please refer to the
-					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21784">release notes</a> 
-					and the readme.txt in the release bundle for more information.
-				</p>
-				<p>
-					Grab it from <a href="download.html">downloads page</a>.
-				</p>
-			</section>
-			
-			<section>
-				<title>Quartz.NET 1.0 RC 1 Released</title>
-				<p>
-				<div class="descr">July 28, 2008 by Marko Lahma</div>
-				</p>
-				<p>
-					Quartz.NET 1.0 RC 1 has been released. This release is the 
-					first release candidate for final 1.0 release. In this release
-					you can find some minor bug fixes, small improvements and 
-					the new Quartz.NET simple server for running jobs. 
-					
-					Please refer to the
-					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21750">release notes</a> 
-					and the readme.txt in the release bundle for more information.
-				</p>
-				<p>
-					Grab it from <a href="download.html">downloads page</a>.
-				</p>
-			</section>
 			
 			<section>
 				<title></title>

@@ -89,8 +89,17 @@ org.quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
 Next, you need to select a IDriverDelegate implementation for the JobStore to use. 
 The DriverDelegate is responsible for doing any ADO.NET work that may be needed for your specific database. 
 StdAdoDelegate is a delegate that uses "vanilla" ADO.NET code (and SQL statements) to do its work. 
-If there isn't another delegate made specifically for your database, try using this delegate - we've only made database-specific delegates for databases
-that we've found problems using StdAdoDelegate with (which seems to be most . Other delegates can be found in the "Quartz.Impl.AdoJobStore" namespace, or in its sub-namespaces. 
+If there isn't another delegate made specifically for your database, try using this delegate - 
+special delegates usually have better performance or workarounds for database specific issues.
+Other delegates can be found in the "Quartz.Impl.AdoJobStore" namespace, or in its sub-namespaces. 
+</p>
+
+<p>
+<strong>
+NOTE: Quartz.NET will issue warning if you are using the default StdAdoDelegate as it has poor performance
+when you have a lot of triggers to select from. Specific delegates have special SQL to limit result
+set length (SQLServerDelegate uses TOP n, PostgreSQLDelegate LIMIT n, OracleDelegte ROWCOUNT() &lt;= n etc.).
+</strong>
 </p>
 
 <p>

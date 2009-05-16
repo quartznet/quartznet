@@ -130,6 +130,17 @@ namespace Quartz.Util
             base.Put(key, value);
         }
 
+        /// <summary>
+        /// Adds the given serializable object value to the <see cref="JobDataMap" />.
+        /// </summary>
+        public override object Put(object key, object value)
+        {
+            if (!(key is string))
+            {
+                throw new ArgumentException("Keys in map must be Strings.");
+            }
+            return base.Put(key, value);
+        }
 
         /// <summary> 
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
@@ -140,7 +151,7 @@ namespace Quartz.Util
 
             try
             {
-                return (int) obj;
+                return Convert.ToInt32(obj);
             }
             catch (Exception)
             {
@@ -157,7 +168,7 @@ namespace Quartz.Util
 
             try
             {
-                return (long) obj;
+                return Convert.ToInt64(obj);
             }
             catch (Exception)
             {
@@ -174,7 +185,7 @@ namespace Quartz.Util
 
             try
             {
-                return (float) obj;
+                return Convert.ToSingle(obj);
             }
             catch (Exception)
             {
@@ -191,7 +202,7 @@ namespace Quartz.Util
 
             try
             {
-                return ((double) obj);
+                return Convert.ToDouble(obj);
             }
             catch (Exception)
             {
@@ -208,7 +219,7 @@ namespace Quartz.Util
 
             try
             {
-                return ((bool) obj);
+                return Convert.ToBoolean(obj);
             }
             catch (Exception)
             {
@@ -225,7 +236,7 @@ namespace Quartz.Util
 
             try
             {
-                return ((char) obj);
+                return Convert.ToChar(obj);
             }
             catch (Exception)
             {

@@ -104,8 +104,8 @@
 
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
-	<meta name="description" content="Quartz.NET is a port of Java Quartz which is an enterprise class job / task scheduling system. Quartz.NET is a free open source tool that you can use in your .NET applications.">
-	<meta name="keywords" content="Quartz.NET Quartz Scheduler Scheduling task scheduler .NET C# cron timer free download open source">
+	<meta name="description" content="Quartz.NET is a port of Java Quartz which is an enterprise class job sheduling system. Quartz.NET is a free open source tool that you can use in your .NET applications.">
+	<meta name="keywords" content="Quartz.NET Quartz Scheduler Scheduling .NET C# cron timer free download open source">
 	<meta name="author" content="Marko Lahma">
 	<link rel="stylesheet" type="text/css" href="$relativePath/default.css" media="screen">
 	<link rel="stylesheet" href="$relativePath/csharp.css" media="screen" />	

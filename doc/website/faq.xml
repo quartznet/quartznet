@@ -409,6 +409,10 @@
 					</ul>
 
 					<p>
+						Use driver delegate implementation that is specific to your database, like SQLServerDelegate, for best performance.
+					</p>
+					
+					<p>
 						Now for something simple, but effective: Build indexes on the Quartz tables.
 					</p>
 
