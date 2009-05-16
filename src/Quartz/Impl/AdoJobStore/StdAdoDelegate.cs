@@ -995,7 +995,11 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 1, "triggerName", trigger.Name);
                 AddCommandParameter(cmd, 2, "triggerGroup", trigger.Group);
                 AddCommandParameter(cmd, 3, "triggerCronExpression", trigger.CronExpressionString);
+#if NET_35
                 AddCommandParameter(cmd, 4, "triggerTimeZone", trigger.TimeZone.Id);
+#else
+                AddCommandParameter(cmd, 4, "triggerTimeZone", trigger.TimeZone.StandardName);
+#endif
 
                 return cmd.ExecuteNonQuery();
             }
