@@ -16,7 +16,7 @@ Clustering currently only works with the AdoJobstore (JobStoreTX). Features incl
 </p>
 
 <p>
-Enable clustering by setting the "quartz.jobStore.isClustered" property to "true". 
+Enable clustering by setting the "quartz.jobStore.clustered" property to "true". 
 Each instance in the cluster should use the same copy of the quartz properties. 
 Exceptions of this would be to use properties that are identical, with the following allowable exceptions: 
 Different thread pool size, and different value for the "quartz.scheduler.instanceId" property. 
