@@ -64,12 +64,12 @@ namespace Quartz.Impl.AdoJobStore
             string theRest = sqlSelectNextTriggerToAcquire.Substring(whereEndIdx);
 
             // add limit clause to correct place
-            sqlSelectNextTriggerToAcquire = beginningAndWhere + " rowcount <= " + TriggersToAcquireLimit + " AND " + theRest;
+            sqlSelectNextTriggerToAcquire = beginningAndWhere + " rownum <= " + TriggersToAcquireLimit + " AND " + theRest;
         }
 
         /// <summary>
         /// Gets the select next trigger to acquire SQL clause.
-        /// Oracke version with rownum support.
+        /// Oracle version with rownum support.
         /// </summary>
         /// <returns></returns>
         protected override string GetSelectNextTriggerToAcquireSql()
