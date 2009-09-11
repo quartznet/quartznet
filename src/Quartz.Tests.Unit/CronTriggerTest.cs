@@ -16,7 +16,7 @@
 
 using System;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 #if NET_35
 using TimeZone = System.TimeZoneInfo;

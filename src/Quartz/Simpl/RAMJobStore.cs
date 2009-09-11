@@ -479,7 +479,7 @@ namespace Quartz.Simpl
 
 				if (found)
 				{
-					if (!tw.Trigger.JobName.Equals(newTrigger.JobName) || !tw.Trigger.JobGroup.Equals(newTrigger.JobGroup))
+					if (!tw.trigger.JobName.Equals(newTrigger.JobName) || !tw.trigger.JobGroup.Equals(newTrigger.JobGroup))
 					{
 						throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
 					}
@@ -515,7 +515,7 @@ namespace Quartz.Simpl
 					}
 					catch (JobPersistenceException)
 					{
-						StoreTrigger(ctxt, tw.Trigger, false); // put previous trigger back...
+						StoreTrigger(ctxt, tw.trigger, false); // put previous trigger back...
 						throw;
 					}
 				}
@@ -554,7 +554,7 @@ namespace Quartz.Simpl
 		{
 			TriggerWrapper tw;
 			triggersByFQN.TryGetValue(TriggerWrapper.GetTriggerNameKey(triggerName, groupName), out tw);
-            return (tw != null) ? (Trigger)tw.Trigger.Clone() : null;
+            return (tw != null) ? (Trigger)tw.trigger.Clone() : null;
 		}
 
 		/// <summary>
@@ -636,7 +636,7 @@ namespace Quartz.Simpl
 					for (int i = 0; i < trigs.Count; ++i)
 					{
 						TriggerWrapper tw = trigs[i];
-						Trigger trig = tw.Trigger;
+						Trigger trig = tw.trigger;
                         bool removed = timeTriggers.Remove(tw);
 
 						trig.UpdateWithNewCalendar(calendar, MisfireThreshold);
@@ -672,7 +672,7 @@ namespace Quartz.Simpl
 			{
 				foreach (TriggerWrapper triggerWrapper in triggers)
 				{
-                    Trigger trigg = triggerWrapper.Trigger;
+                    Trigger trigg = triggerWrapper.trigger;
 					if (trigg.CalendarName != null && trigg.CalendarName.Equals(calName))
 					{
 						numRefs++;
@@ -833,7 +833,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		public virtual Trigger[] GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
-			List<Trigger> trigList = new List<Trigger>();
+			var trigList = new List<Trigger>();
 
 			string jobKey = JobWrapper.GetJobNameKey(jobName, groupName);
 			lock (triggerLock)
@@ -859,7 +859,7 @@ namespace Quartz.Simpl
 		/// <returns></returns>
 		protected virtual List<TriggerWrapper> GetTriggerWrappersForJob(string jobName, string groupName)
 		{
-			List<TriggerWrapper> trigList = new List<TriggerWrapper>();
+			var trigList = new List<TriggerWrapper>();
 
 			string jobKey = JobWrapper.GetJobNameKey(jobName, groupName);
 			lock (triggerLock)
@@ -882,16 +882,16 @@ namespace Quartz.Simpl
 		/// </summary>
 		/// <param name="calName">Name of the cal.</param>
 		/// <returns></returns>
-		protected internal virtual List<TriggerWrapper> GetTriggerWrappersForCalendar(string calName)
+		protected virtual List<TriggerWrapper> GetTriggerWrappersForCalendar(string calName)
 		{
-			List<TriggerWrapper> trigList = new List<TriggerWrapper>();
+			var trigList = new List<TriggerWrapper>();
 
 			lock (triggerLock)
 			{
 				for (int i = 0; i < triggers.Count; i++)
 				{
 					TriggerWrapper tw = triggers[i];
-					string tcalName = tw.Trigger.CalendarName;
+					string tcalName = tw.trigger.CalendarName;
 					if (tcalName != null && tcalName.Equals(calName))
 					{
 						trigList.Add(tw);
@@ -1023,7 +1023,7 @@ namespace Quartz.Simpl
                 return;
             }
 
-			Trigger trig = tw.Trigger;
+			Trigger trig = tw.trigger;
 
 
 			// if the trigger is not paused resuming it does not make sense...
@@ -1072,7 +1072,7 @@ namespace Quartz.Simpl
                     string key = TriggerWrapper.GetTriggerNameKey(names[i], groupName);
 				    if ((triggersByFQN[key] != null))
 				    {
-                        string jobGroup = triggersByFQN[key].Trigger.JobGroup;
+                        string jobGroup = triggersByFQN[key].trigger.JobGroup;
 				        if (pausedJobGroups.Contains(jobGroup))
 				        {
 				            continue;
@@ -1459,7 +1459,7 @@ namespace Quartz.Simpl
 						{
 							// double check for possible reschedule within job 
 							// execution, which would cancel the need to delete...
-							d = tw.Trigger.GetNextFireTimeUtc();
+							d = tw.trigger.GetNextFireTimeUtc();
 							if (!d.HasValue)
 							{
 								RemoveTrigger(ctxt, trigger.Name, trigger.Group);
@@ -1691,15 +1691,6 @@ namespace Quartz.Simpl
     /// </summary>
 	public class TriggerWrapper : IEquatable<TriggerWrapper>
 	{
-        /// <summary>
-        /// Gets the trigger
-        /// </summary>
-        /// <value>The trigger</value>
-		public virtual Trigger Trigger
-		{
-			get { return trigger; }
-		}
-
 		/// <summary>
 		/// The key used
 		/// </summary>

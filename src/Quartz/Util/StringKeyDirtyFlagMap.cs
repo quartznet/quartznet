@@ -130,18 +130,6 @@ namespace Quartz.Util
             base.Put(key, value);
         }
 
-        /// <summary>
-        /// Adds the given serializable object value to the <see cref="JobDataMap" />.
-        /// </summary>
-        public override object Put(object key, object value)
-        {
-            if (!(key is string))
-            {
-                throw new ArgumentException("Keys in map must be Strings.");
-            }
-            return base.Put(key, value);
-        }
-
         /// <summary> 
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>

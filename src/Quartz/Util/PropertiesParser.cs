@@ -169,7 +169,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="name">The name.</param>
         /// <returns></returns>
-		public virtual sbyte GetByteProperty(string name)
+		public virtual byte GetByteProperty(string name)
 		{
 			string val = GetStringProperty(name);
 			if (val == null)
@@ -179,7 +179,7 @@ namespace Quartz.Util
 
 			try
 			{
-                return SByte.Parse(val, CultureInfo.InvariantCulture);
+                return Byte.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
@@ -193,7 +193,7 @@ namespace Quartz.Util
         /// <param name="name">The name.</param>
         /// <param name="defaultValue">The default value.</param>
         /// <returns></returns>
-		public virtual sbyte GetByteProperty(string name, sbyte defaultValue)
+		public virtual byte GetByteProperty(string name, byte defaultValue)
 		{
 			string val = GetStringProperty(name);
 			if (val == null)
@@ -203,7 +203,7 @@ namespace Quartz.Util
 
 			try
 			{
-                return SByte.Parse(val, CultureInfo.InvariantCulture);
+                return Byte.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{

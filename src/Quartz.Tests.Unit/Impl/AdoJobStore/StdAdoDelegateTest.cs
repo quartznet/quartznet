@@ -17,7 +17,7 @@
 using System.Runtime.Serialization;
 
 using Common.Logging;
-using MbUnit.Framework;
+using NUnit.Framework;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 

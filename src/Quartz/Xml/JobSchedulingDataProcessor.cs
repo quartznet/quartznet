@@ -88,13 +88,13 @@ namespace Quartz.Xml
 		/// </summary>
 		protected const string XsdDateFormat = "yyyy-MM-dd'T'hh:mm:ss";
 
-		protected IDictionary<string, JobSchedulingBundle> scheduledJobs = new Dictionary<string, JobSchedulingBundle>();
-		protected IList<JobSchedulingBundle> jobsToSchedule = new List<JobSchedulingBundle>();
-		protected IList<CalendarBundle> calsToSchedule = new List<CalendarBundle>();
-		protected IList<IJobListener> listenersToSchedule = new List<IJobListener>();
-		protected IList<ITriggerListener> triggerListenersToSchedule = new List<ITriggerListener>();
+	    private IDictionary<string, JobSchedulingBundle> scheduledJobs = new Dictionary<string, JobSchedulingBundle>();
+	    private IList<JobSchedulingBundle> jobsToSchedule = new List<JobSchedulingBundle>();
+	    private IList<CalendarBundle> calsToSchedule = new List<CalendarBundle>();
+	    private IList<IJobListener> listenersToSchedule = new List<IJobListener>();
+	    private IList<ITriggerListener> triggerListenersToSchedule = new List<ITriggerListener>();
 
-		protected List<Exception> validationExceptions = new List<Exception>();
+	    private List<Exception> validationExceptions = new List<Exception>();
 
 		private bool overwriteExistingJobs = true;
 
@@ -212,8 +212,8 @@ namespace Quartz.Xml
             ValidateXmlIfNeeded(xml);
             
             // deserialize as object model
-            XmlSerializer xs = new XmlSerializer(typeof(quartz));
-            quartz data = (quartz) xs.Deserialize(new StringReader(xml));
+            XmlSerializer xs = new XmlSerializer(typeof(QuartzXmlConfiguration));
+            QuartzXmlConfiguration data = (QuartzXmlConfiguration) xs.Deserialize(new StringReader(xml));
 
             // process data
             overwriteExistingJobs = data.overwriteexistingjobs;
@@ -263,7 +263,7 @@ namespace Quartz.Xml
             MaybeThrowValidationException();
         }
 
-	    private void ProcessJobs(quartz data)
+	    private void ProcessJobs(QuartzXmlConfiguration data)
 	    {
             if (data.job == null)
             {
@@ -391,7 +391,7 @@ namespace Quartz.Xml
 	        }
 	    }
 
-		private void ProcessTriggerListeners(quartz data)
+		private void ProcessTriggerListeners(QuartzXmlConfiguration data)
 		{
 			if (data.triggerlistener != null)
 			{

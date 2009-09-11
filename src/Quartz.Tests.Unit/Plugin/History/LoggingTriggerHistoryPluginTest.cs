@@ -16,7 +16,7 @@
 
 using Common.Logging;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Job;
 using Quartz.Plugin.History;

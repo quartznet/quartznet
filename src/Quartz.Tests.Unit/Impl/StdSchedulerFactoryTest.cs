@@ -16,7 +16,7 @@
 
 using System.Collections.Specialized;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Impl;
 

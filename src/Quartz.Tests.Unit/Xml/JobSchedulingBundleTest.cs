@@ -18,7 +18,7 @@
 using System;
 using System.Collections.Generic;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Job;
 using Quartz.Xml;

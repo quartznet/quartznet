@@ -20,7 +20,7 @@ using System.Globalization;
 using TimeZone = System.TimeZoneInfo;
 #endif
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {

@@ -96,11 +96,11 @@ namespace Quartz.Impl.AdoJobStore
         protected const string LockStateAccess = "STATE_ACCESS";
         protected const string LockMisfireAccess = "MISFIRE_ACCESS";
 
-        protected string dataSource;
-        protected string tablePrefix = DefaultTablePrefix;
-        protected bool useProperties;
-        protected string instanceId;
-        protected string instanceName;
+        private string dataSource;
+        private string tablePrefix = DefaultTablePrefix;
+        private bool useProperties;
+        private string instanceId;
+        private string instanceName;
         protected string delegateTypeName;
         protected Type delegateType;
         protected Dictionary<string, ICalendar> calendarCache = new Dictionary<string, ICalendar>();

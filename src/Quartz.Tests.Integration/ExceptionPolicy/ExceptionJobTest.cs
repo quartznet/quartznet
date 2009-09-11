@@ -1,6 +1,6 @@
 using System.Threading;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Impl;
 
@@ -95,7 +95,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             ExceptionJob.ThrowsException = false;
             sched.DeleteJob(jobName, jobGroup);
             Thread.Sleep(1000);
-            Assert.GreaterThan(ExceptionJob.LaunchCount, 1, "The job should have been refired after exception");
+            Assert.Greater(ExceptionJob.LaunchCount, 1, "The job should have been refired after exception");
         }
 
         [Test]

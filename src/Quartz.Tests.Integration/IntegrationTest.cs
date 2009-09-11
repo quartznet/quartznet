@@ -16,30 +16,34 @@
 
 using Common.Logging;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 namespace Quartz.Tests.Integration
 {
+    /// <summary>
+    /// Base class for integration tests.
+    /// </summary>
     [Category("integration")]    
-    public class IntegrationTest
+    public abstract class IntegrationTest
     {
         protected IScheduler sched;
-        protected ILog log;
+        private readonly ILog log;
 
-
-        public IntegrationTest()
+        /// <summary>
+        /// Initializes a new instance of the <see cref="IntegrationTest"/> class.
+        /// </summary>
+        protected IntegrationTest()
         {
             log = LogManager.GetLogger(GetType());
         }
 
+        /// <summary>
+        /// Gets the log.
+        /// </summary>
+        /// <value>The log.</value>
         protected ILog Log
         {
-            get
-            {
-                return log;
-            }
+            get { return log; }
         }
-        
-        
     }
 }

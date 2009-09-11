@@ -5,7 +5,7 @@ using Quartz.Xml;
 
 using Rhino.Mocks;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 namespace Quartz.Tests.Unit.Xml
 {

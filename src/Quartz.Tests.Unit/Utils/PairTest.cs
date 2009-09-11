@@ -14,7 +14,7 @@
  * under the License.
  */
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Util;
 

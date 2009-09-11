@@ -1,6 +1,6 @@
 using System.Net.Mail;
 
-using MbUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Job;
 
@@ -87,13 +87,13 @@ namespace Quartz.Tests.Unit.Job
 
         public void IsEqualTo(MailMessage actualMail)
         {
-            Assert.Contains(actualMail.To, new MailAddress(Recipient), "Recipient equals");
+            Assert.Contains(new MailAddress(Recipient), actualMail.To, "Recipient equals");
             Assert.AreEqual(new MailAddress(Sender), actualMail.From, "Sender equals");
             Assert.AreEqual(Subject, actualMail.Subject, "Subject equals");
             Assert.AreEqual(Message, actualMail.Body, "Message equals");
             if (!string.IsNullOrEmpty(CcRecipient))
             {
-                Assert.Contains(actualMail.CC, new MailAddress(CcRecipient), "CC equals");
+                Assert.Contains(new MailAddress(CcRecipient), actualMail.CC, "CC equals");
             }
             if (!string.IsNullOrEmpty(ReplyTo))
             {
