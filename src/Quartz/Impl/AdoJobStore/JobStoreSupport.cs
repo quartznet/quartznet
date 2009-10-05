@@ -3585,33 +3585,14 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // Other than the first time, always checkin first to make sure there is 
-                // work to be done before we aquire the lock (since that is expensive, 
+                // work to be done before we acquire the lock (since that is expensive, 
                 // and is almost never necessary).  This must be done in a separate
                 // transaction to prevent a deadlock under recovery conditions.
                 IList failedRecords = null;
-                if (firstCheckIn == false)
+                if (!firstCheckIn)
                 {
-                    bool succeeded = false;
-                    try
-                    {
-                        failedRecords = ClusterCheckIn(conn);
-                        CommitConnection(conn, true);
-                        succeeded = true;
-                    }
-                    catch (JobPersistenceException)
-                    {
-                        RollbackConnection(conn);
-                        throw;
-                    }
-                    finally
-                    {
-                        // Only cleanup the connection if we failed and are bailing
-                        // as we will otherwise continue to use it.
-                        if (succeeded == false)
-                        {
-                            CleanupConnection(conn);
-                        }
-                    }
+                    failedRecords = ClusterCheckIn(conn);
+                    CommitConnection(conn, true);
                 }
 
                 if (firstCheckIn || (failedRecords != null && failedRecords.Count > 0))
