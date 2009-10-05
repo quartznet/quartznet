@@ -346,6 +346,7 @@ namespace Quartz.Simpl
 
             private IThreadRunnable runnable;
             private readonly SimpleThreadPool tp;
+            private bool runOnce = false;
 
             /// <summary>
             /// Create a worker thread and start it. Waiting for the next Runnable,
@@ -368,6 +369,7 @@ namespace Quartz.Simpl
             {
                 this.tp = tp;
                 this.runnable = runnable;
+                runOnce = true;
                 Priority = prio;
                 IsBackground = isDaemon;
             }
@@ -404,11 +406,9 @@ namespace Quartz.Simpl
             public override void Run()
             {
                 bool ran = false;
-        	    bool runOnce;
                 bool shouldRun;
                 lock (this) 
                 {
-            	    runOnce = (runnable != null);
             	    shouldRun = run;
                 }
             
