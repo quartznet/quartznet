@@ -369,7 +369,10 @@ namespace Quartz.Simpl
             {
                 this.tp = tp;
                 this.runnable = runnable;
-                runOnce = true;
+                if (runnable != null)
+                {
+                    runOnce = true;
+                }
                 Priority = prio;
                 IsBackground = isDaemon;
             }
