@@ -137,6 +137,25 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
+        /// default group but no specified <see cref="JobDetail" />. This will result 
+        /// initially in a default monthly trigger that fires on the first day of 
+        /// every month at 12:00 PM (<see cref="n" />=1, 
+        /// intervalType=<see cref="IntervalTypeMonthly" />, 
+        /// fireAtTime=12:00").
+        /// <p>
+        /// Note that <see cref="Trigger.JobName" /> and <see cref="Trigger.JobGroup" /> must
+        /// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
+        /// into a <see cref="IScheduler" />.
+        /// </p>
+        /// </summary>
+        /// <param name="name"> the name for the <see cref="NthIncludedDayTrigger" />
+        /// </param>
+        public NthIncludedDayTrigger(string name) : this(name, null)
+        {
+        }
+
+        /// <summary> 
+        /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
         /// group but no specified <see cref="JobDetail" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of 
         /// every month at 12:00 PM (<see cref="n" />=1, 

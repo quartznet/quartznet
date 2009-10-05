@@ -80,6 +80,18 @@ namespace Quartz
         }
 
         /// <summary>
+        /// Create a <see cref="JobDetail" /> with the given name, default group, and
+        /// the default settings of all the other properties.
+        /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// If name is null or empty, or the group is an empty string.
+        /// </exception>
+        public JobDetail(string name, Type jobType) : this(name, null, jobType)
+        {
+        }
+
+        /// <summary>
         /// Create a <see cref="JobDetail" /> with the given name, and group, and
         /// the default settings of all the other properties.
         /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
