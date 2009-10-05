@@ -213,6 +213,18 @@ namespace Quartz
 #endif
 		}
 
+        /// <summary>
+        /// Create a <see cref="CronTrigger" /> with the given name and default group.
+        /// </summary>
+        /// <remarks>
+        /// The start-time will also be set to the current time, and the time zone
+        /// will be set the the system's default time zone.
+        /// </remarks>
+        /// <param name="name">The name.</param>
+        public CronTrigger(string name) : this(name, null)
+        {
+        }
+
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with the given name and group.
 		/// </summary>

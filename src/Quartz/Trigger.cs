@@ -443,6 +443,19 @@ namespace Quartz
 		}
 
         /// <summary>
+        /// Create a <see cref="Trigger" /> with the given name, and default group.
+        /// </summary>
+        /// <remarks>
+        /// Note that the <see cref="JobName" /> and <see cref="JobGroup" />
+        /// properties must be set before the <see cref="Trigger" />
+        /// can be placed into a <see cref="IScheduler" />.
+        /// </remarks>
+        /// <param name="name">The name.</param>
+        protected Trigger(string name) : this(name, null)
+        {
+        }
+
+        /// <summary>
         /// Create a <see cref="Trigger" /> with the given name, and group.
         /// </summary>
         /// <remarks>

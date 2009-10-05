@@ -68,6 +68,14 @@ namespace Quartz
 		{
 		}
 
+        /// <summary>
+        /// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
+        /// not repeat.
+        /// </summary>
+        public SimpleTrigger(string name) : this(name, null)
+        {
+        }
+
 		/// <summary>
 		/// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
 		/// not repeat.
@@ -75,6 +83,15 @@ namespace Quartz
 		public SimpleTrigger(string name, string group) : this(name, group, DateTime.UtcNow, null, 0, TimeSpan.Zero)
 		{
 		}
+
+        /// <summary>
+        /// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
+        /// repeat at the the given interval the given number of times.
+        /// </summary>
+        public SimpleTrigger(string name, int repeatCount, TimeSpan repeatInterval)
+            : this(name, null, repeatCount, repeatInterval)
+        {
+        }
 
 		/// <summary>
 		/// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
@@ -85,6 +102,15 @@ namespace Quartz
 		{
 		}
 
+        /// <summary>
+        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
+        /// and not repeat.
+        /// </summary>
+        public SimpleTrigger(string name, DateTime startTimeUtc)
+            : this(name, null, startTimeUtc)
+        {
+        }
+
 		/// <summary>
 		/// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
 		/// and not repeat.
@@ -92,6 +118,24 @@ namespace Quartz
 		public SimpleTrigger(string name, string group, DateTime startTimeUtc) : this(name, group, startTimeUtc, null, 0, TimeSpan.Zero)
 		{
 		}
+
+        /// <summary>
+        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
+        /// and repeat at the the given interval the given number of times, or until
+        /// the given end time.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="startTimeUtc">A UTC <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to fire.</param>
+        /// <param name="endTimeUtc">A UTC <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
+        /// to quit repeat firing.</param>
+        /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
+        /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
+        /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
+        public SimpleTrigger(string name, DateTime startTimeUtc,
+            NullableDateTime endTimeUtc, int repeatCount, TimeSpan repeatInterval)
+            : this(name, null, startTimeUtc, endTimeUtc, repeatCount, repeatInterval)
+        {
+        }
 
         /// <summary>
         /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
