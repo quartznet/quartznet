@@ -3135,18 +3135,18 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
+        protected virtual IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
         {
             return adoUtil.PrepareCommand(cth, commandText);
         }
 
 
-        protected void AddCommandParameter(IDbCommand cmd, int parameterIndex, string paramName, object paramValue)
+        protected virtual void AddCommandParameter(IDbCommand cmd, int parameterIndex, string paramName, object paramValue)
         {
             AddCommandParameter(cmd, parameterIndex, paramName, paramValue, null);
         }
 
-        protected void AddCommandParameter(IDbCommand cmd, int parameterIndex, string paramName, object paramValue,
+        protected virtual void AddCommandParameter(IDbCommand cmd, int parameterIndex, string paramName, object paramValue,
                                            Enum dataType)
         {
             adoUtil.AddCommandParameter(cmd, parameterIndex, paramName, paramValue, dataType);
