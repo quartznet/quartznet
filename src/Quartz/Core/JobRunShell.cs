@@ -415,23 +415,28 @@ namespace Quartz.Core
 		/// <returns></returns>
         public virtual bool CompleteTriggerRetryLoop(Trigger trigger, JobDetail jobDetail, SchedulerInstruction instCode)
 		{
+            long count = 0;
 			while (!shutdownRequested)
-			{
+            { // FIXME: jhouse: note that there is no longer anthing that calls requestShutdown()
 				try
 				{
-					Thread.Sleep(5*1000); // retry every 5 seconds (the db
+                    Thread.Sleep(TimeSpan.FromSeconds(15)); 
+                    // retry every 15 seconds (the db
 					// connection must be failed)
 					qs.NotifyJobStoreJobComplete(schdCtxt, trigger, jobDetail, instCode);
 					return true;
 				}
 				catch (JobPersistenceException jpe)
 				{
+                    if (count % 4 == 0)
 					qs.NotifySchedulerListenersError(
-						string.Format(CultureInfo.InvariantCulture, "An error occured while marking executed job complete. job= '{0}'", jobDetail.FullName), jpe);
+                            "An error occured while marking executed job complete (will continue attempts). job= '"
+                                    + jobDetail.FullName + "'", jpe);
 				}
 				catch (ThreadInterruptedException)
 				{
 				}
+                count++;
 			}
 			return false;
 		}
