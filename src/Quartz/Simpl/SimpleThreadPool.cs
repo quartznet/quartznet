@@ -336,6 +336,16 @@ namespace Quartz.Simpl
             Shutdown(true);
         }
 
+            
+        protected virtual void ClearFromBusyWorkersList(WorkerThread wt) 
+        {
+            lock(nextRunnableLock) 
+            {
+                busyWorkers.Remove(wt);
+                Monitor.PulseAll(nextRunnableLock);
+            }
+        }
+
         /// <summary>
         /// A Worker loops, waiting to Execute tasks.
         /// </summary>
@@ -455,6 +465,7 @@ namespace Quartz.Simpl
                             {
                                 run = false;
                             }
+                            tp.ClearFromBusyWorkersList(this);
                         }
                         else if (ran)
                         {
@@ -472,8 +483,7 @@ namespace Quartz.Simpl
                     }
                 }
 
-                
-                Log.Debug("WorkerThread is shutting down");
+                Log.Debug("WorkerThread is shut down");
             }
         }
     }
