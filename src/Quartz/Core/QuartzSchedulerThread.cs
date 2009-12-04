@@ -322,7 +322,7 @@ namespace Quartz.Core
                                         // on 'synchronize', so we must recompute
                                         now = DateTime.UtcNow;
                                         timeUntilTrigger = triggerTime - now;
-                                        if (timeUntilTrigger.TotalMilliseconds > 1)
+                                        if (timeUntilTrigger.TotalMilliseconds >= 1)
                                         {
                                             Monitor.Wait(sigLock, timeUntilTrigger);
                                         }
