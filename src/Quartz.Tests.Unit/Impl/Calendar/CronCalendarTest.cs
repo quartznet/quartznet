@@ -41,15 +41,13 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         }
 
         [Test]
-        [Ignore("Need to check this with Java team")]
-        public void TestGetNextIncludedTimeWhenBusinessHoursExcluded()
+        public void TestClone()
         {
-            string expr = string.Format("* * 8-17 ? * *");
+            string expr = string.Format("0/15 * * * * ?");
             CronCalendar calendar = new CronCalendar(expr);
-            DateTime tst = new DateTime(2007, 6, 28, 14, 0, 0);
-            Assert.AreEqual(new DateTime(2007, 6, 28, 17, 0, 0), calendar.GetNextIncludedTimeUtc(tst));
+            CronCalendar clone = (CronCalendar) calendar.Clone();
+            Assert.AreEqual(calendar.CronExpression, clone.CronExpression);            
         }
-
-    
+  
     }
 }

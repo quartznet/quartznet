@@ -265,5 +265,12 @@ namespace Quartz.Impl.Calendar
 
             return Equals((AnnualCalendar)obj);
         }
+
+        public override object Clone()
+        {
+            AnnualCalendar copy = (AnnualCalendar) base.Clone();
+            copy.excludeDays = new List<DateTime>(excludeDays);
+            return copy;
+        }
     }
 }

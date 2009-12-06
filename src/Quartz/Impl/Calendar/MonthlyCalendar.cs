@@ -208,7 +208,20 @@ namespace Quartz.Impl.Calendar
 #endif
 		}
 
-        public override int GetHashCode()
+	    /// <summary>
+	    /// Creates a new object that is a copy of the current instance.
+	    /// </summary>
+	    /// <returns>A new object that is a copy of this instance.</returns>
+	    public override object Clone()
+	    {
+            MonthlyCalendar clone = (MonthlyCalendar) base.Clone();
+            bool[] excludeCopy = new bool[excludeDays.Length];
+            Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
+            clone.excludeDays = excludeCopy;
+            return clone;
+	    }
+
+	    public override int GetHashCode()
         {
             int baseHash = 0;
             if (GetBaseCalendar() != null)

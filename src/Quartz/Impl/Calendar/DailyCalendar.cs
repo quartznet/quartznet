@@ -468,6 +468,12 @@ namespace Quartz.Impl.Calendar
             return nextIncludedTime;
         }
 
+        public override object Clone()
+        {
+            DailyCalendar clone = (DailyCalendar) base.Clone();
+            return clone;
+        }
+
 
         /// <summary>
         /// Returns the start time of the time range of the day 

@@ -24,8 +24,6 @@ using System;
 using TimeZone = System.TimeZoneInfo;
 #endif
 
-using Quartz;
-
 namespace Quartz.Impl.Calendar
 {
 	/// <summary>
@@ -204,5 +202,19 @@ namespace Quartz.Impl.Calendar
 			return timeUtc;
 		}
 
+
+	    /// <summary>
+	    /// Creates a new object that is a copy of the current instance.
+	    /// </summary>
+	    /// <returns>A new object that is a copy of this instance.</returns>
+	    public virtual object Clone()
+	    {
+	        BaseCalendar clone = (BaseCalendar) MemberwiseClone();
+            if (baseCalendar != null)
+            {
+                clone.baseCalendar = (ICalendar) baseCalendar.Clone();
+            }
+            return clone;
+	    }
 	}
 }

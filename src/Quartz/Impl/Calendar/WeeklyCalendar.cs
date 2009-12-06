@@ -216,6 +216,15 @@ namespace Quartz.Impl.Calendar
             return d;
         }
 
+        public override object Clone()
+        {
+            WeeklyCalendar clone = (WeeklyCalendar) base.Clone();
+            bool[] excludeCopy = new bool[excludeDays.Length];
+            Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
+            clone.excludeDays = excludeCopy;
+            return clone;
+        }
+
         public override int GetHashCode()
         {
             int baseHash = 0;

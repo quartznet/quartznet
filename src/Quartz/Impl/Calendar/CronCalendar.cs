@@ -136,8 +136,7 @@ namespace Quartz.Impl.Calendar
 				if (cronExpression.IsSatisfiedBy(nextIncludedTime))
 				{
 					nextIncludedTime =
-						cronExpression.GetNextValidTimeAfter(
-							nextIncludedTime).Value;
+						cronExpression.GetNextValidTimeAfter(nextIncludedTime).Value;
 				}
 				else if ((GetBaseCalendar() != null) &&
 				         (!GetBaseCalendar().IsTimeIncluded(nextIncludedTime)))
@@ -154,9 +153,19 @@ namespace Quartz.Impl.Calendar
 			return nextIncludedTime;
 		}
 
+	    /// <summary>
+	    /// Creates a new object that is a copy of the current instance.
+	    /// </summary>
+	    /// <returns>A new object that is a copy of this instance.</returns>
+	    public override object Clone()
+	    {
+            CronCalendar clone = (CronCalendar) base.Clone();
+            clone.cronExpression = (CronExpression) cronExpression.Clone();
+            return clone;
+	    }
 
 
-		/// <summary>
+	    /// <summary>
 		/// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
 		/// </summary>
 		/// <returns>
@@ -214,7 +223,9 @@ namespace Quartz.Impl.Calendar
         {
             int baseHash = 0;
             if (GetBaseCalendar() != null)
+            {
                 baseHash = GetBaseCalendar().GetHashCode();
+            }
 
             return CronExpression.GetHashCode() + 5 * baseHash;
         }
@@ -233,11 +244,10 @@ namespace Quartz.Impl.Calendar
         public override bool Equals(object obj)
         {
             if ((obj == null) || !(obj is CronCalendar))
+            {
                 return false;
-            else
-                return Equals((CronCalendar)obj);
-
+            }
+            return Equals((CronCalendar)obj);
         }
-
 	}
 }

@@ -123,5 +123,18 @@ namespace Quartz.Xml
             }
 			Calendar = ObjectUtils.InstantiateType<ICalendar>(type);
 		}
+
+	    public object Clone()
+	    {
+            try
+            {
+                CalendarBundle clone = (CalendarBundle) MemberwiseClone();
+                return clone;
+            }
+            catch (Exception)
+            {
+                throw new NotSupportedException("Not Cloneable.");
+            }
+	    }
 	}
 }

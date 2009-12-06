@@ -619,6 +619,8 @@ namespace Quartz.Simpl
 		public virtual void StoreCalendar(SchedulingContext ctxt, string name, ICalendar calendar, bool replaceExisting,
 		                                  bool updateTriggers)
 		{
+            calendar = (ICalendar) calendar.Clone();
+
             lock (lockObject)
             {
                 ICalendar obj;
@@ -707,7 +709,11 @@ namespace Quartz.Simpl
             {
                 ICalendar calendar;
                 calendarsByName.TryGetValue(calName, out calendar);
-                return calendar;
+                if (calendar != null)
+                {
+                    return (ICalendar) calendar.Clone();
+                }
+                return null;
             }
 		}
 

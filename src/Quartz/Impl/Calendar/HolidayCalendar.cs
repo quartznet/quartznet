@@ -49,7 +49,7 @@ namespace Quartz.Impl.Calendar
 		}
 
 		// A sorted set to store the holidays
-		private readonly TreeSet<DateTime> dates = new TreeSet<DateTime>();
+		private TreeSet<DateTime> dates = new TreeSet<DateTime>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
@@ -117,7 +117,18 @@ namespace Quartz.Impl.Calendar
 #endif
 		}
 
-		/// <summary>
+	    /// <summary>
+	    /// Creates a new object that is a copy of the current instance.
+	    /// </summary>
+	    /// <returns>A new object that is a copy of this instance.</returns>
+	    public override object Clone()
+	    {
+            HolidayCalendar clone = (HolidayCalendar) base.Clone();
+            clone.dates = new TreeSet<DateTime>(dates);
+            return clone;
+	    }
+
+	    /// <summary>
 		/// Add the given Date to the list of excluded days. Only the month, day and
 		/// year of the returned dates are significant.
 		/// </summary>

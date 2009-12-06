@@ -119,6 +119,7 @@
     </Compile>
     <Compile Include="CronTriggerTest.cs" />
     <Compile Include="DateIntervalTriggerTest.cs" />
+    <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
     <Compile Include="TestUtil.cs" />

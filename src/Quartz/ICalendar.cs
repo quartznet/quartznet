@@ -37,10 +37,13 @@ namespace Quartz
     /// <i>exclude</i> a block of time, as opposed to <i>include</i> 
     /// a block of time. (i.e. the  schedule &quot;fire every five minutes except on Sundays&quot; could be 
     /// implemented with a <see cref="SimpleTrigger" /> and a <see cref="WeeklyCalendar" /> which excludes Sundays)
+    /// <para>
+    /// Implementations MUST take care of being properly cloneable and Serializable.
+    /// </para>
     /// </remarks>
 	/// <author>James House</author>
 	/// <author>Juergen Donnerstag</author>
-	public interface ICalendar
+	public interface ICalendar : ICloneable
 	{
 		/// <summary> 
 		/// Gets or sets a description for the <see cref="ICalendar" /> instance - may be
