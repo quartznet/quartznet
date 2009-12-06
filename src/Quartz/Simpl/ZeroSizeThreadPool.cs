@@ -57,7 +57,7 @@ namespace Quartz.Simpl
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected ILog Log
+        protected virtual ILog Log
         {
             get { return log; }
         }
@@ -66,23 +66,41 @@ namespace Quartz.Simpl
         /// Gets the size of the pool.
         /// </summary>
         /// <value>The size of the pool.</value>
-        public int PoolSize
+        public virtual int PoolSize
         {
             get { return 0; }
+        }
+
+        /// <summary>
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id, 
+        /// prior to initialize being invoked.
+        /// </summary>
+        public virtual string InstanceId
+        {
+            set { }
+        }
+
+        /// <summary>
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name, 
+        /// prior to initialize being invoked.
+        /// </summary>
+        public virtual string InstanceName
+        {
+            set { }
         }
 
         /// <summary>
         /// Called by the QuartzScheduler before the <see cref="ThreadPool"/> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        public void Initialize()
+        public virtual void Initialize()
         {
         }
 
         /// <summary>
         /// Shutdowns this instance.
         /// </summary>
-        public void Shutdown()
+        public virtual void Shutdown()
         {
             Shutdown(true);
         }
@@ -93,7 +111,7 @@ namespace Quartz.Simpl
         /// shutting down.
         /// </summary>
         /// <param name="waitForJobsToComplete"></param>
-        public void Shutdown(bool waitForJobsToComplete)
+        public virtual void Shutdown(bool waitForJobsToComplete)
         {
             Log.Debug("shutdown complete");
         }
@@ -110,7 +128,7 @@ namespace Quartz.Simpl
         /// are no available threads, rather it should either queue the Runnable, or
         /// block until a thread is available, depending on the desired strategy.
         /// </remarks>
-        public bool RunInThread(IThreadRunnable runnable)
+        public virtual bool RunInThread(IThreadRunnable runnable)
         {
             throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are start()ed.");
         }
@@ -128,7 +146,7 @@ namespace Quartz.Simpl
         /// The implementation of this method should block until there is at
         /// least one available thread.
         /// </remarks>
-        public int BlockForAvailableThreads()
+        public virtual int BlockForAvailableThreads()
         {
             throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are start()ed.");
         }

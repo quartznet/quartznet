@@ -505,12 +505,14 @@ namespace Quartz.Spi
         void TriggeredJobComplete(SchedulingContext ctx, Trigger trigger, JobDetail jobDetail, SchedulerInstruction triggerInstCode);
 
         /// <summary>
-        /// Set's this intance's id.
+        /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id, 
+        /// prior to initialize being invoked.
         /// </summary>
 	    string InstanceId { set; }
 
         /// <summary>
-        /// Sets this intance's name.
+        /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name, 
+        /// prior to initialize being invoked.
         /// </summary>
 	    string InstanceName { set; }
 	}

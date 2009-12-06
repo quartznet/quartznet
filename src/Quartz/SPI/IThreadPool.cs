@@ -44,12 +44,6 @@ namespace Quartz.Spi
     public interface IThreadPool
     {
         /// <summary>
-        /// Gets the size of the pool.
-        /// </summary>
-        /// <value>The size of the pool.</value>
-        int PoolSize { get; }
-
-        /// <summary>
         /// Execute the given <see cref="IThreadRunnable" /> in the next
         /// available <see cref="Thread" />.
         /// </summary>
@@ -86,5 +80,22 @@ namespace Quartz.Spi
         /// shutting down.
         /// </summary>
         void Shutdown(bool waitForJobsToComplete);
+
+        /// <summary>
+        /// Get the current number of threads in the <see cref="IThreadPool" />.
+        /// </summary>
+        int PoolSize { get; }
+
+        /// <summary>
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id, 
+        /// prior to initialize being invoked.
+        /// </summary>
+        string InstanceId { set; }
+
+        /// <summary>
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name, 
+        /// prior to initialize being invoked.
+        /// </summary>
+        string InstanceName { set; }
     }
 }

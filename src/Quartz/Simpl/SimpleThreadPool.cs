@@ -33,16 +33,14 @@ namespace Quartz.Simpl
     /// <summary>
     /// This is class is a simple implementation of a thread pool, based on the
     /// <see cref="IThreadPool" /> interface.
-    /// <p>
+    /// </summary>
+    /// <remarks>
     /// <see cref="IThreadRunnable" /> objects are sent to the pool with the <see cref="RunInThread" />
     /// method, which blocks until a <see cref="Thread" /> becomes available.
-    /// </p>
     /// 
-    /// <p>
     /// The pool has a fixed number of <see cref="Thread" />s, and does not grow or
     /// shrink based on demand.
-    /// </p>
-    /// </summary>
+    /// </remarks>
     /// <author>James House</author>
     /// <author>Juergen Donnerstag</author>
     public class SimpleThreadPool : IThreadPool
@@ -59,7 +57,8 @@ namespace Quartz.Simpl
         private bool isShutdown;
         private bool makeThreadsDaemons;
         private ThreadPriority prio = ThreadPriority.Normal;
-        private string threadNamePrefix = "SimpleThreadPoolWorker";
+        private string threadNamePrefix;
+        private string schedulerInstanceName;
 
         private IList<WorkerThread> workers;
 
@@ -114,7 +113,14 @@ namespace Quartz.Simpl
         /// <value>The thread name prefix.</value>
         public virtual string ThreadNamePrefix
         {
-            get { return threadNamePrefix; }
+            get
+            {
+                if (threadNamePrefix == null)
+                {
+                    threadNamePrefix = schedulerInstanceName + "-SimpleThreadPoolWorker";
+                } 
+                return threadNamePrefix;
+            }
             set { threadNamePrefix = value; }
         }
 
@@ -136,6 +142,24 @@ namespace Quartz.Simpl
         public virtual int PoolSize
         {
             get { return ThreadCount; }
+        }
+
+        /// <summary>
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id, 
+        /// prior to initialize being invoked.
+        /// </summary>
+        public string InstanceId
+        {
+            set { }
+        }
+
+        /// <summary>
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name, 
+        /// prior to initialize being invoked.
+        /// </summary>
+        public string InstanceName
+        {
+            set { }
         }
 
         /// <summary>

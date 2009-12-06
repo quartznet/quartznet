@@ -1503,7 +1503,8 @@ namespace Quartz.Simpl
 		}
 
 	    /// <summary>
-	    /// Set's this intance's id.
+	    /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id, 
+	    /// prior to initialize being invoked.
 	    /// </summary>
 	    public string InstanceId
 	    {
@@ -1511,7 +1512,8 @@ namespace Quartz.Simpl
 	    }
 
 	    /// <summary>
-	    /// Sets this intance's name.
+	    /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name, 
+	    /// prior to initialize being invoked.
 	    /// </summary>
 	    public string InstanceName
 	    {
