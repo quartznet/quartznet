@@ -244,8 +244,7 @@ namespace Quartz.Impl
 			qrs.Name = schedulerName;
 			qrs.InstanceId = schedulerInstanceId;
 
-            threadPool.InstanceId = schedulerInstanceId;
-            threadPool.InstanceName = schedulerName;
+            SchedulerDetailsSetter.SetDetails(threadPool, schedulerName, schedulerInstanceId);
 
 			qrs.JobRunShellFactory = jrsf;
 			qrs.ThreadPool = threadPool;
@@ -266,9 +265,8 @@ namespace Quartz.Impl
             ITypeLoadHelper cch = new SimpleTypeLoadHelper();
 			cch.Initialize();
 
-            jobStore.InstanceId = schedulerInstanceId;
-            jobStore.InstanceName = schedulerName;
-			jobStore.Initialize(cch, qs.SchedulerSignaler);
+            SchedulerDetailsSetter.SetDetails(jobStore, schedulerName, schedulerInstanceId);
+            jobStore.Initialize(cch, qs.SchedulerSignaler);
 
 			IScheduler scheduler = new StdScheduler(qs, schedCtxt);
 

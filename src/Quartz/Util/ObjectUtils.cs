@@ -124,49 +124,52 @@ namespace Quartz.Util
 		{
             // remove the type
 			props.Remove("type");
-			Type t = obj.GetType();
 
-			foreach (string name in props.Keys)
+            foreach (string name in props.Keys)
 			{
 				string propertyName = name.Substring(0, 1).ToUpper(CultureInfo.InvariantCulture) + name.Substring(1);
 
-				PropertyInfo pi = t.GetProperty(propertyName);
-
 				try
 				{
-					if (pi == null)
-					{
-						throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "No property '{0}'", propertyName));
-					}
-					
-					MethodInfo mi = pi.GetSetMethod();
-
-                    if (mi == null)
-                    {
-                        throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "Property '{0}' has no setter", propertyName));
-                    }
-
 					object value = props[name];
-
-				    if (mi.GetParameters()[0].ParameterType == typeof(TimeSpan))
-				    {
-				        // special handling
-				        value = GetTimeSpanValueForProperty(pi, value);
-				    }
-				    else
-                    {
-                        value = ConvertValueIfNecessary(mi.GetParameters()[0].ParameterType, value);
-                    }
-
-					mi.Invoke(obj, new object[] {value});
-
+                    SetPropertyValue(obj, propertyName, value);
 				}
 				catch (Exception nfe)
 				{
 					throw new SchedulerConfigException(string.Format(CultureInfo.InvariantCulture, "Could not parse property '{0}' into correct data type: {1}", name, nfe.Message    ), nfe);
 				}
 			}
+		}
+
+        public static void SetPropertyValue(object target, string propertyName, object value)
+        {
+            Type t = target.GetType();				
+
+            PropertyInfo pi = t.GetProperty(propertyName);
+
+			if (pi == null)
+			{
+				throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "No property '{0}'", propertyName));
+			}
 			
+			MethodInfo mi = pi.GetSetMethod();
+
+            if (mi == null)
+            {
+                throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "Property '{0}' has no setter", propertyName));
+            }
+
+		    if (mi.GetParameters()[0].ParameterType == typeof(TimeSpan))
+		    {
+		        // special handling
+		        value = GetTimeSpanValueForProperty(pi, value);
+		    }
+		    else
+            {
+                value = ConvertValueIfNecessary(mi.GetParameters()[0].ParameterType, value);
+            }
+
+            mi.Invoke(target, new object[] { value });
 		}
 
 	    public static TimeSpan GetTimeSpanValueForProperty(PropertyInfo pi, object value)

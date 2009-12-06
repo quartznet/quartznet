@@ -29,6 +29,8 @@ namespace Quartz.Tests.Unit
 	[TestFixture]
 	public class PriorityTest
 	{
+        // TODO rev 991 from terracotta not ported
+
 		private static StringBuilder result;
 
         [SetUp]
@@ -65,6 +67,7 @@ namespace Quartz.Tests.Unit
 			sched.Shutdown();
 		}
 
+        [Test]
 		public void TestDifferentPriority()
 		{
 			IScheduler sched = new StdSchedulerFactory().GetScheduler();

@@ -210,9 +210,9 @@ namespace Quartz.Impl.Calendar
 	    public virtual object Clone()
 	    {
 	        BaseCalendar clone = (BaseCalendar) MemberwiseClone();
-            if (baseCalendar != null)
+            if (GetBaseCalendar() != null)
             {
-                clone.baseCalendar = (ICalendar) baseCalendar.Clone();
+                clone.baseCalendar = (ICalendar) GetBaseCalendar().Clone();
             }
             return clone;
 	    }

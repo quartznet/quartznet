@@ -592,8 +592,7 @@ Please add configuration to your application config file to correctly initialize
             }
 
 
-            js.InstanceId = schedInstId;
-            js.InstanceName = schedName;
+            SchedulerDetailsSetter.SetDetails(js, schedName, schedInstId);
 
             tProps =
                 cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new string[] {PropertyJobStoreLockHandlerPrefix});
@@ -904,8 +903,7 @@ Please add configuration to your application config file to correctly initialize
 
             rsrcs.SchedulerExporter = exporter;
 
-            tp.InstanceId = schedInstId;
-            tp.InstanceName = schedName;
+            SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId);
 
             rsrcs.ThreadPool = tp;
 
