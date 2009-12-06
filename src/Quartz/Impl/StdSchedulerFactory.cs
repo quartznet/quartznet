@@ -901,8 +901,13 @@ Please add configuration to your application config file to correctly initialize
             rsrcs.InstanceId = schedInstId;
             rsrcs.JobRunShellFactory = jrsf;
             rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
-            rsrcs.ThreadPool = tp;
+
             rsrcs.SchedulerExporter = exporter;
+
+            tp.InstanceId = schedInstId;
+            tp.InstanceName = schedName;
+
+            rsrcs.ThreadPool = tp;
 
             if (tp is SimpleThreadPool)
             {

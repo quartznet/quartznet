@@ -108,9 +108,6 @@ namespace Quartz.Impl
 			get { return SchedulerRepository.Instance.LookupAll(); }
 		}
 
-
-
-
         /// <summary>
         /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
         /// </summary>
@@ -246,6 +243,10 @@ namespace Quartz.Impl
 
 			qrs.Name = schedulerName;
 			qrs.InstanceId = schedulerInstanceId;
+
+            threadPool.InstanceId = schedulerInstanceId;
+            threadPool.InstanceName = schedulerName;
+
 			qrs.JobRunShellFactory = jrsf;
 			qrs.ThreadPool = threadPool;
 			qrs.JobStore = jobStore;
