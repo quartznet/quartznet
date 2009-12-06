@@ -1071,17 +1071,6 @@ namespace Quartz.Impl
 			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual bool RemoveGlobalJobListener(IJobListener jobListener)
-		{
-			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
-		}
-
         /// <summary>
         /// Remove the identifed <see cref="IJobListener"/> from the <see cref="IScheduler"/>'s
         /// list of <i>global</i> listeners.
@@ -1130,15 +1119,6 @@ namespace Quartz.Impl
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void AddTriggerListener(ITriggerListener triggerListener)
-		{
-			throw new SchedulerException("Operation not supported for remote schedulers.",
-			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);
-		}
-
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-		public virtual bool RemoveGlobalTriggerListener(ITriggerListener triggerListener)
 		{
 			throw new SchedulerException("Operation not supported for remote schedulers.",
 			                             SchedulerException.ErrorUnsupportedFunctionInThisConfiguration);

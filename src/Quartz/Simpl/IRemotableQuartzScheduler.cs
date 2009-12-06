@@ -132,8 +132,6 @@ namespace Quartz.Simpl
 
 		void AddJobListener(IJobListener jobListener);
 
-		bool RemoveGlobalJobListener(IJobListener jobListener);
-
 		bool RemoveJobListener(string name);
 
 		IJobListener GetJobListener(string name);
@@ -141,8 +139,6 @@ namespace Quartz.Simpl
 		void AddGlobalTriggerListener(ITriggerListener triggerListener);
 
 		void AddTriggerListener(ITriggerListener triggerListener);
-
-		bool RemoveGlobalTriggerListener(ITriggerListener triggerListener);
 
 		bool RemoveTriggerListener(string name);
 

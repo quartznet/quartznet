@@ -180,7 +180,7 @@ namespace Quartz.Examples.Example2
 
 			// display some stats about the schedule that just ran
 			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info(string.Format("Executed {0} jobs.", metaData.NumJobsExecuted));
+			log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
 		}
 	}
 }

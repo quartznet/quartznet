@@ -53,7 +53,6 @@ namespace Quartz.Core
         private readonly ILog Log;
         private static readonly FileVersionInfo versionInfo;
 
-
         private readonly QuartzSchedulerResources resources;
 
         private readonly QuartzSchedulerThread schedThread;
@@ -1370,19 +1369,6 @@ namespace Quartz.Core
             }
         }
 
-        /// <summary> 
-        /// Remove the given <see cref="IJobListener" /> from the
-        /// <see cref="IScheduler" />'s list of <i>global</i> listeners.
-        /// </summary>
-        /// <returns> 
-        /// true if the identifed listener was found in the list, and removed.
-        /// </returns>
-        public virtual bool RemoveGlobalJobListener(IJobListener jobListener)
-        {
-            return RemoveGlobalJobListener((jobListener == null) ? null : jobListener.Name);
-        }
-
-
         /// <summary>
         /// Remove the identifed <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
         /// list of <i>global</i> listeners. 
@@ -1471,18 +1457,6 @@ namespace Quartz.Core
             {
                 triggerListeners[triggerListener.Name] = triggerListener;
             }
-        }
-
-        /// <summary> 
-        /// Remove the given <see cref="ITriggerListener" /> from
-        /// the <see cref="IScheduler" />'s list of <i>global</i> listeners.
-        /// </summary>
-        /// <returns> 
-        /// true if the identifed listener was found in the list, and removed.
-        /// </returns>
-        public virtual bool RemoveGlobalTriggerListener(ITriggerListener triggerListener)
-        {
-            return RemoveGlobalTriggerListener((triggerListener == null) ? null : triggerListener.Name);
         }
 
         /// <summary>

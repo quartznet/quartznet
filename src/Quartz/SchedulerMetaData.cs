@@ -42,7 +42,7 @@ namespace Quartz
 		private readonly bool isInStandbyMode;
 		private readonly bool shutdown;
         private readonly DateTime? startTime;
-        private readonly int numJobsExec;
+        private readonly int numberOfJobsExec;
 		private readonly Type jsType;
 		private readonly bool jsPersistent;
 		private readonly Type tpType;
@@ -60,7 +60,7 @@ namespace Quartz
 		/// <param name="isInStandbyMode">if set to <c>true</c>, scheduler is in standby mode.</param>
 		/// <param name="shutdown">if set to <c>true</c>, scheduler is shutdown.</param>
 		/// <param name="startTime">The start time.</param>
-		/// <param name="numJobsExec">The number of jobs executed.</param>
+		/// <param name="numberOfJobsExec">The number of jobs executed.</param>
 		/// <param name="jsType">The job store type.</param>
 		/// <param name="jsPersistent">if set to <c>true</c>, job store is persistent.</param>
 		/// <param name="tpType">The thread pool type.</param>
@@ -69,7 +69,7 @@ namespace Quartz
 		public SchedulerMetaData(string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
 			bool shutdown,
             DateTime? startTime, 
-            int numJobsExec, Type jsType, bool jsPersistent,
+            int numberOfJobsExec, Type jsType, bool jsPersistent,
 			Type tpType, int tpSize, string version)
 		{
 			this.schedName = schedName;
@@ -80,7 +80,7 @@ namespace Quartz
 			this.isInStandbyMode = isInStandbyMode;
 			this.shutdown = shutdown;
 			this.startTime = startTime;
-			this.numJobsExec = numJobsExec;
+			this.numberOfJobsExec = numberOfJobsExec;
 			this.jsType = jsType;
 			this.jsPersistent = jsPersistent;
 			this.tpType = tpType;
@@ -252,7 +252,7 @@ namespace Quartz
 			str.Append("\n");
 
 			str.Append("  Number of jobs executed: ");
-			str.Append(NumJobsExecuted);
+			str.Append(NumberOfJobsExecuted);
 			str.Append("\n");
 
 			str.Append("  Using thread pool '");
@@ -292,9 +292,9 @@ namespace Quartz
 		/// Returns the number of jobs executed since the <see cref="IScheduler" />
 		/// started..
 		/// </summary>
-		public virtual int NumJobsExecuted
+		public virtual int NumberOfJobsExecuted
 		{
-			get { return numJobsExec; }
+			get { return numberOfJobsExec; }
 		}
 
 		/// <summary>

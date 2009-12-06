@@ -90,7 +90,7 @@ namespace Quartz.Examples.Example6
 			log.Info("------- Shutdown Complete -----------------");
 			
 			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info(string.Format("Executed {0} jobs.", metaData.NumJobsExecuted));
+			log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
 		}
 
 		public string Name
