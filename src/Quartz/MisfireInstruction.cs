@@ -153,6 +153,29 @@ namespace Quartz
             public const int DoNothing = 2;
 
         }
+
+        /// <summary>
+        /// Misfire instructions for DateIntervalTrigger
+        /// </summary>
+        public struct DateIntervalTrigger
+        {
+            /// <summary>
+            /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+            /// situation, the <see cref="Quartz.DateIntervalTrigger" /> wants to be 
+            /// fired now by <see cref="IScheduler" />.
+            /// </summary>
+            public const int FireOnceNow = 1;
+
+            /// <summary>
+            /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
+            /// situation, the <see cref="Quartz.DateIntervalTrigger" /> wants to have it's
+            /// next-fire-time updated to the next time in the schedule after the
+            /// current time (taking into account any associated <see cref="ICalendar" />,
+            /// but it does not want to be fired now.
+            /// </summary>
+            public const int DoNothing = 2;
+
+        }
     }
 
 }
