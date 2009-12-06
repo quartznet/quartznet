@@ -1502,7 +1502,23 @@ namespace Quartz.Simpl
 			}
 		}
 
-		/// <summary>
+	    /// <summary>
+	    /// Set's this intance's id.
+	    /// </summary>
+	    public string InstanceId
+	    {
+	        set {  }
+	    }
+
+	    /// <summary>
+	    /// Sets this intance's name.
+	    /// </summary>
+	    public string InstanceName
+	    {
+	        set {  }
+	    }
+
+	    /// <summary>
 		/// Sets the state of all triggers of job to specified state.
 		/// </summary>
 		/// <param name="jobName">Name of the job.</param>

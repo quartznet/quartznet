@@ -503,5 +503,15 @@ namespace Quartz.Spi
 		/// is stateful.
 		/// </summary>
         void TriggeredJobComplete(SchedulingContext ctx, Trigger trigger, JobDetail jobDetail, SchedulerInstruction triggerInstCode);
+
+        /// <summary>
+        /// Set's this intance's id.
+        /// </summary>
+	    string InstanceId { set; }
+
+        /// <summary>
+        /// Sets this intance's name.
+        /// </summary>
+	    string InstanceName { set; }
 	}
 }

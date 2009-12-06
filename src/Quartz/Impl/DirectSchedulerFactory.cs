@@ -265,6 +265,8 @@ namespace Quartz.Impl
             ITypeLoadHelper cch = new SimpleTypeLoadHelper();
 			cch.Initialize();
 
+            jobStore.InstanceId = schedulerInstanceId;
+            jobStore.InstanceName = schedulerName;
 			jobStore.Initialize(cch, qs.SchedulerSignaler);
 
 			IScheduler scheduler = new StdScheduler(qs, schedCtxt);

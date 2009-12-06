@@ -590,7 +590,11 @@ Please add configuration to your application config file to correctly initialize
                 initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                 throw initException;
             }
-            
+
+
+            js.InstanceId = schedInstId;
+            js.InstanceName = schedName;
+
             tProps =
                 cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new string[] {PropertyJobStoreLockHandlerPrefix});
             
@@ -607,12 +611,8 @@ Please add configuration to your application config file to correctly initialize
                 throw initException;
             }
 
-
             if (js is JobStoreSupport)
             {
-                ((JobStoreSupport) js).InstanceId = schedInstId;
-                ((JobStoreSupport) js).InstanceName = schedName;
-
                 // Install custom lock handler (Semaphore)
                 string lockHandlerTypeName = cfg.GetStringProperty(PropertyJobStoreLockHandlerType);
                 if (lockHandlerTypeName != null)
