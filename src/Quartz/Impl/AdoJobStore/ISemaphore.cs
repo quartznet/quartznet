@@ -1,23 +1,21 @@
- /* 
-* Copyright 2004-2005 OpenSymphony 
-* 
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not 
-* use this file except in compliance with the License. You may obtain a copy 
-* of the License at 
-* 
-*   http://www.apache.org/licenses/LICENSE-2.0 
-*   
-* Unless required by applicable law or agreed to in writing, software 
-* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
-* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
-* License for the specific language governing permissions and limitations 
-* under the License.
-* 
-*/
-
-/*
-* Previously Copyright (c) 2001-2004 James House
-*/
+#region License
+/* 
+ * Copyright 2001-2009 Terracotta, Inc. 
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+ * use this file except in compliance with the License. You may obtain a copy 
+ * of the License at 
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0 
+ *   
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+ * License for the specific language governing permissions and limitations 
+ * under the License.
+ * 
+ */
+#endregion
 
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -28,6 +26,7 @@ namespace Quartz.Impl.AdoJobStore
 	/// resources from being altered by multiple threads at the same time.
 	/// </summary>
 	/// <author>James House</author>
+	/// <author>Marko Lahma (.NET)</author>
 	public interface ISemaphore
 	{
 		/// <summary> 
@@ -56,9 +55,6 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="IsLockOwner" />
         /// <seealso cref="ObtainLock" />
         /// <seealso cref="ReleaseLock" />
-        bool RequiresConnection
-        { 
-            get;
-        }
+        bool RequiresConnection {  get; }
 	}
 }

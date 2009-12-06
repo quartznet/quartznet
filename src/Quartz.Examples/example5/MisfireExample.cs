@@ -1,30 +1,33 @@
+#region License
 /* 
-* Copyright 2007 OpenSymphony 
-* 
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not 
-* use this file except in compliance with the License. You may obtain a copy 
-* of the License at 
-* 
-*   http://www.apache.org/licenses/LICENSE-2.0 
-*   
-* Unless required by applicable law or agreed to in writing, software 
-* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
-* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
-* License for the specific language governing permissions and limitations 
-* under the License.
-* 
-*/
+ * Copyright 2001-2009 Terracotta, Inc. 
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+ * use this file except in compliance with the License. You may obtain a copy 
+ * of the License at 
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0 
+ *   
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+ * License for the specific language governing permissions and limitations 
+ * under the License.
+ * 
+ */
+#endregion
+
 using System;
 using System.Threading;
 using Common.Logging;
-using Quartz;
-using Quartz.Examples;
+
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example5
 {
 	
-	/// <summary> Demonstrates the behavior of <see cref="IStatefulJob" />s, as well as how
+	/// <summary> 
+	/// Demonstrates the behavior of <see cref="IStatefulJob" />s, as well as how
 	/// misfire instructions affect the firings of triggers of <see cref="IStatefulJob" />
 	/// s - when the jobs take longer to execute that the frequency of the trigger's
 	/// repitition.
@@ -45,9 +48,9 @@ namespace Quartz.Examples.Example5
 	/// </p>
 	/// 
 	/// </summary>
-	/// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a>
-	/// </author>
-	public class MisfireExample : IExample
+	/// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
+    /// <author>Marko Lahma (.NET)</author>
+    public class MisfireExample : IExample
 	{
 		public string Name
 		{
@@ -76,7 +79,7 @@ namespace Quartz.Examples.Example5
 			// statefulJob1 will run every three seconds
 			// (but it will delay for ten seconds)
 			JobDetail job = new JobDetail("statefulJob1", "group1", typeof(StatefulDumbJob));
-			job.JobDataMap.Put(MisfireJob.EXECUTION_DELAY, 10);
+			job.JobDataMap.Put(MisfireJob.ExecutionDelay, 10);
 			
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
 			DateTime ft = sched.ScheduleJob(job, trigger);
@@ -85,7 +88,7 @@ namespace Quartz.Examples.Example5
 			// statefulJob2 will run every three seconds
 			// (but it will delay for ten seconds)
 			job = new JobDetail("statefulJob2", "group1", typeof(StatefulDumbJob));
-			job.JobDataMap.Put(MisfireJob.EXECUTION_DELAY, 10);
+			job.JobDataMap.Put(MisfireJob.ExecutionDelay, 10);
 
 			trigger = new SimpleTrigger("trigger2", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
             trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;

@@ -1,5 +1,4 @@
 #region License
-
 /* 
  * Copyright 2001-2009 Terracotta, Inc. 
  * 
@@ -16,7 +15,6 @@
  * under the License.
  * 
  */
-
 #endregion
 
 using System;

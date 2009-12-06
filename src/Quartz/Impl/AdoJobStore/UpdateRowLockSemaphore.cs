@@ -1,3 +1,22 @@
+#region License
+/* 
+ * Copyright 2001-2009 Terracotta, Inc. 
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+ * use this file except in compliance with the License. You may obtain a copy 
+ * of the License at 
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0 
+ *   
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+ * License for the specific language governing permissions and limitations 
+ * under the License.
+ * 
+ */
+#endregion
+
 using System;
 using System.Data;
 using System.Globalization;
@@ -15,12 +34,12 @@ namespace Quartz.Impl.AdoJobStore
     /// not support row locking via "SELECT FOR UPDATE" type syntax, for example
     /// Microsoft SQLServer (MSSQL).
     /// </remarks>
+    /// <author>Marko Lahma (.NET)</author>
     public class UpdateLockRowSemaphore : DBSemaphore
     {
         public static readonly string SqlUpdateForLock =
             string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = {3} WHERE {4} = @lockName", TablePrefixSubst, TableLocks, ColumnLockName,
                           ColumnLockName, ColumnLockName);
-
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UpdateLockRowSemaphore"/> class.
@@ -29,8 +48,7 @@ namespace Quartz.Impl.AdoJobStore
             : base(DefaultTablePrefix, null, SqlUpdateForLock, provider)
         {
         }
-
-
+        
         /// <summary>
         /// Execute the SQL that will lock the proper database row.
         /// </summary>

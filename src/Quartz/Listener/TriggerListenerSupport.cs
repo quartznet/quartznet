@@ -1,5 +1,6 @@
+#region License
 /* 
- * Copyright 2004-2006 OpenSymphony 
+ * Copyright 2001-2009 Terracotta, Inc. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -12,7 +13,9 @@
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
  * License for the specific language governing permissions and limitations 
  * under the License.
+ * 
  */
+#endregion
 
 using Common.Logging;
 
@@ -34,6 +37,7 @@ namespace Quartz.Listener
     /// to return the unique name of your <see cref="ITriggerListener" />.  
     /// </p>
     ///</remarks>
+    /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="ITriggerListener" />
     public abstract class TriggerListenerSupport : ITriggerListener
     {

@@ -1,29 +1,30 @@
+#region License
 /* 
-* Copyright 2007 OpenSymphony 
-* 
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not 
-* use this file except in compliance with the License. You may obtain a copy 
-* of the License at 
-* 
-*   http://www.apache.org/licenses/LICENSE-2.0 
-*   
-* Unless required by applicable law or agreed to in writing, software 
-* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
-* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
-* License for the specific language governing permissions and limitations 
-* under the License.
-* 
-*/
+ * Copyright 2001-2009 Terracotta, Inc. 
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+ * use this file except in compliance with the License. You may obtain a copy 
+ * of the License at 
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0 
+ *   
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+ * License for the specific language governing permissions and limitations 
+ * under the License.
+ * 
+ */
+#endregion
+
 using System;
 using System.Threading;
 using Common.Logging;
-using Quartz;
-using Quartz.Examples;
+
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example7
 {
-	
 	/// <summary>
 	/// Demonstrates the behavior of <see cref="IStatefulJob" />s, as well as how
 	/// misfire instructions affect the firings of triggers of <see cref="IStatefulJob" />
@@ -46,15 +47,14 @@ namespace Quartz.Examples.Example7
 	/// </p>
 	/// </summary>
 	/// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
-	public class InterruptExample : IExample
+    /// <author>Marko Lahma (.NET)</author>
+    public class InterruptExample : IExample
 	{
 		private static readonly ILog log = LogManager.GetLogger(typeof(InterruptExample));
-		public string Name
+		
+        public string Name
 		{
-			get 
-			{ 
-				return GetType().Name;
-			}
+			get  {  return GetType().Name; }
 		}
 
 		public virtual void Run()

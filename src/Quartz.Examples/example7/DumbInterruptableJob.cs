@@ -1,23 +1,25 @@
+#region License
 /* 
-* Copyright 2007 OpenSymphony 
-* 
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not 
-* use this file except in compliance with the License. You may obtain a copy 
-* of the License at 
-* 
-*   http://www.apache.org/licenses/LICENSE-2.0 
-*   
-* Unless required by applicable law or agreed to in writing, software 
-* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
-* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
-* License for the specific language governing permissions and limitations 
-* under the License.
-* 
-*/
+ * Copyright 2001-2009 Terracotta, Inc. 
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+ * use this file except in compliance with the License. You may obtain a copy 
+ * of the License at 
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0 
+ *   
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+ * License for the specific language governing permissions and limitations 
+ * under the License.
+ * 
+ */
+#endregion
+
 using System;
 using System.Threading;
 using Common.Logging;
-using Quartz;
 
 namespace Quartz.Examples.Example7
 {
@@ -26,16 +28,15 @@ namespace Quartz.Examples.Example7
 	/// </summary>
 	/// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	/// <author>Bill Kratzer</author>
-	public class DumbInterruptableJob : IInterruptableJob
+    /// <author>Marko Lahma (.NET)</author>
+    public class DumbInterruptableJob : IInterruptableJob
 	{
-		
 		// logging services
-		private static ILog _log = LogManager.GetLogger(typeof(DumbInterruptableJob));
+		private static readonly ILog log = LogManager.GetLogger(typeof(DumbInterruptableJob));
 		// has the job been interrupted?
-		private bool _interrupted = false;
+		private bool interrupted;
 		// job name 
-		private string _jobName = "";
-		
+		private string jobName = "";
 		
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
@@ -43,8 +44,8 @@ namespace Quartz.Examples.Example7
 		/// </summary>
 		public virtual void  Execute(JobExecutionContext context)
 		{
-			_jobName = context.JobDetail.FullName;
-			_log.Info(string.Format("---- {0} executing at {1}", _jobName, DateTime.Now.ToString("r")));
+			jobName = context.JobDetail.FullName;
+			log.Info(string.Format("---- {0} executing at {1}", jobName, DateTime.Now.ToString("r")));
 			
 			try
 			{
@@ -63,9 +64,9 @@ namespace Quartz.Examples.Example7
 					}
 					
 					// periodically check if we've been interrupted...
-					if (_interrupted)
+					if (interrupted)
 					{
-						_log.Info(string.Format("--- {0}  -- Interrupted... bailing out!", _jobName));
+						log.Info(string.Format("--- {0}  -- Interrupted... bailing out!", jobName));
 						return ; // could also choose to throw a JobExecutionException 
 						// if that made for sense based on the particular  
 						// job's responsibilities/behaviors
@@ -74,7 +75,7 @@ namespace Quartz.Examples.Example7
 			}
 			finally
 			{
-				_log.Info(string.Format("---- {0} completed at {1}", _jobName, DateTime.Now.ToString("r")));
+				log.Info(string.Format("---- {0} completed at {1}", jobName, DateTime.Now.ToString("r")));
 			}
 		}
 		
@@ -84,8 +85,8 @@ namespace Quartz.Examples.Example7
 		/// </summary>
 		public virtual void  Interrupt()
 		{
-			_log.Info("---  -- INTERRUPTING --");
-			_interrupted = true;
+			log.Info("---  -- INTERRUPTING --");
+			interrupted = true;
 		}
 
 	}

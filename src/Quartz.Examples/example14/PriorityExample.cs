@@ -1,5 +1,6 @@
+#region License
 /* 
- * Copyright 2006 OpenSymphony 
+ * Copyright 2001-2009 Terracotta, Inc. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -14,6 +15,7 @@
  * under the License.
  * 
  */
+#endregion
 
 using System;
 using System.Collections.Specialized;
@@ -28,6 +30,7 @@ namespace Quartz.Examples.Example14
     /// <summary>
     /// This Example will demonstrate how Triggers are ordered by priority.
     /// </summary>
+    /// <author>Marko Lahma (.NET)</author>
     public class PriorityExample : IExample
     {
         #region IExample Members

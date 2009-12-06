@@ -28,6 +28,7 @@ namespace Quartz.Tests.Unit
     /// <summary>
     /// Unit tests for DateIntervalTrigger.
     /// </summary>
+    /// <author>Marko Lahma (.NET)</author>
     [TestFixture]
     public class DateIntervalTriggerTest
     {

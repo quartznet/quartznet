@@ -1,5 +1,6 @@
+#region License
 /* 
- * Copyright 2006 OpenSymphony 
+ * Copyright 2001-2009 Terracotta, Inc. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -14,8 +15,8 @@
  * under the License.
  * 
  */
+#endregion
 
-using System;
 using System.Collections.Specialized;
 using System.Threading;
 
@@ -29,10 +30,9 @@ namespace Quartz.Examples.example15
     /// This Example will demonstrate how configuration can be
     /// done using an XML file.
     /// </summary>
+    /// <author>Marko Lahma (.NET)</author>
     public class XmlConfigurationExample : IExample
     {
-        #region IExample Members
-
         public string Name
         {
             get { return GetType().Name; }
@@ -88,7 +88,5 @@ namespace Quartz.Examples.example15
             sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
         }
-
-        #endregion
     }
 }

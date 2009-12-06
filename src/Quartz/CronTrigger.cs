@@ -1,5 +1,6 @@
+#region License
 /* 
- * Copyright 2004-2005 OpenSymphony 
+ * Copyright 2001-2009 Terracotta, Inc. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -14,10 +15,7 @@
  * under the License.
  * 
  */
-
-/*
- * Previously Copyright (c) 2001-2004 James House
- */
+#endregion
 
 
 using System;
@@ -179,6 +177,7 @@ namespace Quartz
 	/// <author>Sharada Jambula</author>
 	/// <author>James House</author>
 	/// <author>Contributions from Mads Henderson</author>
+    /// <author>Marko Lahma (.NET)</author>
     [Serializable]
 	public class CronTrigger : Trigger
 	{

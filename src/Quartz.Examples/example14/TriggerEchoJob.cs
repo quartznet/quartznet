@@ -1,5 +1,6 @@
+#region License
 /* 
- * Copyright 2006 OpenSymphony 
+ * Copyright 2001-2009 Terracotta, Inc. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -14,6 +15,8 @@
  * under the License.
  * 
  */
+#endregion
+
 using Common.Logging;
 
 namespace Quartz.Examples.Example14
@@ -22,6 +25,7 @@ namespace Quartz.Examples.Example14
     /// This is just a simple job that echos the name of the Trigger
     /// that fired it.
     /// </summary>
+    /// <author>Marko Lahma (.NET)</author>
     public class TriggerEchoJob : IJob
     {
         private static readonly ILog LOG = LogManager.GetLogger(typeof (TriggerEchoJob));

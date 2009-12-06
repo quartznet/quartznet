@@ -388,7 +388,7 @@
           <property name="DocumentPrivates" value="False" />
           <property name="DocumentEmptyNamespaces" value="False" />
           <property name="IncludeAssemblyVersion" value="True" />
-          <property name="CopyrightText" value="Copyright OpenSymphony 2006-2007" />
+          <property name="CopyrightText" value="Copyright 2001-2009 Terracotta Inc. and partially Marko Lahma" />
           <property name="CopyrightHref" value="" />
         </documenter>
       </documenters>

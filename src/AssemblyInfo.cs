@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("Quarz.NET 1.2")]
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
 [assembly : AssemblyCompany("http://quartznet.sourceforge.net/")]
-[assembly : AssemblyCopyright("Copyright 2007-2008 OpenSymphony")]
+[assembly : AssemblyCopyright("Copyright 2001-2009 Terracotta Inc. and partially Marko Lahma")]
 [assembly:  AssemblyTrademark("Apache License, Version 2.0")]
 [assembly : AssemblyCulture("")]
 [assembly: CLSCompliant(true)]
