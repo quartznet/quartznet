@@ -182,7 +182,7 @@ namespace Quartz
     [Serializable]
 	public class CronTrigger : Trigger
 	{
-        private const int YearToGiveupSchedulingAt = 2299;
+        protected internal const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx;
 		private DateTime startTimeUtc = DateTime.MinValue;
         private DateTime? endTimeUtc;

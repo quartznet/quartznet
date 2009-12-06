@@ -92,7 +92,7 @@ namespace Quartz
     /// <tr>
     /// <td align="left">Year (Optional)</td>
     /// <td align="left"> </td>
-    /// <td align="left">empty, 1970-2099</td>
+    /// <td align="left">empty, 1970-2199</td>
     /// <td align="left"> </td>
     /// <td align="left">, - /// /</td>
     /// </tr>
@@ -1320,7 +1320,7 @@ namespace Quartz
             {
                 if (stopAt == -1)
                 {
-                    stopAt = 2099;
+                    stopAt = CronTrigger.YearToGiveupSchedulingAt;
                 }
                 if (startAt == -1 || startAt == AllSpecInt)
                 {
@@ -1913,7 +1913,7 @@ namespace Quartz
 
                 // test for expressions that never generate a valid fire date,
                 // but keep looping...
-                if (year > 2099)
+                if (year > CronTrigger.YearToGiveupSchedulingAt)
                 {
                     return null;
                 }
