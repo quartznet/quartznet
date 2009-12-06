@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using System.Threading;
 
 using Common.Logging;
 
@@ -91,22 +92,19 @@ namespace Quartz.Simpl
 			}
 		}
 
-		/// <summary>
-		/// Gets the fired trigger record id.
-		/// </summary>
-		/// <value>The fired trigger record id.</value>
-		protected virtual string FiredTriggerRecordId
-		{
-			get
-			{
-				lock (this)
-				{
-                    return Convert.ToString(ftrCtr++, CultureInfo.InvariantCulture);
-				}
-			}
-		}
+        private static long ftrCtr = DateTime.UtcNow.Ticks;
 
-		/// <summary>
+        /// <summary>
+	    /// Gets the fired trigger record id.
+	    /// </summary>
+	    /// <returns>The fired trigger record id.</returns>
+	    protected virtual string GetFiredTriggerRecordId()
+	    {
+	        long value = Interlocked.Increment(ref ftrCtr);
+	        return Convert.ToString(value, CultureInfo.InvariantCulture);
+	    }
+
+	    /// <summary>
 		/// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
 		/// used, in order to give the it a chance to Initialize.
 		/// </summary>
@@ -1252,8 +1250,6 @@ namespace Quartz.Simpl
 			return true;
 		}
 
-		private static long ftrCtr = DateTime.UtcNow.Ticks;
-
 		/// <summary>
 		/// Get a handle to the next trigger to be fired, and mark it as 'reserved'
 		/// by the calling scheduler.
@@ -1304,7 +1300,7 @@ namespace Quartz.Simpl
 
                     tw.state = InternalTriggerState.Acquired;
 
-					tw.trigger.FireInstanceId = FiredTriggerRecordId;
+					tw.trigger.FireInstanceId = GetFiredTriggerRecordId();
 					Trigger trig = (Trigger) tw.trigger.Clone();
 					return trig;
 				}
