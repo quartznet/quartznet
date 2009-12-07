@@ -1,7 +1,5 @@
-using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
@@ -18,22 +16,22 @@ using System.Security;
 [assembly: AssemblyProduct("Quarz.NET 1.0")]
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
 [assembly : AssemblyCompany("http://quartznet.sourceforge.net/")]
-[assembly : AssemblyCopyright("Copyright 2007-2008 OpenSymphony")]
+[assembly : AssemblyCopyright("Copyright 2001-2009 James House and partially Marko Lahma")]
 [assembly:  AssemblyTrademark("Apache License, Version 2.0")]
 [assembly : AssemblyCulture("")]
 //[assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
 #if NET_35
-[assembly: AssemblyVersion("1.0.1.3")]
+[assembly: AssemblyVersion("1.0.2.3")]
 #elif NET_20
-[assembly: AssemblyVersion("1.0.1.2")]
+[assembly: AssemblyVersion("1.0.2.2")]
 #else
-[assembly: AssemblyVersion("1.0.1.1")]
+[assembly: AssemblyVersion("1.0.2.1")]
 #endif
 
 #if STRONG
 [assembly: AssemblyDelaySign(false)]
 [assembly: AssemblyKeyFile("Quartz.Net.snk")]
-[assembly:AllowPartiallyTrustedCallers]
+[assembly: AllowPartiallyTrustedCallers]
 #endif
