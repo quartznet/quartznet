@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, release 1.0.1, Feb 2 2009
+QUARTZ JOB SCHEDULER .NET, release 1.0.2, Dec 7 2009
 -----------------------------------------------------------------
 
 http://quartznet.sourceforge.net/
@@ -32,17 +32,10 @@ None.
 3. RELEASE INFO
 ----------------
 
-This is the Quartz.NET release 1.0.1. This release corresponds
-to Java Quartz version 1.6.4.
+This is the Quartz.NET release 1.0.2. This release corresponds
+to Java Quartz version 1.6.6.
 
-This release includes bug fixes to issues found in 1.0 release
-and also includes performance optimization to AdoJobStore 
-when Quartz.NET is handling a lot of triggers. Quarz.NET no 
-longer loads all of them but is able limit the query results
-by using a custom SQL delegate. Quartz.NET issues a warning
-on startup if custom delegate is not used. Available delegates
-include ones for SQL Server, Oracle, SQLite, MySQL, PostgreSQL
-and Firebird.
+This release is a bug fix release.
 
 For API documentation, please refer to Quartz.NET site: 
 

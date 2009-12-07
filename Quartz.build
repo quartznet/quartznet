@@ -405,7 +405,7 @@
           <property name="DocumentPrivates" value="False" />
           <property name="DocumentEmptyNamespaces" value="False" />
           <property name="IncludeAssemblyVersion" value="True" />
-          <property name="CopyrightText" value="Copyright OpenSymphony 2006-2007" />
+          <property name="CopyrightText" value="Copyright James House 2001-2009" />
           <property name="CopyrightHref" value="" />
         </documenter>
       </documenters>
@@ -489,7 +489,14 @@
         <include name="build\3.5\${configuration}\Quartz.Server.Service\**" />
       </fileset>
     </copy>
-
+	
+	<copy todir="package\doc\xml" flatten="true">
+      <fileset>
+        <include name="src\**\job_scheduling_data*.xsd" />
+      </fileset>
+    </copy>
+	
+	<copy file="src\Quartz.Tests.Unit\Xml\TestData\RichConfiguration.xml" tofile="package\doc\xml\quartz_sample.xml" />
 
     <!-- sorry *nix folks, couldn't get move to work as expected.. -->
     <exec program="cmd" commandline="/c move package\build package\bin" />
