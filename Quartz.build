@@ -472,6 +472,13 @@
       </fileset>
     </copy>
 
+	<copy todir="package\doc\xml" flatten="true">
+      <fileset>
+        <include name="src\**\job_scheduling_data*.xsd" />
+      </fileset>
+    </copy>
+	
+	<copy file="src\Quartz.Tests.Unit\Xml\TestData\RichConfiguration.xml" tofile="package\doc\xml\quartz_sample.xml" />
 
     <!-- sorry *nix folks, couldn't get move to work as expected.. -->
     <exec program="cmd" commandline="/c move package\build package\bin" />
