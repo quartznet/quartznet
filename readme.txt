@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, release 1.0.2, Dec 7 2009
+QUARTZ JOB SCHEDULER .NET, release 1.0.2, Dec 12 2009
 -----------------------------------------------------------------
 
 http://quartznet.sourceforge.net/
