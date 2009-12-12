@@ -29,6 +29,31 @@
 			<title>News</title>
 			
 			<section>
+				<title>Quartz.NET 1.0.2 Released</title>
+				<p>
+				<div class="descr">December 12, 2009 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 1.0.2 has been released.
+				</p>
+				<p>
+					This is a maintenance release for the 1.0 development branch of Quartz.NET an probably also the last release supporting .NET Framework 1.1.
+					Further development efforts will go to Quartz.NET 1.2 that no longer supports 1.1 Framework.
+				</p>
+				<p>
+					This version corresponds to Java Quartz's version 1.6.6.
+				</p>
+				<p>
+					Please refer to the
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21825">release notes</a> 
+					and the readme.txt in the release bundle for more information.
+				</p>
+				<p>
+					Grab it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>	
+			
+			<section>
 				<title>Quartz.NET 1.0.1 Released</title>
 				<p>
 				<div class="descr">May 16, 2009 by Marko Lahma</div>
