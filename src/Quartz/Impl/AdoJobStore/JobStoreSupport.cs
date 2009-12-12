@@ -1469,7 +1469,8 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // this must be called before we delete the trigger, obviously
-                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, TypeLoadHelper);
+                // we use fault tolerant type loading as we only want to delete things
+                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, new NoOpJobTypeLoader());
 
                 removedTrigger = DeleteTriggerAndChildren(conn, triggerName, groupName);
 
@@ -1490,6 +1491,28 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             return removedTrigger;
+        }
+
+        private class NoOpJobTypeLoader : ITypeLoadHelper
+        {
+            public void Initialize()
+            {
+            }
+
+            public Type LoadType(string name)
+            {
+                return typeof (Quartz.Job.NoOpJob);
+            }
+
+            public Uri GetResource(string name)
+            {
+                return null;
+            }
+
+            public Stream GetResourceAsStream(string name)
+            {
+                return null;
+            }
         }
 
         /// <see cref="IJobStore.ReplaceTrigger(SchedulingContext, string, string, Trigger)" />
