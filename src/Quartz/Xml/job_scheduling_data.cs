@@ -22,7 +22,7 @@ namespace Quartz.Xml
     [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true,
         Namespace = "http://quartznet.sourceforge.net/JobSchedulingData")]
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://quartznet.sourceforge.net/JobSchedulingData",
-        IsNullable = false)]
+        IsNullable = false, ElementName = "quartz")]
     public partial class QuartzXmlConfiguration
     {
         private joblistenerType[] joblistenerField;

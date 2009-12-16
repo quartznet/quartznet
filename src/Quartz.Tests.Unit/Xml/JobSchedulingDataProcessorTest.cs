@@ -33,15 +33,13 @@ namespace Quartz.Tests.Unit.Xml
     public class JobSchedulingDataProcessorTest 
     {
         private JobSchedulingDataProcessor processor;
-        private MockRepository mockery;
         private IScheduler mockScheduler;
 
         [SetUp]
         public void SetUp()
         {
-            mockery = new MockRepository();
             processor = new JobSchedulingDataProcessor(true, true);
-            mockScheduler =  (IScheduler) mockery.DynamicMock(typeof(IScheduler));
+            mockScheduler =  MockRepository.GenerateMock<IScheduler>();
         }
 
         [Test]
@@ -50,8 +48,7 @@ namespace Quartz.Tests.Unit.Xml
             Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration.xml");
             processor.ProcessStream(s, null);
            
-            mockery.ReplayAll();
-            
+
             processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
         }
 
@@ -60,8 +57,6 @@ namespace Quartz.Tests.Unit.Xml
         {
             Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration.xml");
             processor.ProcessStream(s, null);
-
-            mockery.ReplayAll();
 
             processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
 
@@ -86,8 +81,6 @@ namespace Quartz.Tests.Unit.Xml
             Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration.xml");
             processor.ProcessStream(s, null);
 
-            mockery.ReplayAll();
-
             processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
 
             JobSchedulingBundle job = processor.GetScheduledJob("jobGroup1.jobName1");
@@ -108,8 +101,6 @@ namespace Quartz.Tests.Unit.Xml
             Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration.xml");
             processor.ProcessStream(s, null);
 
-            mockery.ReplayAll();
-
             processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
 
             JobSchedulingBundle job = processor.GetScheduledJob("jobGroup1.jobName1");
@@ -127,8 +118,6 @@ namespace Quartz.Tests.Unit.Xml
             Stream s = ReadJobXmlFromEmbeddedResource("MinimalConfiguration.xml");
             processor.ProcessStream(s, null);
 
-            mockery.ReplayAll();
-
             processor.ScheduleJobs(new Dictionary<string, JobSchedulingBundle>(), mockScheduler, false);
 			Assert.IsFalse(processor.OverwriteExistingJobs);
         }
@@ -139,11 +128,6 @@ namespace Quartz.Tests.Unit.Xml
             return new StreamReader(typeof (JobSchedulingDataProcessorTest).Assembly.GetManifestResourceStream(fullName)).BaseStream;
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            mockery.VerifyAll();
-        }
     }
 
     public class NoOpJobListener : IJobListener
