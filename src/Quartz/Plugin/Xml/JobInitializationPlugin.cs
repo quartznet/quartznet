@@ -32,71 +32,6 @@ using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
 
-namespace Quartz
-{
-    /// <summary>
-    /// Attribute to use with public <see cref="TimeSpan" /> properties that
-    /// can be set with Quartz configuration. Attribute can be used to advice
-    /// parsing to use correct type of time span (milliseconds, seconds, minutes, hours)
-    /// as it may depend on property.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    /// <seealso cref="TimeSpanParseRuleAttribute" />
-    public class TimeSpanParseRuleAttribute : Attribute
-    {
-        private readonly TimeSpanParseRule rule;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TimeSpanParseRuleAttribute"/> class.
-        /// </summary>
-        /// <param name="rule">The rule.</param>
-        public TimeSpanParseRuleAttribute(TimeSpanParseRule rule)
-        {
-            this.rule = rule;
-        }
-
-        /// <summary>
-        /// Gets the rule.
-        /// </summary>
-        /// <value>The rule.</value>
-        public TimeSpanParseRule Rule
-        {
-            get { return rule; }
-        }
-    }
-
-    /// <summary>
-    /// Possible parse rules for <see cref="TimeSpan" />s.
-    /// </summary>
-    public enum TimeSpanParseRule
-    {
-        /// <summary>
-        /// 
-        /// </summary>
-        Milliseconds = 0,
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        Seconds = 1,
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        Minutes = 2,
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        Hours = 3,
-        
-        /// <summary>
-        /// 
-        /// </summary>
-        Days = 3
-    }
-}
-
 namespace Quartz.Plugin.Xml
 {
     /// <summary> 
@@ -122,7 +57,7 @@ namespace Quartz.Plugin.Xml
         private string fileNames = JobSchedulingDataProcessor.QuartzXmlFileName;
 
         // Populated by initialization
-        private readonly IDictionary<string, JobFile> jobFiles = new Dictionary<string, JobFile>();
+        private readonly List<KeyValuePair<string, JobFile>> jobFiles = new List<KeyValuePair<string, JobFile>>();
 
         private bool validating;
         private bool validatingSchema = true;
@@ -130,7 +65,7 @@ namespace Quartz.Plugin.Xml
 
         private bool started;
 
-        protected ITypeLoadHelper typeLoadHelper;
+        private ITypeLoadHelper typeLoadHelper;
 
         private readonly Collection.HashSet<string> jobTriggerNameSet = new Collection.HashSet<string>();
         private IScheduler scheduler;
@@ -164,6 +99,11 @@ namespace Quartz.Plugin.Xml
         public IScheduler Scheduler
         {
             get { return scheduler; }
+        }
+
+        protected ITypeLoadHelper TypeLoadHelper
+        {
+            get { return typeLoadHelper; }
         }
 
         /// <summary> 
@@ -225,9 +165,6 @@ namespace Quartz.Plugin.Xml
             set { validatingSchema = value; }
         }
 
-
-        #region IFileScanListener Members
-
         /// <summary>
         /// 
         /// </summary>
@@ -239,10 +176,6 @@ namespace Quartz.Plugin.Xml
                 ProcessFile(fName);
             }
         }
-
-        #endregion
-
-        #region ISchedulerPlugin Members
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler"/> in order to give
@@ -266,7 +199,7 @@ namespace Quartz.Plugin.Xml
             foreach (string token in tokens)
             {
                 JobFile jobFile = new JobFile(this, token);
-                jobFiles.Add(jobFile.FilePath, jobFile);
+                jobFiles.Add(new KeyValuePair<string, JobFile>(jobFile.FilePath, jobFile));
             }
         }
 
@@ -286,12 +219,13 @@ namespace Quartz.Plugin.Xml
                         scheduler.Context.Put(JobInitializationPluginName + '_' + Name, this);
                     }
 
-                    foreach (JobFile jobFile in jobFiles.Values)
+                    foreach (KeyValuePair<string, JobFile> pair in jobFiles)
                     {
+                        JobFile jobFile = pair.Value;
 
                         if (scanInterval > TimeSpan.Zero)
                         {
-                            String jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
+                            string jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
 
                             SimpleTrigger trig = new SimpleTrigger(
                                 jobTriggerName,
@@ -326,17 +260,18 @@ namespace Quartz.Plugin.Xml
             }
         }
 
-        /**
-     * Helper method for generating unique job/trigger name for the  
-     * file scanning jobs (one per FileJob).  The unique names are saved
-     * in jobTriggerNameSet.
-     */
-
+        /// <summary>
+        /// Helper method for generating unique job/trigger name for the  
+        /// file scanning jobs (one per FileJob).  The unique names are saved
+        /// in jobTriggerNameSet.
+        /// </summary>
+        /// <param name="fileBasename"></param>
+        /// <returns></returns>
         private string BuildJobTriggerName(string fileBasename)
         {
             // Name w/o collisions will be prefix + _ + filename (with '.' of filename replaced with '_')
             // For example: JobInitializationPlugin_jobInitializer_myjobs_xml
-            String jobTriggerName = JobInitializationPluginName + '_' + Name + '_' + fileBasename.Replace('.', '_');
+            string jobTriggerName = JobInitializationPluginName + '_' + Name + '_' + fileBasename.Replace('.', '_');
 
             // If name is too long (DB column is 80 chars), then truncate to max length
             if (jobTriggerName.Length > MaxJobTriggerNameLength)
@@ -357,7 +292,7 @@ namespace Quartz.Plugin.Xml
                     jobTriggerName = jobTriggerName.Substring(0, jobTriggerName.LastIndexOf('_'));
                 }
 
-                String numericSuffix = "_" + currentIndex++;
+                string numericSuffix = "_" + currentIndex++;
 
                 // If the numeric suffix would make the name too long, then make room for it.
                 if (jobTriggerName.Length > (MaxJobTriggerNameLength - numericSuffix.Length))
@@ -380,9 +315,6 @@ namespace Quartz.Plugin.Xml
         {
             // nothing to do
         }
-
-        #endregion
-
 
         private void ProcessFile(JobFile jobFile)
         {
@@ -409,8 +341,12 @@ namespace Quartz.Plugin.Xml
 
         public void ProcessFile(string filePath)
         {
-            JobFile file;
-            jobFiles.TryGetValue(filePath, out file);
+            JobFile file = null;
+            int idx = jobFiles.FindIndex(pair => pair.Key == filePath);
+            if (idx >= 0)
+            {
+                file = jobFiles[idx].Value;
+            }
             ProcessFile(file);
         }
 
