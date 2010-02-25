@@ -47,22 +47,21 @@ namespace Quartz.Impl
 	/// eventually end up calling the create method with all the parameters:
 	/// </p>
 	/// <pre>
-	/// public void createScheduler(String schedulerName, string schedulerInstanceId, ThreadPool threadPool, JobStore jobStore, string rmiRegistryHost, int rmiRegistryPort)
+    /// public void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IJobStore jobStore)
 	/// </pre>
 	/// <p>
 	/// Here is an example of using this method:
 	/// </p>
 	/// <pre>
 	/// // create the thread pool 
-	/// SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, Thread.NORM_PRIORITY); 
+    /// SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, ThreadPriority.Normal); 
 	/// threadPool.Initialize(); 
 	/// // create the job store 
 	/// JobStore jobStore = new RAMJobStore(); 
-	/// jobStore.Initialize();
 	/// 
-	/// DirectSchedulerFactory.Instance.CreateScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore, "localhost", 1099); 
+	/// DirectSchedulerFactory.Instance.CreateScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore); 
 	/// // don't forget to start the scheduler: 
-	/// DirectSchedulerFactory.Instance.GetScheduler("My Quartz Scheduler", "My Instance").start();
+	/// DirectSchedulerFactory.Instance.GetScheduler("My Quartz Scheduler", "My Instance").Start();
 	/// </pre>
 	/// </remarks>>
 	/// <author>Mohammad Rezaei</author>
@@ -291,14 +290,6 @@ namespace Quartz.Impl
 
 			schedRep.Bind(scheduler);
 		}
-
-		/*
-		* public void registerSchedulerForRmi(String schedulerName, String
-		* schedulerId, string registryHost, int registryPort) throws
-		* SchedulerException, RemoteException { QuartzScheduler scheduler =
-		* (QuartzScheduler) this.getScheduler(); scheduler.bind(registryHost,
-		* registryPort); }
-		*/
 
 		/// <summary>
 		/// Returns a handle to the Scheduler produced by this factory.
