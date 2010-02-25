@@ -281,38 +281,27 @@ namespace Quartz.Impl.AdoJobStore
                           TableJobDetails, ColumnJobGroup);
 
         public static readonly string SqlSelectMisfiredTriggers =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} < @nextFireTime ORDER BY START_TIME ASC", TablePrefixSubst,
-                          TableTriggers, ColumnNextFireTime);
+            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} < @nextFireTime ORDER BY {3} ASC", TablePrefixSubst,
+                          TableTriggers, ColumnNextFireTime, ColumnNextFireTime);
 
         public static readonly string SqlSelectMisfiredTriggersInGroupInState =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} < @nextFireTime AND {4} = @triggerGroup AND {5} = @state",
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} < @nextFireTime AND {4} = @triggerGroup AND {5} = @state ORDER BY {6} ASC",
                           ColumnTriggerName, TablePrefixSubst, TableTriggers,
                           ColumnNextFireTime, ColumnTriggerGroup,
-                          ColumnTriggerState);
+                          ColumnTriggerState, ColumnNextFireTime);
 
         public static readonly string SqlSelectMisfiredTriggersInState =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} < @nextFireTime AND {5} = @state", ColumnTriggerName,
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} < @nextFireTime AND {5} = @state ORDER BY {6} ASC", ColumnTriggerName,
                           ColumnTriggerGroup, TablePrefixSubst, TableTriggers,
-                          ColumnNextFireTime, ColumnTriggerState);
+                          ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime);
 
-        public static readonly string SqlCountMisfiredTriggersInStates = "SELECT COUNT("
-                                                                          + ColumnTriggerName + ") FROM "
-                                                                          + TablePrefixSubst + TableTriggers +
-                                                                          " WHERE "
-                                                                          + ColumnNextFireTime + " < @nextFireTime "
-                                                                          + "AND ((" + ColumnTriggerState +
-                                                                          " = @state1) OR (" + ColumnTriggerState +
-                                                                          " = @state2))";
+        public static readonly string SqlCountMisfiredTriggersInStates = 
+            string.Format("SELECT COUNT({0}) FROM {1}{2} WHERE {3} < @nextFireTime AND (({4} = @state1) OR ({5} = @state2))", 
+            ColumnTriggerName, TablePrefixSubst, TableTriggers, ColumnNextFireTime, ColumnTriggerState, ColumnTriggerState);
 
-        public static readonly string SqlSelectMisfiredTriggersInStates = "SELECT "
-                                                                           + ColumnTriggerName + ", " + ColumnTriggerGroup +
-                                                                           " FROM "
-                                                                           + TablePrefixSubst + TableTriggers +
-                                                                           " WHERE "
-                                                                           + ColumnNextFireTime + " < @nextFireTime "
-                                                                           + "AND ((" + ColumnTriggerState +
-                                                                           " = @state1) OR (" + ColumnTriggerState +
-                                                                           " = @state2))";
+        public static readonly string SqlSelectMisfiredTriggersInStates =
+            string.Format("SELECT {0}, {1} FROM {2}{3} WHERE {4} < @nextFireTime AND (({5} = @state1) OR ({6} = @state2)) ORDER BY {7} ASC",
+            ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnNextFireTime, ColumnTriggerState, ColumnTriggerState, ColumnNextFireTime);
 
         public static readonly string SqlSelectNextFireTime =
             string.Format(CultureInfo.InvariantCulture, "SELECT MIN({0}) AS {1} FROM {2}{3} WHERE {4} = @state AND {5} >= 0",
