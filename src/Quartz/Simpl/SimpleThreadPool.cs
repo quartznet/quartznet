@@ -44,7 +44,7 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleThreadPool : IThreadPool
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof(SimpleThreadPool));
+        private static readonly ILog log = LogManager.GetLogger(typeof(SimpleThreadPool));
         private const int DefaultThreadPoolSize = 10;
 
         private readonly object nextRunnableLock = new object();
@@ -193,6 +193,11 @@ namespace Quartz.Simpl
             {
                 isShutdown = true;
 
+                if (workers == null) // case where the pool wasn't even initialize()ed
+                {
+                    return;
+                }
+
                 // signal each worker thread to shut down
                 for (int i = 0; i < workers.Count; i++)
                 {
@@ -224,7 +229,7 @@ namespace Quartz.Simpl
                         WorkerThread wt = busyWorkers[0];
                         try
                         {
-                            Log.Debug(string.Format(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Name));
+                            log.Debug(string.Format(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Name));
 
                             // note: with waiting infinite time the
                             // application may appear to 'hang'.
@@ -235,7 +240,7 @@ namespace Quartz.Simpl
                         }
                     }
 
-                    Log.Debug("shutdown complete");
+                    log.Debug("shutdown complete");
                 }
             }
         }
@@ -468,7 +473,7 @@ namespace Quartz.Simpl
                     }
                     catch (Exception exceptionInRunnable)
                     {
-                        Log.Error("Error while executing the Runnable: ", exceptionInRunnable);
+                        log.Error("Error while executing the Runnable: ", exceptionInRunnable);
                     }
                     finally
                     {
@@ -506,7 +511,7 @@ namespace Quartz.Simpl
                     }
                 }
 
-                Log.Debug("WorkerThread is shut down");
+                log.Debug("WorkerThread is shut down");
             }
         }
     }
