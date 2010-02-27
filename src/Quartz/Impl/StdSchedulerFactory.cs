@@ -121,7 +121,7 @@ namespace Quartz.Impl
 
         private PropertiesParser cfg;
 
-        private static readonly ILog Log = LogManager.GetLogger(typeof (StdSchedulerFactory));
+        private static readonly ILog log = LogManager.GetLogger(typeof (StdSchedulerFactory));
 
         private string SchedulerName
         {
@@ -131,6 +131,11 @@ namespace Quartz.Impl
         private string SchedulerInstId
         {
             get { return cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId); }
+        }
+
+        protected ILog Log
+        {
+            get { return log; }
         }
 
         /// <summary>
@@ -297,7 +302,7 @@ Please add configuration to your application config file to correctly initialize
             ISchedulerExporter exporter = null;
             IJobStore js;
             IThreadPool tp;
-            QuartzScheduler qs;
+            QuartzScheduler qs = null;
             SchedulingContext schedCtxt;
             DBConnectionManager dbMgr = null;
             string instanceIdGeneratorType = null;
@@ -857,126 +862,159 @@ Please add configuration to your application config file to correctly initialize
                 }
             }
 
+            bool tpInited = false;
+            bool qsInited = false;
+
             // Fire everything up
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            IJobRunShellFactory jrsf = new StdJobRunShellFactory();
-            
-            if (autoId)
+            try
             {
-                try
+                IJobRunShellFactory jrsf = new StdJobRunShellFactory();
+            
+                if (autoId)
                 {
-                    schedInstId = DefaultInstanceId;
-                    
-                    if (js is JobStoreSupport)
-					{
-						if (((JobStoreSupport) js).Clustered)
-						{
-							schedInstId = instanceIdGenerator.GenerateInstanceId();
-						}
-					}
+                    try
+                    {
+                        schedInstId = DefaultInstanceId;
+
+                        if (js.Clustered)
+                        {
+                            if (((JobStoreSupport) js).Clustered)
+                            {
+                                schedInstId = instanceIdGenerator.GenerateInstanceId();
+                            }
+                        }
                    
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error("Couldn't generate instance Id!", e);
+                        throw new SystemException("Cannot run without an instance id.");
+                    }
                 }
-                catch (Exception e)
-                {
-                    Log.Error("Couldn't generate instance Id!", e);
-                    throw new SystemException("Cannot run without an instance id.");
-                }
-            }
 
             
-			if (js is JobStoreSupport)
-			{
-				JobStoreSupport jjs = (JobStoreSupport) js;
-				jjs.InstanceId = schedInstId;
-                jjs.DbRetryInterval = dbFailureRetry;
-			}
+                if (js is JobStoreSupport)
+                {
+                    JobStoreSupport jjs = (JobStoreSupport) js;
+                    jjs.DbRetryInterval = dbFailureRetry;
+                }
 
-            QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
-            rsrcs.Name = schedName;
-            rsrcs.ThreadName = threadName;
-            rsrcs.InstanceId = schedInstId;
-            rsrcs.JobRunShellFactory = jrsf;
-            rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
+                QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
+                rsrcs.Name = schedName;
+                rsrcs.ThreadName = threadName;
+                rsrcs.InstanceId = schedInstId;
+                rsrcs.JobRunShellFactory = jrsf;
+                rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
 
-            rsrcs.SchedulerExporter = exporter;
+                rsrcs.SchedulerExporter = exporter;
 
-            SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId);
+                SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId);
 
-            rsrcs.ThreadPool = tp;
+                rsrcs.ThreadPool = tp;
 
-            if (tp is SimpleThreadPool)
-            {
-                ((SimpleThreadPool) tp).ThreadNamePrefix = schedName + "_Worker";
+                if (tp is SimpleThreadPool)
+                {
+                    ((SimpleThreadPool) tp).ThreadNamePrefix = schedName + "_Worker";
+                }
+                tp.Initialize();
+                tpInited = true;
+
+                rsrcs.JobStore = js;
+
+                // add plugins
+                for (int i = 0; i < plugins.Length; i++)
+                {
+                    rsrcs.AddSchedulerPlugin(plugins[i]);
+                }
+
+                schedCtxt = new SchedulingContext();
+                schedCtxt.InstanceId = rsrcs.InstanceId;
+
+                qs = new QuartzScheduler(rsrcs, schedCtxt, idleWaitTime, dbFailureRetry);
+                qsInited = true;
+
+                // Create Scheduler ref...
+                IScheduler sched = Instantiate(rsrcs, qs);
+
+                // set job factory if specified
+                if (jobFactory != null)
+                {
+                    qs.JobFactory = jobFactory;
+                }
+
+                // Initialize plugins now that we have a Scheduler instance.
+                for (int i = 0; i < plugins.Length; i++)
+                {
+                    plugins[i].Initialize(pluginNames[i], sched);
+                }
+
+                // add listeners
+                for (int i = 0; i < jobListeners.Length; i++)
+                {
+                    qs.AddGlobalJobListener(jobListeners[i]);
+                }
+                for (int i = 0; i < triggerListeners.Length; i++)
+                {
+                    qs.AddGlobalTriggerListener(triggerListeners[i]);
+                }
+
+                // set scheduler context data...
+                foreach (string key in schedCtxtProps)
+                {
+                    string val = schedCtxtProps.Get(key);
+                    sched.Context.Put(key, val);
+                }
+
+                // fire up job store, and runshell factory
+
+                js.InstanceId = schedInstId;
+                js.InstanceName = schedName;
+                js.Initialize(loadHelper, qs.SchedulerSignaler);
+
+                jrsf.Initialize(sched, schedCtxt);
+
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}' initialized", sched.SchedulerName));
+
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler version: {0}", qs.Version));
+
+                // prevents the repository from being garbage collected
+                qs.AddNoGCObject(schedRep);
+                // prevents the db manager from being garbage collected
+                if (dbMgr != null)
+                {
+                    qs.AddNoGCObject(dbMgr);
+                }
+
+                schedRep.Bind(sched);
+
+                return sched;
             }
-            tp.Initialize();
-
-            rsrcs.JobStore = js;
-
-            // add plugins
-            for (int i = 0; i < plugins.Length; i++)
+            catch (SchedulerException)
             {
-                rsrcs.AddSchedulerPlugin(plugins[i]);
+                if (qsInited)
+                {
+                    qs.Shutdown(false);
+                }
+                else if (tpInited)
+                {
+                    tp.Shutdown(false);
+                }
+                throw;
             }
-
-            schedCtxt = new SchedulingContext();
-            schedCtxt.InstanceId = rsrcs.InstanceId;
-
-            qs = new QuartzScheduler(rsrcs, schedCtxt, idleWaitTime, dbFailureRetry);
-
-            // Create Scheduler ref...
-            IScheduler sched = Instantiate(rsrcs, qs);
-
-            // set job factory if specified
-            if (jobFactory != null)
+            catch
             {
-                qs.JobFactory = jobFactory;
+                if (qsInited)
+                {
+                    qs.Shutdown(false);
+                }
+                else if (tpInited)
+                {
+                    tp.Shutdown(false);
+                }
+                throw;
             }
-
-            // Initialize plugins now that we have a Scheduler instance.
-            for (int i = 0; i < plugins.Length; i++)
-            {
-                plugins[i].Initialize(pluginNames[i], sched);
-            }
-
-            // add listeners
-            for (int i = 0; i < jobListeners.Length; i++)
-            {
-                qs.AddGlobalJobListener(jobListeners[i]);
-            }
-            for (int i = 0; i < triggerListeners.Length; i++)
-            {
-                qs.AddGlobalTriggerListener(triggerListeners[i]);
-            }
-
-            // set scheduler context data...
-            foreach (string key in schedCtxtProps)
-            {
-                string val = schedCtxtProps.Get(key);
-                sched.Context.Put(key, val);
-            }
-
-            // fire up job store, and runshell factory
-
-            js.Initialize(loadHelper, qs.SchedulerSignaler);
-
-            jrsf.Initialize(sched, schedCtxt);
-
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}' initialized", sched.SchedulerName));
-
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler version: {0}", qs.Version));
-
-            // prevents the repository from being garbage collected
-            qs.AddNoGCObject(schedRep);
-            // prevents the db manager from being garbage collected
-            if (dbMgr != null)
-            {
-                qs.AddNoGCObject(dbMgr);
-            }
-
-            schedRep.Bind(sched);
-
-            return sched;
         }
 
         protected internal virtual IScheduler Instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs)
