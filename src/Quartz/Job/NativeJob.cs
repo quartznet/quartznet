@@ -74,8 +74,11 @@ namespace Quartz.Job
         /// </summary>
         public const string PropertyWorkingDirectory = "workingDirectory";
 
+	    private const string StreamTypeStandardOutput = "stdout";
+	    private const string StreamTypeError = "stderr";
 
-        /// <summary>
+
+	    /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
@@ -91,14 +94,6 @@ namespace Quartz.Job
 	    {
             log = LogManager.GetLogger(typeof(NativeJob));
 	    }
-
-	    /*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Interface.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
@@ -207,12 +202,12 @@ namespace Quartz.Job
 			    proc.Start();
 
 				// Consumes the stdout from the process
-				StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardOutput.BaseStream, "stdout");
+			    StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardOutput.BaseStream, StreamTypeStandardOutput);
 
 				// Consumes the stderr from the process
 				if (consumeStreams)
 				{
-					StreamConsumer stderrConsumer = new StreamConsumer(this, proc.StandardError.BaseStream, "stderr");
+				    StreamConsumer stderrConsumer = new StreamConsumer(this, proc.StandardError.BaseStream, StreamTypeError);
 					stdoutConsumer.Start();
 					stderrConsumer.Start();
 				}
@@ -237,11 +232,11 @@ namespace Quartz.Job
 		/// </summary>
 		/// <author>cooste</author>
 		/// <author>James House</author>
-		internal class StreamConsumer : QuartzThread
+		private class StreamConsumer : QuartzThread
 		{
-			internal NativeJob outer;
-			internal Stream inputStream;
-			internal string type;
+		    private readonly NativeJob enclosingInstance;
+		    private readonly Stream inputStream;
+		    private readonly string type;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="StreamConsumer"/> class.
@@ -251,7 +246,7 @@ namespace Quartz.Job
             /// <param name="type">The type.</param>
 			public StreamConsumer(NativeJob enclosingInstance, Stream inputStream, string type)
 			{
-				outer = enclosingInstance;
+				this.enclosingInstance = enclosingInstance;
 				this.inputStream = inputStream;
 				this.type = type;
 			}
@@ -270,13 +265,13 @@ namespace Quartz.Job
 
                         while ((line = br.ReadLine()) != null)
                         {
-                            if (type == "stderr")
+                            if (type == StreamTypeError)
                             {
-                                outer.Log.Warn(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
+                                enclosingInstance.Log.Warn(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
                             }
                             else
                             {
-                                outer.Log.Info(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
+                                enclosingInstance.Log.Info(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
                             }
                         }
                     }
@@ -284,7 +279,7 @@ namespace Quartz.Job
 			    }
 				catch (IOException ioe)
 				{
-					outer.Log.Error(string.Format(CultureInfo.InvariantCulture, "Error consuming {0} stream of spawned process.", type), ioe);
+					enclosingInstance.Log.Error(string.Format(CultureInfo.InvariantCulture, "Error consuming {0} stream of spawned process.", type), ioe);
 				}
 			}
 		}

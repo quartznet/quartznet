@@ -143,7 +143,7 @@ namespace Quartz.Impl
 				return
 					new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), true, IsStarted, InStandbyMode,
                                           IsShutdown, sched.RunningSince, sched.NumJobsExecuted, sched.JobStoreClass,
-					                      sched.SupportsPersistence, sched.ThreadPoolClass, sched.ThreadPoolSize, sched.Version);
+					                      sched.SupportsPersistence, sched.Clustered, sched.ThreadPoolClass, sched.ThreadPoolSize, sched.Version);
 			}
 			catch (RemotingException re)
 			{

@@ -45,6 +45,7 @@ namespace Quartz
         private readonly int numberOfJobsExec;
 		private readonly Type jsType;
 		private readonly bool jsPersistent;
+	    private readonly bool jsClustered;
 		private readonly Type tpType;
 		private readonly int tpSize;
 		private readonly string version;
@@ -66,11 +67,10 @@ namespace Quartz
 		/// <param name="tpType">The thread pool type.</param>
 		/// <param name="tpSize">Size of the thread pool.</param>
 		/// <param name="version">The version string.</param>
-		public SchedulerMetaData(string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
-			bool shutdown,
-            DateTime? startTime, 
-            int numberOfJobsExec, Type jsType, bool jsPersistent,
-			Type tpType, int tpSize, string version)
+		public SchedulerMetaData(
+            string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
+			bool shutdown, DateTime? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered, 
+            Type tpType, int tpSize, string version)
 		{
 			this.schedName = schedName;
 			this.schedInst = schedInst;
@@ -83,7 +83,8 @@ namespace Quartz
 			this.numberOfJobsExec = numberOfJobsExec;
 			this.jsType = jsType;
 			this.jsPersistent = jsPersistent;
-			this.tpType = tpType;
+		    this.jsClustered = jsClustered;
+		    this.tpType = tpType;
 			this.tpSize = tpSize;
 			this.version = version;
 		}
@@ -231,7 +232,7 @@ namespace Quartz
 				}
 				else
 				{
-					str.Append("NOT STARTED.");
+                    str.Append("  NOT STARTED.");
 				}
 				str.Append("\n");
 
@@ -273,6 +274,14 @@ namespace Quartz
 			{
 				str.Append("does not support persistence.");
 			}
+            if (JobStoreClustered)
+            {
+                str.Append(" and is clustered.");
+            }
+            else
+            {
+                str.Append(" and is not clustered.");
+            }
 			str.Append("\n");
 
 			return str.ToString();
@@ -305,6 +314,15 @@ namespace Quartz
 		{
 			get { return jsPersistent; }
 		}
+
+        /// <summary>
+        /// Returns whether or not the <see cref="IScheduler" />'s <see cref="IJobStore" />
+        /// is clustered.
+        /// </summary>
+        public virtual bool JobStoreClustered
+        {
+            get { return jsClustered; }
+        }
 
 		/// <summary>
 		/// Return a simple string representation of this object.

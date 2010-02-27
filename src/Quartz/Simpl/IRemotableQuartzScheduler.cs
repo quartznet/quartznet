@@ -71,6 +71,8 @@ namespace Quartz.Simpl
 
 		bool SupportsPersistence { get; }
 
+        bool Clustered { get; }
+
 		DateTime ScheduleJob(SchedulingContext ctxt, JobDetail jobDetail, Trigger trigger);
 
 		DateTime ScheduleJob(SchedulingContext ctxt, Trigger trigger);

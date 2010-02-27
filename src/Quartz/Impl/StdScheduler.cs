@@ -102,6 +102,7 @@ namespace Quartz.Impl
 				sched.NumJobsExecuted,
 				sched.JobStoreClass,
 				sched.SupportsPersistence,
+                sched.Clustered,
 				sched.ThreadPoolClass,
 				sched.ThreadPoolSize,
 				sched.Version);

@@ -376,7 +376,7 @@ namespace Quartz.Core
                                            SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,
                                            InStandbyMode, IsShutdown, RunningSince,
                                            NumJobsExecuted, JobStoreClass, 
-                                           SupportsPersistence, ThreadPoolClass,
+                                           SupportsPersistence, Clustered, ThreadPoolClass,
                                            ThreadPoolSize, Version)));
         }
 
@@ -533,6 +533,11 @@ namespace Quartz.Core
         public virtual bool SupportsPersistence
         {
             get { return resources.JobStore.SupportsPersistence; }
+        }
+
+        public bool Clustered
+        {
+            get { return resources.JobStore.Clustered; }
         }
 
         /// <summary>

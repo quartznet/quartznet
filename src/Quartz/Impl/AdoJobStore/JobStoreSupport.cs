@@ -204,6 +204,11 @@ namespace Quartz.Impl.AdoJobStore
             set { instanceName = value; }
         }
 
+        public virtual long EstimatedTimeToReleaseAndAcquireTrigger
+        {
+            get { return 70; }
+        }
+
         /// <summary> 
         /// Get or set whether this instance is part of a cluster.
         /// </summary>

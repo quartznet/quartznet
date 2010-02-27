@@ -63,11 +63,22 @@ namespace Quartz.Spi
 		void Shutdown();
 
 	    /// <summary>
-	    /// Supports the persistence.
+	    /// Indicates whether job store supports persistence.
 	    /// </summary>
 	    /// <returns></returns>
 	    bool SupportsPersistence { get; }
 
+        /// <summary>
+        /// How long (in milliseconds) the <see cref="IJobStore" /> implementation 
+        /// estimates that it will take to release a trigger and acquire a new one. 
+        /// </summary>
+        long EstimatedTimeToReleaseAndAcquireTrigger { get; }
+    
+        /// <summary>
+        /// Whether or not the <see cref="IJobStore" /> implementation is clustered.
+        /// </summary>
+        /// <returns></returns>
+        bool Clustered { get; }
 
         /// <summary>
         /// Store the given <see cref="JobDetail" /> and <see cref="Trigger" />.

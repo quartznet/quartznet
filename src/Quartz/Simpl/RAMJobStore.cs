@@ -1546,6 +1546,16 @@ namespace Quartz.Simpl
 	        set {  }
 	    }
 
+        public long EstimatedTimeToReleaseAndAcquireTrigger
+        {
+            get { return 5; }
+        }
+
+        public bool Clustered
+        {
+            get {return false; }
+        }
+
 	    /// <summary>
 		/// Sets the state of all triggers of job to specified state.
 		/// </summary>
