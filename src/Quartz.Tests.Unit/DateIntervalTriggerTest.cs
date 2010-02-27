@@ -98,15 +98,15 @@ namespace Quartz.Tests.Unit
         {
             DateTime startCalendar = new DateTime(2005, 6, 1, 9, 30, 17, DateTimeKind.Utc);
             
-            DateIntervalTrigger yearlyTrigger = new DateIntervalTrigger();
-            yearlyTrigger.StartTimeUtc = startCalendar;
-            yearlyTrigger.RepeatIntervalUnit = DateIntervalTrigger.IntervalUnit.Day;
-            yearlyTrigger.RepeatInterval = 90; // every ninety days
+            DateIntervalTrigger dailyTrigger = new DateIntervalTrigger();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = DateIntervalTrigger.IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 90; // every ninety days
 
             DateTime targetCalendar = new DateTime(2005, 6, 1, 9, 30, 17, DateTimeKind.Utc);
             targetCalendar = targetCalendar.AddDays(360); // jump 360 days (4 intervals)
 
-            IList<DateTime> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            IList<DateTime> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
             DateTime fifthTime = fireTimes[4]; // get the fifth fire time
 
             Assert.AreEqual(targetCalendar, fifthTime, "Day increment result not as expected.");
@@ -167,6 +167,84 @@ namespace Quartz.Tests.Unit
             DateTime fifthTime = fireTimes[4]; // get the third fire time
 
             Assert.AreEqual(targetCalendar, fifthTime, "Seconds increment result not as expected.");
+        }
+
+        [Test]
+        public void TestDaylightSavingsTransitions()
+        {
+            // Pick a day before a daylight savings transition...
+
+            DateTime startCalendar = new DateTime(2010, 3, 12, 9, 30, 17, DateTimeKind.Utc);
+
+            DateIntervalTrigger dailyTrigger = new DateIntervalTrigger();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = DateIntervalTrigger.IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 5; // every 5 days
+
+            DateTime targetCalendar = startCalendar;
+            targetCalendar = targetCalendar.AddDays(10); // jump 10 days (2 intervals)
+
+            IList<DateTime> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+            DateTime testTime = fireTimes[2]; // get the third fire time
+
+            Assert.AreEqual(targetCalendar, testTime, "Day increment result not as expected over spring daylight savings transition.");
+
+            // Pick a day before a daylight savings transition...
+
+            startCalendar = new DateTime(2010, 10, 31, 9, 30, 17);
+
+            dailyTrigger = new DateIntervalTrigger();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = DateIntervalTrigger.IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 5; // every 5 days
+
+            targetCalendar = startCalendar;
+            targetCalendar = targetCalendar.AddDays(15); // jump 15 days (3 intervals)
+
+            fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+            testTime = fireTimes[3]; // get the fourth fire time
+
+            Assert.AreEqual(targetCalendar, testTime, "Day increment result not as expected over fall daylight savings transition.");
+        }
+
+        [Test]
+        public void TestFinalFireTimes()
+        {
+            DateTime startCalendar = new DateTime(2010, 3, 12, 9, 0, 0, DateTimeKind.Utc);
+
+            DateIntervalTrigger dailyTrigger = new DateIntervalTrigger();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = DateIntervalTrigger.IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 5; // every 5 days
+
+            DateTime endCalendar = startCalendar;
+            endCalendar = endCalendar.AddDays(10); // jump 10 days (2 intervals)
+            dailyTrigger.EndTimeUtc = endCalendar;
+
+            DateTime? testTime = dailyTrigger.FinalFireTimeUtc;
+
+            Assert.AreEqual(endCalendar, testTime, "Final fire time not computed correctly for day interval.");
+
+
+            startCalendar = new DateTime(2010, 3, 12, 9, 0, 0, DateTimeKind.Utc);
+
+            dailyTrigger = new DateIntervalTrigger();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = DateIntervalTrigger.IntervalUnit.Minute;
+            dailyTrigger.RepeatInterval = 5; // every 5 minutes
+
+            endCalendar = startCalendar;
+            endCalendar = endCalendar.AddDays(15); // jump 15 days 
+            endCalendar = endCalendar.AddMinutes(-2); // back up two minutes
+            dailyTrigger.EndTimeUtc = endCalendar;
+
+            testTime = dailyTrigger.FinalFireTimeUtc;
+
+            Assert.IsTrue(endCalendar > testTime, "Final fire time not computed correctly for minutely interval.");
+
+            endCalendar = endCalendar.AddMinutes(-3); // back up three more minutes
+
+            Assert.AreEqual(endCalendar, testTime, "Final fire time not computed correctly for minutely interval.");
         }
     }
 }

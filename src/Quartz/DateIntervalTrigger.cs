@@ -31,6 +31,16 @@ namespace Quartz
     /// This trigger can achieve schedules that are not possible with <see cref="SimpleTrigger" /> (e.g 
     /// because months are not a fixed number of seconds) or <see cref="CronTrigger" /> (e.g. because
     /// "every 5 months" is not an even divisor of 12).
+    /// <p>
+    /// If you use an interval unit of <see cref="IntervalUnit.Month" /> then care should be taken when setting
+    /// a <code>startTime</code> value that is on a day near the end of the month.  For example,
+    /// if you choose a start time that occurs on January 31st, and have a trigger with unit
+    /// <see cref="IntervalUnit.Month" /> and interval <code>1</code>, then the next fire time will be February 28th, 
+    /// and the next time after that will be March 28th - and essentially each subsequent firing will 
+    /// occur on the 28th of the month, even if a 31st day exists.  If you want a trigger that always
+    /// fires on the last day of the month - regardless of the number of days in the month, 
+    /// you should use <see cref="CronTrigger" />.
+    /// </p> 
     /// </remarks>
     /// <see cref="Trigger" />
     /// <see cref="CronTrigger" />
@@ -304,8 +314,12 @@ namespace Quartz
             }
             else if (instr == Quartz.MisfireInstruction.DateIntervalTrigger.FireOnceNow)
             {
-                // TODO: JHOUSE: think this out, reset will change time-of-day for day/month/year intervals...
-                //setNextFireTime(new Date());
+                // fire once now...
+                NextFireTimeUtc = DateTime.UtcNow;
+                // the new fire time afterward will magically preserve the original  
+                // time of day for firing for day/week/month interval triggers, 
+                // because of the way getFireTimeAfter() works - in its always restarting
+                // computation from the start time.
             }
         }
 
@@ -541,6 +555,11 @@ namespace Quartz
         /// </summary>
         public override DateTime? GetFireTimeAfter(DateTime? afterTime)
         {
+            return GetFireTimeAfter(afterTime, false);
+        }
+
+        protected DateTime? GetFireTimeAfter(DateTime? afterTime, bool ignoreEndTime)
+        {
             if (complete)
             {
                 return null;
@@ -561,7 +580,7 @@ namespace Quartz
             DateTime afterMillis = afterTime.Value;
             DateTime endMillis = (EndTimeUtc == null) ? DateTime.MaxValue : EndTimeUtc.Value;
 
-            if (endMillis <= afterMillis)
+            if (!ignoreEndTime && (endMillis <= afterMillis))
             {
                 return null;
             }
@@ -575,7 +594,9 @@ namespace Quartz
 
             DateTime? time = null;
             long repeatLong = RepeatInterval;
-
+            
+            DateTime? aTime = afterTime;
+            
             DateTime sTime = StartTimeUtc;
 
             if (RepeatIntervalUnit == IntervalUnit.Second)
@@ -607,24 +628,84 @@ namespace Quartz
             }
             else if (RepeatIntervalUnit == IntervalUnit.Day)
             {
+                // Because intervals greater than an hour have an non-fixed number 
+                // of seconds in them (due to daylight savings, variation number of 
+                // days in each month, leap year, etc. ) we can't jump forward an
+                // exact number of seconds to calculate the fire time as we can
+                // with the second, minute and hour intervals.   But, rather
+                // than slowly crawling our way there by iteratively adding the 
+                // increment to the start time until we reach the "after time",
+                // we can first make a big leap most of the way there...
+
                 long jumpCount = secondsAfterStart / (repeatLong * 24L * 60L * 60L);
-                if (secondsAfterStart % (repeatLong * 24L * 60L * 60L) != 0)
+                // if we need to make a big jump, jump most of the way there, 
+                // but not all the way because in some cases we may over-shoot or under-shoot
+                if (jumpCount > 20)
                 {
-                    jumpCount++;
+                    if (jumpCount < 50)
+                    {
+                        jumpCount = (long)(jumpCount * 0.80);
+                    }
+                    else if (jumpCount < 500)
+                    {
+                        jumpCount = (long)(jumpCount * 0.90);
+                    }
+                    else
+                    {
+                        jumpCount = (long)(jumpCount * 0.95);
+                    }
+                    sTime = sTime.AddDays(RepeatInterval * jumpCount);
                 }
-                time = sTime.AddDays(RepeatInterval * (int)jumpCount);
+
+                // now baby-step the rest of the way there...
+                while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                {
+                    sTime= sTime.AddDays(RepeatInterval);
+                }
+                time = sTime;
             }
             else if (RepeatIntervalUnit == IntervalUnit.Week)
             {
+                // Because intervals greater than an hour have an non-fixed number 
+                // of seconds in them (due to daylight savings, variation number of 
+                // days in each month, leap year, etc. ) we can't jump forward an
+                // exact number of seconds to calculate the fire time as we can
+                // with the second, minute and hour intervals.   But, rather
+                // than slowly crawling our way there by iteratively adding the 
+                // increment to the start time until we reach the "after time",
+                // we can first make a big leap most of the way there...
+
                 long jumpCount = secondsAfterStart / (repeatLong * 7L * 24L * 60L * 60L);
-                if (secondsAfterStart % (repeatLong * 7L * 24L * 60L * 60L) != 0)
+                // if we need to make a big jump, jump most of the way there, 
+                // but not all the way because in some cases we may over-shoot or under-shoot
+                if (jumpCount > 20)
                 {
-                    jumpCount++;
+                    if (jumpCount < 50)
+                    {
+                        jumpCount = (long)(jumpCount * 0.80);
+                    }
+                    else if (jumpCount < 500)
+                    {
+                        jumpCount = (long)(jumpCount * 0.90);
+                    }
+                    else
+                    {
+                        jumpCount = (long)(jumpCount * 0.95);
+                    }
+                    sTime = sTime.AddDays((int)(RepeatInterval * jumpCount * 7));
                 }
-                time = sTime.AddDays(RepeatInterval * (int)jumpCount * 7);
+
+                while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                {
+                    sTime = sTime.AddDays(RepeatInterval * 7);
+                }
+                time = sTime;
             }
             else if (RepeatIntervalUnit == IntervalUnit.Month)
             {
+                // because of the large variation in size of months, and 
+                // because months are already large blocks of time, we will
+                // just advance via brute-force iteration.
                 while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddMonths(RepeatInterval);
@@ -640,7 +721,7 @@ namespace Quartz
                 time = sTime;
             }
 
-            if (endMillis <= time)
+            if (!ignoreEndTime && endMillis <= time)
             {
                 return null;
             }
@@ -663,96 +744,51 @@ namespace Quartz
                     return null;
                 }
 
-                DateTime beforeTime = EndTimeUtc.Value.Subtract(TimeSpan.FromSeconds(1));
+                // back up a second from end time
+                DateTime? fTime = EndTimeUtc.Value.AddSeconds(-1);
+                // find the next fire time after that
+                fTime = GetFireTimeAfter(fTime, true);
 
-                DateTime startMillis = StartTimeUtc;
-                DateTime beforeMillis = beforeTime;
-
-                if (beforeMillis < startMillis)
+                // the the trigger fires at the end time, that's it!
+                if (fTime == EndTimeUtc)
                 {
-                    return startMillis;
+                    return fTime;
                 }
 
-                long secondsAfterStart = (long)(beforeMillis - startMillis).TotalSeconds;
+                // otherwise we have to back up one interval from the fire time after the end time
 
-                DateTime? time = null;
-                long repeatLong = RepeatInterval;
+                DateTime lTime = fTime.Value;
 
                 if (RepeatIntervalUnit == IntervalUnit.Second)
                 {
-                    long jumpCount = secondsAfterStart / repeatLong;
-                    if (secondsAfterStart % repeatLong != 0)
-                    {
-                        jumpCount++;
-                    }
-                    jumpCount--; // backup to time before
-                    time = startMillis.AddSeconds(repeatLong * jumpCount);
+                    lTime = lTime.AddSeconds(-1 * RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Minute)
                 {
-                    long jumpCount = secondsAfterStart / (repeatLong * 60L);
-                    if (secondsAfterStart % (repeatLong * 60L) != 0)
-                    {
-                        jumpCount++;
-                    }
-                    jumpCount--; // backup to time before
-                    time = startMillis.AddMinutes(repeatLong * jumpCount);
+                    lTime = lTime.AddMinutes(-1 * RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Hour)
                 {
-                    long jumpCount = secondsAfterStart / (repeatLong * 60L * 60L);
-                    if (secondsAfterStart % (repeatLong * 60L * 60L) != 0)
-                    {
-                        jumpCount++;
-                    }
-                    jumpCount--; // backup to time before
-                    time = startMillis.AddHours(repeatLong * jumpCount);
+                    lTime = lTime.AddHours(-1 * RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Day)
                 {
-                    long jumpCount = secondsAfterStart / (repeatLong * 24L * 60L * 60L);
-                    if (secondsAfterStart % (repeatLong * 24L * 60L * 60L) != 0)
-                    {
-                        jumpCount++;
-                    }
-                    jumpCount--; // backup to time before
-                    time = startMillis.AddDays(repeatLong * jumpCount);
+                    lTime = lTime.AddDays(-1 * RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Week)
                 {
-                    long jumpCount = secondsAfterStart / (repeatLong * 7L * 24L * 60L * 60L);
-                    if (secondsAfterStart % (repeatLong * 7L * 24L * 60L * 60L) != 0)
-                    {
-                        jumpCount++;
-                    }
-                    jumpCount--; // backup to time before
-                    time = startMillis.AddDays(repeatLong * jumpCount * 7);
+                    lTime = lTime.AddDays(-1 * RepeatInterval * 7);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Month)
                 {
-                    DateTime cal = StartTimeUtc;
-                    while (cal < beforeTime && cal.Year < YearToGiveupSchedulingAt)
-                    {
-                        cal = cal.AddMonths(RepeatInterval);
-                    }
-                    time = cal.AddMonths(-RepeatInterval); // backup to time before
+                    lTime = lTime.AddMonths(-1 * RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Year)
                 {
-                    DateTime cal = StartTimeUtc;
-                    while (cal < beforeTime && cal.Year < YearToGiveupSchedulingAt)
-                    {
-                        cal = cal.AddYears(RepeatInterval);
-                    }
-                    time = cal.AddYears(-RepeatInterval); // backup to time before
+                    lTime = lTime.AddYears( -1 * RepeatInterval);
                 }
 
-                if (time < startMillis)
-                {
-                    return startTime;
-                }
-
-                return time;
+                return lTime;
             }
         }
 
