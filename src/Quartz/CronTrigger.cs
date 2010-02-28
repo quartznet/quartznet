@@ -382,11 +382,6 @@ namespace Quartz
 		/// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
         /// <param name="startTimeUtc">A <see cref="DateTime" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
         /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
-        /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
-		/// <param name="timeZone">
-		/// Specifies for which time zone the <code>cronExpression</code> should be interpreted, 
-		/// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
-		/// </param>
 		public CronTrigger(string name, string group, string jobName,
             string jobGroup, DateTime startTimeUtc, 
             DateTime? endTime,
