@@ -32,7 +32,7 @@ namespace Quartz.Listener
     /// <p>
     /// The broadcasting behavior of this listener to delegate listeners may be
     /// more convenient than registering all of the listeners directly with the
-    /// Trigger, and provides the flexibility of easily changing which listeners
+    /// Job, and provides the flexibility of easily changing which listeners
     /// get notified.
     /// </p>
     ///
@@ -57,14 +57,11 @@ namespace Quartz.Listener
         private readonly List<string> namePatterns = new List<string>();
         private readonly List<string> groupPatterns = new List<string>();
 
-        /**
-     * Construct an instance with the given name.
-     *
-     * (Remember to add some delegate listeners!)
-     *
-     * @param name the name of this instance
-     */
-
+        /// <summary>
+        /// Construct an instance with the given name.
+        /// (Remember to add some delegate listeners!)
+        /// </summary>
+        /// <param name="name">the name of this instance</param>
         public FilterAndBroadcastJobListener(string name)
         {
             if (name == null)
@@ -74,19 +71,20 @@ namespace Quartz.Listener
             this.name = name;
             listeners = new List<IJobListener>();
         }
-
-        /**
-     * Construct an instance with the given name, and List of listeners.
-     *
-     * @param name the name of this instance
-     * @param listeners the initial List of JobListeners to broadcast to.
-     */
-
+        
+        /// <summary>
+        /// Construct an instance with the given name, and List of listeners.
+        /// </summary>
+        /// <param name="name">the name of this instance</param>
+        /// <param name="listeners">the initial List of JobListeners to broadcast to</param>
         public FilterAndBroadcastJobListener(string name, IEnumerable<IJobListener> listeners) : this(name)
         {
             this.listeners.AddRange(listeners);
         }
 
+        /// <summary>
+        /// Get the name of the <see cref="IJobListener" />.
+        /// </summary>
         public string Name
         {
             get { return name; }

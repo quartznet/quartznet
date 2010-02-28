@@ -213,7 +213,7 @@ namespace Quartz
         /// The start-time will also be set to the current time, and the time zone
         /// will be set the the system's default time zone.
         /// </remarks>
-        /// <param name="name">The name.</param>
+        /// <param name="name">The name of the <see cref="Trigger" /></param>
         public CronTrigger(string name) : this(name, null)
         {
         }
@@ -225,8 +225,8 @@ namespace Quartz
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
         /// </remarks>
-		/// <param name="name">The name.</param>
-		/// <param name="group">The group.</param>
+        /// <param name="name">The name of the <see cref="Trigger" /></param>
+        /// <param name="group">The group of the <see cref="Trigger" /></param>
 		public CronTrigger(string name, string group) : base(name, group)
 		{
 			StartTimeUtc = DateTime.UtcNow;
@@ -246,9 +246,9 @@ namespace Quartz
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
         /// </remarks>
-		/// <param name="name">The name.</param>
-		/// <param name="group">The group.</param>
-		/// <param name="cronExpression">The cron expression.</param>
+        /// <param name="name">The name of the <see cref="Trigger" /></param>
+        /// <param name="group">The group of the <see cref="Trigger" /></param>
+        /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
 		public CronTrigger(string name, string group, string cronExpression) : base(name, group)
 		{
 			CronExpressionString = cronExpression;
@@ -269,10 +269,10 @@ namespace Quartz
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
 		/// </remarks>
-		/// <param name="name">The name.</param>
-		/// <param name="group">The group.</param>
-		/// <param name="jobName">Name of the job.</param>
-		/// <param name="jobGroup">The job group.</param>
+        /// <param name="name">The name of the <see cref="Trigger" />.</param>
+        /// <param name="group">The group of the <see cref="Trigger" /></param>
+        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup) : base(name, group, jobName, jobGroup)
 		{
@@ -293,11 +293,11 @@ namespace Quartz
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
         /// </remarks>
-		/// <param name="name">The name.</param>
-		/// <param name="group">The group.</param>
-		/// <param name="jobName">Name of the job.</param>
-		/// <param name="jobGroup">The job group.</param>
-		/// <param name="cronExpression">The cron expression.</param>
+        /// <param name="name">The name of the <see cref="Trigger" /></param>
+        /// <param name="group">The group of the <see cref="Trigger" /></param>
+        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, string cronExpression)
 #if !NET_35
@@ -313,12 +313,15 @@ namespace Quartz
 		/// associated with the identified <see cref="JobDetail" />,
 		/// and with the given "cron" expression resolved with respect to the <see cref="TimeZone" />.
 		/// </summary>
-		/// <param name="name">The name.</param>
-		/// <param name="group">The group.</param>
-		/// <param name="jobName">Name of the job.</param>
-		/// <param name="jobGroup">The job group.</param>
-		/// <param name="cronExpression">The cron expression.</param>
-		/// <param name="timeZone">The time zone.</param>
+        /// <param name="name">The name of the <see cref="Trigger" /></param>
+        /// <param name="group">The group of the <see cref="Trigger" /></param>
+        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
+        /// <param name="timeZone">
+        /// Specifies for which time zone the <code>cronExpression</code> should be interpreted, 
+        /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
+        /// </param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, string cronExpression, TimeZone timeZone)
 			: this(name, group, jobName, jobGroup, DateTime.UtcNow, null, cronExpression,
@@ -335,13 +338,13 @@ namespace Quartz
 		/// zone will be set the the system's default.
 		/// </p>
 		/// </summary>
-		/// <param name="name">The name.</param>
-		/// <param name="group">The group.</param>
-		/// <param name="jobName">Name of the job.</param>
-		/// <param name="jobGroup">The job group.</param>
-        /// <param name="startTimeUtc">The start time.</param>
-		/// <param name="endTime">The end time.</param>
-		/// <param name="cronExpression">The cron expression.</param>
+        /// <param name="name">The name of the <see cref="Trigger" /></param>
+        /// <param name="group">The group of the <see cref="Trigger" /></param>
+        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="startTimeUtc">A <see cref="DateTime" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
+        /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
+        /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, DateTime startTimeUtc, 
             DateTime? endTime, 
@@ -370,15 +373,20 @@ namespace Quartz
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with fire time dictated by the
 		/// <param name="cronExpression" /> resolved with respect to the specified
-		/// <param name="timeZone" /> occuring from the <see cref="startTimeUtc" /> until
+        /// <param name="timeZone" /> occurring from the <see cref="startTimeUtc" /> until
 		/// the given <paran name="endTimeUtc" />.
 		/// </summary>
-		/// <param name="name">The name.</param>
-		/// <param name="group">The group.</param>
-		/// <param name="jobName">Name of the job.</param>
-		/// <param name="jobGroup">The job group.</param>
-        /// <param name="startTimeUtc">The start time.</param>
-		/// <param name="endTime">The end time.</param>
+        /// <param name="name">The name of the <see cref="Trigger" /></param>
+        /// <param name="group">The group of the <see cref="Trigger" /></param>
+        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
+		/// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="startTimeUtc">A <see cref="DateTime" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
+        /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
+        /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
+		/// <param name="timeZone">
+		/// Specifies for which time zone the <code>cronExpression</code> should be interpreted, 
+		/// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
+		/// </param>
 		public CronTrigger(string name, string group, string jobName,
             string jobGroup, DateTime startTimeUtc, 
             DateTime? endTime,
