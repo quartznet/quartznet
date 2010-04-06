@@ -32,6 +32,22 @@ namespace Quartz.Core
 	{
 		private string instanceId;
 
+        /// <summary>
+        /// Construct a SchedulingContext with default values.
+        /// </summary>
+	    public SchedulingContext()
+	    {
+	    }
+
+	    /// <summary>
+        /// Construct a SchedulingContext with the given instanceId.
+        /// </summary>
+        /// <param name="instanceId"></param>
+        public SchedulingContext(String instanceId)
+        {
+            InstanceId = instanceId;
+        }
+
 		/// <summary>
 		/// get the instanceId in the cluster.
 		/// </summary>

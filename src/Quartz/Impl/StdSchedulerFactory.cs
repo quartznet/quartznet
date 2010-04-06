@@ -880,12 +880,8 @@ Please add configuration to your application config file to correctly initialize
 
                         if (js.Clustered)
                         {
-                            if (((JobStoreSupport) js).Clustered)
-                            {
-                                schedInstId = instanceIdGenerator.GenerateInstanceId();
-                            }
+                            schedInstId = instanceIdGenerator.GenerateInstanceId();
                         }
-                   
                     }
                     catch (Exception e)
                     {

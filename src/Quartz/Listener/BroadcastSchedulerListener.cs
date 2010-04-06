@@ -69,6 +69,23 @@ namespace Quartz.Listener
             return listeners.AsReadOnly();
         }
 
+
+        public void JobAdded(JobDetail jobDetail)
+        {
+            foreach (ISchedulerListener listener in listeners)
+            {
+                listener.JobAdded(jobDetail);
+            }
+        }
+
+        public void JobDeleted(string jobName, string groupName)
+        {
+            foreach (ISchedulerListener listener in listeners)
+            {
+                listener.JobDeleted(jobName, groupName);
+            }
+        }
+
         public void JobScheduled(Trigger trigger)
         {
             foreach (ISchedulerListener l in listeners)
@@ -130,6 +147,22 @@ namespace Quartz.Listener
             foreach (ISchedulerListener l in listeners)
             {
                 l.SchedulerError(msg, cause);
+            }
+        }
+
+        public void SchedulerStarted()
+        {
+            foreach (ISchedulerListener listener in listeners)
+            {
+                listener.SchedulerStarted();
+            }
+        }
+
+        public void SchedulerInStandbyMode()
+        {
+            foreach (ISchedulerListener listener in listeners)
+            {
+                listener.SchedulerInStandbyMode();
             }
         }
 

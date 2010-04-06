@@ -74,6 +74,21 @@ namespace Quartz
 		/// <param name="triggerGroup">The trigger group.</param>
 		void TriggersResumed(string triggerName, string triggerGroup);
 
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// has been added.
+        /// </summary>
+        /// <param name="jobDetail"></param>
+        void JobAdded(JobDetail jobDetail);
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// has been deleted.
+        /// </summary>
+        /// <param name="jobName"></param>
+        /// <param name="groupName"></param>
+        void JobDeleted(string jobName, string groupName);
+
 		/// <summary>
 		/// Called by the <see cref="IScheduler"/> when a <see cref="JobDetail"/>
 		/// or group of <see cref="JobDetail"/>s has been  paused.
@@ -109,6 +124,18 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		void SchedulerError(string msg, SchedulerException cause);
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> to inform the listener
+        /// that it has move to standby mode.
+        /// </summary>
+        void SchedulerInStandbyMode();
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> to inform the listener
+        /// that it has started.
+        /// </summary>
+        void SchedulerStarted();
 
 		/// <summary> 
 		/// Called by the <see cref="IScheduler" /> to inform the listener

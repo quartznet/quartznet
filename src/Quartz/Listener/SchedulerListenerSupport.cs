@@ -69,6 +69,14 @@ namespace Quartz.Listener
         {
         }
 
+        public virtual void JobAdded(JobDetail jobDetail)
+        {
+        }
+
+        public virtual void JobDeleted(string jobName, string groupName)
+        {
+        }
+
         public virtual void JobsPaused(string jobName, string jobGroup)
         {
         }
@@ -78,6 +86,14 @@ namespace Quartz.Listener
         }
 
         public virtual void SchedulerError(string msg, SchedulerException cause)
+        {
+        }
+
+        public virtual void SchedulerInStandbyMode()
+        {
+        }
+
+        public virtual void SchedulerStarted()
         {
         }
 

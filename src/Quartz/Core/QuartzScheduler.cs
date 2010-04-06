@@ -23,6 +23,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Remoting;
+using System.Text;
 using System.Threading;
 
 using Common.Logging;
@@ -207,6 +208,11 @@ namespace Quartz.Core
         public virtual bool IsShutdown
         {
             get { return closed; }
+        }
+
+        public virtual bool IsStarted
+        {
+            get { return !shuttingDown && !closed && !InStandbyMode && initialStart != null; }
         }
 
         /// <summary>
@@ -447,6 +453,8 @@ namespace Quartz.Core
             schedThread.TogglePause(false);
 
             Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} started.", resources.GetUniqueIdentifier()));
+
+            NotifySchedulerListenersStarted();
         }
 
         public void StartDelayed(TimeSpan delay)
@@ -506,6 +514,7 @@ namespace Quartz.Core
         {
             schedThread.TogglePause(true);
             Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} paused.", resources.GetUniqueIdentifier()));
+            NotifySchedulerListenersInStandbyMode();        
         }
 
         /// <summary>
@@ -773,6 +782,8 @@ namespace Quartz.Core
             }
 
             resources.JobStore.StoreJob(ctxt, jobDetail, replace);
+            NotifySchedulerThread(null);
+            NotifySchedulerListenersJobAdded(jobDetail);
         }
 
         /// <summary>
@@ -789,7 +800,26 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            return resources.JobStore.RemoveJob(ctxt, jobName, groupName);
+            Trigger[] triggers = GetTriggersOfJob(ctxt, jobName, groupName);
+            foreach (Trigger trigger in triggers)
+            {
+                if (!UnscheduleJob(ctxt, trigger.Name, trigger.Group))
+                {
+                    StringBuilder sb = new StringBuilder()
+                        .Append("Unable to unschedule trigger [")
+                        .Append(trigger.Key).Append("] while deleting job [")
+                        .Append(groupName).Append(".").Append(jobName).Append("]");
+                    throw new SchedulerException(sb.ToString());
+                }
+            }
+
+            bool result = resources.JobStore.RemoveJob(ctxt, jobName, groupName);
+            if (result)
+            {
+                NotifySchedulerThread(null);
+                NotifySchedulerListenersJobDeleted(jobName, groupName);
+            }
+            return result;
         }
 
         /// <summary>
@@ -1997,6 +2027,38 @@ namespace Quartz.Core
             }
         }
 
+        public void NotifySchedulerListenersInStandbyMode()
+        {
+            // notify all scheduler listeners
+            foreach (ISchedulerListener listener in SchedulerListeners)
+            {
+                try
+                {
+                    listener.SchedulerInStandbyMode();
+                }
+                catch (Exception e)
+                {
+                    Log.Error("Error while notifying SchedulerListener of inStandByMode.", e);
+                }
+            }
+        }
+
+        public void NotifySchedulerListenersStarted()
+        {
+            // notify all scheduler listeners
+            foreach (ISchedulerListener listener in SchedulerListeners)
+            {
+                try
+                {
+                    listener.SchedulerStarted();
+                }
+                catch (Exception e)
+                {
+                    Log.Error("Error while notifying SchedulerListener of startup.", e);
+                }
+            }
+        }
+
         /// <summary>
         /// Notifies the scheduler listeners about scheduler shutdown.
         /// </summary>
@@ -2019,6 +2081,37 @@ namespace Quartz.Core
             }
         }
 
+        public void NotifySchedulerListenersJobAdded(JobDetail jobDetail)
+        {
+            // notify all scheduler listeners
+            foreach (ISchedulerListener listener in SchedulerListeners)
+            {
+                try
+                {
+                    listener.JobAdded(jobDetail);
+                }
+                catch (Exception e)
+                {
+                    Log.Error("Error while notifying SchedulerListener of JobAdded.", e);
+                }
+            }
+        }
+
+        public void NotifySchedulerListenersJobDeleted(String jobName, String groupName)
+        {
+            // notify all scheduler listeners
+            foreach (ISchedulerListener listener in SchedulerListeners)
+            {
+                try
+                {
+                    listener.JobDeleted(jobName, groupName);
+                }
+                catch (Exception e)
+                {
+                    Log.Error("Error while notifying SchedulerListener of JobAdded.", e);
+                }
+            }
+        }
 
         /// <summary>
         /// Interrupt all instances of the identified InterruptableJob.
