@@ -114,7 +114,7 @@ namespace Quartz.Xml
 		{
 			if (trigger.StartTimeUtc == DateTime.MinValue)
 			{
-				trigger.StartTimeUtc = DateTime.UtcNow;
+				trigger.StartTimeUtc = SystemTime.UtcNow();
 			}
 
 			if (trigger is CronTrigger)

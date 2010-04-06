@@ -198,7 +198,7 @@ namespace Quartz
         /// </remarks>
 		public CronTrigger()
 		{
-			StartTimeUtc = DateTime.UtcNow;
+			StartTimeUtc = SystemTime.UtcNow();
 #if !NET_35
             TimeZone = TimeZone.CurrentTimeZone;
 #else
@@ -229,7 +229,7 @@ namespace Quartz
         /// <param name="group">The group of the <see cref="Trigger" /></param>
 		public CronTrigger(string name, string group) : base(name, group)
 		{
-			StartTimeUtc = DateTime.UtcNow;
+			StartTimeUtc = SystemTime.UtcNow();
 #if !NET_35
             TimeZone = TimeZone.CurrentTimeZone;
 #else
@@ -252,7 +252,7 @@ namespace Quartz
 		public CronTrigger(string name, string group, string cronExpression) : base(name, group)
 		{
 			CronExpressionString = cronExpression;
-			StartTimeUtc = DateTime.UtcNow;
+			StartTimeUtc = SystemTime.UtcNow();
 #if !NET_35
             TimeZone = TimeZone.CurrentTimeZone;
 #else
@@ -276,7 +276,7 @@ namespace Quartz
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup) : base(name, group, jobName, jobGroup)
 		{
-			StartTimeUtc = DateTime.UtcNow;
+			StartTimeUtc = SystemTime.UtcNow();
 #if !NET_35
             TimeZone = TimeZone.CurrentTimeZone;
 #else
@@ -301,9 +301,9 @@ namespace Quartz
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, string cronExpression)
 #if !NET_35
-			: this(name, group, jobName, jobGroup, DateTime.UtcNow, null, cronExpression, TimeZone.CurrentTimeZone)
+			: this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression, TimeZone.CurrentTimeZone)
 #else
-			: this(name, group, jobName, jobGroup, DateTime.UtcNow, null, cronExpression, TimeZoneInfo.Local)
+			: this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression, TimeZoneInfo.Local)
 #endif
 		{
 		}
@@ -324,7 +324,7 @@ namespace Quartz
         /// </param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, string cronExpression, TimeZone timeZone)
-			: this(name, group, jobName, jobGroup, DateTime.UtcNow, null, cronExpression,
+			: this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression,
 			timeZone)
 		{
 		}
@@ -355,7 +355,7 @@ namespace Quartz
 
             if (startTimeUtc == DateTime.MinValue)
 			{
-                startTimeUtc = DateTime.UtcNow;
+                startTimeUtc = SystemTime.UtcNow();
 			}
 			StartTimeUtc = startTimeUtc;
 			if (endTime.HasValue)
@@ -392,7 +392,7 @@ namespace Quartz
 
             if (startTimeUtc == DateTime.MinValue)
 			{
-                startTimeUtc = DateTime.UtcNow;
+                startTimeUtc = SystemTime.UtcNow();
 			}
             StartTimeUtc = startTimeUtc;
 
@@ -609,7 +609,7 @@ namespace Quartz
 		{
 			if (!afterTimeUtc.HasValue)
 			{
-				afterTimeUtc = DateTime.UtcNow;
+				afterTimeUtc = SystemTime.UtcNow();
 			}
 
 			if (StartTimeUtc > afterTimeUtc.Value)
@@ -722,7 +722,7 @@ namespace Quartz
 
 			if (instr == Quartz.MisfireInstruction.CronTrigger.DoNothing)
 			{
-                DateTime? newFireTime = GetFireTimeAfter(DateTime.UtcNow);
+                DateTime? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
 
                 while (newFireTime.HasValue && cal != null
 				       && !cal.IsTimeIncluded(newFireTime.Value))
@@ -733,7 +733,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.CronTrigger.FireOnceNow)
 			{
-				SetNextFireTime(DateTime.UtcNow);
+				SetNextFireTime(SystemTime.UtcNow());
 			}
 		}
 
@@ -839,7 +839,7 @@ namespace Quartz
                 return;
             }
 
-			DateTime now = DateTime.UtcNow;
+			DateTime now = SystemTime.UtcNow();
 
 			while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
 			{

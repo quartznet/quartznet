@@ -90,7 +90,7 @@ namespace Quartz.Simpl
 			}
 		}
 
-        private static long ftrCtr = DateTime.UtcNow.Ticks;
+        private static long ftrCtr = SystemTime.UtcNow().Ticks;
 
         /// <summary>
 	    /// Gets the fired trigger record id.
@@ -1215,7 +1215,7 @@ namespace Quartz.Simpl
 		/// <returns></returns>
 		protected internal virtual bool ApplyMisfire(TriggerWrapper tw)
 		{
-			DateTime misfireTime = DateTime.UtcNow;
+			DateTime misfireTime = SystemTime.UtcNow();
 			if (MisfireThreshold > TimeSpan.Zero)
 			{
 				misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
@@ -1377,7 +1377,7 @@ namespace Quartz.Simpl
                 tw.state = InternalTriggerState.Waiting;
 
 				TriggerFiredBundle bndle =
-					new TriggerFiredBundle(RetrieveJob(ctxt, trigger.JobName, trigger.JobGroup), trigger, cal, false, DateTime.UtcNow,
+					new TriggerFiredBundle(RetrieveJob(ctxt, trigger.JobName, trigger.JobGroup), trigger, cal, false, SystemTime.UtcNow(),
 					                       trigger.GetPreviousFireTimeUtc(), prevFireTime, trigger.GetNextFireTimeUtc());
 
 				JobDetail job = bndle.JobDetail;

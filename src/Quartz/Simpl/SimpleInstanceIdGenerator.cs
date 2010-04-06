@@ -44,7 +44,7 @@ namespace Quartz.Simpl
 
 				return
 					Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName +
-					DateTime.UtcNow.Ticks;
+					SystemTime.UtcNow().Ticks;
             }
 			catch (Exception e)
 			{

@@ -692,12 +692,12 @@ namespace Quartz.Impl.Calendar
                      rangeEndingSecond,
                      rangeEndingMillis);
 
-            DateTime startCal = DateTime.UtcNow;
+            DateTime startCal = SystemTime.UtcNow();
             startCal =
                 new DateTime(startCal.Year, startCal.Month, startCal.Day, rangeStartingHourOfDay, rangeStartingMinute,
                              rangeStartingSecond, rangeStartingMillis);
 
-            DateTime endCal = DateTime.UtcNow;
+            DateTime endCal = SystemTime.UtcNow();
             endCal =
                 new DateTime(endCal.Year, endCal.Month, endCal.Day, rangeEndingHourOfDay, rangeEndingMinute,
                              rangeEndingSecond, rangeEndingMillis);

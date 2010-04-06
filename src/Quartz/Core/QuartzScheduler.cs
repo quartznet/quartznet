@@ -445,7 +445,7 @@ namespace Quartz.Core
 
             if (!initialStart.HasValue)
             {
-                initialStart = DateTime.UtcNow;
+                initialStart = SystemTime.UtcNow();
                 resources.JobStore.SchedulerStarted();
                 StartPlugins();
             }
@@ -943,7 +943,7 @@ namespace Quartz.Core
             }
 
             Trigger trig =
-                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DefaultManualTriggers, jobName, groupName, DateTime.UtcNow,
+                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DefaultManualTriggers, jobName, groupName, SystemTime.UtcNow(),
                                   null, 0, TimeSpan.Zero);
             trig.Volatile = false;
             trig.ComputeFirstFireTimeUtc(null);
@@ -985,7 +985,7 @@ namespace Quartz.Core
             }
 
             Trigger trig =
-                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DefaultManualTriggers, jobName, groupName, DateTime.UtcNow,
+                new SimpleTrigger(NewTriggerId(), SchedulerConstants.DefaultManualTriggers, jobName, groupName, SystemTime.UtcNow(),
                                   null, 0, TimeSpan.Zero);
             trig.Volatile = true;
             trig.ComputeFirstFireTimeUtc(null);

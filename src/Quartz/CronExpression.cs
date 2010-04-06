@@ -1513,7 +1513,7 @@ namespace Quartz
                 {
                     mon = 0;
                 }
-                return new DateTime(DateTime.UtcNow.Year, mon, dayofmn, hr, mn, sc);
+                return new DateTime(SystemTime.UtcNow().Year, mon, dayofmn, hr, mn, sc);
             }
             catch (Exception)
             {

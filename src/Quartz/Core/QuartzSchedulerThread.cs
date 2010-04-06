@@ -270,7 +270,7 @@ namespace Quartz.Core
                     {
                         Trigger trigger = null;
 
-                        DateTime now = DateTime.UtcNow;
+                        DateTime now = SystemTime.UtcNow();
 
                         ClearSignaledSchedulingChange();
                         try
@@ -300,7 +300,7 @@ namespace Quartz.Core
 
                         if (trigger != null)
                         {
-                            now = DateTime.UtcNow;
+                            now = SystemTime.UtcNow();
                             DateTime triggerTime = trigger.GetNextFireTimeUtc().Value;
                             TimeSpan timeUntilTrigger =  triggerTime - now;
 
@@ -312,7 +312,7 @@ namespace Quartz.Core
                                     {
                                         // we could have blocked a long while
                                         // on 'synchronize', so we must recompute
-                                        now = DateTime.UtcNow;
+                                        now = SystemTime.UtcNow();
                                         timeUntilTrigger = triggerTime - now;
                                         if (timeUntilTrigger.TotalMilliseconds >= 1)
                                         {
@@ -356,7 +356,7 @@ namespace Quartz.Core
                                     }
                                     
                                 }
-                                now = DateTime.UtcNow;
+                                now = SystemTime.UtcNow();
                                 timeUntilTrigger = triggerTime - now;
                             }
 
@@ -493,7 +493,7 @@ namespace Quartz.Core
                         continue; // should never happen, if threadPool.blockForAvailableThreads() follows contract
                     }
 
-                    DateTime utcNow = DateTime.UtcNow;
+                    DateTime utcNow = SystemTime.UtcNow();
                     DateTime waitTime = utcNow.Add(GetRandomizedIdleWaitTime());
                     TimeSpan timeUntilContinue = waitTime - utcNow;
                     lock (sigLock) 
@@ -557,7 +557,7 @@ namespace Quartz.Core
 			    if(earlier) 
                 {
 				    // so the new time is considered earlier, but is it enough earlier?
-                    TimeSpan diff = oldTimeUtc - DateTime.UtcNow;
+                    TimeSpan diff = oldTimeUtc - SystemTime.UtcNow();
 				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(80) : TimeSpan.FromMilliseconds(7)))
 				    {
 				        earlier = false;

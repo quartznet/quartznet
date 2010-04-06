@@ -400,6 +400,7 @@
     <Compile Include="Impl\SchedulerDetailsSetter.cs" />
     <Compile Include="MisfireInstruction.cs" />
     <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
+    <Compile Include="SystemTime.cs" />
     <Compile Include="TimeSpanParseRuleAttribute.cs" />
     <Compile Include="SchedulerConstants.cs" />
     <Compile Include="SchedulerInstruction.cs" />

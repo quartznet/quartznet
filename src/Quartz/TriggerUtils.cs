@@ -142,7 +142,7 @@ namespace Quartz
 				return null; /* never happens... */
 			}
 
-			trig.StartTimeUtc = DateTime.UtcNow;
+			trig.StartTimeUtc = SystemTime.UtcNow();
 
 			return trig;
 		}
@@ -192,7 +192,7 @@ namespace Quartz
 				return null; /* never happens... */
 			}
 
-			trig.StartTimeUtc = DateTime.UtcNow;
+			trig.StartTimeUtc = SystemTime.UtcNow();
 
 			return trig;
 		}
@@ -258,7 +258,7 @@ namespace Quartz
 				return null; /* never happens... */
 			}
 
-			trig.StartTimeUtc = DateTime.UtcNow;
+			trig.StartTimeUtc = SystemTime.UtcNow();
 
 			return trig;
 		}
@@ -301,7 +301,7 @@ namespace Quartz
 		public static Trigger MakeImmediateTrigger(int repeatCount, TimeSpan repeatInterval)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
-			trig.StartTimeUtc = DateTime.UtcNow;
+			trig.StartTimeUtc = SystemTime.UtcNow();
 			trig.RepeatCount = repeatCount;
 			trig.RepeatInterval = repeatInterval;
 			return trig;
@@ -383,7 +383,7 @@ namespace Quartz
 
 			trig.RepeatInterval = TimeSpan.FromSeconds(intervalInSeconds);
 			trig.RepeatCount = repeatCount;
-            trig.StartTimeUtc = DateTime.UtcNow;
+            trig.StartTimeUtc = SystemTime.UtcNow();
 
 			return trig;
 		}
@@ -464,7 +464,7 @@ namespace Quartz
 			SimpleTrigger trig = new SimpleTrigger();
 			trig.RepeatInterval = TimeSpan.FromMinutes(intervalInMinutes);
 			trig.RepeatCount = repeatCount;
-			trig.StartTimeUtc = DateTime.UtcNow;
+			trig.StartTimeUtc = SystemTime.UtcNow();
 
 			return trig;
 		}
@@ -546,7 +546,7 @@ namespace Quartz
 
 			trig.RepeatInterval = TimeSpan.FromHours(intervalInHours);
 			trig.RepeatCount = repeatCount;
-			trig.StartTimeUtc = DateTime.UtcNow;
+			trig.StartTimeUtc = SystemTime.UtcNow();
 
 			return trig;
 		}
@@ -586,7 +586,7 @@ namespace Quartz
 		{
             if (!dateUtc.HasValue)
 			{
-                dateUtc = DateTime.UtcNow;
+                dateUtc = SystemTime.UtcNow();
 			}
             DateTime d = dateUtc.Value.AddHours(1);
 			return new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0);
@@ -607,7 +607,7 @@ namespace Quartz
 		{
             if (!dateUtc.HasValue)
 			{
-                dateUtc = DateTime.UtcNow;
+                dateUtc = SystemTime.UtcNow();
 			}
             return new DateTime(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0);
 		}
@@ -627,7 +627,7 @@ namespace Quartz
 		{
             if (!dateUtc.HasValue)
 			{
-                dateUtc = DateTime.UtcNow;
+                dateUtc = SystemTime.UtcNow();
 			}
 
             DateTime d = dateUtc.Value;
@@ -650,7 +650,7 @@ namespace Quartz
 		{
             if (!dateUtc.HasValue)
 			{
-				dateUtc = DateTime.UtcNow;
+				dateUtc = SystemTime.UtcNow();
 			}
 
             DateTime d = dateUtc.Value;
@@ -668,7 +668,7 @@ namespace Quartz
 		{
             if (!dateUtc.HasValue)
 			{
-                dateUtc = DateTime.UtcNow;
+                dateUtc = SystemTime.UtcNow();
 			}
             DateTime d = dateUtc.Value;
 			d = d.AddSeconds(1);
@@ -690,7 +690,7 @@ namespace Quartz
 		{
             if (!dateUtc.HasValue)
 			{
-                dateUtc = DateTime.UtcNow;
+                dateUtc = SystemTime.UtcNow();
 			}
             DateTime d = dateUtc.Value;
 			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second);
@@ -796,7 +796,7 @@ namespace Quartz
 
             if (!dateUtc.HasValue)
 			{
-                dateUtc = DateTime.UtcNow;
+                dateUtc = SystemTime.UtcNow();
 			}
             DateTime d = dateUtc.Value;
 
@@ -840,7 +840,7 @@ namespace Quartz
 
             if (!dateUtc.HasValue)
 			{
-                dateUtc = DateTime.UtcNow;
+                dateUtc = SystemTime.UtcNow();
 			}
 
             DateTime d = dateUtc.Value;
@@ -973,7 +973,7 @@ namespace Quartz
 		/// <returns>the translated UTC date</returns>
 		public static DateTime TranslateTime(DateTime date, TimeZone src, TimeZone dest)
 		{
-			DateTime newDate = DateTime.UtcNow;
+			DateTime newDate = SystemTime.UtcNow();
  			double offset = (GetOffset(date, dest) - GetOffset(date, src));
 
 			newDate = newDate.AddMilliseconds(-1*offset);

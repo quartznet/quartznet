@@ -136,7 +136,7 @@ namespace Quartz
         /// </remarks>
         public NthIncludedDayTrigger()
         {
-            StartTimeUtc = DateTime.UtcNow;
+            StartTimeUtc = SystemTime.UtcNow();
         }
 
         /// <summary> 
@@ -178,7 +178,7 @@ namespace Quartz
         public NthIncludedDayTrigger(string name, string group)
             : base(name, group)
         {
-            StartTimeUtc = DateTime.UtcNow;
+            StartTimeUtc = SystemTime.UtcNow();
         }
 
         /// <summary> 
@@ -196,7 +196,7 @@ namespace Quartz
         public NthIncludedDayTrigger(string name, string group, string jobName, string jobGroup)
             : base(name, group, jobName, jobGroup)
         {
-            StartTimeUtc = DateTime.UtcNow;
+            StartTimeUtc = SystemTime.UtcNow();
         }
 
 
@@ -513,7 +513,7 @@ namespace Quartz
             afterTimeUtc = DateTimeUtil.AssumeUniversalTime(afterTimeUtc);
 			if (!afterTimeUtc.HasValue)
 			{
-				afterTimeUtc = DateTime.UtcNow;
+				afterTimeUtc = SystemTime.UtcNow();
 			}
 
 			if ((afterTimeUtc.Value < StartTimeUtc))
@@ -673,11 +673,11 @@ namespace Quartz
 
 			if (instruction == Quartz.MisfireInstruction.NthIncludedDayTrigger.DoNothing)
 			{
-                nextFireTimeUtc = GetFireTimeAfter(DateTime.UtcNow);
+                nextFireTimeUtc = GetFireTimeAfter(SystemTime.UtcNow());
 			}
 			else if (instruction == Quartz.MisfireInstruction.NthIncludedDayTrigger.FireOnceNow)
 			{
-				nextFireTimeUtc = DateTime.UtcNow;
+				nextFireTimeUtc = SystemTime.UtcNow();
 			}
 		}
 
@@ -695,7 +695,7 @@ namespace Quartz
 		    calendar = cal;
 			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-			DateTime now = DateTime.UtcNow;
+			DateTime now = SystemTime.UtcNow();
 			if ((nextFireTimeUtc.HasValue) && ((nextFireTimeUtc.Value < now)))
 			{
 			    TimeSpan diff = now - nextFireTimeUtc.Value;

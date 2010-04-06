@@ -439,7 +439,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             get
             {
-                DateTime misfireTime = DateTime.UtcNow;
+                DateTime misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
                 {
                     misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
@@ -863,7 +863,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 Trigger trig = RetrieveTrigger(conn, triggerName, groupName);
 
-                DateTime misfireTime = DateTime.UtcNow;
+                DateTime misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
                 {
                     misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
@@ -2683,7 +2683,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 bool misfired = false;
 
-                if ((status.NextFireTimeUtc.Value < DateTime.UtcNow))
+                if ((status.NextFireTimeUtc.Value < SystemTime.UtcNow()))
                 {
                     misfired = UpdateMisfiredTrigger(conn, ctxt, triggerName, groupName, newState, true);
                 }
@@ -3089,7 +3089,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private static long ftrCtr = DateTime.UtcNow.Ticks;
+        private static long ftrCtr = SystemTime.UtcNow().Ticks;
 
 
         /// <summary>
@@ -3385,7 +3385,7 @@ namespace Quartz.Impl.AdoJobStore
                 trigger, 
                 cal, 
                 trigger.Group.Equals(SchedulerConstants.DefaultRecoveryGroup),
-                DateTime.UtcNow,
+                SystemTime.UtcNow(),
                 trigger.GetPreviousFireTimeUtc(), 
                 prevFireTime, 
                 trigger.GetNextFireTimeUtc());
@@ -3592,7 +3592,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected bool firstCheckIn = true;
 
-        protected DateTime lastCheckin = DateTime.UtcNow;
+        protected DateTime lastCheckin = SystemTime.UtcNow();
 
         protected virtual bool DoCheckin()
         {
@@ -3692,7 +3692,7 @@ namespace Quartz.Impl.AdoJobStore
                     else
                     {
                         // find failed instances...
-                        if (CalcFailedIfAfter(rec) < DateTime.UtcNow)
+                        if (CalcFailedIfAfter(rec) < SystemTime.UtcNow())
                         {
                             failedInstances.Add(rec);
                         }
@@ -3720,7 +3720,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                lastCheckin = DateTime.UtcNow;
+                lastCheckin = SystemTime.UtcNow();
                 throw new JobPersistenceException("Failure identifying failed instances when checking-in: "
                                                   + e.Message, e);
             }
@@ -3760,7 +3760,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected DateTime CalcFailedIfAfter(SchedulerStateRecord rec)
         {
-            TimeSpan passed = DateTime.UtcNow - lastCheckin;
+            TimeSpan passed = SystemTime.UtcNow() - lastCheckin;
             TimeSpan ts = rec.CheckinInterval > passed ? rec.CheckinInterval : passed;
             return rec.CheckinTimestamp.Add(ts).Add(TimeSpan.FromMilliseconds(7500));
         }
@@ -3774,7 +3774,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
                 // check in...
-                lastCheckin = DateTime.UtcNow;
+                lastCheckin = SystemTime.UtcNow();
                 if (Delegate.UpdateSchedulerState(conn, InstanceId, lastCheckin) == 0)
                 {
                     Delegate.InsertSchedulerState(conn, InstanceId, lastCheckin, ClusterCheckinInterval);
@@ -3793,7 +3793,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (failedInstances.Count > 0)
             {
-                long recoverIds = DateTime.UtcNow.Ticks;
+                long recoverIds = SystemTime.UtcNow().Ticks;
 
                 LogWarnIfNonZero(failedInstances.Count,
                                  "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
@@ -4300,7 +4300,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (!shutdown)
                     {
                         TimeSpan timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-                        TimeSpan transpiredTime = DateTime.UtcNow - jobStoreSupport.lastCheckin;
+                        TimeSpan transpiredTime = SystemTime.UtcNow() - jobStoreSupport.lastCheckin;
                         timeToSleep = timeToSleep - transpiredTime;
                         if (timeToSleep <= TimeSpan.Zero)
                         {
@@ -4389,7 +4389,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     while (!shutdown)
                     {
-                        DateTime sTime = DateTime.UtcNow;
+                        DateTime sTime = SystemTime.UtcNow();
 
                         RecoverMisfiredJobsResult recoverMisfiredJobsResult = Manage();
 
@@ -4403,7 +4403,7 @@ namespace Quartz.Impl.AdoJobStore
                             TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
                             if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
                             {
-                                timeToSleep = jobStoreSupport.MisfireThreshold - (DateTime.UtcNow - sTime);
+                                timeToSleep = jobStoreSupport.MisfireThreshold - (SystemTime.UtcNow() - sTime);
                                 if (timeToSleep <= TimeSpan.Zero)
                                 {
                                     timeToSleep = TimeSpan.FromMilliseconds(50);

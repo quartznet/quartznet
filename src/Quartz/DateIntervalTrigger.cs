@@ -103,7 +103,7 @@ namespace Quartz
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public DateIntervalTrigger(string name, string group, IntervalUnit intervalUnit,
                                    int repeatInterval)
-            : this(name, group, DateTime.UtcNow, null, intervalUnit, repeatInterval)
+            : this(name, group, SystemTime.UtcNow(), null, intervalUnit, repeatInterval)
         {
         }
 
@@ -174,7 +174,7 @@ namespace Quartz
             {
                 if (startTime == DateTime.MinValue)
                 {
-                    startTime = DateTime.UtcNow;
+                    startTime = SystemTime.UtcNow();
                 }
                 return startTime;
             }
@@ -305,7 +305,7 @@ namespace Quartz
 
             if (instr == Quartz.MisfireInstruction.DateIntervalTrigger.DoNothing)
             {
-                DateTime? newFireTime = GetFireTimeAfter(DateTime.UtcNow);
+                DateTime? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
                 while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
@@ -315,7 +315,7 @@ namespace Quartz
             else if (instr == Quartz.MisfireInstruction.DateIntervalTrigger.FireOnceNow)
             {
                 // fire once now...
-                NextFireTimeUtc = DateTime.UtcNow;
+                NextFireTimeUtc = SystemTime.UtcNow();
                 // the new fire time afterward will magically preserve the original  
                 // time of day for firing for day/week/month interval triggers, 
                 // because of the way getFireTimeAfter() works - in its always restarting
@@ -375,7 +375,7 @@ namespace Quartz
                 return;
             }
 
-            DateTime now = DateTime.UtcNow;
+            DateTime now = SystemTime.UtcNow();
             while (nextFireTime != null && !calendar.IsTimeIncluded(nextFireTime.Value))
             {
                 nextFireTime = GetFireTimeAfter(nextFireTime);
@@ -569,7 +569,7 @@ namespace Quartz
             // comparing against a time after it!
             if (afterTime == null)
             {
-                afterTime = DateTime.UtcNow.AddSeconds(1);
+                afterTime = SystemTime.UtcNow().AddSeconds(1);
             }
             else
             {

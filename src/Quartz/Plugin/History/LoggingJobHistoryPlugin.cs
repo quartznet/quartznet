@@ -374,7 +374,7 @@ namespace Quartz.Plugin.History
             object[] args =
                 new object[]
                     {
-                        context.JobDetail.Name, context.JobDetail.Group, DateTime.UtcNow, trigger.Name, trigger.Group,
+                        context.JobDetail.Name, context.JobDetail.Group, SystemTime.UtcNow(), trigger.Name, trigger.Group,
                         trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 
@@ -406,7 +406,7 @@ namespace Quartz.Plugin.History
                 args =
                     new object[]
                         {
-                            context.JobDetail.Name, context.JobDetail.Group, DateTime.UtcNow, trigger.Name, trigger.Group,
+                            context.JobDetail.Name, context.JobDetail.Group, SystemTime.UtcNow(), trigger.Name, trigger.Group,
                             trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
                         };
 
@@ -423,7 +423,7 @@ namespace Quartz.Plugin.History
                 args =
                     new object[]
                         {
-                            context.JobDetail.Name, context.JobDetail.Group, DateTime.UtcNow, trigger.Name, trigger.Group,
+                            context.JobDetail.Name, context.JobDetail.Group, SystemTime.UtcNow(), trigger.Name, trigger.Group,
                             trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
                         };
 
@@ -451,7 +451,7 @@ namespace Quartz.Plugin.History
             object[] args =
                 new object[]
                     {
-                        context.JobDetail.Name, context.JobDetail.Group, DateTime.UtcNow, trigger.Name, trigger.Group,
+                        context.JobDetail.Name, context.JobDetail.Group, SystemTime.UtcNow(), trigger.Name, trigger.Group,
                         trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 

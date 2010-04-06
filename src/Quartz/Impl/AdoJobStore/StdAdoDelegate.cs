@@ -352,7 +352,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    long dumId = DateTime.UtcNow.Ticks;
+                    long dumId = SystemTime.UtcNow().Ticks;
 
                     while (rs.Read())
                     {

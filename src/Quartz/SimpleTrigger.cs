@@ -73,7 +73,7 @@ namespace Quartz
         /// not repeat.
         /// </summary>
         public SimpleTrigger(string name, string group)
-            : this(name, group, DateTime.UtcNow, null, 0, TimeSpan.Zero)
+            : this(name, group, SystemTime.UtcNow(), null, 0, TimeSpan.Zero)
         {
         }
 
@@ -91,7 +91,7 @@ namespace Quartz
         /// repeat at the the given interval the given number of times.
         /// </summary>
         public SimpleTrigger(string name, string group, int repeatCount, TimeSpan repeatInterval)
-            : this(name, group, DateTime.UtcNow, null, repeatCount, repeatInterval)
+            : this(name, group, SystemTime.UtcNow(), null, repeatCount, repeatInterval)
         {
         }
 
@@ -347,11 +347,11 @@ namespace Quartz
 
             if (instr == Quartz.MisfireInstruction.SimpleTrigger.FireNow)
 			{
-				SetNextFireTime(DateTime.UtcNow);
+				SetNextFireTime(SystemTime.UtcNow());
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
 			{
-                DateTime? newFireTime = GetFireTimeAfter(DateTime.UtcNow);
+                DateTime? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
 
                 while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
@@ -372,7 +372,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
 			{
-                DateTime? newFireTime = GetFireTimeAfter(DateTime.UtcNow);
+                DateTime? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
 
 				while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
@@ -400,7 +400,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
 			{
-				DateTime newFireTime = DateTime.UtcNow;
+				DateTime newFireTime = SystemTime.UtcNow();
 				if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
 				{
 					RepeatCount = RepeatCount - TimesTriggered;
@@ -419,7 +419,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
 			{
-				DateTime newFireTime = DateTime.UtcNow;
+				DateTime newFireTime = SystemTime.UtcNow();
 				int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc, newFireTime);
 
 				if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
@@ -491,7 +491,7 @@ namespace Quartz
                 return;
             }
 
-            DateTime now = DateTime.UtcNow;
+            DateTime now = SystemTime.UtcNow();
             while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
@@ -616,7 +616,7 @@ namespace Quartz
 
 			if (!afterTimeUtc.HasValue)
 			{
-				afterTimeUtc = DateTime.UtcNow;
+				afterTimeUtc = SystemTime.UtcNow();
 			}
 
 			if (repeatCount == 0 && afterTimeUtc.Value.CompareTo(StartTimeUtc) >= 0)

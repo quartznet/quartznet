@@ -230,7 +230,7 @@ namespace Quartz.Plugin.Xml
                             SimpleTrigger trig = new SimpleTrigger(
                                 jobTriggerName,
                                 JobInitializationPluginName,
-                                DateTime.UtcNow, null,
+                                SystemTime.UtcNow(), null,
                                 SimpleTrigger.RepeatIndefinitely, scanInterval);
                             trig.Volatile = true;
 
