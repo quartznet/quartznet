@@ -76,6 +76,11 @@ namespace Quartz.Collection
             retValue.AddAll(directedCollectionValue);
             return retValue;
         }
+
+        T ISortedSet<T>.this[int index]
+        {
+            get { return base[index]; }
+        }
     }
 
 #else

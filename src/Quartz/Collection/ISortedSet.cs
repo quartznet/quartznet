@@ -31,5 +31,7 @@ namespace Quartz.Collection
 	    /// <param name="limit">The start element of the portion to extract.</param>
 	    /// <returns>The portion of the collection whose elements are greater than the limit object parameter.</returns>
 	    ISortedSet<T> TailSet(T limit);
+
+        T this[int index] { get; }
 	}
 }

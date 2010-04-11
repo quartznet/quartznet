@@ -602,8 +602,8 @@ namespace Quartz
                     StoreExpressionVals(0, "*", Year);
                 }
 
-                TreeSet<int> dow = GetSet(DayOfWeek);
-                TreeSet<int> dom = GetSet(DayOfMonth);
+                ISortedSet<int> dow = GetSet(DayOfWeek);
+                ISortedSet<int> dom = GetSet(DayOfMonth);
 
                 // Copying the logic from the UnsupportedOperationException below
                 bool dayOfMSpec = !dom.Contains(NoSpec);
@@ -910,7 +910,7 @@ namespace Quartz
                 {
                     throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'L' option is not valid here. (pos={0})", i));
                 }
-                TreeSet<int> data = GetSet(type);
+                ISortedSet<int> data = GetSet(type);
                 data.Add(val);
                 i++;
                 return i;
@@ -926,7 +926,7 @@ namespace Quartz
                 {
                     throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'W' option is not valid here. (pos={0})", i));
                 }
-                TreeSet<int> data = GetSet(type);
+                ISortedSet<int> data = GetSet(type);
                 data.Add(val);
                 i++;
                 return i;
@@ -954,7 +954,7 @@ namespace Quartz
                         "A numeric value between 1 and 5 must follow the '#' option");
                 }
 
-                TreeSet<int> data = GetSet(type);
+                ISortedSet<int> data = GetSet(type);
                 data.Add(val);
                 i++;
                 return i;
@@ -974,7 +974,7 @@ namespace Quartz
                 {
                     throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'C' option is not valid here. (pos={0})", i));
                 }
-                TreeSet<int> data = GetSet(type);
+                ISortedSet<int> data = GetSet(type);
                 data.Add(val);
                 i++;
                 return i;
@@ -1198,7 +1198,7 @@ namespace Quartz
         /// <param name="type">The type.</param>
         protected virtual void AddToSet(int val, int end, int incr, int type)
         {
-            TreeSet<int> data = GetSet(type);
+            ISortedSet<int> data = GetSet(type);
 
             if (type == Second || type == Minute)
             {
@@ -1380,7 +1380,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="type">The type of set to get.</param>
 		/// <returns></returns>
-        protected virtual TreeSet<int> GetSet(int type)
+        protected virtual ISortedSet<int> GetSet(int type)
         {
             switch (type)
             {
