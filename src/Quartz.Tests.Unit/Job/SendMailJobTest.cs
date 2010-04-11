@@ -117,7 +117,11 @@ namespace Quartz.Tests.Unit.Job
             }
             if (!string.IsNullOrEmpty(ReplyTo))
             {
+#if NET_40
+                Assert.AreEqual(new MailAddress(ReplyTo), actualMail.ReplyToList[0]);
+#else
                 Assert.AreEqual(new MailAddress(ReplyTo), actualMail.ReplyTo);
+#endif
             }
         }
     }

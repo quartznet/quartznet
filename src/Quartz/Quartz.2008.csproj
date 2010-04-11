@@ -53,7 +53,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>NET_20,NET_35</DefineConstants>
+    <DefineConstants>NET_20,NET_35,C5</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -66,6 +66,7 @@
     <WarningLevel>3</WarningLevel>
     <DebugType>full</DebugType>
     <ErrorReport>prompt</ErrorReport>
+    <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>..\..\build\2.0\Release\Quartz\</OutputPath>
@@ -74,7 +75,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>NET_20,NET_35</DefineConstants>
+    <DefineConstants>NET_20,NET_35,C5</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -87,8 +88,13 @@
     <WarningLevel>4</WarningLevel>
     <DebugType>full</DebugType>
     <ErrorReport>prompt</ErrorReport>
+    <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="C5, Version=1.1.0.0, Culture=neutral, PublicKeyToken=06a1b38866503b69, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\2.0\C5.dll</HintPath>
+    </Reference>
     <Reference Include="Common.Logging, Version=1.2.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
@@ -418,6 +424,12 @@
     <Compile Include="Xml\job_scheduling_data.cs">
       <DependentUpon>job_scheduling_data.xsd</DependentUpon>
     </Compile>
+    <Compile Include="Xml\job_scheduling_data_1_0.cs">
+      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="Xml\job_scheduling_data_1_2.cs">
+      <DependentUpon>job_scheduling_data_1_2.xsd</DependentUpon>
+    </Compile>
     <Compile Include="Xml\ValidationException.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -435,6 +447,11 @@
     <None Include="Xml\job_scheduling_data.xsx">
       <DependentUpon>job_scheduling_data.xsd</DependentUpon>
     </None>
+    <None Include="Xml\job_scheduling_data_1_0.xsd" />
+    <None Include="Xml\job_scheduling_data_1_0.xsx">
+      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
+    </None>
+    <None Include="Xml\job_scheduling_data_1_2.xsd" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">

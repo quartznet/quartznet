@@ -132,7 +132,11 @@ namespace Quartz.Job
 			mimeMessage.From = new MailAddress(from);
             if (!String.IsNullOrEmpty(replyTo))
             {
+#if NET_40
+                mimeMessage.ReplyToList.Add(new MailAddress(replyTo));
+#else
                 mimeMessage.ReplyTo = new MailAddress(replyTo);
+#endif
             }
 			mimeMessage.Subject = subject;
 			mimeMessage.Body = message;

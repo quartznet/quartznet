@@ -2,6 +2,39 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://quartznet.sourceforge.net
 
+
+Release 1.2, xx.2010
+-------------------------------
+
+BREAKING CHANGES
+
+* When C5 collections were introduced as set-based implementation provider, ISet and ISortedSet interfaces were narrowed (IList inheritance removed)
+
+Release 1.0.2, Dec 12, 2009
+-------------------------------
+
+Bug
+
+    * [QRTZNET-163] - quartz.jobStore.clustered mentioned wrongly as quartz.jobStore.isClustered
+    * [QRTZNET-169] - OracleDelegate uses invalid keyword 'rowcount' instead of correct 'rownum'
+    * [QRTZNET-174] - Rollback on a closed connection in JobStoreSupport.DoCheckin
+    * [QRTZNET-175] - Race condition in SimpleThreadPool
+    * [QRTZNET-176] - LW in cron-expression (last weekday of month) flagged as invalid by job_scheduling_data.xsd
+    * [QRTZNET-180] - Possible hang in SimpleThreadPool.Shutdown(true)
+    * [QRTZNET-181] - Quartz Fills up log file when database connection goes down
+    * [QRTZNET-188] - AdoJobStore cannot delete jobs if job type cannot be loaded
+
+Improvement
+
+    * [QRTZNET-165] - in QuartzServer the 'scheduler' field is defined as private - that makes inheriting the QuartzServer class problematic
+    * [QRTZNET-173] - Convenience Constructors for JobDetail and Trigger Classes
+
+Task
+
+    * [QRTZNET-178] - Please keep the generic job.xml in the download package for all tags that we can use
+
+
+
 Release 1.0.1, May 16, 2009
 -------------------------------
 

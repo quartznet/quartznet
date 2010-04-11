@@ -19,12 +19,70 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 namespace Quartz.Collection
 {
+#if C5
+    using C5;
+    // use C5
+    
+    public class TreeSet<T> : C5.TreeSet<T>, ISortedSet<T>
+    {
+        public TreeSet()
+        {
+            
+        }
+
+        public TreeSet(IComparer<T> comparer) : base(comparer)
+        {
+
+        }
+
+        public TreeSet(IEnumerable<T> items)
+        {
+            AddAll(items);
+        }
+
+        public void Insert(int index, T item)
+        {
+            throw new NotImplementedException();
+        }
+
+        //void System.Collections.Generic.IList<T>.RemoveAt(int index)
+        //{
+        //    RemoveAt(index);
+        //}
+
+        //T System.Collections.Generic.IList<T>.this[int index]
+        //{
+        //    get { return this[index]; }
+        //    set { throw new NotImplementedException(); }
+        //}
+
+        public T First()
+        {
+            return Count > 0 ? this[0] : default(T);
+        }
+
+        void ISet<T>.Add(T item)
+        {
+            Add(item);
+        }
+
+        public ISortedSet<T> TailSet(T limit)
+        {
+            TreeSet<T> retValue = new TreeSet<T>(Comparer);
+            IDirectedCollectionValue<T> directedCollectionValue = RangeFrom(limit);
+            retValue.AddAll(directedCollectionValue);
+            return retValue;
+        }
+    }
+
+#else
+    // old-school and slow
+
     /// <summary>
-    /// SupportClass for the TreeSet class.
+    /// Slow and naive implementation for TreeSet.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
@@ -55,17 +113,6 @@ namespace Quartz.Collection
         public TreeSet(IComparer<T> c)
         {
             comparator = c;
-        }
-
-        /// <summary>
-        /// Unmodifiables the tree set.
-        /// </summary>
-        /// <param name="collection">The collection.</param>
-        /// <returns></returns>
-        public static TreeSet<T> UnmodifiableTreeSet(ICollection<T> collection)
-        {
-            ReadOnlyCollection<T> items = new List<T>(collection).AsReadOnly();
-            return new TreeSet<T>(items);
         }
 
         /// <summary>
@@ -147,4 +194,5 @@ namespace Quartz.Collection
             return newList;
         }
     }
+#endif
 }

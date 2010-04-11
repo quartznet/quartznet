@@ -45,7 +45,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		public virtual ISortedSet<DateTime> ExcludedDates
 		{
-			get { return TreeSet<DateTime>.UnmodifiableTreeSet(dates); }
+			get { return new TreeSet<DateTime>(dates); }
 		}
 
 		// A sorted set to store the holidays

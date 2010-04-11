@@ -348,12 +348,12 @@ namespace Quartz.Tests.Unit
             Console.Error.WriteLine(AssertParsesForField("55-3 56-2 6 ? * FRI", 1));
         }
 
-        private static ISet<int> AssertParsesForField(string expression, int constant)
+        private static Collection.ISet<int> AssertParsesForField(string expression, int constant)
         {
             try
             {
                 TestCronExpression cronExpression = new TestCronExpression(expression);
-                ISet<int> set = cronExpression.GetSetPublic(constant);
+                Collection.ISet<int> set = cronExpression.GetSetPublic(constant);
                 if (set.Count == 0)
                 {
                     Assert.Fail("Empty field [" + constant + "] returned for " + expression);
