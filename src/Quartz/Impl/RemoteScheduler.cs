@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Remoting;
 
+using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -234,7 +235,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual string[] JobGroupNames
+		public virtual IList<string> JobGroupNames
 		{
 			get
 			{
@@ -254,7 +255,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual string[] TriggerGroupNames
+		public virtual IList<string> TriggerGroupNames
 		{
 			get
 			{
@@ -274,7 +275,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual string[] CalendarNames
+		public virtual IList<string> CalendarNames
 		{
 			get
 			{
@@ -304,7 +305,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public virtual ICollection<string> JobListenerNames
+		public virtual ISet<string> JobListenerNames
 		{
 			get
 			{
@@ -355,7 +356,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
-		public virtual ICollection<string> TriggerListenerNames
+		public virtual ISet<string> TriggerListenerNames
 		{
 			get
 			{
@@ -380,7 +381,7 @@ namespace Quartz.Impl
 		/// Get the names of all <see cref="Trigger" /> groups that are paused.
 		/// </summary>
 		/// <value></value>
-		public virtual ICollection<string> GetPausedTriggerGroups()
+		public virtual ISet<string> GetPausedTriggerGroups()
 		{
 			try
 			{
@@ -885,7 +886,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual string[] GetJobNames(string groupName)
+		public virtual IList<string> GetJobNames(string groupName)
 		{
 			try
 			{
@@ -902,7 +903,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual Trigger[] GetTriggersOfJob(string jobName, string groupName)
+		public virtual IList<Trigger> GetTriggersOfJob(string jobName, string groupName)
 		{
 			try
 			{
@@ -919,7 +920,7 @@ namespace Quartz.Impl
 		/// passing the <see cref="SchedulingContext" /> associated with this
 		/// instance.
 		/// </summary>
-		public virtual string[] GetTriggerNames(string groupName)
+		public virtual IList<string> GetTriggerNames(string groupName)
 		{
 			try
 			{
@@ -1037,7 +1038,7 @@ namespace Quartz.Impl
         /// Get the names of all registered <see cref="ICalendar"/>.
         /// </summary>
         /// <returns></returns>
-	    public string[] GetCalendarNames()
+	    public IList<string> GetCalendarNames()
 	    {
             try
             {

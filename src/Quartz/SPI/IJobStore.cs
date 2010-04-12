@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Collection;
 using Quartz.Core;
 
 namespace Quartz.Spi
@@ -296,7 +297,7 @@ namespace Quartz.Spi
         /// <param name="ctx">The CTX.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns></returns>
-		string[] GetJobNames(SchedulingContext ctx, string groupName);
+		IList<string> GetJobNames(SchedulingContext ctx, string groupName);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="Trigger" />s
@@ -306,7 +307,7 @@ namespace Quartz.Spi
 		/// zero-length array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		string[] GetTriggerNames(SchedulingContext ctx, string groupName);
+		IList<string> GetTriggerNames(SchedulingContext ctx, string groupName);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="IJob" />
@@ -316,7 +317,7 @@ namespace Quartz.Spi
 		/// array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		string[] GetJobGroupNames(SchedulingContext ctxt);
+		IList<string> GetJobGroupNames(SchedulingContext ctxt);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="Trigger" />
@@ -326,7 +327,7 @@ namespace Quartz.Spi
 		/// array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		string[] GetTriggerGroupNames(SchedulingContext ctxt);
+		IList<string> GetTriggerGroupNames(SchedulingContext ctxt);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="ICalendar" /> s
@@ -337,7 +338,7 @@ namespace Quartz.Spi
 		/// a zero-length array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		string[] GetCalendarNames(SchedulingContext ctxt);
+		IList<string> GetCalendarNames(SchedulingContext ctxt);
 
 		/// <summary>
 		/// Get all of the Triggers that are associated to the given Job.
@@ -345,7 +346,7 @@ namespace Quartz.Spi
 		/// <remarks>
 		/// If there are no matches, a zero-length array should be returned.
 		/// </remarks>
-		Trigger[] GetTriggersForJob(SchedulingContext ctx, string jobName, string groupName);
+		IList<Trigger> GetTriggersForJob(SchedulingContext ctx, string jobName, string groupName);
 
 		/// <summary>
 		/// Get the current state of the identified <see cref="Trigger" />.
@@ -426,8 +427,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <param name="ctxt">The context.</param>
         /// <returns></returns>
-		ICollection<string> GetPausedTriggerGroups(SchedulingContext ctxt);
-
+        ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt);
 
 		/// <summary> 
 		/// Resume (un-pause) the <see cref="IJob" /> with the

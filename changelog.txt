@@ -8,7 +8,9 @@ Release 1.2, xx.2010
 
 BREAKING CHANGES
 
+* Many public interface methods have changed from returning arrays to generic IList or ISet interfaces
 * When C5 collections were introduced as set-based implementation provider, ISet and ISortedSet interfaces were narrowed (IList inheritance removed)
+
 
 Release 1.0.2, Dec 12, 2009
 -------------------------------

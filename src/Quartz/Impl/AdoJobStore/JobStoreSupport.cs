@@ -27,6 +27,7 @@ using System.Threading;
 
 using Common.Logging;
 
+using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Spi;
@@ -684,20 +685,20 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // find volatile jobs & triggers...
-                Key[] volatileTriggers = Delegate.SelectVolatileTriggers(conn);
-                Key[] volatileJobs = Delegate.SelectVolatileJobs(conn);
+                IList<Key> volatileTriggers = Delegate.SelectVolatileTriggers(conn);
+                IList<Key> volatileJobs = Delegate.SelectVolatileJobs(conn);
 
-                for (int i = 0; i < volatileTriggers.Length; i++)
+                foreach (Key trigger in volatileTriggers)
                 {
-                    RemoveTrigger(conn, null, volatileTriggers[i].Name, volatileTriggers[i].Group);
+                    RemoveTrigger(conn, null, trigger.Name, trigger.Group);
                 }
-                Log.Info("Removed " + volatileTriggers.Length + " Volatile Trigger(s).");
+                Log.Info("Removed " + volatileTriggers.Count + " Volatile Trigger(s).");
 
-                for (int i = 0; i < volatileJobs.Length; i++)
+                foreach (Key job in volatileJobs)
                 {
-                    RemoveJob(conn, null, volatileJobs[i].Name, volatileJobs[i].Group, true);
+                    RemoveJob(conn, null, job.Name, job.Group, true);
                 }
-                Log.Info("Removed " + volatileJobs.Length + " Volatile Job(s).");
+                Log.Info("Removed " + volatileJobs.Count + " Volatile Job(s).");
 
                 // clean up any fired trigger entries
                 Delegate.DeleteVolatileFiredTriggers(conn);
@@ -754,29 +755,29 @@ namespace Quartz.Impl.AdoJobStore
                 RecoverMisfiredJobs(conn, true);
 
                 // recover jobs marked for recovery that were not fully executed
-                Trigger[] recoveringJobTriggers = Delegate.SelectTriggersForRecoveringJobs(conn);
-                Log.Info("Recovering " + recoveringJobTriggers.Length +
+                IList<Trigger> recoveringJobTriggers = Delegate.SelectTriggersForRecoveringJobs(conn);
+                Log.Info("Recovering " + recoveringJobTriggers.Count +
                          " jobs that were in-progress at the time of the last shut-down.");
 
-                for (int i = 0; i < recoveringJobTriggers.Length; ++i)
+                foreach (Trigger trigger in recoveringJobTriggers)
                 {
-                    if (JobExists(conn, recoveringJobTriggers[i].JobName, recoveringJobTriggers[i].JobGroup))
+                    if (JobExists(conn, trigger.JobName, trigger.JobGroup))
                     {
-                        recoveringJobTriggers[i].ComputeFirstFireTimeUtc(null);
-                        StoreTrigger(conn, null, recoveringJobTriggers[i], null, false, StateWaiting, false, true);
+                        trigger.ComputeFirstFireTimeUtc(null);
+                        StoreTrigger(conn, null, trigger, null, false, StateWaiting, false, true);
                     }
                 }
                 Log.Info("Recovery complete.");
 
                 // remove lingering 'complete' triggers...
-                Key[] ct = Delegate.SelectTriggersInState(conn, StateComplete);
-                for (int i = 0; ct != null && i < ct.Length; i++)
+                IList<Key> triggersInState = Delegate.SelectTriggersInState(conn, StateComplete);
+                for (int i = 0; triggersInState != null && i < triggersInState.Count; i++)
                 {
-                    RemoveTrigger(conn, null, ct[i].Name, ct[i].Group);
+                    RemoveTrigger(conn, null, triggersInState[i].Name, triggersInState[i].Group);
                 }
-                if (ct != null)
+                if (triggersInState != null)
                 {
-                    Log.Info(string.Format(CultureInfo.InvariantCulture, "Removed {0} 'complete' triggers.", ct.Length));
+                    Log.Info(string.Format(CultureInfo.InvariantCulture, "Removed {0} 'complete' triggers.", triggersInState.Count));
                 }
 
                 // clean up any fired trigger entries
@@ -1286,11 +1287,11 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                Key[] jobTriggers = Delegate.SelectTriggerNamesForJob(conn, jobName, groupName);
+                IList<Key> jobTriggers = Delegate.SelectTriggerNamesForJob(conn, jobName, groupName);
 
-                for (int i = 0; i < jobTriggers.Length; ++i)
+                foreach (Key trigger in jobTriggers)
                 {
-                    DeleteTriggerAndChildren(conn, jobTriggers[i].Name, jobTriggers[i].Group);
+                    DeleteTriggerAndChildren(conn, trigger.Name, trigger.Group);
                 }
 
                 return DeleteJobAndChildren(conn, ctxt, jobName, groupName);
@@ -1379,10 +1380,10 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 JobDetail job = Delegate.SelectJobDetail(conn, jobName, groupName, TypeLoadHelper);
-                String[] listeners = Delegate.SelectJobListeners(conn, jobName, groupName);
-                for (int i = 0; i < listeners.Length; ++i)
+                IList<string> listeners = Delegate.SelectJobListeners(conn, jobName, groupName);
+                foreach (string listenerName in listeners)
                 {
-                    job.AddJobListener(listeners[i]);
+                    job.AddJobListener(listenerName);
                 }
 
                 return job;
@@ -1625,10 +1626,10 @@ namespace Quartz.Impl.AdoJobStore
                 // have been serialized.
                 trigger.ClearAllTriggerListeners();
 
-                String[] listeners = Delegate.SelectTriggerListeners(conn, triggerName, groupName);
-                for (int i = 0; i < listeners.Length; ++i)
+                IList<string> listeners = Delegate.SelectTriggerListeners(conn, triggerName, groupName);
+                foreach (string listenerName in listeners)
                 {
-                    trigger.AddTriggerListener(listeners[i]);
+                    trigger.AddTriggerListener(listenerName);
                 }
 
                 return trigger;
@@ -1803,12 +1804,12 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (updateTriggers)
                     {
-                        Trigger[] trigs = Delegate.SelectTriggersForCalendar(conn, calName);
+                        IList<Trigger> triggers = Delegate.SelectTriggersForCalendar(conn, calName);
 
-                        for (int i = 0; i < trigs.Length; i++)
+                        foreach (Trigger trigger in triggers)
                         {
-                            trigs[i].UpdateWithNewCalendar(calendar, MisfireThreshold);
-                            StoreTrigger(conn, ctxt, trigs[i], null, true, StateWaiting, false, false);
+                            trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
+                            StoreTrigger(conn, ctxt, trigger, null, true, StateWaiting, false, false);
                         }
                     }
                 }
@@ -2101,10 +2102,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no jobs in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public string[] GetJobNames(SchedulingContext ctxt, string groupName)
+        public IList<string> GetJobNames(SchedulingContext ctxt, string groupName)
         {
             // no locks necessary for read...
-            return (string[])ExecuteWithoutLock(new GetJobNamesCallback(this, ctxt, groupName));
+            return (IList<string>)ExecuteWithoutLock(new GetJobNamesCallback(this, ctxt, groupName));
         }
 
         protected class GetJobNamesCallback : CallbackSupport, ITransactionCallback
@@ -2126,10 +2127,10 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual String[] GetJobNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+        protected virtual IList<string> GetJobNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
                                                         string groupName)
         {
-            String[] jobNames;
+            IList<string> jobNames;
 
             try
             {
@@ -2152,10 +2153,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no triggers in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
+        public IList<string> GetTriggerNames(SchedulingContext ctxt, string groupName)
         {
             // no locks necessary for read...
-            return (string[])ExecuteWithoutLock(new GetTriggerNamesCallback(this, ctxt, groupName));
+            return (IList<string>)ExecuteWithoutLock(new GetTriggerNamesCallback(this, ctxt, groupName));
         }
 
         protected class GetTriggerNamesCallback : CallbackSupport, ITransactionCallback
@@ -2177,21 +2178,21 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual string[] GetTriggerNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+        protected virtual IList<string> GetTriggerNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
                                                             string groupName)
         {
-            String[] trigNames;
+            IList<string> triggerNames;
 
             try
             {
-                trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
+                triggerNames = Delegate.SelectTriggersInGroup(conn, groupName);
             }
             catch (Exception e)
             {
                 throw new JobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
             }
 
-            return trigNames;
+            return triggerNames;
         }
 
 
@@ -2204,10 +2205,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public String[] GetJobGroupNames(SchedulingContext ctxt)
+        public IList<string> GetJobGroupNames(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (string[])ExecuteWithoutLock(new GetJobGroupNamesCallback(this, ctxt));
+            return (IList<string>)ExecuteWithoutLock(new GetJobGroupNamesCallback(this, ctxt));
         }
 
         protected class GetJobGroupNamesCallback : CallbackSupport, ITransactionCallback
@@ -2228,9 +2229,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual String[] GetJobGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        protected virtual IList<string> GetJobGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
         {
-            String[] groupNames;
+            IList<string> groupNames;
 
             try
             {
@@ -2253,10 +2254,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public String[] GetTriggerGroupNames(SchedulingContext ctxt)
+        public IList<string> GetTriggerGroupNames(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (String[])ExecuteWithoutLock(new GetTriggerGroupNamesCallback(this, ctxt));
+            return (IList<string>)ExecuteWithoutLock(new GetTriggerGroupNamesCallback(this, ctxt));
         }
 
         protected class GetTriggerGroupNamesCallback : CallbackSupport, ITransactionCallback
@@ -2277,10 +2278,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual String[] GetTriggerGroupNames(ConnectionAndTransactionHolder conn,
-                                                                 SchedulingContext ctxt)
+        protected virtual IList<string> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
         {
-            String[] groupNames;
+            IList<string> groupNames;
 
             try
             {
@@ -2303,10 +2303,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no Calendars in the given group name, the result should be
         /// a zero-length array (not <see langword="null" />).
         /// </remarks>
-        public string[] GetCalendarNames(SchedulingContext ctxt)
+        public IList<string> GetCalendarNames(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (string[])ExecuteWithoutLock(new GetCalendarNamesCallback(this, ctxt));
+            return (IList<string>)ExecuteWithoutLock(new GetCalendarNamesCallback(this, ctxt));
         }
 
         protected class GetCalendarNamesCallback : CallbackSupport, ITransactionCallback
@@ -2325,7 +2325,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual string[] GetCalendarNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        protected virtual IList<string> GetCalendarNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
         {
             try
             {
@@ -2344,10 +2344,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// If there are no matches, a zero-length array should be returned.
         /// </remarks>
-        public Trigger[] GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
+        public IList<Trigger> GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
         {
             // no locks necessary for read...
-            return (Trigger[])ExecuteWithoutLock(new GetTriggersForJobCallback(this, ctxt, jobName, groupName));
+            return (IList<Trigger>)ExecuteWithoutLock(new GetTriggersForJobCallback(this, ctxt, jobName, groupName));
         }
 
         protected class GetTriggersForJobCallback : CallbackSupport, ITransactionCallback
@@ -2373,11 +2373,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual Trigger[] GetTriggersForJob(ConnectionAndTransactionHolder conn,
-                                                               SchedulingContext ctxt, string jobName,
-                                                               string groupName)
+        protected virtual IList<Trigger> GetTriggersForJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName, string groupName)
         {
-            Trigger[] array;
+            IList<Trigger> array;
 
             try
             {
@@ -2475,10 +2473,10 @@ namespace Quartz.Impl.AdoJobStore
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                Trigger[] triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
-                for (int j = 0; j < triggers.Length; j++)
+                IList<Trigger> triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                foreach (Trigger trigger in triggers)
                 {
-                    js.PauseTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                    js.PauseTrigger(conn, ctxt, trigger.Name, trigger.Group);
                 }
             }
         }
@@ -2507,14 +2505,14 @@ namespace Quartz.Impl.AdoJobStore
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                string[] jobNames = js.GetJobNames(conn, ctxt, groupName);
+                IList<string> jobNames = js.GetJobNames(conn, ctxt, groupName);
 
-                for (int i = 0; i < jobNames.Length; i++)
+                foreach (string jobName in jobNames)
                 {
-                    Trigger[] triggers = js.GetTriggersForJob(conn, ctxt, jobNames[i], groupName);
-                    for (int j = 0; j < triggers.Length; j++)
+                    IList<Trigger> triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                    foreach (Trigger trigger in triggers)
                     {
-                        js.PauseTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                        js.PauseTrigger(conn, ctxt, trigger.Name, trigger.Group);
                     }
                 }
             }
@@ -2740,10 +2738,10 @@ namespace Quartz.Impl.AdoJobStore
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                Trigger[] triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
-                for (int j = 0; j < triggers.Length; j++)
+                IList<Trigger> triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                foreach (Trigger trigger in triggers)
                 {
-                    js.ResumeTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                    js.ResumeTrigger(conn, ctxt, trigger.Name, trigger.Group);
                 }
             }
         }
@@ -2777,14 +2775,14 @@ namespace Quartz.Impl.AdoJobStore
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                String[] jobNames = js.GetJobNames(conn, ctxt, groupName);
+                IList<string> jobNames = js.GetJobNames(conn, ctxt, groupName);
 
-                for (int i = 0; i < jobNames.Length; i++)
+                foreach (string jobName in jobNames)
                 {
-                    Trigger[] triggers = js.GetTriggersForJob(conn, ctxt, jobNames[i], groupName);
-                    for (int j = 0; j < triggers.Length; j++)
+                    IList<Trigger> triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                    foreach (Trigger trigger in triggers)
                     {
-                        js.ResumeTrigger(conn, ctxt, triggers[j].Name, triggers[j].Group);
+                        js.ResumeTrigger(conn, ctxt, trigger.Name, trigger.Group);
                     }
                 }
             }
@@ -2846,10 +2844,10 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        public ICollection<string> GetPausedTriggerGroups(SchedulingContext ctxt)
+        public ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (ICollection<string>) ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
+            return (ISet<string>)ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
         }
 
         protected class GetPausedTriggerGroupsCallback : CallbackSupport, ITransactionCallback
@@ -2875,7 +2873,7 @@ namespace Quartz.Impl.AdoJobStore
         /// given group.
         /// </summary>
         /// <seealso cref="SchedulingContext()" />
-        public virtual ICollection<string> GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        public virtual ISet<string> GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
         {
             try
             {
@@ -2929,11 +2927,11 @@ namespace Quartz.Impl.AdoJobStore
             {
                 Delegate.DeletePausedTriggerGroup(conn, groupName);
 
-                String[] trigNames = Delegate.SelectTriggersInGroup(conn, groupName);
+                IList<string> triggerNames = Delegate.SelectTriggersInGroup(conn, groupName);
 
-                for (int i = 0; i < trigNames.Length; i++)
+                foreach (string triggerName in triggerNames)
                 {
-                    ResumeTrigger(conn, ctxt, trigNames[i], groupName);
+                    ResumeTrigger(conn, ctxt, triggerName, groupName);
                 }
 
                 // TODO: find an efficient way to resume triggers (better than the
@@ -3009,11 +3007,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="String" />
         public virtual void PauseAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
         {
-            String[] names = GetTriggerGroupNames(conn, ctxt);
+            IList<string> groupNames = GetTriggerGroupNames(conn, ctxt);
 
-            for (int i = 0; i < names.Length; i++)
+            foreach (string groupName in groupNames)
             {
-                PauseTriggerGroup(conn, ctxt, names[i]);
+                PauseTriggerGroup(conn, ctxt, groupName);
             }
 
             try
@@ -3072,11 +3070,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="PauseAll(SchedulingContext)" />
         public virtual void ResumeAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
         {
-            String[] names = GetTriggerGroupNames(conn, ctxt);
+            IList<string> triggerGroupNames = GetTriggerGroupNames(conn, ctxt);
 
-            for (int i = 0; i < names.Length; i++)
+            foreach (string groupName in triggerGroupNames)
             {
-                ResumeTriggerGroup(conn, ctxt, names[i]);
+                ResumeTriggerGroup(conn, ctxt, groupName);
             }
 
             try
@@ -3736,7 +3734,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             IList<SchedulerStateRecord> orphanedInstances = new List<SchedulerStateRecord>();
 
-            ICollection<string> allFiredTriggerInstanceNames = Delegate.SelectFiredTriggerInstanceNames(conn);
+            ISet<string> allFiredTriggerInstanceNames = Delegate.SelectFiredTriggerInstanceNames(conn);
             if (allFiredTriggerInstanceNames.Count > 0)
             {
                 foreach (SchedulerStateRecord rec in schedulerStateRecords)

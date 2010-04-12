@@ -363,10 +363,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     sched.Standby();
 
-                    Assert.IsNotEmpty(sched.GetCalendarNames());
-                    Assert.IsNotEmpty(sched.GetJobNames(schedId));
+                    CollectionAssert.IsNotEmpty(sched.GetCalendarNames());
+                    CollectionAssert.IsNotEmpty(sched.GetJobNames(schedId));
 
-                    Assert.IsNotEmpty(sched.GetTriggersOfJob("job_2", schedId));
+                    CollectionAssert.IsNotEmpty(sched.GetTriggersOfJob("job_2", schedId));
                     Assert.IsNotNull(sched.GetJobDetail("job_2", schedId));
 
                     sched.RemoveJobListener(new DummyJobListener().Name);
@@ -384,27 +384,94 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
         }
 
+
+        [Test]
+        [Explicit]
+        public void TestSqlServerStress()
+        {
+            NameValueCollection properties = new NameValueCollection();
+
+            properties["quartz.scheduler.instanceName"] = "TestScheduler";
+            properties["quartz.scheduler.instanceId"] = "instance_one";
+            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.threadPool.threadCount"] = "10";
+            properties["quartz.threadPool.threadPriority"] = "Normal";
+            properties["quartz.jobStore.misfireThreshold"] = "60000";
+            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
+            properties["quartz.jobStore.useProperties"] = "false";
+            properties["quartz.jobStore.dataSource"] = "default";
+            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
+            properties["quartz.jobStore.clustered"] = clustered.ToString();
+
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+            RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
+            properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
+
+            string connectionString;
+            if (!dbConnectionStrings.TryGetValue("SQLServer", out connectionString))
+            {
+                throw new Exception("Unknown connection string id: " + "SQLServer");
+            }
+            properties["quartz.dataSource.default.connectionString"] = connectionString;
+            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+
+            // First we must get a reference to a scheduler
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler sched = sf.GetScheduler();
+
+            try
+            {
+                if (clearJobs)
+                {
+                    CleanUp(sched);
+                }
+
+                if (scheduleJobs)
+                {
+                    ICalendar cronCalendar = new CronCalendar("0/5 * * * * ?");
+                    ICalendar holidayCalendar = new HolidayCalendar();
+
+                    for (int i = 0; i < 100000; ++i)
+                    {
+                        SimpleTrigger trigger = new SimpleTrigger("calendarsTrigger", "test", SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(1));
+                        JobDetail jd = new JobDetail("testJob", "test", typeof(NoOpJob));
+                        sched.ScheduleJob(jd, trigger);
+                    }
+
+
+        
+                    sched.Start();
+                }
+            }
+            finally
+            {
+                sched.Shutdown(false);
+            }
+
+        }
+
         private static void CleanUp(IScheduler inScheduler)
         {
             // unschedule jobs
-            string[] groups = inScheduler.TriggerGroupNames;
-            for (int i = 0; i < groups.Length; i++)
+            IList<string> groups = inScheduler.TriggerGroupNames;
+            foreach (string group in groups)
             {
-                string[] names = inScheduler.GetTriggerNames(groups[i]);
-                for (int j = 0; j < names.Length; j++)
+                IList<string> names = inScheduler.GetTriggerNames(group);
+                for (int j = 0; j < names.Count; j++)
                 {
-                    inScheduler.UnscheduleJob(names[j], groups[i]);
+                    inScheduler.UnscheduleJob(names[j], group);
                 }
             }
 
             // delete jobs
             groups = inScheduler.JobGroupNames;
-            for (int i = 0; i < groups.Length; i++)
+            foreach (string group in groups)
             {
-                string[] names = inScheduler.GetJobNames(groups[i]);
-                for (int j = 0; j < names.Length; j++)
+                IList<string> jobNames = inScheduler.GetJobNames(group);
+                foreach (string jobName in jobNames)
                 {
-                    inScheduler.DeleteJob(names[j], groups[i]);
+                    inScheduler.DeleteJob(jobName, group);
                 }
             }
 

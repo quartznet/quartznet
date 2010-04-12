@@ -446,7 +446,7 @@ namespace Quartz.Tests.Unit
         {
         }
 
-        public TreeSet<int> GetSetPublic(int constant)
+        public ISortedSet<int> GetSetPublic(int constant)
         {
             return base.GetSet(constant);
         }

@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Collection;
 using Quartz.Core;
 
 namespace Quartz.Simpl
@@ -41,9 +42,9 @@ namespace Quartz.Simpl
 		int ThreadPoolSize { get; }
 		IList<JobExecutionContext> CurrentlyExecutingJobs { get; }
 		IList<IJobListener> GlobalJobListeners { get; }
-		ICollection<string> JobListenerNames { get; }
+        ISet<string> JobListenerNames { get; }
 		IList<ITriggerListener> GlobalTriggerListeners { get; }
-		ICollection<string> TriggerListenerNames { get; }
+        ISet<string> TriggerListenerNames { get; }
 		IList<ISchedulerListener> SchedulerListeners { get; }
 
 		/// <summary>
@@ -119,7 +120,7 @@ namespace Quartz.Simpl
 
 		void ResumeTriggerGroup(SchedulingContext ctxt, string groupName);
 
-		ICollection<string> GetPausedTriggerGroups(SchedulingContext ctxt);
+        ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt);
 
 		void ResumeJob(SchedulingContext ctxt, string jobName, string groupName);
 
@@ -129,15 +130,15 @@ namespace Quartz.Simpl
 
 		void ResumeAll(SchedulingContext ctxt);
 
-		string[] GetJobGroupNames(SchedulingContext ctxt);
+        IList<string> GetJobGroupNames(SchedulingContext ctxt);
 
-		string[] GetJobNames(SchedulingContext ctxt, string groupName);
+		IList<string> GetJobNames(SchedulingContext ctxt, string groupName);
 
-		Trigger[] GetTriggersOfJob(SchedulingContext ctxt, string jobName, string groupName);
+		IList<Trigger> GetTriggersOfJob(SchedulingContext ctxt, string jobName, string groupName);
 
-		string[] GetTriggerGroupNames(SchedulingContext ctxt);
+		IList<string> GetTriggerGroupNames(SchedulingContext ctxt);
 
-		string[] GetTriggerNames(SchedulingContext ctxt, string groupName);
+		IList<string> GetTriggerNames(SchedulingContext ctxt, string groupName);
 
 		JobDetail GetJobDetail(SchedulingContext ctxt, string jobName, string jobGroup);
 
@@ -151,7 +152,7 @@ namespace Quartz.Simpl
 
 		ICalendar GetCalendar(SchedulingContext ctxt, string calName);
 
-		string[] GetCalendarNames(SchedulingContext ctxt);
+		IList<string> GetCalendarNames(SchedulingContext ctxt);
 
 		void AddGlobalJobListener(IJobListener jobListener);
 

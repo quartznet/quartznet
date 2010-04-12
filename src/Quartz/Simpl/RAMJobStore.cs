@@ -244,12 +244,11 @@ namespace Quartz.Simpl
 
 			bool found = false;
 
-			Trigger[] trigger = GetTriggersForJob(ctxt, jobName, groupName);
-			for (int i = 0; i < trigger.Length; i++)
+			IList<Trigger> triggersForJob = GetTriggersForJob(ctxt, jobName, groupName);
+			foreach (Trigger trigger in triggersForJob)
 			{
-				Trigger trig = trigger[i];
-				RemoveTrigger(ctxt, trig.Name, trig.Group);
-				found = true;
+			    RemoveTrigger(ctxt, trigger.Name, trigger.Group);
+			    found = true;
 			}
             lock (lockObject)
 			{
@@ -428,8 +427,8 @@ namespace Quartz.Simpl
                     timeTriggers.Remove(tw);
 
                     JobWrapper jw = jobsByFQN[JobWrapper.GetJobNameKey(tw.trigger.JobName, tw.trigger.JobGroup)];
-                    Trigger[] trigs = GetTriggersForJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
-                    if ((trigs == null || trigs.Length == 0) && !jw.jobDetail.Durable && deleteOrphanedJob)
+                    IList<Trigger> triggersForJob = GetTriggersForJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
+                    if ((triggersForJob == null || triggersForJob.Count == 0) && !jw.jobDetail.Durable && deleteOrphanedJob)
                     {
                         RemoveJob(ctxt, tw.trigger.JobName, tw.trigger.JobGroup);
                     }
@@ -755,7 +754,7 @@ namespace Quartz.Simpl
 		/// Get the names of all of the <see cref="IJob" /> s that
 		/// have the given group name.
 		/// </summary>
-		public virtual string[] GetJobNames(SchedulingContext ctxt, string groupName)
+		public virtual IList<string> GetJobNames(SchedulingContext ctxt, string groupName)
 		{
 			string[] outList;
 			lock (lockObject)
@@ -790,7 +789,7 @@ namespace Quartz.Simpl
 		/// a zero-length array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		public virtual string[] GetCalendarNames(SchedulingContext ctxt)
+		public virtual IList<string> GetCalendarNames(SchedulingContext ctxt)
 		{
             lock (lockObject)
             {
@@ -802,7 +801,7 @@ namespace Quartz.Simpl
 		/// Get the names of all of the <see cref="Trigger" /> s
 		/// that have the given group name.
 		/// </summary>
-		public virtual string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
+		public virtual IList<string> GetTriggerNames(SchedulingContext ctxt, string groupName)
 		{
 			string[] outList;
             lock (lockObject)
@@ -834,7 +833,7 @@ namespace Quartz.Simpl
 		/// Get the names of all of the <see cref="IJob" />
 		/// groups.
 		/// </summary>
-		public virtual string[] GetJobGroupNames(SchedulingContext ctxt)
+		public virtual IList<string> GetJobGroupNames(SchedulingContext ctxt)
 		{
             lock (lockObject)
 			{
@@ -845,7 +844,7 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Get the names of all of the <see cref="Trigger" /> groups.
 		/// </summary>
-		public virtual string[] GetTriggerGroupNames(SchedulingContext ctxt)
+		public virtual IList<string> GetTriggerGroupNames(SchedulingContext ctxt)
 		{
             lock (lockObject)
             {
@@ -859,7 +858,7 @@ namespace Quartz.Simpl
 		/// If there are no matches, a zero-length array should be returned.
 		/// </p>
 		/// </summary>
-		public virtual Trigger[] GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
+		public virtual IList<Trigger> GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
 			var trigList = new List<Trigger>();
 
@@ -979,11 +978,11 @@ namespace Quartz.Simpl
 					return;
 				}
 				pausedTriggerGroups.Add(groupName);
-				string[] names = GetTriggerNames(ctxt, groupName);
+				IList<string> triggerNames = GetTriggerNames(ctxt, groupName);
 
-				for (int i = 0; i < names.Length; i++)
+				foreach (string triggerName in triggerNames)
 				{
-					PauseTrigger(ctxt, names[i], groupName);
+				    PauseTrigger(ctxt, triggerName, groupName);
 				}
 			}
 		}
@@ -995,13 +994,13 @@ namespace Quartz.Simpl
 		public virtual void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
             lock (lockObject)
-			{
-				Trigger[] t = GetTriggersForJob(ctxt, jobName, groupName);
-				for (int j = 0; j < t.Length; j++)
-				{
-					PauseTrigger(ctxt, t[j].Name, t[j].Group);
-				}
-			}
+            {
+                IList<Trigger> triggersForJob = GetTriggersForJob(ctxt, jobName, groupName);
+                foreach (Trigger trigger in triggersForJob)
+                {
+                    PauseTrigger(ctxt, trigger.Name, trigger.Group);
+                }
+            }
 		}
 
 		/// <summary>
@@ -1021,15 +1020,15 @@ namespace Quartz.Simpl
                 {
                     pausedJobGroups.Add(groupName);
                 }
-				string[] jobNames = GetJobNames(ctxt, groupName);
+				IList<string> jobNames = GetJobNames(ctxt, groupName);
 
-				for (int i = 0; i < jobNames.Length; i++)
+				foreach (string jobName in jobNames)
 				{
-					Trigger[] t = GetTriggersForJob(ctxt, jobNames[i], groupName);
-					for (int j = 0; j < t.Length; j++)
-					{
-						PauseTrigger(ctxt, t[j].Name, t[j].Group);
-					}
+				    IList<Trigger> triggersForJob = GetTriggersForJob(ctxt, jobName, groupName);
+				    foreach (Trigger trigger in triggersForJob)
+				    {
+				        PauseTrigger(ctxt, trigger.Name, trigger.Group);
+				    }
 				}
 			}
 		}
@@ -1093,20 +1092,20 @@ namespace Quartz.Simpl
 		{
             lock (lockObject)
 			{
-				string[] names = GetTriggerNames(ctxt, groupName);
+				IList<string> triggerNames = GetTriggerNames(ctxt, groupName);
                 
-				for (int i = 0; i < names.Length; i++)
+				foreach (string triggerName in triggerNames)
 				{
-                    string key = TriggerWrapper.GetTriggerNameKey(names[i], groupName);
+				    string key = TriggerWrapper.GetTriggerNameKey(triggerName, groupName);
 				    if ((triggersByFQN[key] != null))
 				    {
-                        string jobGroup = triggersByFQN[key].trigger.JobGroup;
+				        string jobGroup = triggersByFQN[key].trigger.JobGroup;
 				        if (pausedJobGroups.Contains(jobGroup))
 				        {
 				            continue;
 				        }
 				    }
-				    ResumeTrigger(ctxt, names[i], groupName);
+				    ResumeTrigger(ctxt, triggerName, groupName);
 				}
 				pausedTriggerGroups.Remove(groupName);
 			}
@@ -1124,13 +1123,13 @@ namespace Quartz.Simpl
 		public virtual void ResumeJob(SchedulingContext ctxt, string jobName, string groupName)
 		{
             lock (lockObject)
-			{
-				Trigger[] t = GetTriggersForJob(ctxt, jobName, groupName);
-				for (int j = 0; j < t.Length; j++)
-				{
-					ResumeTrigger(ctxt, t[j].Name, t[j].Group);
-				}
-			}
+            {
+                IList<Trigger> triggersForJob = GetTriggersForJob(ctxt, jobName, groupName);
+                foreach (Trigger trigger in triggersForJob)
+                {
+                    ResumeTrigger(ctxt, trigger.Name, trigger.Group);
+                }
+            }
 		}
 
 		/// <summary>
@@ -1150,15 +1149,15 @@ namespace Quartz.Simpl
 			    {
 			        pausedJobGroups.Remove(groupName);
 			    }
-				string[] jobNames = GetJobNames(ctxt, groupName);
+				IList<string> jobNames = GetJobNames(ctxt, groupName);
 
-				for (int i = 0; i < jobNames.Length; i++)
+				foreach (string jobName in jobNames)
 				{
-					Trigger[] r = GetTriggersForJob(ctxt, jobNames[i], groupName);
-					for (int j = 0; j < r.Length; j++)
-					{
-						ResumeTrigger(ctxt, r[j].Name, r[j].Group);
-					}
+				    IList<Trigger> triggersForJob = GetTriggersForJob(ctxt, jobName, groupName);
+				    foreach (Trigger trigger in triggersForJob)
+				    {
+				        ResumeTrigger(ctxt, trigger.Name, trigger.Group);
+				    }
 				}
 			}
 		}
@@ -1175,14 +1174,14 @@ namespace Quartz.Simpl
 		public virtual void PauseAll(SchedulingContext ctxt)
 		{
             lock (lockObject)
-			{
-				string[] names = GetTriggerGroupNames(ctxt);
+            {
+                IList<string> triggerGroupNames = GetTriggerGroupNames(ctxt);
 
-				for (int i = 0; i < names.Length; i++)
-				{
-					PauseTriggerGroup(ctxt, names[i]);
-				}
-			}
+                foreach (string groupName in triggerGroupNames)
+                {
+                    PauseTriggerGroup(ctxt, groupName);
+                }
+            }
 		}
 
 		/// <summary>
@@ -1199,11 +1198,11 @@ namespace Quartz.Simpl
             lock (lockObject)
 			{
 			    pausedJobGroups.Clear();
-				string[] names = GetTriggerGroupNames(ctxt);
+				IList<string> triggerGroupNames = GetTriggerGroupNames(ctxt);
 
-				for (int i = 0; i < names.Length; i++)
+				foreach (string groupName in triggerGroupNames)
 				{
-					ResumeTriggerGroup(ctxt, names[i]);
+				    ResumeTriggerGroup(ctxt, groupName);
 				}
 			}
 		}
@@ -1610,7 +1609,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <seealso cref="IJobStore.GetPausedTriggerGroups(SchedulingContext)" />
-		public virtual ICollection<string> GetPausedTriggerGroups(SchedulingContext ctxt)
+        public virtual ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
 		{
             Collection.HashSet<string> data = new Collection.HashSet<string>(pausedTriggerGroups);
 			return data;

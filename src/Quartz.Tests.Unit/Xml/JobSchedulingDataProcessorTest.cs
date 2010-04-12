@@ -88,7 +88,7 @@ namespace Quartz.Tests.Unit.Xml
             {
                 if (trigger is CronTrigger)
                 {
-                    Assert.AreEqual(1, trigger.TriggerListenerNames.Length);
+                    Assert.AreEqual(1, trigger.TriggerListenerNames.Count);
                     Assert.AreEqual("triggerListener1", trigger.TriggerListenerNames[0]);
                 }
             }

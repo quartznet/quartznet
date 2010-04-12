@@ -272,9 +272,9 @@ namespace Quartz
 		/// <see cref="ITriggerListener" />s assigned to the <see cref="Trigger" />,
 		/// in the order in which they should be notified.
 		/// </summary>
-		public virtual string[] TriggerListenerNames
+		public virtual IList<string> TriggerListenerNames
 		{
-			get { return triggerListeners.ToArray(); }
+			get { return triggerListeners.AsReadOnly(); }
             set 
             { 
                 ClearAllTriggerListeners();

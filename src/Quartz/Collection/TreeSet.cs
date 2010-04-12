@@ -17,14 +17,13 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 
 namespace Quartz.Collection
 {
 #if C5
-    using C5;
     // use C5
+    using C5;
     
     public class TreeSet<T> : C5.TreeSet<T>, ISortedSet<T>
     {
@@ -43,30 +42,9 @@ namespace Quartz.Collection
             AddAll(items);
         }
 
-        public void Insert(int index, T item)
-        {
-            throw new NotImplementedException();
-        }
-
-        //void System.Collections.Generic.IList<T>.RemoveAt(int index)
-        //{
-        //    RemoveAt(index);
-        //}
-
-        //T System.Collections.Generic.IList<T>.this[int index]
-        //{
-        //    get { return this[index]; }
-        //    set { throw new NotImplementedException(); }
-        //}
-
         public T First()
         {
             return Count > 0 ? this[0] : default(T);
-        }
-
-        void ISet<T>.Add(T item)
-        {
-            Add(item);
         }
 
         public ISortedSet<T> TailSet(T limit)
@@ -85,6 +63,7 @@ namespace Quartz.Collection
 
 #else
     // old-school and slow
+    using System;
 
     /// <summary>
     /// Slow and naive implementation for TreeSet.

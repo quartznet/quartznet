@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading;
 using Common.Logging;
@@ -74,11 +75,11 @@ namespace Quartz.Examples.Example13
 			_log.Warn("***** Deleting existing jobs/triggers *****");
 
 			// unschedule jobs
-			string[] groups = inScheduler.TriggerGroupNames;
-			for (int i = 0; i < groups.Length; i++)
+            IList<string> groups = inScheduler.TriggerGroupNames;
+			for (int i = 0; i < groups.Count; i++)
 			{
-				string[] names = inScheduler.GetTriggerNames(groups[i]);
-				for (int j = 0; j < names.Length; j++)
+				IList<string> names = inScheduler.GetTriggerNames(groups[i]);
+                for (int j = 0; j < names.Count; j++)
 				{
 				    inScheduler.UnscheduleJob(names[j], groups[i]);
 				}
@@ -86,10 +87,10 @@ namespace Quartz.Examples.Example13
 
 			// delete jobs
 			groups = inScheduler.JobGroupNames;
-			for (int i = 0; i < groups.Length; i++)
+			for (int i = 0; i < groups.Count; i++)
 			{
-				string[] names = inScheduler.GetJobNames(groups[i]);
-				for (int j = 0; j < names.Length; j++)
+				IList<string> names = inScheduler.GetJobNames(groups[i]);
+                for (int j = 0; j < names.Count; j++)
 				{
 				    inScheduler.DeleteJob(names[j], groups[i]);
 				}

@@ -1,5 +1,5 @@
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.Core.2010", "server\Quartz.Server.Core\Quartz.Server.Core.2010.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.Console.2010", "server\Quartz.Server.Console\Quartz.Server.Console.2010.csproj", "{1C4A3DBB-C5A7-4A42-BD91-5362972A769B}"

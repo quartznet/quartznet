@@ -25,18 +25,7 @@ namespace Quartz.Collection
 	/// Represents a collection ob objects that contains no duplicate elements.
 	/// </summary>	
 	/// <author>Marko Lahma (.NET)</author>
-    public interface ISet<T> : IEnumerable<T>
+    public interface ISet<T> : ICollection<T>
 	{
-		/// <summary>
-		/// Returns the first item in the set.
-		/// </summary>
-		/// <returns>First object.</returns>
-		T First();
-
-	    bool Contains(T item);
-
-        int Count { get; }
-
-        void Add(T item);
 	}
 }

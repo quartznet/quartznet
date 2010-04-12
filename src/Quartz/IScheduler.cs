@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Collection;
 using Quartz.Spi;
 
 namespace Quartz
@@ -168,7 +169,7 @@ namespace Quartz
 		/// </p>
         /// </remarks>
 		/// <seealso cref="JobExecutionContext" />
-		IList<JobExecutionContext> GetCurrentlyExecutingJobs();
+        IList<JobExecutionContext> GetCurrentlyExecutingJobs();
 
 		/// <summary>
 		/// Set the <see cref="JobFactory" /> that will be responsible for producing 
@@ -185,34 +186,34 @@ namespace Quartz
 		/// <summary>
 		/// Get the names of all known <see cref="JobDetail" /> groups.
 		/// </summary>
-		string[] JobGroupNames { get; }
+        IList<string> JobGroupNames { get; }
 
 		/// <summary>
 		/// Get the names of all known <see cref="Trigger" /> groups.
 		/// </summary>
-		string[] TriggerGroupNames { get; }
+        IList<string> TriggerGroupNames { get; }
 
 		/// <summary> 
 		/// Get the names of all <see cref="Trigger" /> groups that are paused.
 		/// </summary>
-		ICollection<string> GetPausedTriggerGroups();
+        ISet<string> GetPausedTriggerGroups();
 
 		/// <summary>
 		/// Get the names of all registered <see cref="ICalendar" />s.
 		/// </summary>
-		string[] CalendarNames { get; }
+        IList<string> CalendarNames { get; }
 
 		/// <summary>
 		/// Get a List containing all of the <see cref="IJobListener" /> s in
 		/// the <see cref="IScheduler" />'s<i>global</i> list.
 		/// </summary>
-		IList<IJobListener> GlobalJobListeners { get; }
+        IList<IJobListener> GlobalJobListeners { get; }
 
 		/// <summary>
 		/// Get a Set containing the names of all the <i>non-global</i><see cref="IJobListener" />
 		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
-		ICollection<string> JobListenerNames { get; }
+        ISet<string> JobListenerNames { get; }
 
         /// <summary>
         /// Get the <i>global</i><see cref="IJobListener" /> that has
@@ -240,16 +241,15 @@ namespace Quartz
 		/// Get a Set containing the names of all the <i>non-global</i><see cref="ITriggerListener" />
 		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
-		ICollection<string> TriggerListenerNames { get; }
+        ISet<string> TriggerListenerNames { get; }
 
 		/// <summary>
 		/// Get a List containing all of the <see cref="ISchedulerListener" />
 		/// s registered with the <see cref="IScheduler" />.
 		/// </summary>
-		IList<ISchedulerListener> SchedulerListeners { get; }
+        IList<ISchedulerListener> SchedulerListeners { get; }
 
-
-		/// <summary>
+        /// <summary>
 		/// Starts the <see cref="IScheduler" />'s threads that fire <see cref="Trigger" />s.
 		/// When a scheduler is first created it is in "stand-by" mode, and will not
 		/// fire triggers.  The scheduler can also be put into stand-by mode by
@@ -287,10 +287,7 @@ namespace Quartz
         /// <seealso cref="Start" />
         /// <seealso cref="IsShutdown" />
         /// <seealso cref="InStandbyMode" />
-        bool IsStarted
-        { 
-            get;
-        }
+        bool IsStarted {  get; }
 
 		/// <summary>
 		/// Temporarily halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s.
@@ -310,7 +307,6 @@ namespace Quartz
 		/// <seealso cref="Start()"/>
 		/// <seealso cref="PauseAll()"/>
 		void Standby();
-
 
 		/// <summary> 
 		/// Halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s,
@@ -544,19 +540,19 @@ namespace Quartz
 		/// <summary>
 		/// Get the names of all the <see cref="JobDetail" />s in the given group.
 		/// </summary>
-		string[] GetJobNames(string groupName);
+        IList<string> GetJobNames(string groupName);
 		
 		/// <summary>
 		/// Get all <see cref="Trigger" /> s that are associated with the
 		/// identified <see cref="JobDetail" />.
 		/// </summary>
-		Trigger[] GetTriggersOfJob(string jobName, string groupName);
+        IList<Trigger> GetTriggersOfJob(string jobName, string groupName);
 
 		/// <summary>
 		/// Get the names of all the <see cref="Trigger" />s in the given
 		/// group.
 		/// </summary>
-		string[] GetTriggerNames(string groupName);
+        IList<string> GetTriggerNames(string groupName);
 
 		/// <summary>
 		/// Get the <see cref="JobDetail" /> for the <see cref="IJob" />
@@ -610,7 +606,7 @@ namespace Quartz
         /// Get the names of all registered <see cref="ICalendar" />.
         /// </summary>
         /// <returns>An array of calendar names.</returns>
-        string[] GetCalendarNames();
+        IList<string> GetCalendarNames();
 
 		/// <summary>
 		/// Request the interruption, within this Scheduler instance, of all 

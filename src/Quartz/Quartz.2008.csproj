@@ -424,12 +424,6 @@
     <Compile Include="Xml\job_scheduling_data.cs">
       <DependentUpon>job_scheduling_data.xsd</DependentUpon>
     </Compile>
-    <Compile Include="Xml\job_scheduling_data_1_0.cs">
-      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
-    </Compile>
-    <Compile Include="Xml\job_scheduling_data_1_2.cs">
-      <DependentUpon>job_scheduling_data_1_2.xsd</DependentUpon>
-    </Compile>
     <Compile Include="Xml\ValidationException.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -443,15 +437,9 @@
       <SubType>
       </SubType>
     </EmbeddedResource>
-    <None Include="app.config" />
     <None Include="Xml\job_scheduling_data.xsx">
       <DependentUpon>job_scheduling_data.xsd</DependentUpon>
     </None>
-    <None Include="Xml\job_scheduling_data_1_0.xsd" />
-    <None Include="Xml\job_scheduling_data_1_0.xsx">
-      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
-    </None>
-    <None Include="Xml\job_scheduling_data_1_2.xsd" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">

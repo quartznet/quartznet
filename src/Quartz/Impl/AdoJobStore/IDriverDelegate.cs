@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Collection;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -63,7 +64,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="timestamp">The timestamp.</param>
         /// <returns>An array of <see cref="Key" /> objects</returns>
-		Key[] SelectMisfiredTriggers(ConnectionAndTransactionHolder conn, long timestamp);
+		IList<Key> SelectMisfiredTriggers(ConnectionAndTransactionHolder conn, long timestamp);
 
         /// <summary>
         /// Get the names of all of the triggers in the given state that have
@@ -73,7 +74,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="ts">The time stamp.</param>
         /// <returns>An array of <see cref="Key" /> objects</returns>
-		Key[] SelectMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, long ts);
+        IList<Key> SelectMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, long ts);
 
         /// <summary>
         /// Get the names of all of the triggers in the given group and state that
@@ -84,7 +85,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="ts">The timestamp.</param>
         /// <returns>An array of <see cref="Key" /> objects</returns>
-		Key[] SelectMisfiredTriggersInGroupInState(ConnectionAndTransactionHolder conn, string groupName, string state, long ts);
+        IList<Key> SelectMisfiredTriggersInGroupInState(ConnectionAndTransactionHolder conn, string groupName, string state, long ts);
 
 		/// <summary> 
 		/// Select all of the triggers for jobs that are requesting recovery. The
@@ -100,7 +101,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
 		/// <param name="conn">The DB Connection</param>
 		/// <returns>An array of <see cref="Trigger" /> objects</returns>
-		Trigger[] SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn);
+		IList<Trigger> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn);
 
 		/// <summary>
 		/// Delete all fired triggers.
@@ -129,14 +130,14 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
         /// <returns>An array of see cref="Key" /> objects.</returns>
-		Key[] SelectVolatileTriggers(ConnectionAndTransactionHolder conn);
+        IList<Key> SelectVolatileTriggers(ConnectionAndTransactionHolder conn);
 
 		/// <summary>
 		/// Get the names of all of the jobs that are volatile.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
         /// <returns>An array of <see cref="Key" /> objects.</returns>
-		Key[] SelectVolatileJobs(ConnectionAndTransactionHolder conn);
+        IList<Key> SelectVolatileJobs(ConnectionAndTransactionHolder conn);
 
 		//---------------------------------------------------------------------------
 		// jobs
@@ -166,7 +167,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection</param>
         /// <param name="jobName">The job name</param>
         /// <param name="groupName">The job group</param>
-		Key[] SelectTriggerNamesForJob(ConnectionAndTransactionHolder conn, string jobName, string groupName);
+        IList<Key> SelectTriggerNamesForJob(ConnectionAndTransactionHolder conn, string jobName, string groupName);
 
 		/// <summary>
 		/// Delete all job listeners for the given job.
@@ -230,7 +231,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobName">The job name whose listeners are wanted</param>
         /// <param name="groupName">The group containing the job</param>
 		/// <returns> array of <see cref="String" /> listener names</returns>
-		string[] SelectJobListeners(ConnectionAndTransactionHolder conn, string jobName, string groupName);
+        IList<string> SelectJobListeners(ConnectionAndTransactionHolder conn, string jobName, string groupName);
 
         /// <summary>
         /// Select the JobDetail object for a given job name / group name.
@@ -254,7 +255,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <param name="conn">The DB Connection.</param>
 		/// <returns> an array of <see cref="String" /> group names</returns>
-		string[] SelectJobGroups(ConnectionAndTransactionHolder conn);
+        IList<string> SelectJobGroups(ConnectionAndTransactionHolder conn);
 
 		/// <summary>
 		/// Select all of the jobs contained in a given group.
@@ -262,7 +263,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection </param>
         /// <param name="groupName">The group containing the jobs</param>
 		/// <returns> an array of <see cref="String" /> job names</returns>
-		string[] SelectJobsInGroup(ConnectionAndTransactionHolder conn, string groupName);
+        IList<string> SelectJobsInGroup(ConnectionAndTransactionHolder conn, string groupName);
 
 		//---------------------------------------------------------------------------
 		// triggers
@@ -473,7 +474,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">The name of the trigger</param>
         /// <param name="groupName">The group containing the trigger</param>
 		/// <returns> array of <see cref="String" /> trigger listener names </returns>
-		string[] SelectTriggerListeners(ConnectionAndTransactionHolder conn, string triggerName, string groupName);
+        IList<string> SelectTriggerListeners(ConnectionAndTransactionHolder conn, string triggerName, string groupName);
 
 		/// <summary>
 		/// Delete the simple trigger data for a trigger.
@@ -548,7 +549,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobName">The name of the trigger</param>
         /// <param name="groupName">The group containing the trigger</param>
 		/// <returns> an array of <see cref="Trigger" /> objects associated with a given job. </returns>
-		Trigger[] SelectTriggersForJob(ConnectionAndTransactionHolder conn, string jobName, string groupName);
+		IList<Trigger> SelectTriggersForJob(ConnectionAndTransactionHolder conn, string jobName, string groupName);
 
         /// <summary>
         /// Select the triggers for a calendar
@@ -558,7 +559,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// An array of <see cref="Trigger" /> objects associated with a given job.
         /// </returns>
-		Trigger[] SelectTriggersForCalendar(ConnectionAndTransactionHolder conn, string calName);
+		IList<Trigger> SelectTriggersForCalendar(ConnectionAndTransactionHolder conn, string calName);
 
 		/// <summary>
 		/// Select a trigger.
@@ -609,7 +610,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <param name="conn">The DB Connection.</param>
 		/// <returns>An array of <see cref="String" /> group names.</returns>
-		string[] SelectTriggerGroups(ConnectionAndTransactionHolder conn);
+		IList<string> SelectTriggerGroups(ConnectionAndTransactionHolder conn);
 
 		/// <summary>
 		/// Select all of the triggers contained in a given group. 
@@ -617,7 +618,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection.</param>
 		/// <param name="groupName">The group containing the triggers.</param>
 		/// <returns>An array of <see cref="String" /> trigger names.</returns>
-		string[] SelectTriggersInGroup(ConnectionAndTransactionHolder conn, string groupName);
+        IList<string> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, string groupName);
 
 		/// <summary>
 		/// Select all of the triggers in a given state.
@@ -625,7 +626,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection.</param>
 		/// <param name="state">The state the triggers must be in.</param>
 		/// <returns>An array of trigger <see cref="Key" />s.</returns>
-		Key[] SelectTriggersInState(ConnectionAndTransactionHolder conn, string state);
+		IList<Key> SelectTriggersInState(ConnectionAndTransactionHolder conn, string state);
 
 
         /// <summary>
@@ -670,7 +671,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns></returns>
-        ICollection<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn);
+        ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn);
 
         /// <summary>
         /// Determines whether given trigger group already exists.
@@ -748,7 +749,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
 		/// <returns>An array of <see cref="String" /> calendar names.</returns>
-		string[] SelectCalendars(ConnectionAndTransactionHolder conn);
+		IList<string> SelectCalendars(ConnectionAndTransactionHolder conn);
 
 		//---------------------------------------------------------------------------
 		// trigger firing
@@ -883,7 +884,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="conn">The conn.</param>
         /// <returns></returns>
-        ICollection<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
+        ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
 
         /// <summary>
         /// Counts the misfired triggers in states.

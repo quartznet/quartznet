@@ -1,7 +1,8 @@
-﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="3.5">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <PropertyGroup>
     <ProjectType>Local</ProjectType>
-    <ProductVersion>8.0.50727</ProductVersion>
+    <ProductVersion>9.0.30729</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -26,7 +27,9 @@
     </FileUpgradeFlags>
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
-    <OldToolsVersion>2.0</OldToolsVersion>
+    <OldToolsVersion>4.0</OldToolsVersion>
+    <IsWebBootstrapper>true</IsWebBootstrapper>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <PublishUrl>http://localhost/Quartz/</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Web</InstallFrom>
@@ -39,7 +42,6 @@
     <MapFileExtensions>true</MapFileExtensions>
     <ApplicationRevision>0</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>true</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
@@ -50,7 +52,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>NET_20</DefineConstants>
+    <DefineConstants>NET_20,NET_35,C5</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -63,6 +65,7 @@
     <WarningLevel>3</WarningLevel>
     <DebugType>full</DebugType>
     <ErrorReport>prompt</ErrorReport>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>..\..\build\2.0\Release\Quartz\</OutputPath>
@@ -71,7 +74,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>NET_20</DefineConstants>
+    <DefineConstants>NET_20,NET_35,C5</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -84,8 +87,13 @@
     <WarningLevel>4</WarningLevel>
     <DebugType>full</DebugType>
     <ErrorReport>prompt</ErrorReport>
+    <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="C5, Version=1.1.0.0, Culture=neutral, PublicKeyToken=06a1b38866503b69, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\2.0\C5.dll</HintPath>
+    </Reference>
     <Reference Include="Common.Logging, Version=1.2.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
@@ -94,6 +102,9 @@
       <Name>System</Name>
     </Reference>
     <Reference Include="System.configuration" />
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
     <Reference Include="System.Data">
       <Name>System.Data</Name>
     </Reference>
@@ -106,9 +117,6 @@
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
-    </Compile>
-    <Compile Include="Collection\HashSet.cs">
-      <SubType>Code</SubType>
     </Compile>
     <Compile Include="Collection\ISet.cs">
       <SubType>Code</SubType>
@@ -284,6 +292,9 @@
     <Compile Include="Simpl\RAMJobStore.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Simpl\SimpleTypeLoadHelper.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Simpl\SimpleInstanceIdGenerator.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -291,9 +302,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\SimpleThreadPool.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Simpl\ZeroSizeThreadPool.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SPI\ITypeLoadHelper.cs">
@@ -361,12 +369,20 @@
     <Compile Include="Listener\TriggerListenerSupport.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Collection\HashSet.cs" />
+    <Compile Include="Core\ISampledStatistics.cs" />
+    <Compile Include="Core\NullSampleStatisticsImpl.cs" />
+    <Compile Include="Core\SampledStatisticsImpl.cs" />
+    <Compile Include="DateIntervalTrigger.cs" />
     <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\AdoUtil.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbMetadata.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
+    <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
+    <Compile Include="Impl\AdoJobStore\MySQLDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\OracleDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\PostgreSQLDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\DBSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\FiredTriggerRecord.cs" />
@@ -380,16 +396,21 @@
     <Compile Include="Impl\AdoJobStore\NoSuchDelegateException.cs" />
     <Compile Include="Impl\AdoJobStore\SchedulerStateRecord.cs" />
     <Compile Include="Impl\AdoJobStore\SimpleSemaphore.cs" />
+    <Compile Include="Impl\AdoJobStore\SqlServerDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\StdAdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\StdAdoDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\StdRowLockSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\UpdateRowLockSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\AdoJobStoreUtil.cs" />
+    <Compile Include="Impl\SchedulerDetailsSetter.cs" />
     <Compile Include="MisfireInstruction.cs" />
     <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
+    <Compile Include="SystemTime.cs" />
+    <Compile Include="TimeSpanParseRuleAttribute.cs" />
+    <Compile Include="SchedulerConstants.cs" />
     <Compile Include="SchedulerInstruction.cs" />
     <Compile Include="Simpl\RemotingSchedulerExporter.cs" />
-    <Compile Include="Simpl\SimpleTypeLoadHelper.cs" />
+    <Compile Include="Simpl\ZeroSizeThreadPool.cs" />
     <Compile Include="SPI\ISchedulerExporter.cs" />
     <Compile Include="TriggerState.cs" />
     <Compile Include="Util\DateTimeUtil.cs" />
@@ -412,13 +433,19 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\job_scheduling_data.xsd">
-      <SubType>Designer</SubType>
+      <SubType>
+      </SubType>
     </EmbeddedResource>
     <None Include="Xml\job_scheduling_data.xsx">
       <DependentUpon>job_scheduling_data.xsd</DependentUpon>
     </None>
   </ItemGroup>
   <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
     <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
       <Visible>False</Visible>
       <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
@@ -432,6 +459,11 @@
     <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
       <Visible>False</Visible>
       <ProductName>.NET Framework 3.5</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>

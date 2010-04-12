@@ -28,6 +28,7 @@ using System.Threading;
 
 using Common.Logging;
 
+using Quartz.Collection;
 using Quartz.Impl;
 using Quartz.Listener;
 using Quartz.Simpl;
@@ -246,7 +247,7 @@ namespace Quartz.Core
         /// Get a Set containing the names of all the <i>non-global</i><see cref="IJobListener" />
         /// s registered with the <see cref="IScheduler" />.
         /// </summary>
-        public virtual ICollection<string> JobListenerNames
+        public virtual ISet<string> JobListenerNames
         {
             get
             {
@@ -288,10 +289,10 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Get a Set containing the names of all the <i>non-global</i><see cref="ITriggerListener" />
+        /// Get a set containing the names of all the <i>non-global</i><see cref="ITriggerListener" />
         /// s registered with the <see cref="IScheduler" />.
         /// </summary>
-        public virtual ICollection<string> TriggerListenerNames
+        public virtual ISet<string> TriggerListenerNames
         {
             get
             {
@@ -303,7 +304,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Get a List containing all of the <see cref="ISchedulerListener" />
+        /// Get a list containing all of the <see cref="ISchedulerListener" />
         /// s registered with the <see cref="IScheduler" />.
         /// </summary>
         public virtual IList<ISchedulerListener> SchedulerListeners
@@ -800,7 +801,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            Trigger[] triggers = GetTriggersOfJob(ctxt, jobName, groupName);
+            IList<Trigger> triggers = GetTriggersOfJob(ctxt, jobName, groupName);
             foreach (Trigger trigger in triggers)
             {
                 if (!UnscheduleJob(ctxt, trigger.Name, trigger.Group))
@@ -1131,7 +1132,7 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="ctxt">The the job scheduling context.</param>
         /// <returns></returns>
-        public virtual ICollection<string> GetPausedTriggerGroups(SchedulingContext ctxt)
+        public virtual ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
         {
             return resources.JobStore.GetPausedTriggerGroups(ctxt);
         }
@@ -1222,7 +1223,7 @@ namespace Quartz.Core
         /// <summary>
         /// Get the names of all known <see cref="IJob" /> groups.
         /// </summary>
-        public virtual string[] GetJobGroupNames(SchedulingContext ctxt)
+        public virtual IList<string> GetJobGroupNames(SchedulingContext ctxt)
         {
             ValidateState();
 
@@ -1233,7 +1234,7 @@ namespace Quartz.Core
         /// Get the names of all the <see cref="IJob" />s in the
         /// given group.
         /// </summary>
-        public virtual string[] GetJobNames(SchedulingContext ctxt, string groupName)
+        public virtual IList<string> GetJobNames(SchedulingContext ctxt, string groupName)
         {
             ValidateState();
 
@@ -1249,7 +1250,7 @@ namespace Quartz.Core
         /// Get all <see cref="Trigger" /> s that are associated with the
         /// identified <see cref="JobDetail" />.
         /// </summary>
-        public virtual Trigger[] GetTriggersOfJob(SchedulingContext ctxt, string jobName, string groupName)
+        public virtual IList<Trigger> GetTriggersOfJob(SchedulingContext ctxt, string jobName, string groupName)
         {
             ValidateState();
 
@@ -1265,7 +1266,7 @@ namespace Quartz.Core
         /// Get the names of all known <see cref="Trigger" />
         /// groups.
         /// </summary>
-        public virtual string[] GetTriggerGroupNames(SchedulingContext ctxt)
+        public virtual IList<string> GetTriggerGroupNames(SchedulingContext ctxt)
         {
             ValidateState();
             return resources.JobStore.GetTriggerGroupNames(ctxt);
@@ -1275,7 +1276,7 @@ namespace Quartz.Core
         /// Get the names of all the <see cref="Trigger" />s in
         /// the given group.
         /// </summary>
-        public virtual string[] GetTriggerNames(SchedulingContext ctxt, string groupName)
+        public virtual IList<string> GetTriggerNames(SchedulingContext ctxt, string groupName)
         {
             ValidateState();
 
@@ -1370,7 +1371,7 @@ namespace Quartz.Core
         /// <summary>
         /// Get the names of all registered <see cref="ICalendar" />s.
         /// </summary>
-        public virtual string[] GetCalendarNames(SchedulingContext ctxt)
+        public virtual IList<string> GetCalendarNames(SchedulingContext ctxt)
         {
             ValidateState();
             return resources.JobStore.GetCalendarNames(ctxt);
@@ -1630,12 +1631,12 @@ namespace Quartz.Core
             }
         }
 
-        private IList<ITriggerListener> BuildTriggerListenerList(string[] additionalListeners)
+        private IList<ITriggerListener> BuildTriggerListenerList(IEnumerable<string> additionalListeners)
         {
             IList<ITriggerListener> listeners = GlobalTriggerListeners;
-            for (int i = 0; i < additionalListeners.Length; i++)
+            foreach (string listenerName in additionalListeners)
             {
-                ITriggerListener tl = GetTriggerListener(additionalListeners[i]);
+                ITriggerListener tl = GetTriggerListener(listenerName);
 
                 if (tl != null)
                 {
@@ -1643,7 +1644,7 @@ namespace Quartz.Core
                 }
                 else
                 {
-                    throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "TriggerListener '{0}' not found.", additionalListeners[i]),
+                    throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "TriggerListener '{0}' not found.", listenerName),
                                                  SchedulerException.ErrorTriggerListenerNotFound);
                 }
             }
@@ -1651,12 +1652,12 @@ namespace Quartz.Core
             return listeners;
         }
 
-        private IList<IJobListener> BuildJobListenerList(string[] additionalListeners)
+        private IEnumerable<IJobListener> BuildJobListenerList(IEnumerable<string> additionalListeners)
         {
             IList<IJobListener> listeners = GlobalJobListeners;
-            for (int i = 0; i < additionalListeners.Length; i++)
+            foreach (string listenerName in additionalListeners)
             {
-                IJobListener jl = GetJobListener(additionalListeners[i]);
+                IJobListener jl = GetJobListener(listenerName);
 
                 if (jl != null)
                 {
@@ -1664,7 +1665,7 @@ namespace Quartz.Core
                 }
                 else
                 {
-                    throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "JobListener '{0}' not found.", additionalListeners[i]),
+                    throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "JobListener '{0}' not found.", listenerName),
                                                  SchedulerException.ErrorJobListenerNotFound);
                 }
             }
@@ -1766,7 +1767,7 @@ namespace Quartz.Core
         public virtual void NotifyJobListenersToBeExecuted(JobExecutionContext jec)
         {
             // build a list of all job listeners that are to be notified...
-            IList<IJobListener> listeners = BuildJobListenerList(jec.JobDetail.JobListenerNames);
+            IEnumerable<IJobListener> listeners = BuildJobListenerList(jec.JobDetail.JobListenerNames);
 
             // notify all job listeners
             foreach (IJobListener jl in listeners)
@@ -1791,7 +1792,7 @@ namespace Quartz.Core
         public virtual void NotifyJobListenersWasVetoed(JobExecutionContext jec)
         {
             // build a list of all job listeners that are to be notified...
-            IList<IJobListener> listeners = BuildJobListenerList(jec.JobDetail.JobListenerNames);
+            IEnumerable<IJobListener> listeners = BuildJobListenerList(jec.JobDetail.JobListenerNames);
 
             // notify all job listeners
             foreach (IJobListener jl in listeners)
@@ -1817,7 +1818,7 @@ namespace Quartz.Core
         public virtual void NotifyJobListenersWasExecuted(JobExecutionContext jec, JobExecutionException je)
         {
             // build a list of all job listeners that are to be notified...
-            IList<IJobListener> listeners = BuildJobListenerList(jec.JobDetail.JobListenerNames);
+            IEnumerable<IJobListener> listeners = BuildJobListenerList(jec.JobDetail.JobListenerNames);
 
             // notify all job listeners
             foreach (IJobListener jl in listeners)

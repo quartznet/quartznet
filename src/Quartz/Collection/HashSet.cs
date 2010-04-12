@@ -5,7 +5,7 @@ namespace Quartz.Collection
 {
 
 #if C5
-    public sealed class HashSet<T> : C5.HashSet<T>
+    public sealed class HashSet<T> : C5.HashSet<T>, ISet<T>
     {
         public HashSet()
         {
