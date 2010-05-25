@@ -244,15 +244,16 @@ namespace Quartz.Simpl
 
 			bool found = false;
 
-			IList<Trigger> triggersForJob = GetTriggersForJob(ctxt, jobName, groupName);
-			foreach (Trigger trigger in triggersForJob)
-			{
-			    RemoveTrigger(ctxt, trigger.Name, trigger.Group);
-			    found = true;
-			}
             lock (lockObject)
 			{
-				JobWrapper tempObject;
+                IList<Trigger> triggersForJob = GetTriggersForJob(ctxt, jobName, groupName);
+                foreach (Trigger trigger in triggersForJob)
+                {
+                    RemoveTrigger(ctxt, trigger.Name, trigger.Group);
+                    found = true;
+                }
+                
+                JobWrapper tempObject;
 				if (jobsByFQN.TryGetValue(key, out tempObject))
 				{
 				    jobsByFQN.Remove(key);
