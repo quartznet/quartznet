@@ -167,6 +167,12 @@ namespace Quartz.Simpl
         /// </summary>
         public virtual void Initialize()
         {
+            if (workers != null && workers.Count > 0) 
+            {
+                // already initialized...
+                return;
+            }
+
             if (count <= 0)
             {
                 throw new SchedulerConfigException("Thread count must be > 0");

@@ -237,6 +237,8 @@ namespace Quartz.Impl
 			SchedulingContext schedCtxt = new SchedulingContext();
 			schedCtxt.InstanceId = schedulerInstanceId;
 
+            threadPool.Initialize();        
+
 			QuartzSchedulerResources qrs = new QuartzSchedulerResources();
 
 			qrs.Name = schedulerName;
