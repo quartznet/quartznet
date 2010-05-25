@@ -39,16 +39,16 @@ namespace Quartz.Util
 		/// </summary>
 		/// <param name="name">The name of the item.</param>
 		/// <returns>The object in the call context associated with the specified name or null if no object has been stored previously</returns>
-		public static object GetData(string name)
+		public static T GetData<T>(string name)
 		{
 			HttpContext ctx = HttpContext.Current;
 			if (ctx == null)
 			{
-				return CallContext.GetData(name);
+				return (T) CallContext.GetData(name);
 			}
 			else
 			{
-				return ctx.Items[name];
+				return (T) ctx.Items[name];
 			}
 		}
 

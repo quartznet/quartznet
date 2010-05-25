@@ -42,47 +42,6 @@ using KeyHashSet = Quartz.Collection.HashSet<Quartz.Util.Key>;
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
-    /// Utility class to keep track of both active transaction
-    /// and connection.
-    /// </summary>
-    /// <author>Marko Lahma</author>
-    public class ConnectionAndTransactionHolder
-    {
-        private readonly IDbConnection connection;
-        private IDbTransaction transaction;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class.
-        /// </summary>
-        /// <param name="connection">The connection.</param>
-        /// <param name="transaction">The transaction.</param>
-        public ConnectionAndTransactionHolder(IDbConnection connection, IDbTransaction transaction)
-        {
-            this.connection = connection;
-            this.transaction = transaction;
-        }
-
-        /// <summary>
-        /// Gets or sets the connection.
-        /// </summary>
-        /// <value>The connection.</value>
-        public IDbConnection Connection
-        {
-            get { return connection; }
-        }
-
-        /// <summary>
-        /// Gets or sets the transaction.
-        /// </summary>
-        /// <value>The transaction.</value>
-        public IDbTransaction Transaction
-        {
-            get { return transaction; }
-            set { transaction = value; }
-        }
-    }
-
-    /// <summary>
     /// Contains base functionality for ADO.NET-based JobStore implementations.
     /// </summary>
     /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
@@ -117,7 +76,7 @@ namespace Quartz.Impl.AdoJobStore
         private ClusterManager clusterManagementThread;
         private MisfireHandler misfireHandler;
         private ITypeLoadHelper typeLoadHelper;
-        private ISchedulerSignaler signaler;
+        private ISchedulerSignaler schedSignaler;
         protected int maxToRecoverAtATime = 20;
         private bool setTxIsolationLevelSequential;
         private TimeSpan dbRetryInterval = TimeSpan.FromSeconds(10);
@@ -540,7 +499,7 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             typeLoadHelper = loadHelper;
-            signaler = s;
+            schedSignaler = s;
 
 
             // If the user hasn't specified an explicit lock handler, then 
@@ -877,7 +836,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 DoUpdateOfMisfiredTrigger(conn, ctxt, trig, forceState, newStateIfNotComplete, false);
 
-                signaler.NotifySchedulerListenersFinalized(trig);
+                schedSignaler.NotifySchedulerListenersFinalized(trig);
 
                 return true;
             }
@@ -898,7 +857,7 @@ namespace Quartz.Impl.AdoJobStore
                 cal = RetrieveCalendar(conn, ctxt, trig.CalendarName);
             }
 
-            signaler.NotifyTriggerListenersMisfired(trig);
+            schedSignaler.NotifyTriggerListenersMisfired(trig);
 
             trig.UpdateAfterMisfire(cal);
 
@@ -3449,30 +3408,30 @@ namespace Quartz.Impl.AdoJobStore
                     else
                     {
                         RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
-                        signaler.SignalSchedulingChange(null);
+                        SignalSchedulingChangeOnTxCompletion(null);
                     }
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, StateComplete);
-                    signaler.SignalSchedulingChange(null);
+                    SignalSchedulingChangeOnTxCompletion(null);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     Log.Info("Trigger " + trigger.FullName + " set to ERROR state.");
                     Delegate.UpdateTriggerState(conn, trigger.Name, trigger.Group, StateError);
-                    signaler.SignalSchedulingChange(null);
+                    SignalSchedulingChangeOnTxCompletion(null);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, StateComplete);
-                    signaler.SignalSchedulingChange(null);
+                    SignalSchedulingChangeOnTxCompletion(null);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     Log.Info("All triggers of Job " + trigger.FullJobName + " set to ERROR state.");
                     Delegate.UpdateTriggerStatesForJob(conn, trigger.JobName, trigger.JobGroup, StateError);
-                    signaler.SignalSchedulingChange(null);
+                    SignalSchedulingChangeOnTxCompletion(null);
                 }
 
                 if (jobDetail.Stateful)
@@ -3483,7 +3442,7 @@ namespace Quartz.Impl.AdoJobStore
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Name, jobDetail.Group,
                                                                      StatePaused,
                                                                      StatePausedBlocked);
-                    signaler.SignalSchedulingChange(null);
+                    SignalSchedulingChangeOnTxCompletion(null);
 
                     try
                     {
@@ -3579,9 +3538,33 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual void SignalSchedulingChange(DateTime? candidateNewNextFireTimeUtc)
+        private const string KeySignalChangeForTxCompletion = "sigChangeForTxCompletion";
+        protected virtual void SignalSchedulingChangeOnTxCompletion(DateTime? candidateNewNextFireTime)
         {
-            signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc);
+            DateTime? sigTime = LogicalThreadContext.GetData<DateTime?>(KeySignalChangeForTxCompletion);
+            if (sigTime == null && candidateNewNextFireTime.HasValue)
+            {
+                LogicalThreadContext.SetData(KeySignalChangeForTxCompletion, candidateNewNextFireTime);
+            }
+            else
+            {
+                if (candidateNewNextFireTime < sigTime)
+                {
+                    LogicalThreadContext.SetData(KeySignalChangeForTxCompletion, candidateNewNextFireTime);
+                }
+            }
+        }
+
+        protected virtual DateTime? ClearAndGetSignalSchedulingChangeOnTxCompletion()
+        {
+            DateTime? t = LogicalThreadContext.GetData<DateTime?>(KeySignalChangeForTxCompletion);
+            LogicalThreadContext.FreeNamedDataSlot(KeySignalChangeForTxCompletion);
+            return t;
+        }
+
+        protected virtual void SignalSchedulingChangeImmediately(DateTime? candidateNewNextFireTime)
+        {
+            schedSignaler.SignalSchedulingChange(candidateNewNextFireTime);
         }
 
         //---------------------------------------------------------------------------
@@ -4098,15 +4081,15 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Execute the given callback having aquired the given lock.  
+        /// Execute the given callback having acquired the given lock.  
         /// Depending on the JobStore, the surrounding transaction may be 
         /// assumed to be already present (managed).  This version is just a 
         /// handy wrapper around executeInLock that doesn't require a return
         /// value.
         /// </summary>
         /// <param name="lockName">
-        /// The name of the lock to aquire, for example 
-        /// "TRIGGER_ACCESS".  If null, then no lock is aquired, but the
+        /// The name of the lock to acquire, for example 
+        /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a transaction. 
         /// </param>
         /// <seealso cref="ExecuteInLock(string, ITransactionCallback)" />
@@ -4133,26 +4116,26 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Execute the given callback having aquired the given lock.  
+        /// Execute the given callback having acquired the given lock.  
         /// Depending on the JobStore, the surrounding transaction may be 
         /// assumed to be already present (managed).
         /// </summary> 
         /// <param name="lockName">
-        /// The name of the lock to aquire, for example 
-        /// "TRIGGER_ACCESS".  If null, then no lock is aquired, but the
+        /// The name of the lock to acquire, for example 
+        /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a transaction. 
         /// </param>
         protected abstract object ExecuteInLock(string lockName, ITransactionCallback txCallback);
 
         /// <summary>
-        /// Execute the given callback having optionally aquired the given lock.
+        /// Execute the given callback having optionally acquired the given lock.
         /// This uses the non-managed transaction connection.  This version is just a 
         /// handy wrapper around executeInNonManagedTXLock that doesn't require a return
         /// value.
         /// </summary>
         /// <param name="lockName">
-        /// The name of the lock to aquire, for example 
-        /// "TRIGGER_ACCESS".  If null, then no lock is aquired, but the
+        /// The name of the lock to acquire, for example 
+        /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a non-managed transaction. 
         /// </param>
         /// <seealso cref="ExecuteInNonManagedTXLock(string, ITransactionCallback)" />
@@ -4179,12 +4162,12 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Execute the given callback having optionally aquired the given lock.
+        /// Execute the given callback having optionally acquired the given lock.
         /// This uses the non-managed transaction connection.
         /// </summary>
         /// <param name="lockName">
-        /// The name of the lock to aquire, for example 
-        /// "TRIGGER_ACCESS".  If null, then no lock is aquired, but the
+        /// The name of the lock to acquire, for example 
+        /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a non-managed transaction. 
         /// </param>
         protected object ExecuteInNonManagedTXLock(string lockName, ITransactionCallback txCallback)
@@ -4196,7 +4179,7 @@ namespace Quartz.Impl.AdoJobStore
                 if (lockName != null)
                 {
                     // If we aren't using db locks, then delay getting DB connection 
-                    // until after aquiring the lock since it isn't needed.
+                    // until after acquiring the lock since it isn't needed.
                     if (LockHandler.RequiresConnection)
                     {
                         conn = GetNonManagedTXConnection();
@@ -4212,6 +4195,13 @@ namespace Quartz.Impl.AdoJobStore
 
                 object result = txCallback.Execute(conn);
                 CommitConnection(conn, false);
+
+                DateTime? sigTime = ClearAndGetSignalSchedulingChangeOnTxCompletion();
+                if (sigTime != null)
+                {
+                    SignalSchedulingChangeImmediately(sigTime);
+                }
+            
                 return result;
             }
             catch (JobPersistenceException)
@@ -4321,7 +4311,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (!shutdown && Manage())
                         {
-                            jobStoreSupport.SignalSchedulingChange(null);
+                            jobStoreSupport.SignalSchedulingChangeImmediately(null);
                         }
                     } //while !Shutdown
                 }
@@ -4393,7 +4383,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
                         {
-                            jobStoreSupport.SignalSchedulingChange(recoverMisfiredJobsResult.EarliestNewTime);
+                            jobStoreSupport.SignalSchedulingChangeImmediately(recoverMisfiredJobsResult.EarliestNewTime);
                         }
 
                         if (!shutdown)

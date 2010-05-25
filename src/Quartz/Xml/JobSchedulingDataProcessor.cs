@@ -599,7 +599,7 @@ namespace Quartz.Xml
 		/// </exception>
 		public virtual void ScheduleJob(JobSchedulingBundle job)
 		{
-			ScheduleJob(job, (IScheduler) LogicalThreadContext.GetData(ThreadLocalKeyScheduler), OverwriteExistingJobs);
+			ScheduleJob(job, LogicalThreadContext.GetData<IScheduler>(ThreadLocalKeyScheduler), OverwriteExistingJobs);
 		}
 
 

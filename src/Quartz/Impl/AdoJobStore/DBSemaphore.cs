@@ -23,7 +23,7 @@ using System;
 using System.Threading;
 
 using Common.Logging;
-
+using Quartz.Collection;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
 
@@ -66,7 +66,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <value>The lock owners.</value>
         private static Collection.HashSet<string> LockOwners
         {
-            get { return (Collection.HashSet<string>) LogicalThreadContext.GetData(ThreadContextKeyLockOwners); }
+            get { return LogicalThreadContext.GetData<HashSet<string>>(ThreadContextKeyLockOwners); }
             set { LogicalThreadContext.SetData(ThreadContextKeyLockOwners, value); }
         }
 

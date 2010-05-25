@@ -58,7 +58,7 @@ namespace Quartz.Impl.AdoJobStore
 		{
 			get
 			{
-				HashSet<string> threadLocks = (HashSet<string>) LogicalThreadContext.GetData(KeyThreadLockOwners);
+				HashSet<string> threadLocks = LogicalThreadContext.GetData<HashSet<string>>(KeyThreadLockOwners);
 				if (threadLocks == null)
 				{
 					threadLocks = new HashSet<string>();

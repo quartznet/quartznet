@@ -169,6 +169,7 @@
     <Compile Include="IJobListener.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Impl\AdoJobStore\ConnectionAndTransactionHolder.cs" />
     <Compile Include="Impl\Calendar\AnnualCalendar.cs">
       <SubType>Code</SubType>
     </Compile>

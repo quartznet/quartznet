@@ -306,6 +306,11 @@ namespace Quartz.Core
 
                             while (timeUntilTrigger > TimeSpan.Zero) 
                             {
+                                if (ReleaseIfScheduleChangedSignificantly(trigger, triggerTime))
+                                {
+                                    trigger = null;
+                                    break;
+                                }
                                 lock (sigLock)
                                 {
                                     try
@@ -323,39 +328,11 @@ namespace Quartz.Core
                                     {
                                     }
                                 }
-                                if (IsScheduleChanged())
+                                if (ReleaseIfScheduleChangedSignificantly(trigger, triggerTime))
                                 {
-                                    if (IsCandidateNewTimeEarlierWithinReason(triggerTime))
-                                    {
-                                        // above call does a clearSignaledSchedulingChange()
-                                        try
-                                        {
-                                            qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
-                                        }
-                                        catch (JobPersistenceException jpe)
-                                        {
-                                            qs.NotifySchedulerListenersError(
-                                                "An error occured while releasing trigger '"
-                                                + trigger.FullName + "'",
-                                                jpe);
-                                            // db connection must have failed... keep
-                                            // retrying until it's up...
-                                            ReleaseTriggerRetryLoop(trigger);
-                                        }
-                                        catch (Exception e)
-                                        {
-                                            Log.Error(
-                                                "releaseTriggerRetryLoop: RuntimeException "
-                                                + e.Message, e);
-                                            // db connection must have failed... keep
-                                            // retrying until it's up...
-                                            ReleaseTriggerRetryLoop(trigger);
-                                        }
-                                        trigger = null;
-                                        break;
-                                    }
-                                    
-                                }
+                                    trigger = null;
+                                    break;
+                                } 
                                 now = SystemTime.UtcNow();
                                 timeUntilTrigger = triggerTime - now;
                             }
@@ -521,6 +498,38 @@ namespace Quartz.Core
             qsRsrcs = null;
         }
 
+
+        private bool ReleaseIfScheduleChangedSignificantly(Trigger trigger, DateTime triggerTime)
+        {
+            if (IsScheduleChanged())
+            {
+                if (IsCandidateNewTimeEarlierWithinReason(triggerTime))
+                {
+                    // above call does a clearSignaledSchedulingChange()
+                    try
+                    {
+                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
+                    }
+                    catch (JobPersistenceException jpe)
+                    {
+                        qs.NotifySchedulerListenersError(string.Format("An error occured while releasing trigger '{0}'", trigger.FullName), jpe);
+                        // db connection must have failed... keep
+                        // retrying until it's up...
+                        ReleaseTriggerRetryLoop(trigger);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error("releaseTriggerRetryLoop: RuntimeException " + e.Message, e);
+                        // db connection must have failed... keep
+                        // retrying until it's up...
+                        ReleaseTriggerRetryLoop(trigger);
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private bool IsCandidateNewTimeEarlierWithinReason(DateTime oldTimeUtc) 
         {    	
 		    // So here's the deal: We know due to being signaled that 'the schedule'
@@ -558,7 +567,7 @@ namespace Quartz.Core
                 {
 				    // so the new time is considered earlier, but is it enough earlier?
                     TimeSpan diff = oldTimeUtc - SystemTime.UtcNow();
-				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(80) : TimeSpan.FromMilliseconds(7)))
+				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(70) : TimeSpan.FromMilliseconds(7)))
 				    {
 				        earlier = false;
 				    }
