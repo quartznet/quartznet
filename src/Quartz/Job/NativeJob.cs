@@ -29,6 +29,17 @@ namespace Quartz.Job
 	/// <summary>
 	/// Built in job for executing native executables in a separate process.
 	/// </summary>
+	/// <remarks>
+	/// <example>
+	///     JobDetail job = new JobDetail("dumbJob", null, typeof(Quartz.Jobs.NativeJob));
+	///     job.JobDataMap.Put(Quartz.Jobs.NativeJob.PropertyCommand, "echo \"hi\" >> foobar.txt");
+	///     Trigger trigger = TriggerUtils.MakeSecondlyTrigger(5);
+	///     trigger.Name = "dumbTrigger";
+	///     sched.ScheduleJob(job, trigger);
+    /// </example>
+    /// If PropertyWaitForProcess is true, then the integer exit value of the process
+    /// will be saved as the job execution result in the JobExecutionContext.
+	/// </remarks>
 	/// <author>Matthew Payne</author>
 	/// <author>James House</author>
 	/// <author>Steinar Overbeck Cook</author>
