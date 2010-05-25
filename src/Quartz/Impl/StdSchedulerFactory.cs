@@ -40,7 +40,7 @@ namespace Quartz.Impl
     /// <summary>
     /// An implementation of <see cref="ISchedulerFactory" /> that
     /// does all of it's work of creating a <see cref="QuartzScheduler" /> instance
-    /// based on the contenents of a properties file.
+    /// based on the contents of a properties file.
     /// </summary>
     /// <remarks>
     /// <p>
@@ -181,18 +181,16 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Initialize the <see cref="ISchedulerFactory" /> with
-        /// the contenents of a Properties file.
-        /// 
-        /// <p>
+        /// Initialize the <see cref="ISchedulerFactory" />.
+        /// </summary>
+        /// <remarks>
         /// By default a properties file named "quartz.properties" is loaded from
         /// the 'current working directory'. If that fails, then the
-        /// "quartz.properties" file located (as a resource) in the org/quartz
-        /// package is loaded. If you wish to use a file other than these defaults,
+        /// "quartz.properties" file located (as an embedded resource) in the Quartz.NET
+        /// assembly is loaded. If you wish to use a file other than these defaults,
         /// you must define the system property 'quartz.properties' to point to
         /// the file you want.
-        /// </p>
-        /// </summary>
+        /// </remarks>
         public void Initialize()
         {
             // short-circuit if already initialized
@@ -279,7 +277,7 @@ Please add configuration to your application config file to correctly initialize
 
         /// <summary> 
         /// Initialize the <see cref="ISchedulerFactory" /> with
-        /// the contenents of the given Properties object.
+        /// the contents of the given key value collection object.
         /// </summary>
         public virtual void Initialize(NameValueCollection props)
         {
