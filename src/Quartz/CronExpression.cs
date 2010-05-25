@@ -904,6 +904,10 @@ namespace Quartz
             {
                 if (type == DayOfWeek)
                 {
+                    if (val < 1 || val > 7)
+                    {
+                        throw new FormatException("Day-of-Week values must be between 1 and 7");
+                    }
                     lastdayOfWeek = true;
                 }
                 else
