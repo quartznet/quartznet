@@ -350,14 +350,9 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the date/time on which the trigger must stop firing. This 
+		/// Gets and sets the date/time on which the trigger must stop firing. This 
 		/// defines the final boundary for trigger firings &#x8212; the trigger will
 		/// not fire after to this date and time. If this value is null, no end time
-		/// boundary is assumed, and the trigger can continue indefinitely.
-		/// 
-		/// Sets the date/time on which the trigger must stop firing. This defines
-		/// the final boundary for trigger firings &#x8212; the trigger will not
-		/// fire after to this date and time. If this value is null, no end time
 		/// boundary is assumed, and the trigger can continue indefinitely.
         /// </summary>
         public virtual DateTime? EndTimeUtc

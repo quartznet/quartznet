@@ -906,6 +906,60 @@ namespace Quartz
 			return lst.AsReadOnly();
 		}
 
+	    /// <summary>
+	    /// Compute the <code>Date</code> that is 1 second after the Nth firing of 
+	    /// the given <see cref="Trigger" />, taking the triger's associated 
+	    /// <see cref="ICalendar" /> into consideration.
+        /// </summary>
+        /// <remarks>
+        /// The input trigger will be cloned before any work is done, so you need
+	    /// not worry about its state being altered by this method.
+        /// </remarks>
+        /// <param name="trigger">The trigger upon which to do the work</param>
+        /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
+        /// <param name="numberOfTimes">The number of next fire times to produce</param>
+        /// <returns>the computed Date, or null if the trigger (as configured) will not fire that many times</returns>
+        public static DateTime? ComputeEndTimeToAllowParticularNumberOfFirings(Trigger trigger, ICalendar calendar, int numberOfTimes)
+	    {
+	        Trigger t = (Trigger) trigger.Clone();
+
+	        if (t.GetNextFireTimeUtc() == null)
+	        {
+	            t.ComputeFirstFireTimeUtc(calendar);
+	        }
+
+	        int c = 0;
+	        DateTime? endTime = null;
+
+	        for (int i = 0; i < numberOfTimes; i++)
+	        {
+	            DateTime? d = t.GetNextFireTimeUtc();
+	            if (d != null)
+	            {
+	                c++;
+	                t.Triggered(calendar);
+	                if (c == numberOfTimes)
+	                {
+	                    endTime = d;
+	                }
+	            }
+	            else
+	            {
+	                break;
+	            }
+	        }
+
+	        if (endTime == null)
+	        {
+	            return null;
+	        }
+
+	        endTime = endTime.Value.AddSeconds(1);
+
+	        return endTime;
+	    }
+
+
 		/// <summary>
 		/// Returns a list of Dates that are the next fire times of a  <see cref="Trigger" />
 		/// that fall within the given date range. The input trigger will be cloned
