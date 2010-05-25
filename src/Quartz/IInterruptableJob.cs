@@ -23,7 +23,7 @@ namespace Quartz
 {
 	/// <summary>
 	/// The interface to be implemented by <see cref="IJob" />s that provide a 
-	/// mechanism for having their execution interrupted.  It is NOT a requirment
+	/// mechanism for having their execution interrupted.  It is NOT a requirement
 	/// for jobs to implement this interface - in fact, for most people, none of
 	/// their jobs will.
 	/// </summary>
@@ -38,8 +38,8 @@ namespace Quartz
 	/// body of the job's <see cref="IJob.Execute" /> periodically check some flag to
 	/// see if an interruption has been requested, and if the flag is set, somehow
 	/// abort the performance of the rest of the job's work.  An example of 
-	/// interrupting a job can be found in the java source for the  class 
-	/// Quartz.Examples.Example7.DumbInterruptableJob.  It is legal to use
+	/// interrupting a job can be found in the java source for the class 
+	/// <see cref="T:Quartz.Examples.Example7.DumbInterruptableJob" />.  It is legal to use
 	/// some combination of <see cref="Monitor.Wait(object)" /> and <see cref="Monitor.Pulse" /> 
 	/// synchronization within <see cref="Thread.Interrupt" /> and <see cref="IJob.Execute" />
 	/// in order to have the <see cref="Thread.Interrupt" /> method block until the
@@ -50,11 +50,11 @@ namespace Quartz
 	/// If the Job performs some form of blocking I/O or similar functions, you may
 	/// want to consider having the <see cref="IJob.Execute" /> method store a
 	/// reference to the calling <see cref="Thread" /> as a member variable.  Then the
-	/// impplementation of this interfaces <see cref="Thread.Interrupt" /> method can call 
+	/// implementation of this interfaces <see cref="Thread.Interrupt" /> method can call 
 	/// <see cref="Thread.Interrupt" /> on that Thread.   Before attempting this, make
 	/// sure that you fully understand what <see cref="Thread.Interrupt" /> 
 	/// does and doesn't do.  Also make sure that you clear the Job's member 
-	/// reference to the Thread when the Execute(..) method exits (preferrably in a
+	/// reference to the Thread when the Execute(..) method exits (preferably in a
 	/// <see langword="finally" /> block.
 	/// </p>
     /// </remarks>

@@ -114,7 +114,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a serious error has
-		/// occured within the scheduler - such as repeated failures in the <see cref="IJobStore" />,
+		/// occurred within the scheduler - such as repeated failures in the <see cref="IJobStore" />,
 		/// or the inability to instantiate a <see cref="IJob" /> instance when its
 		/// <see cref="Trigger" /> has fired.
 		/// <p>

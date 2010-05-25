@@ -41,7 +41,7 @@ namespace Quartz
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
 		/// is about to be executed (an associated <see cref="Trigger" />
-		/// has occured).
+		/// has occurred).
 		/// <p>
 		/// This method will not be invoked if the execution of the Job was vetoed
 		/// by a <see cref="ITriggerListener" />.
@@ -53,7 +53,7 @@ namespace Quartz
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
 		/// was about to be executed (an associated <see cref="Trigger" />
-		/// has occured), but a <see cref="ITriggerListener" /> vetoed it's 
+		/// has occurred), but a <see cref="ITriggerListener" /> vetoed it's 
 		/// execution.
 		/// </summary>
 		/// <seealso cref="JobToBeExecuted(JobExecutionContext)" />

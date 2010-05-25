@@ -181,7 +181,7 @@ namespace Quartz
     /// associated, then it is equivalent to having an all-inclusive calendar. A
     /// value of "5C" in the day-of-month field means "the first day included by the
     /// calendar on or after the 5th". A value of "1C" in the day-of-week field
-    /// means "the first day included by the calendar on or after sunday". -->
+    /// means "the first day included by the calendar on or after Sunday". -->
     /// </p>
     /// <p>
     /// The legal characters and the names of months and days of the week are not

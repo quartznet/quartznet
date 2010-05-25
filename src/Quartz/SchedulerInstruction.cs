@@ -36,7 +36,7 @@ namespace Quartz
         /// wants the <see cref="JobDetail" /> to re-Execute
         /// immediately. If not in a 'RECOVERING' or 'FAILED_OVER' situation, the
         /// execution context will be re-used (giving the <see cref="IJob" /> the
-        /// abilitiy to 'see' anything placed in the context by its last execution).
+        /// ability to 'see' anything placed in the context by its last execution).
         /// </summary>      
         ReExecuteJob,
 

@@ -142,7 +142,7 @@ namespace Quartz
 	/// <tr>
 	/// <td align="left">"0 15 10 ? * 6L 2002-2005"" /></td>
 	/// <td align="left"> </td>
-	/// <td align="left">Fire at 10:15am on every last friday of every month during the years 2002, 2003, 2004 and 2005" />
+	/// <td align="left">Fire at 10:15am on every last Friday of every month during the years 2002, 2003, 2004 and 2005" />
 	/// </td>
 	/// </tr>
 	/// <tr>

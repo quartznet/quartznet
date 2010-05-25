@@ -28,6 +28,11 @@ namespace Quartz
 	/// Holds context/environment data that can be made available to Jobs as they
 	/// are executed. 
 	/// </summary>
+	/// <remarks>
+	/// Future versions of Quartz may make distinctions on how it propagates
+    /// data in <see cref="SchedulerContext" /> between instances of proxies to a 
+    /// single scheduler instance - i.e. if Quartz is being used via WCF of Remoting.
+	/// </remarks>
 	/// <seealso cref="IScheduler.Context" />
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>

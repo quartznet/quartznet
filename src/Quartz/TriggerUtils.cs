@@ -29,13 +29,8 @@ namespace Quartz
 {
 	/// <summary>
 	/// Convenience and utility methods for simplifying the construction and
-	/// configuration of <see cref="Trigger" />s.
+	/// configuration of <see cref="Trigger" />s and DateTimes.
 	/// </summary>
-	/// <remarks>
-	/// Please submit suggestions for additional convenience methods to either the
-	/// Quartz user forum or the developer's mail list at
-	/// <a href="http://www.sourceforge.net/projects/quartz">source forge</a>.
-    /// </remarks>
 	/// <seealso cref="CronTrigger" />
 	/// <seealso cref="SimpleTrigger" />
 	/// <author>James House</author>
@@ -967,7 +962,7 @@ namespace Quartz
 		/// altered by this method.
 		/// <p>
 		/// NOTE: if this is a trigger that has previously fired within the given
-		/// date range, then firings which have already occured will not be listed
+		/// date range, then firings which have already occurred will not be listed
 		/// in the output List.
 		/// </p>
 		/// </summary>
@@ -1017,7 +1012,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Translate a date and time from a users timezone to the another
+		/// Translate a date and time from a users time zone to the another
 		/// (probably server) timezone to assist in creating a simple trigger with
 		/// the right date and time.
 		/// </summary>
@@ -1036,7 +1031,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Gets the offset from UT for the given date in the given timezone,
+		/// Gets the offset from UT for the given date in the given time zone,
 		/// taking into account daylight savings.
 		/// </summary>
 		/// <param name="date">the date that is the base for the offset</param>

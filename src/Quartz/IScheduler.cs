@@ -31,7 +31,7 @@ namespace Quartz
     /// <remarks>
     /// 	<para>
     ///         A <see cref="IScheduler"/> maintains a registry of
-    ///         <see cref="JobDetail"/> s and <see cref="Trigger"/>s. Once
+    ///         <see cref="JobDetail"/>s and <see cref="Trigger"/>s. Once
     ///         registered, the <see cref="IScheduler"/> is responsible for executing
     ///         <see cref="IJob"/> s when their associated <see cref="Trigger"/> s
     ///         fire (when their scheduled time arrives).
