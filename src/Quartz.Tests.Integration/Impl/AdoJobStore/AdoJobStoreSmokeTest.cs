@@ -248,23 +248,18 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     lonelyJob.RequestsRecovery = true;
                     sched.AddJob(lonelyJob, false);
                     sched.AddJob(lonelyJob, true);
-
-                    sched.AddJobListener(new DummyJobListener());
-                    sched.AddTriggerListener(new DummyTriggerListener());
                     
                     string schedId = sched.SchedulerInstanceId;
 
                     int count = 1;
 
                     JobDetail job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
-                    job.AddJobListener(new DummyJobListener().Name);
 
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = true;
                     SimpleTrigger trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
 
-                    trigger.AddTriggerListener(new DummyTriggerListener().Name);
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                     sched.ScheduleJob(job, trigger);
 
@@ -368,9 +363,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     CollectionAssert.IsNotEmpty(sched.GetTriggersOfJob("job_2", schedId));
                     Assert.IsNotNull(sched.GetJobDetail("job_2", schedId));
-
-                    sched.RemoveJobListener(new DummyJobListener().Name);
-                    sched.RemoveTriggerListener(new DummyTriggerListener().Name);
 
                     sched.DeleteCalendar("cronCalendar");
                     sched.DeleteCalendar("holidayCalendar");

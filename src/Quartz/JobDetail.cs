@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 
 using Quartz.Spi;
@@ -61,7 +60,6 @@ namespace Quartz
         private bool durability;
         private bool shouldRecover;
 
-        private List<string> jobListeners = new List<string>();
         [NonSerialized]
         private Key key;
 
@@ -325,25 +323,6 @@ namespace Quartz
             }
         }
 
-        /// <summary>
-        /// Gets or sets an array of <see cref="String" /> s containing the names of all
-        /// <see cref="IJobListener" /> s assigned to the <see cref="IJob" />,
-        /// in the order in which they should be notified. Setting the array
-        /// clears any listener names that were in the list.
-        /// </summary>
-        public virtual string[] JobListenerNames
-        {
-            get { return new List<string>(jobListeners).ToArray(); }
-            set
-            {
-                jobListeners.Clear();
-                for (int i = 0; i < value.Length; i++)
-                {
-                    AddJobListener(value[i]);
-                }
-            }
-        }
-
         /// <summary> 
         /// Validates whether the properties of the <see cref="JobDetail" /> are
         /// valid for submission into a <see cref="IScheduler" />.
@@ -352,43 +331,18 @@ namespace Quartz
         {
             if (name == null)
             {
-                throw new SchedulerException("Job's name cannot be null", SchedulerException.ErrorClientError);
+                throw new SchedulerException("Job's name cannot be null");
             }
 
             if (group == null)
             {
-                throw new SchedulerException("Job's group cannot be null", SchedulerException.ErrorClientError);
+                throw new SchedulerException("Job's group cannot be null");
             }
 
             if (jobType == null)
             {
-                throw new SchedulerException("Job's class cannot be null", SchedulerException.ErrorClientError);
+                throw new SchedulerException("Job's class cannot be null");
             }
-        }
-
-
-
-        /// <summary>
-        /// Add the specified name of a <see cref="IJobListener" /> to the
-        /// end of the <see cref="IJob" />'s list of listeners.
-        /// </summary>
-        public virtual void AddJobListener(string listenerName)
-        {
-			if (jobListeners.Contains(listenerName)) 
-			{
-				throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Job listener '{0}' is already registered for job detail: {1}", listenerName, FullName));
-			}
-            jobListeners.Add(listenerName);
-        }
-
-        /// <summary>
-        /// Remove the specified name of a <see cref="IJobListener" /> from
-        /// the <see cref="IJob" />'s list of listeners.
-        /// </summary>
-        /// <returns>true if the given name was found in the list, and removed</returns>
-        public virtual bool RemoveJobListener(string listenerName)
-        {
-            return jobListeners.Remove(listenerName);
         }
 
         /// <summary>
@@ -415,7 +369,6 @@ namespace Quartz
             try
             {
                 copy = (JobDetail) MemberwiseClone();
-                copy.jobListeners = new List<string>(jobListeners);
                 if (jobDataMap != null)
                 {
                     copy.jobDataMap = (JobDataMap) jobDataMap.Clone();

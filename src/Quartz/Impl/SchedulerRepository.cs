@@ -58,8 +58,7 @@ namespace Quartz.Impl
 			{
 				if (schedulers.ContainsKey(sched.SchedulerName))
 				{
-					throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Scheduler with name '{0}' already exists.", sched.SchedulerName),
-					                             SchedulerException.ErrorBadConfiguration);
+					throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Scheduler with name '{0}' already exists.", sched.SchedulerName));
 				}
 
 				schedulers[sched.SchedulerName] = sched;

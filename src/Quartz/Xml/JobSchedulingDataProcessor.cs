@@ -282,11 +282,6 @@ namespace Quartz.Xml
 	            JobDetail jd = new JobDetail(j.name, j.group, jobType, j.@volatile, j.durable, j.recover);
 	            jd.Description = j.description;
 
-                if (j.joblistenerref != null && j.joblistenerref.Trim().Length > 0)
-                {
-                    jd.AddJobListener(j.joblistenerref);
-                }
-                
                 jsb.JobDetail = jd;
 
                 // read job data map
@@ -377,11 +372,6 @@ namespace Quartz.Xml
                             trigger.JobDataMap[entry.key] = entry.value;
                         }
                     }
-					if (t.Item.triggerlistenerref != null && t.Item.triggerlistenerref.Trim().Length > 0)
-					{
-						trigger.AddTriggerListener(t.Item.triggerlistenerref);
-					}
-					
 	                jsb.Triggers.Add(trigger);
 	            }
 
@@ -549,17 +539,6 @@ namespace Quartz.Xml
 				ScheduleJob(bndle, sched, overwriteExistingJobs);
 			}
 
-			foreach (IJobListener listener in listenersToSchedule)
-			{
-				Log.Info(string.Format(CultureInfo.InvariantCulture, "adding listener {0} of type {1}", listener.Name, listener.GetType().FullName));
-				sched.AddJobListener(listener);
-			}
-
-			foreach (ITriggerListener listener in triggerListenersToSchedule)
-			{
-				Log.Info(string.Format(CultureInfo.InvariantCulture, "adding listener {0} of type {1}", listener.Name, listener.GetType().FullName));
-				sched.AddTriggerListener(listener);
-			}
 			Log.Info(string.Format(CultureInfo.InvariantCulture, "{0} scheduled jobs.", jobBundles.Count));
 		}
 

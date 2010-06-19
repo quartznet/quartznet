@@ -1793,7 +1793,7 @@ namespace Quartz
                             continue;
                         }
 
-                        // find date of last occurance of this day in this month...
+                        // find date of last occurrence of this day in this month...
                         while ((day + daysToAdd + 7) <= lDay)
                         {
                             daysToAdd += 7;

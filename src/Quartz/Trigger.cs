@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 
 using Quartz.Simpl;
@@ -75,8 +74,6 @@ namespace Quartz
         private string fireInstanceId;
 
         private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
-
-        private List<string> triggerListeners = new List<string>();
 
         private DateTime? endTimeUtc;
         private DateTime startTimeUtc;
@@ -266,38 +263,7 @@ namespace Quartz
 			get { return volatility; }
             set { volatility = value; }
 		}
-
-		/// <summary>
-		/// Returns an array of <see cref="string" /> s containing the names of all
-		/// <see cref="ITriggerListener" />s assigned to the <see cref="Trigger" />,
-		/// in the order in which they should be notified.
-		/// </summary>
-		public virtual IList<string> TriggerListenerNames
-		{
-			get { return triggerListeners.AsReadOnly(); }
-            set 
-            { 
-                ClearAllTriggerListeners();
-                if (value != null)
-                {
-                    foreach (string triggerListenerName in value)
-                    {
-                        AddTriggerListener(triggerListenerName);
-                    }
-                }
-            }
-		}
-
-		
-		/// <summary>
-		/// Remove all <see cref="ITriggerListener" />s from the <see cref="Trigger" />.
-		/// </summary>
-		public virtual void ClearAllTriggerListeners() 
-		{
-			triggerListeners.Clear();
-		}
-
-		
+	
 		/// <summary>
 		/// Returns the last UTC time at which the <see cref="Trigger" /> will fire, if
 		/// the Trigger will repeat indefinitely, null will be returned.
@@ -495,34 +461,6 @@ namespace Quartz
 			set { priority = value; }
 		}
 
-
-		/// <summary>
-        /// Add the specified name of a <see cref="ITriggerListener" /> to
-        /// the end of the <see cref="Trigger" />'s list of listeners.
-        /// </summary>
-        /// <param name="listenerName">Name of the listener.</param>
-		public virtual void AddTriggerListener(string listenerName)
-		{
-			if (triggerListeners.Contains(listenerName)) 
-			{
-				throw new ArgumentException(
-					string.Format(CultureInfo.InvariantCulture, "Trigger listener '{0}' is already registered for trigger: {1}", listenerName, FullName));
-			}
-
-			triggerListeners.Add(listenerName);
-		}
-
-		/// <summary>
-		/// Remove the specified name of a <see cref="ITriggerListener" />
-		/// from the <see cref="Trigger" />'s list of listeners.
-		/// </summary>
-		/// <returns> true if the given name was found in the list, and removed
-		/// </returns>
-		public virtual bool RemoveTriggerListener(string listenerName)
-		{
-			return triggerListeners.Remove(listenerName);
-		}
-
 		/// <summary>
 		/// This method should not be used by the Quartz client.
 		/// <p>
@@ -690,22 +628,22 @@ namespace Quartz
 		{
 			if (name == null)
 			{
-				throw new SchedulerException("Trigger's name cannot be null", SchedulerException.ErrorClientError);
+				throw new SchedulerException("Trigger's name cannot be null");
 			}
 
 			if (group == null)
 			{
-				throw new SchedulerException("Trigger's group cannot be null", SchedulerException.ErrorClientError);
+				throw new SchedulerException("Trigger's group cannot be null");
 			}
 
 			if (jobName == null)
 			{
-				throw new SchedulerException("Trigger's related Job's name cannot be null", SchedulerException.ErrorClientError);
+				throw new SchedulerException("Trigger's related Job's name cannot be null");
 			}
 
 			if (jobGroup == null)
 			{
-				throw new SchedulerException("Trigger's related Job's group cannot be null", SchedulerException.ErrorClientError);
+				throw new SchedulerException("Trigger's related Job's group cannot be null");
 			}
 		}
 
@@ -826,8 +764,6 @@ namespace Quartz
 			try
 			{
 				copy = (Trigger) MemberwiseClone();
-
-                copy.triggerListeners = new List<string>(triggerListeners);
 
 				// Shallow copy the jobDataMap.  Note that this means that if a user
 				// modifies a value object in this map from the cloned Trigger

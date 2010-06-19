@@ -17,9 +17,6 @@
  */
 #endregion
 
-using System;
-using System.Collections.Generic;
-
 using NUnit.Framework;
 
 using Quartz.Job;
@@ -30,58 +27,7 @@ namespace Quartz.Tests.Unit
 	[TestFixture]
 	public class JobDetailTest
 	{
-		[Test]
-		public void TestAddJobListener() 
-		{
-			string[] listenerNames = new string[] {"X", "A", "B"};
-        
-			// Verify that a HashSet shuffles order, so we know that order test
-			// below is actually testing something
-            Collection.HashSet<string> hashSet = new Collection.HashSet<string>(listenerNames);
-			Assert.IsFalse(new List<string>(listenerNames).Equals(new List<string>(hashSet)));
-        
-			JobDetail jobDetail = new JobDetail();
-			for (int i = 0; i < listenerNames.Length; i++) 
-			{
-				jobDetail.AddJobListener(listenerNames[i]);
-			}
-
-			// Make sure order was maintained
-			TestUtil.AssertCollectionEquality(listenerNames, jobDetail.JobListenerNames);
-        
-			// Make sure uniqueness is enforced
-			for (int i = 0; i < listenerNames.Length; i++) 
-			{
-				try 
-				{
-					jobDetail.AddJobListener(listenerNames[i]);
-					Assert.Fail();
-				} 
-				catch (ArgumentException) 
-				{
-				}
-			}
-		}
-
-
-        [Test]
-        public void TestRemoveJobListener()
-        {
-            string[] listenerNames = new string[] { "X", "A", "B" };
-
-            JobDetail jobDetail = new JobDetail();
-            for (int i = 0; i < listenerNames.Length; i++)
-            {
-                jobDetail.AddJobListener(listenerNames[i]);
-            }
-
-            // Make sure uniqueness is enforced
-            for (int i = 0; i < listenerNames.Length; i++)
-            {
-                Assert.IsTrue(jobDetail.RemoveJobListener(listenerNames[i]));
-            }
-        }
-        
+       
         [Test]
         public void TestEquals()
         {
@@ -99,26 +45,9 @@ namespace Quartz.Tests.Unit
 		public void TestClone() 
 		{
 			JobDetail jobDetail = new JobDetail();
-			jobDetail.AddJobListener("A");
-
-            // verify order
-            for (int i = 0; i < 10; i++)
-            {
-                jobDetail.AddJobListener("A" + i);
-            }
-
 			JobDetail clonedJobDetail = (JobDetail)jobDetail.Clone();
-			TestUtil.AssertCollectionEquality(clonedJobDetail.JobListenerNames, jobDetail.JobListenerNames);
-        
-			jobDetail.AddJobListener("B");
-        
-			// Verify deep clone of jobListenerNames 
-			Assert.IsTrue(new List<string>(jobDetail.JobListenerNames).Contains("A"));
-			Assert.IsTrue(new List<string>(jobDetail.JobListenerNames).Contains("B"));
-			Assert.IsTrue(new List<string>(clonedJobDetail.JobListenerNames).Contains("A"));
-			Assert.IsFalse(new List<string>(clonedJobDetail.JobListenerNames).Contains("B"));
+
+            Assert.AreEqual(jobDetail, clonedJobDetail);
 		}
-
-
 	}
 }

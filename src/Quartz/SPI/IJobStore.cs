@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Collection;
 using Quartz.Core;
 
 namespace Quartz.Spi
@@ -427,7 +426,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <param name="ctxt">The context.</param>
         /// <returns></returns>
-        ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt);
+        Collection.ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt);
 
 		/// <summary> 
 		/// Resume (un-pause) the <see cref="IJob" /> with the
@@ -486,7 +485,7 @@ namespace Quartz.Spi
         /// <returns></returns>
         /// <seealso cref="Trigger">
         /// </seealso>
-		Trigger AcquireNextTrigger(SchedulingContext ctx, DateTime noLaterThan);
+        IList<Trigger> AcquireNextTriggers(SchedulingContext ctx, DateTime noLaterThan, int maxCount, TimeSpan timeWindow);
 
 		/// <summary> 
 		/// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
@@ -504,7 +503,7 @@ namespace Quartz.Spi
 		/// if the trigger was not successfully put into the 'executing'
 		/// state.
 		/// </returns>
-		TriggerFiredBundle TriggerFired(SchedulingContext ctx, Trigger trigger);
+		IList<TriggerFiredResult> TriggersFired(SchedulingContext ctx, IList<Trigger> triggers);
 
 		/// <summary>
 		/// Inform the <see cref="IJobStore" /> that the scheduler has completed the

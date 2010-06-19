@@ -35,8 +35,6 @@ namespace Quartz.Impl.AdoJobStore
 		public const string TableCronTriggers = "CRON_TRIGGERS";
 		public const string TableBlobTriggers = "BLOB_TRIGGERS";
 		public const string TableFiredTriggers = "FIRED_TRIGGERS";
-		public const string TableJobListeners = "JOB_LISTENERS";
-		public const string TableTriggerListeners = "TRIGGER_LISTENERS";
 		public const string TableCalendars = "CALENDARS";
 		public const string TablePausedTriggers = "PAUSED_TRIGGER_GRPS";
 		public const string TableLocks = "LOCKS";
@@ -52,9 +50,6 @@ namespace Quartz.Impl.AdoJobStore
 		public const string ColumnJobDataMap = "JOB_DATA";
 		public const string ColumnJobClass = "JOB_CLASS_NAME";
 		public const string ColumnDescription = "DESCRIPTION";
-		
-		// TableJobListeners columns names
-		public const string ColumnJobListener = "JOB_LISTENER";
 		
 		// TableTriggers columns names
 		public const string ColumnTriggerName = "TRIGGER_NAME";
@@ -80,9 +75,6 @@ namespace Quartz.Impl.AdoJobStore
 		// TableBlobTriggers columns names
 		public const string ColumnBlob = "BLOB_DATA";
 		public const string ColumnTimeZoneId = "TIME_ZONE_ID";
-		
-		// TableTriggerListeners
-		public const string ColumnTriggerListener = "TRIGGER_LISTENER";
 		
 		// TableFiredTriggers columns names
 		public const string ColumnInstanceName = "INSTANCE_NAME";

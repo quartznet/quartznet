@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Collection;
 using Quartz.Core;
 
 namespace Quartz.Simpl
@@ -40,11 +39,11 @@ namespace Quartz.Simpl
 		Type JobStoreClass { get; }
 		Type ThreadPoolClass { get; }
 		int ThreadPoolSize { get; }
-		IList<JobExecutionContext> CurrentlyExecutingJobs { get; }
-		IList<IJobListener> GlobalJobListeners { get; }
-        ISet<string> JobListenerNames { get; }
+		
+        IList<JobExecutionContext> CurrentlyExecutingJobs { get; }
+
+        IList<IJobListener> GlobalJobListeners { get; }
 		IList<ITriggerListener> GlobalTriggerListeners { get; }
-        ISet<string> TriggerListenerNames { get; }
 		IList<ISchedulerListener> SchedulerListeners { get; }
 
 		/// <summary>
@@ -120,7 +119,7 @@ namespace Quartz.Simpl
 
 		void ResumeTriggerGroup(SchedulingContext ctxt, string groupName);
 
-        ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt);
+        Collection.ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt);
 
 		void ResumeJob(SchedulingContext ctxt, string jobName, string groupName);
 
@@ -156,19 +155,7 @@ namespace Quartz.Simpl
 
 		void AddGlobalJobListener(IJobListener jobListener);
 
-		void AddJobListener(IJobListener jobListener);
-
-		bool RemoveJobListener(string name);
-
-		IJobListener GetJobListener(string name);
-
 		void AddGlobalTriggerListener(ITriggerListener triggerListener);
-
-		void AddTriggerListener(ITriggerListener triggerListener);
-
-		bool RemoveTriggerListener(string name);
-
-		ITriggerListener GetTriggerListener(string name);
 
 		void AddSchedulerListener(ISchedulerListener schedulerListener);
 

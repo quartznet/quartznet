@@ -117,11 +117,6 @@ namespace Quartz
 		/// occurred within the scheduler - such as repeated failures in the <see cref="IJobStore" />,
 		/// or the inability to instantiate a <see cref="IJob" /> instance when its
 		/// <see cref="Trigger" /> has fired.
-		/// <p>
-		/// The <see cref="SchedulerException.ErrorCode" /> property of the given SchedulerException
-		/// can be used to determine more specific information about the type of
-		/// error that was encountered.
-		/// </p>
 		/// </summary>
 		void SchedulerError(string msg, SchedulerException cause);
 
@@ -142,5 +137,11 @@ namespace Quartz
 		/// that it has Shutdown.
 		/// </summary>
 		void SchedulerShutdown();
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> to inform the listener
+        /// that it has begun the shutdown sequence.
+        /// </summary>
+        void SchedulerShuttingdown();
 	}
 }

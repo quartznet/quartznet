@@ -43,6 +43,10 @@ namespace Quartz.Core
         private readonly List<ISchedulerPlugin> schedulerPlugins = new List<ISchedulerPlugin>(10);
         private bool makeSchedulerThreadDaemon;
 	    private ISchedulerExporter exporter;
+        private TimeSpan batchTimeWindow;
+        private int maxBatchSize;
+        private bool interruptJobsOnShutdown;
+        private bool interruptJobsOnShutdownWithWait;
 
 		/// <summary>
 		/// Get or set the name for the <see cref="QuartzScheduler" />.
@@ -244,6 +248,34 @@ namespace Quartz.Core
 	    {
 	        get { return exporter; }
 	        set { exporter = value; }
+	    }
+
+        /// <summary>
+        /// Gets or sets the batch time window.
+        /// </summary>
+	    public TimeSpan BatchTimeWindow
+	    {
+	        get { return batchTimeWindow; }
+	        set { batchTimeWindow = value; }
+	    }
+
+
+	    public int MaxBatchSize
+	    {
+	        get { return maxBatchSize; }
+	        set { maxBatchSize = value; }
+	    }
+
+	    public bool InterruptJobsOnShutdown
+	    {
+	        get { return interruptJobsOnShutdown; }
+	        set { interruptJobsOnShutdown = value; }
+	    }
+
+	    public bool InterruptJobsOnShutdownWithWait
+	    {
+	        get { return interruptJobsOnShutdownWithWait; }
+	        set { interruptJobsOnShutdownWithWait = value; }
 	    }
 	}
 }

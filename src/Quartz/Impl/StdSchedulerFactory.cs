@@ -85,6 +85,8 @@ namespace Quartz.Impl
         public const string PropertySchedulerInstanceIdGeneratorPrefix = "quartz.scheduler.instanceIdGenerator";
         public const string PropertySchedulerInstanceIdGeneratorType = PropertySchedulerInstanceIdGeneratorPrefix + ".type";
         public const string PropertySchedulerThreadName = "quartz.scheduler.threadName";
+        public const string PropertySchedulerBatchTimeWindow = "quartz.scheduler.batchTimeWindow";
+        public const string PropertySchedulerMaxBatchSize = "quartz.scheduler.maxBatchSize";
         public const string PropertySchedulerExporterPrefix = "quartz.scheduler.exporter";
         public const string PropertySchedulerExporterType = PropertySchedulerExporterPrefix + ".type";
         public const string PropertySchedulerProxy = "quartz.scheduler.proxy";
@@ -95,6 +97,8 @@ namespace Quartz.Impl
         public const string PropertySchedulerTypeLoadHelperType = "quartz.scheduler.typeLoadHelper.type";
         public const string PropertySchedulerJobFactoryType = "quartz.scheduler.jobFactory.type";
         public const string PropertySchedulerJobFactoryPrefix = "quartz.scheduler.jobFactory";
+        public const string PropertySchedulerInterruptJobsOnShutdown = "quartz.scheduler.interruptJobsOnShutdown";
+        public const string PropertySchedulerInterruptJobsOnShutdownWithWait = "quartz.scheduler.interruptJobsOnShutdownWithWait";
         public const string PropertySchedulerContextPrefix = "quartz.context.key";
         public const string PropertyThreadPoolPrefix = "quartz.threadPool";
         public const string PropertyThreadPoolType = "quartz.threadPool.type";
@@ -126,11 +130,6 @@ namespace Quartz.Impl
         private string SchedulerName
         {
             get { return cfg.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler"); }
-        }
-
-        private string SchedulerInstId
-        {
-            get { return cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId); }
         }
 
         protected ILog Log
@@ -338,6 +337,11 @@ Please add configuration to your application config file to correctly initialize
             idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
             dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
+            long batchTimeWindow = cfg.GetLongProperty(PropertySchedulerBatchTimeWindow, 0L);
+            int maxBatchSize = cfg.GetIntProperty(PropertySchedulerMaxBatchSize, 10);
+
+            bool interruptJobsOnShutdown = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdown, false);
+            bool interruptJobsOnShutdownWithWait = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdownWithWait, false);
 
             NameValueCollection schedCtxtProps = cfg.GetPropertyGroup(PropertySchedulerContextPrefix, true);
 
@@ -400,7 +404,6 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "JobFactory of type '{0}' props could not be configured.", jobFactoryType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
             }
@@ -428,7 +431,6 @@ Please add configuration to your application config file to correctly initialize
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "InstanceIdGenerator of type '{0}' props could not be configured.",
                                           instanceIdGeneratorType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
             }
@@ -440,8 +442,7 @@ Please add configuration to your application config file to correctly initialize
 
             if (tpType == null)
             {
-                initException =
-                    new SchedulerException("ThreadPool type not specified. ", SchedulerException.ErrorBadConfiguration);
+                initException = new SchedulerException("ThreadPool type not specified. ");
                 throw initException;
             }
 
@@ -454,7 +455,6 @@ Please add configuration to your application config file to correctly initialize
                 initException =
                     new SchedulerException(string.Format(CultureInfo.InvariantCulture, "ThreadPool type '{0}' could not be instantiated.", tpType),
                                            e);
-                initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                 throw initException;
             }
             tProps = cfg.GetPropertyGroup(PropertyThreadPoolPrefix, true);
@@ -467,7 +467,6 @@ Please add configuration to your application config file to correctly initialize
                 initException =
                     new SchedulerException(
                         string.Format(CultureInfo.InvariantCulture, "ThreadPool type '{0}' props could not be configured.", tpType), e);
-                initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                 throw initException;
             }
 
@@ -496,7 +495,6 @@ Please add configuration to your application config file to correctly initialize
                         initException =
                             new SchedulerException(
                                 string.Format(CultureInfo.InvariantCulture, "ConnectionProvider of type '{0}' could not be instantiated.", cpType), e);
-                        initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                         throw initException;
                     }
 
@@ -513,7 +511,6 @@ Please add configuration to your application config file to correctly initialize
                             new SchedulerException(
                                 string.Format(CultureInfo.InvariantCulture, "ConnectionProvider type '{0}' props could not be configured.", cpType),
                                 e);
-                        initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                         throw initException;
                     }
 
@@ -575,8 +572,7 @@ Please add configuration to your application config file to correctly initialize
 
             if (jsType == null)
             {
-                initException =
-                    new SchedulerException("JobStore type not specified. ", SchedulerException.ErrorBadConfiguration);
+                initException = new SchedulerException("JobStore type not specified. ");
                 throw initException;
             }
 
@@ -588,7 +584,6 @@ Please add configuration to your application config file to correctly initialize
             {
                 initException =
                     new SchedulerException(string.Format(CultureInfo.InvariantCulture, "JobStore of type '{0}' could not be instantiated.", jsType), e);
-                initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                 throw initException;
             }
 
@@ -607,7 +602,6 @@ Please add configuration to your application config file to correctly initialize
                 initException =
                     new SchedulerException(
                         string.Format(CultureInfo.InvariantCulture, "JobStore type '{0}' props could not be configured.", jsType), e);
-                initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                 throw initException;
             }
 
@@ -650,7 +644,6 @@ Please add configuration to your application config file to correctly initialize
                         catch (Exception e)
                         {
                             initException = new SchedulerException(string.Format(CultureInfo.InvariantCulture, "JobStore LockHandler type '{0}' props could not be configured.", lockHandlerTypeName), e);
-                            initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                             throw initException;
                         }
 
@@ -660,7 +653,6 @@ Please add configuration to your application config file to correctly initialize
                     catch (Exception e)
                     {
                         initException = new SchedulerException(string.Format(CultureInfo.InvariantCulture, "JobStore LockHandler type '{0}' could not be instantiated.", lockHandlerTypeName), e);
-                        initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                         throw initException;
                     }
                 }
@@ -682,8 +674,7 @@ Please add configuration to your application config file to correctly initialize
                 {
                     initException =
                         new SchedulerException(
-                            string.Format(CultureInfo.InvariantCulture, "SchedulerPlugin type not specified for plugin '{0}'", pluginNames[i]),
-                            SchedulerException.ErrorBadConfiguration);
+                            string.Format(CultureInfo.InvariantCulture, "SchedulerPlugin type not specified for plugin '{0}'", pluginNames[i]));
                     throw initException;
                 }
                 ISchedulerPlugin plugin;
@@ -696,7 +687,6 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "SchedulerPlugin of type '{0}' could not be instantiated.", plugInType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
                 try
@@ -709,7 +699,6 @@ Please add configuration to your application config file to correctly initialize
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "JobStore SchedulerPlugin '{0}' props could not be configured.", plugInType),
                             e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
                 plugins[i] = plugin;
@@ -732,8 +721,7 @@ Please add configuration to your application config file to correctly initialize
                 {
                     initException =
                         new SchedulerException(
-                            string.Format(CultureInfo.InvariantCulture, "JobListener type not specified for listener '{0}'", jobListenerNames[i]),
-                            SchedulerException.ErrorBadConfiguration);
+                            string.Format(CultureInfo.InvariantCulture, "JobListener type not specified for listener '{0}'", jobListenerNames[i]));
                     throw initException;
                 }
                 IJobListener listener;
@@ -746,7 +734,6 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "JobListener of type '{0}' could not be instantiated.", listenerType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
                 try
@@ -763,7 +750,6 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "JobListener '{0}' props could not be configured.", listenerType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
                 jobListeners[i] = listener;
@@ -787,8 +773,7 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "TriggerListener type not specified for listener '{0}'",
-                                          triggerListenerNames[i]),
-                            SchedulerException.ErrorBadConfiguration);
+                                          triggerListenerNames[i]));
                     throw initException;
                 }
                 ITriggerListener listener;
@@ -801,7 +786,6 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "TriggerListener of type '{0}' could not be instantiated.", listenerType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
                 try
@@ -818,7 +802,6 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "TriggerListener '{0}' props could not be configured.", listenerType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
                 triggerListeners[i] = listener;
@@ -840,7 +823,6 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "Scheduler exporter of type '{0}' could not be instantiated.", exporterType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
 
@@ -855,7 +837,6 @@ Please add configuration to your application config file to correctly initialize
                     initException =
                         new SchedulerException(
                             string.Format(CultureInfo.InvariantCulture, "Scheduler exporter type '{0}' props could not be configured.", exporterType), e);
-                    initException.ErrorCode = SchedulerException.ErrorBadConfiguration;
                     throw initException;
                 }
             }
@@ -901,7 +882,10 @@ Please add configuration to your application config file to correctly initialize
                 rsrcs.InstanceId = schedInstId;
                 rsrcs.JobRunShellFactory = jrsf;
                 rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
-
+                rsrcs.BatchTimeWindow = TimeSpan.FromMilliseconds(batchTimeWindow);
+                rsrcs.MaxBatchSize = maxBatchSize;
+                rsrcs.InterruptJobsOnShutdown = interruptJobsOnShutdown;
+                rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
                 rsrcs.SchedulerExporter = exporter;
 
                 SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId);

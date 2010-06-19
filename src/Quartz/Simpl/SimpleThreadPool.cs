@@ -48,8 +48,8 @@ namespace Quartz.Simpl
         private const int DefaultThreadPoolSize = 10;
 
         private readonly object nextRunnableLock = new object();
-        private readonly List<WorkerThread> availWorkers = new List<WorkerThread>();
-        private readonly List<WorkerThread> busyWorkers = new List<WorkerThread>();
+        private readonly LinkedList<WorkerThread> availWorkers = new LinkedList<WorkerThread>();
+        private readonly LinkedList<WorkerThread> busyWorkers = new LinkedList<WorkerThread>();
 
         private int count = DefaultThreadPoolSize;
         private bool handoffPending;
@@ -59,7 +59,7 @@ namespace Quartz.Simpl
         private string threadNamePrefix;
         private string schedulerInstanceName;
 
-        private IList<WorkerThread> workers;
+        private List<WorkerThread> workers;
 
         /// <summary> 
         /// Create a new (unconfigured) <see cref="SimpleThreadPool" />.
@@ -182,7 +182,7 @@ namespace Quartz.Simpl
             foreach (WorkerThread wt in CreateWorkerThreads(count))
             {
                 wt.Start();
-                availWorkers.Add(wt);
+                availWorkers.AddLast(wt);
             }
         }
 
@@ -232,10 +232,10 @@ namespace Quartz.Simpl
                     // Wait until all worker threads are shut down
                     while (busyWorkers.Count > 0)
                     {
-                        WorkerThread wt = busyWorkers[0];
+                        LinkedListNode<WorkerThread> wt = busyWorkers.First;
                         try
                         {
-                            log.Debug(string.Format(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Name));
+                            log.Debug(string.Format(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Value.Name));
 
                             // note: with waiting infinite time the
                             // application may appear to 'hang'.
@@ -283,18 +283,17 @@ namespace Quartz.Simpl
 
                 if (!isShutdown)
                 {
-                    WorkerThread wt = availWorkers[0];
-                    availWorkers.RemoveAt(0);
-                    busyWorkers.Add(wt);
+                    WorkerThread wt = availWorkers.First.Value;
+                    availWorkers.RemoveFirst();
+                    busyWorkers.AddLast(wt);
                     wt.Run(runnable);
                 }
                 else
                 {
                     // If the thread pool is going down, execute the Runnable
                     // within a new additional worker thread (no thread from the pool).
-                    WorkerThread wt =
-                        new WorkerThread(this, "WorkerThread-LastJob", prio, MakeThreadsDaemons, runnable);
-                    busyWorkers.Add(wt);
+                    WorkerThread wt = new WorkerThread(this, "WorkerThread-LastJob", prio, MakeThreadsDaemons, runnable);
+                    busyWorkers.AddLast(wt);
                     workers.Add(wt);
                     wt.Start();
                 }
@@ -332,7 +331,7 @@ namespace Quartz.Simpl
             {
                 if (!isShutdown)
                 {
-                    availWorkers.Add(wt);
+                    availWorkers.AddLast(wt);
                 }
                 busyWorkers.Remove(wt);
                 Monitor.PulseAll(nextRunnableLock);

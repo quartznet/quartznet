@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Spi;
 
@@ -40,7 +39,6 @@ namespace Quartz.Impl
 	{
         private readonly QuartzScheduler sched;
         private readonly SchedulingContext schedCtxt;
-
 
 	    /// <summary>
 	    /// returns true if the given JobGroup
@@ -161,7 +159,7 @@ namespace Quartz.Impl
 
 		/// <seealso cref="QuartzScheduler.GetPausedTriggerGroups(SchedulingContext)">
 		/// </seealso>
-		public ISet<string> GetPausedTriggerGroups()
+        public Collection.ISet<string> GetPausedTriggerGroups()
 		{
 			return sched.GetPausedTriggerGroups(schedCtxt);
 		}
@@ -204,14 +202,6 @@ namespace Quartz.Impl
 			get { return sched.GlobalJobListeners; }
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-        public virtual ISet<string> JobListenerNames
-		{
-			get { return sched.JobListenerNames; }
-		}
-
         /// <summary>
         /// Get the <i>global</i><see cref="IJobListener"/> that has
         /// the given name.
@@ -240,14 +230,6 @@ namespace Quartz.Impl
 		public virtual IList<ITriggerListener> GlobalTriggerListeners
 		{
 			get { return sched.GlobalTriggerListeners; }
-		}
-
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-		public virtual ISet<string> TriggerListenerNames
-		{
-			get { return sched.TriggerListenerNames; }
 		}
 
 		/// <summary>
@@ -623,14 +605,6 @@ namespace Quartz.Impl
 			sched.AddGlobalJobListener(jobListener);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-		public virtual void AddJobListener(IJobListener jobListener)
-		{
-			sched.AddJobListener(jobListener);
-		}
-
         /// <summary>
         /// Remove the identifed <see cref="IJobListener"/> from the <see cref="IScheduler"/>'s
         /// list of <i>global</i> listeners.
@@ -644,36 +618,12 @@ namespace Quartz.Impl
             return sched.RemoveGlobalJobListener(name);
 	    }
 
-	    /// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-		public virtual bool RemoveJobListener(string name)
-		{
-			return sched.RemoveJobListener(name);
-		}
-
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-		public virtual IJobListener GetJobListener(string name)
-		{
-			return sched.GetJobListener(name);
-		}
-
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual void AddGlobalTriggerListener(ITriggerListener triggerListener)
 		{
 			sched.AddGlobalTriggerListener(triggerListener);
-		}
-
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-		public virtual void AddTriggerListener(ITriggerListener triggerListener)
-		{
-			sched.AddTriggerListener(triggerListener);
 		}
 
         /// <summary>
@@ -688,22 +638,6 @@ namespace Quartz.Impl
 	    {
             return sched.RemoveGlobalTriggerListener(name);
         }
-
-	    /// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-		public virtual bool RemoveTriggerListener(string name)
-		{
-			return sched.RemoveTriggerListener(name);
-		}
-
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-		/// </summary>
-		public virtual ITriggerListener GetTriggerListener(string name)
-		{
-			return sched.GetTriggerListener(name);
-		}
 
 		/// <summary>
 		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.

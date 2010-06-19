@@ -58,10 +58,7 @@ namespace Quartz.Examples.Example9
 			
 			// Set up the listener
 			IJobListener listener = new Job1Listener();
-			sched.AddJobListener(listener);
-			
-			// make sure the listener is associated with the job
-			job.AddJobListener(listener.Name);
+            sched.AddGlobalJobListener(listener); // TODO: Add pattern to only match job 1
 			
 			// schedule the job to run
 			sched.ScheduleJob(job, trigger);

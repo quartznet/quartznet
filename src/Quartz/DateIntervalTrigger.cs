@@ -812,7 +812,7 @@ namespace Quartz
 
             if (repeatInterval < 1)
             {
-                throw new SchedulerException("Repeat Interval cannot be zero.", SchedulerException.ErrorClientError);
+                throw new SchedulerException("Repeat Interval cannot be zero.");
             }
         }
     }

@@ -100,8 +100,7 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 throw new JobPersistenceException(
-                    string.Format("Failed to obtain DB connection from data source '{0}': {1}", DataSource, e), e,
-                    SchedulerException.ErrorPersistenceCriticalFailure);
+                    string.Format("Failed to obtain DB connection from data source '{0}': {1}", DataSource, e), e);
             }
 
             if (conn == null)

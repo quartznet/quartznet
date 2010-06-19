@@ -18,6 +18,9 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.Data.Common;
+using System.Data.SqlClient;
 using System.Globalization;
 using System.Threading;
 
@@ -265,17 +268,18 @@ namespace Quartz.Core
                         }
                     }
 
-                    int availTreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
-                    if (availTreadCount > 0) // will always be true, due to semantics of blockForAvailableThreads...
+                    int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
+                    if (availThreadCount > 0) // will always be true, due to semantics of blockForAvailableThreads...
                     {
-                        Trigger trigger = null;
+                        IList<Trigger> triggers = null;
 
                         DateTime now = SystemTime.UtcNow();
 
                         ClearSignaledSchedulingChange();
                         try
                         {
-                            trigger = qsRsrcs.JobStore.AcquireNextTrigger(ctxt, now.Add(idleWaitTime));
+                            triggers = qsRsrcs.JobStore.AcquireNextTriggers(
+                                ctxt, now + idleWaitTime, Math.Min(availThreadCount, qsRsrcs.MaxBatchSize), qsRsrcs.BatchTimeWindow);
                             lastAcquireFailed = false;
                         }
                         catch (JobPersistenceException jpe)
@@ -283,7 +287,7 @@ namespace Quartz.Core
                             if (!lastAcquireFailed)
                             {
                                 qs.NotifySchedulerListenersError(
-                                    "An error occured while scanning for the next trigger to fire.",
+                                    "An error occurred while scanning for the next trigger to fire.",
                                     jpe);
                             }
                             lastAcquireFailed = true;
@@ -298,105 +302,113 @@ namespace Quartz.Core
                             lastAcquireFailed = true;
                         }
 
-                        if (trigger != null)
+                        if (triggers != null && triggers.Count > 0)
                         {
                             now = SystemTime.UtcNow();
-                            DateTime triggerTime = trigger.GetNextFireTimeUtc().Value;
+                            DateTime triggerTime = triggers[0].GetNextFireTimeUtc().Value;
                             TimeSpan timeUntilTrigger =  triggerTime - now;
 
                             while (timeUntilTrigger > TimeSpan.Zero) 
                             {
-                                if (ReleaseIfScheduleChangedSignificantly(trigger, triggerTime))
+                                if (ReleaseIfScheduleChangedSignificantly(triggers, triggerTime))
                                 {
-                                    trigger = null;
                                     break;
                                 }
                                 lock (sigLock)
                                 {
-                                    try
+
+                                    if (!IsCandidateNewTimeEarlierWithinReason(triggerTime, false))
                                     {
-                                        // we could have blocked a long while
-                                        // on 'synchronize', so we must recompute
-                                        now = SystemTime.UtcNow();
-                                        timeUntilTrigger = triggerTime - now;
-                                        if (timeUntilTrigger.TotalMilliseconds >= 1)
+                                        try
                                         {
-                                            Monitor.Wait(sigLock, timeUntilTrigger);
+                                            // we could have blocked a long while
+                                            // on 'synchronize', so we must recompute
+                                            now = SystemTime.UtcNow();
+                                            timeUntilTrigger = triggerTime - now;
+                                            if (timeUntilTrigger > TimeSpan.Zero)
+                                            {
+                                                Monitor.Wait(sigLock, timeUntilTrigger);
+                                            }
+                                        }
+                                        catch (ThreadInterruptedException)
+                                        {
                                         }
                                     }
-                                    catch (ThreadInterruptedException)
-                                    {
-                                    }
                                 }
-                                if (ReleaseIfScheduleChangedSignificantly(trigger, triggerTime))
+                                if (ReleaseIfScheduleChangedSignificantly(triggers, triggerTime))
                                 {
-                                    trigger = null;
                                     break;
                                 } 
                                 now = SystemTime.UtcNow();
                                 timeUntilTrigger = triggerTime - now;
                             }
 
-                            if (trigger == null)
+                            // this happens if releaseIfScheduleChangedSignificantly decided to release triggers
+                            if (triggers.Count == 0)
                             {
                                 continue;
                             }
                                               
-                            // set trigger to 'executing'
-                            TriggerFiredBundle bndle = null;
+                            // set triggers to 'executing'
+                            IList<TriggerFiredResult> bndles = new List<TriggerFiredResult>();
 
                             bool goAhead = true;
                             lock (sigLock) 
                             {
                         	    goAhead = !halted;
                             }
-                            if(goAhead) 
+
+                            if (goAhead)
                             {
                                 try
                                 {
-                                    bndle = qsRsrcs.JobStore.TriggerFired(ctxt,
-                                                                          trigger);
+                                    bndles = qsRsrcs.JobStore.TriggersFired(ctxt, triggers);
                                 }
                                 catch (SchedulerException se)
                                 {
-                                    qs.NotifySchedulerListenersError(
-                                        string.Format(CultureInfo.InvariantCulture,
-                                                      "An error occured while firing trigger '{0}'",
-                                                      trigger.FullName), se);
+                                    qs.NotifySchedulerListenersError("An error occurred while firing triggers '" + triggers + "'", se);
                                 }
-                                catch (Exception e)
-                                {
-                                    Log.Error(
-                                        string.Format(CultureInfo.InvariantCulture,
-                                                      "RuntimeException while firing trigger {0}", trigger.FullName),
-                                        e);
-                                    // db connection must have failed... keep
-                                    // retrying until it's up...
-                                    ReleaseTriggerRetryLoop(trigger);
-                                }
+
                             }
                             
-                            // it's possible to get 'null' if the trigger was paused,
+
+                        for (int i = 0; i < bndles.Count; i++)
+                        {
+                            TriggerFiredResult result = bndles[i];
+                            TriggerFiredBundle bndle = result.TriggerFiredBundle;
+                            Exception exception = result.Exception;
+
+                            Trigger trigger = triggers[i];
+                            // TODO SQL exception?
+                            if (exception is DbException || exception.InnerException is DbException)
+                            {
+                                Log.Error("DbException while firing trigger " + trigger, exception);
+                                // db connection must have failed... keep
+                                // retrying until it's up...
+                                ReleaseTriggerRetryLoop(trigger);
+                                continue;
+                            }
+
+                            // it's possible to get 'null' if the triggers was paused,
                             // blocked, or other similar occurrences that prevent it being
                             // fired at this time...  or if the scheduler was shutdown (halted)
                             if (bndle == null)
                             {
                                 try
                                 {
-                                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt,
-                                                                            trigger);
+                                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
                                 }
                                 catch (SchedulerException se)
                                 {
                                     qs.NotifySchedulerListenersError(
-                                        string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'",
-                                                      trigger.FullName), se);
+                                        "An error occurred while releasing triggers '" + trigger.FullName + "'", se);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ReleaseTriggerRetryLoop(trigger);
                                 }
                                 continue;
                             }
+
 
                             // TODO: improvements:
                             //
@@ -405,8 +417,7 @@ namespace Quartz.Core
                             //   but the signature says it can).
                             // 3- acquire more triggers at a time (based on num threads available?)
 
-
-                            JobRunShell shell;
+                            JobRunShell shell = null;
                             try
                             {
                                 shell = qsRsrcs.JobRunShellFactory.BorrowJobRunShell();
@@ -416,18 +427,14 @@ namespace Quartz.Core
                             {
                                 try
                                 {
-                                    qsRsrcs.JobStore.TriggeredJobComplete(ctxt,
-                                                                          trigger, bndle.JobDetail,
-                                                                          SchedulerInstruction.
-                                                                              SetAllJobTriggersError);
+                                    qsRsrcs.JobStore.TriggeredJobComplete(ctxt, trigger, bndle.JobDetail,
+                                                                          SchedulerInstruction.SetAllJobTriggersError);
                                 }
                                 catch (SchedulerException se2)
                                 {
                                     qs.NotifySchedulerListenersError(
-                                        string.Format(
-                                            CultureInfo.InvariantCulture,
-                                            "An error occured while placing job's triggers in error state '{0}'",
-                                            trigger.FullName), se2);
+                                        "An error occurred while placing job's triggers in error state '" +
+                                        trigger.FullName + "'", se2);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ErrorTriggerRetryLoop(bndle);
@@ -444,8 +451,7 @@ namespace Quartz.Core
                                     // a thread pool being used concurrently - which the docs
                                     // say not to do...
                                     Log.Error("ThreadPool.runInThread() return false!");
-                                    qsRsrcs.JobStore.TriggeredJobComplete(ctxt,
-                                                                          trigger, bndle.JobDetail,
+                                    qsRsrcs.JobStore.TriggeredJobComplete(ctxt, trigger, bndle.JobDetail,
                                                                           SchedulerInstruction.
                                                                               SetAllJobTriggersError);
                                 }
@@ -453,45 +459,47 @@ namespace Quartz.Core
                                 {
                                     qs.NotifySchedulerListenersError(
                                         string.Format(CultureInfo.InvariantCulture,
-                                            "An error occured while placing job's triggers in error state '{0}'",
-                                            trigger.FullName), se2);
+                                                      "An error occurred while placing job's triggers in error state '{0}'",
+                                                      trigger.FullName), se2);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ReleaseTriggerRetryLoop(trigger);
                                 }
                             }
+                        }
 
-                            continue;
+                            continue; // while (!halted)
                         }
                     }
-                    else
+                    else // if(availThreadCount > 0)
                     {
-                        // if(availTreadCount > 0)
-                        continue; // should never happen, if threadPool.blockForAvailableThreads() follows contract
+                        // should never happen, if threadPool.blockForAvailableThreads() follows contract
+                        continue;
+                        // while (!halted)
                     }
 
                     DateTime utcNow = SystemTime.UtcNow();
                     DateTime waitTime = utcNow.Add(GetRandomizedIdleWaitTime());
                     TimeSpan timeUntilContinue = waitTime - utcNow;
-                    lock (sigLock) 
+                    lock (sigLock)
                     {
-                	    try 
+                        try
                         {
-						    Monitor.Wait(sigLock, timeUntilContinue);
-					    } 
-                        catch (ThreadInterruptedException) 
+                            Monitor.Wait(sigLock, timeUntilContinue);
+                        }
+                        catch (ThreadInterruptedException)
                         {
-					    }
+                        }
                     }
                 }
                 catch (Exception re)
                 {
                     if (Log != null)
                     {
-                        Log.Error("Runtime error occured in main trigger firing loop.", re);
+                        Log.Error("Runtime error occurred in main trigger firing loop.", re);
                     }
                 }
-            } // loop...
+            } // while (!halted)
 
             // drop references to scheduler stuff to aid garbage collection...
             qs = null;
@@ -499,38 +507,43 @@ namespace Quartz.Core
         }
 
 
-        private bool ReleaseIfScheduleChangedSignificantly(Trigger trigger, DateTime triggerTime)
+        private bool ReleaseIfScheduleChangedSignificantly(IList<Trigger> triggers, DateTime triggerTime)
         {
             if (IsScheduleChanged())
             {
-                if (IsCandidateNewTimeEarlierWithinReason(triggerTime))
+                if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
                 {
-                    // above call does a clearSignaledSchedulingChange()
-                    try
+                    foreach (Trigger trigger in triggers)
                     {
-                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
+                        try
+                        {
+                            // above call does a clearSignaledSchedulingChange()
+                            qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
+                        }
+                        catch (JobPersistenceException jpe)
+                        {
+                            qs.NotifySchedulerListenersError(
+                                string.Format("An error occurred while releasing trigger '{0}'", trigger.FullName), jpe);
+                            // db connection must have failed... keep
+                            // retrying until it's up...
+                            ReleaseTriggerRetryLoop(trigger);
+                        }
+                        catch (Exception e)
+                        {
+                            Log.Error("ReleaseTriggerRetryLoop: Exception " + e.Message, e);
+                            // db connection must have failed... keep
+                            // retrying until it's up...
+                            ReleaseTriggerRetryLoop(trigger);
+                        }
                     }
-                    catch (JobPersistenceException jpe)
-                    {
-                        qs.NotifySchedulerListenersError(string.Format("An error occured while releasing trigger '{0}'", trigger.FullName), jpe);
-                        // db connection must have failed... keep
-                        // retrying until it's up...
-                        ReleaseTriggerRetryLoop(trigger);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error("releaseTriggerRetryLoop: RuntimeException " + e.Message, e);
-                        // db connection must have failed... keep
-                        // retrying until it's up...
-                        ReleaseTriggerRetryLoop(trigger);
-                    }
+                    triggers.Clear();
                     return true;
                 }
             }
             return false;
         }
 
-        private bool IsCandidateNewTimeEarlierWithinReason(DateTime oldTimeUtc) 
+        private bool IsCandidateNewTimeEarlierWithinReason(DateTime oldTimeUtc, bool clearSignal) 
         {    	
 		    // So here's the deal: We know due to being signaled that 'the schedule'
 		    // has changed.  We may know (if getSignaledNextFireTime() != DateTime.MinValue) the
@@ -573,7 +586,10 @@ namespace Quartz.Core
 				    }
 			    }
     			
-			    ClearSignaledSchedulingChange();
+                if (clearSignal)
+                {
+                    ClearSignaledSchedulingChange();
+                }
     			
 			    return earlier;
             }
@@ -605,7 +621,7 @@ namespace Quartz.Core
                         if (retryCount%4 == 0)
                         {
                             qs.NotifySchedulerListenersError(
-                                string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'", bndle.Trigger.FullName),
+                                string.Format(CultureInfo.InvariantCulture, "An error occurred while releasing trigger '{0}'", bndle.Trigger.FullName),
                                 jpe);
                         }
                     }
@@ -653,7 +669,7 @@ namespace Quartz.Core
                         if (retryCount%4 == 0)
                         {
                             qs.NotifySchedulerListenersError(
-                                string.Format(CultureInfo.InvariantCulture, "An error occured while releasing trigger '{0}'", trigger.FullName), jpe);
+                                string.Format(CultureInfo.InvariantCulture, "An error occurred while releasing trigger '{0}'", trigger.FullName), jpe);
                         }
                     }
                     catch (ThreadInterruptedException e)

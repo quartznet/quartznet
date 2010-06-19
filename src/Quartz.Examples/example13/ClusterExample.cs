@@ -76,24 +76,24 @@ namespace Quartz.Examples.Example13
 
 			// unschedule jobs
             IList<string> groups = inScheduler.TriggerGroupNames;
-			for (int i = 0; i < groups.Count; i++)
+			foreach (string groupName in groups)
 			{
-				IList<string> names = inScheduler.GetTriggerNames(groups[i]);
-                for (int j = 0; j < names.Count; j++)
-				{
-				    inScheduler.UnscheduleJob(names[j], groups[i]);
-				}
+			    IList<string> names = inScheduler.GetTriggerNames(groupName);
+			    foreach (string triggerName in names)
+			    {
+			        inScheduler.UnscheduleJob(triggerName, groupName);
+			    }
 			}
 
-			// delete jobs
+		    // delete jobs
 			groups = inScheduler.JobGroupNames;
-			for (int i = 0; i < groups.Count; i++)
+			foreach (string groupName in groups)
 			{
-				IList<string> names = inScheduler.GetJobNames(groups[i]);
-                for (int j = 0; j < names.Count; j++)
-				{
-				    inScheduler.DeleteJob(names[j], groups[i]);
-				}
+			    IList<string> names = inScheduler.GetJobNames(groupName);
+			    foreach (string jobName in names)
+			    {
+			        inScheduler.DeleteJob(jobName, groupName);
+			    }
 			}
 		}
 

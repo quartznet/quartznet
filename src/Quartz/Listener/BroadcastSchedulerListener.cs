@@ -173,5 +173,13 @@ namespace Quartz.Listener
                 l.SchedulerShutdown();
             }
         }
+
+        public void SchedulerShuttingdown()
+        {
+            foreach (ISchedulerListener listener in listeners)
+            {
+                listener.SchedulerShuttingdown();
+            }
+        }
     }
 }

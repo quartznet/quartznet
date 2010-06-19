@@ -62,10 +62,6 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @jobName AND {3} = @jobGroup", TablePrefixSubst,
                           TableJobDetails, ColumnJobName, ColumnJobGroup);
 
-        public static readonly string SqlDeleteJobListeners =
-            string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @jobName AND {3} = @jobGroup", TablePrefixSubst,
-                          TableJobListeners, ColumnJobName, ColumnJobGroup);
-
         public static readonly string SqlDeleteNoRecoveryFiredTriggers =
             string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @instanceName AND {3} = @requestsRecovery", TablePrefixSubst,
                           TableFiredTriggers, ColumnInstanceName,
@@ -90,11 +86,6 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlDeleteTrigger =
             string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @triggerName AND {3} = @triggerGroup", TablePrefixSubst,
                           TableTriggers, ColumnTriggerName, ColumnTriggerGroup);
-
-        public static readonly string SqlDeleteTriggerListeners =
-            string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @triggerName AND {3} = @triggerGroup", TablePrefixSubst,
-                          TableTriggerListeners, ColumnTriggerName,
-                          ColumnTriggerGroup);
 
         public static readonly string SqlDeleteVolatileFiredTriggers =
             string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @volatile", TablePrefixSubst, TableFiredTriggers,
@@ -137,12 +128,6 @@ namespace Quartz.Impl.AdoJobStore
                 ColumnIsDurable, ColumnIsVolatile, ColumnIsStateful,
                 ColumnRequestsRecovery, ColumnJobDataMap);
 
-        public static readonly string SqlInsertJobListener =
-            string.Format(CultureInfo.InvariantCulture, "INSERT INTO {0}{1} ({2}, {3}, {4}) VALUES(@jobName, @jobGroup, @listener)",
-                          TablePrefixSubst,
-                          TableJobListeners, ColumnJobName, ColumnJobGroup,
-                          ColumnJobListener);
-
         public static readonly string SqlInsertPausedTriggerGroup =
             string.Format(CultureInfo.InvariantCulture, "INSERT INTO {0}{1} ({2}) VALUES (@triggerGroup)", TablePrefixSubst,
                           TablePausedTriggers, ColumnTriggerGroup);
@@ -172,12 +157,6 @@ namespace Quartz.Impl.AdoJobStore
                 ColumnPreviousFireTime, ColumnTriggerState, ColumnTriggerType,
                 ColumnStartTime, ColumnEndTime, ColumnCalendarName,
                 ColumnMifireInstruction, ColumnJobDataMap, ColumnPriority);
-
-        public static readonly string SqlInsertTriggerListener =
-            string.Format(CultureInfo.InvariantCulture, "INSERT INTO {0}{1} ({2}, {3}, {4}) VALUES(@triggerName, @triggerGroup, @listener)",
-                          TablePrefixSubst,
-                          TableTriggerListeners, ColumnTriggerName,
-                          ColumnTriggerGroup, ColumnTriggerListener);
 
         // SELECT
 
@@ -266,11 +245,6 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "SELECT DISTINCT({0}) FROM {1}{2}", ColumnJobGroup, TablePrefixSubst,
                           TableJobDetails);
 
-        public static readonly string SqlSelectJobListeners =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = @jobName AND {4} = @jobGroup", ColumnJobListener,
-                          TablePrefixSubst, TableJobListeners, ColumnJobName,
-                          ColumnJobGroup);
-
         public static readonly string SqlSelectJobStateful =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = @jobName AND {4} = @jobGroup", ColumnIsStateful,
                           TablePrefixSubst, TableJobDetails, ColumnJobName,
@@ -296,12 +270,12 @@ namespace Quartz.Impl.AdoJobStore
                           ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime);
 
         public static readonly string SqlCountMisfiredTriggersInStates = 
-            string.Format("SELECT COUNT({0}) FROM {1}{2} WHERE {3} < @nextFireTime AND (({4} = @state1) OR ({5} = @state2))", 
-            ColumnTriggerName, TablePrefixSubst, TableTriggers, ColumnNextFireTime, ColumnTriggerState, ColumnTriggerState);
+            string.Format("SELECT COUNT({0}) FROM {1}{2} WHERE {3} < @nextFireTime AND {4} = @state1", 
+            ColumnTriggerName, TablePrefixSubst, TableTriggers, ColumnNextFireTime, ColumnTriggerState);
 
-        public static readonly string SqlSelectMisfiredTriggersInStates =
-            string.Format("SELECT {0}, {1} FROM {2}{3} WHERE {4} < @nextFireTime AND (({5} = @state1) OR ({6} = @state2)) ORDER BY {7} ASC",
-            ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnNextFireTime, ColumnTriggerState, ColumnTriggerState, ColumnNextFireTime);
+        public static readonly string SqlSelectHasMisfiredTriggersInState =
+            string.Format("SELECT {0}, {1} FROM {2}{3} WHERE {4} < @nextFireTime AND {5} = @state1 ORDER BY {6} ASC",
+            ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime);
 
         public static readonly string SqlSelectNextFireTime =
             string.Format(CultureInfo.InvariantCulture, "SELECT MIN({0}) AS {1} FROM {2}{3} WHERE {4} = @state AND {5} >= 0",
@@ -393,12 +367,6 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlSelectTriggerGroups =
             string.Format(CultureInfo.InvariantCulture, "SELECT DISTINCT({0}) FROM {1}{2}", ColumnTriggerGroup, TablePrefixSubst,
                           TableTriggers);
-
-        public static readonly string SqlSelectTriggerListeners =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = @triggerName AND {4} = @triggerGroup",
-                          ColumnTriggerListener,
-                          TablePrefixSubst, TableTriggerListeners, ColumnTriggerName,
-                          ColumnTriggerGroup);
 
         public static readonly string SqlSelectTriggerState =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = @triggerName AND {4} = @triggerGroup", ColumnTriggerState,

@@ -18,8 +18,6 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
-
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
@@ -66,9 +64,6 @@ namespace Quartz.Tests.Unit
             t.MisfireInstruction = (MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount);
 			t.Volatile = true;
 
-			t.AddTriggerListener("L1");
-			t.AddTriggerListener("L2");
-
 			return t;
 		}
 
@@ -108,7 +103,6 @@ namespace Quartz.Tests.Unit
 			Assert.AreEqual(targetSimpleTrigger.JobDataMap, deserializedSimpleTrigger.JobDataMap);
 			Assert.AreEqual(targetSimpleTrigger.MisfireInstruction, deserializedSimpleTrigger.MisfireInstruction);
 			Assert.IsTrue(targetSimpleTrigger.Volatile);
-			Assert.AreEqual(2, deserializedSimpleTrigger.TriggerListenerNames.Count);
 		}
 
 		[Test]
@@ -147,95 +141,31 @@ namespace Quartz.Tests.Unit
 		}
 
 		[Test]
-		public void TestAddTriggerListener()
-		{
-			string[] listenerNames = new string[] {"X", "A", "B"};
-
-			// Verify that a HashSet shuffles order, so we know that order test
-			// below is actually testing something
-            Collection.HashSet<string> hashSet = new Collection.HashSet<string>(listenerNames);
-			Assert.IsFalse(new List<string>(listenerNames).Equals(new List<string>(hashSet)));
-
-			SimpleTrigger simpleTrigger = new SimpleTrigger();
-			for (int i = 0; i < listenerNames.Length; i++)
-			{
-				simpleTrigger.AddTriggerListener(listenerNames[i]);
-			}
-
-			// Make sure order was maintained
-			TestUtil.AssertCollectionEquality(listenerNames, simpleTrigger.TriggerListenerNames);
-
-			// Make sure uniqueness is enforced
-			for (int i = 0; i < listenerNames.Length; i++)
-			{
-				try
-				{
-					simpleTrigger.AddTriggerListener(listenerNames[i]);
-					Assert.Fail();
-				}
-				catch (ArgumentException)
-				{
-				}
-			}
-		}
-
-		[Test]
 		public void TestClone()
 		{
 			SimpleTrigger simpleTrigger = new SimpleTrigger();
 
 			// Make sure empty sub-objects are cloned okay
 			Trigger clone = (Trigger) simpleTrigger.Clone();
-            Assert.AreEqual(0, clone.TriggerListenerNames.Count);
 			Assert.AreEqual(0, clone.JobDataMap.Count);
 
 			// Make sure non-empty sub-objects are cloned okay
-			simpleTrigger.AddTriggerListener("L1");
-			simpleTrigger.AddTriggerListener("L2");
 			simpleTrigger.JobDataMap.Put("K1", "V1");
 			simpleTrigger.JobDataMap.Put("K2", "V2");
 			clone = (Trigger) simpleTrigger.Clone();
-            Assert.AreEqual(2, clone.TriggerListenerNames.Count);
-			TestUtil.AssertCollectionEquality(new string[] {"L1", "L2"}, clone.TriggerListenerNames);
 			Assert.AreEqual(2, clone.JobDataMap.Count);
 			Assert.AreEqual("V1", clone.JobDataMap.Get("K1"));
 			Assert.AreEqual("V2", clone.JobDataMap.Get("K2"));
 
 			// Make sure sub-object collections have really been cloned by ensuring 
 			// their modification does not change the source Trigger 
-			clone.RemoveTriggerListener("L2");
-            Assert.AreEqual(1, clone.TriggerListenerNames.Count);
-			TestUtil.AssertCollectionEquality(new string[] {"L1"}, clone.TriggerListenerNames);
 			clone.JobDataMap.Remove("K1");
 			Assert.AreEqual(1, clone.JobDataMap.Count);
 
-            Assert.AreEqual(2, simpleTrigger.TriggerListenerNames.Count);
-			TestUtil.AssertCollectionEquality(new string[] {"L1", "L2"}, simpleTrigger.TriggerListenerNames);
 			Assert.AreEqual(2, simpleTrigger.JobDataMap.Count);
 			Assert.AreEqual("V1", simpleTrigger.JobDataMap.Get("K1"));
 			Assert.AreEqual("V2", simpleTrigger.JobDataMap.Get("K2"));
 		}
-
-        [Test]
-        public void TestSetTriggerListenerNames()
-        {
-            SimpleTrigger simpleTrigger = new SimpleTrigger();
-            
-            simpleTrigger.TriggerListenerNames = null;
-            Assert.IsNotNull(simpleTrigger.TriggerListenerNames);
-            CollectionAssert.IsEmpty(simpleTrigger.TriggerListenerNames);
-            
-            simpleTrigger.TriggerListenerNames = new string[] { "FOO", "BAR"};
-            Assert.AreEqual(2, simpleTrigger.TriggerListenerNames.Count);
-
-            simpleTrigger.TriggerListenerNames = new string[] {"BAZ"};
-            Assert.AreEqual(1, simpleTrigger.TriggerListenerNames.Count);
-
-            simpleTrigger.TriggerListenerNames = null;
-            Assert.IsNotNull(simpleTrigger.TriggerListenerNames);
-            CollectionAssert.IsEmpty(simpleTrigger.TriggerListenerNames);
-            
-        }
 
         // QRTZNET-73
         [Test]

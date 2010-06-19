@@ -35,9 +35,8 @@ namespace Quartz
 		/// <summary>
 		/// Create a <see cref="CriticalSchedulerException" /> with the given message.
 		/// </summary>
-		public CriticalSchedulerException(string msg, int errCode) : base(msg)
+		public CriticalSchedulerException(string msg) : base(msg)
 		{
-			ErrorCode = errCode;
 		}
 
         /// <summary>

@@ -710,7 +710,7 @@ namespace Quartz
 
 			if (repeatCount != 0 && repeatInterval.TotalMilliseconds < 1)
 			{
-				throw new SchedulerException("Repeat Interval cannot be zero.", SchedulerException.ErrorClientError);
+				throw new SchedulerException("Repeat Interval cannot be zero.");
 			}
 		}
 	}

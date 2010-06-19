@@ -29,7 +29,7 @@
     </UpgradeBackupLocation>
     <OldToolsVersion>4.0</OldToolsVersion>
     <IsWebBootstrapper>true</IsWebBootstrapper>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <PublishUrl>http://localhost/Quartz/</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Web</InstallFrom>
@@ -44,6 +44,7 @@
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\..\build\2.0\Debug\Quartz\</OutputPath>
@@ -52,7 +53,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>NET_20,NET_35,C5</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;NET_20,NET_35,C5,NET_40</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -74,7 +75,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>NET_20,NET_35,C5</DefineConstants>
+    <DefineConstants>TRACE;NET_20,NET_35,C5,NET_40</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -85,7 +86,7 @@
     <RemoveIntegerChecks>false</RemoveIntegerChecks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningLevel>4</WarningLevel>
-    <DebugType>full</DebugType>
+    <DebugType>pdbonly</DebugType>
     <ErrorReport>prompt</ErrorReport>
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
@@ -256,6 +257,7 @@
     <Compile Include="ObjectAlreadyExistsException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ObjectDoesNotExistException.cs" />
     <Compile Include="Plugin\History\LoggingJobHistoryPlugin.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -329,6 +331,7 @@
     <Compile Include="SPI\TriggerFiredBundle.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SPI\TriggerFiredResult.cs" />
     <Compile Include="Trigger.cs">
       <SubType>Code</SubType>
     </Compile>

@@ -22,7 +22,7 @@ using System.Globalization;
 using System.Threading;
 
 using Common.Logging;
-
+using Quartz.Listener;
 using Quartz.Spi;
 
 namespace Quartz.Core
@@ -46,7 +46,7 @@ namespace Quartz.Core
 	/// <seealso cref="Trigger" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
-	public class JobRunShell : IThreadRunnable
+	public class JobRunShell : SchedulerListenerSupport, IThreadRunnable
 	{
 		private readonly ILog log;
 
@@ -74,6 +74,11 @@ namespace Quartz.Core
 			this.schdCtxt = schdCtxt;
             log = LogManager.GetLogger(GetType());
 		}
+
+        public override void SchedulerShuttingdown()
+        {
+            RequestShutdown();
+        }
 
 		/// <summary>
 		/// Initializes the job execution context with given scheduler and bundle.
@@ -120,6 +125,15 @@ namespace Quartz.Core
 		/// </summary>
 		public virtual void Run()
 		{
+            try
+            {
+                scheduler.AddSchedulerListener(this);
+            }
+            catch (SchedulerException)
+            {
+                // can never happen on a local scheduler - which by definition this will be (since we are executing on it)
+            }
+
             try
             {
                 Trigger trigger = jec.Trigger;
@@ -198,11 +212,9 @@ namespace Quartz.Core
                         endTime = SystemTime.UtcNow();
                         log.Error(string.Format(CultureInfo.InvariantCulture, "Job {0} threw an unhandled Exception: ", jobDetail.FullName), e);
                         SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
-                        se.ErrorCode = SchedulerException.ErrorJobExecutionThrewException;
                         qs.NotifySchedulerListenersError(
                             string.Format(CultureInfo.InvariantCulture, "Job ({0} threw an exception.", jec.JobDetail.FullName), se);
                         jobExEx = new JobExecutionException(se, false);
-                        jobExEx.ErrorCode = JobExecutionException.ErrorJobExecutionThrewException;
                     }
 
                     jec.JobRunTime = endTime - startTime;
@@ -228,7 +240,6 @@ namespace Quartz.Core
                     {
                         // If this happens, there's a bug in the trigger...
                         SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
-                        se.ErrorCode = SchedulerException.ErrorTriggerThrewException;
                         qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se);
                     }
 
@@ -291,6 +302,14 @@ namespace Quartz.Core
             }
 		    finally
             {
+                try
+                {
+                    scheduler.RemoveSchedulerListener(this);
+                }
+                catch (SchedulerException)
+                {
+                    // can never happen on a local scheduler - which by definition this will be (since we are executing on it)
+                }
                 jobRunShellFactory.ReturnJobRunShell(this);
             }
 		}
@@ -416,7 +435,7 @@ namespace Quartz.Core
 		{
             long count = 0;
 			while (!shutdownRequested)
-            { // FIXME: jhouse: note that there is no longer anthing that calls requestShutdown()
+            {
 				try
 				{
                     Thread.Sleep(TimeSpan.FromSeconds(15)); 

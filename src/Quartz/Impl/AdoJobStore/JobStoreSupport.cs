@@ -27,17 +27,12 @@ using System.Threading;
 
 using Common.Logging;
 
-using Quartz.Collection;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Spi;
 using Quartz.Util;
 
-#if NET_35
-using KeyHashSet = System.Collections.Generic.HashSet<Quartz.Util.Key>;
-#else
 using KeyHashSet = Quartz.Collection.HashSet<Quartz.Util.Key>;
-#endif
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -366,8 +361,7 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 throw new JobPersistenceException(
-                    string.Format("Failed to obtain DB connection from data source '{0}': {1}", DataSource, e), e,
-                    SchedulerException.ErrorPersistenceCriticalFailure);
+                    string.Format("Failed to obtain DB connection from data source '{0}': {1}", DataSource, e), e);
             }
             if (conn == null)
             {
@@ -769,7 +763,7 @@ namespace Quartz.Impl.AdoJobStore
             // We must still look for the MISFIRED state in case triggers were left 
             // in this state when upgrading to this version that does not support it. 
             bool hasMoreMisfiredTriggers =
-                Delegate.SelectMisfiredTriggersInStates(conn, StateMisfired, StateWaiting, MisfireTime,
+                Delegate.HasMisfiredTriggersInState(conn, StateMisfired, MisfireTime,
                                                         maxMisfiresToHandleAtATime, misfiredTriggers);
 
             if (hasMoreMisfiredTriggers)
@@ -926,16 +920,12 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (newJob.Volatile && !newTrigger.Volatile)
                 {
-                    JobPersistenceException jpe =
-                        new JobPersistenceException(
-                            "Cannot associate non-volatile trigger with a volatile job!");
-                    jpe.ErrorCode = SchedulerException.ErrorClientError;
+                    JobPersistenceException jpe = new JobPersistenceException("Cannot associate non-volatile trigger with a volatile job!");
                     throw jpe;
                 }
 
                 js.StoreJob(conn, ctxt, newJob, false);
-                js.StoreTrigger(conn, ctxt, newTrigger, newJob, false,
-                                StateWaiting, false, false);
+                js.StoreTrigger(conn, ctxt, newTrigger, newJob, false, StateWaiting, false, false);
             }
         }
 
@@ -1270,8 +1260,6 @@ namespace Quartz.Impl.AdoJobStore
         private bool DeleteJobAndChildren(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
                                           string groupName)
         {
-            Delegate.DeleteJobListeners(conn, jobName, groupName);
-
             return (Delegate.DeleteJobDetail(conn, jobName, groupName) > 0);
         }
 
@@ -1292,8 +1280,6 @@ namespace Quartz.Impl.AdoJobStore
             {
                 del.DeleteBlobTrigger(conn, triggerName, triggerGroupName);
             }
-
-            del.DeleteTriggerListeners(conn, triggerName, triggerGroupName);
 
             return (del.DeleteTrigger(conn, triggerName, triggerGroupName) > 0);
         }
@@ -1339,20 +1325,13 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 JobDetail job = Delegate.SelectJobDetail(conn, jobName, groupName, TypeLoadHelper);
-                IList<string> listeners = Delegate.SelectJobListeners(conn, jobName, groupName);
-                foreach (string listenerName in listeners)
-                {
-                    job.AddJobListener(listenerName);
-                }
-
                 return job;
             }
 
             catch (IOException e)
             {
                 throw new JobPersistenceException(
-                    "Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e,
-                    SchedulerException.ErrorPersistenceJobDoesNotExist);
+                    "Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e);
             }
             catch (Exception e)
             {
@@ -1576,21 +1555,6 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 Trigger trigger = Delegate.SelectTrigger(conn, triggerName, groupName);
-                if (trigger == null)
-                {
-                    return null;
-                }
-
-                // In case Trigger was BLOB, clear out any listeners that might 
-                // have been serialized.
-                trigger.ClearAllTriggerListeners();
-
-                IList<string> listeners = Delegate.SelectTriggerListeners(conn, triggerName, groupName);
-                foreach (string listenerName in listeners)
-                {
-                    trigger.AddTriggerListener(listenerName);
-                }
-
                 return trigger;
             }
             catch (Exception e)
@@ -2803,10 +2767,10 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        public ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
+        public Collection.ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
         {
             // no locks necessary for read...
-            return (ISet<string>)ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
+            return (Collection.ISet<string>)ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
         }
 
         protected class GetPausedTriggerGroupsCallback : CallbackSupport, ITransactionCallback
@@ -2832,7 +2796,7 @@ namespace Quartz.Impl.AdoJobStore
         /// given group.
         /// </summary>
         /// <seealso cref="SchedulingContext()" />
-        public virtual ISet<string> GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        public virtual Collection.ISet<string> GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
         {
             try
             {
@@ -3054,20 +3018,19 @@ namespace Quartz.Impl.AdoJobStore
         /// by the calling scheduler.
         /// </summary>
         /// <seealso cref="ReleaseAcquiredTrigger(SchedulingContext, Trigger)" />
-        public virtual Trigger AcquireNextTrigger(SchedulingContext ctxt, DateTime noLaterThan)
+        public virtual IList<Trigger> AcquireNextTriggers(SchedulingContext ctxt, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             if (AcquireTriggersWithinLock)
             {
                 return
-                    (Trigger)
-                    ExecuteInNonManagedTXLock(LockTriggerAccess, new AcquireNextTriggerCallback(this, ctxt, noLaterThan));
+                    (IList<Trigger>) ExecuteInNonManagedTXLock(LockTriggerAccess, new AcquireNextTriggerCallback(this, ctxt, noLaterThan, maxCount, timeWindow));
             }
             else
             {
                 // default behavior since Quartz 1.0.1 release
-                return (Trigger)ExecuteInNonManagedTXLock(
+                return (IList<Trigger>) ExecuteInNonManagedTXLock(
                     null, /* passing null as lock name causes no lock to be made */
-                    new AcquireNextTriggerCallback(this, ctxt, noLaterThan));
+                    new AcquireNextTriggerCallback(this, ctxt, noLaterThan, maxCount, timeWindow));
             }
         }
 
@@ -3075,17 +3038,21 @@ namespace Quartz.Impl.AdoJobStore
         {
             private readonly SchedulingContext ctxt;
             private readonly DateTime noLaterThan;
+            private int maxCount;
+            private TimeSpan timeWindow;
 
-            public AcquireNextTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, DateTime noLaterThan)
+            public AcquireNextTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
                 : base(js)
             {
                 this.ctxt = ctxt;
                 this.noLaterThan = noLaterThan;
+                this.maxCount = maxCount;
+                this.timeWindow = timeWindow;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.AcquireNextTrigger(conn, ctxt, noLaterThan);
+                return js.AcquireNextTrigger(conn, ctxt, noLaterThan, maxCount, timeWindow);
             }
         }
 
@@ -3093,8 +3060,7 @@ namespace Quartz.Impl.AdoJobStore
         // TODO: this really ought to return something like a FiredTriggerBundle,
         // so that the fireInstanceId doesn't have to be on the trigger...
 
-        protected virtual Trigger AcquireNextTrigger(ConnectionAndTransactionHolder conn,
-                                                              SchedulingContext ctxt, DateTime noLaterThan)
+        protected virtual IList<Trigger> AcquireNextTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             do
             {
@@ -3144,7 +3110,7 @@ namespace Quartz.Impl.AdoJobStore
                     nextTrigger.FireInstanceId = FiredTriggerRecordId;
                     Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null);
 
-                    return nextTrigger;
+                    return new List<Trigger>(new[] { nextTrigger });
                 }
                 catch (Exception e)
                 {
@@ -3199,40 +3165,48 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        public virtual TriggerFiredBundle TriggerFired(SchedulingContext ctxt, Trigger trigger)
+        public virtual IList<TriggerFiredResult> TriggersFired(SchedulingContext ctxt, IList<Trigger> triggers)
         {
             return
-                (TriggerFiredBundle)
-                ExecuteInNonManagedTXLock(LockTriggerAccess, new TriggerFiredCallback(this, ctxt, trigger));
+                (IList<TriggerFiredResult>) ExecuteInNonManagedTXLock(LockTriggerAccess, new TriggerFiredCallback(this, ctxt, triggers));
         }
 
         protected class TriggerFiredCallback : CallbackSupport, ITransactionCallback
         {
             private readonly SchedulingContext ctxt;
-            private readonly Trigger trigger;
+            private readonly IList<Trigger> triggers;
 
-            public TriggerFiredCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger trigger)
+            public TriggerFiredCallback(JobStoreSupport js, SchedulingContext ctxt, IList<Trigger> triggers)
                 : base(js)
             {
                 this.ctxt = ctxt;
-                this.trigger = trigger;
+                this.triggers = triggers;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                try
+                List<TriggerFiredResult> results = new List<TriggerFiredResult>();
+
+                TriggerFiredResult result;
+                foreach (Trigger trigger in triggers)
                 {
-                    return js.TriggerFired(conn, ctxt, trigger);
-                }
-                catch (JobPersistenceException jpe)
-                {
-                    // If job didn't exisit, we still want to commit our work and return null.
-                    if (jpe.ErrorCode == SchedulerException.ErrorPersistenceJobDoesNotExist)
+                    try
                     {
-                        return null;
+                        TriggerFiredBundle bundle = js.TriggerFired(conn, ctxt, trigger);
+                        result = new TriggerFiredResult(bundle);
                     }
-                    throw;
+                    catch (JobPersistenceException jpe)
+                    {
+                        result = new TriggerFiredResult(jpe);
+                    }
+                    catch (Exception re)
+                    {
+                        result = new TriggerFiredResult(re);
+                    }
+                    results.Add(result);
                 }
+
+                return results;
             }
         }
 
@@ -3292,7 +3266,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);
+                Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);  // TODO: Improve me by collapsing these two statements into one update (of the existing row)
                 Delegate.InsertFiredTrigger(conn, trigger, StateExecuting, job);
             }
             catch (Exception e)
@@ -3494,8 +3468,7 @@ namespace Quartz.Impl.AdoJobStore
                 // misfired triggers requiring recovery.
                 int misfireCount = (DoubleCheckLockMisfireHandler)
                                        ?
-                                   Delegate.CountMisfiredTriggersInStates(conn, StateMisfired, StateWaiting,
-                                                                          MisfireTime)
+                                   Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime)
                                        :
                                    Int32.MaxValue;
 
@@ -3717,7 +3690,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             IList<SchedulerStateRecord> orphanedInstances = new List<SchedulerStateRecord>();
 
-            ISet<string> allFiredTriggerInstanceNames = Delegate.SelectFiredTriggerInstanceNames(conn);
+            Collection.ISet<string> allFiredTriggerInstanceNames = Delegate.SelectFiredTriggerInstanceNames(conn);
             if (allFiredTriggerInstanceNames.Count > 0)
             {
                 foreach (SchedulerStateRecord rec in schedulerStateRecords)

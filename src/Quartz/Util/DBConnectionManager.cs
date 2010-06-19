@@ -45,7 +45,7 @@ namespace Quartz.Util
         private static readonly DBConnectionManager instance = new DBConnectionManager();
 	    private static readonly ILog log = LogManager.GetLogger(typeof (DBConnectionManager));
 
-        private readonly IDictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
+        private readonly Dictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
 
 		/// <summary> 
 		/// Get the class instance.

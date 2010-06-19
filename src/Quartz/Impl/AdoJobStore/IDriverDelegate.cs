@@ -74,7 +74,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="ts">The time stamp.</param>
         /// <returns>An array of <see cref="Key" /> objects</returns>
-        IList<Key> SelectMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, long ts);
+        IList<Key> HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, long ts);
 
         /// <summary>
         /// Get the names of all of the triggers in the given group and state that
@@ -170,15 +170,6 @@ namespace Quartz.Impl.AdoJobStore
         IList<Key> SelectTriggerNamesForJob(ConnectionAndTransactionHolder conn, string jobName, string groupName);
 
 		/// <summary>
-		/// Delete all job listeners for the given job.
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The name of the job</param>
-        /// <param name="groupName">The group containing the job</param>
-		/// <returns>The number of rows deleted</returns>
-		int DeleteJobListeners(ConnectionAndTransactionHolder conn, string jobName, string groupName);
-
-		/// <summary>
 		/// Delete the job detail record for the given job.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
@@ -212,26 +203,6 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="job">The job.</param>
 		/// <returns>the number of rows updated</returns>
 		int UpdateJobData(ConnectionAndTransactionHolder conn, JobDetail job);
-
-		/// <summary>
-		/// Associate a listener with a job.
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-		/// <param name="job">The job to associate with the listener.</param>
-		/// <param name="listener">The listener to insert.</param>
-		/// <returns>The number of rows inserted.</returns>
-		int InsertJobListener(ConnectionAndTransactionHolder conn, JobDetail job, string listener);
-
-		/// <summary> <p>
-		/// Get all of the listeners for a given job.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The job name whose listeners are wanted</param>
-        /// <param name="groupName">The group containing the job</param>
-		/// <returns> array of <see cref="String" /> listener names</returns>
-        IList<string> SelectJobListeners(ConnectionAndTransactionHolder conn, string jobName, string groupName);
 
         /// <summary>
         /// Select the JobDetail object for a given job name / group name.
@@ -450,33 +421,6 @@ namespace Quartz.Impl.AdoJobStore
 		                                            string oldState);
 
 		/// <summary>
-		/// Delete all of the listeners associated with a given trigger.
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-        /// <param name="triggerName">The name of the trigger whose listeners will be deleted</param>
-        /// <param name="groupName">The name of the group containing the trigger</param>
-		/// <returns> the number of rows deleted</returns>
-		int DeleteTriggerListeners(ConnectionAndTransactionHolder conn, string triggerName, string groupName);
-
-		/// <summary>
-		/// Associate a listener with the given trigger.
-		/// </summary>
-		/// <param name="conn">The DB Connectio</param>
-        /// <param name="trigger">The trigger</param>
-        /// <param name="listener">The name of the listener to associate with the trigger</param>
-		/// <returns> the number of rows inserted </returns>
-		int InsertTriggerListener(ConnectionAndTransactionHolder conn, Trigger trigger, string listener);
-
-		/// <summary>
-		/// Select the listeners associated with a given trigger.
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-        /// <param name="triggerName">The name of the trigger</param>
-        /// <param name="groupName">The group containing the trigger</param>
-		/// <returns> array of <see cref="String" /> trigger listener names </returns>
-        IList<string> SelectTriggerListeners(ConnectionAndTransactionHolder conn, string triggerName, string groupName);
-
-		/// <summary>
 		/// Delete the simple trigger data for a trigger.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
@@ -671,7 +615,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns></returns>
-        ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn);
+        Collection.ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn);
 
         /// <summary>
         /// Determines whether given trigger group already exists.
@@ -884,28 +828,26 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="conn">The conn.</param>
         /// <returns></returns>
-        ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
+        Collection.ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
 
         /// <summary>
         /// Counts the misfired triggers in states.
         /// </summary>
         /// <param name="conn">The conn.</param>
         /// <param name="state1">The state1.</param>
-        /// <param name="state2">The state2.</param>
         /// <param name="ts">The ts.</param>
         /// <returns></returns>
-        int CountMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, DateTime ts);
+        int CountMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTime ts);
 
         /// <summary>
         /// Selects the misfired triggers in states.
         /// </summary>
         /// <param name="conn">The conn.</param>
         /// <param name="state1">The state1.</param>
-        /// <param name="state2">The state2.</param>
         /// <param name="ts">The ts.</param>
         /// <param name="count">The count.</param>
         /// <param name="resultList">The result list.</param>
         /// <returns></returns>
-        bool SelectMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, DateTime ts, int count, IList<Key> resultList);
+        bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTime ts, int count, IList<Key> resultList);
 	}
 }

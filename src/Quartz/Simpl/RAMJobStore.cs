@@ -1259,58 +1259,55 @@ namespace Quartz.Simpl
 		/// by the calling scheduler.
 		/// </summary>
 		/// <seealso cref="Trigger" />
-		public virtual Trigger AcquireNextTrigger(SchedulingContext ctxt, DateTime noLaterThan)
+        public virtual IList<Trigger> AcquireNextTriggers(SchedulingContext ctxt, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
 		{
-			TriggerWrapper tw = null;
-
 			lock (lockObject)
 			{
-				while (tw == null)
-				{
-					if (timeTriggers.Count > 0)
-					{
-						tw = timeTriggers[0];
-					}
+                List<Trigger> result = new List<Trigger>();
 
-					if (tw == null)
-					{
-						return null;
-					}
+                while (true)
+                {
+                    TriggerWrapper tw;
 
-					if (!tw.trigger.GetNextFireTimeUtc().HasValue)
-					{
-						timeTriggers.Remove(tw);
-						tw = null;
-						continue;
-					}
+                    tw = timeTriggers.First();
+                    if (tw == null) return result;
+                    if (!timeTriggers.Remove(tw))
+                    {
+                        return result;
+                    }
 
-					timeTriggers.Remove(tw);
+                    if (tw.trigger.GetNextFireTimeUtc() == null)
+                    {
+                        continue;
+                    }
 
-					if (ApplyMisfire(tw))
-					{
-						if (tw.trigger.GetNextFireTimeUtc().HasValue)
-						{
-							timeTriggers.Add(tw);
-						}
-						tw = null;
-						continue;
-					}
+                    if (ApplyMisfire(tw))
+                    {
+                        if (tw.trigger.GetNextFireTimeUtc() != null)
+                        {
+                            timeTriggers.Add(tw);
+                        }
+                        continue;
+                    }
 
-					if (tw.trigger.GetNextFireTimeUtc().Value > noLaterThan)
-					{
-						timeTriggers.Add(tw);
-						return null;
-					}
+                    if (tw.trigger.GetNextFireTimeUtc() > noLaterThan + timeWindow)
+                    {
+                        timeTriggers.Add(tw);
+                        return result;
+                    }
 
                     tw.state = InternalTriggerState.Acquired;
 
-					tw.trigger.FireInstanceId = GetFiredTriggerRecordId();
-					Trigger trig = (Trigger) tw.trigger.Clone();
-					return trig;
-				}
-			}
+                    tw.trigger.FireInstanceId = GetFiredTriggerRecordId();
+                    Trigger trig = (Trigger)tw.trigger.Clone();
+                    result.Add(trig);
 
-			return null;
+                    if (result.Count == maxCount)
+                    {
+                        return result;
+                    }
+                }
+            }
 		}
 
 		/// <summary>
@@ -1336,85 +1333,80 @@ namespace Quartz.Simpl
 		/// given <see cref="Trigger" /> (executing its associated <see cref="IJob" />),
 		/// that it had previously acquired (reserved).
 		/// </summary>
-		public virtual TriggerFiredBundle TriggerFired(SchedulingContext ctxt, Trigger trigger)
+		public virtual IList<TriggerFiredResult> TriggersFired(SchedulingContext ctxt, IList<Trigger> triggers)
 		{
-			lock (lockObject)
-			{
-				TriggerWrapper tw = triggersByFQN[TriggerWrapper.GetTriggerNameKey(trigger)];
-				// was the trigger deleted since being acquired?
-				if (tw == null || tw.trigger == null)
-				{
-					return null;
-				}
+		    lock (lockObject)
+		    {
+		        List<TriggerFiredResult> results = new List<TriggerFiredResult>();
 
-                // was the trigger completed, paused, blocked, etc. since being acquired?
-                if (tw.state != InternalTriggerState.Acquired)
-                {
-					return null;
-				}
+		        foreach (Trigger trigger in triggers)
+		        {
+		            TriggerWrapper tw = triggersByFQN[TriggerWrapper.GetTriggerNameKey(trigger)];
+		            // was the trigger deleted since being acquired?
+		            if (tw == null || tw.trigger == null)
+		            {
+		                return null;
+		            }
+		            // was the trigger completed, paused, blocked, etc. since being acquired?
+                    if (tw.state != InternalTriggerState.Acquired)
+		            {
+		                return null;
+		            }
 
-				ICalendar cal = null;
-				if (tw.trigger.CalendarName != null)
-				{
-					cal = RetrieveCalendar(ctxt, tw.trigger.CalendarName);
+		            ICalendar cal = null;
+		            if (tw.trigger.CalendarName != null)
+		            {
+		                cal = RetrieveCalendar(ctxt, tw.trigger.CalendarName);
+		                if (cal == null)
+		                    return null;
+		            }
+		            DateTime? prevFireTime = trigger.GetPreviousFireTimeUtc();
+		            // in case trigger was replaced between acquiring and firering
+		            timeTriggers.Remove(tw);
+		            // call triggered on our copy, and the scheduler's copy
+		            tw.trigger.Triggered(cal);
+		            trigger.Triggered(cal);
+		            //tw.state = TriggerWrapper.STATE_EXECUTING;
+                    tw.state = InternalTriggerState.Waiting;
 
-                    if (cal == null)
-                    {
-                        return null;
-                    }
-				}
+		            TriggerFiredBundle bndle = new TriggerFiredBundle(RetrieveJob(ctxt,
+		                                                                          trigger.JobName, trigger.JobGroup), trigger,
+		                                                              cal,
+		                                                              false, SystemTime.UtcNow(),
+		                                                              trigger.GetPreviousFireTimeUtc(), prevFireTime,
+		                                                              trigger.GetNextFireTimeUtc());
 
-                DateTime? prevFireTime = trigger.GetPreviousFireTimeUtc();
-                
-                // in case trigger was replaced between acquiring and firering
-                timeTriggers.Remove(tw);   
+		            JobDetail job = bndle.JobDetail;
 
-                // call triggered on our copy, and the scheduler's copy
-				tw.trigger.Triggered(cal);
-				trigger.Triggered(cal);
-				
-                //tw.state = TriggerWrapper.StateExecuting;
-                tw.state = InternalTriggerState.Waiting;
+		            if (job.Stateful)
+		            {
+		                List<TriggerWrapper> trigs = GetTriggerWrappersForJob(job.Name, job.Group);
+		                foreach (TriggerWrapper ttw in trigs)
+		                {
+                            if (ttw.state == InternalTriggerState.Waiting)
+		                    {
+                                ttw.state = InternalTriggerState.Blocked;
+		                    }
+                            if (ttw.state == InternalTriggerState.Paused)
+		                    {
+                                ttw.state = InternalTriggerState.PausedAndBlocked;
+		                    }
+		                    timeTriggers.Remove(ttw);
+		                }
+		                blockedJobs.Add(JobWrapper.GetJobNameKey(job));
+		            }
+		            else if (tw.trigger.GetNextFireTimeUtc() != null)
+		            {
+		                lock (lockObject)
+		                {
+		                    timeTriggers.Add(tw);
+		                }
+		            }
 
-				TriggerFiredBundle bndle =
-					new TriggerFiredBundle(RetrieveJob(ctxt, trigger.JobName, trigger.JobGroup), trigger, cal, false, SystemTime.UtcNow(),
-					                       trigger.GetPreviousFireTimeUtc(), prevFireTime, trigger.GetNextFireTimeUtc());
-
-				JobDetail job = bndle.JobDetail;
-
-				if (job.Stateful)
-				{
-					List<TriggerWrapper> trigs = GetTriggerWrappersForJob(job.Name, job.Group);
-					IEnumerator<TriggerWrapper> itr = trigs.GetEnumerator();
-					while (itr.MoveNext())
-					{
-						TriggerWrapper ttw = itr.Current;
-                        if (ttw.state == InternalTriggerState.Waiting)
-						{
-                            ttw.state = InternalTriggerState.Blocked;
-						}
-                        if (ttw.state == InternalTriggerState.Paused)
-						{
-                            ttw.state = InternalTriggerState.PausedAndBlocked;
-						}
-						timeTriggers.Remove(ttw);
-					}
-					blockedJobs.Add(JobWrapper.GetJobNameKey(job));
-				}
-				else
-				{
-                    DateTime? d = tw.trigger.GetNextFireTimeUtc();
-                    if (d.HasValue)
-					{
-						lock (lockObject)
-						{
-							timeTriggers.Add(tw);
-						}
-					}
-				}
-
-				return bndle;
-			}
+		            results.Add(new TriggerFiredResult(bndle));
+		        }
+		        return results;
+		    }
 		}
 
 		/// <summary> 
@@ -1610,7 +1602,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <seealso cref="IJobStore.GetPausedTriggerGroups(SchedulingContext)" />
-        public virtual ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
+        public virtual Collection.ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
 		{
             Collection.HashSet<string> data = new Collection.HashSet<string>(pausedTriggerGroups);
 			return data;

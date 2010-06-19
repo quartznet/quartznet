@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Collections.Specialized;
 using System.Text;
 using System.Threading;
 
@@ -48,8 +49,12 @@ namespace Quartz.Tests.Unit
 		[Test]
 		public void TestSameDefaultPriority()
 		{
-			IScheduler sched = new StdSchedulerFactory().GetScheduler();
+            NameValueCollection config = new NameValueCollection();
+		    config["quartz.threadPool.threadCount"] = "1";
+		    config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool";
 
+            IScheduler sched = new StdSchedulerFactory(config).GetScheduler();
+            
 			DateTime n = DateTime.UtcNow;
 			DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
 
@@ -75,9 +80,13 @@ namespace Quartz.Tests.Unit
         [Test]
 		public void TestDifferentPriority()
 		{
-			IScheduler sched = new StdSchedulerFactory().GetScheduler();
+            NameValueCollection config = new NameValueCollection();
+            config["quartz.threadPool.threadCount"] = "1";
+            config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool";
 
-			DateTime n = DateTime.UtcNow;
+            IScheduler sched = new StdSchedulerFactory(config).GetScheduler();
+
+			DateTime n = DateTime.UtcNow.AddSeconds(1);
 			DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
 
 			Trigger trig1 = new SimpleTrigger("T1", null, cal);

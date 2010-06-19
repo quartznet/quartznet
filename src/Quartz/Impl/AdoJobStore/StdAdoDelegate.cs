@@ -196,7 +196,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="ts">The time stamp.</param>
         /// <returns>An array of <see cref="Key" /> objects</returns>
-        public virtual IList<Key> SelectMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, long ts)
+        public virtual IList<Key> HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, long ts)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInState)))
             {
@@ -218,28 +218,25 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-
         /// <summary>
-        /// Get the names of all of the triggers in the given states that have
+        /// Get the names of all of the triggers in the given state that have
         /// misfired - according to the given timestamp.  No more than count will
         /// be returned.
         /// </summary>
         /// <param name="conn">The conn.</param>
         /// <param name="state1">The state1.</param>
-        /// <param name="state2">The state2.</param>
         /// <param name="ts">The ts.</param>
         /// <param name="count">The most misfired triggers to return, negative for all</param>
         /// <param name="resultList">
-        /// Output parameter.  A List of <see cref="Key" /> objects.  Must not be null
+        ///   Output parameter.  A List of <see cref="Key" /> objects.  Must not be null
         /// </param>
         /// <returns>Whether there are more misfired triggers left to find beyond the given count.</returns>
-        public virtual bool SelectMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, DateTime ts, int count, IList<Key> resultList)
+        public virtual bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTime ts, int count, IList<Key> resultList)
         {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInStates)))
+            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectHasMisfiredTriggersInState)))
             {
                 AddCommandParameter(cmd, 1, "nextFireTime", Convert.ToDecimal(ts.Ticks));
                 AddCommandParameter(cmd, 2, "state1", state1);
-                AddCommandParameter(cmd, 3, "state2", state2);
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -263,21 +260,19 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Get the number of triggers in the given states that have
+        /// Get the number of triggers in the given state that have
         /// misfired - according to the given timestamp.
         /// </summary>
         /// <param name="conn"></param>
         /// <param name="state1"></param>
-        /// <param name="state2"></param>
         /// <param name="ts"></param>
         /// <returns></returns>
-        public int CountMisfiredTriggersInStates(ConnectionAndTransactionHolder conn, string state1, string state2, DateTime ts)
+        public int CountMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTime ts)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountMisfiredTriggersInStates)))
             {
                 AddCommandParameter(cmd, 1, "nextFireTime", Convert.ToDecimal(ts.Ticks));
                 AddCommandParameter(cmd, 2, "state1", state1);
-                AddCommandParameter(cmd, 3, "state2", state2);
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     if (rs.Read())
@@ -442,15 +437,6 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 9, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
 
                 insertResult = cmd.ExecuteNonQuery();
-
-                if (insertResult > 0)
-                {
-                    string[] jobListeners = job.JobListenerNames;
-                    for (int i = 0; jobListeners != null && i < jobListeners.Length; i++)
-                    {
-                        InsertJobListener(conn, job, jobListeners[i]);
-                    }
-                }
             }
 
 
@@ -503,17 +489,6 @@ namespace Quartz.Impl.AdoJobStore
 
                 int insertResult = cmd.ExecuteNonQuery();
 
-                if (insertResult > 0)
-                {
-                    DeleteJobListeners(conn, job.Name, job.Group);
-
-                    String[] jobListeners = job.JobListenerNames;
-                    for (int i = 0; jobListeners != null && i < jobListeners.Length; i++)
-                    {
-                        InsertJobListener(conn, job, jobListeners[i]);
-                    }
-                }
-
                 return insertResult;
             }
         }
@@ -542,23 +517,6 @@ namespace Quartz.Impl.AdoJobStore
                     }
                     return list;
                 }
-            }
-        }
-
-        /// <summary>
-        /// Delete all job listeners for the given job.
-        /// </summary>
-        /// <param name="conn">The DB Connection.</param>
-        /// <param name="jobName">The name of the job.</param>
-        /// <param name="groupName">The group containing the job.</param>
-        /// <returns>The number of rows deleted.</returns>
-        public virtual int DeleteJobListeners(ConnectionAndTransactionHolder conn, string jobName, string groupName)
-        {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteJobListeners)))
-            {
-                AddCommandParameter(cmd, 1, "jobName", jobName);
-                AddCommandParameter(cmd, 2, "jobGroup", groupName);
-                return cmd.ExecuteNonQuery();
             }
         }
 
@@ -651,53 +609,6 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 3, "jobGroup", job.Group);
 
                 return cmd.ExecuteNonQuery();
-            }
-        }
-
-        /// <summary>
-        /// Associate a listener with a job.
-        /// </summary>
-        /// <param name="conn">The DB Connection.</param>
-        /// <param name="job">The job to associate with the listener.</param>
-        /// <param name="listener">The listener to insert.</param>
-        /// <returns>The number of rows inserted.</returns>
-        public virtual int InsertJobListener(ConnectionAndTransactionHolder conn, JobDetail job, string listener)
-        {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertJobListener)))
-            {
-                AddCommandParameter(cmd, 1, "jobName", job.Name);
-                AddCommandParameter(cmd, 2, "jobGroup", job.Group);
-                AddCommandParameter(cmd, 3, "listener", listener);
-
-                return cmd.ExecuteNonQuery();
-            }
-        }
-
-        /// <summary>
-        /// Get all of the listeners for a given job.
-        /// </summary>
-        /// <param name="conn">The DB Connection.</param>
-        /// <param name="jobName">The job name whose listeners are wanted.</param>
-        /// <param name="groupName">The group containing the job.</param>
-        /// <returns>Array of <see cref="String" /> listener names.</returns>
-        public virtual IList<string> SelectJobListeners(ConnectionAndTransactionHolder conn, string jobName, string groupName)
-        {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobListeners)))
-            {
-                List<string> list = new List<string>();
-
-                AddCommandParameter(cmd, 1, "jobName", jobName);
-                AddCommandParameter(cmd, 2, "jobGroup", groupName);
-
-                using (IDataReader dr = cmd.ExecuteReader())
-                {
-                    while (dr.Read())
-                    {
-                        list.Add((string) dr[0]);
-                    }
-
-                    return list.ToArray();
-                }
             }
         }
 
@@ -908,14 +819,6 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 16, "triggerPriority", trigger.Priority);
 
                 int insertResult = cmd.ExecuteNonQuery();
-                if (insertResult > 0)
-                {
-                    IList<string> trigListeners = trigger.TriggerListenerNames;
-                    for (int i = 0; trigListeners != null && i < trigListeners.Count; i++)
-                    {
-                        InsertTriggerListener(conn, trigger, trigListeners[i]);
-                    }
-                }
 
                 return insertResult;
             }
@@ -1079,17 +982,6 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             insertResult = cmd.ExecuteNonQuery();
-
-            if (insertResult > 0)
-            {
-                DeleteTriggerListeners(conn, trigger.Name, trigger.Group);
-
-                IList<string> listeners = trigger.TriggerListenerNames;
-                for (int i = 0; listeners != null && i < listeners.Count; i++)
-                {
-                    InsertTriggerListener(conn, trigger, listeners[i]);
-                }
-            }
 
             return insertResult;
         }
@@ -1381,71 +1273,6 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, 4, "oldState", oldState);
 
                 return cmd.ExecuteNonQuery();
-            }
-        }
-
-        /// <summary>
-        /// Delete all of the listeners associated with a given trigger.
-        /// </summary>
-        /// <param name="conn">the DB Connection</param>
-        /// <param name="triggerName">the name of the trigger whose listeners will be deleted</param>
-        /// <param name="groupName">the name of the group containing the trigger</param>
-        /// <returns>the number of rows deleted</returns>
-        public virtual int DeleteTriggerListeners(ConnectionAndTransactionHolder conn, string triggerName,
-                                                  string groupName)
-        {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteTriggerListeners)))
-            {
-                AddCommandParameter(cmd, 1, "triggerName", triggerName);
-                AddCommandParameter(cmd, 2, "triggerGroup", groupName);
-                return cmd.ExecuteNonQuery();
-            }
-        }
-
-        /// <summary>
-        /// Associate a listener with the given trigger.
-        /// </summary>
-        /// <param name="conn">the DB Connection</param>
-        /// <param name="trigger">the trigger</param>
-        /// <param name="listener">the name of the listener to associate with the trigger</param>
-        /// <returns>the number of rows inserted</returns>
-        public virtual int InsertTriggerListener(ConnectionAndTransactionHolder conn, Trigger trigger, string listener)
-        {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertTriggerListener)))
-            {
-                AddCommandParameter(cmd, 1, "triggerName", trigger.Name);
-                AddCommandParameter(cmd, 2, "triggerGroup", trigger.Group);
-                AddCommandParameter(cmd, 3, "listener", listener);
-
-                return cmd.ExecuteNonQuery();
-            }
-        }
-
-        /// <summary>
-        /// Select the listeners associated with a given trigger.
-        /// </summary>
-        /// <param name="conn">the DB Connection</param>
-        /// <param name="triggerName">the name of the trigger</param>
-        /// <param name="groupName">the group containing the trigger</param>
-        /// <returns>
-        /// array of <see cref="String" /> trigger listener names
-        /// </returns>
-        public virtual IList<string> SelectTriggerListeners(ConnectionAndTransactionHolder conn, string triggerName,
-                                                       string groupName)
-        {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerListeners)))
-            {
-                AddCommandParameter(cmd, 1, "triggerName", triggerName);
-                AddCommandParameter(cmd, 2, "triggerGroup", groupName);
-                using (IDataReader rs = cmd.ExecuteReader())
-                {
-                    List<string> list = new List<string>();
-                    while (rs.Read())
-                    {
-                        list.Add((string) rs[0]);
-                    }
-                    return list.ToArray();
-                }
             }
         }
 
@@ -2657,7 +2484,7 @@ namespace Quartz.Impl.AdoJobStore
         /// This is useful when trying to identify orphaned fired triggers (a
         /// fired trigger without a scheduler state record.)
         /// </remarks>
-        public ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn)
+        public Collection.ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn)
         {
             Collection.HashSet<string> instanceNames = new Collection.HashSet<string>();
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames)))
@@ -3107,7 +2934,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns></returns>
-        public virtual ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn)
+        public virtual Collection.ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn)
         {
             Collection.HashSet<string> retValue = new Collection.HashSet<string>();
 

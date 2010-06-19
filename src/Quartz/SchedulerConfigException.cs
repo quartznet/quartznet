@@ -35,7 +35,7 @@ namespace Quartz
 		/// <summary>
 		/// Create a <see cref="JobPersistenceException" /> with the given message.
 		/// </summary>
-		public SchedulerConfigException(string msg) : base(msg, ErrorBadConfiguration)
+		public SchedulerConfigException(string msg) : base(msg)
 		{
 		}
 
@@ -45,7 +45,6 @@ namespace Quartz
 		/// </summary>
 		public SchedulerConfigException(string msg, Exception cause) : base(msg, cause)
 		{
-			ErrorCode = ErrorBadConfiguration;
 		}
 
         /// <summary>
@@ -55,8 +54,7 @@ namespace Quartz
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        public SchedulerConfigException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
+        public SchedulerConfigException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
 	}

@@ -196,7 +196,7 @@ namespace Quartz
 		/// <summary> 
 		/// Get the names of all <see cref="Trigger" /> groups that are paused.
 		/// </summary>
-        ISet<string> GetPausedTriggerGroups();
+        Collection.ISet<string> GetPausedTriggerGroups();
 
 		/// <summary>
 		/// Get the names of all registered <see cref="ICalendar" />s.
@@ -208,12 +208,6 @@ namespace Quartz
 		/// the <see cref="IScheduler" />'s<i>global</i> list.
 		/// </summary>
         IList<IJobListener> GlobalJobListeners { get; }
-
-		/// <summary>
-		/// Get a Set containing the names of all the <i>non-global</i><see cref="IJobListener" />
-		/// s registered with the <see cref="IScheduler" />.
-		/// </summary>
-        ISet<string> JobListenerNames { get; }
 
         /// <summary>
         /// Get the <i>global</i><see cref="IJobListener" /> that has
@@ -236,12 +230,6 @@ namespace Quartz
 		/// s in the <see cref="IScheduler" />'s<i>global</i> list.
 		/// </summary>
 		IList<ITriggerListener> GlobalTriggerListeners { get; }
-
-		/// <summary>
-		/// Get a Set containing the names of all the <i>non-global</i><see cref="ITriggerListener" />
-		/// s registered with the <see cref="IScheduler" />.
-		/// </summary>
-        ISet<string> TriggerListenerNames { get; }
 
 		/// <summary>
 		/// Get a List containing all of the <see cref="ISchedulerListener" />
@@ -655,12 +643,6 @@ namespace Quartz
 		/// </remarks>
 		void AddGlobalJobListener(IJobListener jobListener);
 
-		/// <summary> 
-		/// Add the given <see cref="IJobListener" /> to the <see cref="IScheduler" />'s
-		/// list, of registered <see cref="IJobListener" />s.
-		/// </summary>
-		void AddJobListener(IJobListener jobListener);
-
 		/// <summary>
         /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
         /// list of <i>global</i> listeners.
@@ -668,21 +650,6 @@ namespace Quartz
         /// <param name="name">Global job listener's name</param>
         /// <returns>true if the identified listener was found in the list, and removed</returns>
         bool RemoveGlobalJobListener(string name);
-
-		/// <summary>
-        /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
-		/// list of registered listeners.
-		/// </summary>
-		/// <returns> 
-        /// true if the identified listener was found in the list, and removed.
-		/// </returns>
-		bool RemoveJobListener(string name);
-
-		/// <summary>
-		/// Get the <i>non-global</i><see cref="IJobListener" /> that has
-		/// the given name.
-		/// </summary>
-		IJobListener GetJobListener(string name);
 
 		/// <summary>
 		/// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />'s
@@ -695,12 +662,6 @@ namespace Quartz
 		void AddGlobalTriggerListener(ITriggerListener triggerListener);
 
 		/// <summary>
-		/// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />'s
-		/// list, of registered <see cref="ITriggerListener" />s.
-		/// </summary>
-		void AddTriggerListener(ITriggerListener triggerListener);
-
-		/// <summary>
         /// Remove the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />'s
         /// list of <i>global</i> listeners.
         /// </summary>
@@ -708,21 +669,6 @@ namespace Quartz
         /// <returns>true if the identified listener was found in the list, and removed.</returns>
         bool RemoveGlobalTriggerListener(string name);
         
-		/// <summary>
-        /// Remove the identified <see cref="ITriggerListener" /> from the
-		/// <see cref="IScheduler" />'s list of registered listeners.
-		/// </summary>
-		/// <returns> 
-        /// true if the identified listener was found in the list, and removed.
-		/// </returns>
-		bool RemoveTriggerListener(string name);
-
-		/// <summary>
-		/// Get the <i>non-global</i><see cref="ITriggerListener" /> that
-		/// has the given name.
-		/// </summary>
-		ITriggerListener GetTriggerListener(string name);
-
 		/// <summary>
 		/// Register the given <see cref="ISchedulerListener" /> with the
 		/// </summary>
