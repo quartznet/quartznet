@@ -374,9 +374,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collection\HashSet.cs" />
-    <Compile Include="Core\ISampledStatistics.cs" />
-    <Compile Include="Core\NullSampleStatisticsImpl.cs" />
-    <Compile Include="Core\SampledStatisticsImpl.cs" />
     <Compile Include="DateIntervalTrigger.cs" />
     <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\AdoUtil.cs" />
@@ -427,6 +424,12 @@
     <Compile Include="Xml\job_scheduling_data.cs">
       <DependentUpon>job_scheduling_data.xsd</DependentUpon>
     </Compile>
+    <Compile Include="Xml\job_scheduling_data_1_0.cs">
+      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="Xml\job_scheduling_data_1_2.cs">
+      <DependentUpon>job_scheduling_data_1_2.xsd</DependentUpon>
+    </Compile>
     <Compile Include="Xml\ValidationException.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -442,6 +445,15 @@
     </EmbeddedResource>
     <None Include="Xml\job_scheduling_data.xsx">
       <DependentUpon>job_scheduling_data.xsd</DependentUpon>
+    </None>
+    <None Include="Xml\job_scheduling_data_1_0.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Xml\job_scheduling_data_1_0.xsx">
+      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
+    </None>
+    <None Include="Xml\job_scheduling_data_1_2.xsd">
+      <SubType>Designer</SubType>
     </None>
   </ItemGroup>
   <ItemGroup>

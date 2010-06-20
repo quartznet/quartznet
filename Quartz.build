@@ -9,7 +9,7 @@
     <property name="debug" value="true" overwrite="false" />
 
     <!-- Check target framework -->
-    <property name="target.framework" value="2.0" overwrite="false" />
+    <property name="target.framework" value="3.5" overwrite="false" />
 
     <!-- set global target framework -->
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
@@ -20,8 +20,9 @@
     <property name="dir.doc" value="doc\" />
     <property name="dir.build" value="build\${target.framework}\${configuration}" />
     <property name="dir.deployment" value="deployment\${target.framework}" />
-    <property name="defines" value="" overwrite="false" />
-
+    <property name="defines" value="C5" overwrite="false" />
+      
+      
     <mkdir dir="${dir.build}" />
 
     <property name="clover.home" value="C:\Program Files\Cenqua\Clover.NET 2.1 for .NET 2.0"/>
@@ -29,16 +30,14 @@
 
 
   <target name="build">
-    <property name="defines" value="" overwrite="false" />
     <call target="build-${target.framework}" />
   </target>
 
   <target name="build-all">
-    <property name="defines" value="" overwrite="false" />
-    <call target="build-mono-1.0" />
     <call target="build-2.0" />
     <call target="build-mono-2.0" />
     <call target="build-3.5" />
+    <call target="build-4.0" />
   </target>
 
   <target name="build-2.0">
@@ -60,17 +59,13 @@
     <call target="build-all-csc" />
   </target>
 
+  <target name="build-4.0">
+    <property name="net20" value="true" />
+    <property name="defines" value="${defines},NET_20,NET_35,NET_40" />
 
-
-  <target name="build-mono-1.0">
-    <property name="net20" value="false" />
-    <property name="defines" value="${defines},MONO" />
-
-    <property name="target.framework" value="mono-1.0" />
-    <property name="nant.settings.currentframework" value="${target.framework}" />
-    <property name="lib-dir-version" value="1.1" />
+    <property name="target.framework" value="4.0" />
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
     <call target="build-all-csc" />
-
   </target>
 
   <target name="build-mono-2.0">
@@ -79,7 +74,6 @@
 
     <property name="target.framework" value="mono-2.0" />
     <property name="nant.settings.currentframework" value="${target.framework}" />
-    <property name="lib-dir-version" value="2.0" />
     <call target="build-all-csc" />
 
   </target>
@@ -117,14 +111,15 @@
         <include name="System.Data.dll" />
         <include name="System.Runtime.Remoting.dll" />
         <include name="System.Web.dll" />
-        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
+        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\2.0\C5.dll" />
       </references>
     </csc>
 
     <copy todir="build\${target.framework}\${configuration}\Quartz\" flatten="true" >
       <fileset>
-        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\1.1\Nullables.dll" unless="${net20}" />
+        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\2.0\C5.dll" />
       </fileset>
     </copy>
 
@@ -154,7 +149,8 @@
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
+        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\2.0\C5.dll" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
       </references>
     </csc>
@@ -162,8 +158,7 @@
     <copy todir="build\${target.framework}\${configuration}\Quartz.Examples\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
-        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\1.1\Nullables.dll" unless="${net20}" />
+        <include name="lib\2.0\Common.Logging.dll" />
       </fileset>
     </copy>
     <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
@@ -218,16 +213,15 @@
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\1.1\Nullables.dll" unless="${net20}" />
+        <include name="lib\2.0\Common.Logging.dll" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
       </references>
     </csc>
     <copy todir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
-        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\${lib-dir-version}\Common.Logging.Log4Net.dll" />
+        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\2.0\Common.Logging.Log4Net.dll" />
         <include name="lib\other\log4net.dll" />
       </fileset>
     </copy>
@@ -268,21 +262,19 @@
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\${lib-dir-version}\MbUnit.dll" />
-        <include name="lib\${lib-dir-version}\Gallio.dll" />
+        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\2.0\nunit.framework.dll" />
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
-        <include name="lib\${lib-dir-version}\Rhino.Mocks.dll"  />
+        <include name="lib\2.0\Rhino.Mocks.dll"  />
       </references>
     </csc>
 
     <copy todir="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
-        <include name="lib\${lib-dir-version}\Common.Logging.dll" />
-        <include name="lib\${lib-dir-version}\MbUnit.dll" />
-        <include name="lib\${lib-dir-version}\Gallio.dll" />
-        <include name="lib\${lib-dir-version}\Rhino.Mocks.dll"  />
+        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\2.0\nunit.framework.dll" />
+        <include name="lib\2.0\Rhino.Mocks.dll"  />
       </fileset>
     </copy>
 

@@ -380,7 +380,7 @@ namespace Quartz.Core
 
                             Trigger trigger = triggers[i];
                             // TODO SQL exception?
-                            if (exception is DbException || exception.InnerException is DbException)
+                            if (exception != null &&  (exception is DbException || exception.InnerException is DbException))
                             {
                                 Log.Error("DbException while firing trigger " + trigger, exception);
                                 // db connection must have failed... keep
