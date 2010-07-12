@@ -308,7 +308,7 @@ namespace Quartz.Core
                             DateTime triggerTime = triggers[0].GetNextFireTimeUtc().Value;
                             TimeSpan timeUntilTrigger =  triggerTime - now;
 
-                            while (timeUntilTrigger > TimeSpan.Zero) 
+                            while (timeUntilTrigger > TimeSpan.FromMilliseconds(2)) 
                             {
                                 if (ReleaseIfScheduleChangedSignificantly(triggers, triggerTime))
                                 {
@@ -509,37 +509,35 @@ namespace Quartz.Core
 
         private bool ReleaseIfScheduleChangedSignificantly(IList<Trigger> triggers, DateTime triggerTime)
         {
-            if (IsScheduleChanged())
+            if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
             {
-                if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
+                foreach (Trigger trigger in triggers)
                 {
-                    foreach (Trigger trigger in triggers)
+                    try
                     {
-                        try
-                        {
-                            // above call does a clearSignaledSchedulingChange()
-                            qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
-                        }
-                        catch (JobPersistenceException jpe)
-                        {
-                            qs.NotifySchedulerListenersError(
-                                string.Format("An error occurred while releasing trigger '{0}'", trigger.FullName), jpe);
-                            // db connection must have failed... keep
-                            // retrying until it's up...
-                            ReleaseTriggerRetryLoop(trigger);
-                        }
-                        catch (Exception e)
-                        {
-                            Log.Error("ReleaseTriggerRetryLoop: Exception " + e.Message, e);
-                            // db connection must have failed... keep
-                            // retrying until it's up...
-                            ReleaseTriggerRetryLoop(trigger);
-                        }
+                        // above call does a clearSignaledSchedulingChange()
+                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
                     }
-                    triggers.Clear();
-                    return true;
+                    catch (JobPersistenceException jpe)
+                    {
+                        qs.NotifySchedulerListenersError(
+                            string.Format("An error occurred while releasing trigger '{0}'", trigger.FullName), jpe);
+                        // db connection must have failed... keep
+                        // retrying until it's up...
+                        ReleaseTriggerRetryLoop(trigger);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error("ReleaseTriggerRetryLoop: Exception " + e.Message, e);
+                        // db connection must have failed... keep
+                        // retrying until it's up...
+                        ReleaseTriggerRetryLoop(trigger);
+                    }
                 }
+                triggers.Clear();
+                return true;
             }
+            
             return false;
         }
 
@@ -564,7 +562,13 @@ namespace Quartz.Core
 		    // a somewhat educated but arbitrary guess ;-).
 
     	    lock (sigLock) 
-            {	
+            {
+
+                if (!IsScheduleChanged())
+                {
+                    return false;
+                }
+
 			    bool earlier = false;
     			
 			    if(!GetSignaledNextFireTimeUtc().HasValue)

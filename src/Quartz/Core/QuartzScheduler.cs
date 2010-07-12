@@ -701,6 +701,7 @@ namespace Quartz.Core
             }
 
             resources.JobStore.StoreJobAndTrigger(ctxt, jobDetail, trigger);
+            NotifySchedulerListenersJobAdded(jobDetail);
             NotifySchedulerThread(trigger.GetNextFireTimeUtc());
             NotifySchedulerListenersScheduled(trigger);
 
@@ -799,7 +800,7 @@ namespace Quartz.Core
                 result = true;
             }
 
-            result = result || resources.JobStore.RemoveJob(ctxt, jobName, groupName);
+            result = resources.JobStore.RemoveJob(ctxt, jobName, groupName) || result;
             if (result)
             {
                 NotifySchedulerThread(null);
