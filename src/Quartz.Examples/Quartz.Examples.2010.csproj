@@ -32,13 +32,13 @@
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <OutputPath>..\..\build\2.0\Debug\Quartz.Examples\</OutputPath>
+    <OutputPath>..\..\build\4.0\Debug\Quartz.Examples\</OutputPath>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE;DEBUG;NET_20,NET_35</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;NET_20,NET_35,NET_40,C5</DefineConstants>
     <DocumentationFile>
     </DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
@@ -185,12 +185,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz\Quartz.2008.csproj">
-      <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
-      <Name>Quartz.2008</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="example15\XmlConfigurationExample.cs" />
     <Compile Include="example14\PriorityExample.cs" />
     <Compile Include="example14\TriggerEchoJob.cs" />
@@ -199,6 +193,12 @@
     <Content Include="quartz_jobs.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.2010.csproj">
+      <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
+      <Name>Quartz.2010</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

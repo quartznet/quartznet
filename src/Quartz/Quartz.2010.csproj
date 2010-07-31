@@ -47,13 +47,13 @@
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <OutputPath>..\..\build\2.0\Debug\Quartz\</OutputPath>
+    <OutputPath>..\..\build\4.0\Debug\Quartz\</OutputPath>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE;DEBUG;NET_20,NET_35,C5,NET_40</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;NET_20,NET_35,NET_40,C5</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -438,12 +438,12 @@
     <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.properties" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Xml\job_scheduling_data_1_0.xsd">
+    <EmbeddedResource Include="Xml\job_scheduling_data_1_0.xsd">
       <SubType>Designer</SubType>
-    </None>
-    <None Include="Xml\job_scheduling_data_2_0.xsd">
+    </EmbeddedResource>
+    <EmbeddedResource Include="Xml\job_scheduling_data_2_0.xsd">
       <SubType>Designer</SubType>
-    </None>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">

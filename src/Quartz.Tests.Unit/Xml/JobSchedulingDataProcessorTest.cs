@@ -20,7 +20,6 @@
 using System.Collections.Generic;
 using System.IO;
 using Quartz.Xml;
-using Quartz.Xml.JobSchedulingData10;
 
 using Rhino.Mocks;
 
@@ -28,6 +27,9 @@ using NUnit.Framework;
 
 namespace Quartz.Tests.Unit.Xml
 {
+    /// <summary>
+    /// Tests for <see cref="JobSchedulingDataProcessor" />.
+    /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture]
     public class JobSchedulingDataProcessorTest 

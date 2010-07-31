@@ -32,7 +32,7 @@
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <OutputPath>..\..\build\2.0\Debug\Quartz.Tests.Unit\</OutputPath>
+    <OutputPath>..\..\build\4.0\Debug\Quartz.Tests.Unit\</OutputPath>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
@@ -105,15 +105,6 @@
     <Reference Include="System.XML">
       <Name>System.XML</Name>
     </Reference>
-    <ProjectReference Include="..\Quartz.Examples\Quartz.Examples.2010.csproj">
-      <Project>{70A37974-17DE-474C-8A1C-19637622E75F}</Project>
-      <Name>Quartz.Examples.2008</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Quartz\Quartz.2008.csproj">
-      <Name>Quartz.2008</Name>
-      <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
-      <Package>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Package>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs">
@@ -177,6 +168,7 @@
     </Compile>
     <Compile Include="Xml\JobSchedulingBundleTest.cs" />
     <Compile Include="Xml\JobSchedulingDataProcessorTest.cs" />
+    <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\RichConfiguration.xml" />
@@ -194,6 +186,24 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Xml\TestData\MinimalConfiguration_20.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Xml\TestData\RichConfiguration_20.xml">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Examples\Quartz.Examples.2010.csproj">
+      <Project>{70A37974-17DE-474C-8A1C-19637622E75F}</Project>
+      <Name>Quartz.Examples.2010</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Quartz\Quartz.2010.csproj">
+      <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
+      <Name>Quartz.2010</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

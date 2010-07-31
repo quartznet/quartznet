@@ -75,7 +75,7 @@ namespace Quartz.Xml
 		public const string PropertyQuartzSystemIdDir = "quartz.system.id.dir";
 		public const string QuartzXmlFileName = "quartz_jobs.xml";
 		public const string QuartzSchema = "http://quartznet.sourceforge.net/xml/job_scheduling_data_1_0.xsd";
-		public const string QuartzXsdResourceName = "Quartz.Quartz.Xml.job_scheduling_data_1_0.xsd";
+		public const string QuartzXsdResourceName = "Quartz.Xml.job_scheduling_data_1_0.xsd";
 		
 		protected const string ThreadLocalKeyScheduler = "quartz_scheduler";
 		

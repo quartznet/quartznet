@@ -2,7 +2,9 @@ using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-#if NET_35
+#if NET_40
+[assembly: AssemblyConfiguration("net-4.0.win32; Release")]
+#elif NET_35
 [assembly: AssemblyConfiguration("net-3.5.win32; Release")]
 #else
 [assembly: AssemblyConfiguration("net-2.0.win32; Release")]
@@ -17,7 +19,9 @@ using System.Runtime.InteropServices;
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
-#if NET_35
+#if NET_40
+[assembly: AssemblyVersion("1.2.0.4")]
+#elif NET_35
 [assembly: AssemblyVersion("1.2.0.3")]
 #else
 [assembly: AssemblyVersion("1.2.0.2")]

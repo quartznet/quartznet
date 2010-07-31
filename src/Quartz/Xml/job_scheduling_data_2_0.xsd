@@ -98,10 +98,10 @@
       <xs:element name="name" type="xs:string"/>
       <xs:element name="group" type="xs:string" minOccurs="0"/>
       <xs:element name="description" type="xs:string" minOccurs="0"/>
-      <xs:element name="job-class" type="xs:string"/>
+      <xs:element name="job-type" type="xs:string"/>
       <xs:sequence minOccurs="0">
-        <xs:element name="volatility" type="xs:boolean"/>
-        <xs:element name="durability" type="xs:boolean"/>
+        <xs:element name="volatile" type="xs:boolean"/>
+        <xs:element name="durable" type="xs:boolean"/>
         <xs:element name="recover" type="xs:boolean"/>
       </xs:sequence>
       <xs:element name="job-data-map" type="job-data-mapType" minOccurs="0"/>
@@ -149,7 +149,7 @@
       <xs:element name="job-name" type="xs:string"/>
       <xs:element name="job-group" type="xs:string" minOccurs="0"/>
       <xs:element name="calendar-name" type="xs:string" minOccurs="0"/>
-      <xs:element name="volatility" type="xs:boolean"  minOccurs="0"/>
+      <xs:element name="volatile" type="xs:boolean"  minOccurs="0"/>
       <xs:element name="job-data-map" type="job-data-mapType" minOccurs="0"/>
       <xs:sequence minOccurs="0">
         <xs:element name="start-time" type="xs:dateTime"/>
