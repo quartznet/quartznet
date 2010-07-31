@@ -56,14 +56,6 @@ namespace Quartz.Impl.AdoJobStore
         protected IDbProvider dbProvider;
         protected AdoUtil adoUtil;
 
-        /*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Constructors.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
-
         /// <summary>
         /// Create new StdAdoDelegate instance.
         /// </summary>
@@ -98,14 +90,6 @@ namespace Quartz.Impl.AdoJobStore
             adoUtil = new AdoUtil(dbProvider);
             this.useProperties = useProperties;
         }
-
-        /*
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		* 
-		* Interface.
-		* 
-		* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		*/
 
         protected virtual bool CanUseProperties
         {
@@ -2824,35 +2808,13 @@ namespace Quartz.Impl.AdoJobStore
                 return null;
             }
 
-            int bufferSize = 1024;
-            MemoryStream stream = new MemoryStream();
-
-            // can read the data
-            byte[] outbyte = new byte[bufferSize];
-
-            // Reset the starting byte for the new BLOB.
-            int startIndex;
-            startIndex = 0;
-
-            // Read the bytes into outbyte[] and retain the number of bytes returned.
-
-            int retval; // The bytes returned from GetBytes.
-            retval = (int)dr.GetBytes(colIndex, startIndex, outbyte, 0, bufferSize);
-
-            // Continue reading and writing while there are bytes beyond the size of the buffer.
-            while (retval == bufferSize)
+            byte[] outbyte = new byte[dr.GetBytes(colIndex, 0, null, 0, Int32.MaxValue)];
+            dr.GetBytes(colIndex, 0, outbyte, 0, outbyte.Length);
+            using (MemoryStream stream = new MemoryStream())
             {
-                stream.Write(outbyte, 0, retval);
-
-                // Reposition the start index to the end of the last buffer and fill the buffer.
-                startIndex += bufferSize;
-                retval = (int)dr.GetBytes(colIndex, startIndex, outbyte, 0, bufferSize);
+                stream.Write(outbyte, 0, outbyte.Length);
             }
-
-            // Write the remaining buffer.
-            stream.Write(outbyte, 0, retval);
-
-            return stream.GetBuffer();
+            return outbyte;
         }
 
 
@@ -2969,7 +2931,4 @@ namespace Quartz.Impl.AdoJobStore
             adoUtil.AddCommandParameter(cmd, parameterIndex, paramName, paramValue, dataType);
         }
     }
-
-
-    // EOF
 }
