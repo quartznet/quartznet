@@ -1195,7 +1195,7 @@ namespace Quartz.Impl.AdoJobStore
         /// group should be removed from the <see cref="IJobStore" />'s list of
         /// known group names.
         /// </remarks>
-        /// 
+        /// <param name="ctxt">The scheduling context.</param>
         /// <param name="jobName">The name of the <see cref="IJob" /> to be removed.</param>
         /// <param name="groupName">The group name of the <see cref="IJob" /> to be removed.</param>
         /// <returns>
@@ -1288,6 +1288,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Retrieve the <see cref="JobDetail" /> for the given
         /// <see cref="IJob" />.
         /// </summary>
+        /// <param name="ctxt">The scheduling context.</param>
         /// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
         /// <param name="groupName">The group name of the <see cref="IJob" /> to be retrieved.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
@@ -1358,6 +1359,7 @@ namespace Quartz.Impl.AdoJobStore
         /// also.
         /// </p>
         /// </remarks>
+        /// <param name="ctxt">The scheduling context.</param>
         /// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
         /// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
         /// <returns>

@@ -26,6 +26,9 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public interface ITablePrefixAware
     {
+        /// <summary>
+        /// Table prefix to use.
+        /// </summary>
         string TablePrefix { get; }
     }
 }

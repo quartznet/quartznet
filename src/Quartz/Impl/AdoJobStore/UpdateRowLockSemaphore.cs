@@ -61,7 +61,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 using (IDbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSQL))
                 {
-                    AdoUtil.AddCommandParameter(cmd, 1, "lockName", lockName);
+                    AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                     if (Log.IsDebugEnabled)
                     {
