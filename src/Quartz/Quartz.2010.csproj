@@ -267,6 +267,7 @@
     <Compile Include="Plugin\Management\ShutdownHookPlugin.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPlugin.cs" />
     <Compile Include="QuartzThread.cs" />
     <Compile Include="SchedulerConfigException.cs">
       <SubType>Code</SubType>
@@ -359,6 +360,7 @@
     <Compile Include="Util\PropertiesParser.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\StringExtensions.cs" />
     <Compile Include="Util\TriggerStatus.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -421,14 +423,11 @@
     <Compile Include="Xml\CalendarBundle.cs" />
     <Compile Include="Xml\JobSchedulingBundle.cs" />
     <Compile Include="Xml\JobSchedulingDataProcessor.cs" />
-    <Compile Include="Xml\job_scheduling_data.cs">
-      <DependentUpon>job_scheduling_data.xsd</DependentUpon>
-    </Compile>
     <Compile Include="Xml\job_scheduling_data_1_0.cs">
       <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
     </Compile>
-    <Compile Include="Xml\job_scheduling_data_1_2.cs">
-      <DependentUpon>job_scheduling_data_1_2.xsd</DependentUpon>
+    <Compile Include="Xml\job_scheduling_data_2_0.cs">
+      <DependentUpon>job_scheduling_data_2_0.xsd</DependentUpon>
     </Compile>
     <Compile Include="Xml\ValidationException.cs" />
   </ItemGroup>
@@ -439,20 +438,10 @@
     <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.properties" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Xml\job_scheduling_data.xsd">
-      <SubType>
-      </SubType>
-    </EmbeddedResource>
-    <None Include="Xml\job_scheduling_data.xsx">
-      <DependentUpon>job_scheduling_data.xsd</DependentUpon>
-    </None>
     <None Include="Xml\job_scheduling_data_1_0.xsd">
       <SubType>Designer</SubType>
     </None>
-    <None Include="Xml\job_scheduling_data_1_0.xsx">
-      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
-    </None>
-    <None Include="Xml\job_scheduling_data_1_2.xsd">
+    <None Include="Xml\job_scheduling_data_2_0.xsd">
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>
@@ -482,6 +471,9 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Xml\XMLSchedulingDataProcessor.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

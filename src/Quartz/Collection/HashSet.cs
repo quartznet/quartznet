@@ -5,13 +5,24 @@ namespace Quartz.Collection
 {
 
 #if C5
+    /// <summary>
+    /// Simple wrapper for C5 HashSet to bring common interface.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     [Serializable]
-    public sealed class HashSet<T> : C5.HashSet<T>, Collection.ISet<T>
+    public sealed class HashSet<T> : C5.HashSet<T>, ISet<T>
     {
+        /// <summary>
+        /// Default constructor.
+        /// </summary>
         public HashSet()
         {
         }
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="items">Items to populate with.</param>
         public HashSet(IEnumerable<T> items)
         {
             AddAll(items);
@@ -51,7 +62,7 @@ namespace Quartz.Collection
     // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     //
     [Serializable, HostProtection(SecurityAction.LinkDemand, MayLeakOnAbort = true)]
-    public class HashSet<T> : ICollection<T>, ISerializable, IDeserializationCallback
+    public class HashSet<T> : ISet<T>, ICollection<T>, ISerializable, IDeserializationCallback
     {
 
         const int INITIAL_SIZE = 10;

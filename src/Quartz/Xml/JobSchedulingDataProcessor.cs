@@ -22,6 +22,7 @@ using System;
 #if NET_35
 using TimeZone = System.TimeZoneInfo;
 #endif
+
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
@@ -33,6 +34,7 @@ using System.Xml.Serialization;
 
 using Common.Logging;
 
+using Quartz.Xml.JobSchedulingData10;
 using Quartz.Util;
 
 namespace Quartz.Xml
@@ -43,7 +45,7 @@ namespace Quartz.Xml
 	/// <remarks>
 	/// <p>
 	/// The xml document must conform to the format defined in
-	/// "job_scheduling_data.xsd"
+	/// "job_scheduling_data_1_0.xsd"
 	/// </p>
 	/// 
 	/// <p>
@@ -72,8 +74,8 @@ namespace Quartz.Xml
 
 		public const string PropertyQuartzSystemIdDir = "quartz.system.id.dir";
 		public const string QuartzXmlFileName = "quartz_jobs.xml";
-		public const string QuartzSchema = "http://quartznet.sourceforge.net/xml/job_scheduling_data.xsd";
-		public const string QuartzXsdResourceName = "Quartz.Quartz.Xml.job_scheduling_data.xsd";
+		public const string QuartzSchema = "http://quartznet.sourceforge.net/xml/job_scheduling_data_1_0.xsd";
+		public const string QuartzXsdResourceName = "Quartz.Quartz.Xml.job_scheduling_data_1_0.xsd";
 		
 		protected const string ThreadLocalKeyScheduler = "quartz_scheduler";
 		
@@ -86,13 +88,13 @@ namespace Quartz.Xml
 		/// </summary>
 		protected const string XsdDateFormat = "yyyy-MM-dd'T'hh:mm:ss";
 
-	    private IDictionary<string, JobSchedulingBundle> scheduledJobs = new Dictionary<string, JobSchedulingBundle>();
-	    private IList<JobSchedulingBundle> jobsToSchedule = new List<JobSchedulingBundle>();
-	    private IList<CalendarBundle> calsToSchedule = new List<CalendarBundle>();
-	    private IList<IJobListener> listenersToSchedule = new List<IJobListener>();
-	    private IList<ITriggerListener> triggerListenersToSchedule = new List<ITriggerListener>();
+	    private readonly IDictionary<string, JobSchedulingBundle> scheduledJobs = new Dictionary<string, JobSchedulingBundle>();
+	    private readonly IList<JobSchedulingBundle> jobsToSchedule = new List<JobSchedulingBundle>();
+	    private readonly IList<CalendarBundle> calsToSchedule = new List<CalendarBundle>();
+	    private readonly IList<IJobListener> listenersToSchedule = new List<IJobListener>();
+	    private readonly IList<ITriggerListener> triggerListenersToSchedule = new List<ITriggerListener>();
 
-	    private List<Exception> validationExceptions = new List<Exception>();
+	    private readonly List<Exception> validationExceptions = new List<Exception>();
 
 		private bool overwriteExistingJobs = true;
 
@@ -210,8 +212,8 @@ namespace Quartz.Xml
             ValidateXmlIfNeeded(xml);
             
             // deserialize as object model
-            XmlSerializer xs = new XmlSerializer(typeof(QuartzXmlConfiguration));
-            QuartzXmlConfiguration data = (QuartzXmlConfiguration) xs.Deserialize(new StringReader(xml));
+            XmlSerializer xs = new XmlSerializer(typeof(QuartzXmlConfiguration10));
+            QuartzXmlConfiguration10 data = (QuartzXmlConfiguration10) xs.Deserialize(new StringReader(xml));
 
             // process data
             overwriteExistingJobs = data.overwriteexistingjobs;
@@ -261,7 +263,7 @@ namespace Quartz.Xml
             MaybeThrowValidationException();
         }
 
-	    private void ProcessJobs(QuartzXmlConfiguration data)
+	    private void ProcessJobs(QuartzXmlConfiguration10 data)
 	    {
             if (data.job == null)
             {
@@ -379,7 +381,7 @@ namespace Quartz.Xml
 	        }
 	    }
 
-		private void ProcessTriggerListeners(QuartzXmlConfiguration data)
+		private void ProcessTriggerListeners(QuartzXmlConfiguration10 data)
 		{
 			if (data.triggerlistener != null)
 			{

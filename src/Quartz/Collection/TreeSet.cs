@@ -26,29 +26,53 @@ namespace Quartz.Collection
     // use C5
     using C5;
 
+    /// <summary>
+    /// Simple C5 wrapper for common interface.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     [Serializable]
     public class TreeSet<T> : C5.TreeSet<T>, ISortedSet<T>
     {
+        /// <summary>
+        /// Default constructor.
+        /// </summary>
         public TreeSet()
         {
             
         }
 
+        /// <summary>
+        /// Constructor that accepts comparer.
+        /// </summary>
+        /// <param name="comparer">Comparer to use.</param>
         public TreeSet(IComparer<T> comparer) : base(comparer)
         {
 
         }
 
+        /// <summary>
+        /// Constructor that prepolutates.
+        /// </summary>
+        /// <param name="items"></param>
         public TreeSet(IEnumerable<T> items)
         {
             AddAll(items);
         }
 
+        /// <summary>
+        /// Returns the first element.
+        /// </summary>
+        /// <returns></returns>
         public T First()
         {
             return Count > 0 ? this[0] : default(T);
         }
 
+        /// <summary>
+        /// Return items from given range.
+        /// </summary>
+        /// <param name="limit"></param>
+        /// <returns></returns>
         public ISortedSet<T> TailSet(T limit)
         {
             TreeSet<T> retValue = new TreeSet<T>(Comparer);
@@ -57,6 +81,11 @@ namespace Quartz.Collection
             return retValue;
         }
 
+        /// <summary>
+        /// Indexer.
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
         T ISortedSet<T>.this[int index]
         {
             get { return base[index]; }

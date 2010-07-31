@@ -19,8 +19,8 @@
 
 using System.Collections.Generic;
 using System.IO;
-
 using Quartz.Xml;
+using Quartz.Xml.JobSchedulingData10;
 
 using Rhino.Mocks;
 
