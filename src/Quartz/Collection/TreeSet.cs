@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 
 namespace Quartz.Collection
@@ -24,7 +25,8 @@ namespace Quartz.Collection
 #if C5
     // use C5
     using C5;
-    
+
+    [Serializable]
     public class TreeSet<T> : C5.TreeSet<T>, ISortedSet<T>
     {
         public TreeSet()
