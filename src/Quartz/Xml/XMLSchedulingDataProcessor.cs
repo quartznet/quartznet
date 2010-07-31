@@ -431,6 +431,19 @@ namespace Quartz.Xml
                                                   cronExpression);
                     }
                 }
+                else if (triggerNode.Item is dateIntervalTriggerType)
+                {
+                    dateIntervalTriggerType dateIntervalTrigger = (dateIntervalTriggerType)triggerNode.Item;
+                    string repeatIntervalString = dateIntervalTrigger.repeatinterval.TrimEmptyToNull();
+
+                    triggerMisfireInstructionConst = dateIntervalTrigger.misfireinstruction;
+                    DateIntervalTrigger.IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(dateIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
+                    int repeatInterval = repeatIntervalString == null ? 0 : Convert.ToInt32(repeatIntervalString);
+                    trigger = new DateIntervalTrigger(triggerName, triggerGroup,
+                                                triggerJobName, triggerJobGroup,
+                                                triggerStartTime, triggerEndTime,
+                                                intervalUnit, repeatInterval);
+                }
                 else
                 {
                     throw new SchedulerConfigException("Unknown trigger type in XML configuration");
@@ -464,7 +477,6 @@ namespace Quartz.Xml
             }
         }
 
-
         protected virtual void AddJobToSchedule(JobDetail job)
         {
             loadedJobs.Add(job);
@@ -496,6 +508,21 @@ namespace Quartz.Xml
             Constants c = new Constants(typeof (MisfireInstruction), typeof (MisfireInstruction.CronTrigger),
                                         typeof (MisfireInstruction.SimpleTrigger));
             return c.AsNumber(misfireinstruction);
+        }
+
+        protected virtual DateIntervalTrigger.IntervalUnit ParseDateIntervalTriggerIntervalUnit(string intervalUnit)
+        {
+            if (String.IsNullOrEmpty(intervalUnit))
+            {
+                return DateIntervalTrigger.IntervalUnit.Day;
+            }
+
+            DateIntervalTrigger.IntervalUnit retValue;
+            if (!Enum.TryParse(intervalUnit, out retValue))
+            {
+                throw new SchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
+            }
+            return retValue;
         }
 
         private void ValidateXml(string xml)
