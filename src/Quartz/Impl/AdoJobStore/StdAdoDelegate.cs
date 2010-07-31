@@ -2926,7 +2926,30 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType)
         {
+            if (dataType == null && paramValue is string)
+            {
+                // performance optimization for database
+                // default type is nvarchar that may cause unwanted index performance issues
+                // when column type is varchar and parameter is nvarchar
+                // this may cause a index scan instead of an index seek
+                dataType = DefaultStringDbType;
+            }
+
             adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType);
+        }
+
+        /// <summary>
+        /// Returns the value of <see cref="DbType" /> enumeration that describes
+        /// the default db type for strings. The Default in .NET is NVARCHAR (unicode)
+        /// but Quartz.NET uses VARCHAR (ansi string) for index performance reasons.
+        /// </summary>
+        /// <remarks>
+        /// See http://dylanbeattie.blogspot.com/2010/02/fun-and-games-with-nhibernate-and.html .
+        /// </remarks>
+        /// <value></value>
+        protected virtual DbType DefaultStringDbType
+        {
+            get { return DbType.AnsiString; }
         }
     }
 }

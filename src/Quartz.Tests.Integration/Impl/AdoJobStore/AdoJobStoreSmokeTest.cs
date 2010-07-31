@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Threading;
 
 using NUnit.Framework;
@@ -475,6 +476,77 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             inScheduler.DeleteCalendar("monthlyCalendar");
             inScheduler.DeleteCalendar("weeklyCalendar");
         }
+
+        [Test]
+        [Explicit]
+        public void StressTest()
+        {
+            NameValueCollection properties = new NameValueCollection();
+
+            properties["quartz.scheduler.instanceName"] = "TestScheduler";
+            properties["quartz.scheduler.instanceId"] = "instance_one";
+            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.threadPool.threadCount"] = "10";
+            properties["quartz.threadPool.threadPriority"] = "Normal";
+            properties["quartz.jobStore.misfireThreshold"] = "60000";
+            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
+            properties["quartz.jobStore.useProperties"] = "false";
+            properties["quartz.jobStore.dataSource"] = "default";
+            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
+            properties["quartz.jobStore.clustered"] = "false";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+            properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
+
+            string connectionString = "Server=(local);Database=quartz;Trusted_Connection=True;";
+            properties["quartz.dataSource.default.connectionString"] = connectionString;
+            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+
+            // First we must get a reference to a scheduler
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler sched = sf.GetScheduler();
+
+            try
+            {
+                    CleanUp(sched);
+
+                    JobDetail lonelyJob = new JobDetail("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
+                    lonelyJob.Durable = true;
+                    lonelyJob.RequestsRecovery = true;
+                    sched.AddJob(lonelyJob, false);
+                    sched.AddJob(lonelyJob, true);
+
+                    string schedId = sched.SchedulerInstanceId;
+
+                    JobDetail job = new JobDetail("job_to_use", schedId, typeof(SimpleRecoveryJob));
+
+                    for (int i = 0; i < 100000; ++i)
+                    {
+                        SimpleTrigger trigger = new SimpleTrigger("stressing_simple", SimpleTrigger.RepeatIndefinitely,TimeSpan.FromSeconds(1));
+                        trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
+                        sched.ScheduleJob(job, trigger);
+                    }
+
+                    for (int i = 0; i < 100000; ++i)
+                    {
+                        CronTrigger ct = new CronTrigger("stressing_cron", "0/1 * * * * ?");
+                        ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
+                        sched.ScheduleJob(job, ct);
+                    }
+    
+                    Stopwatch stopwatch = new Stopwatch();
+                    stopwatch.Start();
+                    sched.Start();
+                    Thread.Sleep(TimeSpan.FromMinutes(3));
+                    stopwatch.Stop();
+                    Console.WriteLine("Took: " + stopwatch.Elapsed);
+            }
+            finally
+            {
+                sched.Shutdown(false);
+            }
+        }
+
     }
 
     internal class DummyTriggerListener : ITriggerListener

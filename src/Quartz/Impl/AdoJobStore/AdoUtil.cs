@@ -19,6 +19,7 @@
 
 using System;
 using System.Data;
+using System.Reflection;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -29,10 +30,12 @@ namespace Quartz.Impl.AdoJobStore
     public class AdoUtil
     {
         private readonly IDbProvider dbProvider;
+        private MethodInfo commandParameterTypeSetMethod;
 
         public AdoUtil(IDbProvider dbProvider)
         {
             this.dbProvider = dbProvider;
+            this.commandParameterTypeSetMethod = dbProvider.Metadata.ParameterDbTypeProperty.GetSetMethod();
         }
 
         public void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue)
@@ -47,6 +50,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 SetDataTypeToCommandParameter(param, dataType);
             }
+
             param.ParameterName = dbProvider.Metadata.GetParameterName(paramName);
             param.Value = paramValue ?? DBNull.Value;
             cmd.Parameters.Add(param);
@@ -60,7 +64,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private void SetDataTypeToCommandParameter(IDbDataParameter param, object parameterType)
         {
-            dbProvider.Metadata.ParameterDbTypeProperty.GetSetMethod().Invoke(param, new object[] { parameterType });
+            commandParameterTypeSetMethod.Invoke(param, new object[] { parameterType });
         }
 
         public IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
