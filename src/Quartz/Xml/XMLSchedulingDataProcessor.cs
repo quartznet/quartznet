@@ -518,12 +518,28 @@ namespace Quartz.Xml
             }
 
             DateIntervalTrigger.IntervalUnit retValue;
-            if (!Enum.TryParse(intervalUnit, out retValue))
+            if (!TryParseEnum(intervalUnit, out retValue))
             {
                 throw new SchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
             }
             return retValue;
         }
+
+        protected virtual bool TryParseEnum<T>(string str, out T value) where T : struct
+        {
+            var names = Enum.GetNames(typeof(T));
+            value = (Enum.GetValues(typeof(T)) as T[])[0];
+            foreach (var name in names)
+            {
+                if (name == str)
+                {
+                    value = (T)Enum.Parse(typeof(T), name);
+                    return true;
+                }
+            }
+            return false;
+        }
+
 
         private void ValidateXml(string xml)
         {

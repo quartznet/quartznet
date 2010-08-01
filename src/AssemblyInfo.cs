@@ -12,10 +12,10 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyProduct("Quarz.NET 1.2")]
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
-[assembly : AssemblyCompany("http://quartznet.sourceforge.net/")]
-[assembly : AssemblyCopyright("Copyright 2001-2009 Terracotta Inc. and partially Marko Lahma")]
-[assembly:  AssemblyTrademark("Apache License, Version 2.0")]
-[assembly : AssemblyCulture("")]
+[assembly: AssemblyCompany("http://quartznet.sourceforge.net/")]
+[assembly: AssemblyCopyright("Copyright 2001-2009 Terracotta Inc. and partially Marko Lahma")]
+[assembly: AssemblyTrademark("Apache License, Version 2.0")]
+[assembly: AssemblyCulture("")]
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
@@ -30,5 +30,5 @@ using System.Runtime.InteropServices;
 #if STRONG
 [assembly: AssemblyDelaySign(false)]
 [assembly: AssemblyKeyFile("Quartz.Net.snk")]
-[assembly:AllowPartiallyTrustedCallers]
+[assembly: System.Security.AllowPartiallyTrustedCallers]
 #endif

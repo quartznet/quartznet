@@ -3,13 +3,20 @@ QUARTZ.NET CHANGELOG
 http://quartznet.sourceforge.net
 
 
-Release 1.2, xx.2010
+Release vNext, xx.2010
 -------------------------------
 
 BREAKING CHANGES
 
+* .NET 1.1 support is dropped, Quartz.NET now requires now runtime 2.0 or later
+* Quartz.NET needs compiler version 3.5 of later due to use of things like extension methods
 * Many public interface methods have changed from returning arrays to generic IList or ISet interfaces
 * When C5 collections were introduced as set-based implementation provider, ISet and ISortedSet interfaces were narrowed (IList inheritance removed)
+
+OTHER NOTABLE CHANGES
+
+* JobInitializationPlugin is now deprecated in favor of XMLSchedulingDataProcessorPlugin, JobInitializationPlugin is still included
+* XMLSchedulingDataProcessorPlugin uses new XML format that allows more control over triggers but no support for calendars
 
 
 Release 1.0.2, Dec 12, 2009

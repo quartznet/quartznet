@@ -1,4 +1,4 @@
-<project name="Quartz.NET" xmlns="http://nant.sf.net/release/0.85/nant.xsd" default="build">
+<project name="Quartz.NET" xmlns="http://nant.sf.net/release/0.90/nant.xsd" default="build">
 
     <call target="init" />
 
@@ -11,8 +11,8 @@
     <!-- Check target framework -->
     <property name="target.framework" value="3.5" overwrite="false" />
 
-    <!-- set global target framework -->
-    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+    <!-- set global target framework to 3.5 by default -->
+    <property name="nant.settings.currentframework" value="net-3.5" />
 
     <!-- Set directories -->
     <property name="dir.src" value="src\" />
@@ -45,7 +45,6 @@
     <property name="defines" value="${defines},NET_20" />
 
     <property name="target.framework" value="2.0" />
-    <property name="nant.settings.currentframework" value="net-${target.framework}" />
     <call target="build-all-csc" />
 
   </target>
@@ -55,7 +54,6 @@
     <property name="defines" value="${defines},NET_20,NET_35" />
 
     <property name="target.framework" value="3.5" />
-    <property name="nant.settings.currentframework" value="net-${target.framework}" />
     <call target="build-all-csc" />
   </target>
 
@@ -64,7 +62,7 @@
     <property name="defines" value="${defines},NET_20,NET_35,NET_40" />
 
     <property name="target.framework" value="4.0" />
-    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+    <property name="nant.settings.currentframework" value="net-4.0" />
     <call target="build-all-csc" />
   </target>
 
