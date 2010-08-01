@@ -1,13 +1,21 @@
 <project name="Quartz.NET" xmlns="http://nant.sf.net/release/0.90/nant.xsd" default="build">
 
-    <call target="init" />
+  <!-- what kind of build -->
+  <property name="build.configuration" value="debug" overwrite="false" />
+  <property name="build.optimize" value="false" overwrite="false" />
+  <property name="build.debug" value="Full" overwrite="false" />
 
-    <target name="init">
+  <!-- whether to use C5 collection library -->
+  <property name="c5-collections" value="true" overwrite="false" />
+  <property name="build.defines" value="DEBUG,TRACE" />
+  <if test="${c5-collections}" >
+    <property name="build.defines" value="${build.defines},C5" />
+  </if>
 
-    <!-- what kind of build -->
-    <property name="configuration" value="Debug" overwrite="false" />
-    <property name="debug" value="true" overwrite="false" />
+  <call target="init" />
 
+  <target name="init">
+   
     <!-- Check target framework -->
     <property name="target.framework" value="3.5" overwrite="false" />
 
@@ -18,11 +26,10 @@
     <property name="dir.src" value="src\" />
     <property name="dir.server.src" value="server\"/>
     <property name="dir.doc" value="doc\" />
-    <property name="dir.build" value="build\${target.framework}\${configuration}" />
+    <property name="dir.build" value="build\${target.framework}\${build.configuration}" />
     <property name="dir.deployment" value="deployment\${target.framework}" />
-    <property name="defines" value="C5" overwrite="false" />
-      
-      
+
+    
     <mkdir dir="${dir.build}" />
 
     <property name="clover.home" value="C:\Program Files\Cenqua\Clover.NET 2.1 for .NET 2.0"/>
@@ -41,8 +48,7 @@
   </target>
 
   <target name="build-2.0">
-    <property name="net20" value="true" />
-    <property name="defines" value="${defines},NET_20" />
+    <property name="build.defines" value="${build.defines},NET_20" />
 
     <property name="target.framework" value="2.0" />
     <call target="build-all-csc" />
@@ -50,16 +56,14 @@
   </target>
 
   <target name="build-3.5">
-    <property name="net20" value="true" />
-    <property name="defines" value="${defines},NET_20,NET_35" />
+    <property name="build.defines" value="${build.defines},NET_20,NET_35" />
 
     <property name="target.framework" value="3.5" />
     <call target="build-all-csc" />
   </target>
 
   <target name="build-4.0">
-    <property name="net20" value="true" />
-    <property name="defines" value="${defines},NET_20,NET_35,NET_40" />
+    <property name="build.defines" value="${build.defines},NET_20,NET_35,NET_40" />
 
     <property name="target.framework" value="4.0" />
     <property name="nant.settings.currentframework" value="net-4.0" />
@@ -67,8 +71,7 @@
   </target>
 
   <target name="build-mono-2.0">
-    <property name="net20" value="true" />
-    <property name="defines" value="${defines},NET_20,MONO" />
+    <property name="build.defines" value="${build.defines},NET_20,MONO" />
 
     <property name="target.framework" value="mono-2.0" />
     <property name="nant.settings.currentframework" value="${target.framework}" />
@@ -78,14 +81,15 @@
 
   <target name="build-quartz" >
 
-    <mkdir dir="build\${target.framework}\${configuration}\Quartz\" />
+    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz\" />
 
     <csc
 		target="library"
-		output="build\${target.framework}\${configuration}\Quartz\Quartz.dll"
-		doc="build\${target.framework}\${configuration}\Quartz\Quartz.xml"
-		debug="${debug}"
-		define="${defines}">
+		output="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll"
+		doc="build\${target.framework}\${build.configuration}\Quartz\Quartz.xml"
+		debug="${build.debug}"
+		define="${build.defines}"
+    optimize="${build.optimize}" >
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -110,14 +114,14 @@
         <include name="System.Runtime.Remoting.dll" />
         <include name="System.Web.dll" />
         <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\2.0\C5.dll" />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
 
-    <copy todir="build\${target.framework}\${configuration}\Quartz\" flatten="true" >
+    <copy todir="build\${target.framework}\${build.configuration}\Quartz\" flatten="true" >
       <fileset>
         <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\2.0\C5.dll" />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
 
@@ -126,13 +130,14 @@
 
   <target name="build-examples" depends="build-quartz">
 
-    <mkdir dir="build\${target.framework}\${configuration}\Quartz.Examples\" />
+    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Examples\" />
 
     <csc
       target="exe"
-      output="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe"
-      debug="${debug}"
-      define="${defines}">
+      output="build\${target.framework}\${build.configuration}\Quartz.Examples\Quartz.Examples.exe"
+      debug="${build.debug}" 
+      optimize="${build.optimize}" 
+      define="${build.defines}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -148,25 +153,25 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\2.0\C5.dll" />
-        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
 
-    <copy todir="build\${target.framework}\${configuration}\Quartz.Examples\" flatten="true" >
+    <copy todir="build\${target.framework}\${build.configuration}\Quartz.Examples\" flatten="true" >
       <fileset>
-        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.*" />
         <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
-    <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
+    <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${build.configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
   </target>
 
 
   <target name="build-server-2.0">
     <property name="lib-dir-version" value="2.0" />
-    <property name="net20" value="true" />
-    <property name="defines" value="NET_20" />
+    <property name="build.defines" value="NET_20" />
 
     <property name="target.framework" value="2.0" />
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
@@ -179,8 +184,7 @@
 
   <target name="build-server-3.5">
     <property name="lib-dir-version" value="2.0" />
-    <property name="net20" value="true" />
-    <property name="defines" value="NET_20,NET_35" />
+    <property name="build.defines" value="NET_20,NET_35" />
 
     <property name="target.framework" value="3.5" />
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
@@ -194,13 +198,14 @@
 
   <target name="build-server-internal" depends="build-quartz">
 
-    <mkdir dir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\" />
+    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}\" />
 
     <csc
       target="exe"
-      output="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe"
-      debug="${debug}"
-      define="${defines}">
+      output="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe"
+      debug="${build.debug}" 
+      optimize="${build.optimize}" 
+      define="${build.defines}">
       <nowarn>
       </nowarn>
       <sources>
@@ -212,20 +217,23 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="lib\2.0\Common.Logging.dll" />
-        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
-    <copy todir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\" flatten="true" >
+    <copy todir="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}\" flatten="true" >
       <fileset>
-        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
+        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.pdb" />
         <include name="lib\2.0\Common.Logging.dll" />
         <include name="lib\2.0\Common.Logging.Log4Net.dll" />
         <include name="lib\other\log4net.dll" />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
-    <copy file="${dir.server.src}\Quartz.Server.${server.project}\App.config" tofile="build\${target.framework}\${configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe.config" />
-    <copy file="${dir.server.src}\Quartz.Server.Core\quartz_jobs.xml" todir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}" />
-    <copy file="${dir.server.src}\Quartz.Server.Core\quartz.config" todir="build\${target.framework}\${configuration}\Quartz.Server.${server.project}" />
+    <copy file="${dir.server.src}\Quartz.Server.${server.project}\App.config" tofile="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe.config" />
+    <copy file="${dir.server.src}\Quartz.Server.Core\quartz_jobs.xml" todir="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}" />
+    <copy file="${dir.server.src}\Quartz.Server.Core\quartz.config" todir="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}" />
 
 
   </target>
@@ -239,9 +247,14 @@
 
   <target name="build-tests-internal" depends="build-quartz">
 
-    <mkdir dir="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\" />
+    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Tests.${test.project}\" />
 
-    <csc target="library" output="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\Quartz.Tests.${test.project}.dll" debug="${debug}" define="${defines}">
+    <csc 
+      target="library" 
+      output="build\${target.framework}\${build.configuration}\Quartz.Tests.${test.project}\Quartz.Tests.${test.project}.dll" 
+      debug="${build.debug}" 
+      optimize="${build.optimize}" 
+      define="${build.defines}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -262,17 +275,19 @@
         <include name="System.Data.dll" />
         <include name="lib\2.0\Common.Logging.dll" />
         <include name="lib\2.0\nunit.framework.dll" />
-        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
         <include name="lib\2.0\Rhino.Mocks.dll"  />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
 
-    <copy todir="build\${target.framework}\${configuration}\Quartz.Tests.${test.project}\" flatten="true" >
+    <copy todir="build\${target.framework}\${build.configuration}\Quartz.Tests.${test.project}\" flatten="true" >
       <fileset>
-        <include name="build\${target.framework}\${configuration}\Quartz\Quartz.dll" />
+        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.*" />
         <include name="lib\2.0\Common.Logging.dll" />
         <include name="lib\2.0\nunit.framework.dll" />
         <include name="lib\2.0\Rhino.Mocks.dll"  />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
 
@@ -287,7 +302,7 @@
   </target>
 
   <target name="unit-internal" depends="build">
-    <property name="test.dll" value="build\${target.framework}\${configuration}\Quartz.Tests.Unit\Quartz.Tests.Unit.dll" />
+    <property name="test.dll" value="build\${target.framework}\${build.configuration}\Quartz.Tests.Unit\Quartz.Tests.Unit.dll" />
     <echo message="Testing dll: ${test.dll}"  />
     <nunit2 verbose="true" failonerror="false">
       <formatter type="Plain" />
@@ -314,7 +329,7 @@
 
   <target name="with-clover">
 
-    <property name="defines" value="DEBUG" overwrite="false" />
+    <property name="build.defines" value="DEBUG" overwrite="false" />
     <loadtasks assembly="${clover.home}\CloverNAnt-0.85.dll"/>
 
     <clover-setup initstring="CloverBuild\clover.cdb"
@@ -397,13 +412,15 @@
 
   <target name="package-release">
 
-    <property name="configuration" value="Release" />
-    <property name="debug" value="false" />
-
-
     <call target="init" />
 
-    <property name="defines" value="STRONG" />
+    <property name="build.configuration" value="release" />
+    <property name="build.optimize" value="true" />
+    <property name="build.debug" value="PdbOnly" />
+    <property name="build.defines" value="TRACE,STRONG" />
+    <if test="${c5-collections}" >
+      <property name="build.defines" value="${build.defines},C5" />
+    </if>
 
     <call target="clean" />
     <call target="build-2.0" />
@@ -433,42 +450,41 @@
         <exclude name="**/_svn/**" />
         <exclude name="**/*.suo" />
         <exclude name="**/*.user" />
-        <exclude name="**/*.pdb" />
       </fileset>
     </copy>
 
     <copy todir="package\server\bin\2.0\console" flatten="true">
       <fileset>
-        <include name="build\2.0\${configuration}\Quartz.Server.Console\**" />
+        <include name="build\2.0\${build.configuration}\Quartz.Server.Console\**" />
       </fileset>
     </copy>
 
     <copy todir="package\server\bin\3.5\console" flatten="true">
       <fileset>
-        <include name="build\3.5\${configuration}\Quartz.Server.Console\**" />
+        <include name="build\3.5\${build.configuration}\Quartz.Server.Console\**" />
       </fileset>
     </copy>
 
 
     <copy todir="package\server\bin\2.0\service" flatten="true">
       <fileset>
-        <include name="build\2.0\${configuration}\Quartz.Server.Service\**" />
+        <include name="build\2.0\${build.configuration}\Quartz.Server.Service\**" />
       </fileset>
     </copy>
 
     <copy todir="package\server\bin\3.5\service" flatten="true">
       <fileset>
-        <include name="build\3.5\${configuration}\Quartz.Server.Service\**" />
+        <include name="build\3.5\${build.configuration}\Quartz.Server.Service\**" />
       </fileset>
     </copy>
 
-	<copy todir="package\doc\xml" flatten="true">
+    <copy todir="package\doc\xml" flatten="true">
       <fileset>
         <include name="src\**\job_scheduling_data*.xsd" />
       </fileset>
     </copy>
-	
-	<copy file="src\Quartz.Tests.Unit\Xml\TestData\RichConfiguration.xml" tofile="package\doc\xml\quartz_sample.xml" />
+
+    <copy file="src\Quartz.Tests.Unit\Xml\TestData\RichConfiguration.xml" tofile="package\doc\xml\quartz_sample.xml" />
 
     <!-- sorry *nix folks, couldn't get move to work as expected.. -->
     <exec program="cmd" commandline="/c move package\build package\bin" />
@@ -482,8 +498,7 @@
   </target>
 
   <target name="build-all-csc">
-    <property name="defines" value="" overwrite="false" />
-    <property name="net20" value="false" overwrite="false" />
+    <property name="build.defines" value="" overwrite="false" />
     <property name="lib-dir-version" value="${target.framework}" overwrite="false" />
 
     <call target="build-quartz" />
