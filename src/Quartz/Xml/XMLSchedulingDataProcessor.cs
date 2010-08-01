@@ -171,7 +171,11 @@ namespace Quartz.Xml
         /// <param name="systemId">The system id.</param>
         public virtual void ProcessFile(string fileName, string systemId)
         {
+            // resolve file name first
+            fileName = FileUtil.ResolveFile(fileName);
+
             Log.InfoFormat(CultureInfo.InvariantCulture, "Parsing XML file: {0} with systemId: {1}", fileName, systemId);
+
             using (StreamReader sr = new StreamReader(fileName))
             {
                 ProcessInternal(sr.ReadToEnd());
@@ -490,16 +494,7 @@ namespace Quartz.Xml
 
         protected virtual int ParseSimpleTriggerRepeatCount(string repeatcount)
         {
-            int value;
-            if (repeatcount == "RepeatIndefinitely")
-            {
-                value = SimpleTrigger.RepeatIndefinitely;
-            }
-            else
-            {
-                value = Convert.ToInt32(repeatcount, CultureInfo.InvariantCulture);
-            }
-
+            int value = Convert.ToInt32(repeatcount, CultureInfo.InvariantCulture);
             return value;
         }
 
@@ -543,30 +538,37 @@ namespace Quartz.Xml
 
         private void ValidateXml(string xml)
         {
-            // stream to validate
-            using (StringReader stringReader = new StringReader(xml))
+            try
             {
-                XmlReaderSettings settings = new XmlReaderSettings();
-                settings.ValidationType = ValidationType.Schema;
-                settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessInlineSchema;
-                settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
-                settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
-
-                Stream stream = GetType().Assembly.GetManifestResourceStream(QuartzXsdResourceName);
-                XmlSchema schema = XmlSchema.Read(stream, XmlValidationCallBack);
-                settings.Schemas.Add(schema);
-                settings.ValidationEventHandler += XmlValidationCallBack;
-
-
-                XmlReader reader = XmlTextReader.Create(stringReader, settings);
-
-                // Read XML data
-                while (reader.Read())
+                // stream to validate
+                using (StringReader stringReader = new StringReader(xml))
                 {
-                }
+                    XmlReaderSettings settings = new XmlReaderSettings();
+                    settings.ValidationType = ValidationType.Schema;
+                    settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessInlineSchema;
+                    settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
+                    settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
 
-                //Close the reader.
-                reader.Close();
+                    Stream stream = GetType().Assembly.GetManifestResourceStream(QuartzXsdResourceName);
+                    XmlSchema schema = XmlSchema.Read(stream, XmlValidationCallBack);
+                    settings.Schemas.Add(schema);
+                    settings.ValidationEventHandler += XmlValidationCallBack;
+
+
+                    XmlReader reader = XmlTextReader.Create(stringReader, settings);
+
+                    // Read XML data
+                    while (reader.Read())
+                    {
+                    }
+
+                    //Close the reader.
+                    reader.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Warn("Unable to validate XML with schema: " + ex.Message, ex);
             }
         }
 

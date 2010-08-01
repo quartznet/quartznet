@@ -78,6 +78,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
     </Reference>
+    <Reference Include="log4net, Version=1.2.10.0, Culture=neutral, PublicKeyToken=1b44e1d426115821">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\other\log4net.dll</HintPath>
+    </Reference>
     <Reference Include="System">
       <Name>System</Name>
     </Reference>
@@ -106,6 +110,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="QuartzServerFactory.cs" />
+    <Compile Include="SampleJob.cs" />
     <Content Include="quartz_jobs.xml" />
   </ItemGroup>
   <ItemGroup>

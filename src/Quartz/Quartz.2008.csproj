@@ -66,7 +66,7 @@
     <WarningLevel>3</WarningLevel>
     <DebugType>full</DebugType>
     <ErrorReport>prompt</ErrorReport>
-    <PlatformTarget>x86</PlatformTarget>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>..\..\build\3.5\Release\Quartz\</OutputPath>
@@ -458,9 +458,8 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
-    <None Include="Xml\job_scheduling_data_1_0.xsd" />
-    <None Include="Xml\job_scheduling_data_2_0.xsd" />
+    <EmbeddedResource Include="Xml\job_scheduling_data_1_0.xsd" />
+    <EmbeddedResource Include="Xml\job_scheduling_data_2_0.xsd" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
