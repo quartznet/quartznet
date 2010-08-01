@@ -49,7 +49,7 @@ namespace Quartz
 	/// <see cref="IScheduler.GetCurrentlyExecutingJobs()" />
 	/// method. These are the same instances as those past into the jobs that are
 	/// currently executing within the scheduler. The exception to this is when your
-	/// application is using Quartz remotely (i.e. via RMI) - in which case you get
+	/// application is using Quartz remotely (i.e. via remoting or WCF) - in which case you get
 	/// a clone of the <see cref="JobExecutionContext" />s, and their references to
 	/// the <see cref="IScheduler" /> and <see cref="IJob" /> instances have been lost (a
 	/// clone of the <see cref="JobDetail" /> is still available - just not a handle

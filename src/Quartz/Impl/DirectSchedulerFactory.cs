@@ -195,9 +195,9 @@ namespace Quartz.Impl
 			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, TimeSpan.Zero, TimeSpan.Zero);
 		}
 
-        		/// <summary>
+        /// <summary>
 		/// Creates a scheduler using the specified thread pool and job store and
-		/// binds it to RMI.
+		/// binds it for remote access.
 		/// </summary>
 		/// <param name="schedulerName">The name for the scheduler.</param>
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
@@ -215,7 +215,7 @@ namespace Quartz.Impl
 
 	    /// <summary>
 		/// Creates a scheduler using the specified thread pool and job store and
-		/// binds it to RMI.
+        /// binds it for remote access.
 		/// </summary>
 		/// <param name="schedulerName">The name for the scheduler.</param>
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>

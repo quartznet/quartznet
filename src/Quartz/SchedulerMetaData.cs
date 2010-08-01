@@ -215,7 +215,7 @@ namespace Quartz
 			str.Append("'");
 			if (SchedulerRemote)
 			{
-				str.Append(" - access via RMI.");
+                str.Append(" - access via remote incovation.");
 			}
 			else
 			{

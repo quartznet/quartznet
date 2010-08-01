@@ -47,7 +47,7 @@
     </TargetFrameworkSubset>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <OutputPath>..\..\build\2.0\Debug\Quartz\</OutputPath>
+    <OutputPath>..\..\build\3.5\Debug\Quartz\</OutputPath>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
@@ -69,7 +69,7 @@
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <OutputPath>..\..\build\2.0\Release\Quartz\</OutputPath>
+    <OutputPath>..\..\build\3.5\Release\Quartz\</OutputPath>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <BaseAddress>285212672</BaseAddress>
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
@@ -381,6 +381,7 @@
     <Compile Include="Impl\AdoJobStore\Common\DbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
+    <Compile Include="Impl\AdoJobStore\ConnectionAndTransactionHolder.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
     <Compile Include="Impl\AdoJobStore\MySQLDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\OracleDelegate.cs" />
@@ -406,6 +407,8 @@
     <Compile Include="Impl\SchedulerDetailsSetter.cs" />
     <Compile Include="MisfireInstruction.cs" />
     <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
+    <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPlugin.cs" />
+    <Compile Include="SPI\TriggerFiredResult.cs" />
     <Compile Include="SystemTime.cs" />
     <Compile Include="TimeSpanParseRuleAttribute.cs" />
     <Compile Include="SchedulerConstants.cs" />
@@ -417,29 +420,25 @@
     <Compile Include="Util\DateTimeUtil.cs" />
     <Compile Include="Util\FileUtil.cs" />
     <Compile Include="Util\LogicalThreadContext.cs" />
+    <Compile Include="Util\StringExtensions.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
     <Compile Include="Xml\CalendarBundle.cs" />
     <Compile Include="Xml\JobSchedulingBundle.cs" />
     <Compile Include="Xml\JobSchedulingDataProcessor.cs" />
-    <Compile Include="Xml\job_scheduling_data.cs">
-      <DependentUpon>job_scheduling_data.xsd</DependentUpon>
+    <Compile Include="Xml\job_scheduling_data_1_0.cs">
+      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
+    </Compile>
+    <Compile Include="Xml\job_scheduling_data_2_0.cs">
+      <DependentUpon>job_scheduling_data_2_0.xsd</DependentUpon>
     </Compile>
     <Compile Include="Xml\ValidationException.cs" />
+    <Compile Include="Xml\XMLSchedulingDataProcessor.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="quartz.config" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.properties" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Xml\job_scheduling_data.xsd">
-      <SubType>
-      </SubType>
-    </EmbeddedResource>
-    <None Include="Xml\job_scheduling_data.xsx">
-      <DependentUpon>job_scheduling_data.xsd</DependentUpon>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
@@ -457,6 +456,11 @@
       <ProductName>.NET Framework 3.5</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
+    <None Include="Xml\job_scheduling_data_1_0.xsd" />
+    <None Include="Xml\job_scheduling_data_2_0.xsd" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
