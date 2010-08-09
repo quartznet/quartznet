@@ -45,22 +45,19 @@ namespace Quartz.Impl
     /// <remarks>
     /// <p>
     /// By default a properties are loaded from App.config's quartz section. 
-    /// If that fails, then the "quartz.properties"
-    /// file located (as a embedded resource) in Quartz.dll is loaded. If you
+    /// If that fails, then the file is loaded "quartz.properties". If file does not exist,
+    /// default configration located (as a embedded resource) in Quartz.dll is loaded. If you
     /// wish to use a file other than these defaults, you must define the system
     /// property 'quartz.properties' to point to the file you want.
     /// </p>
-    /// 
     /// <p>
     /// See the sample properties that are distributed with Quartz for
     /// information about the various settings available within the file.
     /// </p>
-    /// 
     /// <p>
     /// Alternativly, you can explicitly Initialize the factory by calling one of
     /// the <see cref="Initialize()" /> methods before calling <see cref="GetScheduler()" />.
     /// </p>
-    /// 
     /// <p>
     /// Instances of the specified <see cref="IJobStore" />,
     /// <see cref="IThreadPool" />, classes will be created
@@ -108,13 +105,11 @@ namespace Quartz.Impl
         public const string PropertyJobStoreLockHandlerType = PropertyJobStoreLockHandlerPrefix + ".type";
         public const string PropertyTablePrefix = "tablePrefix";
         public const string PropertyJobStoreType = "quartz.jobStore.type";
-        public const string PropertyJobStoreUseProperties = "quartz.jobStore.useProperties";
         public const string PropertyDataSourcePrefix = "quartz.dataSource";
         public const string PropertyDbProviderType = "connectionProvider.type";
         public const string PropertyDataSourceProvider = "provider";
         public const string PropertyDataSourceConnectionString = "connectionString";
         public const string PropertyDataSourceConnectionStringName = "connectionStringName";
-        public const string PropertyDataSourceValidationQuery = "validationQuery";
         public const string PropertyPluginPrefix = "quartz.plugin";
         public const string PropertyPluginType = "type";
         public const string PropertyJobListenerPrefix = "quartz.jobListener";
@@ -285,7 +280,7 @@ Please add configuration to your application config file to correctly initialize
             ValidateConfiguration();
         }
 
-        private void ValidateConfiguration()
+        protected virtual void ValidateConfiguration()
         {
             if (!cfg.GetBooleanProperty(PropertyCheckConfiguration, true))
             {
@@ -303,7 +298,7 @@ Please add configuration to your application config file to correctly initialize
             foreach (FieldInfo field in fields)
             {
                 string value = (string) field.GetValue(null);
-                if (value != null && value.StartsWith(ConfigurationKeyPrefix))
+                if (value != null && value.StartsWith(ConfigurationKeyPrefix) && value != ConfigurationKeyPrefix)
                 {
                     supportedKeys.Add(value);
                 }
@@ -375,15 +370,12 @@ Please add configuration to your application config file to correctly initialize
             if (schedInstId.Equals(AutoGenerateInstanceId))
             {
                 autoId = true;
-                instanceIdGeneratorType =
-                    cfg.GetStringProperty(PropertySchedulerInstanceIdGeneratorType,
-                                          "Quartz.Simpl.SimpleInstanceIdGenerator, Quartz");
+                instanceIdGeneratorType = cfg.GetStringProperty(PropertySchedulerInstanceIdGeneratorType, "Quartz.Simpl.SimpleInstanceIdGenerator, Quartz");
             }
 
 
             typeLoadHelperType =
-                cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType,
-                                      "Quartz.Simpl.SimpleTypeLoadHelper, Quartz");
+                cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType, "Quartz.Simpl.SimpleTypeLoadHelper, Quartz");
             jobFactoryType = cfg.GetStringProperty(PropertySchedulerJobFactoryType, null);
 
             idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
@@ -642,8 +634,7 @@ Please add configuration to your application config file to correctly initialize
 
             SchedulerDetailsSetter.SetDetails(js, schedName, schedInstId);
 
-            tProps =
-                cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new string[] {PropertyJobStoreLockHandlerPrefix});
+            tProps = cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new string[] {PropertyJobStoreLockHandlerPrefix});
             
             try
             {
