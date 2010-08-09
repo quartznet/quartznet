@@ -40,7 +40,7 @@ namespace Quartz.Core
         private IThreadPool threadPool;
         private IJobStore jobStore;
         private IJobRunShellFactory jobRunShellFactory;
-        private readonly List<ISchedulerPlugin> schedulerPlugins = new List<ISchedulerPlugin>(10);
+        private readonly IList<ISchedulerPlugin> schedulerPlugins = new List<ISchedulerPlugin>(10);
         private bool makeSchedulerThreadDaemon;
 	    private ISchedulerExporter exporter;
         private TimeSpan batchTimeWindow;

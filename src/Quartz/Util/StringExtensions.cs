@@ -41,5 +41,10 @@ namespace Quartz.Util
 
             return s;
         }
+
+        public static bool IsNullOrWhiteSpace(this string s)
+        {
+            return s == null || s.Trim().Length == 0;
+        }
     }
 }

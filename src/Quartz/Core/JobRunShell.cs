@@ -125,14 +125,7 @@ namespace Quartz.Core
 		/// </summary>
 		public virtual void Run()
 		{
-            try
-            {
-                scheduler.AddSchedulerListener(this);
-            }
-            catch (SchedulerException)
-            {
-                // can never happen on a local scheduler - which by definition this will be (since we are executing on it)
-            }
+            qs.AddInternalSchedulerListener(this);
 
             try
             {
@@ -302,14 +295,7 @@ namespace Quartz.Core
             }
 		    finally
             {
-                try
-                {
-                    scheduler.RemoveSchedulerListener(this);
-                }
-                catch (SchedulerException)
-                {
-                    // can never happen on a local scheduler - which by definition this will be (since we are executing on it)
-                }
+                qs.RemoveInternalSchedulerListener(this);
                 jobRunShellFactory.ReturnJobRunShell(this);
             }
 		}

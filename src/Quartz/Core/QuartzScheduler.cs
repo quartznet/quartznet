@@ -33,6 +33,7 @@ using Quartz.Impl;
 using Quartz.Listener;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Core
 {
@@ -59,7 +60,12 @@ namespace Quartz.Core
 
         private readonly IDictionary<string, IJobListener> globalJobListeners = new Dictionary<string, IJobListener>(10);
         private readonly IDictionary<string, ITriggerListener> globalTriggerListeners = new Dictionary<string, ITriggerListener>(10);
-        private readonly List<ISchedulerListener> schedulerListeners = new List<ISchedulerListener>(10);
+        private readonly IList<ISchedulerListener> schedulerListeners = new List<ISchedulerListener>(10);
+        
+        private IDictionary<string, IJobListener> internalJobListeners = new Dictionary<string, IJobListener>(10);
+        private IDictionary<string, ITriggerListener> internalTriggerListeners = new Dictionary<String, ITriggerListener>(10);
+        private IList<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
+
         private IJobFactory jobFactory = new SimpleJobFactory();
         private readonly ExecutingJobsManager jobMgr;
         private readonly ErrorLogger errLogger;
@@ -234,7 +240,7 @@ namespace Quartz.Core
 
         /// <summary>
         /// Get a List containing all of the <see cref="IJobListener" />
-        /// s in the <see cref="IScheduler" />'s<i>global</i> list.
+        /// s in the <see cref="IScheduler" />'s <i>global</i> list.
         /// </summary>
         public virtual IList<IJobListener> GlobalJobListeners
         {
@@ -251,13 +257,15 @@ namespace Quartz.Core
         {
             lock (globalJobListeners)
             {
-                return globalJobListeners[name];
+                IJobListener jobListener;
+                globalJobListeners.TryGetValue(name, out jobListener);
+                return jobListener;
             }
         }
 
         /// <summary>
-        /// Get a list containing all of the <see cref="ITriggerListener" />
-        /// s in the <see cref="IScheduler" />'s<i>global</i> list.
+        /// Get a list containing all of the <see cref="ITriggerListener" />s 
+        /// in the <see cref="IScheduler" />'s <i>global</i> list.
         /// </summary>
         public virtual IList<ITriggerListener> GlobalTriggerListeners
         {
@@ -271,8 +279,8 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Get a list containing all of the <see cref="ISchedulerListener" />
-        /// s registered with the <see cref="IScheduler" />.
+        /// Get a list containing all of the <see cref="ISchedulerListener" />s
+        /// registered with the <see cref="IScheduler" />.
         /// </summary>
         public virtual IList<ISchedulerListener> SchedulerListeners
         {
@@ -281,6 +289,48 @@ namespace Quartz.Core
                 lock (schedulerListeners)
                 {
                     return new List<ISchedulerListener>(schedulerListeners);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Register the given <see cref="ISchedulerListener" /> with the
+        /// <see cref="IScheduler" />'s list of internal listeners.
+        /// </summary>
+        /// <param name="schedulerListener"></param>
+        public void AddInternalSchedulerListener(ISchedulerListener schedulerListener)
+        {
+            lock (internalSchedulerListeners)
+            {
+                internalSchedulerListeners.Add(schedulerListener);
+            }
+        }
+
+        /// <summary>
+        /// Remove the given <see cref="ISchedulerListener" /> from the
+        /// <see cref="IScheduler" />'s list of internal listeners.
+        /// </summary>
+        /// <param name="schedulerListener"></param>
+        /// <returns>true if the identified listener was found in the list, andremoved.</returns>
+        public bool RemoveInternalSchedulerListener(ISchedulerListener schedulerListener)
+        {
+            lock (internalSchedulerListeners)
+            {
+                return internalSchedulerListeners.Remove(schedulerListener);
+            }
+        }
+
+        /// <summary>
+        /// Get a List containing all of the <i>internal</i> <see cref="ISchedulerListener" />s
+        /// registered with the <see cref="IScheduler" />.
+        /// </summary>
+        public IList<ISchedulerListener> InternalSchedulerListeners
+        {
+            get
+            {
+                lock (internalSchedulerListeners)
+                {
+                    return new List<ISchedulerListener>(internalSchedulerListeners).AsReadOnly();
                 }
             }
         }
@@ -1365,10 +1415,6 @@ namespace Quartz.Core
         /// <summary>
         /// Add the given <see cref="IJobListener" /> to the
         /// <see cref="IScheduler" />'s<i>global</i> list.
-        /// <p>
-        /// Listeners in the 'global' list receive notification of execution events
-        /// for ALL <see cref="IJob" />s.
-        /// </p>
         /// </summary>
         public void AddGlobalJobListener(IJobListener jobListener)
         {
@@ -1378,7 +1424,7 @@ namespace Quartz.Core
             }
             lock (globalJobListeners)
             {
-                globalJobListeners.Add(jobListener.Name, jobListener);
+                globalJobListeners[jobListener.Name] = jobListener;
             }
         }
 
@@ -1403,16 +1449,76 @@ namespace Quartz.Core
         }
 
         /// <summary>
+        /// Add the given <see cref="IJobListener" /> to the
+        /// <see cref="IScheduler" />'s <i>internal</i> list.
+        /// </summary>
+        /// <param name="jobListener"></param>
+        public void AddInternalJobListener(IJobListener jobListener)
+        {
+            if (jobListener.Name.IsNullOrWhiteSpace())
+            {
+                throw new ArgumentException("JobListener name cannot be empty.", "jobListener");
+            }
+
+            lock (internalJobListeners)
+            {
+                internalJobListeners[jobListener.Name] = jobListener;
+            }
+        }
+
+        /// <summary>
+        /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
+        /// list of <i>internal</i> listeners.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns>true if the identified listener was found in the list, and removed.</returns>
+        public bool RemoveInternalJobListener(string name)
+        {
+            lock (internalJobListeners)
+            {
+                return internalJobListeners.Remove(name);
+            }
+        }
+
+        /// <summary>
+        /// Get a List containing all of the <code>{@link org.quartz.JobListener}</code>s
+        /// in the <code>Scheduler</code>'s <i>internal</i> list.
+        /// </summary>
+        /// <returns></returns>
+        public IList<IJobListener> InternalJobListeners
+        {
+            get
+            {
+                lock (internalJobListeners)
+                {
+                    return new List<IJobListener>(internalJobListeners.Values).AsReadOnly();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get the <i>internal</i> <see cref="IJobListener" />
+        /// that has the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public IJobListener GetInternalJobListener(string name)
+        {
+            lock (internalJobListeners)
+            {
+                IJobListener listener;
+                internalJobListeners.TryGetValue(name, out listener);
+                return listener;
+            }
+        }
+    
+        /// <summary>
         /// Add the given <see cref="ITriggerListener" /> to the
-        /// <see cref="IScheduler" />'s<i>global</i> list.
-        /// <p>
-        /// Listeners in the 'global' list receive notification of execution events
-        /// for ALL <see cref="Trigger" />s.
-        /// </p>
+        /// <see cref="IScheduler" />'s <i>global</i> list.
         /// </summary>
         public virtual void AddGlobalTriggerListener(ITriggerListener triggerListener)
         {
-            if (triggerListener.Name == null || triggerListener.Name.Trim().Length == 0)
+            if (triggerListener.Name.IsNullOrWhiteSpace())
             {
                 throw new ArgumentException("TriggerListener name cannot be empty.");
             }
@@ -1424,22 +1530,16 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        ///  Remove the identifed <see cref="ITriggerListener" /> from the <see cref="IScheduler" />'s
+        /// Remove the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />'s
         /// list of <i>global</i> listeners.
         /// </summary>
         /// <param name="name"></param>
-        /// <returns> true if the identifed listener was found in the list, and removed</returns>
+        /// <returns> true if the identified listener was found in the list, and removed</returns>
         public bool RemoveGlobalTriggerListener(string name)
         {
             lock (globalTriggerListeners)
             {
-                if (globalTriggerListeners.ContainsKey(name))
-                {
-                    globalTriggerListeners.Remove(name);
-                    return true;
-                }
-                
-                return false;
+                return globalTriggerListeners.Remove(name);
             }
         }
 
@@ -1453,10 +1553,75 @@ namespace Quartz.Core
         {
             lock (globalTriggerListeners)
             {
-                return globalTriggerListeners[name];
+                ITriggerListener triggerListener;
+                globalTriggerListeners.TryGetValue(name, out triggerListener);
+                return triggerListener;
             }
         }
-    
+
+        /// <summary>
+        /// Add the given <code>{@link org.quartz.TriggerListener}</code> to the
+        /// <code>Scheduler</code>'s <i>internal</i> list.
+        /// </summary>
+        /// <param name="triggerListener"></param>
+        public void AddInternalTriggerListener(ITriggerListener triggerListener)
+        {
+            if (triggerListener.Name.IsNullOrWhiteSpace())
+            {
+                throw new ArgumentException("TriggerListener name cannot be empty.", "triggerListener");
+            }
+
+            lock (internalTriggerListeners)
+            {
+                internalTriggerListeners[triggerListener.Name] = triggerListener;
+            }
+        }
+
+        /// <summary>
+        /// Remove the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />'s
+        /// list of <i>internal</i> listeners.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns>true if the identified listener was found in the list, and removed.</returns>
+        public bool RemoveinternalTriggerListener(string name)
+        {
+            lock (internalTriggerListeners)
+            {
+                return internalTriggerListeners.Remove(name);
+            }
+        }
+
+        /// <summary>
+        /// Get a list containing all of the <see cref="ITriggerListener" />s
+        /// in the <see cref="IScheduler" />'s <i>internal</i> list.
+        /// </summary>
+        public IList<ITriggerListener> InternalTriggerListeners
+        {
+            get
+            {
+                lock (internalTriggerListeners)
+                {
+                    return new List<ITriggerListener>(internalTriggerListeners.Values).AsReadOnly();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get the <i>internal</i> <code>{@link TriggerListener}</code> that
+        /// has the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public ITriggerListener GetInternalTriggerListener(string name)
+        {
+            lock (internalTriggerListeners)
+            {
+                ITriggerListener triggerListener;
+                internalTriggerListeners.TryGetValue(name, out triggerListener);
+                return triggerListener;
+            }
+        }
+
         /// <summary>
         /// Register the given <see cref="ISchedulerListener" /> with the
         /// <see cref="IScheduler" />.
@@ -1516,16 +1681,29 @@ namespace Quartz.Core
             }
         }
 
-        private IList<ITriggerListener> BuildTriggerListenerList()
+        private IEnumerable<ITriggerListener> BuildTriggerListenerList()
         {
-            IList<ITriggerListener> listeners = GlobalTriggerListeners;
+            List<ITriggerListener> listeners = new List<ITriggerListener>();
+            listeners.AddRange(GlobalTriggerListeners);
+            listeners.AddRange(InternalTriggerListeners);
             return listeners;
         }
 
         private IEnumerable<IJobListener> BuildJobListenerList()
         {
-            IList<IJobListener> listeners = GlobalJobListeners;
+            List<IJobListener> listeners = new List<IJobListener>();
+            listeners.AddRange(GlobalJobListeners);
+            listeners.AddRange(InternalJobListeners);
             return listeners;
+        }
+
+
+        private IList<ISchedulerListener> BuildSchedulerListenerList()
+        {
+            List<ISchedulerListener> allListeners = new List<ISchedulerListener>();
+            allListeners.AddRange(SchedulerListeners);
+            allListeners.AddRange(InternalSchedulerListeners);
+            return allListeners;
         }
 
         /// <summary>
@@ -1538,7 +1716,7 @@ namespace Quartz.Core
             bool vetoedExecution = false;
 
             // build a list of all trigger listeners that are to be notified...
-            IList<ITriggerListener> listeners = BuildTriggerListenerList();
+            IEnumerable<ITriggerListener> listeners = BuildTriggerListenerList();
 
             // notify all trigger listeners in the list
             foreach (ITriggerListener tl in listeners)
@@ -1570,7 +1748,7 @@ namespace Quartz.Core
         public virtual void NotifyTriggerListenersMisfired(Trigger trigger)
         {
             // build a list of all trigger listeners that are to be notified...
-            IList<ITriggerListener> listeners = BuildTriggerListenerList();
+            IEnumerable<ITriggerListener> listeners = BuildTriggerListenerList();
 
             // notify all trigger listeners in the list
             foreach (ITriggerListener tl in listeners)
@@ -1595,7 +1773,7 @@ namespace Quartz.Core
         public virtual void NotifyTriggerListenersComplete(JobExecutionContext jec, SchedulerInstruction instCode)
         {
             // build a list of all trigger listeners that are to be notified...
-            IList<ITriggerListener> listeners = BuildTriggerListenerList();
+            IEnumerable<ITriggerListener> listeners = BuildTriggerListenerList();
 
             // notify all trigger listeners in the list
             foreach (ITriggerListener tl in listeners)
@@ -1693,7 +1871,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersError(string msg, SchedulerException se)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1717,7 +1895,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersScheduled(Trigger trigger)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1741,7 +1919,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersUnscheduled(string triggerName, string triggerGroup)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1765,7 +1943,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersFinalized(Trigger trigger)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1789,7 +1967,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersPausedTrigger(string name, string group)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1813,7 +1991,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersResumedTrigger(string name, string group)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1837,7 +2015,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersPausedJob(string name, string group)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1861,7 +2039,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersResumedJob(string name, string group)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1880,7 +2058,7 @@ namespace Quartz.Core
         public void NotifySchedulerListenersInStandbyMode()
         {
             // notify all scheduler listeners
-            foreach (ISchedulerListener listener in SchedulerListeners)
+            foreach (ISchedulerListener listener in BuildSchedulerListenerList())
             {
                 try
                 {
@@ -1896,7 +2074,7 @@ namespace Quartz.Core
         public void NotifySchedulerListenersStarted()
         {
             // notify all scheduler listeners
-            foreach (ISchedulerListener listener in SchedulerListeners)
+            foreach (ISchedulerListener listener in BuildSchedulerListenerList())
             {
                 try
                 {
@@ -1915,7 +2093,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersShutdown()
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1935,7 +2113,7 @@ namespace Quartz.Core
         public void NotifySchedulerListenersShuttindown()
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = SchedulerListeners;
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1955,7 +2133,7 @@ namespace Quartz.Core
         public void NotifySchedulerListenersJobAdded(JobDetail jobDetail)
         {
             // notify all scheduler listeners
-            foreach (ISchedulerListener listener in SchedulerListeners)
+            foreach (ISchedulerListener listener in BuildSchedulerListenerList())
             {
                 try
                 {
@@ -1971,7 +2149,7 @@ namespace Quartz.Core
         public void NotifySchedulerListenersJobDeleted(String jobName, String groupName)
         {
             // notify all scheduler listeners
-            foreach (ISchedulerListener listener in SchedulerListeners)
+            foreach (ISchedulerListener listener in BuildSchedulerListenerList())
             {
                 try
                 {
