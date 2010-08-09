@@ -79,6 +79,7 @@ namespace Quartz.Impl
     /// <author>Marko Lahma (.NET)</author>
     public class StdSchedulerFactory : ISchedulerFactory
     {
+        private const string ConfigurationKeyPrefix = "quartz.";
         public const string PropertiesFile = "quartz.config";
         public const string PropertySchedulerInstanceName = "quartz.scheduler.instanceName";
         public const string PropertySchedulerInstanceId = "quartz.scheduler.instanceId";
@@ -120,6 +121,7 @@ namespace Quartz.Impl
         public const string PropertyTriggerListenerPrefix = "quartz.triggerListener";
         public const string PropertyListenerType = "type";
         public const string DefaultInstanceId = "NON_CLUSTERED";
+        public const string PropertyCheckConfiguration = "quartz.checkConfiguration";
         public const string AutoGenerateInstanceId = "AUTO";
         private SchedulerException initException;
 
@@ -202,7 +204,6 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-
             NameValueCollection props = (NameValueCollection) ConfigurationManager.GetSection("quartz");
 
             string requestedFile = Environment.GetEnvironmentVariable(PropertiesFile);
@@ -281,6 +282,57 @@ Please add configuration to your application config file to correctly initialize
         public virtual void Initialize(NameValueCollection props)
         {
             cfg = new PropertiesParser(props);
+            ValidateConfiguration();
+        }
+
+        private void ValidateConfiguration()
+        {
+            if (!cfg.GetBooleanProperty(PropertyCheckConfiguration, true))
+            {
+                // should not validate
+                return;
+            }
+
+            // determine currently supported configuration keys via reflection
+            List<string> supportedKeys = new List<string>();
+            List<FieldInfo> fields = new List<FieldInfo>(GetType().GetFields(BindingFlags.Static | BindingFlags.Public));
+            // choose constant string fields
+            fields = fields.FindAll(field => field.FieldType == typeof (string));
+
+            // read value from each field
+            foreach (FieldInfo field in fields)
+            {
+                string value = (string) field.GetValue(null);
+                if (value != null && value.StartsWith(ConfigurationKeyPrefix))
+                {
+                    supportedKeys.Add(value);
+                }
+            }
+
+            // now check against allowed))
+            foreach (string configurationKey in cfg.UnderlyingProperties.AllKeys)
+            {
+                if (!configurationKey.StartsWith(ConfigurationKeyPrefix))
+                {
+                    // don't bother if truly unknown property
+                    continue;
+                }
+
+                bool isMatch = false;
+                foreach (string supportedKey in supportedKeys)
+                {
+                    if (configurationKey.StartsWith(supportedKey, StringComparison.InvariantCulture))
+                    {
+                        isMatch = true;
+                        break;
+                    }
+                }
+                if (!isMatch)
+                {
+                    throw new SchedulerConfigException("Unknown configuration property '" + configurationKey + "'");
+                }
+            }
+
         }
 
         /// <summary>  </summary>
@@ -1013,7 +1065,6 @@ Please add configuration to your application config file to correctly initialize
         /// <summary>
         /// Returns a handle to the Scheduler produced by this factory.
         /// </summary>
-        /// 
         /// <remarks>
         /// If one of the <see cref="Initialize()" /> methods has not be previously
         /// called, then the default (no-arg) <see cref="Initialize()" /> method

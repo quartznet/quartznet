@@ -47,5 +47,43 @@ namespace Quartz.Tests.Unit.Impl
             factory.GetScheduler();
         }
         
+        [Test]
+        [ExpectedException(
+            ExpectedException = typeof(SchedulerConfigException),
+            ExpectedMessage = "Unknown configuration property 'quartz.unknown.property'")]
+        public void TestFactoryShouldThrowConfigurationErrorIfUnknownQuartzSetting()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.unknown.property"] = "1";
+            new StdSchedulerFactory(properties);
+        }
+
+        [Test]
+        [ExpectedException(
+            ExpectedException = typeof(SchedulerConfigException),
+            ExpectedMessage = "Unknown configuration property 'quartz.jobstore.type'")]
+        public void TestFactoryShouldThrowConfigurationErrorIfCaseErrorInQuartzSetting()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobstore.type"] = "";
+            new StdSchedulerFactory(properties);
+        }
+
+        [Test]
+        public void TestFactoryShouldNotThrowConfigurationErrorIfUnknownQuartzSettingAndCheckingTurnedOff()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.checkConfiguration"] = "false";
+            properties["quartz.unknown.property"] = "1";
+            new StdSchedulerFactory(properties);
+        }
+
+        [Test]
+        public void TestFactoryShouldNotThrowConfigurationErrorIfNotQuartzPrefixedProperty()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["my.unknown.property"] = "1";
+            new StdSchedulerFactory(properties);
+        }
     }
 }
