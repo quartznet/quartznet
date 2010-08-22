@@ -10,21 +10,19 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("net-2.0.win32; Release")]
 #endif
 
-[assembly: AssemblyProduct("Quarz.NET 1.2")]
+[assembly: AssemblyProduct("Quarz.NET 2.0")]
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
 [assembly: AssemblyCompany("http://quartznet.sourceforge.net/")]
-[assembly: AssemblyCopyright("Copyright 2001-2009 Terracotta Inc. and partially Marko Lahma")]
+[assembly: AssemblyCopyright("Copyright 2001-2010 Terracotta Inc. and partially Marko Lahma")]
 [assembly: AssemblyTrademark("Apache License, Version 2.0")]
 [assembly: AssemblyCulture("")]
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
 #if NET_40
-[assembly: AssemblyVersion("1.2.0.4")]
-#elif NET_35
-[assembly: AssemblyVersion("1.2.0.3")]
+[assembly: AssemblyVersion("2.0.0.4")]
 #else
-[assembly: AssemblyVersion("1.2.0.2")]
+[assembly: AssemblyVersion("2.0.0.3")]
 #endif
 
 #if STRONG

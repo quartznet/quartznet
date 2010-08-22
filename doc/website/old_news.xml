@@ -11,6 +11,89 @@
 			<title>News archive</title>
 
 			<section>
+				<title>Quartz.NET 1.0.2 Released</title>
+				<p>
+				<div class="descr">December 12, 2009 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 1.0.2 has been released.
+				</p>
+				<p>
+					This is a maintenance release for the 1.0 development branch of Quartz.NET an probably also the last release supporting .NET Framework 1.1.
+					Further development efforts will go to Quartz.NET 1.2 that no longer supports 1.1 Framework.
+				</p>
+				<p>
+					This version corresponds to Java Quartz's version 1.6.6.
+				</p>
+				<p>
+					Please refer to the
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21825">release notes</a> 
+					and the readme.txt in the release bundle for more information.
+				</p>
+				<p>
+					Grab it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>	
+			
+			<section>
+				<title>Quartz.NET 1.0.1 Released</title>
+				<p>
+				<div class="descr">May 16, 2009 by Marko Lahma</div>
+				</p>
+				<p>
+					Quartz.NET 1.0.1 has been released and it's an advised update for everyone.
+				</p>
+				<p>
+					This release includes bug fixes to issues found in 1.0 release
+					and also includes performance optimization to AdoJobStore 
+					when Quartz.NET is handling a lot of triggers. Quarz.NET no 
+					longer loads all of them but is able limit the query results
+					by using a custom SQL delegate. Quartz.NET issues a warning
+					on startup if custom delegate is not used. Available delegates
+					include ones for SQL Server, Oracle, SQLite, MySQL, PostgreSQL
+					and Firebird.
+				</p>
+				<p>
+					Please refer to the
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21794">release notes</a> 
+					and the readme.txt in the release bundle for more information.
+				</p>
+				<p>
+					Grab it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>	
+
+			<section>
+				<title>Quartz.NET 1.0 Final Released</title>
+				<p>
+				<div class="descr">November 6, 2008 by Marko Lahma</div>
+				</p>
+				<p>
+					I'm happy to announce that Quartz.NET 1.0 Final has been released.
+					This release marks a big milestone for Quartz.NET development.
+					After more than two years of development, bug fixing and new features
+					Quartz.NET has finally matured to version 1.0. This version
+					corresponds to Java Quartz version 1.6.2.
+				</p>
+
+				<p>
+					I would like to thank everyone involved with Quartz.NET, whether
+					you have been just a happy user, bug reporter or a patch supplier, 
+					your help has been more than appreciated and helped along the way.
+					Special thanks to James House and his team for their continuous
+					effort to make Quartz better.
+				</p>
+				<p>
+					Please refer to the
+					<a href="http://jira.opensymphony.com/secure/ReleaseNote.jspa?projectId=10110&amp;styleName=Html&amp;version=21783">release notes</a> 
+					and the readme.txt in the release bundle for more information.
+				</p>
+				<p>
+					Grab it from <a href="download.html">downloads page</a>.
+				</p>
+			</section>	
+			
+			<section>
 				<title>Quartz.NET 1.0 RC 3 Released</title>
 				<p>
 				<div class="descr">September 6, 2008 by Marko Lahma</div>
