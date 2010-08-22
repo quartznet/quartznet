@@ -255,6 +255,15 @@ namespace Quartz.Tests.Unit
             NullableDateTime fireTimeAfter = simpleTrigger.GetNextFireTimeUtc();
 
             Assert.IsNull(fireTimeAfter);
-        } 
+        }
+
+        [Test]
+        public void TestPrecision()
+        {
+            Trigger trigger = new SimpleTrigger();
+            trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
+            Assert.IsTrue(trigger.HasMillisecondPrecision);
+            Assert.AreEqual(233, trigger.StartTimeUtc.Millisecond);
+        }
 	}
 }

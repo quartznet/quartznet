@@ -65,5 +65,14 @@ namespace Quartz.Tests.Unit
 
             Assert.IsNull(trigger.ComputeFirstFireTimeUtc(null));
         }
+
+        [Test]
+        public void TestPrecision()
+        {
+            Trigger trigger = new CronTrigger();
+            trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
+            Assert.IsFalse(trigger.HasMillisecondPrecision);
+            Assert.AreEqual(0, trigger.StartTimeUtc.Millisecond);
+        }
     }
 }
