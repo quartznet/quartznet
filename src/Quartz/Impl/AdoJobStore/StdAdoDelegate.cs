@@ -1888,6 +1888,7 @@ namespace Quartz.Impl.AdoJobStore
                                             ct.SetNextFireTime(nft);
                                             ct.SetPreviousFireTime(pft);
                                             ct.Description = description;
+                                            ct.Priority = priority;
                                             if (null != map)
                                             {
                                                 ct.JobDataMap = new JobDataMap(map);
