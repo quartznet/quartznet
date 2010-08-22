@@ -20,10 +20,6 @@
 using System;
 using System.Globalization;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
-
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -117,7 +113,7 @@ namespace Quartz
 		private int fireAtSecond = 0;
 		private DayOfWeek triggerCalendarFirstDayOfWeek = DayOfWeek.Sunday;
 		private CalendarWeekRule triggerCalendarWeekRule = CalendarWeekRule.FirstFourDayWeek;
-	    private TimeZone timeZone;
+        private TimeZoneInfo timeZone;
 
 
         /// <summary> 
@@ -452,17 +448,13 @@ namespace Quartz
 	    /// </summary>
 	    /// <see cref="System.TimeZone.CurrentTimeZone" />
 	    /// <see cref="FireAtTime" />
-	    public virtual TimeZone TimeZone
+	    public virtual TimeZoneInfo TimeZone
 	    {
 	        get
 	        {
 	            if (timeZone == null)
 	            {
-#if !NET_35
-	                timeZone = TimeZone.CurrentTimeZone;
-#else
 	                timeZone = TimeZoneInfo.Local;
-#endif
 	            }
 	            return timeZone;
 	        }
@@ -727,11 +719,7 @@ namespace Quartz
 			int weekCount = 0;
 			bool gotOne = false;
 
-#if !NET_35
-            afterDateUtc = TimeZone.ToLocalTime(afterDateUtc);
-#else
             afterDateUtc = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZone);
-#endif
             DateTime currCal = new DateTime(afterDateUtc.Year, afterDateUtc.Month, afterDateUtc.Day);
 
             // move to the first day of the week
@@ -771,11 +759,7 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
-#if !NET_35
-					if (EndTimeUtc.HasValue && TimeZone.ToUniversalTime(currCal) > EndTimeUtc.Value)
-#else
                     if (EndTimeUtc.HasValue && TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone) > EndTimeUtc.Value)
-#endif
 					{
 						return null;
 					}
@@ -786,11 +770,7 @@ namespace Quartz
 				// be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
-#if !NET_35
-                    if (afterDateUtc < TimeZone.ToUniversalTime(currCal))
-#else
                     if (afterDateUtc < TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone))
-#endif
 					{
 						gotOne = true;
 					}
@@ -812,11 +792,7 @@ namespace Quartz
 
 			if (weekCount < nextFireCutoffInterval)
 			{
-#if !NET_35
-				return TimeZone.ToUniversalTime(currCal);
-#else
                 return TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone); 
-#endif
 			}
 			else
 			{
@@ -840,11 +816,7 @@ namespace Quartz
         private DateTime? GetMonthlyFireTimeAfter(DateTime afterDateUtc)
 		{
 			int currN = 0;
-#if !NET_35
-            DateTime currCal = TimeZone.ToLocalTime(afterDateUtc);
-#else
             DateTime currCal = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZone);
-#endif
             currCal = new DateTime(currCal.Year, currCal.Month, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currMonth;
 			int monthCount = 0;
@@ -906,11 +878,7 @@ namespace Quartz
 
 			if (monthCount < nextFireCutoffInterval)
 			{
-#if !NET_35
-				return TimeZone.ToUniversalTime(currCal);
-#else
                 return TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone);
-#endif
 			}
 			else
 			{
@@ -936,11 +904,7 @@ namespace Quartz
         private DateTime? GetYearlyFireTimeAfter(DateTime afterDateUtc)
 		{
 			int currN = 0;
-#if !NET_35
-            DateTime currCal = TimeZone.ToLocalTime(afterDateUtc);
-#else
             DateTime currCal = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZone);
-#endif
             currCal = new DateTime(currCal.Year, 1, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currYear;
 			int yearCount = 0;
@@ -974,11 +938,7 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
-#if !NET_35
-					if (EndTimeUtc.HasValue && TimeZone.ToUniversalTime(currCal) > EndTimeUtc.Value)
-#else
                     if (EndTimeUtc.HasValue && TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone) > EndTimeUtc.Value)
-#endif
                     {
 						return null;
 					}
@@ -989,11 +949,7 @@ namespace Quartz
 				// could be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
-#if !NET_35
-					if (afterDateUtc < TimeZone.ToUniversalTime(currCal))
-#else
                     if (afterDateUtc < TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone))
-#endif
 					{
 						gotOne = true;
 					}
@@ -1008,11 +964,7 @@ namespace Quartz
 
 			if (yearCount < nextFireCutoffInterval)
 			{
-#if !NET_35
-				return TimeZone.ToUniversalTime(currCal);
-#else
                 return TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone);
-#endif
 			}
 			else
 			{

@@ -476,11 +476,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public virtual ICollection<TKey> KeySet()
         {
-#if NET_35
-            return new System.Collections.Generic.HashSet<TKey>(map.Keys);
-#else
-            return new Quartz.Collection.HashSet<TKey>(map.Keys);
-#endif
+            return new Collection.HashSet<TKey>(map.Keys);
         }
 
         /// <summary>

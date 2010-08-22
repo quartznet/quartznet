@@ -29,9 +29,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 using Common.Logging;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -840,11 +837,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerName", trigger.Name);
                 AddCommandParameter(cmd, "triggerGroup", trigger.Group);
                 AddCommandParameter(cmd, "triggerCronExpression", trigger.CronExpressionString);
-#if NET_35
                 AddCommandParameter(cmd, "triggerTimeZone", trigger.TimeZone.Id);
-#else
-                AddCommandParameter(cmd, "triggerTimeZone", null);
-#endif
 
                 return cmd.ExecuteNonQuery();
             }
@@ -1634,17 +1627,10 @@ namespace Quartz.Impl.AdoJobStore
                                         CronTrigger ct = null;
                                         try
                                         {
-                                            TimeZone timeZone = null;
+                                            TimeZoneInfo timeZone = null;
                                             if (timeZoneId != null)
                                             {
-#if NET_35
                                                 timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-#else
-                                                if (logger.IsWarnEnabled)
-                                                {
-                                                    logger.WarnFormat("Trigger name: {0} and group: {1} had time zone specified in database but this build does not support TimeZones. TimeZone ignored", triggerName, groupName);
-                                                }
-#endif
                                             }
                                             ct = new CronTrigger(triggerName, groupName, jobName, jobGroup, startTimeD, endTimeD, cronExpr, timeZone);
                                         }

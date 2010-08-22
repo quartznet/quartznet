@@ -21,10 +21,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
-
 namespace Quartz
 {
 	/// <summary>
@@ -1020,7 +1016,7 @@ namespace Quartz
 		/// <param name="src">the original time-zone</param>
 		/// <param name="dest">the destination time-zone</param>
 		/// <returns>the translated UTC date</returns>
-		public static DateTime TranslateTime(DateTime date, TimeZone src, TimeZone dest)
+		public static DateTime TranslateTime(DateTime date, TimeZoneInfo src, TimeZoneInfo dest)
 		{
 			DateTime newDate = SystemTime.UtcNow();
  			double offset = (GetOffset(date, dest) - GetOffset(date, src));
@@ -1037,11 +1033,8 @@ namespace Quartz
 		/// <param name="date">the date that is the base for the offset</param>
 		/// <param name="tz">the time-zone to calculate to offset to</param>
 		/// <returns>the offset</returns>
-		public static double GetOffset(DateTime date, TimeZone tz)
+		public static double GetOffset(DateTime date, TimeZoneInfo tz)
 		{
-#if !NET_35
-            throw new Exception("UTC offset calculation not supported in < .NET 3.5");
-#else
 
 			if (tz.IsDaylightSavingTime(date))
 			{
@@ -1050,7 +1043,6 @@ namespace Quartz
 			}
 
 		    return tz.BaseUtcOffset.TotalMilliseconds;
-#endif
 		}
 
         /// <summary>
@@ -1058,13 +1050,9 @@ namespace Quartz
         /// </summary>
         /// <param name="timezone">TimeZone instance to validate</param>
         /// <returns>True or false depending if daylight savings time is used</returns>
-        public static bool UseDaylightTime(TimeZone timezone)
+        public static bool UseDaylightTime(TimeZoneInfo timezone)
         {
-#if !NET_35            
-            return (timezone.DaylightName != "");
-#else
             return timezone.SupportsDaylightSavingTime;
-#endif
         }
 	}
 }

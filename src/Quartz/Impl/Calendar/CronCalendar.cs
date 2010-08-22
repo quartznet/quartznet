@@ -20,10 +20,6 @@
 using System;
 using System.Text;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
-
 namespace Quartz.Impl.Calendar
 {
 	/// <summary>
@@ -88,14 +84,14 @@ namespace Quartz.Impl.Calendar
         /// <param name="timeZone"></param>
         public CronCalendar(ICalendar baseCalendar,
                             string expression,
-                            TimeZone timeZone)
+                            TimeZoneInfo timeZone)
             : base(baseCalendar, timeZone)
         {
             cronExpression = new CronExpression(expression);
         }
 
 
-	    public override TimeZone TimeZone
+	    public override TimeZoneInfo TimeZone
 	    {
 	        get { return cronExpression.TimeZone; }
             set { cronExpression.TimeZone = value; }

@@ -26,11 +26,7 @@ namespace Quartz.Server.Core
         /// </summary>
 		static Configuration()
 		{
-#if NET_20
-		    configuration = (NameValueCollection) ConfigurationManager.GetSection("quartz");
-#else
-			configuration = (NameValueCollection) ConfigurationSettings.GetConfig("quartz");
-#endif
+			configuration = (NameValueCollection) ConfigurationManager.GetSection("quartz");
 		}
 
         /// <summary>

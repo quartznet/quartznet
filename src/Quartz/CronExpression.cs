@@ -23,10 +23,6 @@ using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
-
 using Quartz.Collection;
 
 namespace Quartz
@@ -270,8 +266,8 @@ namespace Quartz
         private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(60);
 
         private readonly string cronExpressionString;
-        
-        private TimeZone timeZone;
+
+        private TimeZoneInfo timeZone;
 
         /// <summary>
         /// Seconds.
@@ -461,18 +457,14 @@ namespace Quartz
         /// Sets or gets the time zone for which the <see cref="CronExpression" /> of this
         /// <see cref="CronTrigger" /> will be resolved.
         /// </summary>
-        public virtual TimeZone TimeZone
+        public virtual TimeZoneInfo TimeZone
         {
             set { timeZone = value; }
             get
             {
                 if (timeZone == null)
                 {
-#if !NET_35
-                    timeZone = TimeZone.CurrentTimeZone;
-#else
                     timeZone = TimeZoneInfo.Local;
-#endif
                 }
 
                 return timeZone;
@@ -1540,11 +1532,7 @@ namespace Quartz
             DateTime d = CreateDateTimeWithoutMillis(afterTimeUtc);
 
             // change to specified time zone
-#if !NET_35
-            d = TimeZone.ToLocalTime(d);
-#else
             d = TimeZoneInfo.ConvertTimeFromUtc(d, TimeZone);
-#endif
 
             bool gotOne = false;
             // loop until we've computed the next time, or we've past the endTime
@@ -1969,12 +1957,7 @@ namespace Quartz
                 gotOne = true;
             } // while( !done )
 
-#if !NET_35
-            return TimeZone.ToUniversalTime(d);
-#else
             return TimeZoneInfo.ConvertTimeToUtc(d, TimeZone);
-#endif
-
         }
 
         /// <summary>

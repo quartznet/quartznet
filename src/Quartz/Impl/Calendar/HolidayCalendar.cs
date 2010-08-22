@@ -110,11 +110,7 @@ namespace Quartz.Impl.Calendar
 				day = day.AddDays(1);
 			}
 
-#if !NET_35
-            return day.ToUniversalTime();
-#else
             return TimeZoneInfo.ConvertTimeToUtc(day);
-#endif
 		}
 
 	    /// <summary>

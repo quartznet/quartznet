@@ -32,7 +32,6 @@
     
     <mkdir dir="${dir.build}" />
 
-    <property name="clover.home" value="C:\Program Files\Cenqua\Clover.NET 2.1 for .NET 2.0"/>
   </target>
 
 
@@ -41,29 +40,20 @@
   </target>
 
   <target name="build-all">
-    <call target="build-2.0" />
     <call target="build-mono-2.0" />
     <call target="build-3.5" />
     <call target="build-4.0" />
   </target>
 
-  <target name="build-2.0">
-    <property name="build.defines" value="${build.defines},NET_20" />
-
-    <property name="target.framework" value="2.0" />
-    <call target="build-all-csc" />
-
-  </target>
-
   <target name="build-3.5">
-    <property name="build.defines" value="${build.defines},NET_20,NET_35" />
+    <property name="build.defines" value="${build.defines}" />
 
     <property name="target.framework" value="3.5" />
     <call target="build-all-csc" />
   </target>
 
   <target name="build-4.0">
-    <property name="build.defines" value="${build.defines},NET_20,NET_35,NET_40" />
+    <property name="build.defines" value="${build.defines},NET_40" />
 
     <property name="target.framework" value="4.0" />
     <property name="nant.settings.currentframework" value="net-4.0" />
@@ -71,7 +61,7 @@
   </target>
 
   <target name="build-mono-2.0">
-    <property name="build.defines" value="${build.defines},NET_20,MONO" />
+    <property name="build.defines" value="${build.defines},MONO" />
 
     <property name="target.framework" value="mono-2.0" />
     <property name="nant.settings.currentframework" value="${target.framework}" />
@@ -168,23 +158,9 @@
     <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${build.configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
   </target>
 
-
-  <target name="build-server-2.0">
-    <property name="lib-dir-version" value="2.0" />
-    <property name="build.defines" value="NET_20" />
-
-    <property name="target.framework" value="2.0" />
-    <property name="nant.settings.currentframework" value="net-${target.framework}" />
-
-    <property name="server.project" value="Console" />
-    <call target="build-server-internal" />
-    <property name="server.project" value="Service" />
-    <call target="build-server-internal" />
-  </target>
-
   <target name="build-server-3.5">
     <property name="lib-dir-version" value="2.0" />
-    <property name="build.defines" value="NET_20,NET_35" />
+    <property name="build.defines" value="C5" />
 
     <property name="target.framework" value="3.5" />
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
@@ -195,6 +171,18 @@
     <call target="build-server-internal" />
   </target>
 
+  <target name="build-server-4.0">
+    <property name="lib-dir-version" value="2.0" />
+    <property name="build.defines" value="NET_40,C5" />
+
+    <property name="target.framework" value="4.0" />
+    <property name="nant.settings.currentframework" value="net-${target.framework}" />
+
+    <property name="server.project" value="Console" />
+    <call target="build-server-internal" />
+    <property name="server.project" value="Service" />
+    <call target="build-server-internal" />
+  </target>  
 
   <target name="build-server-internal" depends="build-quartz">
 
@@ -294,10 +282,15 @@
   </target>
 
   <target name="unit">
-    <call target="unit-2.0" />
+    <call target="unit-3.5" />
+    <call target="unit-4.0" />
   </target>
 
-  <target name="unit-2.0" depends="build-2.0">
+  <target name="unit-3.5" depends="build-3.5">
+    <call target="unit-internal" />
+  </target>
+
+  <target name="unit-4.0" depends="build-4.0">
     <call target="unit-internal" />
   </target>
 
@@ -325,37 +318,6 @@
         <include name="${dir.src}\**\bin\**" />
       </fileset>
     </delete>
-  </target>
-
-  <target name="with-clover">
-
-    <property name="build.defines" value="DEBUG" overwrite="false" />
-    <loadtasks assembly="${clover.home}\CloverNAnt-0.85.dll"/>
-
-    <clover-setup initstring="CloverBuild\clover.cdb"
-      builddir="CloverBuild"
-      flushinterval="5000"
-      flatten="true">
-      <fileset basedir="src">
-        <include name="**/*"/>
-        <exclude name="**/Quartz.Tests/**/*"/>
-        <exclude name="**/Quartz.Examples/**/*"/>
-      </fileset>
-    </clover-setup>
-  </target>
-
-  <target name="clover-report" depends="with-clover">
-
-    <clover-report>
-      <current title="Quartz.NET Clover Report" output="CloverReport">
-        <format type="html" orderby="Alpha" />
-      </current>
-    </clover-report>
-
-  </target>
-
-  <target name="clover" depends="with-clover, unit-2.0, clover-report">
-
   </target>
 
   <target name="doc" depends="build">
@@ -423,10 +385,10 @@
     </if>
 
     <call target="clean" />
-    <call target="build-2.0" />
     <call target="build-3.5" />
-    <call target="build-server-2.0" />
     <call target="build-server-3.5" />
+    <call target="build-4.0" />
+    <call target="build-server-4.0" />
 
     <delete dir="package" failonerror="false" />
     <mkdir dir="package" />
@@ -453,9 +415,9 @@
       </fileset>
     </copy>
 
-    <copy todir="package\server\bin\2.0\console" flatten="true">
+    <copy todir="package\server\bin\4.0\console" flatten="true">
       <fileset>
-        <include name="build\2.0\${build.configuration}\Quartz.Server.Console\**" />
+        <include name="build\4.0\${build.configuration}\Quartz.Server.Console\**" />
       </fileset>
     </copy>
 
@@ -466,9 +428,9 @@
     </copy>
 
 
-    <copy todir="package\server\bin\2.0\service" flatten="true">
+    <copy todir="package\server\bin\4.0\service" flatten="true">
       <fileset>
-        <include name="build\2.0\${build.configuration}\Quartz.Server.Service\**" />
+        <include name="build\4.0\${build.configuration}\Quartz.Server.Service\**" />
       </fileset>
     </copy>
 

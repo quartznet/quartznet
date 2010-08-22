@@ -18,9 +18,6 @@
 #endregion
 
 using System;
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
 
 namespace Quartz.Impl.Calendar
 {
@@ -46,7 +43,7 @@ namespace Quartz.Impl.Calendar
         // A optional base calendar.
         private ICalendar baseCalendar;
         private string description;
-        private TimeZone timeZone;
+        private TimeZoneInfo timeZone;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
@@ -69,7 +66,7 @@ namespace Quartz.Impl.Calendar
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
         /// </summary>
         /// <param name="timeZone">The time zone.</param>
-        public BaseCalendar(TimeZone timeZone)
+        public BaseCalendar(TimeZoneInfo timeZone)
 	    {
 	        this.timeZone = timeZone;
 	    }
@@ -79,7 +76,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="baseCalendar">The base calendar.</param>
         /// <param name="timeZone">The time zone.</param>
-        public BaseCalendar(ICalendar baseCalendar, TimeZone timeZone)
+        public BaseCalendar(ICalendar baseCalendar, TimeZoneInfo timeZone)
         {
 	        this.baseCalendar = baseCalendar;
 	        this.timeZone = timeZone;
@@ -89,17 +86,13 @@ namespace Quartz.Impl.Calendar
         /// Gets or sets the time zone.
         /// </summary>
         /// <value>The time zone.</value>
-	    public virtual TimeZone TimeZone
+        public virtual TimeZoneInfo TimeZone
 	    {
 	        get
 	        {
                 if (timeZone == null)
                 {
-#if !NET_35
-                    timeZone = System.TimeZone.CurrentTimeZone;
-#else
                     timeZone = TimeZoneInfo.Local;
-#endif
                 }
                 return timeZone;
             }

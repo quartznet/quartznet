@@ -181,13 +181,10 @@ namespace Quartz.Impl.Calendar
 			}
 
 			// Get timestamp for 00:00:00
-#if !NET_35
-            DateTime newTimeStamp = TimeZone.ToLocalTime(timeUtc.Date);
-#else
             // TODO is this correct?
             DateTime newTimeStamp = TimeZoneInfo.ConvertTimeFromUtc(timeUtc.Date, TimeZoneInfo.Local);
-#endif
-			int day = newTimeStamp.Day;
+
+            int day = newTimeStamp.Day;
 
 			if (!IsDayExcluded(day))
 			{
@@ -200,11 +197,7 @@ namespace Quartz.Impl.Calendar
 				day = (int) newTimeStamp.Day;
 			}
 
-#if !NET_35
-			return newTimeStamp.ToUniversalTime();
-#else
             return TimeZoneInfo.ConvertTimeToUtc(newTimeStamp);
-#endif
 		}
 
 	    /// <summary>

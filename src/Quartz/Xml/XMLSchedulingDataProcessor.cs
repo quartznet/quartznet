@@ -417,15 +417,10 @@ namespace Quartz.Xml
 
                     if (!String.IsNullOrEmpty(timezoneString))
                     {
-#if NET_35
                         trigger = new CronTrigger(triggerName, triggerGroup,
                                                   triggerJobName, triggerJobGroup,
                                                   triggerStartTime, triggerEndTime,
                                                   cronExpression, TimeZoneInfo.FindSystemTimeZoneById(timezoneString));
-#else
-	                        throw new ArgumentException(
-	                            "Specifying time zone for cron trigger is only supported in .NET 3.5 builds and later");
-#endif
                     }
                     else
                     {

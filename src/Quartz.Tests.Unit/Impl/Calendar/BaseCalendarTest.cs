@@ -17,9 +17,7 @@
  */
 #endregion
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
+using System;
 
 using NUnit.Framework;
 
@@ -35,11 +33,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public void TestClone() {
             BaseCalendar baseCalendar = new BaseCalendar();
             baseCalendar.Description = "My description";
-#if NET_35
-            baseCalendar.TimeZone = TimeZone.GetSystemTimeZones()[3];
-#else
-            baseCalendar.TimeZone = TimeZone.Utc;
-#endif
+            baseCalendar.TimeZone = TimeZoneInfo.GetSystemTimeZones()[3];
             BaseCalendar clone = (BaseCalendar) baseCalendar.Clone();
 
             Assert.AreEqual(baseCalendar.Description, clone.Description);

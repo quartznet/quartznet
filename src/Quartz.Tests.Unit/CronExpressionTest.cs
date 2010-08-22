@@ -22,10 +22,6 @@ using System.Collections.Generic;
 
 using Quartz.Collection;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
-
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -36,11 +32,7 @@ namespace Quartz.Tests.Unit
     {
         private static readonly string[] Versions = new string[] { "0.6.0" };
 
-#if !NET_35
-        private static readonly TimeZone TestTimeZone = TimeZone.CurrentTimeZone;
-#else
-        private static readonly TimeZone TestTimeZone = TimeZoneInfo.Local;
-#endif
+        private static readonly TimeZoneInfo TestTimeZone = TimeZoneInfo.Local;
 
         /// <summary>
         /// Get the object to serialize when generating serialized file for future

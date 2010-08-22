@@ -4,10 +4,8 @@ using System.Runtime.InteropServices;
 
 #if NET_40
 [assembly: AssemblyConfiguration("net-4.0.win32; Release")]
-#elif NET_35
-[assembly: AssemblyConfiguration("net-3.5.win32; Release")]
 #else
-[assembly: AssemblyConfiguration("net-2.0.win32; Release")]
+[assembly: AssemblyConfiguration("net-3.5.win32; Release")]
 #endif
 
 [assembly: AssemblyProduct("Quarz.NET 2.0")]

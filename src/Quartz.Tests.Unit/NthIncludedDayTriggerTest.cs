@@ -20,10 +20,6 @@
 using System;
 using System.Globalization;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
-
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -185,17 +181,16 @@ namespace Quartz.Tests.Unit
 			}
 		}
 
-#if NET_35
         [Test]
         [Ignore]
         public void TestTimeZone() 
         {
-            TimeZone GMT = TimeZone.FindSystemTimeZoneById("GMT Standard Time");
-            TimeZone EST = TimeZone.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo GMT = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
+            TimeZoneInfo EST = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
             
             // Calendar startTime = Calendar.getInstance(EST);
             var startTime = new DateTime(2006, 3, 7, 7, 0, 0, DateTimeKind.Utc);
-            startTime = TimeZone.ConvertTimeFromUtc(startTime, EST);
+            startTime = TimeZoneInfo.ConvertTimeFromUtc(startTime, EST);
 
             
             // Same timezone
@@ -211,7 +206,7 @@ namespace Quartz.Tests.Unit
                 
                 // Calendar firstTimeCal = Calendar.getInstance(EST);
                 DateTime firstTimeCal = new DateTime(startTime.Year, startTime.Month, startTime.Day, 8, 0, 0, 0, DateTimeKind.Utc);
-                firstTimeCal = TimeZone.ConvertTimeFromUtc(firstTimeCal, EST);
+                firstTimeCal = TimeZoneInfo.ConvertTimeFromUtc(firstTimeCal, EST);
                 //roll start date forward to first day of the next week
                 while (firstTimeCal.DayOfWeek != t.TriggerCalendarFirstDayOfWeek) 
                 {
@@ -264,7 +259,7 @@ namespace Quartz.Tests.Unit
                 Assert.AreEqual(firstTime, firstTimeCal);
             }
         }
-#endif
+
         [Test]
         public void TestComputeFirstFireTimeUtc_NoStartTimeForTrigger()
         {

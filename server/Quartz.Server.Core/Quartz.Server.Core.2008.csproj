@@ -36,7 +36,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE;DEBUG;NET_20,NET_35,C5</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;C5</DefineConstants>
     <DocumentationFile>..\..\build\3.5\Debug\Quartz.Server.Core\Quartz.Server.Core.XML</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -58,7 +58,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE;NET_20</DefineConstants>
+    <DefineConstants>TRACE;C5</DefineConstants>
     <DocumentationFile>..\..\build\3.5\Release\Quartz.Server.Core\Quartz.Server.Core.XML</DocumentationFile>
     <DebugSymbols>false</DebugSymbols>
     <FileAlignment>4096</FileAlignment>

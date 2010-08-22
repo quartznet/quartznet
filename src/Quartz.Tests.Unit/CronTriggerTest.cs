@@ -21,10 +21,6 @@ using System;
 
 using NUnit.Framework;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
-
 namespace Quartz.Tests.Unit
 {
     /// <summary>
@@ -34,8 +30,6 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class CronTriggerTest
     {
-
-#if NET_35
         /// <summary>
         /// Tests the cron trigger time zone should change when changed.
         /// </summary>
@@ -43,11 +37,11 @@ namespace Quartz.Tests.Unit
         public void TestCronTriggerTimeZone_TimeZoneShouldChangeWhenChanged()
         {
             string tzStr = "FLE Standard Time";
-            if (TimeZone.Local.Id == tzStr)
+            if (TimeZoneInfo.Local.Id == tzStr)
             {
                 tzStr = "GMT Standard Time";
             }
-            TimeZone tz = TimeZone.FindSystemTimeZoneById(tzStr);
+            TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById(tzStr);
             CronTrigger trigger = new CronTrigger();
             trigger.Name = "Quartz-579";
             trigger.Group = SchedulerConstants.DefaultGroup;
@@ -55,7 +49,6 @@ namespace Quartz.Tests.Unit
             trigger.CronExpressionString = "0 0 12 * * ?";
             Assert.AreEqual(tz, trigger.TimeZone, "TimeZone was changed");
         }
-#endif
 
         [Test]
         public void BasicCronTriggerTest()

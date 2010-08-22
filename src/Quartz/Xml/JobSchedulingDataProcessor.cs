@@ -19,10 +19,6 @@
 
 using System;
 
-#if NET_35
-using TimeZone = System.TimeZoneInfo;
-#endif
-
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
@@ -320,12 +316,7 @@ namespace Quartz.Xml
 
 	                    if (c.timezone != null && c.timezone.Trim().Length > 0)
 	                    {
-#if NET_35
                             ct.TimeZone = TimeZoneInfo.FindSystemTimeZoneById(c.timezone);
-#else
-	                        throw new ArgumentException(
-	                            "Specifying time zone for cron trigger is only supported in .NET 3.5 builds");
-#endif
 	                    }
 	                    trigger = ct;
 	                }
