@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
@@ -24,14 +23,15 @@ using System.Security;
 [assembly: ComVisible(false)]
 
 #if NET_35
-[assembly: AssemblyVersion("1.0.2.3")]
+[assembly: AssemblyVersion("1.0.3.3")]
 #elif NET_20
-[assembly: AssemblyVersion("1.0.2.2")]
+[assembly: AssemblyVersion("1.0.3.2")]
 #else
-[assembly: AssemblyVersion("1.0.2.1")]
+[assembly: AssemblyVersion("1.0.3.1")]
 #endif
 
 #if STRONG
+using System.Security;
 [assembly: AssemblyDelaySign(false)]
 [assembly: AssemblyKeyFile("Quartz.Net.snk")]
 [assembly: AllowPartiallyTrustedCallers]

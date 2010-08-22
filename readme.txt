@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, release 1.0.2, Dec 12 2009
+QUARTZ JOB SCHEDULER .NET, release 1.0.3, Aug 22 2010
 -----------------------------------------------------------------
 
 http://quartznet.sourceforge.net/
@@ -32,8 +32,8 @@ None.
 3. RELEASE INFO
 ----------------
 
-This is the Quartz.NET release 1.0.2. This release corresponds
-to Java Quartz version 1.6.6.
+This is the Quartz.NET release 1.0.3. This release corresponds
+roughly to Java Quartz's version 1.6.6.
 
 This release is a bug fix release.
 
