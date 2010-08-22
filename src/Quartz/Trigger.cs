@@ -360,7 +360,7 @@ namespace Quartz
 					throw new ArgumentException("End time cannot be before start time");
 				}
 
-				if (HasMillisecondPrecision)
+				if (!HasMillisecondPrecision)
 				{
 					// round off millisecond...	
 					startTimeUtc = new DateTime(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second);
