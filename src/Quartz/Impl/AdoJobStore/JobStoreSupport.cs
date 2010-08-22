@@ -854,8 +854,6 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     earliestNewTime = nextTime.Value;
                 }
-
-                signaler.NotifyTriggerListenersMisfired(trig);
             }
 
             return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count, earliestNewTime);
