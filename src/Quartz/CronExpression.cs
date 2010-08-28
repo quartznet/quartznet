@@ -574,6 +574,10 @@ namespace Quartz
                     {
                         throw new FormatException("Support for specifying 'L' with other days of the week is not implemented");
                     }
+                    if (exprOn == DayOfWeek && expr.IndexOf('#') != -1 && expr.IndexOf('#', expr.IndexOf('#') + 1) != -1)
+                    {
+                        throw new FormatException("Support for specifying multiple \"nth\" days is not imlemented.");
+                    }
 
                     string[] vTok = expr.Split(',');
                     foreach (string v in vTok)
