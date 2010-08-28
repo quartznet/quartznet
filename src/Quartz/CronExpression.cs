@@ -440,13 +440,18 @@ namespace Quartz
             // the second immediately following it.
             while (difference == 1000)
             {
-                DateTime newDate = GetTimeAfter(lastDate).Value;
+                DateTime? newDate = GetTimeAfter(lastDate);
 
-                difference = (long) (newDate - lastDate).TotalMilliseconds;
+                if (newDate == null)
+                {
+                    break;
+                }
+
+                difference = (long) (newDate.Value - lastDate).TotalMilliseconds;
 
                 if (difference == 1000)
                 {
-                    lastDate = newDate;
+                    lastDate = newDate.Value;
                 }
             }
 
