@@ -50,7 +50,7 @@ namespace Quartz.Core
     /// <author>Marko Lahma (.NET)</author>
     public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler
     {
-        private readonly ILog Log;
+        private readonly ILog log;
         private static readonly FileVersionInfo versionInfo;
 
         private readonly QuartzSchedulerResources resources;
@@ -73,7 +73,7 @@ namespace Quartz.Core
         private readonly Random random = new Random();
         private readonly List<object> holdToPreventGC = new List<object>(5);
         private bool signalOnSchedulingChange = true;
-        private bool closed;
+        private volatile bool closed;
         private volatile bool shuttingDown;
         private DateTime? initialStart;
         private bool boundRemotely;
@@ -215,6 +215,12 @@ namespace Quartz.Core
             get { return closed; }
         }
 
+
+        public virtual bool IsShuttingDown
+        {
+            get { return shuttingDown; }
+        }
+
         public virtual bool IsStarted
         {
             get { return !shuttingDown && !closed && !InStandbyMode && initialStart != null; }
@@ -349,7 +355,7 @@ namespace Quartz.Core
                     throw new ArgumentException("JobFactory cannot be set to null!");
                 }
 
-                Log.Info("JobFactory set to: " + value);
+                log.Info("JobFactory set to: " + value);
 
                 jobFactory = value;
             }
@@ -364,7 +370,7 @@ namespace Quartz.Core
         /// <seealso cref="QuartzSchedulerResources" />
         public QuartzScheduler(QuartzSchedulerResources resources, SchedulingContext ctxt, TimeSpan idleWaitTime, TimeSpan dbRetryInterval)
         {
-            Log = LogManager.GetLogger(GetType());
+            log = LogManager.GetLogger(GetType());
             this.resources = resources;
             try
             {
@@ -392,10 +398,10 @@ namespace Quartz.Core
 
             signaler = new SchedulerSignalerImpl(this, schedThread);
 
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Quartz Scheduler v.{0} created.", Version);
+            log.InfoFormat(CultureInfo.InvariantCulture, "Quartz Scheduler v.{0} created.", Version);
 
 
-            Log.Info("Scheduler meta-data: " +
+            log.Info("Scheduler meta-data: " +
                     (new SchedulerMetaData(SchedulerName,
                                            SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,
                                            InStandbyMode, IsShutdown, RunningSince,
@@ -470,7 +476,7 @@ namespace Quartz.Core
 
             schedThread.TogglePause(false);
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} started.", resources.GetUniqueIdentifier()));
+            log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} started.", resources.GetUniqueIdentifier()));
 
             NotifySchedulerListenersStarted();
         }
@@ -483,7 +489,7 @@ namespace Quartz.Core
                         "The Scheduler cannot be restarted after Shutdown() has been called.");
             }
 
-            DelayedSchedulerStarter starter = new DelayedSchedulerStarter(this, delay, Log);
+            DelayedSchedulerStarter starter = new DelayedSchedulerStarter(this, delay, log);
             Thread t = new Thread(starter.Run);
             t.Start();
         }
@@ -531,7 +537,7 @@ namespace Quartz.Core
         public virtual void Standby()
         {
             schedThread.TogglePause(true);
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} paused.", resources.GetUniqueIdentifier()));
+            log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} paused.", resources.GetUniqueIdentifier()));
             NotifySchedulerListenersInStandbyMode();        
         }
 
@@ -600,14 +606,14 @@ namespace Quartz.Core
 
             shuttingDown = true;
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} shutting down.", resources.GetUniqueIdentifier()));
+            log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} shutting down.", resources.GetUniqueIdentifier()));
 
-            NotifySchedulerListenersShuttindown();
-        
             Standby();
 
             schedThread.Halt();
-        
+
+            NotifySchedulerListenersShuttingdown();
+
             if((resources.InterruptJobsOnShutdown && !waitForJobsToComplete) || (resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete))
             {
                 IList<JobExecutionContext> jobs = CurrentlyExecutingJobs;
@@ -622,7 +628,7 @@ namespace Quartz.Core
                         catch (Exception ex) 
                         {
                             // do nothing, this was just a courtesy effort
-                            Log.WarnFormat("Encountered error when interrupting job {0} during shutdown: {1}", job.JobDetail.FullName, ex);
+                            log.WarnFormat("Encountered error when interrupting job {0} during shutdown: {1}", job.JobDetail.FullName, ex);
                         }
                     }
                 }
@@ -675,7 +681,7 @@ namespace Quartz.Core
             {
             }
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} Shutdown complete.", resources.GetUniqueIdentifier()));
+            log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} Shutdown complete.", resources.GetUniqueIdentifier()));
         }
 
         /// <summary>
@@ -1882,8 +1888,8 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Error while notifying SchedulerListener of error: ", e);
-                    Log.Error("  Original error (for notification) was: " + msg, se);
+                    log.Error("Error while notifying SchedulerListener of error: ", e);
+                    log.Error("  Original error (for notification) was: " + msg, se);
                 }
             }
         }
@@ -1906,7 +1912,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of scheduled job.  Triger={0}", trigger.FullName), e);
+                    log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of scheduled job.  Triger={0}", trigger.FullName), e);
                 }
             }
         }
@@ -1930,7 +1936,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error(
+                    log.Error(
                         string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of unscheduled job.  Triger={0}.{1}", triggerGroup, triggerName), e);
                 }
             }
@@ -1954,7 +1960,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of finalized trigger.  Triger={0}", trigger.FullName), e);
+                    log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of finalized trigger.  Triger={0}", trigger.FullName), e);
                 }
             }
         }
@@ -1978,7 +1984,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of paused trigger/group.  Triger={0}.{1}", group, name), e);
+                    log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of paused trigger/group.  Triger={0}.{1}", group, name), e);
                 }
             }
         }
@@ -2002,7 +2008,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of resumed trigger/group.  Triger={0}.{1}", group, name), e);
+                    log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of resumed trigger/group.  Triger={0}.{1}", group, name), e);
                 }
             }
         }
@@ -2026,7 +2032,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of paused job/group.  Job={0}.{1}", group, name), e);
+                    log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of paused job/group.  Job={0}.{1}", group, name), e);
                 }
             }
         }
@@ -2050,7 +2056,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of resumed job/group.  Job={0}.{1}", group, name), e);
+                    log.Error(string.Format(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of resumed job/group.  Job={0}.{1}", group, name), e);
                 }
             }
         }
@@ -2066,7 +2072,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Error while notifying SchedulerListener of inStandByMode.", e);
+                    log.Error("Error while notifying SchedulerListener of inStandByMode.", e);
                 }
             }
         }
@@ -2082,7 +2088,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Error while notifying SchedulerListener of startup.", e);
+                    log.Error("Error while notifying SchedulerListener of startup.", e);
                 }
             }
         }
@@ -2104,13 +2110,13 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Error while notifying SchedulerListener of Shutdown.", e);
+                    log.Error("Error while notifying SchedulerListener of Shutdown.", e);
                 }
             }
         }
 
 
-        public void NotifySchedulerListenersShuttindown()
+        public virtual void NotifySchedulerListenersShuttingdown()
         {
             // build a list of all job listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -2124,13 +2130,13 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Error while notifying SchedulerListener of shutdown.", e);
+                    log.Error("Error while notifying SchedulerListener of shutdown.", e);
                 }
             }
         }
     
 
-        public void NotifySchedulerListenersJobAdded(JobDetail jobDetail)
+        public virtual void NotifySchedulerListenersJobAdded(JobDetail jobDetail)
         {
             // notify all scheduler listeners
             foreach (ISchedulerListener listener in BuildSchedulerListenerList())
@@ -2141,12 +2147,12 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Error while notifying SchedulerListener of JobAdded.", e);
+                    log.Error("Error while notifying SchedulerListener of JobAdded.", e);
                 }
             }
         }
 
-        public void NotifySchedulerListenersJobDeleted(String jobName, String groupName)
+        public virtual void NotifySchedulerListenersJobDeleted(String jobName, String groupName)
         {
             // notify all scheduler listeners
             foreach (ISchedulerListener listener in BuildSchedulerListenerList())
@@ -2157,7 +2163,7 @@ namespace Quartz.Core
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Error while notifying SchedulerListener of JobAdded.", e);
+                    log.Error("Error while notifying SchedulerListener of JobAdded.", e);
                 }
             }
         }

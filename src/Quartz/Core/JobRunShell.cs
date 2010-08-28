@@ -55,7 +55,7 @@ namespace Quartz.Core
 		private readonly IScheduler scheduler;
 		private readonly SchedulingContext schdCtxt;
 		private readonly IJobRunShellFactory jobRunShellFactory;
-		private bool shutdownRequested;
+		private volatile bool shutdownRequested;
 
 
 		/// <summary>
@@ -420,7 +420,7 @@ namespace Quartz.Core
         public virtual bool CompleteTriggerRetryLoop(Trigger trigger, JobDetail jobDetail, SchedulerInstruction instCode)
 		{
             long count = 0;
-			while (!shutdownRequested)
+			while (!shutdownRequested && !qs.IsShuttingDown)
             {
 				try
 				{
