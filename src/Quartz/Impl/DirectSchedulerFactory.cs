@@ -149,12 +149,9 @@ namespace Quartz.Impl
 		/// <throws>  SchedulerException </throws>
 		protected internal virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
 		{
-			SchedulingContext schedCtxt = new SchedulingContext();
-			schedCtxt.InstanceId = schedulerInstanceId;
-
 			string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
 
-			RemoteScheduler remoteScheduler = new RemoteScheduler(schedCtxt, uid);
+			RemoteScheduler remoteScheduler = new RemoteScheduler(uid);
 		    remoteScheduler.RemoteSchedulerAddress = proxyAddress;
 
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
@@ -234,9 +231,6 @@ namespace Quartz.Impl
 
 			// Fire everything up
 			// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-			SchedulingContext schedCtxt = new SchedulingContext();
-			schedCtxt.InstanceId = schedulerInstanceId;
-
             threadPool.Initialize();        
 
 			QuartzSchedulerResources qrs = new QuartzSchedulerResources();
@@ -260,7 +254,7 @@ namespace Quartz.Impl
                 }
             }
 
-			QuartzScheduler qs = new QuartzScheduler(qrs, schedCtxt, idleWaitTime, dbFailureRetryInterval);
+			QuartzScheduler qs = new QuartzScheduler(qrs, idleWaitTime, dbFailureRetryInterval);
 
             ITypeLoadHelper cch = new SimpleTypeLoadHelper();
 			cch.Initialize();
@@ -268,7 +262,7 @@ namespace Quartz.Impl
             SchedulerDetailsSetter.SetDetails(jobStore, schedulerName, schedulerInstanceId);
             jobStore.Initialize(cch, qs.SchedulerSignaler);
 
-			IScheduler scheduler = new StdScheduler(qs, schedCtxt);
+			IScheduler scheduler = new StdScheduler(qs);
 
             // Initialize plugins now that we have a Scheduler instance.
             if (schedulerPluginMap != null)
@@ -279,7 +273,7 @@ namespace Quartz.Impl
                 }
             }
 
-			jrsf.Initialize(scheduler, schedCtxt);
+			jrsf.Initialize(scheduler);
 
 			Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}", scheduler.SchedulerName));
 

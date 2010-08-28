@@ -37,24 +37,20 @@ namespace Quartz.Impl
     /// </summary>
     /// <seealso cref="IScheduler" />
     /// <seealso cref="QuartzScheduler" />
-    /// <seealso cref="SchedulingContext" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public class RemoteScheduler : IScheduler
     {
         private IRemotableQuartzScheduler rsched;
-        private readonly SchedulingContext schedCtxt;
         private readonly string schedId;
         private string remoteSchedulerAddress;
 
         /// <summary>
         /// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
-        /// RemoteableQuartzScheduler instance, and with the given
-        /// <see cref="SchedulingContext" />.
+        /// RemoteableQuartzScheduler instance.
         /// </summary>
-        public RemoteScheduler(SchedulingContext schedCtxt, string schedId)
+        public RemoteScheduler(string schedId)
         {
-            this.schedCtxt = schedCtxt;
             this.schedId = schedId;
         }
 
@@ -66,7 +62,7 @@ namespace Quartz.Impl
         /// <returns></returns>
         public virtual bool IsJobGroupPaused(string groupName)
         {
-            return GetRemoteScheduler().IsJobGroupPaused(schedCtxt, groupName);
+            return GetRemoteScheduler().IsJobGroupPaused(groupName);
         }
 
         /// <summary>
@@ -77,7 +73,7 @@ namespace Quartz.Impl
         /// <returns></returns>
         public virtual bool IsTriggerGroupPaused(string groupName)
         {
-            return GetRemoteScheduler().IsTriggerGroupPaused(schedCtxt, groupName);
+            return GetRemoteScheduler().IsTriggerGroupPaused(groupName);
         }
 
         /// <summary>
@@ -222,9 +218,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual IList<string> JobGroupNames
         {
@@ -232,7 +226,7 @@ namespace Quartz.Impl
             {
                 try
                 {
-                    return GetRemoteScheduler().GetJobGroupNames(schedCtxt);
+                    return GetRemoteScheduler().GetJobGroupNames();
                 }
                 catch (RemotingException re)
                 {
@@ -242,9 +236,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual IList<string> TriggerGroupNames
         {
@@ -252,7 +244,7 @@ namespace Quartz.Impl
             {
                 try
                 {
-                    return GetRemoteScheduler().GetTriggerGroupNames(schedCtxt);
+                    return GetRemoteScheduler().GetTriggerGroupNames();
                 }
                 catch (RemotingException re)
                 {
@@ -262,9 +254,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual IList<string> CalendarNames
         {
@@ -272,7 +262,7 @@ namespace Quartz.Impl
             {
                 try
                 {
-                    return GetRemoteScheduler().GetCalendarNames(schedCtxt);
+                    return GetRemoteScheduler().GetCalendarNames();
                 }
                 catch (RemotingException re)
                 {
@@ -336,7 +326,7 @@ namespace Quartz.Impl
         {
             try
             {
-                return GetRemoteScheduler().GetPausedTriggerGroups(schedCtxt);
+                return GetRemoteScheduler().GetPausedTriggerGroups();
             }
             catch (RemotingException re)
             {
@@ -500,15 +490,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger)
         {
             try
             {
-                return GetRemoteScheduler().ScheduleJob(schedCtxt, jobDetail, trigger);
+                return GetRemoteScheduler().ScheduleJob(jobDetail, trigger);
             }
             catch (RemotingException re)
             {
@@ -516,16 +504,14 @@ namespace Quartz.Impl
             }
         }
 
-        /// <summary> 
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual DateTime ScheduleJob(Trigger trigger)
         {
             try
             {
-                return GetRemoteScheduler().ScheduleJob(schedCtxt, trigger);
+                return GetRemoteScheduler().ScheduleJob(trigger);
             }
             catch (RemotingException re)
             {
@@ -534,15 +520,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void AddJob(JobDetail jobDetail, bool replace)
         {
             try
             {
-                GetRemoteScheduler().AddJob(schedCtxt, jobDetail, replace);
+                GetRemoteScheduler().AddJob(jobDetail, replace);
             }
             catch (RemotingException re)
             {
@@ -550,16 +534,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual bool DeleteJob(string jobName, string groupName)
         {
             try
             {
-                return GetRemoteScheduler().DeleteJob(schedCtxt, jobName, groupName);
+                return GetRemoteScheduler().DeleteJob(jobName, groupName);
             }
             catch (RemotingException re)
             {
@@ -568,15 +551,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual bool UnscheduleJob(string triggerName, string groupName)
         {
             try
             {
-                return GetRemoteScheduler().UnscheduleJob(schedCtxt, triggerName, groupName);
+                return GetRemoteScheduler().UnscheduleJob(triggerName, groupName);
             }
             catch (RemotingException re)
             {
@@ -585,15 +566,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
         {
             try
             {
-                return GetRemoteScheduler().RescheduleJob(schedCtxt, triggerName, groupName, newTrigger);
+                return GetRemoteScheduler().RescheduleJob(triggerName, groupName, newTrigger);
             }
             catch (RemotingException re)
             {
@@ -601,11 +580,8 @@ namespace Quartz.Impl
             }
         }
 
-
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void TriggerJob(string jobName, string groupName)
         {
@@ -613,15 +589,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void TriggerJob(string jobName, string groupName, JobDataMap data)
         {
             try
             {
-                GetRemoteScheduler().TriggerJob(schedCtxt, jobName, groupName, data);
+                GetRemoteScheduler().TriggerJob(jobName, groupName, data);
             }
             catch (RemotingException re)
             {
@@ -630,9 +604,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName)
         {
@@ -640,15 +612,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data)
         {
             try
             {
-                GetRemoteScheduler().TriggerJobWithVolatileTrigger(schedCtxt, jobName, groupName, data);
+                GetRemoteScheduler().TriggerJobWithVolatileTrigger(jobName, groupName, data);
             }
             catch (RemotingException re)
             {
@@ -656,16 +626,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void PauseTrigger(string triggerName, string groupName)
         {
             try
             {
-                GetRemoteScheduler().PauseTrigger(schedCtxt, triggerName, groupName);
+                GetRemoteScheduler().PauseTrigger(triggerName, groupName);
             }
             catch (RemotingException re)
             {
@@ -674,15 +643,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void PauseTriggerGroup(string groupName)
         {
             try
             {
-                GetRemoteScheduler().PauseTriggerGroup(schedCtxt, groupName);
+                GetRemoteScheduler().PauseTriggerGroup(groupName);
             }
             catch (RemotingException re)
             {
@@ -690,16 +657,14 @@ namespace Quartz.Impl
             }
         }
 
-        /// <summary> 
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void PauseJob(string jobName, string groupName)
         {
             try
             {
-                GetRemoteScheduler().PauseJob(schedCtxt, jobName, groupName);
+                GetRemoteScheduler().PauseJob(jobName, groupName);
             }
             catch (RemotingException re)
             {
@@ -707,16 +672,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void PauseJobGroup(string groupName)
         {
             try
             {
-                GetRemoteScheduler().PauseJobGroup(schedCtxt, groupName);
+                GetRemoteScheduler().PauseJobGroup(groupName);
             }
             catch (RemotingException re)
             {
@@ -725,15 +689,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void ResumeTrigger(string triggerName, string groupName)
         {
             try
             {
-                GetRemoteScheduler().ResumeTrigger(schedCtxt, triggerName, groupName);
+                GetRemoteScheduler().ResumeTrigger(triggerName, groupName);
             }
             catch (RemotingException re)
             {
@@ -741,16 +703,14 @@ namespace Quartz.Impl
             }
         }
 
-        /// <summary> 
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void ResumeTriggerGroup(string groupName)
         {
             try
             {
-                GetRemoteScheduler().ResumeTriggerGroup(schedCtxt, groupName);
+                GetRemoteScheduler().ResumeTriggerGroup(groupName);
             }
             catch (RemotingException re)
             {
@@ -758,16 +718,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void ResumeJob(string jobName, string groupName)
         {
             try
             {
-                GetRemoteScheduler().ResumeJob(schedCtxt, jobName, groupName);
+                GetRemoteScheduler().ResumeJob(jobName, groupName);
             }
             catch (RemotingException re)
             {
@@ -775,16 +734,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void ResumeJobGroup(string groupName)
         {
             try
             {
-                GetRemoteScheduler().ResumeJobGroup(schedCtxt, groupName);
+                GetRemoteScheduler().ResumeJobGroup(groupName);
             }
             catch (RemotingException re)
             {
@@ -792,16 +750,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void PauseAll()
         {
             try
             {
-                GetRemoteScheduler().PauseAll(schedCtxt);
+                GetRemoteScheduler().PauseAll();
             }
             catch (RemotingException re)
             {
@@ -810,15 +767,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void ResumeAll()
         {
             try
             {
-                GetRemoteScheduler().ResumeAll(schedCtxt);
+                GetRemoteScheduler().ResumeAll();
             }
             catch (RemotingException re)
             {
@@ -827,15 +782,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual IList<string> GetJobNames(string groupName)
         {
             try
             {
-                return GetRemoteScheduler().GetJobNames(schedCtxt, groupName);
+                return GetRemoteScheduler().GetJobNames(groupName);
             }
             catch (RemotingException re)
             {
@@ -843,16 +796,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual IList<Trigger> GetTriggersOfJob(string jobName, string groupName)
         {
             try
             {
-                return GetRemoteScheduler().GetTriggersOfJob(schedCtxt, jobName, groupName);
+                return GetRemoteScheduler().GetTriggersOfJob(jobName, groupName);
             }
             catch (RemotingException re)
             {
@@ -861,15 +813,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual IList<string> GetTriggerNames(string groupName)
         {
             try
             {
-                return GetRemoteScheduler().GetTriggerNames(schedCtxt, groupName);
+                return GetRemoteScheduler().GetTriggerNames(groupName);
             }
             catch (RemotingException re)
             {
@@ -878,15 +828,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual JobDetail GetJobDetail(string jobName, string jobGroup)
         {
             try
             {
-                return GetRemoteScheduler().GetJobDetail(schedCtxt, jobName, jobGroup);
+                return GetRemoteScheduler().GetJobDetail(jobName, jobGroup);
             }
             catch (RemotingException re)
             {
@@ -895,15 +843,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Trigger GetTrigger(string triggerName, string triggerGroup)
         {
             try
             {
-                return GetRemoteScheduler().GetTrigger(schedCtxt, triggerName, triggerGroup);
+                return GetRemoteScheduler().GetTrigger(triggerName, triggerGroup);
             }
             catch (RemotingException re)
             {
@@ -911,16 +857,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual TriggerState GetTriggerState(string triggerName, string triggerGroup)
         {
             try
             {
-                return GetRemoteScheduler().GetTriggerState(schedCtxt, triggerName, triggerGroup);
+                return GetRemoteScheduler().GetTriggerState(triggerName, triggerGroup);
             }
             catch (RemotingException re)
             {
@@ -929,15 +874,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
         {
             try
             {
-                GetRemoteScheduler().AddCalendar(schedCtxt, calName, calendar, replace, updateTriggers);
+                GetRemoteScheduler().AddCalendar(calName, calendar, replace, updateTriggers);
             }
             catch (RemotingException re)
             {
@@ -945,16 +888,15 @@ namespace Quartz.Impl
             }
         }
 
+
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual bool DeleteCalendar(string calName)
         {
             try
             {
-                return GetRemoteScheduler().DeleteCalendar(schedCtxt, calName);
+                return GetRemoteScheduler().DeleteCalendar(calName);
             }
             catch (RemotingException re)
             {
@@ -963,15 +905,13 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual ICalendar GetCalendar(string calName)
         {
             try
             {
-                return GetRemoteScheduler().GetCalendar(schedCtxt, calName);
+                return GetRemoteScheduler().GetCalendar(calName);
             }
             catch (RemotingException re)
             {
@@ -987,7 +927,7 @@ namespace Quartz.Impl
         {
             try
             {
-                return GetRemoteScheduler().GetCalendarNames(schedCtxt);
+                return GetRemoteScheduler().GetCalendarNames();
             }
             catch (RemotingException re)
             {
@@ -996,9 +936,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-        /// passing the <see cref="SchedulingContext" /> associated with this
-        /// instance.
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual void AddGlobalJobListener(IJobListener jobListener)
         {
@@ -1064,7 +1002,7 @@ namespace Quartz.Impl
         {
             try
             {
-                return GetRemoteScheduler().Interrupt(schedCtxt, jobName, groupName);
+                return GetRemoteScheduler().Interrupt(jobName, groupName);
             }
             catch (RemotingException re)
             {

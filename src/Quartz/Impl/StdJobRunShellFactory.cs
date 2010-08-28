@@ -35,19 +35,15 @@ namespace Quartz.Impl
     public class StdJobRunShellFactory : IJobRunShellFactory
 	{
 		private IScheduler scheduler;
-		private SchedulingContext schedCtxt;
-
+		
 		/// <summary>
 		/// Initialize the factory, providing a handle to the <see cref="IScheduler" />
 		/// that should be made available within the <see cref="JobRunShell" /> and
-		/// the <see cref="JobExecutionContext" /> s within it, and a handle to the
-		/// <see cref="SchedulingContext" /> that the shell will use in its own
-		/// operations with the <see cref="IJobStore" />.
+		/// the <see cref="JobExecutionContext" /> s within it.
 		/// </summary>
-		public virtual void Initialize(IScheduler sched, SchedulingContext ctx)
+		public virtual void Initialize(IScheduler sched)
 		{
 			scheduler = sched;
-			schedCtxt = ctx;
 		}
 
 		/// <summary>
@@ -56,7 +52,7 @@ namespace Quartz.Impl
 		/// </summary>
 		public virtual JobRunShell BorrowJobRunShell()
 		{
-			return new JobRunShell(this, scheduler, schedCtxt);
+			return new JobRunShell(this, scheduler);
 		}
 
 		/// <summary>

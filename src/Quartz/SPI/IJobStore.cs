@@ -83,43 +83,37 @@ namespace Quartz.Spi
         /// <summary>
         /// Store the given <see cref="JobDetail" /> and <see cref="Trigger" />.
         /// </summary>
-        /// <param name="ctx">The scheduling context.</param>
         /// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
         /// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
-		void StoreJobAndTrigger(SchedulingContext ctx, JobDetail newJob, Trigger newTrigger);
-
+		void StoreJobAndTrigger(JobDetail newJob, Trigger newTrigger);
 
         /// <summary>
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
-        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        bool IsJobGroupPaused(SchedulingContext ctxt, string groupName);
+        bool IsJobGroupPaused(string groupName);
+
         /// <summary>
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
-        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        bool IsTriggerGroupPaused(SchedulingContext ctxt, string groupName);
+        bool IsTriggerGroupPaused(string groupName);
         
-
-	    
         /// <summary>
         /// Store the given <see cref="JobDetail" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
         /// <param name="replaceExisting">
         /// If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name and group should be
         /// over-written.
         /// </param>
-		void StoreJob(SchedulingContext ctx, JobDetail newJob, bool replaceExisting);
+		void StoreJob(JobDetail newJob, bool replaceExisting);
 
         /// <summary>
         /// Remove (delete) the <see cref="IJob" /> with the given
@@ -131,37 +125,34 @@ namespace Quartz.Spi
         /// group should be removed from the <see cref="IJobStore" />'s list of
         /// known group names.
         /// </remarks>
-        /// <param name="ctx">The context.</param>
         /// <param name="jobName">The name of the <see cref="IJob" /> to be removed.</param>
         /// <param name="groupName">The group name of the <see cref="IJob" /> to be removed.</param>
         /// <returns>
         /// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
         /// group was found and removed from the store.
         /// </returns>
-		bool RemoveJob(SchedulingContext ctx, string jobName, string groupName);
+		bool RemoveJob(string jobName, string groupName);
 
         /// <summary>
         /// Retrieve the <see cref="JobDetail" /> for the given
         /// <see cref="IJob" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
         /// <param name="groupName">The group name of the <see cref="IJob" /> to be retrieved.</param>
         /// <returns>
         /// The desired <see cref="IJob" />, or null if there is no match.
         /// </returns>
-		JobDetail RetrieveJob(SchedulingContext ctx, string jobName, string groupName);
+		JobDetail RetrieveJob(string jobName, string groupName);
 
         /// <summary>
         /// Store the given <see cref="Trigger" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
         /// <param name="replaceExisting">If <see langword="true" />, any <see cref="Trigger" /> existing in
         /// the <see cref="IJobStore" /> with the same name and group should
         /// be over-written.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
-		void StoreTrigger(SchedulingContext ctx, Trigger newTrigger, bool replaceExisting);
+		void StoreTrigger(Trigger newTrigger, bool replaceExisting);
 
         /// <summary>
         /// Remove (delete) the <see cref="Trigger" /> with the
@@ -179,21 +170,19 @@ namespace Quartz.Spi
         /// also.
         /// </p>
         /// </remarks>
-        /// <param name="ctx">The context.</param>
         /// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
         /// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
         /// <returns>
         /// 	<see langword="true" /> if a <see cref="Trigger" /> with the given
         /// name and group was found and removed from the store.
         /// </returns>
-		bool RemoveTrigger(SchedulingContext ctx, string triggerName, string groupName);
+		bool RemoveTrigger(string triggerName, string groupName);
 
         /// <summary>
         /// Remove (delete) the <see cref="Trigger" /> with the
         /// given name, and store the new given one - which must be associated
         /// with the same job.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
         /// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
         /// <param name="newTrigger">The new <see cref="Trigger" /> to be stored.</param>
@@ -201,25 +190,23 @@ namespace Quartz.Spi
         /// 	<see langword="true" /> if a <see cref="Trigger" /> with the given
         /// name and group was found and removed from the store.
         /// </returns>
-		bool ReplaceTrigger(SchedulingContext ctx, string triggerName, string groupName, Trigger newTrigger);
+		bool ReplaceTrigger(string triggerName, string groupName, Trigger newTrigger);
 
 
         /// <summary>
         /// Retrieve the given <see cref="Trigger" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <param name="triggerName">The name of the <see cref="Trigger" /> to be retrieved.</param>
         /// <param name="groupName">The group name of the <see cref="Trigger" /> to be retrieved.</param>
         /// <returns>
         /// The desired <see cref="Trigger" />, or null if there is no
         /// match.
         /// </returns>
-		Trigger RetrieveTrigger(SchedulingContext ctx, string triggerName, string groupName);
+		Trigger RetrieveTrigger(string triggerName, string groupName);
 
         /// <summary>
         /// Store the given <see cref="ICalendar" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <param name="name">The name.</param>
         /// <param name="calendar">The <see cref="ICalendar" /> to be stored.</param>
         /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ICalendar" /> existing
@@ -230,7 +217,7 @@ namespace Quartz.Spi
         /// Calendar with the same name with have their next fire time
         /// re-computed with the new <see cref="ICalendar" />.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
-		void StoreCalendar(SchedulingContext ctx, string name, ICalendar calendar, bool replaceExisting, bool updateTriggers);
+		void StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers);
 
         /// <summary>
         /// Remove (delete) the <see cref="ICalendar" /> with the
@@ -241,49 +228,44 @@ namespace Quartz.Spi
         /// <see cref="Trigger" />s pointing to non-existent calendars, then a
         /// <see cref="JobPersistenceException" /> will be thrown.
         /// </remarks>
-        /// <param name="ctx">The context.</param>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be removed.</param>
         /// <returns>
         /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         /// </returns>
-		bool RemoveCalendar(SchedulingContext ctx, string calName);
+		bool RemoveCalendar(string calName);
 
         /// <summary>
         /// Retrieve the given <see cref="Trigger" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
         /// <returns>
         /// The desired <see cref="ICalendar" />, or null if there is no
         /// match.
         /// </returns>
-		ICalendar RetrieveCalendar(SchedulingContext ctx, string calName);
+		ICalendar RetrieveCalendar(string calName);
 
 
         /// <summary>
         /// Get the number of <see cref="IJob" />s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <returns></returns>
-		int GetNumberOfJobs(SchedulingContext ctx);
+		int GetNumberOfJobs();
 
         /// <summary>
         /// Get the number of <see cref="Trigger" />s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <returns></returns>
-		int GetNumberOfTriggers(SchedulingContext ctx);
+		int GetNumberOfTriggers();
 
         /// <summary>
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <returns></returns>
-		int GetNumberOfCalendars(SchedulingContext ctx);
+		int GetNumberOfCalendars();
 
         /// <summary>
         /// Get the names of all of the <see cref="IJob" /> s that
@@ -293,10 +275,9 @@ namespace Quartz.Spi
         /// zero-length array (not <see langword="null" />).
         /// </p>
         /// </summary>
-        /// <param name="ctx">The CTX.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns></returns>
-		IList<string> GetJobNames(SchedulingContext ctx, string groupName);
+		IList<string> GetJobNames(string groupName);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="Trigger" />s
@@ -306,7 +287,7 @@ namespace Quartz.Spi
 		/// zero-length array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		IList<string> GetTriggerNames(SchedulingContext ctx, string groupName);
+		IList<string> GetTriggerNames(string groupName);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="IJob" />
@@ -316,7 +297,7 @@ namespace Quartz.Spi
 		/// array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		IList<string> GetJobGroupNames(SchedulingContext ctxt);
+		IList<string> GetJobGroupNames();
 
 		/// <summary>
 		/// Get the names of all of the <see cref="Trigger" />
@@ -326,7 +307,7 @@ namespace Quartz.Spi
 		/// array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		IList<string> GetTriggerGroupNames(SchedulingContext ctxt);
+		IList<string> GetTriggerGroupNames();
 
 		/// <summary>
 		/// Get the names of all of the <see cref="ICalendar" /> s
@@ -337,7 +318,7 @@ namespace Quartz.Spi
 		/// a zero-length array (not <see langword="null" />).
 		/// </p>
 		/// </summary>
-		IList<string> GetCalendarNames(SchedulingContext ctxt);
+		IList<string> GetCalendarNames();
 
 		/// <summary>
 		/// Get all of the Triggers that are associated to the given Job.
@@ -345,7 +326,7 @@ namespace Quartz.Spi
 		/// <remarks>
 		/// If there are no matches, a zero-length array should be returned.
 		/// </remarks>
-		IList<Trigger> GetTriggersForJob(SchedulingContext ctx, string jobName, string groupName);
+		IList<Trigger> GetTriggersForJob(string jobName, string groupName);
 
 		/// <summary>
 		/// Get the current state of the identified <see cref="Trigger" />.
@@ -355,7 +336,7 @@ namespace Quartz.Spi
         /// <seealso cref="TriggerState.Complete" />
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.None" />
-		TriggerState GetTriggerState(SchedulingContext ctx, string triggerName, string triggerGroup);
+		TriggerState GetTriggerState(string triggerName, string triggerGroup);
 
 		/////////////////////////////////////////////////////////////////////////////
 		//
@@ -366,7 +347,7 @@ namespace Quartz.Spi
         /// <summary>
 		/// Pause the <see cref="Trigger" /> with the given name.
 		/// </summary>
-		void PauseTrigger(SchedulingContext ctx, string triggerName, string groupName);
+		void PauseTrigger(string triggerName, string groupName);
 
 		/// <summary>
 		/// Pause all of the <see cref="Trigger" />s in the
@@ -377,13 +358,13 @@ namespace Quartz.Spi
 		/// pause on any new triggers that are added to the group while the group is
 		/// paused.
 		/// </remarks>
-		void PauseTriggerGroup(SchedulingContext ctx, string groupName);
+		void PauseTriggerGroup(string groupName);
 
 		/// <summary>
 		/// Pause the <see cref="IJob" /> with the given name - by
 		/// pausing all of its current <see cref="Trigger" />s.
 		/// </summary>
-		void PauseJob(SchedulingContext ctx, string jobName, string groupName);
+		void PauseJob(string jobName, string groupName);
 
 		/// <summary>
 		/// Pause all of the <see cref="IJob" />s in the given
@@ -396,7 +377,7 @@ namespace Quartz.Spi
 		/// </summary>
 		/// <seealso cref="string">
 		/// </seealso>
-		void PauseJobGroup(SchedulingContext ctx, string groupName);
+		void PauseJobGroup(string groupName);
 
 		/// <summary>
 		/// Resume (un-pause) the <see cref="Trigger" /> with the
@@ -409,7 +390,7 @@ namespace Quartz.Spi
 		/// </summary>
 		/// <seealso cref="string">
 		/// </seealso>
-		void ResumeTrigger(SchedulingContext ctx, string triggerName, string groupName);
+		void ResumeTrigger(string triggerName, string groupName);
 
 		/// <summary>
 		/// Resume (un-pause) all of the <see cref="Trigger" />s
@@ -419,14 +400,13 @@ namespace Quartz.Spi
 		/// <see cref="Trigger" />'s misfire instruction will be applied.
 		/// </p>
 		/// </summary>
-		void ResumeTriggerGroup(SchedulingContext ctx, string groupName);
+		void ResumeTriggerGroup(string groupName);
 
         /// <summary>
         /// Gets the paused trigger groups.
         /// </summary>
-        /// <param name="ctxt">The context.</param>
         /// <returns></returns>
-        Collection.ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt);
+        Collection.ISet<string> GetPausedTriggerGroups();
 
 		/// <summary> 
 		/// Resume (un-pause) the <see cref="IJob" /> with the
@@ -437,7 +417,7 @@ namespace Quartz.Spi
 		/// instruction will be applied.
 		/// </p>
 		/// </summary>
-		void ResumeJob(SchedulingContext ctx, string jobName, string groupName);
+		void ResumeJob(string jobName, string groupName);
 
 		/// <summary>
 		/// Resume (un-pause) all of the <see cref="IJob" />s in
@@ -448,7 +428,7 @@ namespace Quartz.Spi
 		/// misfire instruction will be applied.
 		/// </p> 
 		/// </summary>
-		void ResumeJobGroup(SchedulingContext ctx, string groupName);
+		void ResumeJobGroup(string groupName);
 
 		/// <summary>
 		/// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup" />
@@ -459,7 +439,7 @@ namespace Quartz.Spi
 		/// </p>
 		/// </summary>
 		/// <seealso cref="ResumeAll" />
-		void PauseAll(SchedulingContext ctxt);
+		void PauseAll();
 
 		/// <summary>
 		/// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup" />
@@ -471,28 +451,26 @@ namespace Quartz.Spi
 		/// 
 		/// </summary>
 		/// <seealso cref="PauseAll" />
-		void ResumeAll(SchedulingContext ctxt);
-
+		void ResumeAll();
 
         /// <summary>
         /// Get a handle to the next trigger to be fired, and mark it as 'reserved'
         /// by the calling scheduler.
         /// </summary>
-        /// <param name="ctx">The context.</param>
         /// <param name="noLaterThan">If &gt; 0, the JobStore should only return a Trigger
         /// that will fire no later than the time represented in this value as
         /// milliseconds.</param>
         /// <returns></returns>
         /// <seealso cref="Trigger">
         /// </seealso>
-        IList<Trigger> AcquireNextTriggers(SchedulingContext ctx, DateTime noLaterThan, int maxCount, TimeSpan timeWindow);
+        IList<Trigger> AcquireNextTriggers(DateTime noLaterThan, int maxCount, TimeSpan timeWindow);
 
 		/// <summary> 
 		/// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
 		/// fire the given <see cref="Trigger" />, that it had previously acquired
 		/// (reserved).
 		/// </summary>
-		void ReleaseAcquiredTrigger(SchedulingContext ctx, Trigger trigger);
+		void ReleaseAcquiredTrigger(Trigger trigger);
 
 		/// <summary>
 		/// Inform the <see cref="IJobStore" /> that the scheduler is now firing the
@@ -503,7 +481,7 @@ namespace Quartz.Spi
 		/// if the trigger was not successfully put into the 'executing'
 		/// state.
 		/// </returns>
-		IList<TriggerFiredResult> TriggersFired(SchedulingContext ctx, IList<Trigger> triggers);
+		IList<TriggerFiredResult> TriggersFired(IList<Trigger> triggers);
 
 		/// <summary>
 		/// Inform the <see cref="IJobStore" /> that the scheduler has completed the
@@ -512,7 +490,7 @@ namespace Quartz.Spi
 		/// in the given <see cref="JobDetail" /> should be updated if the <see cref="IJob" />
 		/// is stateful.
 		/// </summary>
-        void TriggeredJobComplete(SchedulingContext ctx, Trigger trigger, JobDetail jobDetail, SchedulerInstruction triggerInstCode);
+        void TriggeredJobComplete(Trigger trigger, JobDetail jobDetail, SchedulerInstruction triggerInstCode);
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id, 

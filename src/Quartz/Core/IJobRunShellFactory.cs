@@ -17,8 +17,6 @@
  */
 #endregion
 
-using Quartz.Spi;
-
 namespace Quartz.Core
 {
 	/// <summary>
@@ -38,12 +36,9 @@ namespace Quartz.Core
 	{
 		/// <summary>
 		/// Initialize the factory, providing a handle to the <see cref="IScheduler" />
-		/// that should be made available within the <see cref="JobRunShell" /> and
-		/// the <see cref="JobExecutionContext" /> s within it, and a handle to the
-		/// <see cref="SchedulingContext" /> that the shell will use in its own
-		/// operations with the <see cref="IJobStore" />.
+		/// that should be made available within the <see cref="JobRunShell" />.
 		/// </summary>
-		void Initialize(IScheduler sched, SchedulingContext ctx);
+		void Initialize(IScheduler sched);
 
 		/// <summary>
 		/// Called by the <see cref="QuartzSchedulerThread" />

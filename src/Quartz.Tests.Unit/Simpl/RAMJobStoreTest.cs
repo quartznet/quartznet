@@ -48,7 +48,7 @@ namespace Quartz.Tests.Unit.Simpl
 
             fJobDetail = new JobDetail("job1", "jobGroup1", typeof (NoOpJob));
             fJobDetail.Durable = true;
-            fJobStore.StoreJob(null, fJobDetail, false);
+            fJobStore.StoreJob(fJobDetail, false);
         }
 
         [Test]
@@ -71,35 +71,35 @@ namespace Quartz.Tests.Unit.Simpl
             trigger1.ComputeFirstFireTimeUtc(null);
             trigger2.ComputeFirstFireTimeUtc(null);
             trigger3.ComputeFirstFireTimeUtc(null);
-            fJobStore.StoreTrigger(null, trigger1, false);
-            fJobStore.StoreTrigger(null, trigger2, false);
-            fJobStore.StoreTrigger(null, trigger3, false);
+            fJobStore.StoreTrigger(trigger1, false);
+            fJobStore.StoreTrigger(trigger2, false);
+            fJobStore.StoreTrigger(trigger3, false);
 
-            Assert.AreEqual(0, fJobStore.AcquireNextTriggers(null, d.AddMilliseconds(10), 1, TimeSpan.FromMilliseconds(1)).Count);
+            Assert.AreEqual(0, fJobStore.AcquireNextTriggers(d.AddMilliseconds(10), 1, TimeSpan.FromMilliseconds(1)).Count);
             Assert.AreEqual(
                 trigger2,
-                fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
+                fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
                                               TimeSpan.FromMilliseconds(1))[0]);
             Assert.AreEqual(
                 trigger3,
-                fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
+                fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
                                               TimeSpan.FromMilliseconds(1))[0]);
             Assert.AreEqual(
                 trigger1,
-                fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
+                fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
                                               TimeSpan.FromMilliseconds(1))[0]);
             Assert.AreEqual(0,
-                            fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
+                            fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
                                                           TimeSpan.FromMilliseconds(1)).Count);
 
             // because of trigger2
             Assert.AreEqual(1, fSignaler.fMisfireCount);
 
             // release trigger3
-            fJobStore.ReleaseAcquiredTrigger(null, trigger3);
+            fJobStore.ReleaseAcquiredTrigger(trigger3);
             Assert.AreEqual(
                 trigger3,
-                fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
+                fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
                                               TimeSpan.FromMilliseconds(1))[0]);
         }
 
@@ -133,46 +133,45 @@ namespace Quartz.Tests.Unit.Simpl
             trigger3.ComputeFirstFireTimeUtc(null);
             trigger4.ComputeFirstFireTimeUtc(null);
             trigger10.ComputeFirstFireTimeUtc(null);
-            this.fJobStore.StoreTrigger(null, trigger1, false);
-            this.fJobStore.StoreTrigger(null, trigger2, false);
-            this.fJobStore.StoreTrigger(null, trigger3, false);
-            this.fJobStore.StoreTrigger(null, trigger4, false);
-            this.fJobStore.StoreTrigger(null, trigger10, false);
+            this.fJobStore.StoreTrigger(trigger1, false);
+            this.fJobStore.StoreTrigger(trigger2, false);
+            this.fJobStore.StoreTrigger(trigger3, false);
+            this.fJobStore.StoreTrigger(trigger4, false);
+            this.fJobStore.StoreTrigger(trigger10, false);
 
             Assert.AreEqual(3,
-                            this.fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10),
+                            this.fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(10),
                                                                3, TimeSpan.FromSeconds(1)).Count);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger1);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger2);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger3);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger1);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger2);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger3);
 
             Assert.AreEqual(4,
-                            this.fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10),
+                            this.fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(10),
                                                                4, TimeSpan.FromSeconds(1)).Count);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger1);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger2);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger3);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger4);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger1);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger2);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger3);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger4);
 
             Assert.AreEqual(4,
-                            this.fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(10),
+                            this.fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(10),
                                                                5, TimeSpan.FromSeconds(1)).Count);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger1);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger2);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger3);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger4);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger1);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger2);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger3);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger4);
 
             Assert.AreEqual(1,
-                            this.fJobStore.AcquireNextTriggers(null, trigger1.GetNextFireTimeUtc().Value.AddSeconds(0),
+                            this.fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddSeconds(0),
                                                                5, TimeSpan.Zero).Count);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger1);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger1);
 
             Assert.AreEqual(2,
-                            this.fJobStore.AcquireNextTriggers(null,
-                                                               trigger1.GetNextFireTimeUtc().Value.AddMilliseconds(150),
+                            this.fJobStore.AcquireNextTriggers(trigger1.GetNextFireTimeUtc().Value.AddMilliseconds(150),
                                                                5, TimeSpan.Zero).Count);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger1);
-            this.fJobStore.ReleaseAcquiredTrigger(null, trigger2);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger1);
+            this.fJobStore.ReleaseAcquiredTrigger(trigger2);
         }
 
         [Test]
@@ -182,27 +181,24 @@ namespace Quartz.Tests.Unit.Simpl
                 new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
                                   DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
-            Assert.AreEqual(TriggerState.None, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
-            fJobStore.StoreTrigger(null, trigger, false);
-            Assert.AreEqual(TriggerState.Normal, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
+            Assert.AreEqual(TriggerState.None, fJobStore.GetTriggerState(trigger.Name, trigger.Group));
+            fJobStore.StoreTrigger(trigger, false);
+            Assert.AreEqual(TriggerState.Normal, fJobStore.GetTriggerState(trigger.Name, trigger.Group));
 
-            fJobStore.PauseTrigger(null, trigger.Name, trigger.Group);
-            Assert.AreEqual(TriggerState.Paused, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
+            fJobStore.PauseTrigger(trigger.Name, trigger.Group);
+            Assert.AreEqual(TriggerState.Paused, fJobStore.GetTriggerState(trigger.Name, trigger.Group));
 
-            fJobStore.ResumeTrigger(null, trigger.Name, trigger.Group);
-            Assert.AreEqual(TriggerState.Normal, fJobStore.GetTriggerState(null, trigger.Name, trigger.Group));
+            fJobStore.ResumeTrigger(trigger.Name, trigger.Group);
+            Assert.AreEqual(TriggerState.Normal, fJobStore.GetTriggerState(trigger.Name, trigger.Group));
 
-            trigger = fJobStore.AcquireNextTriggers(null,
-                                                    trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
+            trigger = fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
                                                     TimeSpan.FromMilliseconds(1))[0];
             Assert.IsNotNull(trigger);
-            fJobStore.ReleaseAcquiredTrigger(null, trigger);
-            trigger = fJobStore.AcquireNextTriggers(null,
-                                                    trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
+            fJobStore.ReleaseAcquiredTrigger(trigger);
+            trigger = fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
                                                     TimeSpan.FromMilliseconds(1))[0];
             Assert.IsNotNull(trigger);
-            Assert.AreEqual(0, fJobStore.AcquireNextTriggers(null,
-                                                             trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
+            Assert.AreEqual(0, fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1,
                                                              TimeSpan.FromMilliseconds(1)).Count);
         }
 
@@ -216,10 +212,10 @@ namespace Quartz.Tests.Unit.Simpl
                                                 TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
             ICalendar cal = new MonthlyCalendar();
-            fJobStore.StoreTrigger(null, trigger, false);
-            fJobStore.StoreCalendar(null, "cal", cal, false, true);
+            fJobStore.StoreTrigger(trigger, false);
+            fJobStore.StoreCalendar("cal", cal, false, true);
 
-            fJobStore.RemoveCalendar(null, "cal");
+            fJobStore.RemoveCalendar("cal");
         }
 
         [Test]
@@ -228,7 +224,7 @@ namespace Quartz.Tests.Unit.Simpl
             string jobName = "StoreTriggerReplacesTrigger";
             string jobGroup = "StoreTriggerReplacesTriggerGroup";
             JobDetail detail = new JobDetail(jobName, jobGroup, typeof (NoOpJob));
-            fJobStore.StoreJob(null, detail, false);
+            fJobStore.StoreJob(detail, false);
 
             string trName = "StoreTriggerReplacesTrigger";
             string trGroup = "StoreTriggerReplacesTriggerGroup";
@@ -237,19 +233,19 @@ namespace Quartz.Tests.Unit.Simpl
             tr.JobName = jobName;
             tr.CalendarName = null;
 
-            fJobStore.StoreTrigger(null, tr, false);
-            Assert.AreEqual(tr, fJobStore.RetrieveTrigger(null, trName, trGroup));
+            fJobStore.StoreTrigger(tr, false);
+            Assert.AreEqual(tr, fJobStore.RetrieveTrigger(trName, trGroup));
 
             tr.CalendarName = "NonExistingCalendar";
-            fJobStore.StoreTrigger(null, tr, true);
-            Assert.AreEqual(tr, fJobStore.RetrieveTrigger(null, trName, trGroup));
-            Assert.AreEqual(tr.CalendarName, fJobStore.RetrieveTrigger(null, trName, trGroup).CalendarName,
+            fJobStore.StoreTrigger(tr, true);
+            Assert.AreEqual(tr, fJobStore.RetrieveTrigger(trName, trGroup));
+            Assert.AreEqual(tr.CalendarName, fJobStore.RetrieveTrigger(trName, trGroup).CalendarName,
                             "StoreJob doesn't replace triggers");
 
             bool exeptionRaised = false;
             try
             {
-                fJobStore.StoreTrigger(null, tr, false);
+                fJobStore.StoreTrigger(tr, false);
             }
             catch (ObjectAlreadyExistsException)
             {
@@ -266,27 +262,27 @@ namespace Quartz.Tests.Unit.Simpl
             string jobGroup = "PauseJobGroupPausesNewJobGroup";
             JobDetail detail = new JobDetail(jobName1, jobGroup, typeof (NoOpJob));
             detail.Durable = true;
-            fJobStore.StoreJob(null, detail, false);
-            fJobStore.PauseJobGroup(null, jobGroup);
+            fJobStore.StoreJob(detail, false);
+            fJobStore.PauseJobGroup(jobGroup);
 
             detail = new JobDetail(jobName2, jobGroup, typeof (NoOpJob));
             detail.Durable = true;
-            fJobStore.StoreJob(null, detail, false);
+            fJobStore.StoreJob(detail, false);
 
             string trName = "PauseJobGroupPausesNewJobTrigger";
             string trGroup = "PauseJobGroupPausesNewJobTriggerGroup";
             Trigger tr = new SimpleTrigger(trName, trGroup, DateTime.UtcNow);
             tr.JobGroup = jobGroup;
             tr.JobName = jobName2;
-            fJobStore.StoreTrigger(null, tr, false);
-            Assert.AreEqual(TriggerState.Paused, fJobStore.GetTriggerState(null, tr.Name, tr.Group));
+            fJobStore.StoreTrigger(tr, false);
+            Assert.AreEqual(TriggerState.Paused, fJobStore.GetTriggerState(tr.Name, tr.Group));
         }
 
         [Test]
         public void TestRetrieveJob_NoJobFound()
         {
             RAMJobStore store = new RAMJobStore();
-            JobDetail job = store.RetrieveJob(null, "not", "existing");
+            JobDetail job = store.RetrieveJob("not", "existing");
             Assert.IsNull(job);
         }
 
@@ -294,7 +290,7 @@ namespace Quartz.Tests.Unit.Simpl
         public void TestRetrieveTrigger_NoTriggerFound()
         {
             RAMJobStore store = new RAMJobStore();
-            Trigger trigger = store.RetrieveTrigger(null, "not", "existing");
+            Trigger trigger = store.RetrieveTrigger("not", "existing");
             Assert.IsNull(trigger);
         }
 

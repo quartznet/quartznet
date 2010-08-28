@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * Copyright 2001-2009 Terracotta, Inc. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -86,7 +88,7 @@ namespace Quartz.Impl.AdoJobStore
         protected JobStoreSupport()
         {
             log = LogManager.GetLogger(GetType());
-            delegateType = typeof(StdAdoDelegate);
+            delegateType = typeof (StdAdoDelegate);
         }
 
         /// <summary> 
@@ -396,7 +398,7 @@ namespace Quartz.Impl.AdoJobStore
                 DateTime misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
                 {
-                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
+                    misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
                 }
 
                 return misfireTime;
@@ -440,17 +442,17 @@ namespace Quartz.Impl.AdoJobStore
                                         typeof (Boolean)
                                     };
                             ctor = delegateType.GetConstructor(ctorParamTypes);
-                            ctorParams = new Object[] { Log, tablePrefix, instanceId, dbProvider, CanUseProperties };
+                            ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider, CanUseProperties};
                         }
                         else
                         {
                             Type[] ctorParamTypes =
-                                new Type[] { typeof(ILog), typeof(String), typeof(String), typeof(IDbProvider) };
+                                new Type[] {typeof (ILog), typeof (String), typeof (String), typeof (IDbProvider)};
                             ctor = delegateType.GetConstructor(ctorParamTypes);
-                            ctorParams = new Object[] { Log, tablePrefix, instanceId, dbProvider };
+                            ctorParams = new Object[] {Log, tablePrefix, instanceId, dbProvider};
                         }
 
-                        driverDelegate = (IDriverDelegate)ctor.Invoke(ctorParams);
+                        driverDelegate = (IDriverDelegate) ctor.Invoke(ctorParams);
                     }
                     catch (Exception e)
                     {
@@ -643,13 +645,13 @@ namespace Quartz.Impl.AdoJobStore
 
                 foreach (Key trigger in volatileTriggers)
                 {
-                    RemoveTrigger(conn, null, trigger.Name, trigger.Group);
+                    RemoveTrigger(conn, trigger.Name, trigger.Group);
                 }
                 Log.Info("Removed " + volatileTriggers.Count + " Volatile Trigger(s).");
 
                 foreach (Key job in volatileJobs)
                 {
-                    RemoveJob(conn, null, job.Name, job.Group, true);
+                    RemoveJob(conn, job.Name, job.Group, true);
                 }
                 Log.Info("Removed " + volatileJobs.Count + " Volatile Job(s).");
 
@@ -717,7 +719,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (JobExists(conn, trigger.JobName, trigger.JobGroup))
                     {
                         trigger.ComputeFirstFireTimeUtc(null);
-                        StoreTrigger(conn, null, trigger, null, false, StateWaiting, false, true);
+                        StoreTrigger(conn, trigger, null, false, StateWaiting, false, true);
                     }
                 }
                 Log.Info("Recovery complete.");
@@ -726,7 +728,7 @@ namespace Quartz.Impl.AdoJobStore
                 IList<Key> triggersInState = Delegate.SelectTriggersInState(conn, StateComplete);
                 for (int i = 0; triggersInState != null && i < triggersInState.Count; i++)
                 {
-                    RemoveTrigger(conn, null, triggersInState[i].Name, triggersInState[i].Group);
+                    RemoveTrigger(conn, triggersInState[i].Name, triggersInState[i].Group);
                 }
                 if (triggersInState != null)
                 {
@@ -764,7 +766,7 @@ namespace Quartz.Impl.AdoJobStore
             // in this state when upgrading to this version that does not support it. 
             bool hasMoreMisfiredTriggers =
                 Delegate.HasMisfiredTriggersInState(conn, StateMisfired, MisfireTime,
-                                                        maxMisfiresToHandleAtATime, misfiredTriggers);
+                                                    maxMisfiresToHandleAtATime, misfiredTriggers);
 
             if (hasMoreMisfiredTriggers)
             {
@@ -795,7 +797,7 @@ namespace Quartz.Impl.AdoJobStore
                     continue;
                 }
 
-                DoUpdateOfMisfiredTrigger(conn, null, trig, false, StateWaiting, recovering);
+                DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering);
 
                 DateTime? nextTime = trig.GetNextFireTimeUtc();
                 if (nextTime.HasValue && nextTime.Value < earliestNewTime)
@@ -809,9 +811,9 @@ namespace Quartz.Impl.AdoJobStore
 
 
         protected virtual bool UpdateMisfiredTrigger(ConnectionAndTransactionHolder conn,
-                                                              SchedulingContext ctxt, string triggerName,
-                                                              string groupName, string newStateIfNotComplete,
-                                                              bool forceState)
+                                                     string triggerName,
+                                                     string groupName, string newStateIfNotComplete,
+                                                     bool forceState)
         {
             try
             {
@@ -820,7 +822,7 @@ namespace Quartz.Impl.AdoJobStore
                 DateTime misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
                 {
-                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
+                    misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
                 }
 
                 if (trig.GetNextFireTimeUtc().Value > misfireTime)
@@ -828,7 +830,7 @@ namespace Quartz.Impl.AdoJobStore
                     return false;
                 }
 
-                DoUpdateOfMisfiredTrigger(conn, ctxt, trig, forceState, newStateIfNotComplete, false);
+                DoUpdateOfMisfiredTrigger(conn, trig, forceState, newStateIfNotComplete, false);
 
                 schedSignaler.NotifySchedulerListenersFinalized(trig);
 
@@ -842,13 +844,13 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        private void DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, Trigger trig,
+        private void DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, Trigger trig,
                                                bool forceState, string newStateIfNotComplete, bool recovering)
         {
             ICalendar cal = null;
             if (trig.CalendarName != null)
             {
-                cal = RetrieveCalendar(conn, ctxt, trig.CalendarName);
+                cal = RetrieveCalendar(conn, trig.CalendarName);
             }
 
             schedSignaler.NotifyTriggerListenersMisfired(trig);
@@ -857,34 +859,32 @@ namespace Quartz.Impl.AdoJobStore
 
             if (!trig.GetNextFireTimeUtc().HasValue)
             {
-                StoreTrigger(conn, ctxt, trig, null, true, StateComplete, forceState, recovering);
+                StoreTrigger(conn, trig, null, true, StateComplete, forceState, recovering);
             }
             else
             {
-                StoreTrigger(conn, ctxt, trig, null, true, newStateIfNotComplete, forceState, false);
+                StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, false);
             }
         }
 
         /// <summary>
         /// Store the given <see cref="JobDetail" /> and <see cref="Trigger" />.
         /// </summary>
-        /// <param name="ctxt">SchedulingContext</param>
         /// <param name="newJob">Job to be stored.</param>
         /// <param name="newTrigger">Trigger to be stored.</param>
-        public void StoreJobAndTrigger(SchedulingContext ctxt, JobDetail newJob, Trigger newTrigger)
+        public void StoreJobAndTrigger(JobDetail newJob, Trigger newTrigger)
         {
             ExecuteInLock((LockOnInsert) ? LockTriggerAccess : null,
-                          new StoreJobAndTriggerCallback(this, newJob, newTrigger, ctxt));
+                          new StoreJobAndTriggerCallback(this, newJob, newTrigger));
         }
 
         /// <summary>
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
-        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public bool IsJobGroupPaused(SchedulingContext ctxt, string groupName)
+        public bool IsJobGroupPaused(string groupName)
         {
             throw new NotImplementedException();
         }
@@ -893,10 +893,9 @@ namespace Quartz.Impl.AdoJobStore
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
-        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public bool IsTriggerGroupPaused(SchedulingContext ctxt, string groupName)
+        public bool IsTriggerGroupPaused(string groupName)
         {
             throw new NotImplementedException();
         }
@@ -905,15 +904,12 @@ namespace Quartz.Impl.AdoJobStore
         {
             private readonly JobDetail newJob;
             private readonly Trigger newTrigger;
-            private readonly SchedulingContext ctxt;
 
-            public StoreJobAndTriggerCallback(JobStoreSupport js, JobDetail newJob, Trigger newTrigger,
-                                              SchedulingContext ctxt)
+            public StoreJobAndTriggerCallback(JobStoreSupport js, JobDetail newJob, Trigger newTrigger)
                 : base(js)
             {
                 this.newJob = newJob;
                 this.newTrigger = newTrigger;
-                this.ctxt = ctxt;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
@@ -924,8 +920,8 @@ namespace Quartz.Impl.AdoJobStore
                     throw jpe;
                 }
 
-                js.StoreJob(conn, ctxt, newJob, false);
-                js.StoreTrigger(conn, ctxt, newTrigger, newJob, false, StateWaiting, false, false);
+                js.StoreJob(conn, newJob, false);
+                js.StoreTrigger(conn, newTrigger, newJob, false, StateWaiting, false, false);
             }
         }
 
@@ -933,36 +929,33 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Stores the given <see cref="JobDetail" />.
         /// </summary>
-        /// <param name="ctxt"></param>
         /// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
         /// <param name="replaceExisting">
         /// If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name &amp; group should be over-written.
         /// </param>
-        public void StoreJob(SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
+        public void StoreJob(JobDetail newJob, bool replaceExisting)
         {
             ExecuteInLock(
                 (LockOnInsert || replaceExisting) ? LockTriggerAccess : null,
-                new StoreJobCallback(this, ctxt, newJob, replaceExisting));
+                new StoreJobCallback(this, newJob, replaceExisting));
         }
 
         protected class StoreJobCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly JobDetail newJob;
             private readonly bool replaceExisting;
 
-            public StoreJobCallback(JobStoreSupport js, SchedulingContext ctxt, JobDetail newJob, bool replaceExisting)
+            public StoreJobCallback(JobStoreSupport js, JobDetail newJob, bool replaceExisting)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.newJob = newJob;
                 this.replaceExisting = replaceExisting;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.StoreJob(conn, ctxt, newJob, replaceExisting);
+                js.StoreJob(conn, newJob, replaceExisting);
             }
         }
 
@@ -970,9 +963,9 @@ namespace Quartz.Impl.AdoJobStore
         /// Insert or update a job.
         /// </p>
         /// </summary>
-        protected virtual void StoreJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                 JobDetail newJob,
-                                                 bool replaceExisting)
+        protected virtual void StoreJob(ConnectionAndTransactionHolder conn,
+                                        JobDetail newJob,
+                                        bool replaceExisting)
         {
             if (newJob.Volatile && Clustered)
             {
@@ -1025,7 +1018,6 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Store the given <see cref="Trigger" />.
         /// </summary>
-        /// <param name="ctxt"></param>
         /// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
         /// <param name="replaceExisting">
         /// If <see langword="true" />, any <see cref="Trigger" /> existing in
@@ -1036,41 +1028,39 @@ namespace Quartz.Impl.AdoJobStore
         /// if a <see cref="Trigger" /> with the same name/group already
         /// exists, and replaceExisting is set to false.
         /// </exception>
-        public void StoreTrigger(SchedulingContext ctxt, Trigger newTrigger, bool replaceExisting)
+        public void StoreTrigger(Trigger newTrigger, bool replaceExisting)
         {
             ExecuteInLock(
                 (LockOnInsert || replaceExisting) ? LockTriggerAccess : null,
-                new StoreTriggerCallback(this, ctxt, newTrigger, replaceExisting));
+                new StoreTriggerCallback(this, newTrigger, replaceExisting));
         }
 
         protected class StoreTriggerCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly Trigger newTrigger;
             private readonly bool replaceExisting;
 
-            public StoreTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger newTrigger,
+            public StoreTriggerCallback(JobStoreSupport js, Trigger newTrigger,
                                         bool replaceExisting)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.newTrigger = newTrigger;
                 this.replaceExisting = replaceExisting;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.StoreTrigger(conn, ctxt, newTrigger, null, replaceExisting, StateWaiting, false, false);
+                js.StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false);
             }
         }
 
         /// <summary>
         /// Insert or update a trigger.
         /// </summary>
-        protected virtual void StoreTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                     Trigger newTrigger,
-                                                     JobDetail job, bool replaceExisting, string state, bool forceState,
-                                                     bool recovering)
+        protected virtual void StoreTrigger(ConnectionAndTransactionHolder conn,
+                                            Trigger newTrigger,
+                                            JobDetail job, bool replaceExisting, string state, bool forceState,
+                                            bool recovering)
         {
             if (newTrigger.Volatile && Clustered)
             {
@@ -1125,17 +1115,17 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (job.Stateful && !recovering)
                 {
-                    state = CheckBlockedState(conn, ctxt, job.Name, job.Group, state);
+                    state = CheckBlockedState(conn, job.Name, job.Group, state);
                 }
                 if (existingTrigger)
                 {
                     if (newTrigger is SimpleTrigger && !newTrigger.HasAdditionalProperties)
                     {
-                        Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger)newTrigger);
+                        Delegate.UpdateSimpleTrigger(conn, (SimpleTrigger) newTrigger);
                     }
                     else if (newTrigger is CronTrigger && !newTrigger.HasAdditionalProperties)
                     {
-                        Delegate.UpdateCronTrigger(conn, (CronTrigger)newTrigger);
+                        Delegate.UpdateCronTrigger(conn, (CronTrigger) newTrigger);
                     }
                     else
                     {
@@ -1148,11 +1138,11 @@ namespace Quartz.Impl.AdoJobStore
                     Delegate.InsertTrigger(conn, newTrigger, state, job);
                     if (newTrigger is SimpleTrigger && !newTrigger.HasAdditionalProperties)
                     {
-                        Delegate.InsertSimpleTrigger(conn, (SimpleTrigger)newTrigger);
+                        Delegate.InsertSimpleTrigger(conn, (SimpleTrigger) newTrigger);
                     }
                     else if (newTrigger is CronTrigger && !newTrigger.HasAdditionalProperties)
                     {
-                        Delegate.InsertCronTrigger(conn, (CronTrigger)newTrigger);
+                        Delegate.InsertCronTrigger(conn, (CronTrigger) newTrigger);
                     }
                     else
                     {
@@ -1171,7 +1161,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Check existence of a given trigger.
         /// </summary>
         protected virtual bool TriggerExists(ConnectionAndTransactionHolder conn, string triggerName,
-                                                      string groupName)
+                                             string groupName)
         {
             try
             {
@@ -1195,44 +1185,39 @@ namespace Quartz.Impl.AdoJobStore
         /// group should be removed from the <see cref="IJobStore" />'s list of
         /// known group names.
         /// </remarks>
-        /// <param name="ctxt">The scheduling context.</param>
         /// <param name="jobName">The name of the <see cref="IJob" /> to be removed.</param>
         /// <param name="groupName">The group name of the <see cref="IJob" /> to be removed.</param>
         /// <returns>
         /// <see langword="true" /> if a <see cref="IJob" /> with the given name &amp;
         /// group was found and removed from the store.
         /// </returns>
-        public bool RemoveJob(SchedulingContext ctxt, string jobName, string groupName)
+        public bool RemoveJob(string jobName, string groupName)
         {
-            return (bool)ExecuteInLock(
-                              LockTriggerAccess,
-                              new RemoveJobCallback(this, ctxt, jobName, groupName));
+            return (bool) ExecuteInLock(LockTriggerAccess, new RemoveJobCallback(this, jobName, groupName));
         }
 
         protected class RemoveJobCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string jobName;
             private readonly string groupName;
 
 
-            public RemoveJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName, string groupName)
+            public RemoveJobCallback(JobStoreSupport js, string jobName, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.jobName = jobName;
                 this.groupName = groupName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.RemoveJob(conn, ctxt, jobName, groupName, true);
+                return js.RemoveJob(conn, jobName, groupName, true);
             }
         }
 
-        protected virtual bool RemoveJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                  string jobName,
-                                                  string groupName, bool activeDeleteSafe)
+        protected virtual bool RemoveJob(ConnectionAndTransactionHolder conn,
+                                         string jobName,
+                                         string groupName, bool activeDeleteSafe)
         {
             try
             {
@@ -1243,7 +1228,7 @@ namespace Quartz.Impl.AdoJobStore
                     DeleteTriggerAndChildren(conn, trigger.Name, trigger.Group);
                 }
 
-                return DeleteJobAndChildren(conn, ctxt, jobName, groupName);
+                return DeleteJobAndChildren(conn, jobName, groupName);
             }
             catch (Exception e)
             {
@@ -1255,9 +1240,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Delete a job and its listeners.
         /// </summary>
-        /// <seealso cref="JobStoreSupport.RemoveJob(ConnectionAndTransactionHolder, SchedulingContext, string, string, bool)" />
-        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, SchedulingContext, string, string)" />
-        private bool DeleteJobAndChildren(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
+        /// <seealso cref="JobStoreSupport.RemoveJob(ConnectionAndTransactionHolder, string, string, bool)" />
+        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, string, string)" />
+        private bool DeleteJobAndChildren(ConnectionAndTransactionHolder conn, string jobName,
                                           string groupName)
         {
             return (Delegate.DeleteJobDetail(conn, jobName, groupName) > 0);
@@ -1266,9 +1251,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Delete a trigger, its listeners, and its Simple/Cron/BLOB sub-table entry.
         /// </summary>
-        /// <seealso cref="RemoveJob(ConnectionAndTransactionHolder, SchedulingContext, string, string, bool)" />
-        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, SchedulingContext, string, string)" />
-        /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, SchedulingContext, string, string, Trigger)" />
+        /// <seealso cref="RemoveJob(ConnectionAndTransactionHolder, string, string, bool)" />
+        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, string, string)" />
+        /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, string, string, Trigger)" />
         private bool DeleteTriggerAndChildren(ConnectionAndTransactionHolder conn, string triggerName,
                                               string triggerGroupName)
         {
@@ -1288,40 +1273,37 @@ namespace Quartz.Impl.AdoJobStore
         /// Retrieve the <see cref="JobDetail" /> for the given
         /// <see cref="IJob" />.
         /// </summary>
-        /// <param name="ctxt">The scheduling context.</param>
         /// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
         /// <param name="groupName">The group name of the <see cref="IJob" /> to be retrieved.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-        public JobDetail RetrieveJob(SchedulingContext ctxt, string jobName, string groupName)
+        public JobDetail RetrieveJob(string jobName, string groupName)
         {
             // no locks necessary for read...
-            return (JobDetail)ExecuteWithoutLock(new RetrieveJobCallback(this, ctxt, jobName, groupName));
+            return (JobDetail) ExecuteWithoutLock(new RetrieveJobCallback(this, jobName, groupName));
         }
 
         protected class RetrieveJobCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string jobName;
             private readonly string groupName;
 
-            public RetrieveJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName, string groupName)
+            public RetrieveJobCallback(JobStoreSupport js, string jobName, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.jobName = jobName;
                 this.groupName = groupName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.RetrieveJob(conn, ctxt, jobName, groupName);
+                return js.RetrieveJob(conn, jobName, groupName);
             }
         }
 
 
-        protected virtual JobDetail RetrieveJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                         string jobName,
-                                                         string groupName)
+        protected virtual JobDetail RetrieveJob(ConnectionAndTransactionHolder conn,
+                                                string jobName,
+                                                string groupName)
         {
             try
             {
@@ -1359,44 +1341,41 @@ namespace Quartz.Impl.AdoJobStore
         /// also.
         /// </p>
         /// </remarks>
-        /// <param name="ctxt">The scheduling context.</param>
         /// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
         /// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
         /// <returns>
         /// <see langword="true" /> if a <see cref="Trigger" /> with the given
         /// name &amp; group was found and removed from the store.
         ///</returns>
-        public bool RemoveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        public bool RemoveTrigger(string triggerName, string groupName)
         {
-            return (bool)ExecuteInLock(
-                              LockTriggerAccess,
-                              new RemoveTriggerCallback(this, ctxt, triggerName, groupName));
+            return (bool) ExecuteInLock(
+                LockTriggerAccess,
+                new RemoveTriggerCallback(this, triggerName, groupName));
         }
 
         protected class RemoveTriggerCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string triggerName;
             private readonly string groupName;
 
-            public RemoveTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+            public RemoveTriggerCallback(JobStoreSupport js, string triggerName,
                                          string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.triggerName = triggerName;
                 this.groupName = groupName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.RemoveTrigger(conn, ctxt, triggerName, groupName);
+                return js.RemoveTrigger(conn, triggerName, groupName);
             }
         }
 
-        protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                      string triggerName,
-                                                      string groupName)
+        protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn,
+                                             string triggerName,
+                                             string groupName)
         {
             bool removedTrigger;
             try
@@ -1414,7 +1393,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         // Don't call RemoveJob() because we don't want to check for
                         // triggers again.
-                        DeleteJobAndChildren(conn, ctxt, job.Name, job.Group);
+                        DeleteJobAndChildren(conn, job.Name, job.Group);
                     }
                 }
             }
@@ -1434,7 +1413,7 @@ namespace Quartz.Impl.AdoJobStore
 
             public Type LoadType(string name)
             {
-                return typeof(Quartz.Job.NoOpJob);
+                return typeof (Quartz.Job.NoOpJob);
             }
 
             public Uri GetResource(string name)
@@ -1448,27 +1427,25 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <see cref="IJobStore.ReplaceTrigger(SchedulingContext, string, string, Trigger)" />
-        public bool ReplaceTrigger(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger)
+        /// <see cref="IJobStore.ReplaceTrigger( string, string, Trigger)" />
+        public bool ReplaceTrigger(string triggerName, string groupName, Trigger newTrigger)
         {
             return
                 (bool)
                 ExecuteInLock(LockTriggerAccess,
-                              new ReplaceTriggerCallback(this, ctxt, triggerName, groupName, newTrigger));
+                              new ReplaceTriggerCallback(this, triggerName, groupName, newTrigger));
         }
 
         protected class ReplaceTriggerCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string triggerName;
             private readonly string groupName;
             private readonly Trigger newTrigger;
 
-            public ReplaceTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+            public ReplaceTriggerCallback(JobStoreSupport js, string triggerName,
                                           string groupName, Trigger newTrigger)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.triggerName = triggerName;
                 this.groupName = groupName;
                 this.newTrigger = newTrigger;
@@ -1476,13 +1453,13 @@ namespace Quartz.Impl.AdoJobStore
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.ReplaceTrigger(conn, ctxt, triggerName, groupName, newTrigger);
+                return js.ReplaceTrigger(conn, triggerName, groupName, newTrigger);
             }
         }
 
-        protected virtual bool ReplaceTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                       string triggerName,
-                                                       string groupName, Trigger newTrigger)
+        protected virtual bool ReplaceTrigger(ConnectionAndTransactionHolder conn,
+                                              string triggerName,
+                                              string groupName, Trigger newTrigger)
         {
             try
             {
@@ -1501,7 +1478,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 bool removedTrigger = DeleteTriggerAndChildren(conn, triggerName, groupName);
 
-                StoreTrigger(conn, ctxt, newTrigger, job, false, StateWaiting, false, false);
+                StoreTrigger(conn, newTrigger, job, false, StateWaiting, false, false);
 
                 return removedTrigger;
             }
@@ -1517,42 +1494,33 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">The name of the <see cref="Trigger" /> to be retrieved.</param>
         /// <param name="groupName">The group name of the <see cref="Trigger" /> to be retrieved.</param>
         /// <returns>The desired <see cref="Trigger" />, or null if there is no match.</returns>
-        public Trigger RetrieveTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        public Trigger RetrieveTrigger(string triggerName, string groupName)
         {
-            return (Trigger)ExecuteWithoutLock( // no locks necessary for read...
-                                 new RetrieveTriggerCallback(this, ctxt, triggerName, groupName));
+            return (Trigger) ExecuteWithoutLock( // no locks necessary for read...
+                                 new RetrieveTriggerCallback(this, triggerName, groupName));
         }
 
         protected class RetrieveTriggerCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string triggerName;
             private readonly string groupName;
 
-            public RetrieveTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+            public RetrieveTriggerCallback(JobStoreSupport js, string triggerName,
                                            string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.triggerName = triggerName;
                 this.groupName = groupName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.RetrieveTrigger(conn, ctxt, triggerName, groupName);
+                return js.RetrieveTrigger(conn, triggerName, groupName);
             }
         }
 
-        protected virtual Trigger RetrieveTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                           string triggerName,
-                                                           string groupName)
-        {
-            return RetrieveTrigger(conn, triggerName, groupName);
-        }
-
         protected virtual Trigger RetrieveTrigger(ConnectionAndTransactionHolder conn, string triggerName,
-                                                           string groupName)
+                                                  string groupName)
         {
             try
             {
@@ -1574,30 +1542,28 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="TriggerState.Complete" />
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.None" />
-        public TriggerState GetTriggerState(SchedulingContext ctxt, string triggerName, string groupName)
+        public TriggerState GetTriggerState(string triggerName, string groupName)
         {
             // no locks necessary for read...
-            return (TriggerState)ExecuteWithoutLock(new GetTriggerStateCallback(this, ctxt, triggerName, groupName));
+            return (TriggerState) ExecuteWithoutLock(new GetTriggerStateCallback(this, triggerName, groupName));
         }
 
         protected class GetTriggerStateCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string triggerName;
             private readonly string groupName;
 
-            public GetTriggerStateCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+            public GetTriggerStateCallback(JobStoreSupport js, string triggerName,
                                            string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.triggerName = triggerName;
                 this.groupName = groupName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetTriggerState(conn, ctxt, triggerName, groupName);
+                return js.GetTriggerState(conn, triggerName, groupName);
             }
         }
 
@@ -1606,12 +1572,11 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets the state of the trigger.
         /// </summary>
         /// <param name="conn">The conn.</param>
-        /// <param name="ctxt">The CTXT.</param>
         /// <param name="triggerName">Name of the trigger.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns></returns>
-        public virtual TriggerState GetTriggerState(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                           string triggerName, string groupName)
+        public virtual TriggerState GetTriggerState(ConnectionAndTransactionHolder conn,
+                                                    string triggerName, string groupName)
         {
             try
             {
@@ -1675,27 +1640,25 @@ namespace Quartz.Impl.AdoJobStore
         ///           if a <see cref="ICalendar" /> with the same name already
         ///           exists, and replaceExisting is set to false.
         /// </exception>
-        public void StoreCalendar(SchedulingContext ctxt, string calName, ICalendar calendar, bool replaceExisting,
+        public void StoreCalendar(string calName, ICalendar calendar, bool replaceExisting,
                                   bool updateTriggers)
         {
             ExecuteInLock(
                 (LockOnInsert || updateTriggers) ? LockTriggerAccess : null,
-                new StoreCalendarCallback(this, ctxt, calName, calendar, replaceExisting, updateTriggers));
+                new StoreCalendarCallback(this, calName, calendar, replaceExisting, updateTriggers));
         }
 
         protected class StoreCalendarCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string calName;
             private readonly ICalendar calendar;
             private readonly bool replaceExisting;
             private readonly bool updateTriggers;
 
-            public StoreCalendarCallback(JobStoreSupport js, SchedulingContext ctxt, string calName, ICalendar calendar,
+            public StoreCalendarCallback(JobStoreSupport js, string calName, ICalendar calendar,
                                          bool replaceExisting, bool updateTriggers)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.calName = calName;
                 this.calendar = calendar;
                 this.replaceExisting = replaceExisting;
@@ -1704,13 +1667,13 @@ namespace Quartz.Impl.AdoJobStore
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.StoreCalendar(conn, ctxt, calName, calendar, replaceExisting, updateTriggers);
+                js.StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers);
             }
         }
 
-        protected virtual void StoreCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                      string calName,
-                                                      ICalendar calendar, bool replaceExisting, bool updateTriggers)
+        protected virtual void StoreCalendar(ConnectionAndTransactionHolder conn,
+                                             string calName,
+                                             ICalendar calendar, bool replaceExisting, bool updateTriggers)
         {
             try
             {
@@ -1734,7 +1697,7 @@ namespace Quartz.Impl.AdoJobStore
                         foreach (Trigger trigger in triggers)
                         {
                             trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
-                            StoreTrigger(conn, ctxt, trigger, null, true, StateWaiting, false, false);
+                            StoreTrigger(conn, trigger, null, true, StateWaiting, false, false);
                         }
                     }
                 }
@@ -1790,32 +1753,30 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         ///</returns>
-        public bool RemoveCalendar(SchedulingContext ctxt, string calName)
+        public bool RemoveCalendar(string calName)
         {
-            return (bool)ExecuteInLock(LockTriggerAccess, new RemoveCalendarCallback(this, ctxt, calName));
+            return (bool) ExecuteInLock(LockTriggerAccess, new RemoveCalendarCallback(this, calName));
         }
 
         protected class RemoveCalendarCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string calName;
 
 
-            public RemoveCalendarCallback(JobStoreSupport js, SchedulingContext ctxt, string calName)
+            public RemoveCalendarCallback(JobStoreSupport js, string calName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.calName = calName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.RemoveCalendar(conn, ctxt, calName);
+                return js.RemoveCalendar(conn, calName);
             }
         }
 
-        protected virtual bool RemoveCalendar(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                       string calName)
+        protected virtual bool RemoveCalendar(ConnectionAndTransactionHolder conn,
+                                              string calName)
         {
             try
             {
@@ -1842,40 +1803,38 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
         /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
-        public ICalendar RetrieveCalendar(SchedulingContext ctxt, string calName)
+        public ICalendar RetrieveCalendar(string calName)
         {
-            return (ICalendar)ExecuteWithoutLock( // no locks necessary for read...
-                                   new RetrieveCalendarCallback(this, ctxt, calName));
+            return (ICalendar) ExecuteWithoutLock( // no locks necessary for read...
+                                   new RetrieveCalendarCallback(this, calName));
         }
 
         protected class RetrieveCalendarCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string calName;
 
 
-            public RetrieveCalendarCallback(JobStoreSupport js, SchedulingContext ctxt, string calName)
+            public RetrieveCalendarCallback(JobStoreSupport js, string calName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.calName = calName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.RetrieveCalendar(conn, ctxt, calName);
+                return js.RetrieveCalendar(conn, calName);
             }
         }
 
         protected virtual ICalendar RetrieveCalendar(ConnectionAndTransactionHolder conn,
-                                                              SchedulingContext ctxt, string calName)
+                                                     string calName)
         {
             // all calendars are persistent, but we lazy-cache them during run
             // time as long as we aren't running clustered.
             ICalendar cal = null;
             if (!Clustered)
             {
-                calendarCache.TryGetValue(calName, out cal);   
+                calendarCache.TryGetValue(calName, out cal);
             }
             if (cal != null)
             {
@@ -1907,29 +1866,26 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="IJob" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public int GetNumberOfJobs(SchedulingContext ctxt)
+        public int GetNumberOfJobs()
         {
             // no locks necessary for read...
-            return (int)ExecuteWithoutLock(new GetNumberOfJobsCallback(this, ctxt));
+            return (int) ExecuteWithoutLock(new GetNumberOfJobsCallback(this));
         }
 
         protected class GetNumberOfJobsCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-            public GetNumberOfJobsCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public GetNumberOfJobsCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetNumberOfJobs(conn, ctxt);
+                return js.GetNumberOfJobs(conn);
             }
         }
 
-        protected virtual int GetNumberOfJobs(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        protected virtual int GetNumberOfJobs(ConnectionAndTransactionHolder conn)
         {
             try
             {
@@ -1945,31 +1901,27 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="Trigger" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public int GetNumberOfTriggers(SchedulingContext ctxt)
+        public int GetNumberOfTriggers()
         {
-            return (int)ExecuteWithoutLock( // no locks necessary for read...
-                             new GetNumberOfTriggersCallback(this, ctxt));
+            return (int) ExecuteWithoutLock( // no locks necessary for read...
+                             new GetNumberOfTriggersCallback(this));
         }
 
         protected class GetNumberOfTriggersCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-
-            public GetNumberOfTriggersCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public GetNumberOfTriggersCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetNumberOfTriggers(conn, ctxt);
+                return js.GetNumberOfTriggers(conn);
             }
         }
 
 
-        protected virtual int GetNumberOfTriggers(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        protected virtual int GetNumberOfTriggers(ConnectionAndTransactionHolder conn)
         {
             try
             {
@@ -1985,29 +1937,26 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public int GetNumberOfCalendars(SchedulingContext ctxt)
+        public int GetNumberOfCalendars()
         {
             // no locks necessary for read...
-            return (int)ExecuteWithoutLock(new GetNumberOfCalendarsCallback(this, ctxt));
+            return (int) ExecuteWithoutLock(new GetNumberOfCalendarsCallback(this));
         }
 
         protected class GetNumberOfCalendarsCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-            public GetNumberOfCalendarsCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public GetNumberOfCalendarsCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetNumberOfCalendars(conn, ctxt);
+                return js.GetNumberOfCalendars(conn);
             }
         }
 
-        protected virtual int GetNumberOfCalendars(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        protected virtual int GetNumberOfCalendars(ConnectionAndTransactionHolder conn)
         {
             try
             {
@@ -2027,33 +1976,31 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no jobs in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public IList<string> GetJobNames(SchedulingContext ctxt, string groupName)
+        public IList<string> GetJobNames(string groupName)
         {
             // no locks necessary for read...
-            return (IList<string>)ExecuteWithoutLock(new GetJobNamesCallback(this, ctxt, groupName));
+            return (IList<string>) ExecuteWithoutLock(new GetJobNamesCallback(this, groupName));
         }
 
         protected class GetJobNamesCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string groupName;
 
 
-            public GetJobNamesCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+            public GetJobNamesCallback(JobStoreSupport js, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.groupName = groupName;
             }
 
             public Object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetJobNames(conn, ctxt, groupName);
+                return js.GetJobNames(conn, groupName);
             }
         }
 
-        protected virtual IList<string> GetJobNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                        string groupName)
+        protected virtual IList<string> GetJobNames(ConnectionAndTransactionHolder conn,
+                                                    string groupName)
         {
             IList<string> jobNames;
 
@@ -2078,33 +2025,31 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no triggers in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public IList<string> GetTriggerNames(SchedulingContext ctxt, string groupName)
+        public IList<string> GetTriggerNames(string groupName)
         {
             // no locks necessary for read...
-            return (IList<string>)ExecuteWithoutLock(new GetTriggerNamesCallback(this, ctxt, groupName));
+            return (IList<string>) ExecuteWithoutLock(new GetTriggerNamesCallback(this, groupName));
         }
 
         protected class GetTriggerNamesCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string groupName;
 
 
-            public GetTriggerNamesCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+            public GetTriggerNamesCallback(JobStoreSupport js, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.groupName = groupName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetTriggerNames(conn, ctxt, groupName);
+                return js.GetTriggerNames(conn, groupName);
             }
         }
 
-        protected virtual IList<string> GetTriggerNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                            string groupName)
+        protected virtual IList<string> GetTriggerNames(ConnectionAndTransactionHolder conn,
+                                                        string groupName)
         {
             IList<string> triggerNames;
 
@@ -2130,31 +2075,27 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public IList<string> GetJobGroupNames(SchedulingContext ctxt)
+        public IList<string> GetJobGroupNames()
         {
             // no locks necessary for read...
-            return (IList<string>)ExecuteWithoutLock(new GetJobGroupNamesCallback(this, ctxt));
+            return (IList<string>) ExecuteWithoutLock(new GetJobGroupNamesCallback(this));
         }
 
         protected class GetJobGroupNamesCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-
-            public GetJobGroupNamesCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public GetJobGroupNamesCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public Object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetJobGroupNames(conn, ctxt);
+                return js.GetJobGroupNames(conn);
             }
         }
 
 
-        protected virtual IList<string> GetJobGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        protected virtual IList<string> GetJobGroupNames(ConnectionAndTransactionHolder conn)
         {
             IList<string> groupNames;
 
@@ -2179,31 +2120,27 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public IList<string> GetTriggerGroupNames(SchedulingContext ctxt)
+        public IList<string> GetTriggerGroupNames()
         {
             // no locks necessary for read...
-            return (IList<string>)ExecuteWithoutLock(new GetTriggerGroupNamesCallback(this, ctxt));
+            return (IList<string>) ExecuteWithoutLock(new GetTriggerGroupNamesCallback(this));
         }
 
         protected class GetTriggerGroupNamesCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-
-            public GetTriggerGroupNamesCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public GetTriggerGroupNamesCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetTriggerGroupNames(conn, ctxt);
+                return js.GetTriggerGroupNames(conn);
             }
         }
 
 
-        protected virtual IList<string> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        protected virtual IList<string> GetTriggerGroupNames(ConnectionAndTransactionHolder conn)
         {
             IList<string> groupNames;
 
@@ -2228,29 +2165,26 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no Calendars in the given group name, the result should be
         /// a zero-length array (not <see langword="null" />).
         /// </remarks>
-        public IList<string> GetCalendarNames(SchedulingContext ctxt)
+        public IList<string> GetCalendarNames()
         {
             // no locks necessary for read...
-            return (IList<string>)ExecuteWithoutLock(new GetCalendarNamesCallback(this, ctxt));
+            return (IList<string>) ExecuteWithoutLock(new GetCalendarNamesCallback(this));
         }
 
         protected class GetCalendarNamesCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-            public GetCalendarNamesCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public GetCalendarNamesCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetCalendarNames(conn, ctxt);
+                return js.GetCalendarNames(conn);
             }
         }
 
-        protected virtual IList<string> GetCalendarNames(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        protected virtual IList<string> GetCalendarNames(ConnectionAndTransactionHolder conn)
         {
             try
             {
@@ -2269,36 +2203,34 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// If there are no matches, a zero-length array should be returned.
         /// </remarks>
-        public IList<Trigger> GetTriggersForJob(SchedulingContext ctxt, string jobName, string groupName)
+        public IList<Trigger> GetTriggersForJob(string jobName, string groupName)
         {
             // no locks necessary for read...
-            return (IList<Trigger>)ExecuteWithoutLock(new GetTriggersForJobCallback(this, ctxt, jobName, groupName));
+            return (IList<Trigger>) ExecuteWithoutLock(new GetTriggersForJobCallback(this, jobName, groupName));
         }
 
         protected class GetTriggersForJobCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string jobName;
             private readonly string groupName;
 
 
-            public GetTriggersForJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName,
+            public GetTriggersForJobCallback(JobStoreSupport js, string jobName,
                                              string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.jobName = jobName;
                 this.groupName = groupName;
             }
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                return js.GetTriggersForJob(conn, jobName, groupName);
             }
         }
 
 
-        protected virtual IList<Trigger> GetTriggersForJob(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName, string groupName)
+        protected virtual IList<Trigger> GetTriggersForJob(ConnectionAndTransactionHolder conn, string jobName, string groupName)
         {
             IList<Trigger> array;
 
@@ -2317,38 +2249,34 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause the <see cref="Trigger" /> with the given name.
         /// </summary>
-        /// <seealso cref="ResumeTrigger(SchedulingContext, string, string)" />
-        public void PauseTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        public void PauseTrigger(string triggerName, string groupName)
         {
-            ExecuteInLock(LockTriggerAccess, new PauseTriggerCallback(this, ctxt, triggerName, groupName));
+            ExecuteInLock(LockTriggerAccess, new PauseTriggerCallback(this, triggerName, groupName));
         }
 
         protected class PauseTriggerCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string triggerName;
             private readonly string groupName;
 
 
-            public PauseTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName, string groupName)
+            public PauseTriggerCallback(JobStoreSupport js, string triggerName, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.triggerName = triggerName;
                 this.groupName = groupName;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.PauseTrigger(conn, ctxt, triggerName, groupName);
+                js.PauseTrigger(conn, triggerName, groupName);
             }
         }
 
         /// <summary>
         /// Pause the <see cref="Trigger" /> with the given name.
         /// </summary>
-        /// <seealso cref="SchedulingContext()" />
-        public virtual void PauseTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string triggerName,
+        public virtual void PauseTrigger(ConnectionAndTransactionHolder conn, string triggerName,
                                          string groupName)
         {
             try
@@ -2376,32 +2304,30 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause the <see cref="IJob" /> with the given name - by
         /// pausing all of its current <see cref="Trigger" />s.
         /// </summary>
-        /// <seealso cref="ResumeJob(SchedulingContext, string, string)" />
-        public virtual void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
+        /// <seealso cref="ResumeJob(string, string)" />
+        public virtual void PauseJob(string jobName, string groupName)
         {
-            ExecuteInLock(LockTriggerAccess, new PauseJobCallback(this, ctxt, jobName, groupName));
+            ExecuteInLock(LockTriggerAccess, new PauseJobCallback(this, jobName, groupName));
         }
 
         protected class PauseJobCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string jobName;
             private readonly string groupName;
 
-            public PauseJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName, string groupName)
+            public PauseJobCallback(JobStoreSupport js, string jobName, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.jobName = jobName;
                 this.groupName = groupName;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                IList<Trigger> triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                IList<Trigger> triggers = js.GetTriggersForJob(conn, jobName, groupName);
                 foreach (Trigger trigger in triggers)
                 {
-                    js.PauseTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                    js.PauseTrigger(conn, trigger.Name, trigger.Group);
                 }
             }
         }
@@ -2410,34 +2336,32 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause all of the <see cref="IJob" />s in the given
         /// group - by pausing all of their <see cref="Trigger" />s.
         /// </summary>
-        /// <seealso cref="ResumeJobGroup(SchedulingContext, string)" />
-        public virtual void PauseJobGroup(SchedulingContext ctxt, string groupName)
+        /// <seealso cref="ResumeJobGroup(string)" />
+        public virtual void PauseJobGroup(string groupName)
         {
-            ExecuteInLock(LockTriggerAccess, new PauseJobGroupCallback(this, ctxt, groupName));
+            ExecuteInLock(LockTriggerAccess, new PauseJobGroupCallback(this, groupName));
         }
 
         protected class PauseJobGroupCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string groupName;
 
-            public PauseJobGroupCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+            public PauseJobGroupCallback(JobStoreSupport js, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.groupName = groupName;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                IList<string> jobNames = js.GetJobNames(conn, ctxt, groupName);
+                IList<string> jobNames = js.GetJobNames(conn, groupName);
 
                 foreach (string jobName in jobNames)
                 {
-                    IList<Trigger> triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                    IList<Trigger> triggers = js.GetTriggersForJob(conn, jobName, groupName);
                     foreach (Trigger trigger in triggers)
                     {
-                        js.PauseTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                        js.PauseTrigger(conn, trigger.Name, trigger.Group);
                     }
                 }
             }
@@ -2450,7 +2374,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <returns>StatePausedBlocked, StateBlocked, or the currentState. </returns>
         protected virtual string CheckBlockedState(
-            ConnectionAndTransactionHolder conn, SchedulingContext ctxt, string jobName,
+            ConnectionAndTransactionHolder conn, string jobName,
             string jobGroupName, string currentState)
         {
             // State can only transition to BLOCKED from PAUSED or WAITING.
@@ -2463,7 +2387,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 IList<FiredTriggerRecord> lst = Delegate.SelectFiredTriggerRecordsByJob(conn,
-                                                                    jobName, jobGroupName);
+                                                                                        jobName, jobGroupName);
 
                 if (lst.Count > 0)
                 {
@@ -2491,8 +2415,8 @@ namespace Quartz.Impl.AdoJobStore
 
 
         protected virtual string GetNewStatusForTrigger(ConnectionAndTransactionHolder conn,
-                                                                 SchedulingContext ctxt, string jobName,
-                                                                 string groupName)
+                                                        string jobName,
+                                                        string groupName)
         {
             try
             {
@@ -2549,29 +2473,27 @@ namespace Quartz.Impl.AdoJobStore
         */
 
 
-        public virtual void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        public virtual void ResumeTrigger(string triggerName, string groupName)
         {
-            ExecuteInLock(LockTriggerAccess, new ResumeTriggerCallback(this, ctxt, triggerName, groupName));
+            ExecuteInLock(LockTriggerAccess, new ResumeTriggerCallback(this, triggerName, groupName));
         }
 
         protected class ResumeTriggerCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string triggerName;
             private readonly string groupName;
 
-            public ResumeTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, string triggerName,
+            public ResumeTriggerCallback(JobStoreSupport js, string triggerName,
                                          string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.triggerName = triggerName;
                 this.groupName = groupName;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.ResumeTrigger(conn, ctxt, triggerName, groupName);
+                js.ResumeTrigger(conn, triggerName, groupName);
             }
         }
 
@@ -2583,8 +2505,7 @@ namespace Quartz.Impl.AdoJobStore
         /// If the <see cref="Trigger" /> missed one or more fire-times, then the
         /// <see cref="Trigger" />'s misfire instruction will be applied.
         /// </remarks>
-        /// <seealso cref="SchedulingContext"/>
-        public virtual void ResumeTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+        public virtual void ResumeTrigger(ConnectionAndTransactionHolder conn,
                                           string triggerName, string groupName)
         {
             try
@@ -2602,13 +2523,13 @@ namespace Quartz.Impl.AdoJobStore
                     blocked = true;
                 }
 
-                string newState = CheckBlockedState(conn, ctxt, status.JobKey.Name, status.JobKey.Group, StateWaiting);
+                string newState = CheckBlockedState(conn, status.JobKey.Name, status.JobKey.Group, StateWaiting);
 
                 bool misfired = false;
 
                 if ((status.NextFireTimeUtc.Value < SystemTime.UtcNow()))
                 {
-                    misfired = UpdateMisfiredTrigger(conn, ctxt, triggerName, groupName, newState, true);
+                    misfired = UpdateMisfiredTrigger(conn, triggerName, groupName, newState, true);
                 }
 
                 if (!misfired)
@@ -2641,32 +2562,30 @@ namespace Quartz.Impl.AdoJobStore
         /// or more fire-times, then the <see cref="Trigger" />'s misfire
         /// instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseJob(SchedulingContext, string, string)" />
-        public virtual void ResumeJob(SchedulingContext ctxt, string jobName, string groupName)
+        /// <seealso cref="PauseJob(string, string)" />
+        public virtual void ResumeJob(string jobName, string groupName)
         {
-            ExecuteInLock(LockTriggerAccess, new ResumeJobCallback(this, ctxt, jobName, groupName));
+            ExecuteInLock(LockTriggerAccess, new ResumeJobCallback(this, jobName, groupName));
         }
 
         protected class ResumeJobCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string jobName;
             private readonly string groupName;
 
-            public ResumeJobCallback(JobStoreSupport js, SchedulingContext ctxt, string jobName, string groupName)
+            public ResumeJobCallback(JobStoreSupport js, string jobName, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.jobName = jobName;
                 this.groupName = groupName;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                IList<Trigger> triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                IList<Trigger> triggers = js.GetTriggersForJob(conn, jobName, groupName);
                 foreach (Trigger trigger in triggers)
                 {
-                    js.ResumeTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                    js.ResumeTrigger(conn, trigger.Name, trigger.Group);
                 }
             }
         }
@@ -2680,34 +2599,32 @@ namespace Quartz.Impl.AdoJobStore
         /// missed one or more fire-times, then the <see cref="Trigger" />'s
         /// misfire instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseJobGroup(SchedulingContext, string)" />
-        public virtual void ResumeJobGroup(SchedulingContext ctxt, string groupName)
+        /// <seealso cref="PauseJobGroup(string)" />
+        public virtual void ResumeJobGroup(string groupName)
         {
-            ExecuteInLock(LockTriggerAccess, new ResumeJobGroupCallback(this, ctxt, groupName));
+            ExecuteInLock(LockTriggerAccess, new ResumeJobGroupCallback(this, groupName));
         }
 
         protected class ResumeJobGroupCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string groupName;
 
-            public ResumeJobGroupCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+            public ResumeJobGroupCallback(JobStoreSupport js, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.groupName = groupName;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                IList<string> jobNames = js.GetJobNames(conn, ctxt, groupName);
+                IList<string> jobNames = js.GetJobNames(conn, groupName);
 
                 foreach (string jobName in jobNames)
                 {
-                    IList<Trigger> triggers = js.GetTriggersForJob(conn, ctxt, jobName, groupName);
+                    IList<Trigger> triggers = js.GetTriggersForJob(conn, jobName, groupName);
                     foreach (Trigger trigger in triggers)
                     {
-                        js.ResumeTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                        js.ResumeTrigger(conn, trigger.Name, trigger.Group);
                     }
                 }
             }
@@ -2716,36 +2633,33 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause all of the <see cref="Trigger" />s in the given group.
         /// </summary>
-        /// <seealso cref="ResumeTriggerGroup(SchedulingContext, string)" />
-        public virtual void PauseTriggerGroup(SchedulingContext ctxt, string groupName)
+        /// <seealso cref="ResumeTriggerGroup(string)" />
+        public virtual void PauseTriggerGroup(string groupName)
         {
-            ExecuteInLock(LockTriggerAccess, new PauseTriggerGroupCallback(this, ctxt, groupName));
+            ExecuteInLock(LockTriggerAccess, new PauseTriggerGroupCallback(this, groupName));
         }
 
         protected class PauseTriggerGroupCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string groupName;
 
 
-            public PauseTriggerGroupCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+            public PauseTriggerGroupCallback(JobStoreSupport js, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.groupName = groupName;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.PauseTriggerGroup(conn, ctxt, groupName);
+                js.PauseTriggerGroup(conn, groupName);
             }
         }
 
         /// <summary>
         /// Pause all of the <see cref="Trigger" />s in the given group.
         /// </summary>
-        /// <seealso cref="SchedulingContext()" />
-        public virtual void PauseTriggerGroup(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+        public virtual void PauseTriggerGroup(ConnectionAndTransactionHolder conn,
                                               string groupName)
         {
             try
@@ -2769,26 +2683,22 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        public Collection.ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
+        public Collection.ISet<string> GetPausedTriggerGroups()
         {
             // no locks necessary for read...
-            return (Collection.ISet<string>)ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this, ctxt));
+            return (Collection.ISet<string>) ExecuteWithoutLock(new GetPausedTriggerGroupsCallback(this));
         }
 
         protected class GetPausedTriggerGroupsCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-
-            public GetPausedTriggerGroupsCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public GetPausedTriggerGroupsCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public Object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.GetPausedTriggerGroups(conn, ctxt);
+                return js.GetPausedTriggerGroups(conn);
             }
         }
 
@@ -2797,8 +2707,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause all of the <see cref="Trigger" />s in the
         /// given group.
         /// </summary>
-        /// <seealso cref="SchedulingContext()" />
-        public virtual Collection.ISet<string> GetPausedTriggerGroups(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        public virtual Collection.ISet<string> GetPausedTriggerGroups(ConnectionAndTransactionHolder conn)
         {
             try
             {
@@ -2811,27 +2720,25 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        public virtual void ResumeTriggerGroup(SchedulingContext ctxt, string groupName)
+        public virtual void ResumeTriggerGroup(string groupName)
         {
-            ExecuteInLock(LockTriggerAccess, new ResumeTriggerGroupCallback(this, ctxt, groupName));
+            ExecuteInLock(LockTriggerAccess, new ResumeTriggerGroupCallback(this, groupName));
         }
 
         protected class ResumeTriggerGroupCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly string groupName;
 
 
-            public ResumeTriggerGroupCallback(JobStoreSupport js, SchedulingContext ctxt, string groupName)
+            public ResumeTriggerGroupCallback(JobStoreSupport js, string groupName)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.groupName = groupName;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.ResumeTriggerGroup(conn, ctxt, groupName);
+                js.ResumeTriggerGroup(conn, groupName);
             }
         }
 
@@ -2844,8 +2751,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <see cref="Trigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
-        /// <seealso cref="SchedulingContext()" />
-        public virtual void ResumeTriggerGroup(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
+        public virtual void ResumeTriggerGroup(ConnectionAndTransactionHolder conn,
                                                string groupName)
         {
             try
@@ -2856,7 +2762,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 foreach (string triggerName in triggerNames)
                 {
-                    ResumeTrigger(conn, ctxt, triggerName, groupName);
+                    ResumeTrigger(conn, triggerName, groupName);
                 }
 
                 // TODO: find an efficient way to resume triggers (better than the
@@ -2877,7 +2783,7 @@ namespace Quartz.Impl.AdoJobStore
                 * getDelegate().SelectMisfiredTriggersInGroupInState(conn,
                 * groupName, StateWaiting, misfireTime);
                 * 
-                * List blockedTriggers = findTriggersToBeBlocked(conn, ctxt,
+                * List blockedTriggers = findTriggersToBeBlocked(conn,
                 * groupName);
                 * 
                 * Iterator itr = blockedTriggers.iterator(); while(itr.hasNext()) {
@@ -2888,7 +2794,7 @@ namespace Quartz.Impl.AdoJobStore
                 * for(int i=0; i < misfires.length; i++) {               String
                 * newState = StateWaiting;
                 * if(blockedTriggers.contains(misfires[i])) newState =
-                * StateBlocked; UpdateMisfiredTrigger(conn, ctxt,
+                * StateBlocked; UpdateMisfiredTrigger(conn,
                 * misfires[i].getName(), misfires[i].getGroup(), newState, true); } }
                 */
             }
@@ -2898,45 +2804,41 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual void PauseAll(SchedulingContext ctxt)
+        public virtual void PauseAll()
         {
-            ExecuteInLock(LockTriggerAccess, new PauseAllCallback(this, ctxt));
+            ExecuteInLock(LockTriggerAccess, new PauseAllCallback(this));
         }
 
         protected class PauseAllCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-
-            public PauseAllCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public PauseAllCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.PauseAll(conn, ctxt);
+                js.PauseAll(conn);
             }
         }
 
         /// <summary>
-        /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup(SchedulingContext,string)" />
+        /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup(string)" />
         /// on every group.
         /// <p>
-        /// When <see cref="ResumeAll(SchedulingContext)" /> is called (to un-pause), trigger misfire
+        /// When <see cref="ResumeAll()" /> is called (to un-pause), trigger misfire
         /// instructions WILL be applied.
         /// </p>
         /// </summary>
-        /// <seealso cref="ResumeAll(SchedulingContext)" />
+        /// <seealso cref="ResumeAll()" />
         /// <seealso cref="String" />
-        public virtual void PauseAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        public virtual void PauseAll(ConnectionAndTransactionHolder conn)
         {
-            IList<string> groupNames = GetTriggerGroupNames(conn, ctxt);
+            IList<string> groupNames = GetTriggerGroupNames(conn);
 
             foreach (string groupName in groupNames)
             {
-                PauseTriggerGroup(conn, ctxt, groupName);
+                PauseTriggerGroup(conn, groupName);
             }
 
             try
@@ -2954,52 +2856,48 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(SchedulingContext,string)" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(string)" />
         /// on every group.
         /// </summary>
         /// <remarks>
         /// If any <see cref="Trigger" /> missed one or more fire-times, then the
         /// <see cref="Trigger" />'s misfire instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseAll(SchedulingContext)" />
-        public virtual void ResumeAll(SchedulingContext ctxt)
+        /// <seealso cref="PauseAll()" />
+        public virtual void ResumeAll()
         {
-            ExecuteInLock(LockTriggerAccess, new ResumeAllCallback(this, ctxt));
+            ExecuteInLock(LockTriggerAccess, new ResumeAllCallback(this));
         }
 
         protected class ResumeAllCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
-
-
-            public ResumeAllCallback(JobStoreSupport js, SchedulingContext ctxt)
+            public ResumeAllCallback(JobStoreSupport js)
                 : base(js)
             {
-                this.ctxt = ctxt;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.ResumeAll(conn, ctxt);
+                js.ResumeAll(conn);
             }
         }
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(SchedulingContext,string)" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(string)" />
         /// on every group.
         /// <p>
         /// If any <see cref="Trigger" /> missed one or more fire-times, then the
         /// <see cref="Trigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
-        /// <seealso cref="PauseAll(SchedulingContext)" />
-        public virtual void ResumeAll(ConnectionAndTransactionHolder conn, SchedulingContext ctxt)
+        /// <seealso cref="PauseAll()" />
+        public virtual void ResumeAll(ConnectionAndTransactionHolder conn)
         {
-            IList<string> triggerGroupNames = GetTriggerGroupNames(conn, ctxt);
+            IList<string> triggerGroupNames = GetTriggerGroupNames(conn);
 
             foreach (string groupName in triggerGroupNames)
             {
-                ResumeTriggerGroup(conn, ctxt, groupName);
+                ResumeTriggerGroup(conn, groupName);
             }
 
             try
@@ -3019,34 +2917,32 @@ namespace Quartz.Impl.AdoJobStore
         /// Get a handle to the next N triggers to be fired, and mark them as 'reserved'
         /// by the calling scheduler.
         /// </summary>
-        /// <seealso cref="ReleaseAcquiredTrigger(SchedulingContext, Trigger)" />
-        public virtual IList<Trigger> AcquireNextTriggers(SchedulingContext ctxt, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
+        /// <seealso cref="ReleaseAcquiredTrigger(Trigger)" />
+        public virtual IList<Trigger> AcquireNextTriggers(DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             if (AcquireTriggersWithinLock)
             {
                 return
-                    (IList<Trigger>) ExecuteInNonManagedTXLock(LockTriggerAccess, new AcquireNextTriggerCallback(this, ctxt, noLaterThan, maxCount, timeWindow));
+                    (IList<Trigger>) ExecuteInNonManagedTXLock(LockTriggerAccess, new AcquireNextTriggerCallback(this, noLaterThan, maxCount, timeWindow));
             }
             else
             {
                 // default behavior since Quartz 1.0.1 release
                 return (IList<Trigger>) ExecuteInNonManagedTXLock(
                     null, /* passing null as lock name causes no lock to be made */
-                    new AcquireNextTriggerCallback(this, ctxt, noLaterThan, maxCount, timeWindow));
+                    new AcquireNextTriggerCallback(this, noLaterThan, maxCount, timeWindow));
             }
         }
 
         protected class AcquireNextTriggerCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly DateTime noLaterThan;
             private int maxCount;
             private TimeSpan timeWindow;
 
-            public AcquireNextTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
+            public AcquireNextTriggerCallback(JobStoreSupport js, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.noLaterThan = noLaterThan;
                 this.maxCount = maxCount;
                 this.timeWindow = timeWindow;
@@ -3054,7 +2950,7 @@ namespace Quartz.Impl.AdoJobStore
 
             public object Execute(ConnectionAndTransactionHolder conn)
             {
-                return js.AcquireNextTrigger(conn, ctxt, noLaterThan, maxCount, timeWindow);
+                return js.AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow);
             }
         }
 
@@ -3062,25 +2958,24 @@ namespace Quartz.Impl.AdoJobStore
         // TODO: this really ought to return something like a FiredTriggerBundle,
         // so that the fireInstanceId doesn't have to be on the trigger...
 
-        protected virtual IList<Trigger> AcquireNextTrigger(ConnectionAndTransactionHolder conn, SchedulingContext ctxt, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
+        protected virtual IList<Trigger> AcquireNextTrigger(ConnectionAndTransactionHolder conn, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             do
             {
                 try
                 {
-            	    Trigger nextTrigger = null;
-                	
-            	    IList<Key> keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan, MisfireTime);
+                    Trigger nextTrigger = null;
 
-            	    // No trigger is ready to fire yet.
-            	    if (keys == null || keys.Count == 0)
-            	    {
-            	        return null;
-            	    }
-                	
-            	    foreach (Key triggerKey in keys) 
+                    IList<Key> keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan, MisfireTime);
+
+                    // No trigger is ready to fire yet.
+                    if (keys == null || keys.Count == 0)
                     {
-	                
+                        return null;
+                    }
+
+                    foreach (Key triggerKey in keys)
+                    {
                         int rowsUpdated = Delegate.UpdateTriggerStateFromOtherState(
                             conn,
                             triggerKey.Name, triggerKey.Group,
@@ -3092,7 +2987,7 @@ namespace Quartz.Impl.AdoJobStore
                             continue;
                         }
 
-                        nextTrigger = RetrieveTrigger(conn, ctxt, triggerKey.Name, triggerKey.Group);
+                        nextTrigger = RetrieveTrigger(conn, triggerKey.Name, triggerKey.Group);
 
                         // If our trigger is no longer available, try a new one.
                         if (nextTrigger == null)
@@ -3108,11 +3003,11 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         continue;
                     }
-            	
+
                     nextTrigger.FireInstanceId = FiredTriggerRecordId;
                     Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null);
 
-                    return new List<Trigger>(new[] { nextTrigger });
+                    return new List<Trigger>(new[] {nextTrigger});
                 }
                 catch (Exception e)
                 {
@@ -3128,31 +3023,29 @@ namespace Quartz.Impl.AdoJobStore
         /// fire the given <see cref="Trigger" />, that it had previously acquired
         /// (reserved).
         /// </summary>
-        public void ReleaseAcquiredTrigger(SchedulingContext ctxt, Trigger trigger)
+        public void ReleaseAcquiredTrigger(Trigger trigger)
         {
-            ExecuteInNonManagedTXLock(LockTriggerAccess, new ReleaseAcquiredTriggerCallback(this, ctxt, trigger));
+            ExecuteInNonManagedTXLock(LockTriggerAccess, new ReleaseAcquiredTriggerCallback(this, trigger));
         }
 
         protected class ReleaseAcquiredTriggerCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly Trigger trigger;
 
-            public ReleaseAcquiredTriggerCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger trigger)
+            public ReleaseAcquiredTriggerCallback(JobStoreSupport js, Trigger trigger)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.trigger = trigger;
             }
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.ReleaseAcquiredTrigger(conn, ctxt, trigger);
+                js.ReleaseAcquiredTrigger(conn, trigger);
             }
         }
 
         protected virtual void ReleaseAcquiredTrigger(ConnectionAndTransactionHolder conn,
-                                                               SchedulingContext ctxt, Trigger trigger)
+                                                      Trigger trigger)
         {
             try
             {
@@ -3167,21 +3060,19 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        public virtual IList<TriggerFiredResult> TriggersFired(SchedulingContext ctxt, IList<Trigger> triggers)
+        public virtual IList<TriggerFiredResult> TriggersFired(IList<Trigger> triggers)
         {
             return
-                (IList<TriggerFiredResult>) ExecuteInNonManagedTXLock(LockTriggerAccess, new TriggerFiredCallback(this, ctxt, triggers));
+                (IList<TriggerFiredResult>) ExecuteInNonManagedTXLock(LockTriggerAccess, new TriggerFiredCallback(this, triggers));
         }
 
         protected class TriggerFiredCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly IList<Trigger> triggers;
 
-            public TriggerFiredCallback(JobStoreSupport js, SchedulingContext ctxt, IList<Trigger> triggers)
+            public TriggerFiredCallback(JobStoreSupport js, IList<Trigger> triggers)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.triggers = triggers;
             }
 
@@ -3194,7 +3085,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     try
                     {
-                        TriggerFiredBundle bundle = js.TriggerFired(conn, ctxt, trigger);
+                        TriggerFiredBundle bundle = js.TriggerFired(conn, trigger);
                         result = new TriggerFiredResult(bundle);
                     }
                     catch (JobPersistenceException jpe)
@@ -3214,8 +3105,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
         protected virtual TriggerFiredBundle TriggerFired(ConnectionAndTransactionHolder conn,
-                                                                   SchedulingContext ctxt,
-                                                                   Trigger trigger)
+                                                          Trigger trigger)
         {
             JobDetail job;
             ICalendar cal = null;
@@ -3237,7 +3127,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                job = RetrieveJob(conn, ctxt, trigger.JobName, trigger.JobGroup);
+                job = RetrieveJob(conn, trigger.JobName, trigger.JobGroup);
                 if (job == null)
                 {
                     return null;
@@ -3259,7 +3149,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (trigger.CalendarName != null)
             {
-                cal = RetrieveCalendar(conn, ctxt, trigger.CalendarName);
+                cal = RetrieveCalendar(conn, trigger.CalendarName);
                 if (cal == null)
                 {
                     return null;
@@ -3268,7 +3158,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId);  // TODO: Improve me by collapsing these two statements into one update (of the existing row)
+                Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId); // TODO: Improve me by collapsing these two statements into one update (of the existing row)
                 Delegate.InsertFiredTrigger(conn, trigger, StateExecuting, job);
             }
             catch (Exception e)
@@ -3309,18 +3199,18 @@ namespace Quartz.Impl.AdoJobStore
                 force = true;
             }
 
-            StoreTrigger(conn, ctxt, trigger, job, true, state2, force, false);
+            StoreTrigger(conn, trigger, job, true, state2, force, false);
 
             job.JobDataMap.ClearDirtyFlag();
 
             return new TriggerFiredBundle(
-                job, 
-                trigger, 
-                cal, 
+                job,
+                trigger,
+                cal,
                 trigger.Group.Equals(SchedulerConstants.DefaultRecoveryGroup),
                 SystemTime.UtcNow(),
-                trigger.GetPreviousFireTimeUtc(), 
-                prevFireTime, 
+                trigger.GetPreviousFireTimeUtc(),
+                prevFireTime,
                 trigger.GetNextFireTimeUtc());
         }
 
@@ -3332,25 +3222,23 @@ namespace Quartz.Impl.AdoJobStore
         /// in the given <see cref="JobDetail" /> should be updated if the <see cref="IJob" />
         /// is stateful.
         /// </summary>
-        public virtual void TriggeredJobComplete(SchedulingContext ctxt, Trigger trigger, JobDetail jobDetail,
+        public virtual void TriggeredJobComplete(Trigger trigger, JobDetail jobDetail,
                                                  SchedulerInstruction triggerInstCode)
         {
             ExecuteInNonManagedTXLock(LockTriggerAccess,
-                                      new TriggeredJobCompleteCallback(this, ctxt, trigger, triggerInstCode, jobDetail));
+                                      new TriggeredJobCompleteCallback(this, trigger, triggerInstCode, jobDetail));
         }
 
         protected class TriggeredJobCompleteCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly SchedulingContext ctxt;
             private readonly Trigger trigger;
             private readonly SchedulerInstruction triggerInstCode;
             private readonly JobDetail jobDetail;
 
-            public TriggeredJobCompleteCallback(JobStoreSupport js, SchedulingContext ctxt, Trigger trigger,
+            public TriggeredJobCompleteCallback(JobStoreSupport js, Trigger trigger,
                                                 SchedulerInstruction triggerInstCode, JobDetail jobDetail)
                 : base(js)
             {
-                this.ctxt = ctxt;
                 this.trigger = trigger;
                 this.triggerInstCode = triggerInstCode;
                 this.jobDetail = jobDetail;
@@ -3358,14 +3246,14 @@ namespace Quartz.Impl.AdoJobStore
 
             public void Execute(ConnectionAndTransactionHolder conn)
             {
-                js.TriggeredJobComplete(conn, ctxt, trigger, jobDetail, triggerInstCode);
+                js.TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode);
             }
         }
 
 
-        protected virtual void TriggeredJobComplete(ConnectionAndTransactionHolder conn, SchedulingContext ctxt,
-                                                             Trigger trigger,
-                                                             JobDetail jobDetail, SchedulerInstruction triggerInstCode)
+        protected virtual void TriggeredJobComplete(ConnectionAndTransactionHolder conn,
+                                                    Trigger trigger,
+                                                    JobDetail jobDetail, SchedulerInstruction triggerInstCode)
         {
             try
             {
@@ -3378,12 +3266,12 @@ namespace Quartz.Impl.AdoJobStore
                         TriggerStatus stat = Delegate.SelectTriggerStatus(conn, trigger.Name, trigger.Group);
                         if (stat != null && !stat.NextFireTimeUtc.HasValue)
                         {
-                            RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                            RemoveTrigger(conn, trigger.Name, trigger.Group);
                         }
                     }
                     else
                     {
-                        RemoveTrigger(conn, ctxt, trigger.Name, trigger.Group);
+                        RemoveTrigger(conn, trigger.Name, trigger.Group);
                         SignalSchedulingChangeOnTxCompletion(null);
                     }
                 }
@@ -3469,10 +3357,8 @@ namespace Quartz.Impl.AdoJobStore
                 // trigger lock, peek ahead to see if it is likely we would find
                 // misfired triggers requiring recovery.
                 int misfireCount = (DoubleCheckLockMisfireHandler)
-                                       ?
-                                   Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime)
-                                       :
-                                   Int32.MaxValue;
+                                       ? Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime)
+                                       : Int32.MaxValue;
 
                 if (misfireCount == 0)
                 {
@@ -3514,6 +3400,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
         private const string KeySignalChangeForTxCompletion = "sigChangeForTxCompletion";
+
         protected virtual void SignalSchedulingChangeOnTxCompletion(DateTime? candidateNewNextFireTime)
         {
             DateTime? sigTime = LogicalThreadContext.GetData<DateTime?>(KeySignalChangeForTxCompletion);
@@ -3820,7 +3707,7 @@ namespace Quartz.Impl.AdoJobStore
                                     rcvryTrig.JobDataMap = jd;
 
                                     rcvryTrig.ComputeFirstFireTimeUtc(null);
-                                    StoreTrigger(conn, null, rcvryTrig, null, false, StateWaiting, false, true);
+                                    StoreTrigger(conn, rcvryTrig, null, false, StateWaiting, false, true);
                                     recoveredCount++;
                                 }
                                 else
@@ -3863,10 +3750,7 @@ namespace Quartz.Impl.AdoJobStore
                                     Delegate.SelectFiredTriggerRecords(conn, triggerKey.Name, triggerKey.Group);
                                 if (firedTriggers.Count == 0)
                                 {
-                                    SchedulingContext schedulingContext = new SchedulingContext();
-                                    schedulingContext.InstanceId = instanceId;
-
-                                    if (RemoveTrigger(conn, schedulingContext, triggerKey.Name, triggerKey.Group))
+                                    if (RemoveTrigger(conn, triggerKey.Name, triggerKey.Group))
                                     {
                                         completeCount++;
                                     }
@@ -4176,7 +4060,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     SignalSchedulingChangeImmediately(sigTime);
                 }
-            
+
                 return result;
             }
             catch (JobPersistenceException)
@@ -4247,7 +4131,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    if (numFails % 4 == 0)
+                    if (numFails%4 == 0)
                     {
                         jobStoreSupport.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
                     }
@@ -4291,155 +4175,156 @@ namespace Quartz.Impl.AdoJobStore
                     } //while !Shutdown
                 }
             }
-
         }
-            /////////////////////////////////////////////////////////////////////////////
-            //
-            // MisfireHandler Thread
-            //
-            /////////////////////////////////////////////////////////////////////////////
-            internal class MisfireHandler : QuartzThread
+
+        /////////////////////////////////////////////////////////////////////////////
+        //
+        // MisfireHandler Thread
+        //
+        /////////////////////////////////////////////////////////////////////////////
+        internal class MisfireHandler : QuartzThread
+        {
+            private readonly JobStoreSupport jobStoreSupport;
+            private bool shutdown;
+            private int numFails;
+
+            internal MisfireHandler(JobStoreSupport jobStoreSupport)
             {
-                private readonly JobStoreSupport jobStoreSupport;
-                private bool shutdown;
-                private int numFails;
+                this.jobStoreSupport = jobStoreSupport;
+                Name =
+                    string.Format(CultureInfo.InvariantCulture, "QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName,
+                                  jobStoreSupport.instanceId);
+                IsBackground = jobStoreSupport.MakeThreadsDaemons;
+            }
 
-                internal MisfireHandler(JobStoreSupport jobStoreSupport)
+            public virtual void Initialize()
+            {
+                //this.Manage();
+                Start();
+            }
+
+            public virtual void Shutdown()
+            {
+                shutdown = true;
+                Interrupt();
+            }
+
+            private RecoverMisfiredJobsResult Manage()
+            {
+                try
                 {
-                    this.jobStoreSupport = jobStoreSupport;
-                    Name =
-                        string.Format(CultureInfo.InvariantCulture, "QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName,
-                                      jobStoreSupport.instanceId);
-                    IsBackground = jobStoreSupport.MakeThreadsDaemons;
+                    jobStoreSupport.Log.Debug("MisfireHandler: scanning for misfires...");
+
+                    RecoverMisfiredJobsResult res = jobStoreSupport.DoRecoverMisfires();
+                    numFails = 0;
+                    return res;
                 }
-
-                public virtual void Initialize()
+                catch (Exception e)
                 {
-                    //this.Manage();
-                    Start();
-                }
-
-                public virtual void Shutdown()
-                {
-                    shutdown = true;
-                    Interrupt();
-                }
-
-                private RecoverMisfiredJobsResult Manage()
-                {
-                    try
+                    if (numFails%4 == 0)
                     {
-                        jobStoreSupport.Log.Debug("MisfireHandler: scanning for misfires...");
-
-                        RecoverMisfiredJobsResult res = jobStoreSupport.DoRecoverMisfires();
-                        numFails = 0;
-                        return res;
+                        jobStoreSupport.Log.Error(
+                            "MisfireHandler: Error handling misfires: "
+                            + e.Message, e);
                     }
-                    catch (Exception e)
+                    numFails++;
+                }
+                return RecoverMisfiredJobsResult.NoOp;
+            }
+
+            public override void Run()
+            {
+                while (!shutdown)
+                {
+                    DateTime sTime = SystemTime.UtcNow();
+
+                    RecoverMisfiredJobsResult recoverMisfiredJobsResult = Manage();
+
+                    if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
                     {
-                        if (numFails % 4 == 0)
+                        jobStoreSupport.SignalSchedulingChangeImmediately(recoverMisfiredJobsResult.EarliestNewTime);
+                    }
+
+                    if (!shutdown)
+                    {
+                        TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
+                        if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
                         {
-                            jobStoreSupport.Log.Error(
-                                "MisfireHandler: Error handling misfires: "
-                                + e.Message, e);
+                            timeToSleep = jobStoreSupport.MisfireThreshold - (SystemTime.UtcNow() - sTime);
+                            if (timeToSleep <= TimeSpan.Zero)
+                            {
+                                timeToSleep = TimeSpan.FromMilliseconds(50);
+                            }
+
+                            if (numFails > 0)
+                            {
+                                timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
+                            }
                         }
-                        numFails++;
-                    }
-                    return RecoverMisfiredJobsResult.NoOp;
-                }
 
-                public override void Run()
-                {
-                    while (!shutdown)
-                    {
-                        DateTime sTime = SystemTime.UtcNow();
-
-                        RecoverMisfiredJobsResult recoverMisfiredJobsResult = Manage();
-
-                        if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
+                        try
                         {
-                            jobStoreSupport.SignalSchedulingChangeImmediately(recoverMisfiredJobsResult.EarliestNewTime);
+                            Thread.Sleep(timeToSleep);
                         }
-
-                        if (!shutdown)
+                        catch (ThreadInterruptedException)
                         {
-                            TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
-                            if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
-                            {
-                                timeToSleep = jobStoreSupport.MisfireThreshold - (SystemTime.UtcNow() - sTime);
-                                if (timeToSleep <= TimeSpan.Zero)
-                                {
-                                    timeToSleep = TimeSpan.FromMilliseconds(50);
-                                }
-
-                                if (numFails > 0)
-                                {
-                                    timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
-                                }
-                            }
-
-                            try
-                            {
-                                Thread.Sleep(timeToSleep);
-                            }
-                            catch (ThreadInterruptedException)
-                            {
-                            }
-                        } //while !shutdown
-                    }
+                        }
+                    } //while !shutdown
                 }
-                // EOF
+            }
+
+            // EOF
+        }
+
+        /// <summary>
+        /// Helper class for returning the composite result of trying
+        /// to recover misfired jobs.
+        /// </summary>
+        public class RecoverMisfiredJobsResult
+        {
+            public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0, DateTime.MaxValue);
+
+            private readonly bool _hasMoreMisfiredTriggers;
+            private readonly int _processedMisfiredTriggerCount;
+            private readonly DateTime _earliestNewTimeUtc;
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
+            /// </summary>
+            /// <param name="hasMoreMisfiredTriggers">if set to <c>true</c> [has more misfired triggers].</param>
+            /// <param name="processedMisfiredTriggerCount">The processed misfired trigger count.</param>
+            /// <param name="earliestNewTimeUtc"></param>
+            public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount, DateTime earliestNewTimeUtc)
+            {
+                _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
+                _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
+                _earliestNewTimeUtc = earliestNewTimeUtc;
             }
 
             /// <summary>
-            /// Helper class for returning the composite result of trying
-            /// to recover misfired jobs.
+            /// Gets a value indicating whether this instance has more misfired triggers.
             /// </summary>
-            public class RecoverMisfiredJobsResult
+            /// <value>
+            /// 	<c>true</c> if this instance has more misfired triggers; otherwise, <c>false</c>.
+            /// </value>
+            public bool HasMoreMisfiredTriggers
             {
-                public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0, DateTime.MaxValue);
+                get { return _hasMoreMisfiredTriggers; }
+            }
 
-                private readonly bool _hasMoreMisfiredTriggers;
-                private readonly int _processedMisfiredTriggerCount;
-                private readonly DateTime _earliestNewTimeUtc;
+            /// <summary>
+            /// Gets the processed misfired trigger count.
+            /// </summary>
+            /// <value>The processed misfired trigger count.</value>
+            public int ProcessedMisfiredTriggerCount
+            {
+                get { return _processedMisfiredTriggerCount; }
+            }
 
-                /// <summary>
-                /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
-                /// </summary>
-                /// <param name="hasMoreMisfiredTriggers">if set to <c>true</c> [has more misfired triggers].</param>
-                /// <param name="processedMisfiredTriggerCount">The processed misfired trigger count.</param>
-                /// <param name="earliestNewTimeUtc"></param>
-                public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount, DateTime earliestNewTimeUtc)
-                {
-                    _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
-                    _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
-                    _earliestNewTimeUtc = earliestNewTimeUtc;
-                }
-
-                /// <summary>
-                /// Gets a value indicating whether this instance has more misfired triggers.
-                /// </summary>
-                /// <value>
-                /// 	<c>true</c> if this instance has more misfired triggers; otherwise, <c>false</c>.
-                /// </value>
-                public bool HasMoreMisfiredTriggers
-                {
-                    get { return _hasMoreMisfiredTriggers; }
-                }
-
-                /// <summary>
-                /// Gets the processed misfired trigger count.
-                /// </summary>
-                /// <value>The processed misfired trigger count.</value>
-                public int ProcessedMisfiredTriggerCount
-                {
-                    get { return _processedMisfiredTriggerCount; }
-                }
-
-                public DateTime EarliestNewTime
-                {
-                    get { return _earliestNewTimeUtc; }
-                }
+            public DateTime EarliestNewTime
+            {
+                get { return _earliestNewTimeUtc; }
             }
         }
     }
+}

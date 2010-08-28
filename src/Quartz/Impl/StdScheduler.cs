@@ -32,14 +32,12 @@ namespace Quartz.Impl
 	/// </summary>
 	/// <seealso cref="IScheduler" />
 	/// <seealso cref="QuartzScheduler" />
-	/// <seealso cref="SchedulingContext" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public class StdScheduler : IScheduler
 	{
         private readonly QuartzScheduler sched;
-        private readonly SchedulingContext schedCtxt;
-
+        
 	    /// <summary>
 	    /// returns true if the given JobGroup
 	    /// is paused
@@ -48,7 +46,7 @@ namespace Quartz.Impl
 	    /// <returns></returns>
 	    public bool IsJobGroupPaused(string groupName)
 	    {
-            return sched.IsJobGroupPaused(schedCtxt, groupName);
+            return sched.IsJobGroupPaused(groupName);
 	    }
 
 	    /// <summary>
@@ -59,7 +57,7 @@ namespace Quartz.Impl
 	    /// <returns></returns>
 	    public bool IsTriggerGroupPaused(string groupName)
 	    {
-            return sched.IsTriggerGroupPaused(schedCtxt, groupName);
+            return sched.IsTriggerGroupPaused(groupName);
 	    }
 
 	    /// <summary>
@@ -157,41 +155,34 @@ namespace Quartz.Impl
 			return sched.CurrentlyExecutingJobs;
 		}
 
-		/// <seealso cref="QuartzScheduler.GetPausedTriggerGroups(SchedulingContext)">
-		/// </seealso>
+		/// <seealso cref="QuartzScheduler.GetPausedTriggerGroups()" />
         public Collection.ISet<string> GetPausedTriggerGroups()
 		{
-			return sched.GetPausedTriggerGroups(schedCtxt);
+			return sched.GetPausedTriggerGroups();
 		}
 
 		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
+		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
 		/// </summary>
 		public virtual IList<string> JobGroupNames
 		{
-			get { return sched.GetJobGroupNames(schedCtxt); }
+			get { return sched.GetJobGroupNames(); }
 		}
 
-		/// <summary> 
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual IList<string> TriggerGroupNames
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual IList<string> TriggerGroupNames
 		{
-			get { return sched.GetTriggerGroupNames(schedCtxt); }
+			get { return sched.GetTriggerGroupNames(); }
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual IList<string> CalendarNames
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual IList<string> CalendarNames
 		{
-			get { return sched.GetCalendarNames(schedCtxt); }
+			get { return sched.GetCalendarNames(); }
 		}
 
 		/// <summary>
@@ -250,12 +241,11 @@ namespace Quartz.Impl
 
 		/// <summary>
 		/// Construct a <see cref="StdScheduler" /> instance to proxy the given
-		/// <see cref="QuartzScheduler" /> instance, and with the given <see cref="SchedulingContext" />.
+		/// <see cref="QuartzScheduler" /> instance.
 		/// </summary>
-		public StdScheduler(QuartzScheduler sched, SchedulingContext schedCtxt)
+		public StdScheduler(QuartzScheduler sched)
 		{
 			this.sched = sched;
-			this.schedCtxt = schedCtxt;
 		}
 
 		/// <summary>
@@ -298,294 +288,236 @@ namespace Quartz.Impl
 			sched.Shutdown(waitForJobsToComplete);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger)
 		{
-			return sched.ScheduleJob(schedCtxt, jobDetail, trigger);
+			return sched.ScheduleJob(jobDetail, trigger);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual DateTime ScheduleJob(Trigger trigger)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual DateTime ScheduleJob(Trigger trigger)
 		{
-			return sched.ScheduleJob(schedCtxt, trigger);
+			return sched.ScheduleJob(trigger);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void AddJob(JobDetail jobDetail, bool replace)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void AddJob(JobDetail jobDetail, bool replace)
 		{
-			sched.AddJob(schedCtxt, jobDetail, replace);
+			sched.AddJob(jobDetail, replace);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual bool DeleteJob(string jobName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual bool DeleteJob(string jobName, string groupName)
 		{
-			return sched.DeleteJob(schedCtxt, jobName, groupName);
+			return sched.DeleteJob(jobName, groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual bool UnscheduleJob(string triggerName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual bool UnscheduleJob(string triggerName, string groupName)
 		{
-			return sched.UnscheduleJob(schedCtxt, triggerName, groupName);
+			return sched.UnscheduleJob(triggerName, groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
         public virtual DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
 		{
-			return sched.RescheduleJob(schedCtxt, triggerName, groupName, newTrigger);
+			return sched.RescheduleJob(triggerName, groupName, newTrigger);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void TriggerJob(string jobName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void TriggerJob(string jobName, string groupName)
 		{
 			TriggerJob(jobName, groupName, null);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void TriggerJob(string jobName, string groupName, JobDataMap data)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void TriggerJob(string jobName, string groupName, JobDataMap data)
 		{
-			sched.TriggerJob(schedCtxt, jobName, groupName, data);
+			sched.TriggerJob(jobName, groupName, data);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName)
 		{
 			TriggerJobWithVolatileTrigger(jobName, groupName, null);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data)
 		{
-			sched.TriggerJobWithVolatileTrigger(schedCtxt, jobName, groupName, data);
+			sched.TriggerJobWithVolatileTrigger(jobName, groupName, data);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void PauseTrigger(string triggerName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void PauseTrigger(string triggerName, string groupName)
 		{
-			sched.PauseTrigger(schedCtxt, triggerName, groupName);
+			sched.PauseTrigger(triggerName, groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void PauseTriggerGroup(string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void PauseTriggerGroup(string groupName)
 		{
-			sched.PauseTriggerGroup(schedCtxt, groupName);
+			sched.PauseTriggerGroup(groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void PauseJob(string jobName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void PauseJob(string jobName, string groupName)
 		{
-			sched.PauseJob(schedCtxt, jobName, groupName);
+			sched.PauseJob(jobName, groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void PauseJobGroup(string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void PauseJobGroup(string groupName)
 		{
-			sched.PauseJobGroup(schedCtxt, groupName);
+			sched.PauseJobGroup(groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void ResumeTrigger(string triggerName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void ResumeTrigger(string triggerName, string groupName)
 		{
-			sched.ResumeTrigger(schedCtxt, triggerName, groupName);
+			sched.ResumeTrigger(triggerName, groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void ResumeTriggerGroup(string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void ResumeTriggerGroup(string groupName)
 		{
-			sched.ResumeTriggerGroup(schedCtxt, groupName);
+			sched.ResumeTriggerGroup(groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void ResumeJob(string jobName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void ResumeJob(string jobName, string groupName)
 		{
-			sched.ResumeJob(schedCtxt, jobName, groupName);
+			sched.ResumeJob(jobName, groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void ResumeJobGroup(string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void ResumeJobGroup(string groupName)
 		{
-			sched.ResumeJobGroup(schedCtxt, groupName);
+			sched.ResumeJobGroup(groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void PauseAll()
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void PauseAll()
 		{
-			sched.PauseAll(schedCtxt);
+			sched.PauseAll();
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void ResumeAll()
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void ResumeAll()
 		{
-			sched.ResumeAll(schedCtxt);
+			sched.ResumeAll();
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual IList<Trigger> GetTriggersOfJob(string jobName, string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual IList<Trigger> GetTriggersOfJob(string jobName, string groupName)
 		{
-			return sched.GetTriggersOfJob(schedCtxt, jobName, groupName);
+			return sched.GetTriggersOfJob(jobName, groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual IList<string> GetJobNames(string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual IList<string> GetJobNames(string groupName)
 		{
-			return sched.GetJobNames(schedCtxt, groupName);
+			return sched.GetJobNames(groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual IList<string> GetTriggerNames(string groupName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual IList<string> GetTriggerNames(string groupName)
 		{
-			return sched.GetTriggerNames(schedCtxt, groupName);
+			return sched.GetTriggerNames(groupName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual JobDetail GetJobDetail(string jobName, string jobGroup)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual JobDetail GetJobDetail(string jobName, string jobGroup)
 		{
-			return sched.GetJobDetail(schedCtxt, jobName, jobGroup);
+			return sched.GetJobDetail(jobName, jobGroup);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual Trigger GetTrigger(string triggerName, string triggerGroup)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual Trigger GetTrigger(string triggerName, string triggerGroup)
 		{
-			return sched.GetTrigger(schedCtxt, triggerName, triggerGroup);
+			return sched.GetTrigger(triggerName, triggerGroup);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual TriggerState GetTriggerState(string triggerName, string triggerGroup)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual TriggerState GetTriggerState(string triggerName, string triggerGroup)
 		{
-			return sched.GetTriggerState(schedCtxt, triggerName, triggerGroup);
+			return sched.GetTriggerState(triggerName, triggerGroup);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
 		{
-			sched.AddCalendar(schedCtxt, calName, calendar, replace, updateTriggers);
+			sched.AddCalendar(calName, calendar, replace, updateTriggers);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual bool DeleteCalendar(string calName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual bool DeleteCalendar(string calName)
 		{
-			return sched.DeleteCalendar(schedCtxt, calName);
+			return sched.DeleteCalendar(calName);
 		}
 
-		/// <summary>
-		/// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />,
-		/// passing the <see cref="SchedulingContext" /> associated with this
-		/// instance.
-		/// </summary>
-		public virtual ICalendar GetCalendar(string calName)
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual ICalendar GetCalendar(string calName)
 		{
-			return sched.GetCalendar(schedCtxt, calName);
+			return sched.GetCalendar(calName);
 		}
 
         /// <summary>
@@ -594,7 +526,7 @@ namespace Quartz.Impl
         /// <returns></returns>
 	    public IList<string> GetCalendarNames()
 	    {
-	        return sched.GetCalendarNames(schedCtxt);
+	        return sched.GetCalendarNames();
 	    }
 
 	    /// <summary>
@@ -690,7 +622,7 @@ namespace Quartz.Impl
         /// <seealso cref="GetCurrentlyExecutingJobs"/>
 		public virtual bool Interrupt(string jobName, string groupName)
 		{
-			return sched.Interrupt(schedCtxt, jobName, groupName);
+			return sched.Interrupt(jobName, groupName);
 		}
 	}
 }

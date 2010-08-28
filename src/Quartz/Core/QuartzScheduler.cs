@@ -28,7 +28,6 @@ using System.Threading;
 
 using Common.Logging;
 
-using Quartz.Collection;
 using Quartz.Impl;
 using Quartz.Listener;
 using Quartz.Simpl;
@@ -368,7 +367,7 @@ namespace Quartz.Core
         /// properties.
         /// </summary>
         /// <seealso cref="QuartzSchedulerResources" />
-        public QuartzScheduler(QuartzSchedulerResources resources, SchedulingContext ctxt, TimeSpan idleWaitTime, TimeSpan dbRetryInterval)
+        public QuartzScheduler(QuartzSchedulerResources resources, TimeSpan idleWaitTime, TimeSpan dbRetryInterval)
         {
             log = LogManager.GetLogger(GetType());
             this.resources = resources;
@@ -381,7 +380,7 @@ namespace Quartz.Core
                 throw new SchedulerException("Unable to bind scheduler to remoting context.", re);
             }
 
-            schedThread = new QuartzSchedulerThread(this, resources, ctxt);
+            schedThread = new QuartzSchedulerThread(this, resources);
             if (idleWaitTime > TimeSpan.Zero)
             {
                 schedThread.IdleWaitTime = idleWaitTime;
@@ -706,7 +705,7 @@ namespace Quartz.Core
         /// will be set to reference the Job passed with it into this method.
         /// </p>
         /// </summary>
-        public virtual DateTime ScheduleJob(SchedulingContext ctxt, JobDetail jobDetail, Trigger trigger)
+        public virtual DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger)
         {
             ValidateState();
 
@@ -742,7 +741,7 @@ namespace Quartz.Core
             ICalendar cal = null;
             if (trigger.CalendarName != null)
             {
-                cal = resources.JobStore.RetrieveCalendar(ctxt, trigger.CalendarName);
+                cal = resources.JobStore.RetrieveCalendar(trigger.CalendarName);
                 if (cal == null)
                 {
                     throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Calendar not found: {0}", trigger.CalendarName));
@@ -756,7 +755,7 @@ namespace Quartz.Core
                 throw new SchedulerException("Based on configured schedule, the given trigger will never fire.");
             }
 
-            resources.JobStore.StoreJobAndTrigger(ctxt, jobDetail, trigger);
+            resources.JobStore.StoreJobAndTrigger(jobDetail, trigger);
             NotifySchedulerListenersJobAdded(jobDetail);
             NotifySchedulerThread(trigger.GetNextFireTimeUtc());
             NotifySchedulerListenersScheduled(trigger);
@@ -768,7 +767,7 @@ namespace Quartz.Core
         /// Schedule the given <see cref="Trigger" /> with the
         /// <see cref="IJob" /> identified by the <see cref="Trigger" />'s settings.
         /// </summary>
-        public virtual DateTime ScheduleJob(SchedulingContext ctxt, Trigger trigger)
+        public virtual DateTime ScheduleJob(Trigger trigger)
         {
             ValidateState();
 
@@ -782,7 +781,7 @@ namespace Quartz.Core
             ICalendar cal = null;
             if (trigger.CalendarName != null)
             {
-                cal = resources.JobStore.RetrieveCalendar(ctxt, trigger.CalendarName);
+                cal = resources.JobStore.RetrieveCalendar(trigger.CalendarName);
                 if (cal == null)
                 {
                     throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Calendar not found: {0}", trigger.CalendarName));
@@ -796,7 +795,7 @@ namespace Quartz.Core
                 throw new SchedulerException("Based on configured schedule, the given trigger will never fire.");
             }
 
-            resources.JobStore.StoreTrigger(ctxt, trigger, false);
+            resources.JobStore.StoreTrigger(trigger, false);
             NotifySchedulerThread(trigger.GetNextFireTimeUtc());
             NotifySchedulerListenersScheduled(trigger);
 
@@ -813,7 +812,7 @@ namespace Quartz.Core
         /// SchedulerException will be thrown.
         /// </p>
         /// </summary>
-        public virtual void AddJob(SchedulingContext ctxt, JobDetail jobDetail, bool replace)
+        public virtual void AddJob(JobDetail jobDetail, bool replace)
         {
             ValidateState();
 
@@ -822,7 +821,7 @@ namespace Quartz.Core
                 throw new SchedulerException("Jobs added with no trigger must be durable.");
             }
 
-            resources.JobStore.StoreJob(ctxt, jobDetail, replace);
+            resources.JobStore.StoreJob(jobDetail, replace);
             NotifySchedulerThread(null);
             NotifySchedulerListenersJobAdded(jobDetail);
         }
@@ -832,7 +831,7 @@ namespace Quartz.Core
         /// associated <see cref="Trigger" />s.
         /// </summary>
         /// <returns> true if the Job was found and deleted.</returns>
-        public virtual bool DeleteJob(SchedulingContext ctxt, string jobName, string groupName)
+        public virtual bool DeleteJob(string jobName, string groupName)
         {
             ValidateState();
 
@@ -842,10 +841,10 @@ namespace Quartz.Core
             }
 
             bool result = false;
-            IList<Trigger> triggers = GetTriggersOfJob(ctxt, jobName, groupName);
+            IList<Trigger> triggers = GetTriggersOfJob(jobName, groupName);
             foreach (Trigger trigger in triggers)
             {
-                if (!UnscheduleJob(ctxt, trigger.Name, trigger.Group))
+                if (!UnscheduleJob(trigger.Name, trigger.Group))
                 {
                     StringBuilder sb = new StringBuilder()
                         .Append("Unable to unschedule trigger [")
@@ -856,7 +855,7 @@ namespace Quartz.Core
                 result = true;
             }
 
-            result = resources.JobStore.RemoveJob(ctxt, jobName, groupName) || result;
+            result = resources.JobStore.RemoveJob(jobName, groupName) || result;
             if (result)
             {
                 NotifySchedulerThread(null);
@@ -869,7 +868,7 @@ namespace Quartz.Core
         /// Remove the indicated <see cref="Trigger" /> from the
         /// scheduler.
         /// </summary>
-        public virtual bool UnscheduleJob(SchedulingContext ctxt, string triggerName, string groupName)
+        public virtual bool UnscheduleJob(string triggerName, string groupName)
         {
             ValidateState();
 
@@ -878,7 +877,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            if (resources.JobStore.RemoveTrigger(ctxt, triggerName, groupName))
+            if (resources.JobStore.RemoveTrigger(triggerName, groupName))
             {
                 NotifySchedulerThread(null);
                 NotifySchedulerListenersUnscheduled(triggerName, groupName);
@@ -897,7 +896,6 @@ namespace Quartz.Core
         /// given name, and store the new given one - which must be associated
         /// with the same job.
         /// </summary>
-        /// <param name="ctxt">The scheduling context.</param>
         /// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
         /// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
         /// <param name="newTrigger">The new <see cref="Trigger" /> to be stored.</param>
@@ -906,7 +904,7 @@ namespace Quartz.Core
         /// name and group was not found and removed from the store, otherwise
         /// the first fire time of the newly scheduled trigger.
         /// </returns>
-        public virtual DateTime? RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger)
+        public virtual DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
         {
             ValidateState();
 
@@ -920,7 +918,7 @@ namespace Quartz.Core
             ICalendar cal = null;
             if (newTrigger.CalendarName != null)
             {
-                cal = resources.JobStore.RetrieveCalendar(ctxt, newTrigger.CalendarName);
+                cal = resources.JobStore.RetrieveCalendar(newTrigger.CalendarName);
             }
 
             DateTime? ft = newTrigger.ComputeFirstFireTimeUtc(cal);
@@ -930,7 +928,7 @@ namespace Quartz.Core
                 throw new SchedulerException("Based on configured schedule, the given trigger will never fire.");
             }
 
-            if (resources.JobStore.ReplaceTrigger(ctxt, triggerName, groupName, newTrigger))
+            if (resources.JobStore.ReplaceTrigger(triggerName, groupName, newTrigger))
             {
                 NotifySchedulerThread(newTrigger.GetNextFireTimeUtc());
                 NotifySchedulerListenersUnscheduled(triggerName, groupName);
@@ -975,7 +973,7 @@ namespace Quartz.Core
         /// <summary>
         /// Trigger the identified <see cref="IJob" /> (Execute it now) - with a non-volatile trigger.
         /// </summary>
-        public virtual void TriggerJob(SchedulingContext ctxt, string jobName, string groupName, JobDataMap data)
+        public virtual void TriggerJob(string jobName, string groupName, JobDataMap data)
         {
             ValidateState();
 
@@ -999,7 +997,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    resources.JobStore.StoreTrigger(ctxt, trig, false);
+                    resources.JobStore.StoreTrigger(trig, false);
                     collision = false;
                 }
                 catch (ObjectAlreadyExistsException)
@@ -1016,7 +1014,7 @@ namespace Quartz.Core
         /// Trigger the identified <see cref="IJob" /> (Execute it
         /// now) - with a volatile trigger.
         /// </summary>
-        public virtual void TriggerJobWithVolatileTrigger(SchedulingContext ctxt, string jobName, string groupName,
+        public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName,
                                                           JobDataMap data)
         {
             ValidateState();
@@ -1041,7 +1039,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    resources.JobStore.StoreTrigger(ctxt, trig, false);
+                    resources.JobStore.StoreTrigger(trig, false);
                     collision = false;
                 }
                 catch (ObjectAlreadyExistsException)
@@ -1057,7 +1055,7 @@ namespace Quartz.Core
         /// <summary>
         /// Pause the <see cref="Trigger" /> with the given name.
         /// </summary>
-        public virtual void PauseTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        public virtual void PauseTrigger(string triggerName, string groupName)
         {
             ValidateState();
 
@@ -1066,7 +1064,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            resources.JobStore.PauseTrigger(ctxt, triggerName, groupName);
+            resources.JobStore.PauseTrigger(triggerName, groupName);
             NotifySchedulerThread(null);
             NotifySchedulerListenersPausedTrigger(triggerName, groupName);
         }
@@ -1074,7 +1072,7 @@ namespace Quartz.Core
         /// <summary>
         /// Pause all of the <see cref="Trigger" />s in the given group.
         /// </summary>
-        public virtual void PauseTriggerGroup(SchedulingContext ctxt, string groupName)
+        public virtual void PauseTriggerGroup(string groupName)
         {
             ValidateState();
 
@@ -1083,7 +1081,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            resources.JobStore.PauseTriggerGroup(ctxt, groupName);
+            resources.JobStore.PauseTriggerGroup(groupName);
             NotifySchedulerThread(null);
             NotifySchedulerListenersPausedTrigger(null, groupName);
         }
@@ -1092,7 +1090,7 @@ namespace Quartz.Core
         /// Pause the <see cref="JobDetail" /> with the given
         /// name - by pausing all of its current <see cref="Trigger" />s.
         /// </summary>
-        public virtual void PauseJob(SchedulingContext ctxt, string jobName, string groupName)
+        public virtual void PauseJob(string jobName, string groupName)
         {
             ValidateState();
 
@@ -1101,7 +1099,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            resources.JobStore.PauseJob(ctxt, jobName, groupName);
+            resources.JobStore.PauseJob(jobName, groupName);
             NotifySchedulerThread(null);
             NotifySchedulerListenersPausedJob(jobName, groupName);
         }
@@ -1110,7 +1108,7 @@ namespace Quartz.Core
         /// Pause all of the <see cref="JobDetail" />s in the
         /// given group - by pausing all of their <see cref="Trigger" />s.
         /// </summary>
-        public virtual void PauseJobGroup(SchedulingContext ctxt, string groupName)
+        public virtual void PauseJobGroup(string groupName)
         {
             ValidateState();
 
@@ -1119,7 +1117,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            resources.JobStore.PauseJobGroup(ctxt, groupName);
+            resources.JobStore.PauseJobGroup(groupName);
             NotifySchedulerThread(null);
             NotifySchedulerListenersPausedJob(null, groupName);
         }
@@ -1132,7 +1130,7 @@ namespace Quartz.Core
         /// <see cref="Trigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
-        public virtual void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName)
+        public virtual void ResumeTrigger(string triggerName, string groupName)
         {
             ValidateState();
 
@@ -1141,7 +1139,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            resources.JobStore.ResumeTrigger(ctxt, triggerName, groupName);
+            resources.JobStore.ResumeTrigger(triggerName, groupName);
             NotifySchedulerThread(null);
             NotifySchedulerListenersResumedTrigger(triggerName, groupName);
         }
@@ -1154,7 +1152,7 @@ namespace Quartz.Core
         /// <see cref="Trigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
-        public virtual void ResumeTriggerGroup(SchedulingContext ctxt, string groupName)
+        public virtual void ResumeTriggerGroup(string groupName)
         {
             ValidateState();
 
@@ -1163,7 +1161,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            resources.JobStore.ResumeTriggerGroup(ctxt, groupName);
+            resources.JobStore.ResumeTriggerGroup(groupName);
             NotifySchedulerThread(null);
             NotifySchedulerListenersResumedTrigger(null, groupName);
         }
@@ -1171,11 +1169,10 @@ namespace Quartz.Core
         /// <summary>
         /// Gets the paused trigger groups.
         /// </summary>
-        /// <param name="ctxt">The the job scheduling context.</param>
         /// <returns></returns>
-        public virtual Collection.ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt)
+        public virtual Collection.ISet<string> GetPausedTriggerGroups()
         {
-            return resources.JobStore.GetPausedTriggerGroups(ctxt);
+            return resources.JobStore.GetPausedTriggerGroups();
         }
 
         /// <summary>
@@ -1187,7 +1184,7 @@ namespace Quartz.Core
         /// instruction will be applied.
         /// </p>
         /// </summary>
-        public virtual void ResumeJob(SchedulingContext ctxt, string jobName, string groupName)
+        public virtual void ResumeJob(string jobName, string groupName)
         {
             ValidateState();
 
@@ -1196,7 +1193,7 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            resources.JobStore.ResumeJob(ctxt, jobName, groupName);
+            resources.JobStore.ResumeJob(jobName, groupName);
             NotifySchedulerThread(null);
             NotifySchedulerListenersResumedJob(jobName, groupName);
         }
@@ -1210,7 +1207,7 @@ namespace Quartz.Core
         /// misfire instruction will be applied.
         /// </p>
         /// </summary>
-        public virtual void ResumeJobGroup(SchedulingContext ctxt, string groupName)
+        public virtual void ResumeJobGroup(string groupName)
         {
             ValidateState();
 
@@ -1219,44 +1216,44 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            resources.JobStore.ResumeJobGroup(ctxt, groupName);
+            resources.JobStore.ResumeJobGroup(groupName);
             NotifySchedulerThread(null);
             NotifySchedulerListenersResumedJob(null, groupName);
         }
 
         /// <summary>
-        /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup(SchedulingContext, string)" />
+        /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup(string)" />
         /// on every group.
         /// <p>
         /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
         /// instructions WILL be applied.
         /// </p>
         /// </summary>
-        /// <seealso cref="ResumeAll(SchedulingContext)" />
+        /// <seealso cref="ResumeAll()" />
         /// <seealso cref="PauseJob" />
-        public virtual void PauseAll(SchedulingContext ctxt)
+        public virtual void PauseAll()
         {
             ValidateState();
 
-            resources.JobStore.PauseAll(ctxt);
+            resources.JobStore.PauseAll();
             NotifySchedulerThread(null);
             NotifySchedulerListenersPausedTrigger(null, null);
         }
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(SchedulingContext, string)" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(string)" />
         /// on every group.
         /// <p>
         /// If any <see cref="Trigger" /> missed one or more fire-times, then the
         /// <see cref="Trigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
-        /// <seealso cref="PauseAll(SchedulingContext)" />
-        public virtual void ResumeAll(SchedulingContext ctxt)
+        /// <seealso cref="PauseAll()" />
+        public virtual void ResumeAll()
         {
             ValidateState();
 
-            resources.JobStore.ResumeAll(ctxt);
+            resources.JobStore.ResumeAll();
             NotifySchedulerThread(null);
             NotifySchedulerListenersResumedTrigger(null, null);
         }
@@ -1264,18 +1261,18 @@ namespace Quartz.Core
         /// <summary>
         /// Get the names of all known <see cref="IJob" /> groups.
         /// </summary>
-        public virtual IList<string> GetJobGroupNames(SchedulingContext ctxt)
+        public virtual IList<string> GetJobGroupNames()
         {
             ValidateState();
 
-            return resources.JobStore.GetJobGroupNames(ctxt);
+            return resources.JobStore.GetJobGroupNames();
         }
 
         /// <summary>
         /// Get the names of all the <see cref="IJob" />s in the
         /// given group.
         /// </summary>
-        public virtual IList<string> GetJobNames(SchedulingContext ctxt, string groupName)
+        public virtual IList<string> GetJobNames(string groupName)
         {
             ValidateState();
 
@@ -1284,14 +1281,14 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            return resources.JobStore.GetJobNames(ctxt, groupName);
+            return resources.JobStore.GetJobNames(groupName);
         }
 
         /// <summary> 
         /// Get all <see cref="Trigger" /> s that are associated with the
         /// identified <see cref="JobDetail" />.
         /// </summary>
-        public virtual IList<Trigger> GetTriggersOfJob(SchedulingContext ctxt, string jobName, string groupName)
+        public virtual IList<Trigger> GetTriggersOfJob(string jobName, string groupName)
         {
             ValidateState();
 
@@ -1300,24 +1297,24 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            return resources.JobStore.GetTriggersForJob(ctxt, jobName, groupName);
+            return resources.JobStore.GetTriggersForJob(jobName, groupName);
         }
 
         /// <summary>
         /// Get the names of all known <see cref="Trigger" />
         /// groups.
         /// </summary>
-        public virtual IList<string> GetTriggerGroupNames(SchedulingContext ctxt)
+        public virtual IList<string> GetTriggerGroupNames()
         {
             ValidateState();
-            return resources.JobStore.GetTriggerGroupNames(ctxt);
+            return resources.JobStore.GetTriggerGroupNames();
         }
 
         /// <summary>
         /// Get the names of all the <see cref="Trigger" />s in
         /// the given group.
         /// </summary>
-        public virtual IList<string> GetTriggerNames(SchedulingContext ctxt, string groupName)
+        public virtual IList<string> GetTriggerNames(string groupName)
         {
             ValidateState();
 
@@ -1326,14 +1323,14 @@ namespace Quartz.Core
                 groupName = SchedulerConstants.DefaultGroup;
             }
 
-            return resources.JobStore.GetTriggerNames(ctxt, groupName);
+            return resources.JobStore.GetTriggerNames(groupName);
         }
 
         /// <summary> 
         /// Get the <see cref="JobDetail" /> for the <see cref="IJob" />
         /// instance with the given name and group.
         /// </summary>
-        public virtual JobDetail GetJobDetail(SchedulingContext ctxt, string jobName, string jobGroup)
+        public virtual JobDetail GetJobDetail(string jobName, string jobGroup)
         {
             ValidateState();
 
@@ -1342,14 +1339,14 @@ namespace Quartz.Core
                 jobGroup = SchedulerConstants.DefaultGroup;
             }
 
-            return resources.JobStore.RetrieveJob(ctxt, jobName, jobGroup);
+            return resources.JobStore.RetrieveJob(jobName, jobGroup);
         }
 
         /// <summary>
         /// Get the <see cref="Trigger" /> instance with the given name and
         /// group.
         /// </summary>
-        public virtual Trigger GetTrigger(SchedulingContext ctxt, string triggerName, string triggerGroup)
+        public virtual Trigger GetTrigger(string triggerName, string triggerGroup)
         {
             ValidateState();
 
@@ -1358,7 +1355,7 @@ namespace Quartz.Core
                 triggerGroup = SchedulerConstants.DefaultGroup;
             }
 
-            return resources.JobStore.RetrieveTrigger(ctxt, triggerName, triggerGroup);
+            return resources.JobStore.RetrieveTrigger(triggerName, triggerGroup);
         }
 
         /// <summary>
@@ -1368,7 +1365,7 @@ namespace Quartz.Core
         /// <seealso cref="TriggerState.Paused" />
         /// <seealso cref="TriggerState.Complete" />
         /// <seealso cref="TriggerState.Error" />      
-        public virtual TriggerState GetTriggerState(SchedulingContext ctxt, string triggerName, string triggerGroup)
+        public virtual TriggerState GetTriggerState(string triggerName, string triggerGroup)
         {
             ValidateState();
 
@@ -1377,45 +1374,45 @@ namespace Quartz.Core
                 triggerGroup = SchedulerConstants.DefaultGroup;
             }
 
-            return resources.JobStore.GetTriggerState(ctxt, triggerName, triggerGroup);
+            return resources.JobStore.GetTriggerState(triggerName, triggerGroup);
         }
 
         /// <summary>
         /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
         /// </summary>
-        public virtual void AddCalendar(SchedulingContext ctxt, string calName, ICalendar calendar, bool replace,
+        public virtual void AddCalendar(string calName, ICalendar calendar, bool replace,
                                         bool updateTriggers)
         {
             ValidateState();
-            resources.JobStore.StoreCalendar(ctxt, calName, calendar, replace, updateTriggers);
+            resources.JobStore.StoreCalendar(calName, calendar, replace, updateTriggers);
         }
 
         /// <summary>
         /// Delete the identified <see cref="ICalendar" /> from the Scheduler.
         /// </summary>
         /// <returns> true if the Calendar was found and deleted.</returns>
-        public virtual bool DeleteCalendar(SchedulingContext ctxt, string calName)
+        public virtual bool DeleteCalendar(string calName)
         {
             ValidateState();
-            return resources.JobStore.RemoveCalendar(ctxt, calName);
+            return resources.JobStore.RemoveCalendar(calName);
         }
 
         /// <summary> 
         /// Get the <see cref="ICalendar" /> instance with the given name.
         /// </summary>
-        public virtual ICalendar GetCalendar(SchedulingContext ctxt, string calName)
+        public virtual ICalendar GetCalendar(string calName)
         {
             ValidateState();
-            return resources.JobStore.RetrieveCalendar(ctxt, calName);
+            return resources.JobStore.RetrieveCalendar(calName);
         }
 
         /// <summary>
         /// Get the names of all registered <see cref="ICalendar" />s.
         /// </summary>
-        public virtual IList<string> GetCalendarNames(SchedulingContext ctxt)
+        public virtual IList<string> GetCalendarNames()
         {
             ValidateState();
-            return resources.JobStore.GetCalendarNames(ctxt);
+            return resources.JobStore.GetCalendarNames();
         }
 
         /// <summary>
@@ -1656,24 +1653,22 @@ namespace Quartz.Core
         }
 
 
-        protected internal void NotifyJobStoreJobVetoed(SchedulingContext ctxt,
-                Trigger trigger, JobDetail detail, SchedulerInstruction instCode)
+        protected internal void NotifyJobStoreJobVetoed(Trigger trigger, JobDetail detail, SchedulerInstruction instCode)
         {
 
-            resources.JobStore.TriggeredJobComplete(ctxt, trigger, detail, instCode);
+            resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
         }
 
         /// <summary>
         /// Notifies the job store job complete.
         /// </summary>
-        /// <param name="ctxt">The job scheduling context.</param>
         /// <param name="trigger">The trigger.</param>
         /// <param name="detail">The detail.</param>
         /// <param name="instCode">The instruction code.</param>
-        protected internal virtual void NotifyJobStoreJobComplete(SchedulingContext ctxt, Trigger trigger, JobDetail detail,
+        protected internal virtual void NotifyJobStoreJobComplete(Trigger trigger, JobDetail detail,
                                                                   SchedulerInstruction instCode)
         {
-            resources.JobStore.TriggeredJobComplete(ctxt, trigger, detail, instCode);
+            resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
         }
 
         /// <summary>
@@ -2171,7 +2166,7 @@ namespace Quartz.Core
         /// <summary>
         /// Interrupt all instances of the identified InterruptableJob.
         /// </summary>
-        public virtual bool Interrupt(SchedulingContext ctxt, string jobName, string groupName)
+        public virtual bool Interrupt(string jobName, string groupName)
         {
             if (groupName == null)
             {
@@ -2221,14 +2216,14 @@ namespace Quartz.Core
             }
         }
 
-        public bool IsJobGroupPaused(SchedulingContext ctxt, string groupName)
+        public bool IsJobGroupPaused(string groupName)
         {
-            return resources.JobStore.IsJobGroupPaused(ctxt, groupName);
+            return resources.JobStore.IsJobGroupPaused(groupName);
         }
 
-        public bool IsTriggerGroupPaused(SchedulingContext ctxt, string groupName)
+        public bool IsTriggerGroupPaused(string groupName)
         {
-            return resources.JobStore.IsTriggerGroupPaused(ctxt, groupName);
+            return resources.JobStore.IsTriggerGroupPaused(groupName);
         }
 
         ///<summary>

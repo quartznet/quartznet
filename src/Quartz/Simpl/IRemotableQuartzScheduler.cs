@@ -20,8 +20,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Core;
-
 namespace Quartz.Simpl
 {
     /// <summary>
@@ -73,85 +71,83 @@ namespace Quartz.Simpl
 
         bool Clustered { get; }
 
-		DateTime ScheduleJob(SchedulingContext ctxt, JobDetail jobDetail, Trigger trigger);
+		DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger);
 
-		DateTime ScheduleJob(SchedulingContext ctxt, Trigger trigger);
+		DateTime ScheduleJob(Trigger trigger);
 
-		void AddJob(SchedulingContext ctxt, JobDetail jobDetail, bool replace);
+		void AddJob(JobDetail jobDetail, bool replace);
 
         /// <summary>
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
-        /// <param name="ctxt">The scheduling context.</param>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        bool IsJobGroupPaused(SchedulingContext ctxt,string groupName);
+        bool IsJobGroupPaused(string groupName);
 
         /// <summary>
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
-        /// <param name="ctxt"></param>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        bool IsTriggerGroupPaused(SchedulingContext ctxt,string groupName);
+        bool IsTriggerGroupPaused(string groupName);
         
-	    bool DeleteJob(SchedulingContext ctxt, string jobName, string groupName);
+	    bool DeleteJob(string jobName, string groupName);
 
-		bool UnscheduleJob(SchedulingContext ctxt, string triggerName, string groupName);
+		bool UnscheduleJob(string triggerName, string groupName);
 
-        DateTime? RescheduleJob(SchedulingContext ctxt, string triggerName, string groupName, Trigger newTrigger);
+        DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
 
-		void TriggerJob(SchedulingContext ctxt, string jobName, string groupName, JobDataMap data);
+		void TriggerJob(string jobName, string groupName, JobDataMap data);
 
-		void TriggerJobWithVolatileTrigger(SchedulingContext ctxt, string jobName, string groupName, JobDataMap data);
+		void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data);
 
-		void PauseTrigger(SchedulingContext ctxt, string triggerName, string groupName);
+		void PauseTrigger(string triggerName, string groupName);
 
-		void PauseTriggerGroup(SchedulingContext ctxt, string groupName);
+		void PauseTriggerGroup(string groupName);
 
-		void PauseJob(SchedulingContext ctxt, string jobName, string groupName);
+		void PauseJob(string jobName, string groupName);
 
-		void PauseJobGroup(SchedulingContext ctxt, string groupName);
+		void PauseJobGroup(string groupName);
 
-		void ResumeTrigger(SchedulingContext ctxt, string triggerName, string groupName);
+		void ResumeTrigger(string triggerName, string groupName);
 
-		void ResumeTriggerGroup(SchedulingContext ctxt, string groupName);
+		void ResumeTriggerGroup(string groupName);
 
-        Collection.ISet<string> GetPausedTriggerGroups(SchedulingContext ctxt);
+        Collection.ISet<string> GetPausedTriggerGroups();
 
-		void ResumeJob(SchedulingContext ctxt, string jobName, string groupName);
+		void ResumeJob(string jobName, string groupName);
 
-		void ResumeJobGroup(SchedulingContext ctxt, string groupName);
+		void ResumeJobGroup(string groupName);
 
-		void PauseAll(SchedulingContext ctxt);
+		void PauseAll();
 
-		void ResumeAll(SchedulingContext ctxt);
+		void ResumeAll();
 
-        IList<string> GetJobGroupNames(SchedulingContext ctxt);
+        IList<string> GetJobGroupNames();
 
-		IList<string> GetJobNames(SchedulingContext ctxt, string groupName);
+		IList<string> GetJobNames(string groupName);
 
-		IList<Trigger> GetTriggersOfJob(SchedulingContext ctxt, string jobName, string groupName);
+		IList<Trigger> GetTriggersOfJob(string jobName, string groupName);
 
-		IList<string> GetTriggerGroupNames(SchedulingContext ctxt);
+		IList<string> GetTriggerGroupNames();
 
-		IList<string> GetTriggerNames(SchedulingContext ctxt, string groupName);
+		IList<string> GetTriggerNames(string groupName);
 
-		JobDetail GetJobDetail(SchedulingContext ctxt, string jobName, string jobGroup);
+		JobDetail GetJobDetail(string jobName, string jobGroup);
 
-		Trigger GetTrigger(SchedulingContext ctxt, string triggerName, string triggerGroup);
+		Trigger GetTrigger(string triggerName, string triggerGroup);
 
-		TriggerState GetTriggerState(SchedulingContext ctxt, string triggerName, string triggerGroup);
+		TriggerState GetTriggerState(string triggerName, string triggerGroup);
 
-		void AddCalendar(SchedulingContext ctxt, string calName, ICalendar calendar, bool replace, bool updateTriggers);
+		void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
-		bool DeleteCalendar(SchedulingContext ctxt, string calName);
+		bool DeleteCalendar(string calName);
 
-		ICalendar GetCalendar(SchedulingContext ctxt, string calName);
+		ICalendar GetCalendar(string calName);
 
-		IList<string> GetCalendarNames(SchedulingContext ctxt);
+		IList<string> GetCalendarNames();
 
 		void AddGlobalJobListener(IJobListener jobListener);
 
@@ -161,6 +157,6 @@ namespace Quartz.Simpl
 
 		bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
 
-		bool Interrupt(SchedulingContext ctxt, string jobName, string groupName);
+		bool Interrupt(string jobName, string groupName);
 	}
 }

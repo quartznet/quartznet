@@ -53,7 +53,6 @@ namespace Quartz.Core
 		private JobExecutionContext jec;
 		private QuartzScheduler qs;
 		private readonly IScheduler scheduler;
-		private readonly SchedulingContext schdCtxt;
 		private readonly IJobRunShellFactory jobRunShellFactory;
 		private volatile bool shutdownRequested;
 
@@ -65,13 +64,10 @@ namespace Quartz.Core
 		/// this <see cref="JobRunShell" />.</param>
 		/// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
 		/// available within the <see cref="JobExecutionContext" />.</param>
-		/// <param name="schdCtxt">the <see cref="SchedulingContext" /> that should be used by the
-		/// <see cref="JobRunShell" /> when making updates to the <see cref="IJobStore" />.</param>
-		public JobRunShell(IJobRunShellFactory jobRunShellFactory, IScheduler scheduler, SchedulingContext schdCtxt)
+		public JobRunShell(IJobRunShellFactory jobRunShellFactory, IScheduler scheduler)
 		{
 			this.jobRunShellFactory = jobRunShellFactory;
 			this.scheduler = scheduler;
-			this.schdCtxt = schdCtxt;
             log = LogManager.GetLogger(GetType());
 		}
 
@@ -164,7 +160,7 @@ namespace Quartz.Core
                             instCode = trigger.ExecutionComplete(jec, null);
                             try
                             {
-                                qs.NotifyJobStoreJobVetoed(schdCtxt, trigger, jobDetail, instCode);
+                                qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode);
                             }
                             catch (JobPersistenceException)
                             {
@@ -276,7 +272,7 @@ namespace Quartz.Core
 
                     try
                     {
-                        qs.NotifyJobStoreJobComplete(schdCtxt, trigger, jobDetail, instCode);
+                        qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode);
                     }
                     catch (JobPersistenceException jpe)
                     {
@@ -427,7 +423,7 @@ namespace Quartz.Core
                     Thread.Sleep(TimeSpan.FromSeconds(15)); 
                     // retry every 15 seconds (the db
 					// connection must be failed)
-					qs.NotifyJobStoreJobComplete(schdCtxt, trigger, jobDetail, instCode);
+					qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode);
 					return true;
 				}
 				catch (JobPersistenceException jpe)
@@ -460,7 +456,7 @@ namespace Quartz.Core
                 {
                     Thread.Sleep(5 * 1000); // retry every 5 seconds (the db
                     // connection must be failed)
-                    qs.NotifyJobStoreJobVetoed(schdCtxt, trigger, jobDetail, instCode);
+                    qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode);
                     return true;
                 }
                 catch (JobPersistenceException jpe)

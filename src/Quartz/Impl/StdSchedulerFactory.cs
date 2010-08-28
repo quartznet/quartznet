@@ -347,7 +347,6 @@ Please add configuration to your application config file to correctly initialize
             IJobStore js;
             IThreadPool tp;
             QuartzScheduler qs = null;
-            SchedulingContext schedCtxt;
             DBConnectionManager dbMgr = null;
             string instanceIdGeneratorType = null;
             NameValueCollection tProps;
@@ -399,12 +398,9 @@ Please add configuration to your application config file to correctly initialize
                     schedInstId = DefaultInstanceId;
                 }
 
-                schedCtxt = new SchedulingContext();
-                schedCtxt.InstanceId = schedInstId;
-
                 string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
 
-                RemoteScheduler remoteScheduler = new RemoteScheduler(schedCtxt, uid);
+                RemoteScheduler remoteScheduler = new RemoteScheduler(uid);
                 string remoteSchedulerAddress = cfg.GetStringProperty(PropertySchedulerProxyAddress);
                 remoteScheduler.RemoteSchedulerAddress = remoteSchedulerAddress;
                 schedRep.Bind(remoteScheduler);
@@ -950,10 +946,7 @@ Please add configuration to your application config file to correctly initialize
                     rsrcs.AddSchedulerPlugin(plugins[i]);
                 }
 
-                schedCtxt = new SchedulingContext();
-                schedCtxt.InstanceId = rsrcs.InstanceId;
-
-                qs = new QuartzScheduler(rsrcs, schedCtxt, idleWaitTime, dbFailureRetry);
+                qs = new QuartzScheduler(rsrcs, idleWaitTime, dbFailureRetry);
                 qsInited = true;
 
                 // Create Scheduler ref...
@@ -994,7 +987,7 @@ Please add configuration to your application config file to correctly initialize
                 js.InstanceName = schedName;
                 js.Initialize(loadHelper, qs.SchedulerSignaler);
 
-                jrsf.Initialize(sched, schedCtxt);
+                jrsf.Initialize(sched);
 
                 Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}' initialized", sched.SchedulerName));
 
@@ -1040,10 +1033,7 @@ Please add configuration to your application config file to correctly initialize
 
         protected internal virtual IScheduler Instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs)
         {
-            SchedulingContext schedCtxt = new SchedulingContext();
-            schedCtxt.InstanceId = rsrcs.InstanceId;
-
-            IScheduler sched = new StdScheduler(qs, schedCtxt);
+            IScheduler sched = new StdScheduler(qs);
             return sched;
         }
 

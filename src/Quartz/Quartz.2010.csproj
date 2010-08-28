@@ -146,9 +146,6 @@
     <Compile Include="Core\SchedulerSignalerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Core\SchedulingContext.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="CriticalSchedulerException.cs">
       <SubType>Code</SubType>
     </Compile>

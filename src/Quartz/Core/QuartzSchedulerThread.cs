@@ -51,7 +51,6 @@ namespace Quartz.Core
         private bool paused;
         private bool halted;
 
-        private readonly SchedulingContext ctxt;
         private readonly Random random = new Random((int) DateTime.Now.Ticks);
 
         // When the scheduler finds there is no current trigger to fire, how long
@@ -109,8 +108,8 @@ namespace Quartz.Core
         /// <see cref="QuartzScheduler" /> as a non-daemon <see cref="Thread" />
         /// with normal priority.
         /// </summary>
-        internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, SchedulingContext ctxt)
-            : this(qs, qsRsrcs, ctxt, qsRsrcs.MakeSchedulerThreadDaemon, (int) ThreadPriority.Normal)
+        internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs)
+            : this(qs, qsRsrcs, qsRsrcs.MakeSchedulerThreadDaemon, (int) ThreadPriority.Normal)
         {
         }
 
@@ -119,14 +118,13 @@ namespace Quartz.Core
         /// <see cref="QuartzScheduler" /> as a <see cref="Thread" /> with the given
         /// attributes.
         /// </summary>
-        internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, SchedulingContext ctxt,
+        internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, 
                                        bool setDaemon, int threadPrio) : base(qsRsrcs.ThreadName)
         {
             log = LogManager.GetLogger(GetType());
             //ThreadGroup generatedAux = qs.SchedulerThreadGroup;
             this.qs = qs;
             this.qsRsrcs = qsRsrcs;
-            this.ctxt = ctxt;
             IsBackground = setDaemon;
             Priority = (ThreadPriority) threadPrio;
 
@@ -279,7 +277,7 @@ namespace Quartz.Core
                         try
                         {
                             triggers = qsRsrcs.JobStore.AcquireNextTriggers(
-                                ctxt, now + idleWaitTime, Math.Min(availThreadCount, qsRsrcs.MaxBatchSize), qsRsrcs.BatchTimeWindow);
+                                now + idleWaitTime, Math.Min(availThreadCount, qsRsrcs.MaxBatchSize), qsRsrcs.BatchTimeWindow);
                             lastAcquireFailed = false;
                         }
                         catch (JobPersistenceException jpe)
@@ -362,7 +360,7 @@ namespace Quartz.Core
                             {
                                 try
                                 {
-                                    bndles = qsRsrcs.JobStore.TriggersFired(ctxt, triggers);
+                                    bndles = qsRsrcs.JobStore.TriggersFired(triggers);
                                 }
                                 catch (SchedulerException se)
                                 {
@@ -396,7 +394,7 @@ namespace Quartz.Core
                             {
                                 try
                                 {
-                                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
+                                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
                                 }
                                 catch (SchedulerException se)
                                 {
@@ -427,7 +425,7 @@ namespace Quartz.Core
                             {
                                 try
                                 {
-                                    qsRsrcs.JobStore.TriggeredJobComplete(ctxt, trigger, bndle.JobDetail,
+                                    qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail,
                                                                           SchedulerInstruction.SetAllJobTriggersError);
                                 }
                                 catch (SchedulerException se2)
@@ -451,7 +449,7 @@ namespace Quartz.Core
                                     // a thread pool being used concurrently - which the docs
                                     // say not to do...
                                     Log.Error("ThreadPool.runInThread() return false!");
-                                    qsRsrcs.JobStore.TriggeredJobComplete(ctxt, trigger, bndle.JobDetail,
+                                    qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail,
                                                                           SchedulerInstruction.
                                                                               SetAllJobTriggersError);
                                 }
@@ -516,7 +514,7 @@ namespace Quartz.Core
                     try
                     {
                         // above call does a clearSignaledSchedulingChange()
-                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
+                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
                     }
                     catch (JobPersistenceException jpe)
                     {
@@ -615,7 +613,7 @@ namespace Quartz.Core
                         Thread.Sleep(DbFailureRetryInterval);
                         // retry every N seconds (the db connection must be failed)
                         retryCount++;
-                        qsRsrcs.JobStore.TriggeredJobComplete(ctxt, bndle.Trigger, bndle.JobDetail,
+                        qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail,
                                                               SchedulerInstruction.SetAllJobTriggersError);
                         retryCount = 0;
                         break;
@@ -664,7 +662,7 @@ namespace Quartz.Core
                         Thread.Sleep(DbFailureRetryInterval);
                         // retry every N seconds (the db connection must be failed)
                         retryCount++;
-                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(ctxt, trigger);
+                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
                         retryCount = 0;
                         break;
                     }
