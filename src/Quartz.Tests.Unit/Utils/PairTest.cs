@@ -33,7 +33,7 @@ namespace Quartz.Tests.Unit.Utils
         [Test]
         public void TestPair()
         {
-            Pair p = new Pair();
+            Pair<object, object> p = new Pair<object, object>();
             Assert.IsNull(p.First);
             Assert.IsNull(p.Second);
             p.First = "one";
@@ -41,7 +41,7 @@ namespace Quartz.Tests.Unit.Utils
             Assert.AreEqual("one", p.First);
             Assert.AreEqual("two", p.Second);
 
-            Pair p2 = new Pair();
+            Pair<object, object> p2 = new Pair<object, object>();
             p2.First = "one";
             p2.Second = "2";
             Assert.IsFalse(p.Equals(p2));
@@ -52,22 +52,22 @@ namespace Quartz.Tests.Unit.Utils
         [Test]
         public void TestQuartz625()
         {
-            Pair p = new Pair();
+            Pair<string, string> p = new Pair<string, string>();
 
-            Pair p2 = new Pair();
+            Pair<string, string> p2 = new Pair<string, string>();
             p2.First = "one";
             Assert.IsFalse(p.Equals(p2));
 
-            Pair p3 = new Pair();
+            Pair<string, string> p3 = new Pair<string, string>();
             p3.Second = "two";
             Assert.IsFalse(p.Equals(p3));
 
-            Pair p4 = new Pair();
+            Pair<string, string> p4 = new Pair<string, string>();
             p4.First = "one";
             p4.Second = "two";
             Assert.IsFalse(p.Equals(p4));
 
-            Pair p5 = new Pair();
+            Pair<string, string> p5 = new Pair<string, string>();
             Assert.AreEqual(p, p5);
         }
     }

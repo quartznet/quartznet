@@ -27,7 +27,7 @@ namespace Quartz.Util
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class TriggerStatus : Pair
+    public class TriggerStatus : Pair<string, DateTime?>
     {
         private Key jobKey;
         private Key key;
@@ -70,7 +70,7 @@ namespace Quartz.Util
         /// <returns> the name </returns>
         public virtual string Status
         {
-            get { return (string) First; }
+            get { return First; }
         }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace Quartz.Util
         /// <returns> the group </returns>
         public virtual DateTime? NextFireTimeUtc
         {
-            get { return (DateTime?) Second; }
+            get { return Second; }
         }
 
         // TODO: Repackage under spi or root pkg ?, put status constants here.

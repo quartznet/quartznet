@@ -24,7 +24,7 @@ namespace Quartz.Util
 	/// </summary>
 	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>Marko Lahma (.NET)</author>
-    public class Key : Pair
+    public class Key : Pair<string, string>
 	{
 		/// <summary>
 		/// Get the name portion of the key.
@@ -33,7 +33,7 @@ namespace Quartz.Util
 		/// </returns>
 		public virtual string Name
 		{
-			get { return (string) First; }
+			get { return First; }
 		}
 
 		/// <summary> <p>
@@ -45,7 +45,7 @@ namespace Quartz.Util
 		/// </returns>
 		public virtual string Group
 		{
-			get { return (string) Second; }
+			get { return Second; }
 		}
 
 		/// <summary> Construct a new key with the given name and group.
@@ -57,7 +57,7 @@ namespace Quartz.Util
 		/// <param name="group">
 		/// the group
 		/// </param>
-		public Key(string name, string group) : base()
+		public Key(string name, string group)
 		{
 			base.First = name;
 			base.Second = group;

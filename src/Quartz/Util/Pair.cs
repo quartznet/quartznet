@@ -24,15 +24,15 @@ namespace Quartz.Util
     /// </summary>
     /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>Marko Lahma (.NET)</author>
-    public class Pair
+    public class Pair<TFirst, TSecond>
     {
-        private object first;
-        private object second;
+        private TFirst first;
+        private TSecond second;
 
         /// <summary> 
         /// Get or sets the first object in the pair.
         /// </summary>
-        public virtual object First
+        public virtual TFirst First
         {
             get { return first; }
             set { first = value; }
@@ -41,7 +41,7 @@ namespace Quartz.Util
         /// <summary> 
         /// Get or sets the second object in the pair.
         /// </summary>
-        public virtual object Second
+        public virtual TSecond Second
         {
             get { return second; }
             set { second = value; }
@@ -58,9 +58,9 @@ namespace Quartz.Util
             {
                 return true;
             }
-            if (that is Pair)
+            if (that is Pair<TFirst, TSecond>)
             {
-                Pair other = (Pair) that;
+                Pair<TFirst, TSecond> other = (Pair<TFirst, TSecond>)that;
                 if (first == null && second == null)
                 {
                     return (other.first == null && other.second == null);

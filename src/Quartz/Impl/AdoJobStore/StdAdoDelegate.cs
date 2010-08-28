@@ -1410,7 +1410,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual IList<Trigger> SelectTriggersForJob(ConnectionAndTransactionHolder conn, string jobName,
                                                       string groupName)
         {
-            List<Pair> triggerIdentifiers = new List<Pair>();
+            List<Pair<string, string>> triggerIdentifiers = new List<Pair<string, string>>();
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForJob)))
             {
                 AddCommandParameter(cmd, "jobName", jobName);
@@ -1420,7 +1420,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     while (rs.Read())
                     {
-                        Pair p = new Pair();
+                        Pair<string, string> p = new Pair<string, string>();
                         p.First = rs.GetString(0);
                         p.Second = rs.GetString(1);
                         triggerIdentifiers.Add(p);
@@ -1429,9 +1429,9 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             List<Trigger> trigList = new List<Trigger>();
-            foreach (Pair p in triggerIdentifiers)
+            foreach (Pair<string, string> p in triggerIdentifiers)
             {
-                Trigger t = SelectTrigger(conn, (string)p.First, (string)p.Second);
+                Trigger t = SelectTrigger(conn, p.First, p.Second);
                 if (t != null)
                 {
                     trigList.Add(t);
