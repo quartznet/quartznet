@@ -765,7 +765,7 @@ namespace Quartz.Impl.AdoJobStore
             // We must still look for the MISFIRED state in case triggers were left 
             // in this state when upgrading to this version that does not support it. 
             bool hasMoreMisfiredTriggers =
-                Delegate.HasMisfiredTriggersInState(conn, StateMisfired, MisfireTime,
+                Delegate.HasMisfiredTriggersInState(conn, StateWaiting, MisfireTime,
                                                     maxMisfiresToHandleAtATime, misfiredTriggers);
 
             if (hasMoreMisfiredTriggers)
