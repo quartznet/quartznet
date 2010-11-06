@@ -580,7 +580,7 @@ namespace Quartz
                 dateUtc = SystemTime.UtcNow();
 			}
             DateTimeOffset d = dateUtc.Value.AddHours(1);
-			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, TimeSpan.Zero);
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, d.Offset);
 		}
 
 		/// <summary>
@@ -600,7 +600,7 @@ namespace Quartz
 			{
                 dateUtc = SystemTime.UtcNow();
 			}
-            return new DateTimeOffset(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0, TimeSpan.Zero);
+            return new DateTimeOffset(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0, dateUtc.Value.Offset);
 		}
 
 		/// <summary>
@@ -623,7 +623,7 @@ namespace Quartz
 
             DateTimeOffset d = dateUtc.Value;
 			d = d.AddMinutes(1);
-			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, TimeSpan.Zero);
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
 		}
 
 		/// <summary>
@@ -645,7 +645,7 @@ namespace Quartz
 			}
 
             DateTimeOffset d = dateUtc.Value;
-			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, TimeSpan.Zero);
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
 		}
 
 		/// <summary>
@@ -663,7 +663,7 @@ namespace Quartz
 			}
             DateTimeOffset d = dateUtc.Value;
 			d = d.AddSeconds(1);
-			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, TimeSpan.Zero);
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
 		}
 
 		/// <summary>
@@ -684,7 +684,7 @@ namespace Quartz
                 dateUtc = SystemTime.UtcNow();
 			}
             DateTimeOffset d = dateUtc.Value;
-			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, TimeSpan.Zero);
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
 		}
 
 		/// <summary>
@@ -794,7 +794,7 @@ namespace Quartz
 			if (minuteBase == 0)
 			{
 				d = d.AddHours(1);
-				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, TimeSpan.Zero);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, d.Offset);
 			}
 
 			int minute = d.Minute;
@@ -803,11 +803,11 @@ namespace Quartz
 
 			if (nextMinuteOccurance < 60)
 			{
-				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, nextMinuteOccurance, 0, TimeSpan.Zero);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, nextMinuteOccurance, 0, d.Offset);
 			}
 		    
             d = d.AddHours(1);
-		    return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, TimeSpan.Zero);
+		    return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, d.Offset);
 		}
 
 		/// <summary>
@@ -839,7 +839,7 @@ namespace Quartz
 			if (secondBase == 0)
 			{
 				d = d.AddMinutes(1);
-				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, TimeSpan.Zero);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
 			}
 
 			int second = d.Second;
@@ -848,12 +848,12 @@ namespace Quartz
 
 			if (nextSecondOccurance < 60)
 			{
-				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, nextSecondOccurance, TimeSpan.Zero);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, nextSecondOccurance, d.Offset);
 			}
 			else
 			{
 				d = d.AddMinutes(1);
-				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, TimeSpan.Zero);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
 			}
 		}
 
