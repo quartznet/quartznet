@@ -55,7 +55,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             // use end of day to get by with utc offsets
             DateTime excluded = new DateTime(2007, 12, 31);
             cal.AddExcludedDate(excluded);
-            Assert.AreEqual(new DateTime(2008, 1, 1), cal.GetNextIncludedTimeUtc(excluded).ToLocalTime());
+            Assert.AreEqual(new DateTimeOffset(new DateTime(2008, 1, 1, 0, 0, 0)), cal.GetNextIncludedTimeUtc(excluded).ToLocalTime());
         }
     
         /// <summary>

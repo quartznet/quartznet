@@ -76,7 +76,7 @@ namespace Quartz.Core
 		/// <summary>
 		/// Signals the scheduling change.
 		/// </summary>
-        public void SignalSchedulingChange(DateTime? candidateNewNextFireTime)
+        public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTime)
         {
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
         }

@@ -52,14 +52,14 @@ namespace Quartz.Examples.Example6
 			// jobs can be scheduled before start() has been called
 			
 			// get a "nice round" time a few seconds in the future...
-			DateTime ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
+            DateTimeOffset ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
 			
 			// badJob1 will run every three seconds
 			// this job will throw an exception and refire
 			// immediately
 			JobDetail job = new JobDetail("badJob1", "group1", typeof(BadJob1));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
-			DateTime ft = sched.ScheduleJob(job, trigger);
+            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
 
             log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			

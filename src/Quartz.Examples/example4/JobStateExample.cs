@@ -53,7 +53,7 @@ namespace Quartz.Examples.Example4
 			log.Info("------- Scheduling Jobs ----------------");
 			
 			// get a "nice round" time a few seconds in the future....
-			DateTime ts = TriggerUtils.GetNextGivenSecondDate(null, 10);
+            DateTimeOffset ts = TriggerUtils.GetNextGivenSecondDate(null, 10);
 			
 			// job1 will only run 5 times, every 10 seconds
 			JobDetail job1 = new JobDetail("job1", "group1", typeof(ColorJob));
@@ -63,7 +63,7 @@ namespace Quartz.Examples.Example4
 			job1.JobDataMap.Put(ColorJob.ExecutionCount, 1);
 			
 			// schedule the job to run
-			DateTime scheduleTime1 = sched.ScheduleJob(job1, trigger1);
+            DateTimeOffset scheduleTime1 = sched.ScheduleJob(job1, trigger1);
             log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job1.FullName, scheduleTime1.ToString("r"), trigger1.RepeatCount, trigger1.RepeatInterval.TotalSeconds));
 			
 			// job2 will also run 5 times, every 10 seconds
@@ -75,7 +75,7 @@ namespace Quartz.Examples.Example4
 			job2.JobDataMap.Put(ColorJob.ExecutionCount, 1);
 			
 			// schedule the job to run
-			DateTime scheduleTime2 = sched.ScheduleJob(job2, trigger2);
+            DateTimeOffset scheduleTime2 = sched.ScheduleJob(job2, trigger2);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job2.FullName, scheduleTime2.ToString("r"), trigger2.RepeatCount, trigger2.RepeatInterval.TotalSeconds));
 			
 			

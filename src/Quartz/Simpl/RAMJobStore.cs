@@ -1200,13 +1200,13 @@ namespace Quartz.Simpl
 		/// <returns></returns>
 		protected internal virtual bool ApplyMisfire(TriggerWrapper tw)
 		{
-			DateTime misfireTime = SystemTime.UtcNow();
+            DateTimeOffset misfireTime = SystemTime.UtcNow();
 			if (MisfireThreshold > TimeSpan.Zero)
 			{
 				misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
 			}
 
-            DateTime? tnft = tw.trigger.GetNextFireTimeUtc();
+            DateTimeOffset? tnft = tw.trigger.GetNextFireTimeUtc();
             if (!tnft.HasValue || tnft.Value > misfireTime)
 			{
 				return false;
@@ -1244,7 +1244,7 @@ namespace Quartz.Simpl
 		/// by the calling scheduler.
 		/// </summary>
 		/// <seealso cref="Trigger" />
-        public virtual IList<Trigger> AcquireNextTriggers(DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
+        public virtual IList<Trigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
 		{
 			lock (lockObject)
 			{
@@ -1345,7 +1345,7 @@ namespace Quartz.Simpl
 		                if (cal == null)
 		                    return null;
 		            }
-		            DateTime? prevFireTime = trigger.GetPreviousFireTimeUtc();
+                    DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
 		            // in case trigger was replaced between acquiring and firering
 		            timeTriggers.Remove(tw);
 		            // call triggered on our copy, and the scheduler's copy
@@ -1456,7 +1456,7 @@ namespace Quartz.Simpl
 					if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
 					{
 					    log.Debug("Deleting trigger");
-                        DateTime? d = trigger.GetNextFireTimeUtc();
+                        DateTimeOffset? d = trigger.GetNextFireTimeUtc();
                         if (!d.HasValue)
 						{
 							// double check for possible reschedule within job 

@@ -54,7 +54,7 @@ namespace Quartz.Tests.Unit.Simpl
         [Test]
         public void TestAcquireNextTrigger()
         {
-            DateTime d = DateTime.UtcNow;
+            DateTimeOffset d = DateTimeOffset.UtcNow;
             Trigger trigger1 =
                 new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name,
                                   fJobDetail.Group, d.AddSeconds(200),
@@ -108,25 +108,25 @@ namespace Quartz.Tests.Unit.Simpl
         {
             Trigger trigger1 =
                 new SimpleTrigger("trigger1", "triggerGroup1", this.fJobDetail.Name,
-                                  this.fJobDetail.Group, DateTime.UtcNow.AddSeconds(200),
-                                  DateTime.UtcNow.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+                                  this.fJobDetail.Group, DateTimeOffset.UtcNow.AddSeconds(200),
+                                  DateTimeOffset.UtcNow.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
             Trigger trigger2 =
                 new SimpleTrigger("trigger2", "triggerGroup1", this.fJobDetail.Name,
-                                  this.fJobDetail.Group, DateTime.UtcNow.AddMilliseconds(200100),
-                                  DateTime.UtcNow.AddMilliseconds(200100), 2, TimeSpan.FromSeconds(2));
+                                  this.fJobDetail.Group, DateTimeOffset.UtcNow.AddMilliseconds(200100),
+                                  DateTimeOffset.UtcNow.AddMilliseconds(200100), 2, TimeSpan.FromSeconds(2));
             Trigger trigger3 =
                 new SimpleTrigger("trigger3", "triggerGroup1", this.fJobDetail.Name,
-                                  this.fJobDetail.Group, DateTime.UtcNow.AddMilliseconds(200200),
-                                  DateTime.UtcNow.AddMilliseconds(200200), 2, TimeSpan.FromSeconds(2));
+                                  this.fJobDetail.Group, DateTimeOffset.UtcNow.AddMilliseconds(200200),
+                                  DateTimeOffset.UtcNow.AddMilliseconds(200200), 2, TimeSpan.FromSeconds(2));
             Trigger trigger4 =
                 new SimpleTrigger("trigger4", "triggerGroup1", this.fJobDetail.Name,
-                                  this.fJobDetail.Group, DateTime.UtcNow.AddMilliseconds(200300),
-                                  DateTime.UtcNow.AddMilliseconds(200300), 2, TimeSpan.FromSeconds(2));
+                                  this.fJobDetail.Group, DateTimeOffset.UtcNow.AddMilliseconds(200300),
+                                  DateTimeOffset.UtcNow.AddMilliseconds(200300), 2, TimeSpan.FromSeconds(2));
 
             Trigger trigger10 =
                 new SimpleTrigger("trigger10", "triggerGroup2", this.fJobDetail.Name,
-                                  this.fJobDetail.Group, DateTime.UtcNow.AddSeconds(500),
-                                  DateTime.UtcNow.AddSeconds(700), 2, TimeSpan.FromSeconds(2));
+                                  this.fJobDetail.Group, DateTimeOffset.UtcNow.AddSeconds(500),
+                                  DateTimeOffset.UtcNow.AddSeconds(700), 2, TimeSpan.FromSeconds(2));
 
             trigger1.ComputeFirstFireTimeUtc(null);
             trigger2.ComputeFirstFireTimeUtc(null);
@@ -179,7 +179,7 @@ namespace Quartz.Tests.Unit.Simpl
         {
             Trigger trigger =
                 new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
-                                  DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+                                  DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
             Assert.AreEqual(TriggerState.None, fJobStore.GetTriggerState(trigger.Name, trigger.Group));
             fJobStore.StoreTrigger(trigger, false);
@@ -208,7 +208,7 @@ namespace Quartz.Tests.Unit.Simpl
             // QRTZNET-29
 
             Trigger trigger = new SimpleTrigger("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group,
-                                                DateTime.Now.AddSeconds(100), DateTime.Now.AddSeconds(200), 2,
+                                                DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2,
                                                 TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
             ICalendar cal = new MonthlyCalendar();
@@ -228,7 +228,7 @@ namespace Quartz.Tests.Unit.Simpl
 
             string trName = "StoreTriggerReplacesTrigger";
             string trGroup = "StoreTriggerReplacesTriggerGroup";
-            Trigger tr = new SimpleTrigger(trName, trGroup, DateTime.Now);
+            Trigger tr = new SimpleTrigger(trName, trGroup, DateTimeOffset.Now);
             tr.JobGroup = jobGroup;
             tr.JobName = jobName;
             tr.CalendarName = null;
@@ -271,7 +271,7 @@ namespace Quartz.Tests.Unit.Simpl
 
             string trName = "PauseJobGroupPausesNewJobTrigger";
             string trGroup = "PauseJobGroupPausesNewJobTriggerGroup";
-            Trigger tr = new SimpleTrigger(trName, trGroup, DateTime.UtcNow);
+            Trigger tr = new SimpleTrigger(trName, trGroup, DateTimeOffset.UtcNow);
             tr.JobGroup = jobGroup;
             tr.JobName = jobName2;
             fJobStore.StoreTrigger(tr, false);
@@ -307,7 +307,7 @@ namespace Quartz.Tests.Unit.Simpl
             {
             }
 
-            public void SignalSchedulingChange(DateTime? candidateNewNextFireTimeUtc)
+            public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc)
             {
             }
         }

@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Collection;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -709,7 +708,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// trigger that will be fired at the given fire time, or null if no
 		/// trigger will be fired at that time
 		/// </returns>
-		Key SelectTriggerForFireTime(ConnectionAndTransactionHolder conn, DateTime fireTime);
+        Key SelectTriggerForFireTime(ConnectionAndTransactionHolder conn, DateTimeOffset fireTime);
 
         /// <summary>
         /// Insert a fired trigger.
@@ -777,7 +776,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="checkInTime">The check in time.</param>
         /// <param name="interval">The interval.</param>
         /// <returns>The number of inserted rows.</returns>
-		int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, DateTime checkInTime, TimeSpan interval);
+		int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, DateTimeOffset checkInTime, TimeSpan interval);
 
         /// <summary>
         /// Delete a scheduler-instance state record.
@@ -795,7 +794,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="instanceId">The instance id.</param>
 		/// <param name="checkInTime">The check in time.</param>
 		/// <returns>The number of updated rows.</returns>
-		int UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, DateTime checkInTime);
+		int UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceId, DateTimeOffset checkInTime);
 
         /// <summary>
         /// A List of all current <see cref="SchedulerStateRecord" />s.
@@ -817,7 +816,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="noLaterThan">highest value of <see cref="Trigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
         /// <param name="noEarlierThan">highest value of <see cref="Trigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
         /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
-        IList<Key> SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, DateTime noEarlierThan);
+        IList<Key> SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, DateTimeOffset noEarlierThan);
 
         /// <summary>
         /// Select the distinct instance names of all fired-trigger records.
@@ -837,7 +836,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state1">The state1.</param>
         /// <param name="ts">The ts.</param>
         /// <returns></returns>
-        int CountMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTime ts);
+        int CountMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts);
 
         /// <summary>
         /// Selects the misfired triggers in states.
@@ -848,6 +847,6 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="count">The count.</param>
         /// <param name="resultList">The result list.</param>
         /// <returns></returns>
-        bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTime ts, int count, IList<Key> resultList);
+        bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts, int count, IList<Key> resultList);
 	}
 }

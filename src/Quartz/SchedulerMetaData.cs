@@ -41,7 +41,7 @@ namespace Quartz
 		private readonly bool started;
 		private readonly bool isInStandbyMode;
 		private readonly bool shutdown;
-        private readonly DateTime? startTime;
+        private readonly DateTimeOffset? startTime;
         private readonly int numberOfJobsExec;
 		private readonly Type jsType;
 		private readonly bool jsPersistent;
@@ -69,7 +69,7 @@ namespace Quartz
 		/// <param name="version">The version string.</param>
 		public SchedulerMetaData(
             string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
-			bool shutdown, DateTime? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered, 
+			bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered, 
             Type tpType, int tpSize, string version)
 		{
 			this.schedName = schedName;
@@ -288,11 +288,11 @@ namespace Quartz
 		}
 
 		/// <summary> 
-		/// Returns the <see cref="DateTime" /> at which the Scheduler started running.
+		/// Returns the <see cref="DateTimeOffset" /> at which the Scheduler started running.
 		/// </summary>
 		/// <returns> null if the scheduler has not been started.
 		/// </returns>
-        public virtual DateTime? RunningSince
+        public virtual DateTimeOffset? RunningSince
 		{
 			get { return startTime; }
 		}

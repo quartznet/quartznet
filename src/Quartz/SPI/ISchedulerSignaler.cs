@@ -46,6 +46,6 @@ namespace Quartz.Spi
 		/// <summary>
 		/// Signals the scheduling change.
 		/// </summary>
-        void SignalSchedulingChange(DateTime? candidateNewNextFireTimeUtc);
+        void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc);
 	}
 }

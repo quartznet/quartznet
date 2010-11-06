@@ -81,7 +81,7 @@ namespace Quartz.Examples.Example8
 			trigger.CalendarName = "holidays";
 			
 			// schedule the job and print the first run date
-			DateTime firstRunTime = sched.ScheduleJob(job, trigger);
+            DateTimeOffset firstRunTime = sched.ScheduleJob(job, trigger);
 			
 			// print out the first execution date.
 			// Note:  Since Halloween (Oct 31) is a holiday, then

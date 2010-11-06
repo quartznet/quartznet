@@ -74,7 +74,7 @@ namespace Quartz.Core
         private bool signalOnSchedulingChange = true;
         private volatile bool closed;
         private volatile bool shuttingDown;
-        private DateTime? initialStart;
+        private DateTimeOffset? initialStart;
         private bool boundRemotely;
 
         /// <summary>
@@ -544,7 +544,7 @@ namespace Quartz.Core
         /// Gets the running since.
         /// </summary>
         /// <value>The running since.</value>
-        public virtual DateTime? RunningSince
+        public virtual DateTimeOffset? RunningSince
         {
             get { return initialStart; }
         }
@@ -705,7 +705,7 @@ namespace Quartz.Core
         /// will be set to reference the Job passed with it into this method.
         /// </p>
         /// </summary>
-        public virtual DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger)
+        public virtual DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger)
         {
             ValidateState();
 
@@ -748,7 +748,7 @@ namespace Quartz.Core
                 }
             }
 
-            DateTime? ft = trigger.ComputeFirstFireTimeUtc(cal);
+            DateTimeOffset? ft = trigger.ComputeFirstFireTimeUtc(cal);
 
             if (!ft.HasValue)
             {
@@ -767,7 +767,7 @@ namespace Quartz.Core
         /// Schedule the given <see cref="Trigger" /> with the
         /// <see cref="IJob" /> identified by the <see cref="Trigger" />'s settings.
         /// </summary>
-        public virtual DateTime ScheduleJob(Trigger trigger)
+        public virtual DateTimeOffset ScheduleJob(Trigger trigger)
         {
             ValidateState();
 
@@ -788,7 +788,7 @@ namespace Quartz.Core
                 }
             }
 
-            DateTime? ft = trigger.ComputeFirstFireTimeUtc(cal);
+            DateTimeOffset? ft = trigger.ComputeFirstFireTimeUtc(cal);
 
             if (!ft.HasValue)
             {
@@ -904,7 +904,7 @@ namespace Quartz.Core
         /// name and group was not found and removed from the store, otherwise
         /// the first fire time of the newly scheduled trigger.
         /// </returns>
-        public virtual DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+        public virtual DateTimeOffset? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
         {
             ValidateState();
 
@@ -921,7 +921,7 @@ namespace Quartz.Core
                 cal = resources.JobStore.RetrieveCalendar(newTrigger.CalendarName);
             }
 
-            DateTime? ft = newTrigger.ComputeFirstFireTimeUtc(cal);
+            DateTimeOffset? ft = newTrigger.ComputeFirstFireTimeUtc(cal);
 
             if (!ft.HasValue)
             {
@@ -1674,7 +1674,7 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler thread.
         /// </summary>
-        protected internal virtual void NotifySchedulerThread(DateTime? candidateNewNextFireTimeUtc)
+        protected internal virtual void NotifySchedulerThread(DateTimeOffset? candidateNewNextFireTimeUtc)
         {
             if (SignalOnSchedulingChange)
             {

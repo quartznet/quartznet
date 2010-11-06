@@ -33,14 +33,14 @@ namespace Quartz.Tests.Unit
 		private static readonly string[] Versions = new string[] {"0.6"};
 
 		//private static TimeZone EST_TIME_ZONE = TimeZone.CurrentTimeZone; 
-		private static readonly DateTime StartTime;
-		private static readonly DateTime EndTime;
+		private static readonly DateTimeOffset StartTime;
+		private static readonly DateTimeOffset EndTime;
 
 		static SimpleTriggerTest()
 		{
-			StartTime = new DateTime(2006, 6, 1, 10, 5, 15);
+			StartTime = new DateTimeOffset(2006, 6, 1, 10, 5, 15, TimeSpan.Zero);
 			// StartTime.setTimeZone(EST_TIME_ZONE);
-			EndTime = new DateTime(2008, 5, 2, 20, 15, 30);
+			EndTime = new DateTimeOffset(2008, 5, 2, 20, 15, 30, TimeSpan.Zero);
 			// EndTime.setTimeZone(EST_TIME_ZONE);
 		}
 
@@ -108,9 +108,9 @@ namespace Quartz.Tests.Unit
 		[Test]
 		public void TestUpdateAfterMisfire()
 		{
-			DateTime startTime = new DateTime(2005, 7, 5, 9, 0, 0);
+			DateTimeOffset startTime = new DateTimeOffset(2005, 7, 5, 9, 0, 0, TimeSpan.Zero);
 
-			DateTime endTime = new DateTime(2005, 7, 5, 10, 0, 0);
+			DateTimeOffset endTime = new DateTimeOffset(2005, 7, 5, 10, 0, 0, TimeSpan.Zero);
 
 			SimpleTrigger simpleTrigger = new SimpleTrigger();
 			simpleTrigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
@@ -129,13 +129,13 @@ namespace Quartz.Tests.Unit
 		{
 			SimpleTrigger simpleTrigger = new SimpleTrigger();
 
-			DateTime startTime = TriggerUtils.GetEvenSecondDate(DateTime.UtcNow);
+			DateTimeOffset startTime = TriggerUtils.GetEvenSecondDate(DateTime.UtcNow);
 
 			simpleTrigger.StartTimeUtc = startTime;
 			simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
 			simpleTrigger.RepeatCount = 4;
 
-            DateTime? fireTimeAfter;
+            DateTimeOffset? fireTimeAfter;
             fireTimeAfter = simpleTrigger.GetFireTimeAfter(startTime.AddMilliseconds(34));
 			Assert.AreEqual(startTime.AddMilliseconds(40), fireTimeAfter.Value);
 		}
@@ -175,11 +175,11 @@ namespace Quartz.Tests.Unit
             SimpleTrigger simpleTrigger = new SimpleTrigger();
             simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
             simpleTrigger.RepeatCount = 1;
-            DateTime neverFireTime = TriggerUtils.GetEvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(DateTime.Now)); 
+            DateTimeOffset neverFireTime = TriggerUtils.GetEvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(DateTime.Now)); 
             simpleTrigger.StartTimeUtc = neverFireTime;
 
             simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
-            DateTime? fireTimeAfter = simpleTrigger.GetNextFireTimeUtc();
+            DateTimeOffset? fireTimeAfter = simpleTrigger.GetNextFireTimeUtc();
 
             Assert.IsNull(fireTimeAfter);
         }
@@ -188,7 +188,7 @@ namespace Quartz.Tests.Unit
         public void TestPrecision()
         {
             Trigger trigger = new SimpleTrigger();
-            trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
+            trigger.StartTimeUtc = new DateTimeOffset(1982, 6, 28, 13, 5, 5, 233, TimeSpan.Zero);
             Assert.IsTrue(trigger.HasMillisecondPrecision);
             Assert.AreEqual(233, trigger.StartTimeUtc.Millisecond);
         }

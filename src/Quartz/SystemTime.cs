@@ -12,6 +12,6 @@ namespace Quartz
         /// <summary>
         /// Return current time via <see cref="Func&lt;T&gt;" />. Allows easier unit testing.
         /// </summary>
-        public static Func<DateTime> UtcNow = () => DateTime.UtcNow;
+        public static Func<DateTimeOffset> UtcNow = () => DateTimeOffset.UtcNow;
     }
 }

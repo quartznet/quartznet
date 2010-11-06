@@ -104,12 +104,12 @@ namespace Quartz.Xml
 			}
 		}
 
-		public virtual bool IsTimeIncluded(DateTime timeStamp)
+        public virtual bool IsTimeIncluded(DateTimeOffset timeStamp)
 		{
 			return calendar.IsTimeIncluded(timeStamp);
 		}
 
-		public virtual DateTime GetNextIncludedTimeUtc(DateTime timeStamp)
+        public virtual DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeStamp)
 		{
 			return calendar.GetNextIncludedTimeUtc(timeStamp);
 		}

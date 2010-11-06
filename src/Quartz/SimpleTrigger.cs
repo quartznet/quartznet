@@ -45,8 +45,8 @@ namespace Quartz
         public const int RepeatIndefinitely = -1;
         private const int YearToGiveupSchedulingAt = 2299;
 
-        private DateTime? nextFireTimeUtc;
-		private DateTime? previousFireTimeUtc;
+        private DateTimeOffset? nextFireTimeUtc;
+		private DateTimeOffset? previousFireTimeUtc;
 
         private int repeatCount;
         private TimeSpan repeatInterval = TimeSpan.Zero;
@@ -99,7 +99,7 @@ namespace Quartz
         /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
         /// and not repeat.
         /// </summary>
-        public SimpleTrigger(string name, DateTime startTimeUtc)
+        public SimpleTrigger(string name, DateTimeOffset startTimeUtc)
             : this(name, null, startTimeUtc)
         {
         }
@@ -108,7 +108,7 @@ namespace Quartz
         /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
         /// and not repeat.
         /// </summary>
-        public SimpleTrigger(string name, string group, DateTime startTimeUtc)
+        public SimpleTrigger(string name, string group, DateTimeOffset startTimeUtc)
             : this(name, group, startTimeUtc, null, 0, TimeSpan.Zero)
         {
         }
@@ -119,14 +119,14 @@ namespace Quartz
         /// the given end time.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="startTimeUtc">A UTC <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to fire.</param>
-        /// <param name="endTimeUtc">A UTC <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
+        /// <param name="startTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to fire.</param>
+        /// <param name="endTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-        public SimpleTrigger(string name, DateTime startTimeUtc,
-            DateTime? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
+        public SimpleTrigger(string name, DateTimeOffset startTimeUtc,
+            DateTimeOffset? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
             : this(name, null, startTimeUtc, endTimeUtc, repeatCount, repeatInterval)
         {
         }
@@ -138,14 +138,14 @@ namespace Quartz
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="group">The group.</param>
-        /// <param name="startTimeUtc">A UTC <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to fire.</param>
-        /// <param name="endTimeUtc">A UTC <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
+        /// <param name="startTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to fire.</param>
+        /// <param name="endTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-        public SimpleTrigger(string name, string group, DateTime startTimeUtc,
-            DateTime? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
+        public SimpleTrigger(string name, string group, DateTimeOffset startTimeUtc,
+            DateTimeOffset? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
             : base(name, group)
         {
             StartTimeUtc = startTimeUtc;
@@ -163,15 +163,15 @@ namespace Quartz
         /// <param name="group">The group.</param>
         /// <param name="jobName">Name of the job.</param>
         /// <param name="jobGroup">The job group.</param>
-        /// <param name="startTimeUtc">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" />
         /// to fire.</param>
-        /// <param name="endTimeUtc">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" />
+        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" />
         /// to quit repeat firing.</param>
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use RepeatIndefinitely for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-        public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTime startTimeUtc,
-                 DateTime? endTimeUtc,
+        public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTimeOffset startTimeUtc,
+                 DateTimeOffset? endTimeUtc,
                  int repeatCount, TimeSpan repeatInterval)
             : base(name, group, jobName, jobGroup)
         {
@@ -236,7 +236,7 @@ namespace Quartz
         /// Note that the return time may be in the past.
         /// </p>
         /// </summary>
-        public override DateTime? FinalFireTimeUtc
+        public override DateTimeOffset? FinalFireTimeUtc
         {
             get
             {
@@ -259,7 +259,7 @@ namespace Quartz
                     return GetFireTimeBefore(EndTimeUtc);
                 }
 
-                DateTime lastTrigger = StartTimeUtc.AddMilliseconds(repeatCount * repeatInterval.TotalMilliseconds);
+                DateTimeOffset lastTrigger = StartTimeUtc.AddMilliseconds(repeatCount * repeatInterval.TotalMilliseconds);
 
                 if (!EndTimeUtc.HasValue || lastTrigger < EndTimeUtc.Value)
                 {
@@ -351,7 +351,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
 			{
-                DateTime? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
+                DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
 
                 while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
@@ -372,7 +372,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
 			{
-                DateTime? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
+                DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
 
 				while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
 				{
@@ -400,7 +400,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
 			{
-				DateTime newFireTime = SystemTime.UtcNow();
+				DateTimeOffset newFireTime = SystemTime.UtcNow();
 				if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
 				{
 					RepeatCount = RepeatCount - TimesTriggered;
@@ -419,7 +419,7 @@ namespace Quartz
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
 			{
-				DateTime newFireTime = SystemTime.UtcNow();
+				DateTimeOffset newFireTime = SystemTime.UtcNow();
 				int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc, newFireTime);
 
 				if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
@@ -491,7 +491,7 @@ namespace Quartz
                 return;
             }
 
-            DateTime now = SystemTime.UtcNow();
+            DateTimeOffset now = SystemTime.UtcNow();
             while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
@@ -532,7 +532,7 @@ namespace Quartz
 		/// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
 		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
-        public override DateTime? ComputeFirstFireTimeUtc(ICalendar cal)
+        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal)
     	{
 			nextFireTimeUtc = StartTimeUtc;
 
@@ -562,7 +562,7 @@ namespace Quartz
 		/// returned. The value returned is not guaranteed to be valid until after
 		/// the <see cref="Trigger" /> has been added to the scheduler.
 		/// </summary>
-        public override DateTime? GetNextFireTimeUtc()
+        public override DateTimeOffset? GetNextFireTimeUtc()
 		{
 			return nextFireTimeUtc;
 		}
@@ -572,7 +572,7 @@ namespace Quartz
 		/// If the trigger has not yet fired, <see langword="null" /> will be
 		/// returned.
 		/// </summary>
-        public override DateTime? GetPreviousFireTimeUtc()
+        public override DateTimeOffset? GetPreviousFireTimeUtc()
 		{
 			return previousFireTimeUtc;
 		}
@@ -581,18 +581,18 @@ namespace Quartz
 		/// Set the next UTC time at which the <see cref="SimpleTrigger" /> should fire.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
-        public void SetNextFireTime(DateTime? fireTimeUtc)
+        public void SetNextFireTime(DateTimeOffset? fireTimeUtc)
 		{
-			nextFireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTimeUtc);
+			nextFireTimeUtc = fireTimeUtc;
 		}
 
 		/// <summary>
 		/// Set the previous UTC time at which the <see cref="SimpleTrigger" /> fired.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
-        public virtual void SetPreviousFireTime(DateTime? fireTimeUtc)
+        public virtual void SetPreviousFireTime(DateTimeOffset? fireTimeUtc)
 		{
-			previousFireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTimeUtc);
+			previousFireTimeUtc = fireTimeUtc;
 		}
 
 		/// <summary> 
@@ -600,10 +600,8 @@ namespace Quartz
 		/// fire, after the given UTC time. If the trigger will not fire after the given
 		/// time, <see langword="null" /> will be returned.
 		/// </summary>
-        public override DateTime? GetFireTimeAfter(DateTime? afterTimeUtc)
+        public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTimeUtc)
 		{
-            afterTimeUtc = DateTimeUtil.AssumeUniversalTime(afterTimeUtc);
-
 			if (complete)
 			{
 				return null;
@@ -624,9 +622,9 @@ namespace Quartz
 				return null;
 			}
 
-			DateTime startMillis = StartTimeUtc;
-			DateTime afterMillis = afterTimeUtc.Value;
-			DateTime endMillis = !EndTimeUtc.HasValue ? DateTime.MaxValue : EndTimeUtc.Value;
+			DateTimeOffset startMillis = StartTimeUtc;
+			DateTimeOffset afterMillis = afterTimeUtc.Value;
+			DateTimeOffset endMillis = !EndTimeUtc.HasValue ? DateTimeOffset.MaxValue : EndTimeUtc.Value;
 
 
 			if (endMillis <= afterMillis) 
@@ -647,7 +645,7 @@ namespace Quartz
 				return null;
 			}
 
-			DateTime time = startMillis.AddMilliseconds(numberOfTimesExecuted * repeatInterval.TotalMilliseconds);
+			DateTimeOffset time = startMillis.AddMilliseconds(numberOfTimesExecuted * repeatInterval.TotalMilliseconds);
 
 			if (endMillis <= time) 
 			{
@@ -663,10 +661,8 @@ namespace Quartz
 		/// fire, before the given time. If the trigger will not fire before the
 		/// given time, <see langword="null" /> will be returned.
 		/// </summary>
-        public virtual DateTime? GetFireTimeBefore(DateTime? endUtc)
+        public virtual DateTimeOffset? GetFireTimeBefore(DateTimeOffset? endUtc)
 		{
-            endUtc = DateTimeUtil.AssumeUniversalTime(endUtc);
-
 			if (endUtc.Value < StartTimeUtc)
 			{
 				return null;
@@ -682,11 +678,8 @@ namespace Quartz
         /// <param name="startTimeUtc">The UTC start date and time.</param>
         /// <param name="endTimeUtc">The UTC end date and time.</param>
         /// <returns></returns>
-        public virtual int ComputeNumTimesFiredBetween(DateTime? startTimeUtc, DateTime? endTimeUtc)
+        public virtual int ComputeNumTimesFiredBetween(DateTimeOffset? startTimeUtc, DateTimeOffset? endTimeUtc)
 		{
-            startTimeUtc = DateTimeUtil.AssumeUniversalTime(startTimeUtc);
-            endTimeUtc = DateTimeUtil.AssumeUniversalTime(endTimeUtc);
-
 			long time = (long) (endTimeUtc.Value - startTimeUtc.Value).TotalMilliseconds;
 			return (int) (time/repeatInterval.TotalMilliseconds);
 		}

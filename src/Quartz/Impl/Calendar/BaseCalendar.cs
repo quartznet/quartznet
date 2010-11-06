@@ -155,9 +155,9 @@ namespace Quartz.Impl.Calendar
 		/// calendars IsTimeIncluded() method if base calendar is set.
 		/// </summary>
 		/// <seealso cref="ICalendar.IsTimeIncluded" />
-		public virtual bool IsTimeIncluded(DateTime timeStampUtc)
+        public virtual bool IsTimeIncluded(DateTimeOffset timeStampUtc)
 		{
-			if (timeStampUtc == DateTime.MinValue)
+            if (timeStampUtc == DateTimeOffset.MinValue)
 			{
 				throw new ArgumentException("timeStampUtc must be greater 0");
 			}
@@ -179,11 +179,11 @@ namespace Quartz.Impl.Calendar
 		/// included. Return 0 if all days are excluded.
 		/// </summary>
 		/// <seealso cref="ICalendar.GetNextIncludedTimeUtc" />
-		public virtual DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
+        public virtual DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
 		{
-			if (timeUtc == DateTime.MinValue)
+			if (timeUtc == DateTimeOffset.MinValue)
 			{
-				throw new ArgumentException("timeStamp must be greater DateTime.MinValue");
+				throw new ArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
 			}
 
 			if (baseCalendar != null)

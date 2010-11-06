@@ -65,10 +65,10 @@ namespace Quartz
             Year
         } ;
 
-        private DateTime startTime;
-        private DateTime? endTime;
-        private DateTime? nextFireTime;
-        private DateTime? previousFireTime;
+        private DateTimeOffset startTime;
+        private DateTimeOffset? endTime;
+        private DateTimeOffset? nextFireTime;
+        private DateTimeOffset? previousFireTime;
         private int repeatInterval;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
         private int timesTriggered;
@@ -116,8 +116,8 @@ namespace Quartz
         /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DateIntervalTrigger(string name, DateTime startTimeUtc,
-                                   DateTime? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
+        public DateIntervalTrigger(string name, DateTimeOffset startTimeUtc,
+                                   DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, null, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval)
         {
         }
@@ -132,8 +132,8 @@ namespace Quartz
         /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DateIntervalTrigger(string name, string group, DateTime startTimeUtc,
-                                   DateTime? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
+        public DateIntervalTrigger(string name, string group, DateTimeOffset startTimeUtc,
+                                   DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
         {
             StartTimeUtc = startTimeUtc;
@@ -155,7 +155,7 @@ namespace Quartz
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public DateIntervalTrigger(string name, string group, string jobName,
-                                   string jobGroup, DateTime startTimeUtc, DateTime? endTimeUtc,
+                                   string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
                                    IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group, jobName, jobGroup)
         {
@@ -168,11 +168,11 @@ namespace Quartz
         /// <summary>
         /// Get the time at which the <see cref="DateIntervalTrigger" /> should occur.
         /// </summary>
-        public override DateTime StartTimeUtc
+        public override DateTimeOffset StartTimeUtc
         {
             get
             {
-                if (startTime == DateTime.MinValue)
+                if (startTime == DateTimeOffset.MinValue)
                 {
                     startTime = SystemTime.UtcNow();
                 }
@@ -180,12 +180,12 @@ namespace Quartz
             }
             set
             {
-                if (value == DateTime.MinValue)
+                if (value == DateTimeOffset.MinValue)
                 {
-                    throw new ArgumentException("Start time cannot be DateTime.MinValue");
+                    throw new ArgumentException("Start time cannot be DateTimeOffset.MinValue");
                 }
 
-                DateTime? eTime = EndTimeUtc;
+                DateTimeOffset? eTime = EndTimeUtc;
                 if (eTime != null && eTime < value)
                 {
                     throw new ArgumentException("End time cannot be before start time");
@@ -208,12 +208,12 @@ namespace Quartz
         /// Get the time at which the <see cref="DateIntervalTrigger" /> should quit
         /// repeating.
         /// </summary>
-        public override DateTime? EndTimeUtc
+        public override DateTimeOffset? EndTimeUtc
         {
             get { return endTime; }
             set
             {
-                DateTime sTime = StartTimeUtc;
+                DateTimeOffset sTime = StartTimeUtc;
                 if (value != null && sTime > value)
                 {
                     throw new ArgumentException("End time cannot be before start time");
@@ -305,7 +305,7 @@ namespace Quartz
 
             if (instr == Quartz.MisfireInstruction.DateIntervalTrigger.DoNothing)
             {
-                DateTime? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
+                DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
                 while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
@@ -375,7 +375,7 @@ namespace Quartz
                 return;
             }
 
-            DateTime now = SystemTime.UtcNow();
+            DateTimeOffset now = SystemTime.UtcNow();
             while (nextFireTime != null && !calendar.IsTimeIncluded(nextFireTime.Value))
             {
                 nextFireTime = GetFireTimeAfter(nextFireTime);
@@ -420,7 +420,7 @@ namespace Quartz
         /// by the scheduler, which is also the same value <see cref="Trigger.GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="Trigger" />).
         /// </returns>        
-        public override DateTime? ComputeFirstFireTimeUtc(ICalendar calendar)
+        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
         {
             nextFireTime = StartTimeUtc;
 
@@ -502,9 +502,9 @@ namespace Quartz
         /// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
         /// has been added to the scheduler.
         /// </remarks>
-        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTime, DateTime)" />
+        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTimeOffset, DateTimeOffset)" />
         /// <returns></returns>
-        public override DateTime? GetNextFireTimeUtc()
+        public override DateTimeOffset? GetNextFireTimeUtc()
         {
             return nextFireTime;
         }
@@ -513,7 +513,7 @@ namespace Quartz
         /// Returns the previous time at which the <see cref="DateIntervalTrigger" /> fired.
         /// If the trigger has not yet fired, <see langword="null" /> will be returned.
         /// </summary>
-        public override DateTime? GetPreviousFireTimeUtc()
+        public override DateTimeOffset? GetPreviousFireTimeUtc()
         {
             return previousFireTime;
         }
@@ -528,7 +528,7 @@ namespace Quartz
      * </p>
      */
 
-        public DateTime? NextFireTimeUtc
+        public DateTimeOffset? NextFireTimeUtc
         {
             set { this.nextFireTime = value; }
         }
@@ -543,7 +543,7 @@ namespace Quartz
      * </p>
      */
 
-        public DateTime PreviousFireTimeUtc
+        public DateTimeOffset PreviousFireTimeUtc
         {
             set { this.previousFireTime = value; }
         }
@@ -553,12 +553,12 @@ namespace Quartz
         /// after the given time. If the trigger will not fire after the given time,
         /// <see langword="null" /> will be returned.
         /// </summary>
-        public override DateTime? GetFireTimeAfter(DateTime? afterTime)
+        public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
         {
             return GetFireTimeAfter(afterTime, false);
         }
 
-        protected DateTime? GetFireTimeAfter(DateTime? afterTime, bool ignoreEndTime)
+        protected DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime)
         {
             if (complete)
             {
@@ -576,9 +576,9 @@ namespace Quartz
                 afterTime = afterTime.Value.AddSeconds(1);
             }
 
-            DateTime startMillis = StartTimeUtc;
-            DateTime afterMillis = afterTime.Value;
-            DateTime endMillis = (EndTimeUtc == null) ? DateTime.MaxValue : EndTimeUtc.Value;
+            DateTimeOffset startMillis = StartTimeUtc;
+            DateTimeOffset afterMillis = afterTime.Value;
+            DateTimeOffset endMillis = (EndTimeUtc == null) ? DateTimeOffset.MaxValue : EndTimeUtc.Value;
 
             if (!ignoreEndTime && (endMillis <= afterMillis))
             {
@@ -592,12 +592,12 @@ namespace Quartz
 
             long secondsAfterStart = (long)(afterMillis - startMillis).TotalSeconds;
 
-            DateTime? time = null;
+            DateTimeOffset? time = null;
             long repeatLong = RepeatInterval;
             
-            DateTime? aTime = afterTime;
+            DateTimeOffset? aTime = afterTime;
             
-            DateTime sTime = StartTimeUtc;
+            DateTimeOffset sTime = StartTimeUtc;
 
             if (RepeatIntervalUnit == IntervalUnit.Second)
             {
@@ -735,7 +735,7 @@ namespace Quartz
         /// </summary>
         /// <value></value>
         /// <remarks>Note that the return time may be in the past.</remarks>
-        public override DateTime? FinalFireTimeUtc
+        public override DateTimeOffset? FinalFireTimeUtc
         {
             get
             {
@@ -745,7 +745,7 @@ namespace Quartz
                 }
 
                 // back up a second from end time
-                DateTime? fTime = EndTimeUtc.Value.AddSeconds(-1);
+                DateTimeOffset? fTime = EndTimeUtc.Value.AddSeconds(-1);
                 // find the next fire time after that
                 fTime = GetFireTimeAfter(fTime, true);
 
@@ -757,7 +757,7 @@ namespace Quartz
 
                 // otherwise we have to back up one interval from the fire time after the end time
 
-                DateTime lTime = fTime.Value;
+                DateTimeOffset lTime = fTime.Value;
 
                 if (RepeatIntervalUnit == IntervalUnit.Second)
                 {

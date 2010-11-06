@@ -47,11 +47,11 @@ namespace Quartz.Core
         private readonly object sigLock = new object();
 
         private bool signaled;
-        private DateTime? signaledNextFireTimeUtc;
+        private DateTimeOffset? signaledNextFireTimeUtc;
         private bool paused;
         private bool halted;
 
-        private readonly Random random = new Random((int) DateTime.Now.Ticks);
+        private readonly Random random = new Random((int) DateTimeOffset.Now.Ticks);
 
         // When the scheduler finds there is no current trigger to fire, how long
         // it should wait until checking again...
@@ -197,7 +197,7 @@ namespace Quartz.Core
         /// will fire.  If this method is being called do to some other even (rather
         /// than scheduling a trigger), the caller should pass null.
         /// </param>
-        public void SignalSchedulingChange(DateTime? candidateNewNextFireTimeUtc) 
+        public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc) 
         {
             lock (sigLock) 
             {
@@ -225,7 +225,7 @@ namespace Quartz.Core
         }
 
         
-        public DateTime? GetSignaledNextFireTimeUtc() 
+        public DateTimeOffset? GetSignaledNextFireTimeUtc() 
         {
             lock (sigLock) 
             {
@@ -271,7 +271,7 @@ namespace Quartz.Core
                     {
                         IList<Trigger> triggers = null;
 
-                        DateTime now = SystemTime.UtcNow();
+                        DateTimeOffset now = SystemTime.UtcNow();
 
                         ClearSignaledSchedulingChange();
                         try
@@ -303,7 +303,7 @@ namespace Quartz.Core
                         if (triggers != null && triggers.Count > 0)
                         {
                             now = SystemTime.UtcNow();
-                            DateTime triggerTime = triggers[0].GetNextFireTimeUtc().Value;
+                            DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc().Value;
                             TimeSpan timeUntilTrigger =  triggerTime - now;
 
                             while (timeUntilTrigger > TimeSpan.FromMilliseconds(2)) 
@@ -476,8 +476,8 @@ namespace Quartz.Core
                         // while (!halted)
                     }
 
-                    DateTime utcNow = SystemTime.UtcNow();
-                    DateTime waitTime = utcNow.Add(GetRandomizedIdleWaitTime());
+                    DateTimeOffset utcNow = SystemTime.UtcNow();
+                    DateTimeOffset waitTime = utcNow.Add(GetRandomizedIdleWaitTime());
                     TimeSpan timeUntilContinue = waitTime - utcNow;
                     lock (sigLock)
                     {
@@ -505,7 +505,7 @@ namespace Quartz.Core
         }
 
 
-        private bool ReleaseIfScheduleChangedSignificantly(IList<Trigger> triggers, DateTime triggerTime)
+        private bool ReleaseIfScheduleChangedSignificantly(IList<Trigger> triggers, DateTimeOffset triggerTime)
         {
             if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
             {
@@ -539,10 +539,10 @@ namespace Quartz.Core
             return false;
         }
 
-        private bool IsCandidateNewTimeEarlierWithinReason(DateTime oldTimeUtc, bool clearSignal) 
+        private bool IsCandidateNewTimeEarlierWithinReason(DateTimeOffset oldTimeUtc, bool clearSignal) 
         {    	
 		    // So here's the deal: We know due to being signaled that 'the schedule'
-		    // has changed.  We may know (if getSignaledNextFireTime() != DateTime.MinValue) the
+		    // has changed.  We may know (if getSignaledNextFireTime() != DateTimeOffset.MinValue) the
 		    // new earliest fire time.  We may not (in which case we will assume
 		    // that the new time is earlier than the trigger we have acquired).
 		    // In either case, we only want to abandon our acquired trigger and

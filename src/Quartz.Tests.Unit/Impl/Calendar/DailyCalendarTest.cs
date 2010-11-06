@@ -54,8 +54,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
             DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
 
-            Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTimeUtc(d));
-            Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d));
+            Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime);
+            Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime);
         }
 
 

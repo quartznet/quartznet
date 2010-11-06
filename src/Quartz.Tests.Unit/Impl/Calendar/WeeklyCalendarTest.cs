@@ -54,7 +54,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public void TestWeekDayExclusion()
         {
             // this is friday
-            DateTime excluded = new DateTime(2007, 8, 3);
+            DateTimeOffset excluded = new DateTimeOffset(2007, 8, 3, 0, 0, 0, TimeSpan.Zero);
             cal.SetDayExcluded(DayOfWeek.Friday, true);
             // next monday should be next possible
             Assert.AreEqual(excluded.AddDays(3), cal.GetNextIncludedTimeUtc(excluded));

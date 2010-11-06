@@ -36,7 +36,7 @@ namespace Quartz.Tests.Unit
 		[Test]
 		public void TestGetFireTimeAfter()
 		{
-			DateTime startCalendar = new DateTime(2005, 6, 1, 9, 30, 17);
+            DateTimeOffset startCalendar = new DateTime(2005, 6, 1, 9, 30, 17);
 
 			// Test yearly
 			NthIncludedDayTrigger yearlyTrigger = new NthIncludedDayTrigger();
@@ -44,9 +44,9 @@ namespace Quartz.Tests.Unit
 			yearlyTrigger.StartTimeUtc = startCalendar;
 			yearlyTrigger.N = 10;
 			yearlyTrigger.FireAtTime = "14:35:15";
-        
-			DateTime targetCalendar = new DateTime(2006, 1, 10, 14, 35, 15).ToUniversalTime();
-            DateTime? nextFireTimeUtc;
+
+            DateTimeOffset targetCalendar = new DateTime(2006, 1, 10, 14, 35, 15).ToUniversalTime();
+            DateTimeOffset? nextFireTimeUtc;
 
             nextFireTimeUtc = yearlyTrigger.GetFireTimeAfter(startCalendar.AddMilliseconds(1000));
 			Assert.AreEqual(targetCalendar, nextFireTimeUtc.Value);
@@ -201,8 +201,8 @@ namespace Quartz.Tests.Unit
                 t.StartTimeUtc = startTime.ToUniversalTime();
                 t.FireAtTime = "8:00";
                 t.TimeZone = EST;
-                
-                DateTime? firstTime = t.ComputeFirstFireTimeUtc(null);
+
+                DateTimeOffset? firstTime = t.ComputeFirstFireTimeUtc(null);
                 
                 // Calendar firstTimeCal = Calendar.getInstance(EST);
                 DateTime firstTimeCal = new DateTime(startTime.Year, startTime.Month, startTime.Day, 8, 0, 0, 0, DateTimeKind.Utc);
@@ -233,10 +233,10 @@ namespace Quartz.Tests.Unit
                 t.StartTimeUtc = startTime;
                 t.FireAtTime = "8:00";
                 t.TimeZone = GMT;
-                
-                DateTime? firstTime = t.ComputeFirstFireTimeUtc(null);
+
+                DateTimeOffset? firstTime = t.ComputeFirstFireTimeUtc(null);
                 // Calendar firstTimeCal = Calendar.getInstance(EST);
-                DateTime firstTimeCal = new DateTime(startTime.Year, startTime.Month, startTime.Day, 8, 0, 0, 0);
+                DateTimeOffset firstTimeCal = new DateTimeOffset(startTime.Year, startTime.Month, startTime.Day, 8, 0, 0, 0, TimeSpan.Zero);
                 
                 //EST is GMT-5
                 firstTimeCal.AddHours(-5);

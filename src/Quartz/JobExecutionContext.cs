@@ -77,10 +77,10 @@ namespace Quartz
         private readonly ICalendar calendar;
         private readonly bool recovering;
         private int numRefires = 0;
-        private readonly DateTime? fireTimeUtc;
-        private readonly DateTime? scheduledFireTimeUtc;
-        private readonly DateTime? prevFireTimeUtc;
-        private readonly DateTime? nextFireTimeUtc;
+        private readonly DateTimeOffset? fireTimeUtc;
+        private readonly DateTimeOffset? scheduledFireTimeUtc;
+        private readonly DateTimeOffset? prevFireTimeUtc;
+        private readonly DateTimeOffset? nextFireTimeUtc;
         private TimeSpan jobRunTime = TimeSpan.MinValue;
         private object result;
 
@@ -208,7 +208,7 @@ namespace Quartz
 		/// </summary>
 		/// <returns> Returns the fireTimeUtc.</returns>
 		/// <seealso cref="ScheduledFireTimeUtc" />
-        public DateTime? FireTimeUtc
+        public DateTimeOffset? FireTimeUtc
 		{
 			get { return fireTimeUtc; }
 		}
@@ -220,7 +220,7 @@ namespace Quartz
 		/// </summary>
 		/// <returns> Returns the scheduledFireTimeUtc.</returns>
 		/// <seealso cref="FireTimeUtc" />
-        public DateTime? ScheduledFireTimeUtc
+        public DateTimeOffset? ScheduledFireTimeUtc
 		{
 			get { return scheduledFireTimeUtc; }
 		}
@@ -229,7 +229,7 @@ namespace Quartz
 		/// Gets the previous fire time.
 		/// </summary>
 		/// <value>The previous fire time.</value>
-        public DateTime? PreviousFireTimeUtc
+        public DateTimeOffset? PreviousFireTimeUtc
 		{
 			get { return prevFireTimeUtc; }
 		}
@@ -238,7 +238,7 @@ namespace Quartz
 		/// Gets the next fire time.
 		/// </summary>
 		/// <value>The next fire time.</value>
-        public DateTime? NextFireTimeUtc
+        public DateTimeOffset? NextFireTimeUtc
 		{
 			get { return nextFireTimeUtc; }
 		}

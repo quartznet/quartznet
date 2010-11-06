@@ -177,8 +177,8 @@ namespace Quartz.Core
                         break;
                     }
 
-                    DateTime startTime = SystemTime.UtcNow();
-                    DateTime endTime;
+                    DateTimeOffset startTime = SystemTime.UtcNow();
+                    DateTimeOffset endTime;
 
                     // Execute the job
                     try

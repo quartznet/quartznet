@@ -61,12 +61,12 @@ namespace Quartz
 		/// Determine whether the given UTC time  is 'included' by the
 		/// Calendar.
 		/// </summary>
-		bool IsTimeIncluded(DateTime timeUtc);
+        bool IsTimeIncluded(DateTimeOffset timeUtc);
 
 		/// <summary>
 		/// Determine the next UTC time that is 'included' by the
 		/// Calendar after the given UTC time.
 		/// </summary>
-		DateTime GetNextIncludedTimeUtc(DateTime timeUtc);
+        DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
 	}
 }

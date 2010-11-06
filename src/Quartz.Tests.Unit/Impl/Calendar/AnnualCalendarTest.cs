@@ -51,8 +51,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.IsFalse(cal.IsTimeIncluded(d.ToUniversalTime()), "Time was included when it was supposed not to be");
             Assert.IsTrue(cal.IsDayExcluded(d), "Day was not excluded when it was supposed to be excluded");
             Assert.AreEqual(1, cal.DaysExcluded.Count);
-            Assert.AreEqual(d.Day, ((DateTime) cal.DaysExcluded[0]).Day);
-            Assert.AreEqual(d.Month, ((DateTime)cal.DaysExcluded[0]).Month);
+            Assert.AreEqual(d.Day, cal.DaysExcluded[0].Day);
+            Assert.AreEqual(d.Month, cal.DaysExcluded[0].Month);
         }
 
         [Test]
@@ -84,8 +84,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public void TestExclusionAndNextIncludedTime()
         {
             cal.DaysExcluded = null;
-            DateTime test = DateTime.Now.Date;
-            Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test).ToLocalTime(), "Did not get today as date when nothing was excluded");
+            DateTimeOffset test = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+            Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test), "Did not get today as date when nothing was excluded");
 
             cal.SetDayExcluded(test, true);
             Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTimeUtc(test), "Did not get next day when current day excluded");

@@ -211,7 +211,7 @@ namespace Quartz.Impl.AdoJobStore
         ///   Output parameter.  A List of <see cref="Key" /> objects.  Must not be null
         /// </param>
         /// <returns>Whether there are more misfired triggers left to find beyond the given count.</returns>
-        public virtual bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTime ts, int count, IList<Key> resultList)
+        public virtual bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts, int count, IList<Key> resultList)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectHasMisfiredTriggersInState)))
             {
@@ -247,7 +247,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state1"></param>
         /// <param name="ts"></param>
         /// <returns></returns>
-        public int CountMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTime ts)
+        public int CountMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountMisfiredTriggersInStates)))
             {
@@ -332,7 +332,7 @@ namespace Quartz.Impl.AdoJobStore
                         // string trigGroup = GetString(rs[ColumnTriggerGroup]);
                         long firedTimeInTicks = Convert.ToInt64(rs[ColumnFiredTime], CultureInfo.InvariantCulture);
                         int priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
-                        DateTime firedTime = new DateTime(firedTimeInTicks);
+                        DateTimeOffset firedTime = new DateTimeOffset(firedTimeInTicks, TimeSpan.Zero);
                         SimpleTrigger rcvryTrig =
                             new SimpleTrigger("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
                                               SchedulerConstants.DefaultRecoveryGroup, firedTime);
@@ -1519,10 +1519,10 @@ namespace Quartz.Impl.AdoJobStore
             int misFireInstr = Int32.MinValue;
             int priority = Int32.MinValue;
             IDictionary map = null;
-            DateTime? pft = null;
-            DateTime? endTimeD = null;
-            DateTime? nft = null;
-            DateTime startTimeD = DateTime.MinValue;
+            DateTimeOffset? pft = null;
+            DateTimeOffset? endTimeD = null;
+            DateTimeOffset? nft = null;
+            DateTimeOffset startTimeD = DateTimeOffset.MinValue;
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
             {
@@ -1558,19 +1558,19 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (nextFireTime > 0)
                         {
-                            nft = new DateTime(nextFireTime);
+                            nft = new DateTimeOffset(nextFireTime, TimeSpan.Zero);
                         }
 
                         if (prevFireTime > 0)
                         {
-                            pft = new DateTime(prevFireTime);
+                            pft = new DateTimeOffset(prevFireTime, TimeSpan.Zero);
                         }
 
-                        startTimeD = new DateTime(startTime);
+                        startTimeD = new DateTimeOffset(startTime, TimeSpan.Zero);
 
                         if (endTime > 0)
                         {
-                            endTimeD = new DateTime(endTime);
+                            endTimeD = new DateTimeOffset(endTime, TimeSpan.Zero);
                         }
 
                         // done reading
@@ -1809,11 +1809,11 @@ namespace Quartz.Impl.AdoJobStore
                         string jobName = GetString(rs[ColumnJobName]);
                         string jobGroup = GetString(rs[ColumnJobGroup]);
 
-                        DateTime? nft = null;
+                        DateTimeOffset? nft = null;
 
                         if (nextFireTime > 0)
                         {
-                            nft = new DateTime(nextFireTime);
+                            nft = new DateTimeOffset(nextFireTime, TimeSpan.Zero);
                         }
 
                         status = new TriggerStatus(state, nft);
@@ -2194,7 +2194,7 @@ namespace Quartz.Impl.AdoJobStore
         /// trigger that will be fired at the given fire time, or null if no
         /// trigger will be fired at that time
         /// </returns>
-        public virtual Key SelectTriggerForFireTime(ConnectionAndTransactionHolder conn, DateTime fireTime)
+        public virtual Key SelectTriggerForFireTime(ConnectionAndTransactionHolder conn, DateTimeOffset fireTime)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerForFireTime)))
             {
@@ -2222,7 +2222,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="noLaterThan">highest value of <see cref="Trigger.GetNextFireTimeUtc"/> of the triggers (exclusive)</param>
         /// <param name="noEarlierThan">highest value of <see cref="Trigger.GetNextFireTimeUtc"/> of the triggers (inclusive)</param>
         /// <returns></returns>
-        public virtual IList<Key> SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTime noLaterThan, DateTime noEarlierThan)
+        public virtual IList<Key> SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, DateTimeOffset noEarlierThan)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNextTriggerToAcquire)))
             {
@@ -2545,7 +2545,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="checkInTime">The check in time.</param>
         /// <param name="interval">The interval.</param>
         /// <returns></returns>
-        public virtual int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceName, DateTime checkInTime, TimeSpan interval)
+        public virtual int InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceName, DateTimeOffset checkInTime, TimeSpan interval)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertSchedulerState)))
             {
@@ -2582,7 +2582,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceName">The instance id.</param>
         /// <param name="checkInTime">The check in time.</param>
         /// <returns></returns>
-        public virtual int UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceName, DateTime checkInTime)
+        public virtual int UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceName, DateTimeOffset checkInTime)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSchedulerState)))
             {
@@ -2625,7 +2625,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     SchedulerStateRecord rec = new SchedulerStateRecord();
                     rec.SchedulerInstanceId = GetString(rs[ColumnInstanceName]);
-                    rec.CheckinTimestamp = new DateTime(Convert.ToInt64(rs[ColumnLastCheckinTime], CultureInfo.InvariantCulture));
+                    rec.CheckinTimestamp = new DateTimeOffset(Convert.ToInt64(rs[ColumnLastCheckinTime], CultureInfo.InvariantCulture), TimeSpan.Zero);
                     rec.CheckinInterval = TimeSpan.FromMilliseconds(Convert.ToInt64(rs[ColumnCheckinInterval], CultureInfo.InvariantCulture));
                     list.Add(rec);
                 }

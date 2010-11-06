@@ -57,8 +57,8 @@ namespace Quartz.Tests.Unit
             trigger.Name = "Quartz-Sample";
             trigger.Group = SchedulerConstants.DefaultGroup;
             trigger.CronExpressionString = "0 0 12 1 1 ? 2099";
-            trigger.StartTimeUtc = new DateTime(2099, 1, 1, 12, 0, 1);
-            trigger.EndTimeUtc = new DateTime(2099, 1, 1, 12, 0, 1);
+            trigger.StartTimeUtc = new DateTimeOffset(2099, 1, 1, 12, 0, 1, TimeSpan.Zero);
+            trigger.EndTimeUtc = new DateTimeOffset(2099, 1, 1, 12, 0, 1, TimeSpan.Zero);
 
             Assert.IsNull(trigger.ComputeFirstFireTimeUtc(null));
         }

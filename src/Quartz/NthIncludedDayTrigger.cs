@@ -101,8 +101,8 @@ namespace Quartz
 		/// </summary>
 		public const int IntervalTypeWeekly = 3;
 
-        private DateTime? previousFireTimeUtc;
-		private DateTime? nextFireTimeUtc;
+        private DateTimeOffset? previousFireTimeUtc;
+        private DateTimeOffset? nextFireTimeUtc;
         private ICalendar calendar;
 
 		private int n = 1;
@@ -371,7 +371,7 @@ namespace Quartz
 		/// and <see name="endTime" />, <see langword="null" /> will be returned.
 		/// </summary>
 		/// <returns> the last time the trigger will fire.</returns>
-        public override DateTime? FinalFireTimeUtc
+        public override DateTimeOffset? FinalFireTimeUtc
 		{
 			get
 			{
@@ -381,8 +381,8 @@ namespace Quartz
                     return null;
                 }
 
-                DateTime? finalTime = null;
-				DateTime? currCal = EndTimeUtc.Value;
+                DateTimeOffset? finalTime = null;
+                DateTimeOffset? currCal = EndTimeUtc.Value;
 
                 while (!finalTime.HasValue && StartTimeUtc < currCal.Value)
 				{
@@ -425,7 +425,7 @@ namespace Quartz
         /// </remarks>
 		/// <returns> the next fire time for the trigger</returns>
 		/// <seealso cref="NextFireCutoffInterval" /> 
-        public override DateTime? GetNextFireTimeUtc()
+        public override DateTimeOffset? GetNextFireTimeUtc()
 		{
 			return nextFireTimeUtc;
 		}
@@ -436,7 +436,7 @@ namespace Quartz
 		/// fired, <see langword="null" /> will be returned.
 		/// </summary>
 		/// <returns> the previous fire time for the trigger</returns>
-        public override DateTime? GetPreviousFireTimeUtc()
+        public override DateTimeOffset? GetPreviousFireTimeUtc()
 		{
 			return previousFireTimeUtc;
 		}
@@ -500,9 +500,8 @@ namespace Quartz
 		/// <returns> 
 		/// the first time the trigger will fire following the specified date
 		/// </returns>
-        public override DateTime? GetFireTimeAfter(DateTime? afterTimeUtc)
+        public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTimeUtc)
 		{
-            afterTimeUtc = DateTimeUtil.AssumeUniversalTime(afterTimeUtc);
 			if (!afterTimeUtc.HasValue)
 			{
 				afterTimeUtc = SystemTime.UtcNow();
@@ -559,10 +558,10 @@ namespace Quartz
         /// <see cref="GetNextFireTimeUtc" /> will return (until after the first 
 		/// firing of the <see cref="Trigger" />).
 		/// </returns>
-        public override DateTime? ComputeFirstFireTimeUtc(ICalendar cal)
+        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal)
 		{
 			calendar = cal;
-			DateTime dt = StartTimeUtc.AddMilliseconds(-1*1000);
+            DateTimeOffset dt = StartTimeUtc.AddMilliseconds(-1 * 1000);
 			nextFireTimeUtc = GetFireTimeAfter(dt);
 
 			return nextFireTimeUtc;
@@ -687,7 +686,7 @@ namespace Quartz
 		    calendar = cal;
 			nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-			DateTime now = SystemTime.UtcNow();
+			DateTimeOffset now = SystemTime.UtcNow();
 			if ((nextFireTimeUtc.HasValue) && ((nextFireTimeUtc.Value < now)))
 			{
 			    TimeSpan diff = now - nextFireTimeUtc.Value;
@@ -712,14 +711,14 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-        private DateTime? GetWeeklyFireTimeAfter(DateTime afterDateUtc)
+        private DateTimeOffset? GetWeeklyFireTimeAfter(DateTimeOffset afterDateUtc)
         {
 			int currN = 0;
 			int currWeek;
 			int weekCount = 0;
 			bool gotOne = false;
 
-            afterDateUtc = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZone);
+            afterDateUtc = TimeZoneInfo.ConvertTime(afterDateUtc, TimeZone);
             DateTime currCal = new DateTime(afterDateUtc.Year, afterDateUtc.Month, afterDateUtc.Day);
 
             // move to the first day of the week
@@ -813,10 +812,10 @@ namespace Quartz
 		/// will not be returned as the next fire time.
 		/// </param>
 		/// <returns> the first time the trigger will fire following the specified date </returns>
-        private DateTime? GetMonthlyFireTimeAfter(DateTime afterDateUtc)
+        private DateTimeOffset? GetMonthlyFireTimeAfter(DateTimeOffset afterDateUtc)
 		{
 			int currN = 0;
-            DateTime currCal = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZone);
+            DateTimeOffset currCal = TimeZoneInfo.ConvertTime(afterDateUtc, TimeZone);
             currCal = new DateTime(currCal.Year, currCal.Month, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currMonth;
 			int monthCount = 0;
@@ -878,7 +877,7 @@ namespace Quartz
 
 			if (monthCount < nextFireCutoffInterval)
 			{
-                return TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone);
+                return TimeZoneInfo.ConvertTime(currCal, TimeZone);
 			}
 			else
 			{
@@ -901,10 +900,10 @@ namespace Quartz
 		/// <returns> the first time the trigger will fire following the specified
 		/// date
 		/// </returns>
-        private DateTime? GetYearlyFireTimeAfter(DateTime afterDateUtc)
+        private DateTimeOffset? GetYearlyFireTimeAfter(DateTimeOffset afterDateUtc)
 		{
 			int currN = 0;
-            DateTime currCal = TimeZoneInfo.ConvertTimeFromUtc(afterDateUtc, TimeZone);
+            DateTimeOffset currCal = TimeZoneInfo.ConvertTime(afterDateUtc, TimeZone);
             currCal = new DateTime(currCal.Year, 1, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currYear;
 			int yearCount = 0;
@@ -938,7 +937,7 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
-                    if (EndTimeUtc.HasValue && TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone) > EndTimeUtc.Value)
+                    if (EndTimeUtc.HasValue && TimeZoneInfo.ConvertTime(currCal, TimeZone) > EndTimeUtc.Value)
                     {
 						return null;
 					}
@@ -949,7 +948,7 @@ namespace Quartz
 				// could be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
-                    if (afterDateUtc < TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone))
+                    if (afterDateUtc < TimeZoneInfo.ConvertTime(currCal, TimeZone))
 					{
 						gotOne = true;
 					}
@@ -964,7 +963,7 @@ namespace Quartz
 
 			if (yearCount < nextFireCutoffInterval)
 			{
-                return TimeZoneInfo.ConvertTimeToUtc(currCal, TimeZone);
+                return TimeZoneInfo.ConvertTime(currCal, TimeZone);
 			}
 			else
 			{

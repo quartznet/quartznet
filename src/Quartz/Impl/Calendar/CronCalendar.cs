@@ -103,7 +103,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		/// <param name="timeUtc">the time to test</param>
 		/// <returns>a boolean indicating whether the specified time is 'included' by the CronCalendar</returns>
-		public override bool IsTimeIncluded(DateTime timeUtc)
+        public override bool IsTimeIncluded(DateTimeOffset timeUtc)
 		{
 			if ((GetBaseCalendar() != null) &&
 			    (GetBaseCalendar().IsTimeIncluded(timeUtc) == false))
@@ -121,9 +121,9 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
 		/// <param name="timeUtc"></param>
 		/// <returns></returns>
-		public override DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
+        public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
 		{
-			DateTime nextIncludedTime = timeUtc.AddMilliseconds(1); //plus on millisecond
+            DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(1); //plus on millisecond
 
 			while (!IsTimeIncluded(nextIncludedTime))
 			{
@@ -135,8 +135,7 @@ namespace Quartz.Impl.Calendar
 				// testing.
 				if (cronExpression.IsSatisfiedBy(nextIncludedTime))
 				{
-					nextIncludedTime =
-						cronExpression.GetNextValidTimeAfter(nextIncludedTime).Value;
+					nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime).Value;
 				}
 				else if ((GetBaseCalendar() != null) &&
 				         (!GetBaseCalendar().IsTimeIncluded(nextIncludedTime)))

@@ -105,19 +105,20 @@ namespace Quartz.Tests.Unit
         public void TestCronExpressionPassingMidnight()
         {
             CronExpression cronExpression = new CronExpression("0 15 23 * * ?");
-            DateTime cal = new DateTime(2005, 6, 1, 23, 16, 0).ToUniversalTime();
-            DateTime nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0).ToUniversalTime();
+            DateTimeOffset cal = new DateTime(2005, 6, 1, 23, 16, 0).ToUniversalTime();
+            DateTimeOffset nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0).ToUniversalTime();
             Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);
         }
 
         [Test]
         public void TestCronExpressionPassingYear()
         {
-            DateTime start = new DateTime(2007, 12, 1, 23, 59, 59).ToUniversalTime();
+            DateTimeOffset start = new DateTime(2007, 12, 1, 23, 59, 59).ToUniversalTime();
 
             CronExpression ce = new CronExpression("0 55 15 1 * ?");
-            DateTime d = ce.GetNextValidTimeAfter(start).Value.ToLocalTime();
-            Assert.AreEqual(new DateTime(2008, 1, 1, 15, 55, 0), d, "Got wrong date and time when passed year");
+            DateTimeOffset expected = new DateTime(2008, 1, 1, 15, 55, 0).ToUniversalTime();
+            DateTimeOffset d = ce.GetNextValidTimeAfter(start).Value;
+            Assert.AreEqual(expected, d, "Got wrong date and time when passed year");
         }
 
 
@@ -158,8 +159,8 @@ namespace Quartz.Tests.Unit
         {
             // cronexpression that fires every 5 seconds
             CronExpression cronExpression = new CronExpression("0/5 * * * * ?");
-            DateTime cal = new DateTime(2005, 6, 1, 1, 59, 55);
-            DateTime nextExpectedFireTime = new DateTime(2005, 6, 1, 2, 0, 0);
+            DateTimeOffset cal = new DateTimeOffset(2005, 6, 1, 1, 59, 55, TimeSpan.Zero);
+            DateTimeOffset nextExpectedFireTime = new DateTimeOffset(2005, 6, 1, 2, 0, 0, TimeSpan.Zero);
             Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);
         }
 
@@ -168,8 +169,8 @@ namespace Quartz.Tests.Unit
         {
             // QRTZNET-28
             CronExpression cronExpression = new CronExpression("* * 1 * * ?");
-            DateTime cal = new DateTime(2005, 7, 31, 22, 59, 57).ToUniversalTime();
-            DateTime nextExpectedFireTime = new DateTime(2005, 8, 1, 1, 0, 0).ToUniversalTime();
+            DateTimeOffset cal = new DateTime(2005, 7, 31, 22, 59, 57).ToUniversalTime();
+            DateTimeOffset nextExpectedFireTime = new DateTime(2005, 8, 1, 1, 0, 0).ToUniversalTime();
             Assert.AreEqual(nextExpectedFireTime, cronExpression.GetTimeAfter(cal).Value);
         }
 
@@ -214,7 +215,7 @@ namespace Quartz.Tests.Unit
             DateTime cal = new DateTime(2007, 6, 1, 11, 0, 0).ToUniversalTime();
             for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
             {
-                DateTime? nextFireTime = cronExpression.GetTimeAfter(cal);
+                DateTimeOffset? nextFireTime = cronExpression.GetTimeAfter(cal);
                 if (!fireDays.Contains(nextFireTime.Value.Day) && nextFireTime.Value.Month == 6)
                 {
                     // next fire day may be monday for several days..
@@ -409,23 +410,24 @@ namespace Quartz.Tests.Unit
         public void TestGetTimeAfter_QRTZNET149()
         {
             CronExpression expression = new CronExpression("0 0 0 29 * ?");
-            DateTime? after = expression.GetNextValidTimeAfter(new DateTime(2009, 1, 30));
+            DateTimeOffset? after = expression.GetNextValidTimeAfter(new DateTime(2009, 1, 30, 0, 0, 0).ToUniversalTime());
             Assert.IsTrue(after.HasValue);
-            Assert.AreEqual(new DateTime(2009, 3, 29, 0, 0, 0).ToUniversalTime(), after.Value);
+            Assert.AreEqual(new DateTime(2009, 3, 29, 0, 0, 0).ToUniversalTime(), after.Value.DateTime);
 
-            after = expression.GetNextValidTimeAfter(new DateTime(2009, 12, 30));
+            after = expression.GetNextValidTimeAfter(new DateTime(2009, 12, 30).ToUniversalTime());
             Assert.IsTrue(after.HasValue);
-            Assert.AreEqual(new DateTime(2010, 1, 29, 0, 0, 0).ToUniversalTime(), after.Value);
+            Assert.AreEqual(new DateTime(2010, 1, 29, 0, 0, 0).ToUniversalTime(), after.Value.DateTime);
         }
 
         [Test]
         public void TestQRTZNET152()
         {
             CronExpression expression = new CronExpression("0 5 13 5W 1-12 ?");
-            DateTime d = expression.GetNextValidTimeAfter(new DateTime(2009, 3, 8).ToUniversalTime()).Value;
-            Assert.AreEqual(new DateTime(2009, 4, 6, 13, 5, 0), d.ToLocalTime());
+            DateTimeOffset test = new DateTimeOffset(2009, 3, 8, 0, 0, 0, TimeSpan.Zero);
+            DateTimeOffset d = expression.GetNextValidTimeAfter(test).Value;
+            Assert.AreEqual(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneInfo.Local.GetUtcOffset(test)).ToUniversalTime(), d);
             d = expression.GetNextValidTimeAfter(d).Value;
-            Assert.AreEqual(new DateTime(2009, 5, 5, 13, 5, 0), d.ToLocalTime());
+            Assert.AreEqual(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneInfo.Local.GetUtcOffset(d)), d);
         }
 
     }

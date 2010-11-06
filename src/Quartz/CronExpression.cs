@@ -393,12 +393,11 @@ namespace Quartz
         /// </remarks>
         /// <param name="dateUtc">The date to evaluate.</param>
         /// <returns>a boolean indicating whether the given date satisfies the cron expression</returns>
-        public virtual bool IsSatisfiedBy(DateTime dateUtc)
+        public virtual bool IsSatisfiedBy(DateTimeOffset dateUtc)
         {
-            DateTime test =
-                new DateTime(dateUtc.Year, dateUtc.Month, dateUtc.Day, dateUtc.Hour, dateUtc.Minute, dateUtc.Second).AddSeconds(-1);
+            DateTimeOffset test = new DateTimeOffset(dateUtc.Year, dateUtc.Month, dateUtc.Day, dateUtc.Hour, dateUtc.Minute, dateUtc.Second, dateUtc.Offset).AddSeconds(-1);
 
-            DateTime? timeAfter = GetTimeAfter(test);
+            DateTimeOffset? timeAfter = GetTimeAfter(test);
 
             if (timeAfter.HasValue && timeAfter.Value.Equals(dateUtc))
             {
@@ -414,7 +413,7 @@ namespace Quartz
         /// </summary>
         /// <param name="date">the date/time at which to begin the search for the next valid date/time</param>
         /// <returns>the next valid date/time</returns>
-        public virtual DateTime? GetNextValidTimeAfter(DateTime date)
+        public virtual DateTimeOffset? GetNextValidTimeAfter(DateTimeOffset date)
         {
             return GetTimeAfter(date);
         }
@@ -425,13 +424,13 @@ namespace Quartz
         /// </summary>
         /// <param name="date">the date/time at which to begin the search for the next invalid date/time</param>
         /// <returns>the next valid date/time</returns>
-        public virtual DateTime? GetNextInvalidTimeAfter(DateTime date)
+        public virtual DateTimeOffset? GetNextInvalidTimeAfter(DateTimeOffset date)
         {
             long difference = 1000;
 
             //move back to the nearest second so differences will be accurate
-            DateTime lastDate =
-                new DateTime(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second).AddSeconds(-1);
+            DateTimeOffset lastDate =
+                new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, date.Offset).AddSeconds(-1);
 
             //TODO: IMPROVE THIS! The following is a BAD solution to this problem. Performance will be very bad here, depending on the cron expression. It is, however A solution.
 
@@ -440,7 +439,7 @@ namespace Quartz
             // the second immediately following it.
             while (difference == 1000)
             {
-                DateTime? newDate = GetTimeAfter(lastDate);
+                DateTimeOffset? newDate = GetTimeAfter(lastDate);
 
                 if (newDate == null)
                 {
@@ -1494,7 +1493,7 @@ namespace Quartz
 		/// <param name="dayofmn">The day of month.</param>
 		/// <param name="mon">The month.</param>
 		/// <returns></returns>
-        protected virtual DateTime? GetTime(int sc, int mn, int hr, int dayofmn, int mon)
+        protected virtual DateTimeOffset? GetTime(int sc, int mn, int hr, int dayofmn, int mon)
         {
             try
             {
@@ -1518,7 +1517,7 @@ namespace Quartz
                 {
                     mon = 0;
                 }
-                return new DateTime(SystemTime.UtcNow().Year, mon, dayofmn, hr, mn, sc);
+                return new DateTimeOffset(SystemTime.UtcNow().Year, mon, dayofmn, hr, mn, sc, TimeSpan.Zero);
             }
             catch (Exception)
             {
@@ -1531,17 +1530,17 @@ namespace Quartz
 		/// </summary>
 		/// <param name="afterTimeUtc">The UTC time to start searching from.</param>
 		/// <returns></returns>
-        public virtual DateTime? GetTimeAfter(DateTime afterTimeUtc)
+        public virtual DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
         {
             // move ahead one second, since we're computing the time *after/// the
             // given time
             afterTimeUtc = afterTimeUtc.AddSeconds(1);
 
             // CronTrigger does not deal with milliseconds
-            DateTime d = CreateDateTimeWithoutMillis(afterTimeUtc);
+            DateTimeOffset d = CreateDateTimeWithoutMillis(afterTimeUtc);
 
             // change to specified time zone
-            d = TimeZoneInfo.ConvertTimeFromUtc(d, TimeZone);
+            d = TimeZoneInfo.ConvertTime(d, TimeZone);
 
             bool gotOne = false;
             // loop until we've computed the next time, or we've past the endTime
@@ -1562,7 +1561,7 @@ namespace Quartz
                     sec = seconds.First();
                     d = d.AddMinutes(1);
                 }
-                d = new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, sec, d.Millisecond);
+                d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, sec, d.Millisecond, d.Offset);
 
                 int min = d.Minute;
                 int hr = d.Hour;
@@ -1582,11 +1581,11 @@ namespace Quartz
                 }
                 if (min != t)
                 {
-                    d = new DateTime(d.Year, d.Month, d.Day, d.Hour, min, 0, d.Millisecond);
+                    d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, min, 0, d.Millisecond, d.Offset);
                     d = SetCalendarHour(d, hr);
                     continue;
                 }
-                d = new DateTime(d.Year, d.Month, d.Day, d.Hour, min, d.Second, d.Millisecond);
+                d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, min, d.Second, d.Millisecond, d.Offset);
 
                 hr = d.Hour;
                 int day = d.Day;
@@ -1609,16 +1608,16 @@ namespace Quartz
                     int daysInMonth = DateTime.DaysInMonth(d.Year, d.Month);
                     if (day > daysInMonth)
                     {
-                        d = new DateTime(d.Year, d.Month, daysInMonth, d.Hour, 0, 0, d.Millisecond).AddDays(day - daysInMonth);
+                        d = new DateTimeOffset(d.Year, d.Month, daysInMonth, d.Hour, 0, 0, d.Millisecond, d.Offset).AddDays(day - daysInMonth);
                     }
                     else
                     {
-                        d = new DateTime(d.Year, d.Month, day, d.Hour, 0, 0, d.Millisecond);
+                        d = new DateTimeOffset(d.Year, d.Month, day, d.Hour, 0, 0, d.Millisecond, d.Offset);
                     }
                     d = SetCalendarHour(d, hr);
                     continue;
                 }
-                d = new DateTime(d.Year, d.Month, d.Day, hr, d.Minute, d.Second, d.Millisecond);
+                d = new DateTimeOffset(d.Year, d.Month, d.Day, hr, d.Minute, d.Second, d.Millisecond, d.Offset);
 
                 day = d.Day;
                 int mon = d.Month;
@@ -1644,7 +1643,7 @@ namespace Quartz
                             t = day;
                             day = GetLastDayOfMonth(mon, d.Year);
 
-                            DateTime tcal = new DateTime(d.Year, mon, day, 0, 0, 0);
+                            DateTimeOffset tcal = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
 
                             int ldom = GetLastDayOfMonth(mon, d.Year);
                             DayOfWeek dow = tcal.DayOfWeek;
@@ -1666,7 +1665,7 @@ namespace Quartz
                                 day += 1;
                             }
 
-                            DateTime nTime = new DateTime(tcal.Year, mon, day, hr, min, sec, d.Millisecond);
+                            DateTimeOffset nTime = new DateTimeOffset(tcal.Year, mon, day, hr, min, sec, d.Millisecond, d.Offset);
                             if (nTime.ToUniversalTime() < afterTimeUtc)
                             {
                                 day = 1;
@@ -1679,7 +1678,7 @@ namespace Quartz
                         t = day;
                         day = daysOfMonth.First();
 
-                        DateTime tcal = new DateTime(d.Year, mon, day, 0, 0, 0);
+                        DateTimeOffset tcal = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
 
                         int ldom = GetLastDayOfMonth(mon, d.Year);
                         DayOfWeek dow = tcal.DayOfWeek;
@@ -1701,7 +1700,7 @@ namespace Quartz
                             day += 1;
                         }
 
-                        tcal = new DateTime(tcal.Year, mon, day, hr, min, sec);
+                        tcal = new DateTimeOffset(tcal.Year, mon, day, hr, min, sec, d.Offset);
                         if (tcal.ToUniversalTime() < afterTimeUtc)
                         {
                             day = daysOfMonth.First();
@@ -1731,7 +1730,7 @@ namespace Quartz
                     {
                         if (mon > 12)
                         {
-                            d = new DateTime(d.Year, 12, day, 0, 0, 0).AddMonths(mon - 12);
+                            d = new DateTimeOffset(d.Year, 12, day, 0, 0, 0, d.Offset).AddMonths(mon - 12);
                         }
                         else
                         {
@@ -1741,11 +1740,11 @@ namespace Quartz
                             int lDay = DateTime.DaysInMonth(d.Year, mon); 
                             if (day <= lDay)
                             {
-                            d = new DateTime(d.Year, mon, day, 0, 0, 0);
-                        }
+                                d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
+                            }
                             else
                             {
-                                d = new DateTime(d.Year, mon, lDay, 0, 0, 0).AddDays(day - lDay);
+                                d = new DateTimeOffset(d.Year, mon, lDay, 0, 0, 0, d.Offset).AddDays(day - lDay);
                             } 
                         }
                         continue;
@@ -1780,11 +1779,11 @@ namespace Quartz
                             if (mon == 12)
                             {
                                 //will we pass the end of the year?
-                                d = new DateTime(d.Year, mon - 11, 1, 0, 0, 0).AddYears(1);
+                                d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
                             }
                             else
                             {
-                            	d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                                d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
                             }
                             // we are promoting the month
                             continue;
@@ -1800,7 +1799,7 @@ namespace Quartz
 
                         if (daysToAdd > 0)
                         {
-                            d = new DateTime(d.Year, mon, day, 0, 0, 0);
+                            d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
                             // we are not promoting the month
                             continue;
                         }
@@ -1840,11 +1839,11 @@ namespace Quartz
                         {
                             if (mon == 12)
                             {
-                                d = new DateTime(d.Year, mon - 11, 1, 0, 0, 0).AddYears(1);
+                                d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
                             }
                             else
                             {
-                                d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                                d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
                             } 
                             
                             // we are promoting the month
@@ -1852,7 +1851,7 @@ namespace Quartz
                         }
                         else if (daysToAdd > 0 || dayShifted)
                         {
-                            d = new DateTime(d.Year, mon, day, 0, 0, 0);
+                            d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
                             // we are NOT promoting the month
                             continue;
                         }
@@ -1887,11 +1886,11 @@ namespace Quartz
                             if (mon == 12)
                             {
                                 //will we pass the end of the year?
-                                d = new DateTime(d.Year, mon - 11, 1, 0, 0, 0).AddYears(1);
+                                d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
                             }
                             else
                             {
-                            	d = new DateTime(d.Year, mon + 1, 1, 0, 0, 0);
+                                d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
                             }
                             // we are promoting the month
                             continue;
@@ -1899,7 +1898,7 @@ namespace Quartz
                         else if (daysToAdd > 0)
                         {
                             // are we swithing days?
-                            d = new DateTime(d.Year, mon, day + daysToAdd, 0, 0, 0);
+                            d = new DateTimeOffset(d.Year, mon, day + daysToAdd, 0, 0, 0, d.Offset);
                             continue;
                         }
                     }
@@ -1911,7 +1910,7 @@ namespace Quartz
                         "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
                 }
 
-                d = new DateTime(d.Year, d.Month, day, d.Hour, d.Minute, d.Second);
+                d = new DateTimeOffset(d.Year, d.Month, day, d.Hour, d.Minute, d.Second, d.Offset);
                 mon = d.Month;
                 int year = d.Year;
                 t = -1;
@@ -1937,10 +1936,10 @@ namespace Quartz
                 }
                 if (mon != t)
                 {
-                    d = new DateTime(year, mon, 1, 0, 0, 0);
+                    d = new DateTimeOffset(year, mon, 1, 0, 0, 0, d.Offset);
                     continue;
                 }
-                d = new DateTime(d.Year, mon, d.Day, d.Hour, d.Minute, d.Second);
+                d = new DateTimeOffset(d.Year, mon, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
                 year = d.Year;
                 t = -1;
 
@@ -1958,15 +1957,15 @@ namespace Quartz
 
                 if (year != t)
                 {
-                    d = new DateTime(year, 1, 1, 0, 0, 0);
+                    d = new DateTimeOffset(year, 1, 1, 0, 0, 0, d.Offset);
                     continue;
                 }
-                d = new DateTime(year, d.Month, d.Day, d.Hour, d.Minute, d.Second);
+                d = new DateTimeOffset(year, d.Month, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
 
                 gotOne = true;
             } // while( !done )
 
-            return TimeZoneInfo.ConvertTimeToUtc(d, TimeZone);
+            return d.ToUniversalTime();
         }
 
         /// <summary>
@@ -1974,9 +1973,9 @@ namespace Quartz
         /// </summary>
         /// <param name="time">The time.</param>
         /// <returns></returns>
-        protected static DateTime CreateDateTimeWithoutMillis(DateTime time)
+        protected static DateTimeOffset CreateDateTimeWithoutMillis(DateTimeOffset time)
         {
-            return new DateTime(time.Year, time.Month, time.Day, time.Hour, time.Minute, time.Second);
+            return new DateTimeOffset(time.Year, time.Month, time.Day, time.Hour, time.Minute, time.Second, time.Offset);
         }
 
 
@@ -1987,7 +1986,7 @@ namespace Quartz
         /// <param name="date">The date.</param>
         /// <param name="hour">The hour.</param>
         /// <returns></returns>
-        protected static DateTime SetCalendarHour(DateTime date, int hour)
+        protected static DateTimeOffset SetCalendarHour(DateTimeOffset date, int hour)
         {
             // Java version of Quartz uses lenient calendar
             // so hour 24 creates day increment and zeroes hour
@@ -1996,8 +1995,7 @@ namespace Quartz
             {
                 hourToSet = 0;
             }
-            DateTime d =
-                new DateTime(date.Year, date.Month, date.Day, hourToSet, date.Minute, date.Second, date.Millisecond);
+            DateTimeOffset d = new DateTimeOffset(date.Year, date.Month, date.Day, hourToSet, date.Minute, date.Second, date.Millisecond, date.Offset);
             if (hour == 24)
             {
                 // inrement day
@@ -2011,7 +2009,7 @@ namespace Quartz
         /// </summary>
         /// <param name="endTime">The end time.</param>
         /// <returns></returns>
-        public virtual DateTime? GetTimeBefore(DateTime? endTime)
+        public virtual DateTimeOffset? GetTimeBefore(DateTimeOffset? endTime)
         {
             // TODO: implement
             return null;
@@ -2022,7 +2020,7 @@ namespace Quartz
         /// <see cref="CronExpression" /> will match.
         /// </summary>
         /// <returns></returns>
-        public virtual DateTime? GetFinalFireTime()
+        public virtual DateTimeOffset? GetFinalFireTime()
         {
             // TODO: implement QUARTZ-423
             return null;

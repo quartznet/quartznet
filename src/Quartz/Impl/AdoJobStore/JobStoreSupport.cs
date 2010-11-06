@@ -391,11 +391,11 @@ namespace Quartz.Impl.AdoJobStore
             return new ConnectionAndTransactionHolder(conn, tx);
         }
 
-        protected virtual DateTime MisfireTime
+        protected virtual DateTimeOffset MisfireTime
         {
             get
             {
-                DateTime misfireTime = SystemTime.UtcNow();
+                DateTimeOffset misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
                 {
                     misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
@@ -760,7 +760,7 @@ namespace Quartz.Impl.AdoJobStore
             int maxMisfiresToHandleAtATime = (recovering) ? -1 : MaxMisfiresToHandleAtATime;
 
             IList<Key> misfiredTriggers = new List<Key>();
-            DateTime earliestNewTime = DateTime.MaxValue;
+            DateTimeOffset earliestNewTime = DateTimeOffset.MaxValue;
 
             // We must still look for the MISFIRED state in case triggers were left 
             // in this state when upgrading to this version that does not support it. 
@@ -799,7 +799,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering);
 
-                DateTime? nextTime = trig.GetNextFireTimeUtc();
+                DateTimeOffset? nextTime = trig.GetNextFireTimeUtc();
                 if (nextTime.HasValue && nextTime.Value < earliestNewTime)
                 {
                     earliestNewTime = nextTime.Value;
@@ -819,7 +819,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 Trigger trig = RetrieveTrigger(conn, triggerName, groupName);
 
-                DateTime misfireTime = SystemTime.UtcNow();
+                DateTimeOffset misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
                 {
                     misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
@@ -2512,7 +2512,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 TriggerStatus status = Delegate.SelectTriggerStatus(conn, triggerName, groupName);
 
-                if (status == null || !status.NextFireTimeUtc.HasValue || status.NextFireTimeUtc == DateTime.MinValue)
+                if (status == null || !status.NextFireTimeUtc.HasValue || status.NextFireTimeUtc == DateTimeOffset.MinValue)
                 {
                     return;
                 }
@@ -2918,7 +2918,7 @@ namespace Quartz.Impl.AdoJobStore
         /// by the calling scheduler.
         /// </summary>
         /// <seealso cref="ReleaseAcquiredTrigger(Trigger)" />
-        public virtual IList<Trigger> AcquireNextTriggers(DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
+        public virtual IList<Trigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             if (AcquireTriggersWithinLock)
             {
@@ -2936,11 +2936,11 @@ namespace Quartz.Impl.AdoJobStore
 
         protected class AcquireNextTriggerCallback : CallbackSupport, ITransactionCallback
         {
-            private readonly DateTime noLaterThan;
+            private readonly DateTimeOffset noLaterThan;
             private int maxCount;
             private TimeSpan timeWindow;
 
-            public AcquireNextTriggerCallback(JobStoreSupport js, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
+            public AcquireNextTriggerCallback(JobStoreSupport js, DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
                 : base(js)
             {
                 this.noLaterThan = noLaterThan;
@@ -2958,7 +2958,7 @@ namespace Quartz.Impl.AdoJobStore
         // TODO: this really ought to return something like a FiredTriggerBundle,
         // so that the fireInstanceId doesn't have to be on the trigger...
 
-        protected virtual IList<Trigger> AcquireNextTrigger(ConnectionAndTransactionHolder conn, DateTime noLaterThan, int maxCount, TimeSpan timeWindow)
+        protected virtual IList<Trigger> AcquireNextTrigger(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             do
             {
@@ -3166,7 +3166,7 @@ namespace Quartz.Impl.AdoJobStore
                 throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
             }
 
-            DateTime? prevFireTime = trigger.GetPreviousFireTimeUtc();
+            DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
 
             // call triggered - to update the trigger's next-fire-time state...
             trigger.Triggered(cal);
@@ -3401,9 +3401,9 @@ namespace Quartz.Impl.AdoJobStore
 
         private const string KeySignalChangeForTxCompletion = "sigChangeForTxCompletion";
 
-        protected virtual void SignalSchedulingChangeOnTxCompletion(DateTime? candidateNewNextFireTime)
+        protected virtual void SignalSchedulingChangeOnTxCompletion(DateTimeOffset? candidateNewNextFireTime)
         {
-            DateTime? sigTime = LogicalThreadContext.GetData<DateTime?>(KeySignalChangeForTxCompletion);
+            DateTimeOffset? sigTime = LogicalThreadContext.GetData<DateTimeOffset?>(KeySignalChangeForTxCompletion);
             if (sigTime == null && candidateNewNextFireTime.HasValue)
             {
                 LogicalThreadContext.SetData(KeySignalChangeForTxCompletion, candidateNewNextFireTime);
@@ -3417,14 +3417,14 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual DateTime? ClearAndGetSignalSchedulingChangeOnTxCompletion()
+        protected virtual DateTimeOffset? ClearAndGetSignalSchedulingChangeOnTxCompletion()
         {
-            DateTime? t = LogicalThreadContext.GetData<DateTime?>(KeySignalChangeForTxCompletion);
+            DateTimeOffset? t = LogicalThreadContext.GetData<DateTimeOffset?>(KeySignalChangeForTxCompletion);
             LogicalThreadContext.FreeNamedDataSlot(KeySignalChangeForTxCompletion);
             return t;
         }
 
-        protected virtual void SignalSchedulingChangeImmediately(DateTime? candidateNewNextFireTime)
+        protected virtual void SignalSchedulingChangeImmediately(DateTimeOffset? candidateNewNextFireTime)
         {
             schedSignaler.SignalSchedulingChange(candidateNewNextFireTime);
         }
@@ -3435,7 +3435,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected bool firstCheckIn = true;
 
-        protected DateTime lastCheckin = SystemTime.UtcNow();
+        protected DateTimeOffset lastCheckin = SystemTime.UtcNow();
 
         protected virtual bool DoCheckin()
         {
@@ -3601,7 +3601,7 @@ namespace Quartz.Impl.AdoJobStore
             return orphanedInstances;
         }
 
-        protected DateTime CalcFailedIfAfter(SchedulerStateRecord rec)
+        protected DateTimeOffset CalcFailedIfAfter(SchedulerStateRecord rec)
         {
             TimeSpan passed = SystemTime.UtcNow() - lastCheckin;
             TimeSpan ts = rec.CheckinInterval > passed ? rec.CheckinInterval : passed;
@@ -3690,7 +3690,7 @@ namespace Quartz.Impl.AdoJobStore
                                 // executed..
                                 if (JobExists(conn, jKey.Name, jKey.Group))
                                 {
-                                    DateTime tempAux = new DateTime(ftRec.FireTimestamp);
+                                    DateTimeOffset tempAux = new DateTimeOffset(ftRec.FireTimestamp, TimeSpan.Zero);
                                     SimpleTrigger rcvryTrig =
                                         new SimpleTrigger(
                                             "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++, CultureInfo.InvariantCulture),
@@ -4055,7 +4055,7 @@ namespace Quartz.Impl.AdoJobStore
                 object result = txCallback.Execute(conn);
                 CommitConnection(conn, false);
 
-                DateTime? sigTime = ClearAndGetSignalSchedulingChangeOnTxCompletion();
+                DateTimeOffset? sigTime = ClearAndGetSignalSchedulingChangeOnTxCompletion();
                 if (sigTime != null)
                 {
                     SignalSchedulingChangeImmediately(sigTime);
@@ -4236,7 +4236,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 while (!shutdown)
                 {
-                    DateTime sTime = SystemTime.UtcNow();
+                    DateTimeOffset sTime = SystemTime.UtcNow();
 
                     RecoverMisfiredJobsResult recoverMisfiredJobsResult = Manage();
 
@@ -4282,11 +4282,11 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public class RecoverMisfiredJobsResult
         {
-            public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0, DateTime.MaxValue);
+            public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0, DateTimeOffset.MaxValue);
 
             private readonly bool _hasMoreMisfiredTriggers;
             private readonly int _processedMisfiredTriggerCount;
-            private readonly DateTime _earliestNewTimeUtc;
+            private readonly DateTimeOffset _earliestNewTimeUtc;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
@@ -4294,7 +4294,7 @@ namespace Quartz.Impl.AdoJobStore
             /// <param name="hasMoreMisfiredTriggers">if set to <c>true</c> [has more misfired triggers].</param>
             /// <param name="processedMisfiredTriggerCount">The processed misfired trigger count.</param>
             /// <param name="earliestNewTimeUtc"></param>
-            public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount, DateTime earliestNewTimeUtc)
+            public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount, DateTimeOffset earliestNewTimeUtc)
             {
                 _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
                 _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
@@ -4321,7 +4321,7 @@ namespace Quartz.Impl.AdoJobStore
                 get { return _processedMisfiredTriggerCount; }
             }
 
-            public DateTime EarliestNewTime
+            public DateTimeOffset EarliestNewTime
             {
                 get { return _earliestNewTimeUtc; }
             }

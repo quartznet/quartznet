@@ -70,11 +70,11 @@ namespace Quartz.Examples.Example7
 			log.Info("------- Scheduling Jobs -------------------");
 			
 			// get a "nice round" time a few seconds in the future...
-			DateTime ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
+            DateTimeOffset ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
 			
 			JobDetail job = new JobDetail("interruptableJob1", "group1", typeof(DumbInterruptableJob));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(5));
-			DateTime ft = sched.ScheduleJob(job, trigger);
+            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
             log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			
 			// start up the scheduler (jobs do not start to fire until

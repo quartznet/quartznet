@@ -179,10 +179,10 @@ namespace Quartz
 	{
         protected internal const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx;
-		private DateTime startTimeUtc = DateTime.MinValue;
-        private DateTime? endTimeUtc;
-		private DateTime? nextFireTimeUtc;
-		private DateTime? previousFireTimeUtc;
+        private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
+        private DateTimeOffset? endTimeUtc;
+        private DateTimeOffset? nextFireTimeUtc;
+        private DateTimeOffset? previousFireTimeUtc;
         [NonSerialized] private TimeZoneInfo timeZone;
 
 		/// <summary>
@@ -318,18 +318,18 @@ namespace Quartz
         /// <param name="group">The group of the <see cref="Trigger" /></param>
         /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
         /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
-        /// <param name="startTimeUtc">A <see cref="DateTime" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
-        /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
+        /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
 		public CronTrigger(string name, string group, string jobName,
-			string jobGroup, DateTime startTimeUtc, 
-            DateTime? endTime, 
+			string jobGroup, DateTimeOffset startTimeUtc, 
+            DateTimeOffset? endTime, 
             string cronExpression)
 			: base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
 
-            if (startTimeUtc == DateTime.MinValue)
+            if (startTimeUtc == DateTimeOffset.MinValue)
 			{
                 startTimeUtc = SystemTime.UtcNow();
 			}
@@ -352,17 +352,17 @@ namespace Quartz
         /// <param name="group">The group of the <see cref="Trigger" /></param>
         /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
 		/// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
-        /// <param name="startTimeUtc">A <see cref="DateTime" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
-        /// <param name="endTime">A <see cref="DateTime" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
+        /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
 		public CronTrigger(string name, string group, string jobName,
-            string jobGroup, DateTime startTimeUtc, 
-            DateTime? endTime,
+            string jobGroup, DateTimeOffset startTimeUtc, 
+            DateTimeOffset? endTime,
 			string cronExpression, 
             TimeZoneInfo timeZone) : base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
 
-            if (startTimeUtc == DateTime.MinValue)
+            if (startTimeUtc == DateTimeOffset.MinValue)
 			{
                 startTimeUtc = SystemTime.UtcNow();
 			}
@@ -431,20 +431,19 @@ namespace Quartz
 		/// will not fire prior to this date and time.
 		/// </summary>
 		/// <value></value>
-		public override DateTime StartTimeUtc
+        public override DateTimeOffset StartTimeUtc
 		{
 			get {  return startTimeUtc; }
 			set
 			{
-				DateTime? eTime = EndTimeUtc;
+                DateTimeOffset? eTime = EndTimeUtc;
 				if (eTime.HasValue && eTime.Value < value)
 				{
 					throw new ArgumentException("End time cannot be before start time");
 				}
         
 				// round off millisecond...
-				DateTime dt = new DateTime(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second);
-			    DateTimeUtil.AssumeUniversalTime(dt);
+                DateTimeOffset dt = new DateTimeOffset(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second, value.Offset);
                 startTimeUtc = dt;
 			}
 		}
@@ -454,18 +453,18 @@ namespace Quartz
 		/// Get or sets the time at which the <c>CronTrigger</c> should quit
 		/// repeating - even if repeastCount isn't yet satisfied. 
 		/// </summary>
-		public override DateTime? EndTimeUtc
+        public override DateTimeOffset? EndTimeUtc
 		{
 			get { return endTimeUtc; }
 			set
 			{
-				DateTime sTime = StartTimeUtc;
+                DateTimeOffset sTime = StartTimeUtc;
 				if (value.HasValue && sTime > value.Value)
 				{
 					throw new ArgumentException("End time cannot be before start time");
 				}
 
-				endTimeUtc = DateTimeUtil.AssumeUniversalTime(value);
+				endTimeUtc = value;
 			}
 		}
 
@@ -481,9 +480,9 @@ namespace Quartz
         /// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
         /// has been added to the scheduler.
         /// </remarks>
-        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTime, DateTime)" />
+        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTimeOffset, DateTimeOffset)" />
         /// <returns></returns>
-        public override DateTime? GetNextFireTimeUtc()
+        public override DateTimeOffset? GetNextFireTimeUtc()
         {
 			return nextFireTimeUtc;
 		}
@@ -493,7 +492,7 @@ namespace Quartz
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
         /// <returns></returns>
-        public override DateTime? GetPreviousFireTimeUtc()
+        public override DateTimeOffset? GetPreviousFireTimeUtc()
 		{
 			return previousFireTimeUtc;
 		}
@@ -506,9 +505,9 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <param name="fireTime">The fire time.</param>
-        public void SetNextFireTime(DateTime? fireTime)
+        public void SetNextFireTime(DateTimeOffset? fireTime)
 		{
-			nextFireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTime);
+			nextFireTimeUtc = fireTime;
 		}
 
 
@@ -519,9 +518,9 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <param name="fireTime">The fire time.</param>
-        public void SetPreviousFireTime(DateTime? fireTime)
+        public void SetPreviousFireTime(DateTimeOffset? fireTime)
 		{
-			previousFireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTime);
+			previousFireTimeUtc = fireTime;
 		}
 
 
@@ -569,7 +568,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="afterTimeUtc"></param>
         /// <returns></returns>
-        public override DateTime? GetFireTimeAfter(DateTime? afterTimeUtc)
+        public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTimeUtc)
 		{
 			if (!afterTimeUtc.HasValue)
 			{
@@ -578,7 +577,7 @@ namespace Quartz
 
 			if (StartTimeUtc > afterTimeUtc.Value)
 			{
-				afterTimeUtc = DateTimeUtil.AssumeUniversalTime(startTimeUtc).AddSeconds(-1);
+				afterTimeUtc = startTimeUtc.AddSeconds(-1);
 			}
 
             if (EndTimeUtc.HasValue && (afterTimeUtc.Value.CompareTo(EndTimeUtc.Value) >= 0))
@@ -586,7 +585,7 @@ namespace Quartz
                 return null;
             }
 
-            DateTime? pot = GetTimeAfter(afterTimeUtc.Value);
+            DateTimeOffset? pot = GetTimeAfter(afterTimeUtc.Value);
             if (EndTimeUtc.HasValue && pot.HasValue && pot.Value > EndTimeUtc.Value)
 			{
 				return null;
@@ -602,11 +601,11 @@ namespace Quartz
 		/// Note that the return time *may* be in the past.
 		/// </p>
         /// </summary>
-        public override DateTime? FinalFireTimeUtc
+        public override DateTimeOffset? FinalFireTimeUtc
 		{
 			get
             {
-                DateTime? resultTime;
+                DateTimeOffset? resultTime;
                 if (EndTimeUtc.HasValue)
                 {
                     resultTime = GetTimeBefore(EndTimeUtc.Value.AddSeconds(1));
@@ -686,7 +685,7 @@ namespace Quartz
 
 			if (instr == Quartz.MisfireInstruction.CronTrigger.DoNothing)
 			{
-                DateTime? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
+                DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
 
                 while (newFireTime.HasValue && cal != null
 				       && !cal.IsTimeIncluded(newFireTime.Value))
@@ -709,12 +708,12 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// <p>
-		/// Equivalent to calling <see cref="WillFireOn(DateTime, bool)" />.
+		/// Equivalent to calling <see cref="WillFireOn(DateTimeOffset, bool)" />.
 		/// </p>
 		/// </summary>
 		/// <param name="test">The date to compare.</param>
 		/// <returns></returns>
-		public bool WillFireOn(DateTime test)
+		public bool WillFireOn(DateTimeOffset test)
 		{
 			return WillFireOn(test, false);
 		}
@@ -733,17 +732,16 @@ namespace Quartz
 		/// trigger will fire during the day represented by the given Calendar
 		/// (hours, minutes and seconds will be ignored).</param>
 		/// <returns></returns>
-		public bool WillFireOn(DateTime test, bool dayOnly)
+        public bool WillFireOn(DateTimeOffset test, bool dayOnly)
 		{
 			test = new DateTime(test.Year, test.Month, test.Day, test.Hour, test.Minute, test.Second);
 			if (dayOnly)
 			{
 				test = new DateTime(test.Year, test.Month, test.Day, 0, 0, 0);
 			}
-            DateTimeUtil.AssumeUniversalTime(test);
 
-            DateTime? fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));
-            DateTime p = TimeZoneInfo.ConvertTimeFromUtc(fta.Value, TimeZone);
+            DateTimeOffset? fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));
+            DateTimeOffset p = TimeZoneInfo.ConvertTime(fta.Value, TimeZone);
 
 			if (dayOnly)
 			{
@@ -799,7 +797,7 @@ namespace Quartz
                 return;
             }
 
-			DateTime now = SystemTime.UtcNow();
+            DateTimeOffset now = SystemTime.UtcNow();
 
 			while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
 			{
@@ -844,7 +842,7 @@ namespace Quartz
 		/// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
 		/// will return (until after the first firing of the <see cref="Trigger" />).
 		/// </returns>
-        public override DateTime? ComputeFirstFireTimeUtc(ICalendar cal)
+        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal)
         {
 			nextFireTimeUtc = GetFireTimeAfter(startTimeUtc.AddSeconds(-1));
 
@@ -876,7 +874,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="afterTime">The time to compute from.</param>
 		/// <returns></returns>
-        protected DateTime? GetTimeAfter(DateTime afterTime)
+        protected DateTimeOffset? GetTimeAfter(DateTimeOffset afterTime)
 		{
 		    if (cronEx != null)
             {
@@ -892,7 +890,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="date">The date.</param>
 		/// <returns></returns> 
-        protected DateTime? GetTimeBefore(DateTime? date)
+        protected DateTimeOffset? GetTimeBefore(DateTimeOffset? date)
 		{
             return (cronEx == null) ? null : cronEx.GetTimeBefore(endTimeUtc);
 		}

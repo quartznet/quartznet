@@ -33,7 +33,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             driverDelegate.AssertWasCalled(x => x.HasMisfiredTriggersInState(
                 Arg<ConnectionAndTransactionHolder>.Is.Anything,
                 Arg<string>.Is.Equal(AdoConstants.StateWaiting),
-                Arg<DateTime>.Is.Anything,
+                Arg<DateTimeOffset>.Is.Anything,
                 Arg<int>.Is.Anything,
                 Arg<IList<Key>>.Is.Anything));
         }

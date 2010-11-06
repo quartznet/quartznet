@@ -20,7 +20,6 @@
 using System;
 
 using Quartz.Core;
-using Quartz.Util;
 
 namespace Quartz.Spi
 {
@@ -38,10 +37,10 @@ namespace Quartz.Spi
         private readonly Trigger trigger;
         private readonly ICalendar cal;
         private readonly bool jobIsRecovering;
-        private readonly DateTime? fireTimeUtc;
-        private readonly DateTime? scheduledFireTimeUtc;
-        private readonly DateTime? prevFireTimeUtc;
-        private readonly DateTime? nextFireTimeUtc;
+        private readonly DateTimeOffset? fireTimeUtc;
+        private readonly DateTimeOffset? scheduledFireTimeUtc;
+        private readonly DateTimeOffset? prevFireTimeUtc;
+        private readonly DateTimeOffset? nextFireTimeUtc;
 
         /// <summary>
         /// Gets the job detail.
@@ -82,7 +81,7 @@ namespace Quartz.Spi
         /// <returns> 
         /// Returns the UTC fire time.
         /// </returns>
-        public virtual DateTime? FireTimeUtc
+        public virtual DateTimeOffset? FireTimeUtc
         {
             get { return fireTimeUtc; }
         }
@@ -92,7 +91,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <value>The next fire time.</value>
         /// <returns> Returns the nextFireTimeUtc.</returns>
-        public virtual DateTime? NextFireTimeUtc
+        public virtual DateTimeOffset? NextFireTimeUtc
         {
             get { return nextFireTimeUtc; }
         }
@@ -102,7 +101,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <value>The previous fire time.</value>
         /// <returns> Returns the previous fire time. </returns>
-        public virtual DateTime? PrevFireTimeUtc
+        public virtual DateTimeOffset? PrevFireTimeUtc
         {
             get { return prevFireTimeUtc; }
         }
@@ -110,7 +109,7 @@ namespace Quartz.Spi
         /// <returns> 
         /// Returns the scheduled UTC fire time.
         /// </returns>
-        public virtual DateTime? ScheduledFireTimeUtc
+        public virtual DateTimeOffset? ScheduledFireTimeUtc
         {
             get { return scheduledFireTimeUtc; }
         }
@@ -126,19 +125,19 @@ namespace Quartz.Spi
         /// <param name="prevFireTimeUtc">The previous fire time.</param>
         /// <param name="nextFireTimeUtc">The next fire time.</param>
         public TriggerFiredBundle(JobDetail job, Trigger trigger, ICalendar cal, bool jobIsRecovering,
-                                  DateTime? fireTimeUtc, 
-                                  DateTime? scheduledFireTimeUtc,
-                                  DateTime? prevFireTimeUtc,
-                                  DateTime? nextFireTimeUtc)
+                                  DateTimeOffset? fireTimeUtc,
+                                  DateTimeOffset? scheduledFireTimeUtc,
+                                  DateTimeOffset? prevFireTimeUtc,
+                                  DateTimeOffset? nextFireTimeUtc)
         {
             this.job = job;
             this.trigger = trigger;
             this.cal = cal;
             this.jobIsRecovering = jobIsRecovering;
-            this.fireTimeUtc = DateTimeUtil.AssumeUniversalTime(fireTimeUtc);
-            this.scheduledFireTimeUtc = DateTimeUtil.AssumeUniversalTime(scheduledFireTimeUtc);
-            this.prevFireTimeUtc = DateTimeUtil.AssumeUniversalTime(prevFireTimeUtc);
-            this.nextFireTimeUtc = DateTimeUtil.AssumeUniversalTime(nextFireTimeUtc);
+            this.fireTimeUtc = fireTimeUtc;
+            this.scheduledFireTimeUtc = scheduledFireTimeUtc;
+            this.prevFireTimeUtc = prevFireTimeUtc;
+            this.nextFireTimeUtc = nextFireTimeUtc;
         }
     }
 }

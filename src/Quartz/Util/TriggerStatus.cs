@@ -27,7 +27,7 @@ namespace Quartz.Util
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class TriggerStatus : Pair<string, DateTime?>
+    public class TriggerStatus : Pair<string, DateTimeOffset?>
     {
         private Key jobKey;
         private Key key;
@@ -37,7 +37,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="status">The trigger's status</param>
         /// <param name="nextFireTimeUtc">The next UTC time the trigger will fire</param>
-        public TriggerStatus(string status, DateTime? nextFireTimeUtc)
+        public TriggerStatus(string status, DateTimeOffset? nextFireTimeUtc)
         {
             base.First = status;
             base.Second = nextFireTimeUtc;
@@ -77,7 +77,7 @@ namespace Quartz.Util
         /// Get the group portion of the key.
         /// </summary>
         /// <returns> the group </returns>
-        public virtual DateTime? NextFireTimeUtc
+        public virtual DateTimeOffset? NextFireTimeUtc
         {
             get { return Second; }
         }

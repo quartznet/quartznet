@@ -299,8 +299,8 @@ namespace Quartz.Xml
 	                {
 	                    cronType c = (cronType) t.Item;
 
-                        DateTime startTime = (c.starttime == DateTime.MinValue ? SystemTime.UtcNow() : c.starttime);
-                        DateTime? endTime = (c.endtime == DateTime.MinValue ? null : (DateTime?)c.endtime);
+                        DateTimeOffset startTime = (c.starttime == DateTime.MinValue ? SystemTime.UtcNow() : c.starttime);
+                        DateTimeOffset? endTime = (c.endtime == DateTime.MinValue ? null : (DateTime?)c.endtime);
 
 	                    string jobName = c.jobname != null ? c.jobname : j.name;
 	                    string jobGroup = c.jobgroup != null ? c.jobgroup : j.group;
@@ -323,9 +323,9 @@ namespace Quartz.Xml
 	                else if (t.Item is simpleType)
 	                {
 	                    simpleType s = (simpleType) t.Item;
-	                    
-	                    DateTime startTime = (s.starttime == DateTime.MinValue ? SystemTime.UtcNow() : s.starttime);
-                        DateTime? endTime = (s.endtime == DateTime.MinValue ? null : (DateTime?)s.endtime);
+
+                        DateTimeOffset startTime = (s.starttime == DateTime.MinValue ? SystemTime.UtcNow() : s.starttime);
+                        DateTimeOffset? endTime = (s.endtime == DateTime.MinValue ? null : (DateTimeOffset?)s.endtime);
 
                         string jobName = s.jobname != null ? s.jobname : j.name;
                         string jobGroup = s.jobgroup != null ? s.jobgroup : j.group;
@@ -643,7 +643,7 @@ namespace Quartz.Xml
 					trigger.JobName = detail.Name;
 					trigger.JobGroup = detail.Group;
 
-					if (trigger.StartTimeUtc == DateTime.MinValue)
+                    if (trigger.StartTimeUtc == DateTimeOffset.MinValue)
 					{
 						trigger.StartTimeUtc = SystemTime.UtcNow();
 					}

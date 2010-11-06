@@ -139,7 +139,7 @@ namespace Quartz.Impl.Calendar
 		/// Note that this Calendar is only has full-day precision.
 		/// </p>
 		/// </summary>
-		public override bool IsTimeIncluded(DateTime timeStampUtc)
+        public override bool IsTimeIncluded(DateTimeOffset timeStampUtc)
 		{
 			if (excludeAll)
 			{
@@ -166,16 +166,16 @@ namespace Quartz.Impl.Calendar
 		/// Note that this Calendar is only has full-day precision.
 		/// </p>
 		/// </summary>
-		public override DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
+        public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
 		{
 			if (excludeAll)
 			{
-				return DateTime.MinValue;
+                return DateTimeOffset.MinValue;
 			}
 
 			// Call base calendar implementation first
-			DateTime baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-			if ((baseTime != DateTime.MinValue) && (baseTime > timeUtc))
+            DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
+            if ((baseTime != DateTimeOffset.MinValue) && (baseTime > timeUtc))
 			{
 				timeUtc = baseTime;
 			}
@@ -194,7 +194,7 @@ namespace Quartz.Impl.Calendar
 			while (IsDayExcluded(day))
 			{
 				newTimeStamp = newTimeStamp.AddDays(1);
-				day = (int) newTimeStamp.Day;
+				day = newTimeStamp.Day;
 			}
 
             return TimeZoneInfo.ConvertTimeToUtc(newTimeStamp);

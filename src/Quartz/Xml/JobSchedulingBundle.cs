@@ -107,7 +107,7 @@ namespace Quartz.Xml
 		/// <param name="trigger">The trigger.</param>
 		public virtual void AddTrigger(Trigger trigger)
 		{
-			if (trigger.StartTimeUtc == DateTime.MinValue)
+            if (trigger.StartTimeUtc == DateTimeOffset.MinValue)
 			{
 				trigger.StartTimeUtc = SystemTime.UtcNow();
 			}

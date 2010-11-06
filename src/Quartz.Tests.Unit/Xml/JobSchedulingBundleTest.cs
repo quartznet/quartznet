@@ -84,7 +84,7 @@ namespace Quartz.Tests.Unit.Xml
         [Test]
         public void TestAddTriggerAddsTrigger()
         {
-            SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTime.MinValue);
+            SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTimeOffset.MinValue);
             bundle.AddTrigger(st);
             Assert.AreEqual(1, bundle.Triggers.Count);
         }
@@ -92,7 +92,7 @@ namespace Quartz.Tests.Unit.Xml
         [Test]
         public void TestSetTriggersAddsTrigger()
         {
-            SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTime.MinValue);
+            SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTimeOffset.MinValue);
             List<Trigger> triggers = new List<Trigger>();
             triggers.Add(st);
             bundle.Triggers = triggers;
@@ -103,7 +103,7 @@ namespace Quartz.Tests.Unit.Xml
         [Test]
         public void TestRemoveTriggerRemovesTrigger()
         {
-            SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTime.MinValue);
+            SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTimeOffset.MinValue);
             bundle.AddTrigger(st);
             Assert.AreEqual(1, bundle.Triggers.Count);
             bundle.RemoveTrigger(st);
@@ -113,9 +113,9 @@ namespace Quartz.Tests.Unit.Xml
         [Test]
         public void TestAddTriggerSetsStartTime()
         {
-            SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTime.MinValue);
+            SimpleTrigger st = new SimpleTrigger("foo", "bar", DateTimeOffset.MinValue);
             bundle.AddTrigger(st);
-            Assert.AreNotEqual(DateTime.MinValue, st.StartTimeUtc);
+            Assert.AreNotEqual(DateTimeOffset.MinValue, st.StartTimeUtc);
         }
 
         [Test]

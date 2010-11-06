@@ -463,7 +463,7 @@ namespace Quartz.Spi
         /// <returns></returns>
         /// <seealso cref="Trigger">
         /// </seealso>
-        IList<Trigger> AcquireNextTriggers(DateTime noLaterThan, int maxCount, TimeSpan timeWindow);
+        IList<Trigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow);
 
 		/// <summary> 
 		/// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to

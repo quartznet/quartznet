@@ -63,7 +63,7 @@ namespace Quartz.Simpl
 
         void Shutdown(bool waitForJobsToComplete);
 
-        DateTime? RunningSince { get; }
+        DateTimeOffset? RunningSince { get; }
 
         int NumJobsExecuted { get; }
 
@@ -71,9 +71,9 @@ namespace Quartz.Simpl
 
         bool Clustered { get; }
 
-		DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger);
+        DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger);
 
-		DateTime ScheduleJob(Trigger trigger);
+        DateTimeOffset ScheduleJob(Trigger trigger);
 
 		void AddJob(JobDetail jobDetail, bool replace);
 
@@ -97,7 +97,7 @@ namespace Quartz.Simpl
 
 		bool UnscheduleJob(string triggerName, string groupName);
 
-        DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
+        DateTimeOffset? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
 
 		void TriggerJob(string jobName, string groupName, JobDataMap data);
 

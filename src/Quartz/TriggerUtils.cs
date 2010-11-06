@@ -25,7 +25,7 @@ namespace Quartz
 {
 	/// <summary>
 	/// Convenience and utility methods for simplifying the construction and
-	/// configuration of <see cref="Trigger" />s and DateTimes.
+    /// configuration of <see cref="Trigger" />s and DateTimeOffsetOffsets.
 	/// </summary>
 	/// <seealso cref="CronTrigger" />
 	/// <seealso cref="SimpleTrigger" />
@@ -573,14 +573,14 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenHourDate(DateTime? dateUtc)
+        public static DateTimeOffset GetEvenHourDate(DateTimeOffset? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
                 dateUtc = SystemTime.UtcNow();
 			}
-            DateTime d = dateUtc.Value.AddHours(1);
-			return new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0);
+            DateTimeOffset d = dateUtc.Value.AddHours(1);
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, TimeSpan.Zero);
 		}
 
 		/// <summary>
@@ -594,13 +594,13 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenHourDateBefore(DateTime? dateUtc)
+        public static DateTimeOffset GetEvenHourDateBefore(DateTimeOffset? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
                 dateUtc = SystemTime.UtcNow();
 			}
-            return new DateTime(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0);
+            return new DateTimeOffset(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0, TimeSpan.Zero);
 		}
 
 		/// <summary>
@@ -614,16 +614,16 @@ namespace Quartz
 		/// </summary>
         /// <param name="dateUtc">The Date to round, if <see langword="null" /> the current time will  be used</param>
 		/// <returns>The new rounded date</returns>
-        public static DateTime GetEvenMinuteDate(DateTime? dateUtc)
+        public static DateTimeOffset GetEvenMinuteDate(DateTimeOffset? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
                 dateUtc = SystemTime.UtcNow();
 			}
 
-            DateTime d = dateUtc.Value;
+            DateTimeOffset d = dateUtc.Value;
 			d = d.AddMinutes(1);
-			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0);
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, TimeSpan.Zero);
 		}
 
 		/// <summary>
@@ -637,15 +637,15 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenMinuteDateBefore(DateTime? dateUtc)
+        public static DateTimeOffset GetEvenMinuteDateBefore(DateTimeOffset? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
 				dateUtc = SystemTime.UtcNow();
 			}
 
-            DateTime d = dateUtc.Value;
-			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0);
+            DateTimeOffset d = dateUtc.Value;
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, TimeSpan.Zero);
 		}
 
 		/// <summary>
@@ -655,15 +655,15 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenSecondDate(DateTime? dateUtc)
+        public static DateTimeOffset GetEvenSecondDate(DateTimeOffset? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
                 dateUtc = SystemTime.UtcNow();
 			}
-            DateTime d = dateUtc.Value;
+            DateTimeOffset d = dateUtc.Value;
 			d = d.AddSeconds(1);
-			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second);
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, TimeSpan.Zero);
 		}
 
 		/// <summary>
@@ -677,14 +677,14 @@ namespace Quartz
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
 		/// be used</param>
 		/// <returns>the new rounded date</returns>
-        public static DateTime GetEvenSecondDateBefore(DateTime? dateUtc)
+        public static DateTimeOffset GetEvenSecondDateBefore(DateTimeOffset? dateUtc)
 		{
             if (!dateUtc.HasValue)
 			{
                 dateUtc = SystemTime.UtcNow();
 			}
-            DateTime d = dateUtc.Value;
-			return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second);
+            DateTimeOffset d = dateUtc.Value;
+			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, TimeSpan.Zero);
 		}
 
 		/// <summary>
@@ -778,7 +778,7 @@ namespace Quartz
 		/// the base-minute to set the time on
 		/// </param>
 		/// <returns> the new rounded date</returns>
-        public static DateTime GetNextGivenMinuteDate(DateTime? dateUtc, int minuteBase)
+        public static DateTimeOffset GetNextGivenMinuteDate(DateTimeOffset? dateUtc, int minuteBase)
 		{
 			if (minuteBase < 0 || minuteBase > 59)
 			{
@@ -789,12 +789,12 @@ namespace Quartz
 			{
                 dateUtc = SystemTime.UtcNow();
 			}
-            DateTime d = dateUtc.Value;
+            DateTimeOffset d = dateUtc.Value;
 
 			if (minuteBase == 0)
 			{
 				d = d.AddHours(1);
-				return new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, TimeSpan.Zero);
 			}
 
 			int minute = d.Minute;
@@ -803,11 +803,11 @@ namespace Quartz
 
 			if (nextMinuteOccurance < 60)
 			{
-				return new DateTime(d.Year, d.Month, d.Day, d.Hour, nextMinuteOccurance, 0);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, nextMinuteOccurance, 0, TimeSpan.Zero);
 			}
 		    
             d = d.AddHours(1);
-		    return new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0);
+		    return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, TimeSpan.Zero);
 		}
 
 		/// <summary>
@@ -822,7 +822,7 @@ namespace Quartz
         /// <param name="dateUtc">The date.</param>
 		/// <param name="secondBase">The second base.</param>
 		/// <returns></returns>
-        public static DateTime GetNextGivenSecondDate(DateTime? dateUtc, int secondBase)
+        public static DateTimeOffset GetNextGivenSecondDate(DateTimeOffset? dateUtc, int secondBase)
 		{
 			if (secondBase < 0 || secondBase > 59)
 			{
@@ -834,12 +834,12 @@ namespace Quartz
                 dateUtc = SystemTime.UtcNow();
 			}
 
-            DateTime d = dateUtc.Value;
+            DateTimeOffset d = dateUtc.Value;
 
 			if (secondBase == 0)
 			{
 				d = d.AddMinutes(1);
-				return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, TimeSpan.Zero);
 			}
 
 			int second = d.Second;
@@ -848,12 +848,12 @@ namespace Quartz
 
 			if (nextSecondOccurance < 60)
 			{
-				return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, nextSecondOccurance);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, nextSecondOccurance, TimeSpan.Zero);
 			}
 			else
 			{
 				d = d.AddMinutes(1);
-				return new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0);
+				return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, TimeSpan.Zero);
 			}
 		}
 
@@ -869,9 +869,9 @@ namespace Quartz
 		/// <param name="cal">The calendar to apply to the trigger's schedule</param>
 		/// <param name="numTimes">The number of next fire times to produce</param>
 		/// <returns>List of java.util.Date objects</returns>
-		public static IList<DateTime> ComputeFireTimes(Trigger trigg, ICalendar cal, int numTimes)
+        public static IList<DateTimeOffset> ComputeFireTimes(Trigger trigg, ICalendar cal, int numTimes)
 		{
-			List<DateTime> lst = new List<DateTime>();
+            List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
 			Trigger t = (Trigger) trigg.Clone();
 
@@ -882,7 +882,7 @@ namespace Quartz
 
 			for (int i = 0; i < numTimes; i++)
 			{
-                DateTime? d = t.GetNextFireTimeUtc();
+                DateTimeOffset? d = t.GetNextFireTimeUtc();
                 if (d.HasValue)
 				{
 					lst.Add(d.Value);
@@ -910,7 +910,7 @@ namespace Quartz
         /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
         /// <param name="numberOfTimes">The number of next fire times to produce</param>
         /// <returns>the computed Date, or null if the trigger (as configured) will not fire that many times</returns>
-        public static DateTime? ComputeEndTimeToAllowParticularNumberOfFirings(Trigger trigger, ICalendar calendar, int numberOfTimes)
+        public static DateTimeOffset? ComputeEndTimeToAllowParticularNumberOfFirings(Trigger trigger, ICalendar calendar, int numberOfTimes)
 	    {
 	        Trigger t = (Trigger) trigger.Clone();
 
@@ -920,11 +920,11 @@ namespace Quartz
 	        }
 
 	        int c = 0;
-	        DateTime? endTime = null;
+            DateTimeOffset? endTime = null;
 
 	        for (int i = 0; i < numberOfTimes; i++)
 	        {
-	            DateTime? d = t.GetNextFireTimeUtc();
+                DateTimeOffset? d = t.GetNextFireTimeUtc();
 	            if (d != null)
 	            {
 	                c++;
@@ -967,9 +967,9 @@ namespace Quartz
 		/// <param name="from">The starting date at which to find fire times</param>
 		/// <param name="to">The ending date at which to stop finding fire times</param>
 		/// <returns>List of java.util.Date objects</returns>
-		public static IList<DateTime> ComputeFireTimesBetween(Trigger trigg, ICalendar cal, DateTime from, DateTime to)
+        public static IList<DateTimeOffset> ComputeFireTimesBetween(Trigger trigg, ICalendar cal, DateTimeOffset from, DateTimeOffset to)
 		{
-			List<DateTime> lst = new List<DateTime>();
+            List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
 			Trigger t = (Trigger) trigg.Clone();
 
@@ -984,7 +984,7 @@ namespace Quartz
 			//        to the type of trigger ...
 			while (true)
 			{
-                DateTime? d = t.GetNextFireTimeUtc();
+                DateTimeOffset? d = t.GetNextFireTimeUtc();
                 if (d.HasValue)
 				{
 					if (d.Value < from)
@@ -1016,9 +1016,9 @@ namespace Quartz
 		/// <param name="src">the original time-zone</param>
 		/// <param name="dest">the destination time-zone</param>
 		/// <returns>the translated UTC date</returns>
-		public static DateTime TranslateTime(DateTime date, TimeZoneInfo src, TimeZoneInfo dest)
+		public static DateTimeOffset TranslateTime(DateTimeOffset date, TimeZoneInfo src, TimeZoneInfo dest)
 		{
-			DateTime newDate = SystemTime.UtcNow();
+			DateTimeOffset newDate = SystemTime.UtcNow();
  			double offset = (GetOffset(date, dest) - GetOffset(date, src));
 
 			newDate = newDate.AddMilliseconds(-1*offset);
@@ -1033,7 +1033,7 @@ namespace Quartz
 		/// <param name="date">the date that is the base for the offset</param>
 		/// <param name="tz">the time-zone to calculate to offset to</param>
 		/// <returns>the offset</returns>
-		public static double GetOffset(DateTime date, TimeZoneInfo tz)
+		public static double GetOffset(DateTimeOffset date, TimeZoneInfo tz)
 		{
 
 			if (tz.IsDaylightSavingTime(date))

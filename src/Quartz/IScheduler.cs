@@ -331,13 +331,13 @@ namespace Quartz
 		/// If the given Trigger does not reference any <see cref="IJob" />, then it
 		/// will be set to reference the Job passed with it into this method.
 		/// </remarks>
-		DateTime ScheduleJob(JobDetail jobDetail, Trigger trigger);
+		DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger);
 
 		/// <summary>
 		/// Schedule the given <see cref="Trigger" /> with the
 		/// <see cref="IJob" /> identified by the <see cref="Trigger" />'s settings.
 		/// </summary>
-		DateTime ScheduleJob(Trigger trigger);
+		DateTimeOffset ScheduleJob(Trigger trigger);
 
 		/// <summary>
 		/// Remove the indicated <see cref="Trigger" /> from the scheduler.
@@ -364,7 +364,7 @@ namespace Quartz
 		/// name and group was not found and removed from the store, otherwise
 		/// the first fire time of the newly scheduled trigger.
 		/// </returns>
-        DateTime? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
+        DateTimeOffset? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
 
         /// <summary>
 		/// Add the given <see cref="IJob" /> to the Scheduler - with no associated

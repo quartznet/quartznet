@@ -54,7 +54,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         {
             DateTime excluded = new DateTime(2007, 8, 3);
             cal.SetDayExcluded(3, true);
-            Assert.AreEqual(excluded.AddDays(1), cal.GetNextIncludedTimeUtc(excluded));
+            Assert.AreEqual(excluded.AddDays(1), cal.GetNextIncludedTimeUtc(excluded).DateTime);
         }
 
         [Test]

@@ -33,7 +33,7 @@ namespace Quartz.Impl.Calendar
     [Serializable]
     public class AnnualCalendar : BaseCalendar
     {
-        private List<DateTime> excludeDays = new List<DateTime>();
+        private List<DateTimeOffset> excludeDays = new List<DateTimeOffset>();
 
         // true, if excludeDays is sorted
         private bool dataSorted;
@@ -62,7 +62,7 @@ namespace Quartz.Impl.Calendar
         /// Setting will redefine the array of days excluded. The array must of size greater or
         /// equal 31.
         /// </summary>
-        public virtual IList<DateTime> DaysExcluded
+        public virtual IList<DateTimeOffset> DaysExcluded
         {
             get { return excludeDays; }
 
@@ -70,11 +70,11 @@ namespace Quartz.Impl.Calendar
             {
                 if (value == null)
                 {
-                    excludeDays = new List<DateTime>();
+                    excludeDays = new List<DateTimeOffset>();
                 }
                 else
                 {
-                    excludeDays = new List<DateTime>(value);
+                    excludeDays = new List<DateTimeOffset>(value);
                 }
                 dataSorted = false;
             }
@@ -83,12 +83,12 @@ namespace Quartz.Impl.Calendar
         /// <summary>
         /// Return true, if day is defined to be exluded.
         /// </summary>
-        public virtual bool IsDayExcluded(DateTime day)
+        public virtual bool IsDayExcluded(DateTimeOffset day)
         {
             return IsDateTimeExcluded(day);
         }
 
-        protected virtual bool IsDateTimeExcluded(DateTime day)
+        protected virtual bool IsDateTimeExcluded(DateTimeOffset day)
         {
             // Check baseCalendar first
             if (!base.IsTimeIncluded(day))
@@ -105,7 +105,7 @@ namespace Quartz.Impl.Calendar
                 dataSorted = true;
             }
 
-            foreach (DateTime cl in excludeDays)
+            foreach (DateTimeOffset cl in excludeDays)
             {
                 // remember, the list is sorted
                 if (dmonth < cl.Month)
@@ -133,9 +133,9 @@ namespace Quartz.Impl.Calendar
         /// <summary>
         /// Redefine a certain day to be excluded (true) or included (false).
         /// </summary>
-        public virtual void SetDayExcluded(DateTime day, bool exclude)
+        public virtual void SetDayExcluded(DateTimeOffset day, bool exclude)
         {
-            DateTime d = new DateTime(FixedYear, day.Month, day.Day);
+            DateTimeOffset d = new DateTimeOffset(FixedYear, day.Month, day.Day, 0, 0, 0, TimeSpan.Zero);
 
             if (exclude)
             {
@@ -162,7 +162,7 @@ namespace Quartz.Impl.Calendar
         /// Note that this Calendar is only has full-day precision.
         /// </p>
         /// </summary>
-        public override bool IsTimeIncluded(DateTime dateUtc)
+        public override bool IsTimeIncluded(DateTimeOffset dateUtc)
         {
             // Test the base calendar first. Only if the base calendar not already
             // excludes the time/date, continue evaluating this calendar instance.
@@ -171,7 +171,7 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            return !(IsDayExcluded(TimeZoneInfo.ConvertTimeFromUtc(dateUtc, TimeZoneInfo.Local)));
+            return !(IsDayExcluded(TimeZoneInfo.ConvertTime(dateUtc, TimeZoneInfo.Local)));
         }
 
         /// <summary>
@@ -182,11 +182,11 @@ namespace Quartz.Impl.Calendar
         /// Note that this Calendar is only has full-day precision.
         /// </p>
         /// </summary>
-        public override DateTime GetNextIncludedTimeUtc(DateTime timeStampUtc)
+        public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeStampUtc)
         {
             // Call base calendar implementation first
-            DateTime baseTime = base.GetNextIncludedTimeUtc(timeStampUtc);
-            if ((baseTime != DateTime.MinValue) && (baseTime > timeStampUtc))
+            DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeStampUtc);
+            if ((baseTime != DateTimeOffset.MinValue) && (baseTime > timeStampUtc))
             {
                 timeStampUtc = baseTime;
             }
@@ -233,7 +233,7 @@ namespace Quartz.Impl.Calendar
             toReturn = toReturn && (DaysExcluded.Count == obj.DaysExcluded.Count);
             if (toReturn)
             {
-                foreach (DateTime date in DaysExcluded)
+                foreach (DateTimeOffset date in DaysExcluded)
                 {
                     toReturn = toReturn && obj.DaysExcluded.Contains(date);
                 }
@@ -255,7 +255,7 @@ namespace Quartz.Impl.Calendar
         public override object Clone()
         {
             AnnualCalendar copy = (AnnualCalendar) base.Clone();
-            copy.excludeDays = new List<DateTime>(excludeDays);
+            copy.excludeDays = new List<DateTimeOffset>(excludeDays);
             return copy;
         }
     }

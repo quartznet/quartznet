@@ -365,7 +365,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="timeUtc"></param>
         /// <returns></returns>
-        public override bool IsTimeIncluded(DateTime timeUtc)
+        public override bool IsTimeIncluded(DateTimeOffset timeUtc)
         {
             if ((GetBaseCalendar() != null) &&
                 (GetBaseCalendar().IsTimeIncluded(timeUtc) == false))
@@ -373,11 +373,11 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            DateTime startOfDayInMillis = GetStartOfDay(timeUtc);
-            DateTime endOfDayInMillis = GetEndOfDay(timeUtc);
-            DateTime timeRangeStartingTimeInMillis =
+            DateTimeOffset startOfDayInMillis = GetStartOfDay(timeUtc);
+            DateTimeOffset endOfDayInMillis = GetEndOfDay(timeUtc);
+            DateTimeOffset timeRangeStartingTimeInMillis =
                 GetTimeRangeStartingTimeUtc(timeUtc);
-            DateTime timeRangeEndingTimeInMillis =
+            DateTimeOffset timeRangeEndingTimeInMillis =
                 GetTimeRangeEndingTimeUtc(timeUtc);
             if (!invertTimeRange)
             {
@@ -416,9 +416,9 @@ namespace Quartz.Impl.Calendar
         /// <param name="timeUtc"></param>
         /// <returns></returns>
         /// <seealso cref="ICalendar.GetNextIncludedTimeUtc"/>
-        public override DateTime GetNextIncludedTimeUtc(DateTime timeUtc)
+        public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
         {
-            DateTime nextIncludedTime = timeUtc.AddMilliseconds(oneMillis);
+            DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(oneMillis);
 
             while (!IsTimeIncluded(nextIncludedTime))
             {
@@ -501,11 +501,11 @@ namespace Quartz.Impl.Calendar
         ///     a DateTime representing the start time of the
         ///     time range for the specified date.
         /// </returns>
-        public DateTime GetTimeRangeStartingTimeUtc(DateTime timeUtc)
+        public DateTimeOffset GetTimeRangeStartingTimeUtc(DateTimeOffset timeUtc)
         {
-            DateTime rangeStartingTime = new DateTime(timeUtc.Year, timeUtc.Month, timeUtc.Day,
+            DateTimeOffset rangeStartingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
                                                       rangeStartingHourOfDay, rangeStartingMinute,
-                                                      rangeStartingSecond, rangeStartingMillis);
+                                                      rangeStartingSecond, rangeStartingMillis, TimeSpan.Zero);
             return rangeStartingTime;
         }
 
@@ -517,11 +517,11 @@ namespace Quartz.Impl.Calendar
         /// A DateTime representing the end time of the
         /// time range for the specified date.
         /// </returns>
-        public DateTime GetTimeRangeEndingTimeUtc(DateTime timeUtc)
+        public DateTimeOffset GetTimeRangeEndingTimeUtc(DateTimeOffset timeUtc)
         {
-            DateTime rangeEndingTime = new DateTime(timeUtc.Year, timeUtc.Month, timeUtc.Day,
+            DateTimeOffset rangeEndingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
                                                     rangeEndingHourOfDay, rangeEndingMinute,
-                                                    rangeEndingSecond, rangeEndingMillis);
+                                                    rangeEndingSecond, rangeEndingMillis, TimeSpan.Zero);
             return rangeEndingTime;
         }
 
@@ -692,15 +692,15 @@ namespace Quartz.Impl.Calendar
                      rangeEndingSecond,
                      rangeEndingMillis);
 
-            DateTime startCal = SystemTime.UtcNow();
+            DateTimeOffset startCal = SystemTime.UtcNow();
             startCal =
-                new DateTime(startCal.Year, startCal.Month, startCal.Day, rangeStartingHourOfDay, rangeStartingMinute,
-                             rangeStartingSecond, rangeStartingMillis);
+                new DateTimeOffset(startCal.Year, startCal.Month, startCal.Day, rangeStartingHourOfDay, rangeStartingMinute,
+                             rangeStartingSecond, rangeStartingMillis, TimeSpan.Zero);
 
-            DateTime endCal = SystemTime.UtcNow();
+            DateTimeOffset endCal = SystemTime.UtcNow();
             endCal =
-                new DateTime(endCal.Year, endCal.Month, endCal.Day, rangeEndingHourOfDay, rangeEndingMinute,
-                             rangeEndingSecond, rangeEndingMillis);
+                new DateTimeOffset(endCal.Year, endCal.Month, endCal.Day, rangeEndingHourOfDay, rangeEndingMinute,
+                             rangeEndingSecond, rangeEndingMillis, TimeSpan.Zero);
 
 
             if (! (startCal < endCal))
@@ -760,7 +760,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="time">The time.</param>
         /// <returns></returns>
-        private static DateTime GetStartOfDay(DateTime time)
+        private static DateTimeOffset GetStartOfDay(DateTimeOffset time)
         {
             return time.Date;
         }
@@ -770,7 +770,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="time">The time.</param>
         /// <returns></returns>
-        private static DateTime GetEndOfDay(DateTime time)
+        private static DateTimeOffset GetEndOfDay(DateTimeOffset time)
         {
             DateTime endOfDay = new DateTime(time.Year, time.Month, time.Day, 23, 59, 59, 999);
             return endOfDay;

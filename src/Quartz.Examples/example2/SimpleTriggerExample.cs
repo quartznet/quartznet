@@ -56,14 +56,14 @@ namespace Quartz.Examples.Example2
 			// jobs can be scheduled before sched.start() has been called
 
 			// get a "nice round" time a few seconds in the future...
-			DateTime ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
+            DateTimeOffset ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
 
 			// job1 will only fire once at date/time "ts"
 			JobDetail job = new JobDetail("job1", "group1", typeof (SimpleJob));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts);
 
 			// schedule it to run!
-			DateTime ft = sched.ScheduleJob(job, trigger);
+            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", 
                 job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
@@ -152,8 +152,8 @@ namespace Quartz.Examples.Example2
 			log.Info("------- Rescheduling... --------------------");
 
             trigger = new SimpleTrigger("trigger7", "group1", "job7", "group1", DateTime.UtcNow, null, 10, TimeSpan.FromSeconds(1));
-            
-            DateTime? ft2 = sched.RescheduleJob("trigger7", "group1", trigger);
+
+            DateTimeOffset? ft2 = sched.RescheduleJob("trigger7", "group1", trigger);
 
             if (ft2.HasValue)
 			{

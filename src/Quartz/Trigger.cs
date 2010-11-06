@@ -75,8 +75,8 @@ namespace Quartz
 
         private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
-        private DateTime? endTimeUtc;
-        private DateTime startTimeUtc;
+        private DateTimeOffset? endTimeUtc;
+        private DateTimeOffset startTimeUtc;
 		private int priority = DefaultPriority;
 		[NonSerialized] 
 		private Key key;
@@ -271,7 +271,7 @@ namespace Quartz
 		/// Note that the return time *may* be in the past.
 		/// </p>
 		/// </summary>
-        public abstract DateTime? FinalFireTimeUtc { get; }
+        public abstract DateTimeOffset? FinalFireTimeUtc { get; }
 
         /// <summary>
 		/// Get or set the instruction the <see cref="IScheduler" /> should be given for
@@ -321,20 +321,20 @@ namespace Quartz
 		/// not fire after to this date and time. If this value is null, no end time
 		/// boundary is assumed, and the trigger can continue indefinitely.
         /// </summary>
-        public virtual DateTime? EndTimeUtc
+        public virtual DateTimeOffset? EndTimeUtc
 		{
 			get { return endTimeUtc; }
 
 			set
 			{
-				DateTime sTime = StartTimeUtc;
+                DateTimeOffset sTime = StartTimeUtc;
 
 				if (value.HasValue && (sTime > value.Value))
 				{
 					throw new ArgumentException("End time cannot be before start time");
 				}
 
-				endTimeUtc = DateTimeUtil.AssumeUniversalTime(value);
+				endTimeUtc = value;
 			}
 		}
 
@@ -349,7 +349,7 @@ namespace Quartz
         /// fire time that is in the past, which may cause an immediate misfire
         /// of the trigger.
         /// </remarks>
-		public virtual DateTime StartTimeUtc
+        public virtual DateTimeOffset StartTimeUtc
 		{
 			get { return startTimeUtc; }
 
@@ -369,8 +369,6 @@ namespace Quartz
 				{
 					startTimeUtc = value;
 				}
-
-			    startTimeUtc = DateTimeUtil.AssumeUniversalTime(startTimeUtc);
 			}
 		}
 
@@ -496,7 +494,7 @@ namespace Quartz
         /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="Trigger" />).
         /// </returns>        
-		public abstract DateTime? ComputeFirstFireTimeUtc(ICalendar cal);
+        public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal);
 
         /// <summary>
         /// This method should not be used by the Quartz client.
@@ -570,22 +568,22 @@ namespace Quartz
         /// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
         /// has been added to the scheduler.
         /// </remarks>
-        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTime, DateTime)" />
+        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTimeOffset, DateTimeOffset)" />
         /// <returns></returns>
-		public abstract DateTime? GetNextFireTimeUtc();
+        public abstract DateTimeOffset? GetNextFireTimeUtc();
 		
         /// <summary>
 		/// Returns the previous time at which the <see cref="Trigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
-		public abstract DateTime? GetPreviousFireTimeUtc();
+        public abstract DateTimeOffset? GetPreviousFireTimeUtc();
 
 		/// <summary>
 		/// Returns the next time at which the <see cref="Trigger" /> will fire,
 		/// after the given time. If the trigger will not fire after the given time,
 		/// <see langword="null" /> will be returned.
 		/// </summary>
-		public abstract DateTime? GetFireTimeAfter(DateTime? afterTime);
+        public abstract DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime);
 
         /// <summary>
 		/// Validates the misfire instruction.
@@ -688,8 +686,8 @@ namespace Quartz
 
         public virtual int CompareTo(Trigger other)
         {
-            DateTime? myTime = GetNextFireTimeUtc();
-            DateTime? otherTime = other.GetNextFireTimeUtc();
+            DateTimeOffset? myTime = GetNextFireTimeUtc();
+            DateTimeOffset? otherTime = other.GetNextFireTimeUtc();
 
             if (!myTime.HasValue && !otherTime.HasValue)
             {
