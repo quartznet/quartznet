@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -1580,7 +1580,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                String ts = Delegate.SelectTriggerState(conn, triggerName, groupName);
+                string ts = Delegate.SelectTriggerState(conn, triggerName, groupName);
 
                 if (ts == null)
                 {
@@ -2281,7 +2281,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                String oldState = Delegate.SelectTriggerState(conn, triggerName, groupName);
+                string oldState = Delegate.SelectTriggerState(conn, triggerName, groupName);
 
                 if (oldState.Equals(StateWaiting) || oldState.Equals(StateAcquired))
                 {
@@ -2420,7 +2420,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                String newState = StateWaiting;
+                string newState = StateWaiting;
 
                 IList<FiredTriggerRecord> lst = Delegate.SelectFiredTriggerRecordsByJob(conn, jobName, groupName);
 
@@ -3114,7 +3114,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // if trigger was deleted, state will be StateDeleted
-                String state = Delegate.SelectTriggerState(conn, trigger.Name, trigger.Group);
+                string state = Delegate.SelectTriggerState(conn, trigger.Name, trigger.Group);
                 if (!state.Equals(StateAcquired))
                 {
                     return null;
@@ -3171,7 +3171,7 @@ namespace Quartz.Impl.AdoJobStore
             // call triggered - to update the trigger's next-fire-time state...
             trigger.Triggered(cal);
 
-            String state2 = StateWaiting;
+            string state2 = StateWaiting;
             bool force = true;
 
             if (job.Stateful)

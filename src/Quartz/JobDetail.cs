@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -26,7 +26,8 @@ using Quartz.Util;
 namespace Quartz
 {
     /// <summary>
-    /// Conveys the detail properties of a given <see cref="IJob" /> instance.
+    /// Conveys the detail properties of a given <code>Job</code> instance. 
+    /// JobDetails are to be created/defined with <see cref="JobBuilder" />.
     /// </summary>
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
@@ -46,7 +47,6 @@ namespace Quartz
     /// <seealso cref="JobDataMap"/>
     /// <seealso cref="Trigger"/>
     /// <author>James House</author>
-    /// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
     public class JobDetail : ICloneable

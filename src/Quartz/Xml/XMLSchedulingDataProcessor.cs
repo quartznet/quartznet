@@ -262,8 +262,8 @@ namespace Quartz.Xml
                     {
                         foreach (preprocessingcommandsTypeDeletejob s in command.deletejob)
                         {
-                            String name = s.name.TrimEmptyToNull();
-                            String group = s.group.TrimEmptyToNull();
+                            string name = s.name.TrimEmptyToNull();
+                            string group = s.group.TrimEmptyToNull();
 
                             if (name == null)
                             {
@@ -276,8 +276,8 @@ namespace Quartz.Xml
                     {
                         foreach (preprocessingcommandsTypeDeletetrigger s in command.deletetrigger)
                         {
-                            String name = s.name.TrimEmptyToNull();
-                            String group = s.group.TrimEmptyToNull();
+                            string name = s.name.TrimEmptyToNull();
+                            string group = s.group.TrimEmptyToNull();
 
                             if (name == null)
                             {
@@ -332,10 +332,10 @@ namespace Quartz.Xml
 
             foreach (jobdetailType jobDetailType in jobNodes)
             {
-                String jobName = jobDetailType.name.TrimEmptyToNull();
-                String jobGroup = jobDetailType.group.TrimEmptyToNull();
-                String jobDescription = jobDetailType.description.TrimEmptyToNull();
-                String jobTypeName = jobDetailType.jobtype.TrimEmptyToNull();
+                string jobName = jobDetailType.name.TrimEmptyToNull();
+                string jobGroup = jobDetailType.group.TrimEmptyToNull();
+                string jobDescription = jobDetailType.description.TrimEmptyToNull();
+                string jobTypeName = jobDetailType.jobtype.TrimEmptyToNull();
                 bool jobVolatility = jobDetailType.@volatile;
                 bool jobDurability = jobDetailType.durable;
                 bool jobRecoveryRequested = jobDetailType.recover;
@@ -351,8 +351,8 @@ namespace Quartz.Xml
                 {
                     foreach (entryType entry in jobDetailType.jobdatamap.entry)
                     {
-                        String key = entry.key.TrimEmptyToNull();
-                        String value = entry.value.TrimEmptyToNull();
+                        string key = entry.key.TrimEmptyToNull();
+                        string value = entry.value.TrimEmptyToNull();
                         jobDetail.JobDataMap.Add(key, value);
                     }
                 }
@@ -379,13 +379,13 @@ namespace Quartz.Xml
 
             foreach (triggerType triggerNode in triggerEntries)
             {
-                String triggerName = triggerNode.Item.name.TrimEmptyToNull();
-                String triggerGroup = triggerNode.Item.group.TrimEmptyToNull();
-                String triggerDescription = triggerNode.Item.description.TrimEmptyToNull();
-                String triggerMisfireInstructionConst;
-                String triggerCalendarRef = triggerNode.Item.calendarname.TrimEmptyToNull();
-                String triggerJobName = triggerNode.Item.jobname.TrimEmptyToNull();
-                String triggerJobGroup = triggerNode.Item.jobgroup.TrimEmptyToNull();
+                string triggerName = triggerNode.Item.name.TrimEmptyToNull();
+                string triggerGroup = triggerNode.Item.group.TrimEmptyToNull();
+                string triggerDescription = triggerNode.Item.description.TrimEmptyToNull();
+                string triggerMisfireInstructionConst;
+                string triggerCalendarRef = triggerNode.Item.calendarname.TrimEmptyToNull();
+                string triggerJobName = triggerNode.Item.jobname.TrimEmptyToNull();
+                string triggerJobGroup = triggerNode.Item.jobgroup.TrimEmptyToNull();
                 bool triggerVolatility = triggerNode.Item.volatilitySpecified ? triggerNode.Item.volatility : true;
 
                 DateTime triggerStartTime = triggerNode.Item.starttime;
@@ -397,8 +397,8 @@ namespace Quartz.Xml
                 {
                     simpleTriggerType simpleTrigger = (simpleTriggerType) triggerNode.Item;
                     triggerMisfireInstructionConst = simpleTrigger.misfireinstruction;
-                    String repeatCountString = simpleTrigger.repeatcount.TrimEmptyToNull();
-                    String repeatIntervalString = simpleTrigger.repeatinterval.TrimEmptyToNull();
+                    string repeatCountString = simpleTrigger.repeatcount.TrimEmptyToNull();
+                    string repeatIntervalString = simpleTrigger.repeatinterval.TrimEmptyToNull();
 
                     int repeatCount = ParseSimpleTriggerRepeatCount(repeatCountString);
                     TimeSpan repeatInterval = repeatIntervalString == null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
@@ -412,8 +412,8 @@ namespace Quartz.Xml
                 {
                     cronTriggerType cronTrigger = (cronTriggerType) triggerNode.Item;
                     triggerMisfireInstructionConst = cronTrigger.misfireinstruction;
-                    String cronExpression = cronTrigger.cronexpression.TrimEmptyToNull();
-                    String timezoneString = cronTrigger.timezone.TrimEmptyToNull();
+                    string cronExpression = cronTrigger.cronexpression.TrimEmptyToNull();
+                    string timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
                     if (!String.IsNullOrEmpty(timezoneString))
                     {
@@ -461,8 +461,8 @@ namespace Quartz.Xml
                 {
                     foreach (entryType entry in triggerNode.Item.jobdatamap.entry)
                     {
-                        String key = entry.key.TrimEmptyToNull();
-                        String value = entry.value.TrimEmptyToNull();
+                        string key = entry.key.TrimEmptyToNull();
+                        string value = entry.value.TrimEmptyToNull();
                         trigger.JobDataMap.Add(key, value);
                     }
                 }
@@ -858,16 +858,16 @@ namespace Quartz.Xml
 
         protected void ExecutePreProcessCommands(IScheduler scheduler)
         {
-            foreach (String group in jobGroupsToDelete)
+            foreach (string group in jobGroupsToDelete)
             {
                 if (group.Equals("*"))
                 {
                     log.Info("Deleting all jobs in ALL groups.");
-                    foreach (String groupName in scheduler.JobGroupNames)
+                    foreach (string groupName in scheduler.JobGroupNames)
                     {
                         if (!jobGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (String jobName in scheduler.GetJobNames(groupName))
+                            foreach (string jobName in scheduler.GetJobNames(groupName))
                             {
                                 scheduler.DeleteJob(jobName, groupName);
                             }
@@ -879,7 +879,7 @@ namespace Quartz.Xml
                     if (!jobGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all jobs in group: {}", group);
-                        foreach (String jobName in scheduler.GetJobNames(group))
+                        foreach (string jobName in scheduler.GetJobNames(group))
                         {
                             scheduler.DeleteJob(jobName, group);
                         }
@@ -887,16 +887,16 @@ namespace Quartz.Xml
                 }
             }
 
-            foreach (String group in triggerGroupsToDelete)
+            foreach (string group in triggerGroupsToDelete)
             {
                 if (group.Equals("*"))
                 {
                     log.Info("Deleting all triggers in ALL groups.");
-                    foreach (String groupName in scheduler.TriggerGroupNames)
+                    foreach (string groupName in scheduler.TriggerGroupNames)
                     {
                         if (!triggerGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (String triggerName in scheduler.GetTriggerNames(groupName))
+                            foreach (string triggerName in scheduler.GetTriggerNames(groupName))
                             {
                                 scheduler.UnscheduleJob(triggerName, groupName);
                             }
@@ -908,7 +908,7 @@ namespace Quartz.Xml
                     if (!triggerGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all triggers in group: {0}", group);
-                        foreach (String triggerName in scheduler.GetTriggerNames(group))
+                        foreach (string triggerName in scheduler.GetTriggerNames(group))
                         {
                             scheduler.UnscheduleJob(triggerName, group);
                         }

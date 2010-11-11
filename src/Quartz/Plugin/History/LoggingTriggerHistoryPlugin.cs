@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -264,7 +264,7 @@ namespace Quartz.Plugin.History
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual void Initialize(String pluginName, IScheduler sched)
+        public virtual void Initialize(string pluginName, IScheduler sched)
         {
             name = pluginName;
             sched.AddGlobalTriggerListener(this);
@@ -363,7 +363,7 @@ namespace Quartz.Plugin.History
                 return;
             }
 
-            String instrCode = "UNKNOWN";
+            string instrCode = "UNKNOWN";
             if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
             {
                 instrCode = "DELETE TRIGGER";

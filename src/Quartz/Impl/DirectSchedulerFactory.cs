@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -186,7 +186,7 @@ namespace Quartz.Impl
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
 		/// <param name="threadPool">The thread pool for executing jobs</param>
 		/// <param name="jobStore">The type of job store</param>
-		public virtual void CreateScheduler(String schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
 		                                    IJobStore jobStore)
 		{
 			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, TimeSpan.Zero, TimeSpan.Zero);

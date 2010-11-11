@@ -128,6 +128,7 @@
     <Compile Include="Collection\TreeSet.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="IJobDetail.cs" />
     <Compile Include="Core\IJobRunShellFactory.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -230,6 +231,7 @@
     <Compile Include="JobExecutionException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="JobKey.cs" />
     <Compile Include="JobPersistenceException.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -351,16 +353,10 @@
     <Compile Include="Util\ObjectUtils.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Util\Pair.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Util\PropertiesParser.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Util\StringExtensions.cs" />
-    <Compile Include="Util\TriggerStatus.cs">
-      <SubType>Code</SubType>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Listener\BroadcastSchedulerListener.cs" />

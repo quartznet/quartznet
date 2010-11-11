@@ -163,7 +163,6 @@
     </Compile>
     <Compile Include="Utils\DirtyFlagMapTest.cs" />
     <Compile Include="Utils\ObjectUtilsTest.cs" />
-    <Compile Include="Utils\PairTest.cs" />
     <Compile Include="Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>

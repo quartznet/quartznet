@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -643,7 +643,7 @@ namespace Quartz.Util
 
                     if (exclude == false)
                     {
-                        String value = GetStringProperty(key, "");
+                        string value = GetStringProperty(key, "");
 
                         if (stripPrefix)
                         {
