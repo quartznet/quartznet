@@ -25,7 +25,7 @@ namespace Quartz
 {
 	/// <summary>
 	/// An exception that is thrown to indicate that an attempt to store a new
-	/// object (i.e. <see cref="JobDetail" />,<see cref="Trigger" />
+	/// object (i.e. <see cref="JobDetailImpl" />,<see cref="Trigger" />
 	/// or <see cref="ICalendar" />) in a <see cref="IScheduler" />
 	/// failed, because one with the same name and group already exists.
 	/// </summary>
@@ -57,7 +57,7 @@ namespace Quartz
 
 		/// <summary> <p>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
-		/// message using the name/group from the given <see cref="JobDetail" />.
+		/// message using the name/group from the given <see cref="JobDetailImpl" />.
 		/// </p>
 		/// 
 		/// <p>
@@ -65,7 +65,7 @@ namespace Quartz
 		/// group: '__', because one already exists with this identification."
 		/// </p>
 		/// </summary>
-		public ObjectAlreadyExistsException(JobDetail offendingJob)
+		public ObjectAlreadyExistsException(JobDetailImpl offendingJob)
 			: base(
 				string.Format(CultureInfo.InvariantCulture, "Unable to store Job with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingJob.Name, offendingJob.Group))
 		{

@@ -75,7 +75,7 @@ namespace Quartz.Xml
         private readonly IList<Key> triggersToDelete = new List<Key>();
 
         // scheduling commands
-        private readonly List<JobDetail> loadedJobs = new List<JobDetail>();
+        private readonly List<JobDetailImpl> loadedJobs = new List<JobDetailImpl>();
         private readonly List<Trigger> loadedTriggers = new List<Trigger>();
 
         // directives
@@ -135,7 +135,7 @@ namespace Quartz.Xml
             get { return log; }
         }
 
-        protected IList<JobDetail> LoadedJobs
+        protected IList<JobDetailImpl> LoadedJobs
         {
             get { return loadedJobs.AsReadOnly(); }
         }
@@ -342,7 +342,7 @@ namespace Quartz.Xml
 
                 Type jobClass = typeLoadHelper.LoadType(jobTypeName);
 
-                JobDetail jobDetail = new JobDetail(jobName, jobGroup,
+                JobDetailImpl jobDetail = new JobDetailImpl(jobName, jobGroup,
                                                     jobClass, jobVolatility, jobDurability,
                                                     jobRecoveryRequested);
                 jobDetail.Description = jobDescription;
@@ -476,7 +476,7 @@ namespace Quartz.Xml
             }
         }
 
-        protected virtual void AddJobToSchedule(JobDetail job)
+        protected virtual void AddJobToSchedule(JobDetailImpl job)
         {
             loadedJobs.Add(job);
         }
@@ -628,7 +628,7 @@ namespace Quartz.Xml
         /// <param name="sched">The sched.</param>
         public virtual void ScheduleJobs(IScheduler sched)
         {
-            List<JobDetail> jobs = new List<JobDetail>(LoadedJobs);
+            List<JobDetailImpl> jobs = new List<JobDetailImpl>(LoadedJobs);
             List<Trigger> triggers = new List<Trigger>(LoadedTriggers);
 
             log.Info("Adding " + jobs.Count + " jobs, " + triggers.Count + " triggers.");
@@ -638,11 +638,11 @@ namespace Quartz.Xml
             // add each job, and it's associated triggers
             for (int i = 0; i < jobs.Count; i++)
             {
-                JobDetail detail = jobs[i];
+                JobDetailImpl detail = jobs[i];
                 // remove jobs as we handle them...
                 jobs.Remove(detail);
 
-                JobDetail dupeJ = sched.GetJobDetail(detail.Name, detail.Group);
+                JobDetailImpl dupeJ = sched.GetJobDetail(detail.Name, detail.Group);
 
                 if ((dupeJ != null))
                 {

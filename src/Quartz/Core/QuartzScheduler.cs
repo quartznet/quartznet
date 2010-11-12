@@ -698,14 +698,14 @@ namespace Quartz.Core
 
         /// <summary> 
         /// Add the <see cref="IJob" /> identified by the given
-        /// <see cref="JobDetail" /> to the Scheduler, and
+        /// <see cref="JobDetailImpl" /> to the Scheduler, and
         /// associate the given <see cref="Trigger" /> with it.
         /// <p>
         /// If the given Trigger does not reference any <see cref="IJob" />, then it
         /// will be set to reference the Job passed with it into this method.
         /// </p>
         /// </summary>
-        public virtual DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger)
+        public virtual DateTimeOffset ScheduleJob(JobDetailImpl jobDetail, Trigger trigger)
         {
             ValidateState();
 
@@ -812,7 +812,7 @@ namespace Quartz.Core
         /// SchedulerException will be thrown.
         /// </p>
         /// </summary>
-        public virtual void AddJob(JobDetail jobDetail, bool replace)
+        public virtual void AddJob(JobDetailImpl jobDetail, bool replace)
         {
             ValidateState();
 
@@ -1087,7 +1087,7 @@ namespace Quartz.Core
         }
 
         /// <summary> 
-        /// Pause the <see cref="JobDetail" /> with the given
+        /// Pause the <see cref="JobDetailImpl" /> with the given
         /// name - by pausing all of its current <see cref="Trigger" />s.
         /// </summary>
         public virtual void PauseJob(string jobName, string groupName)
@@ -1105,7 +1105,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Pause all of the <see cref="JobDetail" />s in the
+        /// Pause all of the <see cref="JobDetailImpl" />s in the
         /// given group - by pausing all of their <see cref="Trigger" />s.
         /// </summary>
         public virtual void PauseJobGroup(string groupName)
@@ -1176,7 +1176,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Resume (un-pause) the <see cref="JobDetail" /> with
+        /// Resume (un-pause) the <see cref="JobDetailImpl" /> with
         /// the given name.
         /// <p>
         /// If any of the <see cref="IJob" />'s<see cref="Trigger" /> s missed one
@@ -1199,7 +1199,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Resume (un-pause) all of the <see cref="JobDetail" />s
+        /// Resume (un-pause) all of the <see cref="JobDetailImpl" />s
         /// in the given group.
         /// <p>
         /// If any of the <see cref="IJob" /> s had <see cref="Trigger" /> s that
@@ -1286,7 +1286,7 @@ namespace Quartz.Core
 
         /// <summary> 
         /// Get all <see cref="Trigger" /> s that are associated with the
-        /// identified <see cref="JobDetail" />.
+        /// identified <see cref="JobDetailImpl" />.
         /// </summary>
         public virtual IList<Trigger> GetTriggersOfJob(string jobName, string groupName)
         {
@@ -1327,10 +1327,10 @@ namespace Quartz.Core
         }
 
         /// <summary> 
-        /// Get the <see cref="JobDetail" /> for the <see cref="IJob" />
+        /// Get the <see cref="JobDetailImpl" /> for the <see cref="IJob" />
         /// instance with the given name and group.
         /// </summary>
-        public virtual JobDetail GetJobDetail(string jobName, string jobGroup)
+        public virtual JobDetailImpl GetJobDetail(string jobName, string jobGroup)
         {
             ValidateState();
 
@@ -1653,7 +1653,7 @@ namespace Quartz.Core
         }
 
 
-        protected internal void NotifyJobStoreJobVetoed(Trigger trigger, JobDetail detail, SchedulerInstruction instCode)
+        protected internal void NotifyJobStoreJobVetoed(Trigger trigger, JobDetailImpl detail, SchedulerInstruction instCode)
         {
 
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
@@ -1665,7 +1665,7 @@ namespace Quartz.Core
         /// <param name="trigger">The trigger.</param>
         /// <param name="detail">The detail.</param>
         /// <param name="instCode">The instruction code.</param>
-        protected internal virtual void NotifyJobStoreJobComplete(Trigger trigger, JobDetail detail,
+        protected internal virtual void NotifyJobStoreJobComplete(Trigger trigger, JobDetailImpl detail,
                                                                   SchedulerInstruction instCode)
         {
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
@@ -2131,7 +2131,7 @@ namespace Quartz.Core
         }
     
 
-        public virtual void NotifySchedulerListenersJobAdded(JobDetail jobDetail)
+        public virtual void NotifySchedulerListenersJobAdded(JobDetailImpl jobDetail)
         {
             // notify all scheduler listeners
             foreach (ISchedulerListener listener in BuildSchedulerListenerList())
@@ -2175,7 +2175,7 @@ namespace Quartz.Core
 
             IList<JobExecutionContext> jobs = CurrentlyExecutingJobs;
 
-            JobDetail jobDetail;
+            JobDetailImpl jobDetail;
 
             bool interrupted = false;
 

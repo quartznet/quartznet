@@ -36,7 +36,7 @@ namespace Quartz.Tests.Unit.Simpl
     public class RAMJobStoreTest
     {
         private IJobStore fJobStore;
-        private JobDetail fJobDetail;
+        private JobDetailImpl fJobDetail;
         private SampleSignaler fSignaler;
 
         [SetUp]
@@ -46,7 +46,7 @@ namespace Quartz.Tests.Unit.Simpl
             fSignaler = new SampleSignaler();
             fJobStore.Initialize(null, fSignaler);
 
-            fJobDetail = new JobDetail("job1", "jobGroup1", typeof (NoOpJob));
+            fJobDetail = new JobDetailImpl("job1", "jobGroup1", typeof (NoOpJob));
             fJobDetail.Durable = true;
             fJobStore.StoreJob(fJobDetail, false);
         }
@@ -223,7 +223,7 @@ namespace Quartz.Tests.Unit.Simpl
         {
             string jobName = "StoreTriggerReplacesTrigger";
             string jobGroup = "StoreTriggerReplacesTriggerGroup";
-            JobDetail detail = new JobDetail(jobName, jobGroup, typeof (NoOpJob));
+            JobDetailImpl detail = new JobDetailImpl(jobName, jobGroup, typeof (NoOpJob));
             fJobStore.StoreJob(detail, false);
 
             string trName = "StoreTriggerReplacesTrigger";
@@ -260,12 +260,12 @@ namespace Quartz.Tests.Unit.Simpl
             string jobName1 = "PauseJobGroupPausesNewJob";
             string jobName2 = "PauseJobGroupPausesNewJob2";
             string jobGroup = "PauseJobGroupPausesNewJobGroup";
-            JobDetail detail = new JobDetail(jobName1, jobGroup, typeof (NoOpJob));
+            JobDetailImpl detail = new JobDetailImpl(jobName1, jobGroup, typeof (NoOpJob));
             detail.Durable = true;
             fJobStore.StoreJob(detail, false);
             fJobStore.PauseJobGroup(jobGroup);
 
-            detail = new JobDetail(jobName2, jobGroup, typeof (NoOpJob));
+            detail = new JobDetailImpl(jobName2, jobGroup, typeof (NoOpJob));
             detail.Durable = true;
             fJobStore.StoreJob(detail, false);
 
@@ -282,7 +282,7 @@ namespace Quartz.Tests.Unit.Simpl
         public void TestRetrieveJob_NoJobFound()
         {
             RAMJobStore store = new RAMJobStore();
-            JobDetail job = store.RetrieveJob("not", "existing");
+            JobDetailImpl job = store.RetrieveJob("not", "existing");
             Assert.IsNull(job);
         }
 

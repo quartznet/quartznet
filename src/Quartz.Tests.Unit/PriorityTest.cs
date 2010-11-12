@@ -61,7 +61,7 @@ namespace Quartz.Tests.Unit
 			Trigger trig1 = new SimpleTrigger("T1", null, cal);
 			Trigger trig2 = new SimpleTrigger("T2", null, cal);
 
-			JobDetail jobDetail = new JobDetail("JD", null, typeof (TestJob));
+			JobDetailImpl jobDetail = new JobDetailImpl("JD", null, typeof (TestJob));
 
 			sched.ScheduleJob(jobDetail, trig1);
 
@@ -95,7 +95,7 @@ namespace Quartz.Tests.Unit
 			Trigger trig2 = new SimpleTrigger("T2", null, cal);
 			trig2.Priority = 10;
 
-			JobDetail jobDetail = new JobDetail("JD", null, typeof (TestJob));
+			JobDetailImpl jobDetail = new JobDetailImpl("JD", null, typeof (TestJob));
 
 			sched.ScheduleJob(jobDetail, trig1);
 

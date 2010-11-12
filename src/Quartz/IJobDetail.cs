@@ -21,6 +21,8 @@
 
 using System;
 
+using Quartz.Impl;
+
 namespace Quartz
 {
     /// <summary>
@@ -29,7 +31,7 @@ namespace Quartz
     /// </summary>
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
-    /// instead allows you to define an instance of one, through the use of a <see cref="JobDetail" />.
+    /// instead allows you to define an instance of one, through the use of a <see cref="JobDetailImpl" />.
     /// <p>
     /// <see cref="IJob" />s have a name and group associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
@@ -105,9 +107,9 @@ namespace Quartz
         bool RequestsRecovery { get; }
 
         /// <summary>
-        /// Get a <see cref=">JobBuilder" /> that is configured to produce a 
-        /// <see cref="JobDetail" /> identical to this one.
+        /// Get a <see cref="JobBuilder" /> that is configured to produce a 
+        /// <see cref="JobDetailImpl" /> identical to this one.
         /// </summary>
-        JobBuilder JobBuilder { get; }
+        JobBuilder GetJobBuilder();
     }
 }

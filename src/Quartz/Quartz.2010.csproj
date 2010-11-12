@@ -119,6 +119,9 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Impl\Triggers\CoreTrigger.cs" />
+    <Compile Include="ScheduleBuilder.cs" />
+    <Compile Include="Trigger.cs" />
     <Compile Include="Collection\ISet.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -128,6 +131,7 @@
     <Compile Include="Collection\TreeSet.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DisallowConcurrentExecutionAttribute.cs" />
     <Compile Include="IJobDetail.cs" />
     <Compile Include="Core\IJobRunShellFactory.cs">
       <SubType>Code</SubType>
@@ -145,9 +149,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Core\SchedulerSignalerImpl.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="CriticalSchedulerException.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="CronExpression.cs">
@@ -168,7 +169,9 @@
     <Compile Include="IJobListener.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="IMatcher.cs" />
     <Compile Include="Impl\AdoJobStore\ConnectionAndTransactionHolder.cs" />
+    <Compile Include="Impl\AdoJobStore\TriggerStatus.cs" />
     <Compile Include="Impl\Calendar\AnnualCalendar.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -189,6 +192,7 @@
     <Compile Include="Impl\DirectSchedulerFactory.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Impl\Matchers\StringOperatorName.cs" />
     <Compile Include="Impl\RemoteScheduler.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -219,10 +223,11 @@
     <Compile Include="ITriggerListener.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="JobBuilder.cs" />
     <Compile Include="JobDataMap.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="JobDetail.cs">
+    <Compile Include="Impl\JobDetailImpl.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="JobExecutionContext.cs">
@@ -256,7 +261,7 @@
     <Compile Include="ObjectAlreadyExistsException.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="ObjectDoesNotExistException.cs" />
+    <Compile Include="PersistJobDataAfterExecutionAttribute.cs" />
     <Compile Include="Plugin\History\LoggingJobHistoryPlugin.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -307,6 +312,8 @@
     <Compile Include="Simpl\SimpleThreadPool.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SPI\IMutableTrigger.cs" />
+    <Compile Include="SPI\IOperableTrigger.cs" />
     <Compile Include="SPI\ITypeLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -332,9 +339,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SPI\TriggerFiredResult.cs" />
-    <Compile Include="Trigger.cs">
+    <Compile Include="Impl\Triggers\AbstractTrigger.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TriggerKey.cs" />
     <Compile Include="TriggerUtils.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -466,6 +474,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Xml\XMLSchedulingDataProcessor.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Impl\Matchers\StringMatcher.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Impl\Matchers\AndMatcher.cs" />
+    <Compile Include="Impl\Matchers\EverythingMatcher.cs" />
+    <Compile Include="Impl\Matchers\GroupMatcher.cs" />
+    <Compile Include="Impl\Matchers\KeyMatcher.cs" />
+    <Compile Include="Impl\Matchers\NameMatcher.cs" />
+    <Compile Include="Impl\Matchers\NotMatcher.cs" />
+    <Compile Include="Impl\Matchers\OrMatcher.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

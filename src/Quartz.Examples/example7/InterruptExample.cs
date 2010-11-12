@@ -72,7 +72,7 @@ namespace Quartz.Examples.Example7
 			// get a "nice round" time a few seconds in the future...
             DateTimeOffset ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
 			
-			JobDetail job = new JobDetail("interruptableJob1", "group1", typeof(DumbInterruptableJob));
+			JobDetailImpl job = new JobDetailImpl("interruptableJob1", "group1", typeof(DumbInterruptableJob));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(5));
             DateTimeOffset ft = sched.ScheduleJob(job, trigger);
             log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));

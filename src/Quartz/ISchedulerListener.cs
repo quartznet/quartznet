@@ -33,13 +33,13 @@ namespace Quartz
     public interface ISchedulerListener
 	{
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetailImpl" />
 		/// is scheduled.
 		/// </summary>
 		void JobScheduled(Trigger trigger);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetailImpl" />
 		/// is unscheduled.
 		/// </summary>
 		void JobUnscheduled(string triggerName, string triggerGroup);
@@ -75,14 +75,14 @@ namespace Quartz
 		void TriggersResumed(string triggerName, string triggerGroup);
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetailImpl" />
         /// has been added.
         /// </summary>
         /// <param name="jobDetail"></param>
-        void JobAdded(JobDetail jobDetail);
+        void JobAdded(JobDetailImpl jobDetail);
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetailImpl" />
         /// has been deleted.
         /// </summary>
         /// <param name="jobName"></param>
@@ -90,8 +90,8 @@ namespace Quartz
         void JobDeleted(string jobName, string groupName);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler"/> when a <see cref="JobDetail"/>
-		/// or group of <see cref="JobDetail"/>s has been  paused.
+		/// Called by the <see cref="IScheduler"/> when a <see cref="JobDetailImpl"/>
+		/// or group of <see cref="JobDetailImpl"/>s has been  paused.
 		/// <p>
 		/// If a group was paused, then the <see param="jobName"/> parameter will be
 		/// null. If all jobs were paused, then both parameters will be null.
@@ -102,8 +102,8 @@ namespace Quartz
 		void JobsPaused(string jobName, string jobGroup);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
-		/// or group of <see cref="JobDetail" />s has been  un-paused.
+		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetailImpl" />
+		/// or group of <see cref="JobDetailImpl" />s has been  un-paused.
 		/// <p>
 		/// If a group was resumed, then the <param name="jobName" /> parameter will
 		/// be null. If all jobs were paused, then both parameters will be null.

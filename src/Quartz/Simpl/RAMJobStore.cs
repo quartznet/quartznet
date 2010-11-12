@@ -145,11 +145,11 @@ namespace Quartz.Simpl
 	    }
 
 	    /// <summary>
-		/// Store the given <see cref="JobDetail" /> and <see cref="Trigger" />.
+		/// Store the given <see cref="JobDetailImpl" /> and <see cref="Trigger" />.
 		/// </summary>
-		/// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
+		/// <param name="newJob">The <see cref="JobDetailImpl" /> to be stored.</param>
 		/// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
-		public virtual void StoreJobAndTrigger(JobDetail newJob, Trigger newTrigger)
+		public virtual void StoreJobAndTrigger(JobDetailImpl newJob, Trigger newTrigger)
 		{
 			StoreJob(newJob, false);
 			StoreTrigger(newTrigger, false);
@@ -182,9 +182,9 @@ namespace Quartz.Simpl
 		/// <param name="replaceExisting">If <see langword="true" />, any <see cref="IJob" /> existing in the
 		/// <see cref="IJobStore" /> with the same name and group should be
 		/// over-written.</param>
-		public virtual void StoreJob(JobDetail newJob, bool replaceExisting)
+		public virtual void StoreJob(JobDetailImpl newJob, bool replaceExisting)
 		{
-            JobWrapper jw = new JobWrapper((JobDetail)newJob.Clone());
+            JobWrapper jw = new JobWrapper((JobDetailImpl)newJob.Clone());
 
 			bool repl = false;
 
@@ -509,7 +509,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Retrieve the <see cref="JobDetail" /> for the given
+		/// Retrieve the <see cref="JobDetailImpl" /> for the given
 		/// <see cref="IJob" />.
 		/// </summary>
 		/// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
@@ -517,13 +517,13 @@ namespace Quartz.Simpl
 		/// <returns>
 		/// The desired <see cref="IJob" />, or null if there is no match.
 		/// </returns>
-		public virtual JobDetail RetrieveJob(string jobName, string groupName)
+		public virtual JobDetailImpl RetrieveJob(string jobName, string groupName)
 		{
             lock (lockObject)
             {
                 JobWrapper jw;
 			    jobsByFQN.TryGetValue(JobWrapper.GetJobNameKey(jobName, groupName), out jw);
-                return (jw != null) ? (JobDetail) jw.jobDetail.Clone() : null;
+                return (jw != null) ? (JobDetailImpl) jw.jobDetail.Clone() : null;
             }
         }
 
@@ -701,7 +701,7 @@ namespace Quartz.Simpl
 		}
 
 	    /// <summary>
-		/// Get the number of <see cref="JobDetail" /> s that are
+		/// Get the number of <see cref="JobDetailImpl" /> s that are
 		/// stored in the <see cref="IJobStore" />.
 		/// </summary>
 		public virtual int GetNumberOfJobs()
@@ -974,7 +974,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary> 
-		/// Pause the <see cref="JobDetail" /> with the given
+		/// Pause the <see cref="JobDetailImpl" /> with the given
 		/// name - by pausing all of its current <see cref="Trigger" />s.
 		/// </summary>
 		public virtual void PauseJob(string jobName, string groupName)
@@ -990,7 +990,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Pause all of the <see cref="JobDetail" />s in the
+		/// Pause all of the <see cref="JobDetailImpl" />s in the
 		/// given group - by pausing all of their <see cref="Trigger" />s.
 		/// <p>
 		/// The JobStore should "remember" that the group is paused, and impose the
@@ -1098,7 +1098,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) the <see cref="JobDetail" /> with
+		/// Resume (un-pause) the <see cref="JobDetailImpl" /> with
 		/// the given name.
 		/// <p>
 		/// If any of the <see cref="IJob" />'s<see cref="Trigger" /> s missed one
@@ -1119,7 +1119,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Resume (un-pause) all of the <see cref="JobDetail" />s
+		/// Resume (un-pause) all of the <see cref="JobDetailImpl" />s
 		/// in the given group.
 		/// <p>
 		/// If any of the <see cref="IJob" /> s had <see cref="Trigger" /> s that
@@ -1360,7 +1360,7 @@ namespace Quartz.Simpl
 		                                                              trigger.GetPreviousFireTimeUtc(), prevFireTime,
 		                                                              trigger.GetNextFireTimeUtc());
 
-		            JobDetail job = bndle.JobDetail;
+		            JobDetailImpl job = bndle.JobDetail;
 
 		            if (job.Stateful)
 		            {
@@ -1397,10 +1397,10 @@ namespace Quartz.Simpl
 		/// Inform the <see cref="IJobStore" /> that the scheduler has completed the
 		/// firing of the given <see cref="Trigger" /> (and the execution its
 		/// associated <see cref="IJob" />), and that the <see cref="JobDataMap" />
-		/// in the given <see cref="JobDetail" /> should be updated if the <see cref="IJob" />
+		/// in the given <see cref="JobDetailImpl" /> should be updated if the <see cref="IJob" />
 		/// is stateful.
 		/// </summary>
-		public virtual void TriggeredJobComplete(Trigger trigger, JobDetail jobDetail,
+		public virtual void TriggeredJobComplete(Trigger trigger, JobDetailImpl jobDetail,
                                                  SchedulerInstruction triggerInstCode)
 		{
 			lock (lockObject)
@@ -1415,7 +1415,7 @@ namespace Quartz.Simpl
 				//      from the JDBC job store
 				if (jw != null)
 				{
-					JobDetail jd = jw.jobDetail;
+					JobDetailImpl jd = jw.jobDetail;
 
 					if (jobDetail.Stateful)
 					{
@@ -1632,21 +1632,21 @@ namespace Quartz.Simpl
 	{
 		public string key;
 
-		public JobDetail jobDetail;
+		public JobDetailImpl jobDetail;
 
-		internal JobWrapper(JobDetail jobDetail)
+		internal JobWrapper(JobDetailImpl jobDetail)
 		{
 			this.jobDetail = jobDetail;
 			key = GetJobNameKey(jobDetail);
 		}
 
-		internal JobWrapper(JobDetail jobDetail, string key)
+		internal JobWrapper(JobDetailImpl jobDetail, string key)
 		{
 			this.jobDetail = jobDetail;
 			this.key = key;
 		}
 
-		internal static string GetJobNameKey(JobDetail jobDetail)
+		internal static string GetJobNameKey(JobDetailImpl jobDetail)
 		{
 			return jobDetail.Group + "_$x$x$_" + jobDetail.Name;
 		}

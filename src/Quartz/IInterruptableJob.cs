@@ -60,6 +60,7 @@ namespace Quartz
     /// </remarks>
 	/// <seealso cref="IJob" />
 	/// <seealso cref="IStatefulJob" />
+	/// <seealso cref="IScheduler.Interrupt"/>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface IInterruptableJob : IJob

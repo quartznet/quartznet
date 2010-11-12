@@ -234,7 +234,7 @@ namespace Quartz.Plugin.Xml
                                 SimpleTrigger.RepeatIndefinitely, scanInterval);
                             trig.Volatile = true;
 
-                            JobDetail job = new JobDetail(
+                            JobDetailImpl job = new JobDetailImpl(
                                 jobTriggerName,
                                 JobInitializationPluginName,
                                 typeof(FileScanJob));

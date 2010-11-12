@@ -43,7 +43,7 @@ namespace Quartz.Tests.Integration.Impl.Calendar
         {
             sched.Start();
             TestJob.JobHasFired = false;
-            JobDetail myDesc = new JobDetail("name", "group", typeof(TestJob));
+            JobDetailImpl myDesc = new JobDetailImpl("name", "group", typeof(TestJob));
             Trigger trigger = new CronTrigger("trigName", "trigGroup", "0/15 * * * * ?");
             AnnualCalendar calendar = new AnnualCalendar();
 

@@ -24,7 +24,7 @@ using Quartz.Util;
 namespace Quartz
 {
 	/// <summary> 
-	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetail" />
+	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetailImpl" />
 	/// at a given moment in time, and optionally repeated at a specified interval.
 	/// </summary>
 	/// <seealso cref="Trigger" />
@@ -694,7 +694,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Validates whether the properties of the <see cref="JobDetail" /> are
+		/// Validates whether the properties of the <see cref="JobDetailImpl" /> are
 		/// valid for submission into a <see cref="IScheduler" />.
 		/// </summary>
 		public override void Validate()

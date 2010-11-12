@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 
+using Quartz.Impl.Matchers;
 using Quartz.Listener;
 
 namespace Quartz.Core
@@ -38,7 +39,7 @@ namespace Quartz.Core
             jobsCompletedCount = CreateSampledCounter(CounterNameJobsCompleted);
 
             scheduler.AddSchedulerListener(this);
-            scheduler.AddGlobalJobListener(this);
+            scheduler.AddJobListener(this, EverythingMatcher<>.matchAllJobs());
         }
 
         private void EnsureCounters()

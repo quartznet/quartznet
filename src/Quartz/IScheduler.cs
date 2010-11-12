@@ -31,7 +31,7 @@ namespace Quartz
     /// <remarks>
     /// 	<para>
     ///         A <see cref="IScheduler"/> maintains a registry of
-    ///         <see cref="JobDetail"/>s and <see cref="Trigger"/>s. Once
+    ///         <see cref="JobDetailImpl"/>s and <see cref="Trigger"/>s. Once
     ///         registered, the <see cref="IScheduler"/> is responsible for executing
     ///         <see cref="IJob"/> s when their associated <see cref="Trigger"/> s
     ///         fire (when their scheduled time arrives).
@@ -47,9 +47,9 @@ namespace Quartz
     /// 	<para>
     /// 		<see cref="IJob"/> s are to be created by the 'client program', by
     ///         defining a class that implements the <see cref="IJob"/> interface.
-    ///         <see cref="JobDetail"/> objects are then created (also by the client) to
+    ///         <see cref="JobDetailImpl"/> objects are then created (also by the client) to
     ///         define a individual instances of the <see cref="IJob"/>.
-    ///         <see cref="JobDetail"/> instances can then be registered with the
+    ///         <see cref="JobDetailImpl"/> instances can then be registered with the
     ///         <see cref="IScheduler"/> via the %IScheduler.ScheduleJob(JobDetail,
     ///         Trigger)% or %IScheduler.AddJob(JobDetail, bool)% method.
     ///     </para>
@@ -90,7 +90,7 @@ namespace Quartz
     ///     </para>
     /// </remarks>
     /// <seealso cref="IJob"/>
-    /// <seealso cref="JobDetail"/>
+    /// <seealso cref="JobDetailImpl"/>
     /// <seealso cref="Trigger"/>
     /// <seealso cref="IJobListener"/>
     /// <seealso cref="ITriggerListener"/>
@@ -184,7 +184,7 @@ namespace Quartz
 		IJobFactory JobFactory { set; }
 
 		/// <summary>
-		/// Get the names of all known <see cref="JobDetail" /> groups.
+		/// Get the names of all known <see cref="JobDetailImpl" /> groups.
 		/// </summary>
         IList<string> JobGroupNames { get; }
 
@@ -323,7 +323,7 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Add the given <see cref="JobDetail" /> to the
+		/// Add the given <see cref="JobDetailImpl" /> to the
 		/// Scheduler, and associate the given <see cref="Trigger" /> with
 		/// it.
 		/// </summary>
@@ -331,7 +331,7 @@ namespace Quartz
 		/// If the given Trigger does not reference any <see cref="IJob" />, then it
 		/// will be set to reference the Job passed with it into this method.
 		/// </remarks>
-		DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger);
+		DateTimeOffset ScheduleJob(JobDetailImpl jobDetail, Trigger trigger);
 
 		/// <summary>
 		/// Schedule the given <see cref="Trigger" /> with the
@@ -376,7 +376,7 @@ namespace Quartz
 		/// The <see cref="IJob" /> must by definition be 'durable', if it is not,
 		/// SchedulerException will be thrown.
 		/// </remarks>
-		void AddJob(JobDetail jobDetail, bool replace);
+		void AddJob(JobDetailImpl jobDetail, bool replace);
 
 		/// <summary>
 		/// Delete the identified <see cref="IJob" /> from the Scheduler - and any
@@ -386,19 +386,19 @@ namespace Quartz
 		bool DeleteJob(string jobName, string groupName);
 
 		/// <summary>
-		/// Trigger the identified <see cref="JobDetail" />
+		/// Trigger the identified <see cref="JobDetailImpl" />
 		/// (Execute it now) - the generated trigger will be non-volatile.
 		/// </summary>
 		void TriggerJob(string jobName, string groupName);
 
 		/// <summary>
-		/// Trigger the identified <see cref="JobDetail" />
+		/// Trigger the identified <see cref="JobDetailImpl" />
 		/// (Execute it now) - the generated trigger will be volatile.
 		/// </summary>
 		void TriggerJobWithVolatileTrigger(string jobName, string groupName);
 
 		/// <summary>
-		/// Trigger the identified <see cref="JobDetail" />
+		/// Trigger the identified <see cref="JobDetailImpl" />
 		/// (Execute it now) - the generated trigger will be non-volatile.
 		/// </summary>
 		/// <param name="jobName">the name of the Job to trigger</param>
@@ -410,7 +410,7 @@ namespace Quartz
 		void TriggerJob(string jobName, string groupName, JobDataMap data);
 
 		/// <summary>
-		/// Trigger the identified <see cref="JobDetail" />
+		/// Trigger the identified <see cref="JobDetailImpl" />
 		/// (Execute it now) - the generated trigger will be volatile.
 		/// </summary>
 		/// <param name="jobName">the name of the Job to trigger</param>
@@ -422,13 +422,13 @@ namespace Quartz
 		void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data);
 
 		/// <summary>
-		/// Pause the <see cref="JobDetail" /> with the given
+		/// Pause the <see cref="JobDetailImpl" /> with the given
 		/// name - by pausing all of its current <see cref="Trigger" />s.
 		/// </summary>
 		void PauseJob(string jobName, string groupName);
 
 		/// <summary>
-		/// Pause all of the <see cref="JobDetail" />s in the
+		/// Pause all of the <see cref="JobDetailImpl" />s in the
 		/// given group - by pausing all of their <see cref="Trigger" />s.
 		/// </summary>
 		/// <remarks>
@@ -456,7 +456,7 @@ namespace Quartz
 		void PauseTriggerGroup(string groupName);
 
 		/// <summary>
-		/// Resume (un-pause) the <see cref="JobDetail" /> with
+		/// Resume (un-pause) the <see cref="JobDetailImpl" /> with
 		/// the given name.
 		/// </summary>
 		/// <remarks>
@@ -467,7 +467,7 @@ namespace Quartz
 		void ResumeJob(string jobName, string groupName);
 
 		/// <summary>
-		/// Resume (un-pause) all of the <see cref="JobDetail" />s
+		/// Resume (un-pause) all of the <see cref="JobDetailImpl" />s
 		/// in the given group.
 		/// </summary>
 		/// <remarks>
@@ -526,13 +526,13 @@ namespace Quartz
 		void ResumeAll();
 
 		/// <summary>
-		/// Get the names of all the <see cref="JobDetail" />s in the given group.
+		/// Get the names of all the <see cref="JobDetailImpl" />s in the given group.
 		/// </summary>
         IList<string> GetJobNames(string groupName);
 		
 		/// <summary>
 		/// Get all <see cref="Trigger" /> s that are associated with the
-		/// identified <see cref="JobDetail" />.
+		/// identified <see cref="JobDetailImpl" />.
 		/// </summary>
         IList<Trigger> GetTriggersOfJob(string jobName, string groupName);
 
@@ -543,10 +543,10 @@ namespace Quartz
         IList<string> GetTriggerNames(string groupName);
 
 		/// <summary>
-		/// Get the <see cref="JobDetail" /> for the <see cref="IJob" />
+		/// Get the <see cref="JobDetailImpl" /> for the <see cref="IJob" />
 		/// instance with the given name and group.
 		/// </summary>
-		JobDetail GetJobDetail(string jobName, string jobGroup);
+		JobDetailImpl GetJobDetail(string jobName, string jobGroup);
 
 		/// <summary>
 		/// Get the <see cref="Trigger" /> instance with the given name and
@@ -639,7 +639,7 @@ namespace Quartz
 		/// </summary>
 		/// <remarks>
 		/// Listeners in the 'global' list receive notification of execution events
-		/// for ALL <see cref="JobDetail" />s.
+		/// for ALL <see cref="JobDetailImpl" />s.
 		/// </remarks>
 		void AddGlobalJobListener(IJobListener jobListener);
 

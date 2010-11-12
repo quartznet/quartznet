@@ -33,7 +33,7 @@ namespace Quartz
 
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that the <see cref="Trigger" />
-        /// wants the <see cref="JobDetail" /> to re-Execute
+        /// wants the <see cref="JobDetailImpl" /> to re-Execute
         /// immediately. If not in a 'RECOVERING' or 'FAILED_OVER' situation, the
         /// execution context will be re-used (giving the <see cref="IJob" /> the
         /// ability to 'see' anything placed in the context by its last execution).
@@ -54,14 +54,14 @@ namespace Quartz
 
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that all <see cref="Trigger" />
-        /// s referencing the same <see cref="JobDetail" /> as
+        /// s referencing the same <see cref="JobDetailImpl" /> as
         /// this one should be put in the <see cref="TriggerState.Complete" /> state.
         /// </summary>
         SetAllJobTriggersComplete,
 
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that all <see cref="Trigger" />
-        /// s referencing the same <see cref="JobDetail" /> as
+        /// s referencing the same <see cref="JobDetailImpl" /> as
         /// this one should be put in the <see cref="TriggerState.Error" /> state.
         /// </summary>
         SetAllJobTriggersError,

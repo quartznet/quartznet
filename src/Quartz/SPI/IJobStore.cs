@@ -36,7 +36,7 @@ namespace Quartz.Spi
 	/// <seealso cref="QuartzScheduler" />
 	/// <seealso cref="Trigger" />
 	/// <seealso cref="IJob" />
-	/// <seealso cref="JobDetail" />
+	/// <seealso cref="JobDetailImpl" />
 	/// <seealso cref="JobDataMap" />
 	/// <seealso cref="ICalendar" />
 	/// <author>James House</author>
@@ -81,12 +81,12 @@ namespace Quartz.Spi
         bool Clustered { get; }
 
         /// <summary>
-        /// Store the given <see cref="JobDetail" /> and <see cref="Trigger" />.
+        /// Store the given <see cref="JobDetailImpl" /> and <see cref="Trigger" />.
         /// </summary>
-        /// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
+        /// <param name="newJob">The <see cref="JobDetailImpl" /> to be stored.</param>
         /// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
-		void StoreJobAndTrigger(JobDetail newJob, Trigger newTrigger);
+		void StoreJobAndTrigger(JobDetailImpl newJob, Trigger newTrigger);
 
         /// <summary>
         /// returns true if the given JobGroup
@@ -105,15 +105,15 @@ namespace Quartz.Spi
         bool IsTriggerGroupPaused(string groupName);
         
         /// <summary>
-        /// Store the given <see cref="JobDetail" />.
+        /// Store the given <see cref="JobDetailImpl" />.
         /// </summary>
-        /// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
+        /// <param name="newJob">The <see cref="JobDetailImpl" /> to be stored.</param>
         /// <param name="replaceExisting">
         /// If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name and group should be
         /// over-written.
         /// </param>
-		void StoreJob(JobDetail newJob, bool replaceExisting);
+		void StoreJob(JobDetailImpl newJob, bool replaceExisting);
 
         /// <summary>
         /// Remove (delete) the <see cref="IJob" /> with the given
@@ -134,7 +134,7 @@ namespace Quartz.Spi
 		bool RemoveJob(string jobName, string groupName);
 
         /// <summary>
-        /// Retrieve the <see cref="JobDetail" /> for the given
+        /// Retrieve the <see cref="JobDetailImpl" /> for the given
         /// <see cref="IJob" />.
         /// </summary>
         /// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
@@ -142,7 +142,7 @@ namespace Quartz.Spi
         /// <returns>
         /// The desired <see cref="IJob" />, or null if there is no match.
         /// </returns>
-		JobDetail RetrieveJob(string jobName, string groupName);
+		JobDetailImpl RetrieveJob(string jobName, string groupName);
 
         /// <summary>
         /// Store the given <see cref="Trigger" />.
@@ -487,10 +487,10 @@ namespace Quartz.Spi
 		/// Inform the <see cref="IJobStore" /> that the scheduler has completed the
 		/// firing of the given <see cref="Trigger" /> (and the execution its
 		/// associated <see cref="IJob" />), and that the <see cref="JobDataMap" />
-		/// in the given <see cref="JobDetail" /> should be updated if the <see cref="IJob" />
+		/// in the given <see cref="JobDetailImpl" /> should be updated if the <see cref="IJob" />
 		/// is stateful.
 		/// </summary>
-        void TriggeredJobComplete(Trigger trigger, JobDetail jobDetail, SchedulerInstruction triggerInstCode);
+        void TriggeredJobComplete(Trigger trigger, JobDetailImpl jobDetail, SchedulerInstruction triggerInstCode);
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id, 

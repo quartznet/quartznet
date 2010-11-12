@@ -226,7 +226,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     SimpleTrigger calendarsTrigger = new SimpleTrigger("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
                     calendarsTrigger.CalendarName = "annualCalendar";
 
-                    JobDetail jd = new JobDetail("testJob", "test", typeof(NoOpJob));
+                    JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof(NoOpJob));
                     sched.ScheduleJob(jd, calendarsTrigger);
 
                     // QRTZNET-93
@@ -244,7 +244,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     Assert.IsNotNull(sched.GetCalendar("annualCalendar"));
 
-                    JobDetail lonelyJob = new JobDetail("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
+                    JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
                     lonelyJob.Durable = true;
                     lonelyJob.RequestsRecovery = true;
                     sched.AddJob(lonelyJob, false);
@@ -254,7 +254,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     int count = 1;
 
-                    JobDetail job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    JobDetailImpl job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
 
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
@@ -270,7 +270,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     Assert.IsTrue(persisted is SimpleTrigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
@@ -280,7 +280,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
@@ -290,7 +290,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
@@ -300,7 +300,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
@@ -308,7 +308,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
@@ -318,7 +318,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.ScheduleJob(job, ct);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
@@ -428,7 +428,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     for (int i = 0; i < 100000; ++i)
                     {
                         SimpleTrigger trigger = new SimpleTrigger("calendarsTrigger", "test", SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(1));
-                        JobDetail jd = new JobDetail("testJob", "test", typeof(NoOpJob));
+                        JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof(NoOpJob));
                         sched.ScheduleJob(jd, trigger);
                     }
 
@@ -510,7 +510,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                     CleanUp(sched);
 
-                    JobDetail lonelyJob = new JobDetail("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
+                    JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
                     lonelyJob.Durable = true;
                     lonelyJob.RequestsRecovery = true;
                     sched.AddJob(lonelyJob, false);
@@ -518,7 +518,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     string schedId = sched.SchedulerInstanceId;
 
-                    JobDetail job = new JobDetail("job_to_use", schedId, typeof(SimpleRecoveryJob));
+                    JobDetailImpl job = new JobDetailImpl("job_to_use", schedId, typeof(SimpleRecoveryJob));
 
                     for (int i = 0; i < 100000; ++i)
                     {

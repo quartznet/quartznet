@@ -28,7 +28,7 @@ namespace Quartz
 	/// no-argument constructor. <see cref="JobDataMap" /> provides a mechanism for 'instance member data'
 	/// that may be required by some implementations of this interface.
     /// </remarks>
-	/// <seealso cref="JobDetail" />
+	/// <seealso cref="JobDetailImpl" />
     /// <seealso cref="JobBuilder" />
     /// <seealso cref="ExecuteInJTATransaction" />
     /// <seealso cref="DisallowConcurrentExecution" />

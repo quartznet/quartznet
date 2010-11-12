@@ -59,7 +59,7 @@ namespace Quartz
         /// data map in the case of a job recovering after a failed scheduler
         /// instance.
         /// </summary>
-        /// <seealso cref="JobDetail.RequestsRecovery" />
+        /// <seealso cref="JobDetailImpl.RequestsRecovery" />
         public const string FailedJobOriginalTriggerName = "QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME";
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace Quartz
         /// data map in the case of a job recovering after a failed scheduler
         /// instance.
         /// </summary>
-        /// <seealso cref="JobDetail.RequestsRecovery" />
+        /// <seealso cref="JobDetailImpl.RequestsRecovery" />
         public const string FailedJobOriginalTriggerGroup = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Quartz
         /// trigger's data map in the case of a job recovering after a failed scheduler
         /// instance.
         /// </summary>
-        /// <seealso cref="JobDetail.RequestsRecovery" />
+        /// <seealso cref="JobDetailImpl.RequestsRecovery" />
         public const string FailedJobOriginalTriggerFiretimeInMillisecoonds = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING";
 
     }

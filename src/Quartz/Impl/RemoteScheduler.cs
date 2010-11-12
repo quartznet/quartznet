@@ -492,7 +492,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger)
+        public virtual DateTimeOffset ScheduleJob(JobDetailImpl jobDetail, Trigger trigger)
         {
             try
             {
@@ -522,7 +522,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void AddJob(JobDetail jobDetail, bool replace)
+        public virtual void AddJob(JobDetailImpl jobDetail, bool replace)
         {
             try
             {
@@ -830,7 +830,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual JobDetail GetJobDetail(string jobName, string jobGroup)
+        public virtual JobDetailImpl GetJobDetail(string jobName, string jobGroup)
         {
             try
             {

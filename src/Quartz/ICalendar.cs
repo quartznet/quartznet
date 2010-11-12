@@ -23,24 +23,26 @@ using Quartz.Impl.Calendar;
 
 namespace Quartz
 {
-	/// <summary> 
-	///  An interface to be implemented by objects that define spaces of time during 
-    /// which an associated <see cref="Trigger" /> may fire. 
+    /// <summary> 
+    /// An interface to be implemented by objects that define spaces of time during 
+    /// which an associated <see cref="Trigger" /> may (not) fire. Calendars 
+    /// do not define actual fire times, but rather are used to limit a 
+    /// <see cref="Trigger" /> from firing on its normal schedule if necessary. Most 
+    /// Calendars include all times by default and allow the user to specify times 
+    /// to exclude. 
     /// </summary>
     /// <remarks>
-    /// Calendars do not  define actual fire times, but rather are used to limit a 
-    /// <see cref="Trigger" /> from firing on its normal schedule if necessary. Most 
-    /// Calendars include all times by default and allow the user to specify times to
-    /// exclude. As such, it is often useful to think of Calendars as being used to
-    /// <i>exclude</i> a block of time - as opposed to <i>include</i> 
-    /// a block of time. (i.e. the  schedule &quot;fire every five minutes except on Sundays&quot; could be 
-    /// implemented with a <see cref="SimpleTrigger" /> and a <see cref="WeeklyCalendar" /> which excludes Sundays)
+    /// As such, it is often useful to think of Calendars as being used to <I>exclude</I> a block
+    /// of time - as opposed to <I>include</I> a block of time. (i.e. the 
+    /// schedule &quot;fire every five minutes except on Sundays&quot; could be 
+    /// implemented with a <see cref="SimpleTrigger" /> and a 
+    /// <see cref="WeeklyCalendar" /> which excludes Sundays)
     /// <para>
     /// Implementations MUST take care of being properly cloneable and Serializable.
     /// </para>
     /// </remarks>
-	/// <author>James House</author>
-	/// <author>Juergen Donnerstag</author>
+    /// <author>James House</author>
+    /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface ICalendar : ICloneable
 	{

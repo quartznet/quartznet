@@ -75,7 +75,7 @@ namespace Quartz.Examples.Example8
 			// schedule a job to run hourly, starting on halloween
 			// at 10 am
 			DateTime runDate = new DateTime(DateTime.UtcNow.Year, 10, 31, 10, 0, 0).ToUniversalTime();
-			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob));
+			JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof(SimpleJob));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runDate, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromHours(1));
 			// tell the trigger to obey the Holidays calendar!
 			trigger.CalendarName = "holidays";

@@ -26,7 +26,7 @@ using Quartz.Util;
 namespace Quartz
 {
 	/// <summary>
-	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetail" />
+	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetailImpl" />
 	/// at given moments in time, defined with Unix 'cron-like' definitions.
 	/// </summary>
 	/// <remarks>
@@ -247,7 +247,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with the given name and group, and
-		/// associated with the identified <see cref="JobDetail" />.
+		/// associated with the identified <see cref="JobDetailImpl" />.
 		/// </summary>
 		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
@@ -255,8 +255,8 @@ namespace Quartz
 		/// </remarks>
         /// <param name="name">The name of the <see cref="Trigger" />.</param>
         /// <param name="group">The group of the <see cref="Trigger" /></param>
-        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
-        /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobName">name of the <see cref="JobDetailImpl" /> executed on firetime</param>
+        /// <param name="jobGroup">Group of the <see cref="JobDetailImpl" /> executed on firetime</param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup) : base(name, group, jobName, jobGroup)
 		{
@@ -266,7 +266,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with the given name and group,
-		/// associated with the identified <see cref="JobDetail" />,
+		/// associated with the identified <see cref="JobDetailImpl" />,
 		/// and with the given "cron" expression.
 		/// </summary>
 		/// <remarks>
@@ -275,8 +275,8 @@ namespace Quartz
         /// </remarks>
         /// <param name="name">The name of the <see cref="Trigger" /></param>
         /// <param name="group">The group of the <see cref="Trigger" /></param>
-        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
-        /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobName">name of the <see cref="JobDetailImpl" /> executed on firetime</param>
+        /// <param name="jobGroup">Group of the <see cref="JobDetailImpl" /> executed on firetime</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
 		public CronTrigger(string name, string group, string jobName,
 			string jobGroup, string cronExpression)
@@ -286,13 +286,13 @@ namespace Quartz
 
 		/// <summary>
 		/// Create a <see cref="CronTrigger" /> with the given name and group,
-		/// associated with the identified <see cref="JobDetail" />,
+		/// associated with the identified <see cref="JobDetailImpl" />,
 		/// and with the given "cron" expression resolved with respect to the <see cref="TimeZone" />.
 		/// </summary>
         /// <param name="name">The name of the <see cref="Trigger" /></param>
         /// <param name="group">The group of the <see cref="Trigger" /></param>
-        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
-        /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobName">name of the <see cref="JobDetailImpl" /> executed on firetime</param>
+        /// <param name="jobGroup">Group of the <see cref="JobDetailImpl" /> executed on firetime</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
         /// <param name="timeZone">
         /// Specifies for which time zone the <code>cronExpression</code> should be interpreted, 
@@ -316,8 +316,8 @@ namespace Quartz
 		/// </summary>
         /// <param name="name">The name of the <see cref="Trigger" /></param>
         /// <param name="group">The group of the <see cref="Trigger" /></param>
-        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
-        /// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobName">name of the <see cref="JobDetailImpl" /> executed on firetime</param>
+        /// <param name="jobGroup">Group of the <see cref="JobDetailImpl" /> executed on firetime</param>
         /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
         /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
@@ -350,8 +350,8 @@ namespace Quartz
 		/// </summary>
         /// <param name="name">The name of the <see cref="Trigger" /></param>
         /// <param name="group">The group of the <see cref="Trigger" /></param>
-        /// <param name="jobName">name of the <see cref="JobDetail" /> executed on firetime</param>
-		/// <param name="jobGroup">Group of the <see cref="JobDetail" /> executed on firetime</param>
+        /// <param name="jobName">name of the <see cref="JobDetailImpl" /> executed on firetime</param>
+		/// <param name="jobGroup">Group of the <see cref="JobDetailImpl" /> executed on firetime</param>
         /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
         /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
 		public CronTrigger(string name, string group, string jobName,

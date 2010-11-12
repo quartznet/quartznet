@@ -137,7 +137,7 @@ namespace Quartz.Examples.Example13
 
 				int count = 1;
 
-				JobDetail job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+				JobDetailImpl job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
 				job.RequestsRecovery = true;
@@ -148,7 +148,7 @@ namespace Quartz.Examples.Example13
                 _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
 				count++;
-				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+				job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
 				job.RequestsRecovery = (true);
@@ -159,7 +159,7 @@ namespace Quartz.Examples.Example13
                 _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
 				count++;
-				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
+				job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
 				job.RequestsRecovery = true;
@@ -170,7 +170,7 @@ namespace Quartz.Examples.Example13
                 _log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
 				count++;
-				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+				job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
 				job.RequestsRecovery = true;
@@ -181,7 +181,7 @@ namespace Quartz.Examples.Example13
                 _log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.FullName, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval));
 
 				count++;
-				job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+				job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
 				// ask scheduler to re-Execute this job if it was in progress when
 				// the scheduler went down...
 				job.RequestsRecovery = true;

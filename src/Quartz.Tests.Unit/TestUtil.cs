@@ -51,14 +51,14 @@ namespace Quartz.Tests.Unit
         /// <returns>Minimal TriggerFiredBundle</returns>
         public static TriggerFiredBundle CreateMinimalFiredBundleWithTypedJobDetail(Type jobType, Trigger trigger)
         {
-            JobDetail jd = new JobDetail("jobName", "jobGroup", jobType);
+            JobDetailImpl jd = new JobDetailImpl("jobName", "jobGroup", jobType);
             TriggerFiredBundle bundle = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
             return bundle;
         }
 
         public static TriggerFiredBundle NewMinimalTriggerFiredBundle()
         {
-            JobDetail jd = new JobDetail("jobName", "jobGroup", typeof(NoOpJob));
+            JobDetailImpl jd = new JobDetailImpl("jobName", "jobGroup", typeof(NoOpJob));
             SimpleTrigger trigger = new SimpleTrigger("triggerName", "triggerGroup");
             TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
 

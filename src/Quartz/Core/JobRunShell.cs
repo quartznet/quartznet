@@ -86,7 +86,7 @@ namespace Quartz.Core
 			qs = sched;
 
 			IJob job;
-			JobDetail jobDetail = firedBundle.JobDetail;
+			JobDetailImpl jobDetail = firedBundle.JobDetail;
 
 			try
 			{
@@ -126,7 +126,7 @@ namespace Quartz.Core
             try
             {
                 Trigger trigger = jec.Trigger;
-                JobDetail jobDetail = jec.JobDetail;
+                JobDetailImpl jobDetail = jec.JobDetail;
                 do
                 {
                     JobExecutionException jobExEx = null;
@@ -413,7 +413,7 @@ namespace Quartz.Core
 		/// <param name="jobDetail">The job detail.</param>
 		/// <param name="instCode">The inst code.</param>
 		/// <returns></returns>
-        public virtual bool CompleteTriggerRetryLoop(Trigger trigger, JobDetail jobDetail, SchedulerInstruction instCode)
+        public virtual bool CompleteTriggerRetryLoop(Trigger trigger, JobDetailImpl jobDetail, SchedulerInstruction instCode)
 		{
             long count = 0;
 			while (!shutdownRequested && !qs.IsShuttingDown)
@@ -448,7 +448,7 @@ namespace Quartz.Core
 		/// <param name="jobDetail">The job detail.</param>
 		/// <param name="instCode">The inst code.</param>
 		/// <returns></returns>
-        public bool VetoedJobRetryLoop(Trigger trigger, JobDetail jobDetail, SchedulerInstruction instCode)
+        public bool VetoedJobRetryLoop(Trigger trigger, JobDetailImpl jobDetail, SchedulerInstruction instCode)
         {
             while (!shutdownRequested)
             {

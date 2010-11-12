@@ -30,14 +30,14 @@ namespace Quartz.Xml
     /// <author>Marko Lahma (.NET)</author>
     public class JobSchedulingBundle
 	{
-	    private JobDetail jobDetail;
+	    private JobDetailImpl jobDetail;
 	    private IList<Trigger> triggers = new List<Trigger>();
 		
 		/// <summary>
 		/// Gets or sets the job detail.
 		/// </summary>
 		/// <value>The job detail.</value>
-		public virtual JobDetail JobDetail
+		public virtual JobDetailImpl JobDetail
 		{
 			get { return jobDetail; }
 			set { jobDetail = value; }

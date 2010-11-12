@@ -24,7 +24,7 @@ using Quartz.Util;
 namespace Quartz
 {
     /// <summary>
-    /// Uniquely identifies a <see cref="JobDetail" />.
+    /// Uniquely identifies a <see cref="JobDetailImpl" />.
     /// </summary>
     /// <remarks>
     /// <p>Keys are composed of both a name and group, and the name must be unique

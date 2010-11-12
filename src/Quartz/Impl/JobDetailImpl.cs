@@ -20,18 +20,14 @@
 using System;
 using System.Globalization;
 
-using Quartz.Spi;
-using Quartz.Util;
-
-namespace Quartz
+namespace Quartz.Impl
 {
     /// <summary>
     /// Conveys the detail properties of a given <code>Job</code> instance. 
-    /// JobDetails are to be created/defined with <see cref="JobBuilder" />.
     /// </summary>
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
-    /// instead allows you to define an instance of one, through the use of a <see cref="JobDetail" />.
+    /// instead allows you to define an instance of one, through the use of a <see cref="JobDetailImpl" />.
     /// <p>
     /// <see cref="IJob" />s have a name and group associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
@@ -49,22 +45,20 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class JobDetail : ICloneable
+    public class JobDetailImpl : IJobDetail
     {
         private string name;
         private string group = SchedulerConstants.DefaultGroup;
         private string description;
         private Type jobType;
         private JobDataMap jobDataMap;
-        private bool volatility;
         private bool durability;
         private bool shouldRecover;
 
-        [NonSerialized]
-        private Key key;
+        [NonSerialized] private JobKey key;
 
         /// <summary>
-        /// Create a <see cref="JobDetail" /> with no specified name or group, and
+        /// Create a <see cref="JobDetailImpl" /> with no specified name or group, and
         /// the default settings of all the other properties.
         /// <p>
         /// Note that the <see cref="Name" />,<see cref="Group" /> and
@@ -72,32 +66,32 @@ namespace Quartz
         /// placed into a <see cref="IScheduler" />.
         /// </p>
         /// </summary>
-        public JobDetail()
+        public JobDetailImpl()
         {
             // do nothing...
         }
 
         /// <summary>
-        /// Create a <see cref="JobDetail" /> with the given name, default group, and
+        /// Create a <see cref="JobDetailImpl" /> with the given name, default group, and
         /// the default settings of all the other properties.
         /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
         /// </summary>
         /// <exception cref="ArgumentException">
         /// If name is null or empty, or the group is an empty string.
         /// </exception>
-        public JobDetail(string name, Type jobType) : this(name, null, jobType)
+        public JobDetailImpl(string name, Type jobType) : this(name, null, jobType)
         {
         }
 
         /// <summary>
-        /// Create a <see cref="JobDetail" /> with the given name, and group, and
+        /// Create a <see cref="JobDetailImpl" /> with the given name, and group, and
         /// the default settings of all the other properties.
         /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
         /// </summary>
         /// <exception cref="ArgumentException">
         /// If name is null or empty, or the group is an empty string.
         /// </exception>
-        public JobDetail(string name, string group, Type jobType)
+        public JobDetailImpl(string name, string group, Type jobType)
         {
             Name = name;
             Group = group;
@@ -105,7 +99,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Create a <see cref="JobDetail" /> with the given name, and group, and
+        /// Create a <see cref="JobDetailImpl" /> with the given name, and group, and
         /// the given settings of all the other properties.
         /// </summary>
         /// <param name="name">The name.</param>
@@ -117,12 +111,11 @@ namespace Quartz
         /// <exception cref="ArgumentException"> 
         /// ArgumentException if name is null or empty, or the group is an empty string.
         /// </exception>
-        public JobDetail(string name, string group, Type jobType, bool isVolatile, bool isDurable, bool requestsRecovery)
+        public JobDetailImpl(string name, string group, Type jobType, bool isVolatile, bool isDurable, bool requestsRecovery)
         {
             Name = name;
             Group = group;
             JobType = jobType;
-            Volatile = isVolatile;
             Durable = isDurable;
             RequestsRecovery = requestsRecovery;
         }
@@ -184,17 +177,21 @@ namespace Quartz
             get { return group + "." + name; }
         }
 
-		/// <summary>
-		/// Gets the key.
-		/// </summary>
-		/// <value>The key.</value>
-        public virtual Key Key
+        /// <summary>
+        /// Gets the key.
+        /// </summary>
+        /// <value>The key.</value>
+        public virtual JobKey Key
         {
             get
             {
                 if (key == null)
                 {
-                    key = new Key(Name, Group);
+                    if (Name == null)
+                    {
+                        return null;
+                    }
+                    key = new JobKey(Name, Group);
                 }
 
                 return key;
@@ -274,23 +271,6 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Whether or not the <see cref="IJob" /> should not be persisted in the
-        /// <see cref="IJobStore" /> for re-use after program
-        /// restarts.
-        /// <p>
-        /// If not explicitly set, the default value is <see langword="false" />.
-        /// </p>
-        /// </summary>
-        /// <returns> <see langword="true" /> if the <see cref="IJob" /> should be garbage
-        /// collected along with the <see cref="IScheduler" />.
-        /// </returns>
-        public virtual bool Volatile
-        {
-            get { return volatility; }
-            set { volatility = value;  }
-        }
-
-        /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
         /// orphaned (no <see cref="Trigger" />s point to it).
         /// <p>
@@ -308,23 +288,23 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Whether or not the <see cref="IJob" /> implements the interface <see cref="IStatefulJob" />.
+        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> attribute.
         /// </summary>
-        public virtual bool Stateful
+        public bool PersistJobDataAfterExecution
         {
-            get
-            {
-                if (jobType == null)
-                {
-                    return false;
-                }
+            get { return ClassUtils.isAnnotationPresent(jobType, typeof (PersistJobDataAfterExecution)); }
+        }
 
-                return (typeof (IStatefulJob).IsAssignableFrom(jobType));
-            }
+        /// <summary>
+        /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecution" /> attribute.
+        /// </summary>
+        public bool ConcurrentExectionDisallowed
+        {
+            get { return ClassUtils.isAnnotationPresent(jobType, typeof (DisallowConcurrentExecution)); }
         }
 
         /// <summary> 
-        /// Validates whether the properties of the <see cref="JobDetail" /> are
+        /// Validates whether the properties of the <see cref="JobDetailImpl" /> are
         /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
         public virtual void Validate()
@@ -365,10 +345,10 @@ namespace Quartz
         /// </returns>
         public virtual object Clone()
         {
-            JobDetail copy;
+            JobDetailImpl copy;
             try
             {
-                copy = (JobDetail) MemberwiseClone();
+                copy = (JobDetailImpl) MemberwiseClone();
                 if (jobDataMap != null)
                 {
                     copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
@@ -383,32 +363,32 @@ namespace Quartz
         }
 
 
-		/// <summary>
-		/// Determines whether the specified detail is equal to this instance.
-		/// </summary>
-		/// <param name="detail">The detail to examine.</param>
-		/// <returns>
-		/// 	<c>true</c> if the specified detail is equal; otherwise, <c>false</c>.
-		/// </returns>
-        protected virtual bool IsEqual(JobDetail detail)
+        /// <summary>
+        /// Determines whether the specified detail is equal to this instance.
+        /// </summary>
+        /// <param name="detail">The detail to examine.</param>
+        /// <returns>
+        /// 	<c>true</c> if the specified detail is equal; otherwise, <c>false</c>.
+        /// </returns>
+        protected virtual bool IsEqual(JobDetailImpl detail)
         {
-			//doesn't consider job's saved data,
-			//durability etc
+            //doesn't consider job's saved data,
+            //durability etc
             return (detail != null) && (detail.Name == Name) && (detail.Group == Group) &&
                    (detail.JobType == JobType);
         }
-        
-		/// <summary>
-		/// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
-		/// </summary>
-		/// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
-		/// <returns>
-		/// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
-		/// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
-		/// </returns>
+
+        /// <summary>
+        /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
+        /// </summary>
+        /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
+        /// <returns>
+        /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
+        /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
+        /// </returns>
         public override bool Equals(object obj)
         {
-            JobDetail jd = obj as JobDetail;
+            JobDetailImpl jd = obj as JobDetailImpl;
             if (jd == null)
             {
                 return false;
@@ -422,21 +402,33 @@ namespace Quartz
         /// </summary>
         /// <param name="detail">The detail to compare this instance with.</param>
         /// <returns></returns>
-        public bool Equals(JobDetail detail)
+        public bool Equals(JobDetailImpl detail)
         {
             return IsEqual(detail);
         }
 
-		/// <summary>
-		/// Serves as a hash function for a particular type, suitable
-		/// for use in hashing algorithms and data structures like a hash table.
-		/// </summary>
-		/// <returns>
-		/// A hash code for the current <see cref="T:System.Object"/>.
-		/// </returns>
+        /// <summary>
+        /// Serves as a hash function for a particular type, suitable
+        /// for use in hashing algorithms and data structures like a hash table.
+        /// </summary>
+        /// <returns>
+        /// A hash code for the current <see cref="T:System.Object"/>.
+        /// </returns>
         public override int GetHashCode()
         {
             return FullName.GetHashCode();
+        }
+
+        public JobBuilder GetJobBuilder()
+        {
+            JobBuilder b = JobBuilder.NewJob()
+                .OfType(JobType)
+                .RequestRecovery(RequestsRecovery)
+                .StoreDurably(Durable)
+                .UsingJobData(JobDataMap)
+                .WithDescription(description)
+                .WithIdentity(Key);
+            return b;
         }
     }
 }

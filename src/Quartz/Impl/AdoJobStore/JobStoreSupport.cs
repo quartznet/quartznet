@@ -868,11 +868,11 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Store the given <see cref="JobDetail" /> and <see cref="Trigger" />.
+        /// Store the given <see cref="JobDetailImpl" /> and <see cref="Trigger" />.
         /// </summary>
         /// <param name="newJob">Job to be stored.</param>
         /// <param name="newTrigger">Trigger to be stored.</param>
-        public void StoreJobAndTrigger(JobDetail newJob, Trigger newTrigger)
+        public void StoreJobAndTrigger(JobDetailImpl newJob, Trigger newTrigger)
         {
             ExecuteInLock((LockOnInsert) ? LockTriggerAccess : null,
                           new StoreJobAndTriggerCallback(this, newJob, newTrigger));
@@ -902,10 +902,10 @@ namespace Quartz.Impl.AdoJobStore
 
         protected class StoreJobAndTriggerCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly JobDetail newJob;
+            private readonly JobDetailImpl newJob;
             private readonly Trigger newTrigger;
 
-            public StoreJobAndTriggerCallback(JobStoreSupport js, JobDetail newJob, Trigger newTrigger)
+            public StoreJobAndTriggerCallback(JobStoreSupport js, JobDetailImpl newJob, Trigger newTrigger)
                 : base(js)
             {
                 this.newJob = newJob;
@@ -927,14 +927,14 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// Stores the given <see cref="JobDetail" />.
+        /// Stores the given <see cref="JobDetailImpl" />.
         /// </summary>
-        /// <param name="newJob">The <see cref="JobDetail" /> to be stored.</param>
+        /// <param name="newJob">The <see cref="JobDetailImpl" /> to be stored.</param>
         /// <param name="replaceExisting">
         /// If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name &amp; group should be over-written.
         /// </param>
-        public void StoreJob(JobDetail newJob, bool replaceExisting)
+        public void StoreJob(JobDetailImpl newJob, bool replaceExisting)
         {
             ExecuteInLock(
                 (LockOnInsert || replaceExisting) ? LockTriggerAccess : null,
@@ -943,10 +943,10 @@ namespace Quartz.Impl.AdoJobStore
 
         protected class StoreJobCallback : CallbackSupport, IVoidTransactionCallback
         {
-            private readonly JobDetail newJob;
+            private readonly JobDetailImpl newJob;
             private readonly bool replaceExisting;
 
-            public StoreJobCallback(JobStoreSupport js, JobDetail newJob, bool replaceExisting)
+            public StoreJobCallback(JobStoreSupport js, JobDetailImpl newJob, bool replaceExisting)
                 : base(js)
             {
                 this.newJob = newJob;
@@ -964,7 +964,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </p>
         /// </summary>
         protected virtual void StoreJob(ConnectionAndTransactionHolder conn,
-                                        JobDetail newJob,
+                                        JobDetailImpl newJob,
                                         bool replaceExisting)
         {
             if (newJob.Volatile && Clustered)
@@ -1059,7 +1059,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected virtual void StoreTrigger(ConnectionAndTransactionHolder conn,
                                             Trigger newTrigger,
-                                            JobDetail job, bool replaceExisting, string state, bool forceState,
+                                            JobDetailImpl job, bool replaceExisting, string state, bool forceState,
                                             bool recovering)
         {
             if (newTrigger.Volatile && Clustered)
@@ -1270,16 +1270,16 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Retrieve the <see cref="JobDetail" /> for the given
+        /// Retrieve the <see cref="JobDetailImpl" /> for the given
         /// <see cref="IJob" />.
         /// </summary>
         /// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
         /// <param name="groupName">The group name of the <see cref="IJob" /> to be retrieved.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-        public JobDetail RetrieveJob(string jobName, string groupName)
+        public JobDetailImpl RetrieveJob(string jobName, string groupName)
         {
             // no locks necessary for read...
-            return (JobDetail) ExecuteWithoutLock(new RetrieveJobCallback(this, jobName, groupName));
+            return (JobDetailImpl) ExecuteWithoutLock(new RetrieveJobCallback(this, jobName, groupName));
         }
 
         protected class RetrieveJobCallback : CallbackSupport, ITransactionCallback
@@ -1301,13 +1301,13 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual JobDetail RetrieveJob(ConnectionAndTransactionHolder conn,
+        protected virtual JobDetailImpl RetrieveJob(ConnectionAndTransactionHolder conn,
                                                 string jobName,
                                                 string groupName)
         {
             try
             {
-                JobDetail job = Delegate.SelectJobDetail(conn, jobName, groupName, TypeLoadHelper);
+                JobDetailImpl job = Delegate.SelectJobDetail(conn, jobName, groupName, TypeLoadHelper);
                 return job;
             }
 
@@ -1382,7 +1382,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 // this must be called before we delete the trigger, obviously
                 // we use fault tolerant type loading as we only want to delete things
-                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, new NoOpJobTypeLoader());
+                JobDetailImpl job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, new NoOpJobTypeLoader());
 
                 removedTrigger = DeleteTriggerAndChildren(conn, triggerName, groupName);
 
@@ -1464,7 +1464,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // this must be called before we delete the trigger, obviously
-                JobDetail job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, TypeLoadHelper);
+                JobDetailImpl job = Delegate.SelectJobForTrigger(conn, triggerName, groupName, TypeLoadHelper);
 
                 if (job == null)
                 {
@@ -3107,7 +3107,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual TriggerFiredBundle TriggerFired(ConnectionAndTransactionHolder conn,
                                                           Trigger trigger)
         {
-            JobDetail job;
+            JobDetailImpl job;
             ICalendar cal = null;
 
             // Make sure trigger wasn't deleted, paused, or completed...
@@ -3219,10 +3219,10 @@ namespace Quartz.Impl.AdoJobStore
         /// Inform the <see cref="IJobStore" /> that the scheduler has completed the
         /// firing of the given <see cref="Trigger" /> (and the execution its
         /// associated <see cref="IJob" />), and that the <see cref="JobDataMap" />
-        /// in the given <see cref="JobDetail" /> should be updated if the <see cref="IJob" />
+        /// in the given <see cref="JobDetailImpl" /> should be updated if the <see cref="IJob" />
         /// is stateful.
         /// </summary>
-        public virtual void TriggeredJobComplete(Trigger trigger, JobDetail jobDetail,
+        public virtual void TriggeredJobComplete(Trigger trigger, JobDetailImpl jobDetail,
                                                  SchedulerInstruction triggerInstCode)
         {
             ExecuteInNonManagedTXLock(LockTriggerAccess,
@@ -3233,10 +3233,10 @@ namespace Quartz.Impl.AdoJobStore
         {
             private readonly Trigger trigger;
             private readonly SchedulerInstruction triggerInstCode;
-            private readonly JobDetail jobDetail;
+            private readonly JobDetailImpl jobDetail;
 
             public TriggeredJobCompleteCallback(JobStoreSupport js, Trigger trigger,
-                                                SchedulerInstruction triggerInstCode, JobDetail jobDetail)
+                                                SchedulerInstruction triggerInstCode, JobDetailImpl jobDetail)
                 : base(js)
             {
                 this.trigger = trigger;
@@ -3253,7 +3253,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual void TriggeredJobComplete(ConnectionAndTransactionHolder conn,
                                                     Trigger trigger,
-                                                    JobDetail jobDetail, SchedulerInstruction triggerInstCode)
+                                                    JobDetailImpl jobDetail, SchedulerInstruction triggerInstCode)
         {
             try
             {

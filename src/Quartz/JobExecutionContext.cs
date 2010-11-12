@@ -69,7 +69,7 @@ namespace Quartz
         [NonSerialized]
         private readonly IScheduler scheduler;
         private readonly Trigger trigger;
-        private readonly JobDetail jobDetail;
+        private readonly JobDetailImpl jobDetail;
         private readonly JobDataMap jobDataMap;
         [NonSerialized]
         private readonly IJob job;
@@ -183,7 +183,7 @@ namespace Quartz
 		/// <summary>
 		/// Get the <see cref="JobDetail" /> associated with the <see cref="IJob" />.
 		/// </summary>
-		public virtual JobDetail JobDetail
+		public virtual JobDetailImpl JobDetail
 		{
 			get { return jobDetail; }
 		}

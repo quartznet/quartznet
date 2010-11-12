@@ -57,7 +57,7 @@ namespace Quartz.Examples.Example3
 			// jobs can be scheduled before sched.start() has been called
 			
 			// job 1 will run every 20 seconds
-			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob));
+			JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof(SimpleJob));
 			CronTrigger trigger = new CronTrigger("trigger1", "group1", "job1", "group1", "0/20 * * * * ?");
 			sched.AddJob(job, true);
             DateTimeOffset ft = sched.ScheduleJob(trigger);
@@ -66,7 +66,7 @@ namespace Quartz.Examples.Example3
             log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName,  ft.ToString("r"), trigger.CronExpressionString));
 			
 			// job 2 will run every other minute (at 15 seconds past the minute)
-			job = new JobDetail("job2", "group1", typeof(SimpleJob));
+			job = new JobDetailImpl("job2", "group1", typeof(SimpleJob));
 			trigger = new CronTrigger("trigger2", "group1", "job2", "group1", "15 0/2 * * * ?");
 			sched.AddJob(job, true);
 			ft = sched.ScheduleJob(trigger);
@@ -74,7 +74,7 @@ namespace Quartz.Examples.Example3
             log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName, ft.ToString("r"), trigger.CronExpressionString));
 			
 			// job 3 will run every other minute but only between 8am and 5pm
-			job = new JobDetail("job3", "group1", typeof(SimpleJob));
+			job = new JobDetailImpl("job3", "group1", typeof(SimpleJob));
 			trigger = new CronTrigger("trigger3", "group1", "job3", "group1", "0 0/2 8-17 * * ?");
 			sched.AddJob(job, true);
 			ft = sched.ScheduleJob(trigger);
@@ -82,7 +82,7 @@ namespace Quartz.Examples.Example3
             log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName, ft.ToString("r"), trigger.CronExpressionString));
 			
 			// job 4 will run every three minutes but only between 5pm and 11pm
-			job = new JobDetail("job4", "group1", typeof(SimpleJob));
+			job = new JobDetailImpl("job4", "group1", typeof(SimpleJob));
 			trigger = new CronTrigger("trigger4", "group1", "job4", "group1", "0 0/3 17-23 * * ?");
 			sched.AddJob(job, true);
             ft = sched.ScheduleJob(trigger);
@@ -90,7 +90,7 @@ namespace Quartz.Examples.Example3
             log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName, ft.ToString("r"), trigger.CronExpressionString));
 			
 			// job 5 will run at 10am on the 1st and 15th days of the month
-			job = new JobDetail("job5", "group1", typeof(SimpleJob));
+			job = new JobDetailImpl("job5", "group1", typeof(SimpleJob));
 			trigger = new CronTrigger("trigger5", "group1", "job5", "group1", "0 0 10am 1,15 * ?");
 			sched.AddJob(job, true);
             ft = sched.ScheduleJob(trigger);
@@ -99,7 +99,7 @@ namespace Quartz.Examples.Example3
 			
 			// job 6 will run every 30 seconds but only on Weekdays (Monday through
 			// Friday)
-			job = new JobDetail("job6", "group1", typeof(SimpleJob));
+			job = new JobDetailImpl("job6", "group1", typeof(SimpleJob));
 			trigger = new CronTrigger("trigger6", "group1", "job6", "group1", "0,30 * * ? * MON-FRI");
 			sched.AddJob(job, true);
             ft = sched.ScheduleJob(trigger);
@@ -109,7 +109,7 @@ namespace Quartz.Examples.Example3
 			
 			// job 7 will run every 30 seconds but only on Weekends (Saturday and
 			// Sunday)
-			job = new JobDetail("job7", "group1", typeof(SimpleJob));
+			job = new JobDetailImpl("job7", "group1", typeof(SimpleJob));
 			trigger = new CronTrigger("trigger7", "group1", "job7", "group1", "0,30 * * ? * SAT,SUN");
 			sched.AddJob(job, true);
 			ft = sched.ScheduleJob(trigger);

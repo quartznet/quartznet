@@ -354,7 +354,7 @@ namespace Quartz.Plugin.History
         }
 
         /// <summary>
-        ///     Called by the <see cref="IScheduler"/> when a <see cref="JobDetail"/> is
+        ///     Called by the <see cref="IScheduler"/> when a <see cref="JobDetailImpl"/> is
         ///     about to be executed (an associated <see cref="Trigger"/> has occurred). 
         ///     <para>
         ///         This method will not be invoked if the execution of the Job was vetoed by a
@@ -383,7 +383,7 @@ namespace Quartz.Plugin.History
 
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> after a <see cref="JobDetail" />
+        /// Called by the <see cref="IScheduler" /> after a <see cref="JobDetailImpl" />
         /// has been executed, and be for the associated <see cref="Trigger" />'s
         /// <see cref="Trigger.Triggered" /> method has been called.
         /// </summary>
@@ -432,7 +432,7 @@ namespace Quartz.Plugin.History
         }
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetailImpl" />
         /// was about to be executed (an associated <see cref="Trigger" />
         /// has occured), but a <see cref="ITriggerListener" /> vetoed it's
         /// execution.

@@ -65,7 +65,7 @@ namespace Quartz.Listener
         public abstract string Name { get; }
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="JobDetail"/>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="JobDetailImpl"/>
         /// is about to be executed (an associated <see cref="Trigger"/>
         /// has occured).
         /// <p>
@@ -80,7 +80,7 @@ namespace Quartz.Listener
         }
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="JobDetail"/>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="JobDetailImpl"/>
         /// was about to be executed (an associated <see cref="Trigger"/>
         /// has occured), but a <see cref="ITriggerListener"/> vetoed it's
         /// execution.
@@ -92,7 +92,7 @@ namespace Quartz.Listener
         }
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> after a <see cref="JobDetail"/>
+        /// Called by the <see cref="IScheduler"/> after a <see cref="JobDetailImpl"/>
         /// has been executed, and be for the associated <see cref="Trigger"/>'s
         /// <see cref="Trigger.Triggered"/> method has been called.
         /// </summary>

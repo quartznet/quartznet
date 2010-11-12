@@ -398,7 +398,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="job">The job to insert.</param>
         /// <returns>Number of rows inserted.</returns>
-        public virtual int InsertJobDetail(ConnectionAndTransactionHolder conn, JobDetail job)
+        public virtual int InsertJobDetail(ConnectionAndTransactionHolder conn, JobDetailImpl job)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -451,7 +451,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="job">The job to update.</param>
         /// <returns>Number of rows updated.</returns>
-        public virtual int UpdateJobDetail(ConnectionAndTransactionHolder conn, JobDetail job)
+        public virtual int UpdateJobDetail(ConnectionAndTransactionHolder conn, JobDetailImpl job)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -578,7 +578,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The conn.</param>
         /// <param name="job">the job to update</param>
         /// <returns>the number of rows updated</returns>
-        public virtual int UpdateJobData(ConnectionAndTransactionHolder conn, JobDetail job)
+        public virtual int UpdateJobData(ConnectionAndTransactionHolder conn, JobDetailImpl job)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -600,7 +600,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">The group containing the job.</param>
         /// <param name="loadHelper">The load helper.</param>
         /// <returns>The populated JobDetail object.</returns>
-        public virtual JobDetail SelectJobDetail(ConnectionAndTransactionHolder conn, string jobName, string groupName,
+        public virtual JobDetailImpl SelectJobDetail(ConnectionAndTransactionHolder conn, string jobName, string groupName,
                                                  ITypeLoadHelper loadHelper)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobDetail)))
@@ -609,11 +609,11 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "jobGroup", groupName);
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    JobDetail job = null;
+                    JobDetailImpl job = null;
 
                     if (rs.Read())
                     {
-                        job = new JobDetail();
+                        job = new JobDetailImpl();
 
                         job.Name = GetString(rs[ColumnJobName]);
                         job.Group = GetString(rs[ColumnJobGroup]);
@@ -730,7 +730,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>the number of rows inserted</returns>
         public virtual int InsertTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state,
-                                         JobDetail jobDetail)
+                                         JobDetailImpl jobDetail)
         {
             byte[] baos = null;
             if (trigger.JobDataMap.Count > 0)
@@ -872,7 +872,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>The number of rows updated.</returns>
         public virtual int UpdateTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state,
-                                         JobDetail jobDetail)
+                                         JobDetailImpl jobDetail)
         {
             // save some clock cycles by unnecessarily writing job data blob ...
             bool updateJobData = trigger.JobDataMap.Dirty;
@@ -1363,8 +1363,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">the name of the trigger</param>
         /// <param name="groupName">the group containing the trigger</param>
         /// <param name="loadHelper">The load helper.</param>
-        /// <returns>The <see cref="JobDetail" /> object associated with the given trigger</returns>
-        public virtual JobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, string triggerName,
+        /// <returns>The <see cref="JobDetailImpl" /> object associated with the given trigger</returns>
+        public virtual JobDetailImpl SelectJobForTrigger(ConnectionAndTransactionHolder conn, string triggerName,
                                                      string groupName,
                                                      ITypeLoadHelper loadHelper)
         {
@@ -1376,7 +1376,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        JobDetail job = new JobDetail();
+                        JobDetailImpl job = new JobDetailImpl();
                         job.Name = GetString(rs[0]);
                         job.Group = GetString(rs[1]);
                         job.Durable = GetBoolean(rs[2]);
@@ -2272,7 +2272,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="job">The job.</param>
         /// <returns>the number of rows inserted</returns>
         public virtual int InsertFiredTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state,
-                                              JobDetail job)
+                                              JobDetailImpl job)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertFiredTrigger)))
             {

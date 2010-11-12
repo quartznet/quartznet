@@ -59,7 +59,7 @@ namespace Quartz.Examples.Example1
             DateTimeOffset runTime = TriggerUtils.GetEvenMinuteDate(DateTime.UtcNow);
 			
 			// define the job and tie it to our HelloJob class
-			JobDetail job = new JobDetail("job1", "group1", typeof(HelloJob));
+			JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof(HelloJob));
 			
 			// Trigger the job to run on the next round minute
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runTime);

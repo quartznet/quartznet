@@ -22,7 +22,7 @@ using System;
 namespace Quartz
 {
     /// <summary>
-    ///  A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetail" />
+    ///  A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetailImpl" />
     ///  based upon repeating calendar time intervals.
     ///  </summary>
     /// <remarks>
@@ -447,7 +447,7 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// Called after the <see cref="IScheduler" /> has executed the
-        /// <see cref="JobDetail" /> associated with the <see cref="Trigger" />
+        /// <see cref="JobDetailImpl" /> associated with the <see cref="Trigger" />
         /// in order to get the final instruction code from the trigger.
         /// </remarks>
         /// <param name="context">
@@ -803,7 +803,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Validates whether the properties of the <see cref="JobDetail" /> are
+        /// Validates whether the properties of the <see cref="JobDetailImpl" /> are
         /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
         public override void Validate()

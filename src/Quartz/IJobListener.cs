@@ -21,10 +21,11 @@ namespace Quartz
 {
 	/// <summary>
 	/// The interface to be implemented by classes that want to be informed when a
-	/// <see cref="JobDetail" /> executes. In general,  applications that use a 
+    /// <see cref="IJobDetail" /> executes. In general,  applications that use a 
 	/// <see cref="IScheduler" /> will not have use for this mechanism.
 	/// </summary>
-	/// <seealso cref="IScheduler" />
+    /// <seealso cref="IScheduler.AddJobListener(IJobListener, IMatcher{T})" />
+    /// <seealso cref="IMatcher" />
 	/// <seealso cref="IJob" />
 	/// <seealso cref="JobExecutionContext" />
 	/// <seealso cref="JobExecutionException" />
@@ -39,7 +40,7 @@ namespace Quartz
 		string Name { get; }
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
 		/// is about to be executed (an associated <see cref="Trigger" />
 		/// has occurred).
 		/// <p>
@@ -51,7 +52,7 @@ namespace Quartz
 		void JobToBeExecuted(JobExecutionContext context);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
 		/// was about to be executed (an associated <see cref="Trigger" />
 		/// has occurred), but a <see cref="ITriggerListener" /> vetoed it's 
 		/// execution.
@@ -61,7 +62,7 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> after a <see cref="JobDetail" />
+        /// Called by the <see cref="IScheduler" /> after a <see cref="IJobDetail" />
 		/// has been executed, and be for the associated <see cref="Trigger" />'s
 		/// <see cref="Trigger.Triggered" /> method has been called.
 		/// </summary>

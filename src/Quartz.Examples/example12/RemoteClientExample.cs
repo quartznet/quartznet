@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example12
 			IScheduler sched = sf.GetScheduler();
 			
 			// define the job and ask it to run
-			JobDetail job = new JobDetail("remotelyAddedJob", "default", typeof(SimpleJob));
+			JobDetailImpl job = new JobDetailImpl("remotelyAddedJob", "default", typeof(SimpleJob));
 			JobDataMap map = new JobDataMap();
 			map.Put("msg", "Your remotely added job has executed!");
 			job.JobDataMap = map;

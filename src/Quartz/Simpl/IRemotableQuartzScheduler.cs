@@ -71,11 +71,11 @@ namespace Quartz.Simpl
 
         bool Clustered { get; }
 
-        DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger);
+        DateTimeOffset ScheduleJob(JobDetailImpl jobDetail, Trigger trigger);
 
         DateTimeOffset ScheduleJob(Trigger trigger);
 
-		void AddJob(JobDetail jobDetail, bool replace);
+		void AddJob(JobDetailImpl jobDetail, bool replace);
 
         /// <summary>
         /// returns true if the given JobGroup
@@ -135,7 +135,7 @@ namespace Quartz.Simpl
 
 		IList<string> GetTriggerNames(string groupName);
 
-		JobDetail GetJobDetail(string jobName, string jobGroup);
+		JobDetailImpl GetJobDetail(string jobName, string jobGroup);
 
 		Trigger GetTrigger(string triggerName, string triggerGroup);
 

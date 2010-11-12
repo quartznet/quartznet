@@ -69,7 +69,7 @@ namespace Quartz.Listener
         {
         }
 
-        public virtual void JobAdded(JobDetail jobDetail)
+        public virtual void JobAdded(JobDetailImpl jobDetail)
         {
         }
 

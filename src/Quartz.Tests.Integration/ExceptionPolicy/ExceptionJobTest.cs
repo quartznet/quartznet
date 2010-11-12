@@ -22,7 +22,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             sched.Start();
             string jobName = "ExceptionPolicyUnscheduleFrinigTrigger";
             string jobGroup = "ExceptionPolicyUnscheduleFrinigTriggerGroup";
-            JobDetail myDesc = new JobDetail(jobName, jobGroup, typeof (ExceptionJob));
+            JobDetailImpl myDesc = new JobDetailImpl(jobName, jobGroup, typeof (ExceptionJob));
             myDesc.Durable = true;
             sched.AddJob(myDesc, false);
             string trigGroup = "ExceptionPolicyFrinigTriggerGroup";
@@ -69,7 +69,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             sched.Start();
             string jobName = "ExceptionPolicyRestartJob";
             string jobGroup = "ExceptionPolicyRestartGroup";
-            JobDetail exceptionJob = new JobDetail(jobName, jobGroup, typeof (ExceptionJob));
+            JobDetailImpl exceptionJob = new JobDetailImpl(jobName, jobGroup, typeof (ExceptionJob));
             exceptionJob.Durable = true;
             sched.AddJob(exceptionJob, false);
 
@@ -104,7 +104,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             sched.Start();
             string jobName = "ExceptionPolicyNoRestartJob";
             string jobGroup = "ExceptionPolicyNoRestartGroup";
-            JobDetail exceptionJob = new JobDetail(jobName, jobGroup, typeof (ExceptionJob));
+            JobDetailImpl exceptionJob = new JobDetailImpl(jobName, jobGroup, typeof (ExceptionJob));
             exceptionJob.Durable = true;
             sched.AddJob(exceptionJob, false);
 

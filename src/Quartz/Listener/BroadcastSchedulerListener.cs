@@ -70,7 +70,7 @@ namespace Quartz.Listener
         }
 
 
-        public void JobAdded(JobDetail jobDetail)
+        public void JobAdded(JobDetailImpl jobDetail)
         {
             foreach (ISchedulerListener listener in listeners)
             {

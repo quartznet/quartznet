@@ -53,7 +53,7 @@ namespace Quartz.Examples.Example9
 			log.Info("------- Scheduling Jobs -------------------");
 			
 			// schedule a job to run immediately
-			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob1));
+			JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof(SimpleJob1));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", DateTime.UtcNow, null, 0, TimeSpan.Zero);
 			
 			// Set up the listener

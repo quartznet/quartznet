@@ -31,9 +31,9 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestEquals()
         {
-            JobDetail jd1 = new JobDetail("name", "group", typeof(NoOpJob));
-            JobDetail jd2 = new JobDetail("name", "group", typeof(NoOpJob));
-            JobDetail jd3 = new JobDetail("namediff", "groupdiff", typeof(NoOpJob));
+            JobDetailImpl jd1 = new JobDetailImpl("name", "group", typeof(NoOpJob));
+            JobDetailImpl jd2 = new JobDetailImpl("name", "group", typeof(NoOpJob));
+            JobDetailImpl jd3 = new JobDetailImpl("namediff", "groupdiff", typeof(NoOpJob));
             Assert.AreEqual(jd1, jd2);
             Assert.AreNotEqual(jd1, jd3);
             Assert.AreNotEqual(jd2, jd3);
@@ -44,8 +44,8 @@ namespace Quartz.Tests.Unit
 		[Test]
 		public void TestClone() 
 		{
-			JobDetail jobDetail = new JobDetail();
-			JobDetail clonedJobDetail = (JobDetail)jobDetail.Clone();
+			JobDetailImpl jobDetail = new JobDetailImpl();
+			JobDetailImpl clonedJobDetail = (JobDetailImpl)jobDetail.Clone();
 
             Assert.AreEqual(jobDetail, clonedJobDetail);
 		}

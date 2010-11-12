@@ -59,7 +59,7 @@ namespace Quartz.Examples.Example2
             DateTimeOffset ts = TriggerUtils.GetNextGivenSecondDate(null, 15);
 
 			// job1 will only fire once at date/time "ts"
-			JobDetail job = new JobDetail("job1", "group1", typeof (SimpleJob));
+			JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof (SimpleJob));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts);
 
 			// schedule it to run!
@@ -68,7 +68,7 @@ namespace Quartz.Examples.Example2
                 job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
 			// job2 will only fire once at date/time "ts"
-			job = new JobDetail("job2", "group1", typeof (SimpleJob));
+			job = new JobDetailImpl("job2", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger2", "group1", "job2", "group1", ts, null, 0, TimeSpan.Zero);
 			ft = sched.ScheduleJob((job), trigger);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds",
@@ -76,7 +76,7 @@ namespace Quartz.Examples.Example2
 
 			// job3 will run 11 times (run once and repeat 10 more times)
 			// job3 will repeat every 10 seconds (10000 ms)
-			job = new JobDetail("job3", "group1", typeof (SimpleJob));
+			job = new JobDetailImpl("job3", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger3", "group1", "job3", "group1", ts, null, 10, TimeSpan.FromSeconds(10));
 			ft = sched.ScheduleJob(job, trigger);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds",
@@ -91,21 +91,21 @@ namespace Quartz.Examples.Example2
 
 			// job4 will run 6 times (run once and repeat 5 more times)
 			// job4 will repeat every 10 seconds (10000 ms)
-			job = new JobDetail("job4", "group1", typeof (SimpleJob));
+			job = new JobDetailImpl("job4", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger4", "group1", "job4", "group1", ts, null, 5, TimeSpan.FromSeconds(10));
 			ft = sched.ScheduleJob(job, trigger);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds",
                 job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
 			// job5 will run once, five minutes past "ts" (300 seconds past "ts")
-			job = new JobDetail("job5", "group1", typeof (SimpleJob));
+			job = new JobDetailImpl("job5", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger5", "group1", "job5", "group1", ts.AddMilliseconds(300*1000), null, 0, TimeSpan.Zero);
 			ft = sched.ScheduleJob(job, trigger);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds",
                 job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
 			// job6 will run indefinitely, every 50 seconds
-			job = new JobDetail("job6", "group1", typeof (SimpleJob));
+			job = new JobDetailImpl("job6", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger6", "group1", "job6", "group1", ts, null, 
                                         SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(50));
 			ft = sched.ScheduleJob(job, trigger);
@@ -122,14 +122,14 @@ namespace Quartz.Examples.Example2
 
 			// jobs can also be scheduled after start() has been called...
 			// job7 will repeat 20 times, repeat every five minutes
-			job = new JobDetail("job7", "group1", typeof (SimpleJob));
+			job = new JobDetailImpl("job7", "group1", typeof (SimpleJob));
 			trigger = new SimpleTrigger("trigger7", "group1", "job7", "group1", ts, null, 20, TimeSpan.FromMinutes(5));
 			ft = sched.ScheduleJob(job, trigger);
 			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds",
                 job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
 			// jobs can be fired directly... (rather than waiting for a trigger)
-			job = new JobDetail("job8", "group1", typeof (SimpleJob));
+			job = new JobDetailImpl("job8", "group1", typeof (SimpleJob));
 			job.Durable = (true);
 			sched.AddJob(job, true);
 			log.Info("'Manually' triggering job8...");

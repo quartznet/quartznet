@@ -57,7 +57,7 @@ namespace Quartz.Examples.Example6
 			// badJob1 will run every three seconds
 			// this job will throw an exception and refire
 			// immediately
-			JobDetail job = new JobDetail("badJob1", "group1", typeof(BadJob1));
+			JobDetailImpl job = new JobDetailImpl("badJob1", "group1", typeof(BadJob1));
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
             DateTimeOffset ft = sched.ScheduleJob(job, trigger);
 
@@ -66,7 +66,7 @@ namespace Quartz.Examples.Example6
 			// badJob2 will run every three seconds
 			// this job will throw an exception and never
 			// refire
-			job = new JobDetail("badJob2", "group1", typeof(BadJob2));
+			job = new JobDetailImpl("badJob2", "group1", typeof(BadJob2));
 			trigger = new SimpleTrigger("trigger2", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
 			ft = sched.ScheduleJob(job, trigger);
             log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));

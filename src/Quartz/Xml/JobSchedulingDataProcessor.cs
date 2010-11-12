@@ -118,7 +118,7 @@ namespace Quartz.Xml
         /// Returns a <see cref="IDictionary{TKey,TValue}" /> of scheduled jobs.
 		/// <p>
 		/// The key is the job name and the value is a <see cref="JobSchedulingBundle" />
-		/// containing the <see cref="JobDetail" /> and <see cref="Trigger" />.
+		/// containing the <see cref="JobDetailImpl" /> and <see cref="Trigger" />.
 		/// </p>
 		/// </summary>
         /// <returns> a <see cref="IDictionary{TKey,TValue}" /> of scheduled jobs.
@@ -277,7 +277,7 @@ namespace Quartz.Xml
                     throw new SchedulerConfigException("Unknown job type " + j.jobtype);
                 }
 
-	            JobDetail jd = new JobDetail(j.name, j.group, jobType, j.@volatile, j.durable, j.recover);
+	            JobDetailImpl jd = new JobDetailImpl(j.name, j.group, jobType, j.@volatile, j.durable, j.recover);
 	            jd.Description = j.description;
 
                 jsb.JobDetail = jd;
@@ -609,9 +609,9 @@ namespace Quartz.Xml
 		{
 			if ((job != null) && job.Valid)
 			{
-				JobDetail detail = job.JobDetail;
+				JobDetailImpl detail = job.JobDetail;
 
-				JobDetail dupeJ = sched.GetJobDetail(detail.Name, detail.Group);
+				JobDetailImpl dupeJ = sched.GetJobDetail(detail.Name, detail.Group);
 
 				if ((dupeJ != null) && !localOverWriteExistingJobs)
 				{

@@ -48,7 +48,7 @@ namespace Quartz.Examples.Example9
 			log.Info("Job1Listener says: Job was executed.");
 			
 			// Simple job #2
-			JobDetail job2 = new JobDetail("job2", SchedulerConstants.DefaultGroup, typeof(SimpleJob2));
+			JobDetailImpl job2 = new JobDetailImpl("job2", SchedulerConstants.DefaultGroup, typeof(SimpleJob2));
 			
 			// Simple trigger to fire immediately
 			SimpleTrigger trigger = new SimpleTrigger("job2Trigger", SchedulerConstants.DefaultGroup, DateTime.UtcNow, null, 0, TimeSpan.Zero);

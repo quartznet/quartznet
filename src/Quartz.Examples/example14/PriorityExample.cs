@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example14
 
             log.Info("------- Scheduling Jobs -------------------");
 
-            JobDetail job = new JobDetail("TriggerEchoJob", null, typeof (TriggerEchoJob));
+            JobDetailImpl job = new JobDetailImpl("TriggerEchoJob", null, typeof (TriggerEchoJob));
 
             // All three triggers will fire their first time at the same time, 
             // ordered by their priority, and then repeat once, firing in a 

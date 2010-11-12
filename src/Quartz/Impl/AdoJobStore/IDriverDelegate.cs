@@ -148,7 +148,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection</param>
 		/// <param name="job">The job to insert.</param>
 		/// <returns>Number of rows inserted.</returns>
-		int InsertJobDetail(ConnectionAndTransactionHolder conn, JobDetail job);
+		int InsertJobDetail(ConnectionAndTransactionHolder conn, JobDetailImpl job);
 
 		/// <summary>
 		/// Update the job detail record.
@@ -156,7 +156,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection.</param>
 		/// <param name="job">The job to update.</param>
 		/// <returns>Number of rows updated.</returns>
-		int UpdateJobDetail(ConnectionAndTransactionHolder conn, JobDetail job);
+		int UpdateJobDetail(ConnectionAndTransactionHolder conn, JobDetailImpl job);
 
 		/// <summary> <p>
 		/// Get the names of all of the triggers associated with the given job.
@@ -201,7 +201,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="conn">The DB Connection</param>
 		/// <param name="job">The job.</param>
 		/// <returns>the number of rows updated</returns>
-		int UpdateJobData(ConnectionAndTransactionHolder conn, JobDetail job);
+		int UpdateJobData(ConnectionAndTransactionHolder conn, JobDetailImpl job);
 
         /// <summary>
         /// Select the JobDetail object for a given job name / group name.
@@ -211,7 +211,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">The group containing the job</param>
         /// <param name="classLoadHelper">The class load helper.</param>
         /// <returns>The populated JobDetail object</returns>
-		JobDetail SelectJobDetail(ConnectionAndTransactionHolder conn, string jobName, string groupName, ITypeLoadHelper classLoadHelper);
+		JobDetailImpl SelectJobDetail(ConnectionAndTransactionHolder conn, string jobName, string groupName, ITypeLoadHelper classLoadHelper);
 
 		/// <summary>
 		/// Select the total number of jobs stored.
@@ -247,7 +247,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state that the trigger should be stored in.</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>The number of rows inserted</returns>
-		int InsertTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state, JobDetail jobDetail);
+		int InsertTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state, JobDetailImpl jobDetail);
 
 		/// <summary>
 		/// Insert the simple trigger data.
@@ -281,7 +281,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>the number of rows updated</returns>
-		int UpdateTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state, JobDetail jobDetail);
+		int UpdateTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state, JobDetailImpl jobDetail);
 
         /// <summary>
         /// Update the simple trigger data.
@@ -472,9 +472,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">The group containing the trigger</param>
         /// <param name="loadHelper">The load helper.</param>
         /// <returns>
-        /// The <see cref="JobDetail" /> object associated with the given trigger
+        /// The <see cref="JobDetailImpl" /> object associated with the given trigger
         /// </returns>
-		JobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, string triggerName, string groupName, ITypeLoadHelper loadHelper);
+		JobDetailImpl SelectJobForTrigger(ConnectionAndTransactionHolder conn, string triggerName, string groupName, ITypeLoadHelper loadHelper);
 
 		/// <summary>
 		/// Select the stateful jobs which are referenced by triggers in the given
@@ -718,7 +718,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state that the trigger should be stored in.</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>The number of rows inserted.</returns>
-		int InsertFiredTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state, JobDetail jobDetail);
+		int InsertFiredTrigger(ConnectionAndTransactionHolder conn, Trigger trigger, string state, JobDetailImpl jobDetail);
 
         /// <summary>
         /// Select the states of all fired-trigger records for a given trigger, or

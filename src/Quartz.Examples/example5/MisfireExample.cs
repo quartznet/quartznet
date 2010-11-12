@@ -78,7 +78,7 @@ namespace Quartz.Examples.Example5
 			
 			// statefulJob1 will run every three seconds
 			// (but it will delay for ten seconds)
-			JobDetail job = new JobDetail("statefulJob1", "group1", typeof(StatefulDumbJob));
+			JobDetailImpl job = new JobDetailImpl("statefulJob1", "group1", typeof(StatefulDumbJob));
 			job.JobDataMap.Put(MisfireJob.ExecutionDelay, 10);
 			
 			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));
@@ -87,7 +87,7 @@ namespace Quartz.Examples.Example5
 			
 			// statefulJob2 will run every three seconds
 			// (but it will delay for ten seconds)
-			job = new JobDetail("statefulJob2", "group1", typeof(StatefulDumbJob));
+			job = new JobDetailImpl("statefulJob2", "group1", typeof(StatefulDumbJob));
 			job.JobDataMap.Put(MisfireJob.ExecutionDelay, 10);
 
 			trigger = new SimpleTrigger("trigger2", "group1", ts, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(3));

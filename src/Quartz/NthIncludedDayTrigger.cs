@@ -118,7 +118,7 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with no specified name,
-        /// group, or <see cref="JobDetail" />. This will result initially in a
+        /// group, or <see cref="JobDetailImpl" />. This will result initially in a
         /// default monthly trigger that fires on the first day of every month at
         /// 12:00 PM (n = 1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
@@ -137,7 +137,7 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
-        /// default group but no specified <see cref="JobDetail" />. This will result 
+        /// default group but no specified <see cref="JobDetailImpl" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of 
         /// every month at 12:00 PM (<see cref="n" />=1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
@@ -156,7 +156,7 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
-        /// group but no specified <see cref="JobDetail" />. This will result 
+        /// group but no specified <see cref="JobDetailImpl" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of 
         /// every month at 12:00 PM (<see cref="n" />=1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
@@ -179,7 +179,7 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
-        /// group and the specified <see cref="JobDetail" />. This will result 
+        /// group and the specified <see cref="JobDetailImpl" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of
         /// every month at 12:00 PM (<see cref="n" />=1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
@@ -569,7 +569,7 @@ namespace Quartz
 
 		/// <summary> 
 		/// Called after the <see cref="IScheduler" /> has executed the 
-		/// <see cref="JobDetail" /> associated with the <see cref="Trigger" /> in order
+		/// <see cref="JobDetailImpl" /> associated with the <see cref="Trigger" /> in order
 		/// to get the final instruction code from the trigger.
 		/// </summary>
 		/// <param name="jobCtx">

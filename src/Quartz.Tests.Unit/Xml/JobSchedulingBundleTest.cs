@@ -46,7 +46,7 @@ namespace Quartz.Tests.Unit.Xml
         public void TestValid()
         {
             Assert.IsFalse(bundle.Valid);
-            bundle.JobDetail = new JobDetail("foo", "bar", typeof(NoOpJob));
+            bundle.JobDetail = new JobDetailImpl("foo", "bar", typeof(NoOpJob));
             Assert.IsTrue(bundle.Valid);
         }
 
@@ -61,7 +61,7 @@ namespace Quartz.Tests.Unit.Xml
         public void TestName_JobDetailSet()
         {
             const string name = "TEST_NAME";
-            JobDetail jd = new JobDetail(name, "group", typeof(NoOpJob));
+            JobDetailImpl jd = new JobDetailImpl(name, "group", typeof(NoOpJob));
             bundle.JobDetail = jd;
             Assert.AreEqual(name, bundle.Name);
         }
@@ -76,7 +76,7 @@ namespace Quartz.Tests.Unit.Xml
         public void TestFullName_JobDetailSet()
         {
             const string name = "TEST_FULL_NAME";
-            JobDetail jd = new JobDetail(name, "group", typeof(NoOpJob));
+            JobDetailImpl jd = new JobDetailImpl(name, "group", typeof(NoOpJob));
             bundle.JobDetail = jd;
             Assert.AreEqual(jd.FullName, bundle.FullName);
         }

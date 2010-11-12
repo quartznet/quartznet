@@ -56,7 +56,7 @@ namespace Quartz
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public abstract class Trigger : ICloneable, IComparable<Trigger>, IEquatable<Trigger>
+    public abstract class Trigger : ICloneable, IComparable<Trigger>
 	{
 	    /// <summary>
 		/// The default value for priority.
@@ -127,7 +127,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get or set the name of the associated <see cref="JobDetail" />.
+		/// Get or set the name of the associated <see cref="JobDetailImpl" />.
 		/// </summary> 
 		/// <exception cref="ArgumentException"> 
 		/// if jobName is null or empty.
@@ -148,7 +148,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Gets or sets the name of the associated <see cref="JobDetail" />'s
+		/// Gets or sets the name of the associated <see cref="JobDetailImpl" />'s
 		/// group. If set with <see langword="null" />, Scheduler.DefaultGroup will be used.
 		/// </summary>
 		/// <exception cref="ArgumentException"> ArgumentException
@@ -382,7 +382,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a <see cref="Trigger" /> with no specified name, group, or <see cref="JobDetail" />.
+		/// Create a <see cref="Trigger" /> with no specified name, group, or <see cref="JobDetailImpl" />.
 		/// </summary>
 		/// <remarks>
 		/// Note that the <see cref="Name" />, <see cref="Group" /> and
@@ -501,7 +501,7 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// Called after the <see cref="IScheduler" /> has executed the
-        /// <see cref="JobDetail" /> associated with the <see cref="Trigger" />
+        /// <see cref="JobDetailImpl" /> associated with the <see cref="Trigger" />
         /// in order to get the final instruction code from the trigger.
         /// </remarks>
         /// <param name="context">
@@ -619,7 +619,7 @@ namespace Quartz
 		public abstract void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
 
 		/// <summary>
-		/// Validates whether the properties of the <see cref="JobDetail" /> are
+		/// Validates whether the properties of the <see cref="JobDetailImpl" /> are
 		/// valid for submission into a <see cref="IScheduler" />.
 		/// </summary>
 		public virtual void Validate()

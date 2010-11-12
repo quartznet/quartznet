@@ -59,7 +59,7 @@ namespace Quartz.Examples.Example11
 			// schedule 500 jobs to run
 			for (int count = 1; count <= _numberOfJobs; count++)
 			{
-				JobDetail job = new JobDetail("job" + count, "group1", typeof (SimpleJob));
+				JobDetailImpl job = new JobDetailImpl("job" + count, "group1", typeof (SimpleJob));
                 // tell the job to delay some small amount... to simulate work...
                 long timeDelay = (long)(r.NextDouble() * 2500);
                 job.JobDataMap.Put(SimpleJob.DELAY_TIME, timeDelay);

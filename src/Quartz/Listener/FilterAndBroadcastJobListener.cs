@@ -170,7 +170,7 @@ namespace Quartz.Listener
 
         protected virtual bool ShouldDispatch(JobExecutionContext context)
         {
-            JobDetail job = context.JobDetail;
+            JobDetailImpl job = context.JobDetail;
 
             if (namePatterns.Count == 0 && groupPatterns.Count == 0)
             {

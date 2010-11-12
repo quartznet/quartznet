@@ -292,7 +292,7 @@ namespace Quartz.Plugin.History
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
-        /// has fired, and it's associated <see cref="JobDetail" />
+        /// has fired, and it's associated <see cref="JobDetailImpl" />
         /// is about to be executed.
         /// <p>
         /// It is called before the <see cref="VetoJobExecution" /> method of this
@@ -348,7 +348,7 @@ namespace Quartz.Plugin.History
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
-        /// has fired, it's associated <see cref="JobDetail" />
+        /// has fired, it's associated <see cref="JobDetailImpl" />
         /// has been executed, and it's <see cref="Trigger.Triggered" /> method has been
         /// called.
         /// </summary>
@@ -397,7 +397,7 @@ namespace Quartz.Plugin.History
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
-        /// has fired, and it's associated <see cref="JobDetail" />
+        /// has fired, and it's associated <see cref="JobDetailImpl" />
         /// is about to be executed.
         /// <p>
         /// It is called after the <see cref="TriggerFired" /> method of this
