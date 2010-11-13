@@ -25,7 +25,7 @@ namespace Quartz
 {
 	/// <summary>
 	/// An exception that is thrown to indicate that an attempt to store a new
-	/// object (i.e. <see cref="JobDetailImpl" />,<see cref="Trigger" />
+	/// object (i.e. <see cref="IJobDetail" />,<see cref="Trigger" />
 	/// or <see cref="ICalendar" />) in a <see cref="IScheduler" />
 	/// failed, because one with the same name and group already exists.
 	/// </summary>
@@ -57,7 +57,7 @@ namespace Quartz
 
 		/// <summary> <p>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
-		/// message using the name/group from the given <see cref="JobDetailImpl" />.
+		/// message using the name/group from the given <see cref="IJobDetail" />.
 		/// </p>
 		/// 
 		/// <p>
@@ -65,9 +65,9 @@ namespace Quartz
 		/// group: '__', because one already exists with this identification."
 		/// </p>
 		/// </summary>
-		public ObjectAlreadyExistsException(JobDetailImpl offendingJob)
+        public ObjectAlreadyExistsException(IJobDetail offendingJob)
 			: base(
-				string.Format(CultureInfo.InvariantCulture, "Unable to store Job with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingJob.Name, offendingJob.Group))
+				string.Format(CultureInfo.InvariantCulture, "Unable to store Job: '{0}', because one already exists with this identification.", offendingJob.Key))
 		{
 		}
 
@@ -81,9 +81,9 @@ namespace Quartz
 		/// group: '__', because one already exists with this identification."
 		/// </p>
 		/// </summary>
-		public ObjectAlreadyExistsException(Trigger offendingTrigger)
+		public ObjectAlreadyExistsException(ITrigger offendingTrigger)
 			: base(
-				string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger with name: '{0}' and group: '{1}', because one already exists with this identification.", offendingTrigger.Name, offendingTrigger.Group))
+				string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger: '{0}', because one already exists with this identification.", offendingTrigger.Key))
 		{
 		}
 	}

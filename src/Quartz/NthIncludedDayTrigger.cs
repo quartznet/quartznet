@@ -21,7 +21,6 @@ using System;
 using System.Globalization;
 
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz
 {
@@ -118,7 +117,7 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with no specified name,
-        /// group, or <see cref="JobDetailImpl" />. This will result initially in a
+        /// group, or <see cref="IJobDetail" />. This will result initially in a
         /// default monthly trigger that fires on the first day of every month at
         /// 12:00 PM (n = 1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
@@ -137,7 +136,7 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
-        /// default group but no specified <see cref="JobDetailImpl" />. This will result 
+        /// default group but no specified <see cref="IJobDetail" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of 
         /// every month at 12:00 PM (<see cref="n" />=1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
@@ -156,7 +155,7 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
-        /// group but no specified <see cref="JobDetailImpl" />. This will result 
+        /// group but no specified <see cref="IJobDetail" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of 
         /// every month at 12:00 PM (<see cref="n" />=1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
@@ -179,7 +178,7 @@ namespace Quartz
 
         /// <summary> 
         /// Create an <see cref="NthIncludedDayTrigger" /> with the given name and
-        /// group and the specified <see cref="JobDetailImpl" />. This will result 
+        /// group and the specified <see cref="IJobDetail" />. This will result 
         /// initially in a default monthly trigger that fires on the first day of
         /// every month at 12:00 PM (<see cref="n" />=1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
@@ -569,7 +568,7 @@ namespace Quartz
 
 		/// <summary> 
 		/// Called after the <see cref="IScheduler" /> has executed the 
-		/// <see cref="JobDetailImpl" /> associated with the <see cref="Trigger" /> in order
+		/// <see cref="IJobDetail" /> associated with the <see cref="Trigger" /> in order
 		/// to get the final instruction code from the trigger.
 		/// </summary>
 		/// <param name="jobCtx">
@@ -582,7 +581,7 @@ namespace Quartz
 		/// </param>
 		/// <returns> one of the Trigger.INSTRUCTION_XXX constants.
 		/// </returns>
-        public override SchedulerInstruction ExecutionComplete(JobExecutionContext jobCtx, JobExecutionException result)
+        public override SchedulerInstruction ExecutionComplete(IJobExecutionContext jobCtx, JobExecutionException result)
 		{
 			if (result != null && result.RefireImmediately)
 			{

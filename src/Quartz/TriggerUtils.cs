@@ -58,55 +58,6 @@ namespace Quartz
 		/// </summary>
 		public const long MillisecondsInDay = SecondsInDay * 1000;
 
-
-	    private static void ValidateHour(int hour)
-		{
-			if (hour < 0 || hour > 23)
-			{
-				throw new ArgumentException("Invalid hour (must be >= 0 and <= 23).");
-			}
-		}
-
-		private static void ValidateMinute(int minute)
-		{
-			if (minute < 0 || minute > 59)
-			{
-				throw new ArgumentException("Invalid minute (must be >= 0 and <= 59).");
-			}
-		}
-
-	    private static void ValidateDayOfMonth(int day)
-		{
-			if ((day < 1 || day > 31) && day != LastDayOfMonth)
-			{
-				throw new ArgumentException("Invalid day of month.");
-			}
-		}
-
-	    /// <summary>
-		/// Set the given <see cref="Trigger" />'s name to the given value, and its
-		/// group to the default group (<see cref="SchedulerConstants.DefaultGroup" />).
-		/// </summary>
-		/// <param name="trig">the tigger to change name to</param>
-		/// <param name="name">the new trigger name</param>
-		public static void SetTriggerIdentity(Trigger trig, string name)
-		{
-			SetTriggerIdentity(trig, name, SchedulerConstants.DefaultGroup);
-		}
-
-		/// <summary>
-		/// Set the given <see cref="Trigger" />'s name to the given value, and its
-		/// group to the given group.
-		/// </summary>
-		/// <param name="trig">the tigger to change name to</param>
-		/// <param name="name">the new trigger name</param>
-		/// <param name="group">the new trigger group</param>
-		public static void SetTriggerIdentity(Trigger trig, string name, string group)
-		{
-			trig.Name = name;
-			trig.Group = group;
-		}
-
 		/// <summary>
 		/// Make a trigger that will fire every day at the given time.
 		/// <p>
@@ -561,92 +512,10 @@ namespace Quartz
 			return trig;
 		}
 
-		/// <summary>
-		/// Returns a date that is rounded to the next even hour above the given
-		/// date.
-		/// <p>
-		/// For example an input date with a time of 08:13:54 would result in a date
-		/// with the time of 09:00:00. If the date's time is in the 23rd hour, the
-		/// date's 'day' will be promoted, and the time will be set to 00:00:00.
-		/// </p>
-		/// </summary>
-        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
-		/// be used</param>
-		/// <returns>the new rounded date</returns>
-        public static DateTimeOffset GetEvenHourDate(DateTimeOffset? dateUtc)
-		{
-            if (!dateUtc.HasValue)
-			{
-                dateUtc = SystemTime.UtcNow();
-			}
-            DateTimeOffset d = dateUtc.Value.AddHours(1);
-			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, d.Offset);
-		}
 
-		/// <summary>
-		/// Returns a date that is rounded to the previous even hour below the given
-		/// date.
-		/// <p>
-		/// For example an input date with a time of 08:13:54 would result in a date
-		/// with the time of 08:00:00.
-		/// </p>
-		/// </summary>
-        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
-		/// be used</param>
-		/// <returns>the new rounded date</returns>
-        public static DateTimeOffset GetEvenHourDateBefore(DateTimeOffset? dateUtc)
-		{
-            if (!dateUtc.HasValue)
-			{
-                dateUtc = SystemTime.UtcNow();
-			}
-            return new DateTimeOffset(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0, dateUtc.Value.Offset);
-		}
 
-		/// <summary>
-		/// Returns a date that is rounded to the next even minute above the given
-		/// date.
-		/// <p>
-		/// For example an input date with a time of 08:13:54 would result in a date
-		/// with the time of 08:14:00. If the date's time is in the 59th minute,
-		/// then the hour (and possibly the day) will be promoted.
-		/// </p>
-		/// </summary>
-        /// <param name="dateUtc">The Date to round, if <see langword="null" /> the current time will  be used</param>
-		/// <returns>The new rounded date</returns>
-        public static DateTimeOffset GetEvenMinuteDate(DateTimeOffset? dateUtc)
-		{
-            if (!dateUtc.HasValue)
-			{
-                dateUtc = SystemTime.UtcNow();
-			}
 
-            DateTimeOffset d = dateUtc.Value;
-			d = d.AddMinutes(1);
-			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
-		}
 
-		/// <summary>
-		/// Returns a date that is rounded to the previous even minute below the
-		/// given date.
-		/// <p>
-		/// For example an input date with a time of 08:13:54 would result in a date
-		/// with the time of 08:13:00.
-		/// </p>
-		/// </summary>
-        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
-		/// be used</param>
-		/// <returns>the new rounded date</returns>
-        public static DateTimeOffset GetEvenMinuteDateBefore(DateTimeOffset? dateUtc)
-		{
-            if (!dateUtc.HasValue)
-			{
-				dateUtc = SystemTime.UtcNow();
-			}
-
-            DateTimeOffset d = dateUtc.Value;
-			return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
-		}
 
 		/// <summary>
 		/// Returns a date that is rounded to the next even second above the given

@@ -29,12 +29,9 @@ using System.Threading;
 
 using Common.Logging;
 
-using Quartz.Core;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Spi;
 using Quartz.Util;
-
-using KeyHashSet = Quartz.Collection.HashSet<Quartz.Util.Key>;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -3654,12 +3651,12 @@ namespace Quartz.Impl.AdoJobStore
                         int recoveredCount = 0;
                         int otherCount = 0;
 
-                        KeyHashSet triggerKeys = new KeyHashSet();
+                        var triggerKeys = new Collection.HashSet<TriggerKey>();
 
                         foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                         {
-                            Key tKey = ftRec.TriggerKey;
-                            Key jKey = ftRec.JobKey;
+                            TriggerKey tKey = ftRec.TriggerKey;
+                            JobKey jKey = ftRec.JobKey;
 
                             triggerKeys.Add(tKey);
 

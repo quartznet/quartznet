@@ -22,7 +22,7 @@ using System;
 namespace Quartz
 {
     /// <summary>
-    ///  A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetailImpl" />
+    ///  A concrete <see cref="Trigger" /> that is used to fire a <see cref="IJobDetail" />
     ///  based upon repeating calendar time intervals.
     ///  </summary>
     /// <remarks>
@@ -447,11 +447,11 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// Called after the <see cref="IScheduler" /> has executed the
-        /// <see cref="JobDetailImpl" /> associated with the <see cref="Trigger" />
+        /// <see cref="IJobDetail" /> associated with the <see cref="Trigger" />
         /// in order to get the final instruction code from the trigger.
         /// </remarks>
         /// <param name="context">
-        /// is the <see cref="JobExecutionContext" /> that was used by the
+        /// is the <see cref="IJobExecutionContext" /> that was used by the
         /// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.</param>
         /// <param name="result">is the <see cref="JobExecutionException" /> thrown by the
         /// <see cref="IJob" />, if any (may be null).
@@ -464,7 +464,7 @@ namespace Quartz
         /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
         /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
         /// <seealso cref="Trigger.Triggered" />
-        public override SchedulerInstruction ExecutionComplete(JobExecutionContext context,
+        public override SchedulerInstruction ExecutionComplete(IJobExecutionContext context,
                                                                JobExecutionException result)
         {
             if (result != null && result.RefireImmediately)
@@ -803,7 +803,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Validates whether the properties of the <see cref="JobDetailImpl" /> are
+        /// Validates whether the properties of the <see cref="IJobDetail" /> are
         /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
         public override void Validate()

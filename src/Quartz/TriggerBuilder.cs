@@ -411,7 +411,7 @@ namespace Quartz
          * @see Trigger#getJobDataMap()
          */
 
-        public TriggerBuilder usingJobData(string key, Float value)
+        public TriggerBuilder usingJobData(string key, float value)
         {
             jobDataMap.Put(key, value);
             return this;

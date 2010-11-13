@@ -79,7 +79,7 @@ namespace Quartz
         private DateTimeOffset startTimeUtc;
 		private int priority = DefaultPriority;
 		[NonSerialized] 
-		private Key key;
+		private TriggerKey key;
 
 		/// <summary>
 		/// Get or sets the name of this <see cref="Trigger" />.
@@ -127,7 +127,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Get or set the name of the associated <see cref="JobDetailImpl" />.
+		/// Get or set the name of the associated <see cref="IJobDetail" />.
 		/// </summary> 
 		/// <exception cref="ArgumentException"> 
 		/// if jobName is null or empty.
@@ -148,7 +148,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Gets or sets the name of the associated <see cref="JobDetailImpl" />'s
+		/// Gets or sets the name of the associated <see cref="IJobDetail" />'s
 		/// group. If set with <see langword="null" />, Scheduler.DefaultGroup will be used.
 		/// </summary>
 		/// <exception cref="ArgumentException"> ArgumentException
@@ -187,13 +187,13 @@ namespace Quartz
 		/// Gets the key.
 		/// </summary>
 		/// <value>The key.</value>
-		public virtual Key Key 
+        public virtual TriggerKey Key 
 		{
 			get
 			{
 				if(key == null) 
 				{
-					key = new Key(Name, Group);
+                    key = new TriggerKey(Name, Group);
 				}
 
 				return key;
@@ -382,7 +382,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a <see cref="Trigger" /> with no specified name, group, or <see cref="JobDetailImpl" />.
+		/// Create a <see cref="Trigger" /> with no specified name, group, or <see cref="IJobDetail" />.
 		/// </summary>
 		/// <remarks>
 		/// Note that the <see cref="Name" />, <see cref="Group" /> and
@@ -501,11 +501,11 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// Called after the <see cref="IScheduler" /> has executed the
-        /// <see cref="JobDetailImpl" /> associated with the <see cref="Trigger" />
+        /// <see cref="IJobDetail" /> associated with the <see cref="Trigger" />
         /// in order to get the final instruction code from the trigger.
         /// </remarks>
         /// <param name="context">
-        /// is the <see cref="JobExecutionContext" /> that was used by the
+        /// is the <see cref="IJobExecutionContext" /> that was used by the
         /// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.</param>
         /// <param name="result">is the <see cref="JobExecutionException" /> thrown by the
         /// <see cref="IJob" />, if any (may be null).
@@ -518,7 +518,7 @@ namespace Quartz
         /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
         /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
         /// <seealso cref="Triggered" />
-        public virtual SchedulerInstruction ExecutionComplete(JobExecutionContext context, JobExecutionException result)
+        public virtual SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException result)
         {
             if (result != null && result.RefireImmediately)
             {
@@ -619,7 +619,7 @@ namespace Quartz
 		public abstract void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
 
 		/// <summary>
-		/// Validates whether the properties of the <see cref="JobDetailImpl" /> are
+		/// Validates whether the properties of the <see cref="IJobDetail" /> are
 		/// valid for submission into a <see cref="IScheduler" />.
 		/// </summary>
 		public virtual void Validate()

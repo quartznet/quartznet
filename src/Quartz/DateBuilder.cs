@@ -268,65 +268,46 @@ namespace Quartz
             return evenHourDate(null);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the next even hour above the given
-     * date.
-     * </p>
-     * 
-     * <p>
-     * For example an input date with a time of 08:13:54 would result in a date
-     * with the time of 09:00:00. If the date's time is in the 23rd hour, the
-     * date's 'day' will be promoted, and the time will be set to 00:00:00.
-     * </p>
-     * 
-     * @param date
-     *          the Date to round, if <code>null</code> the current time will
-     *          be used
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenHourDate(DateTimeOffset date)
+        /// <summary>
+        /// Returns a date that is rounded to the next even hour above the given
+        /// date.
+        /// <p>
+        /// For example an input date with a time of 08:13:54 would result in a date
+        /// with the time of 09:00:00. If the date's time is in the 23rd hour, the
+        /// date's 'day' will be promoted, and the time will be set to 00:00:00.
+        /// </p>
+        /// </summary>
+        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
+        /// be used</param>
+        /// <returns>the new rounded date</returns>
+        public static DateTimeOffset EvenHourDate(DateTimeOffset? dateUtc)
         {
-            DateTimeOffset c = Calendar.getInstance();
-            c.setTime(date);
-            c.setLenient(true);
-
-            c.set(Calendar.HOUR_OF_DAY, c.get(Calendar.HOUR_OF_DAY) + 1);
-            c.set(Calendar.MINUTE, 0);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c.getTime();
+            if (!dateUtc.HasValue)
+            {
+                dateUtc = SystemTime.UtcNow();
+            }
+            DateTimeOffset d = dateUtc.Value.AddHours(1);
+            return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, d.Offset);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the previous even hour below the given
-     * date.
-     * </p>
-     * 
-     * <p>
-     * For example an input date with a time of 08:13:54 would result in a date
-     * with the time of 08:00:00.
-     * </p>
-     * 
-     * @param date
-     *          the Date to round, if <code>null</code> the current time will
-     *          be used
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenHourDateBefore(DateTimeOffset date)
+        /// <summary>
+        /// Returns a date that is rounded to the previous even hour below the given
+        /// date.
+        /// <p>
+        /// For example an input date with a time of 08:13:54 would result in a date
+        /// with the time of 08:00:00.
+        /// </p>
+        /// </summary>
+        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
+        /// be used</param>
+        /// <returns>the new rounded date</returns>
+        public static DateTimeOffset EvenHourDateBefore(DateTimeOffset? dateUtc)
         {
-            DateTimeOffset c = Calendar.getInstance();
-            c.setTime(date);
-
-            c.set(Calendar.MINUTE, 0);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c;
+            if (!dateUtc.HasValue)
+            {
+                dateUtc = SystemTime.UtcNow();
+            }
+            return new DateTimeOffset(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0, dateUtc.Value.Offset);
         }
 
         /**
@@ -348,61 +329,49 @@ namespace Quartz
             return evenMinuteDate(DateTimeOffset.UtcNow);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the next even minute above the given
-     * date.
-     * </p>
-     * 
-     * <p>
-     * For example an input date with a time of 08:13:54 would result in a date
-     * with the time of 08:14:00. If the date's time is in the 59th minute,
-     * then the hour (and possibly the day) will be promoted.
-     * </p>
-     * 
-     * @param date
-     *          the Date to round, if <code>null</code> the current time will
-     *          be used
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenMinuteDate(DateTimeOffset date)
+        /// <summary>
+        /// Returns a date that is rounded to the next even minute above the given
+        /// date.
+        /// <p>
+        /// For example an input date with a time of 08:13:54 would result in a date
+        /// with the time of 08:14:00. If the date's time is in the 59th minute,
+        /// then the hour (and possibly the day) will be promoted.
+        /// </p>
+        /// </summary>
+        /// <param name="dateUtc">The Date to round, if <see langword="null" /> the current time will  be used</param>
+        /// <returns>The new rounded date</returns>
+        public static DateTimeOffset EvenMinuteDate(DateTimeOffset? dateUtc)
         {
-            DateTimeOffset c = Calendar.getInstance();
+            if (!dateUtc.HasValue)
+            {
+                dateUtc = SystemTime.UtcNow();
+            }
 
-            c.set(Calendar.MINUTE, c.get(Calendar.MINUTE) + 1);
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c;
+            DateTimeOffset d = dateUtc.Value;
+            d = d.AddMinutes(1);
+            return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the previous even minute below the 
-     * given date.
-     * </p>
-     * 
-     * <p>
-     * For example an input date with a time of 08:13:54 would result in a date
-     * with the time of 08:13:00.
-     * </p>
-     * 
-     * @param date
-     *          the Date to round, if <code>null</code> the current time will
-     *          be used
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenMinuteDateBefore(DateTimeOffset date)
+        /// <summary>
+        /// Returns a date that is rounded to the previous even minute below the
+        /// given date.
+        /// <p>
+        /// For example an input date with a time of 08:13:54 would result in a date
+        /// with the time of 08:13:00.
+        /// </p>
+        /// </summary>
+        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
+        /// be used</param>
+        /// <returns>the new rounded date</returns>
+        public static DateTimeOffset EvenMinuteDateBefore(DateTimeOffset? dateUtc)
         {
-            DateTimeOffset c = Calendar.getInstance();
-            c.setTime(date);
+            if (!dateUtc.HasValue)
+            {
+                dateUtc = SystemTime.UtcNow();
+            }
 
-            c.set(Calendar.SECOND, 0);
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c.getTime();
+            DateTimeOffset d = dateUtc.Value;
+            return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
         }
 
         /**
@@ -667,26 +636,42 @@ namespace Quartz
             }
         }
 
-        /**
-     * Translate a date & time from a users time zone to the another
-     * (probably server) time zone to assist in creating a simple trigger with 
-     * the right date & time.
-     * 
-     * @param date the date to translate
-     * @param src the original time-zone
-     * @param dest the destination time-zone
-     * @return the translated date
-     */
-
-        public static DateTimeOffset translateTime(DateTimeOffset date, TimeZone src, TimeZone dest)
+        /// <summary>
+        /// Translate a date and time from a users time zone to the another
+        /// (probably server) timezone to assist in creating a simple trigger with
+        /// the right date and time.
+        /// </summary>
+        /// <param name="date">the date to translate</param>
+        /// <param name="src">the original time-zone</param>
+        /// <param name="dest">the destination time-zone</param>
+        /// <returns>the translated UTC date</returns>
+        public static DateTimeOffset translateTime(DateTimeOffset date, TimeZoneInfo src, TimeZoneInfo dest)
         {
-            DateTimeOffset newDate = new DateTimeOffset();
+            DateTimeOffset newDate = SystemTime.UtcNow();
+            double offset = (GetOffset(date, dest) - GetOffset(date, src));
 
-            int offset = (dest.getOffset(date.getTime()) - src.getOffset(date.getTime()));
-
-            newDate.setTime(date.getTime() - offset);
+            newDate = newDate.AddMilliseconds(-1 * offset);
 
             return newDate;
+        }
+
+        /// <summary>
+        /// Gets the offset from UT for the given date in the given time zone,
+        /// taking into account daylight savings.
+        /// </summary>
+        /// <param name="date">the date that is the base for the offset</param>
+        /// <param name="tz">the time-zone to calculate to offset to</param>
+        /// <returns>the offset</returns>
+        private static double GetOffset(DateTimeOffset date, TimeZoneInfo tz)
+        {
+
+            if (tz.IsDaylightSavingTime(date))
+            {
+                // TODO
+                return tz.BaseUtcOffset.TotalMilliseconds + 0;
+            }
+
+            return tz.BaseUtcOffset.TotalMilliseconds;
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////

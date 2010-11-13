@@ -65,7 +65,7 @@ namespace Quartz.Listener
         public abstract string Name { get; }
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="JobDetailImpl"/>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
         /// is about to be executed (an associated <see cref="Trigger"/>
         /// has occured).
         /// <p>
@@ -74,31 +74,31 @@ namespace Quartz.Listener
         /// </p>
         /// </summary>
         /// <param name="context"></param>
-        /// <seealso cref="JobExecutionVetoed(JobExecutionContext)"/>
-        public virtual void JobToBeExecuted(JobExecutionContext context)
+        /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
+        public virtual void JobToBeExecuted(IJobExecutionContext context)
         {
         }
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="JobDetailImpl"/>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
         /// was about to be executed (an associated <see cref="Trigger"/>
         /// has occured), but a <see cref="ITriggerListener"/> vetoed it's
         /// execution.
         /// </summary>
         /// <param name="context"></param>
-        /// <seealso cref="JobToBeExecuted(JobExecutionContext)"/>
-        public virtual void JobExecutionVetoed(JobExecutionContext context)
+        /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
+        public virtual void JobExecutionVetoed(IJobExecutionContext context)
         {
         }
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> after a <see cref="JobDetailImpl"/>
+        /// Called by the <see cref="IScheduler"/> after a <see cref="IJobDetail"/>
         /// has been executed, and be for the associated <see cref="Trigger"/>'s
         /// <see cref="Trigger.Triggered"/> method has been called.
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>
-        public virtual void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
+        public virtual void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
         }
     }

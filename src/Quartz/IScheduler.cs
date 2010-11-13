@@ -214,40 +214,6 @@ namespace Quartz
 		/// </summary>
         IList<string> CalendarNames { get; }
 
-		/// <summary>
-		/// Get a List containing all of the <see cref="IJobListener" /> s in
-		/// the <see cref="IScheduler" />'s<i>global</i> list.
-		/// </summary>
-        IList<IJobListener> GlobalJobListeners { get; }
-
-        /// <summary>
-        /// Get the <i>global</i><see cref="IJobListener" /> that has
-        /// the given name.
-        /// </summary>
-        /// <param name="name">Global job listener's name</param>
-        /// <returns></returns>
-        IJobListener GetGlobalJobListener(string name);
-
-        /// <summary>
-        /// Get the <i>global</i><see cref="ITriggerListener" /> that
-        /// has the given name.
-        /// </summary>
-        /// <param name="name">Global trigger listener's name</param>
-        /// <returns></returns>
-        ITriggerListener GetGlobalTriggerListener(string name);
-
-		/// <summary>
-		/// Get a List containing all of the <see cref="ITriggerListener" />
-		/// s in the <see cref="IScheduler" />'s<i>global</i> list.
-		/// </summary>
-		IList<ITriggerListener> GlobalTriggerListeners { get; }
-
-		/// <summary>
-		/// Get a List containing all of the <see cref="ISchedulerListener" />
-		/// s registered with the <see cref="IScheduler" />.
-		/// </summary>
-        IList<ISchedulerListener> SchedulerListeners { get; }
-
         /// <summary>
 		/// Starts the <see cref="IScheduler" />'s threads that fire <see cref="Trigger" />s.
 		/// When a scheduler is first created it is in "stand-by" mode, and will not
@@ -342,7 +308,7 @@ namespace Quartz
 		/// If the given Trigger does not reference any <see cref="IJob" />, then it
 		/// will be set to reference the Job passed with it into this method.
 		/// </remarks>
-		DateTimeOffset ScheduleJob(IJobDetail jobDetail, Trigger trigger);
+		DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
 
 		/// <summary>
 		/// Schedule the given <see cref="Trigger" /> with the
@@ -532,7 +498,7 @@ namespace Quartz
 		/// Get all <see cref="Trigger" /> s that are associated with the
 		/// identified <see cref="IJobDetail" />.
 		/// </summary>
-        IList<Trigger> GetTriggersOfJob(JobKey jobKey);
+        IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
 		/// <summary>
 		/// Get the names of all the <see cref="Trigger" />s in the given
@@ -549,7 +515,7 @@ namespace Quartz
 		/// <summary>
 		/// Get the <see cref="Trigger" /> instance with the given key.
 		/// </summary>
-        Trigger GetTrigger(TriggerKey triggerKey);
+        ITrigger GetTrigger(TriggerKey triggerKey);
 
 		/// <summary>
 		/// Get the current state of the identified <see cref="Trigger" />.

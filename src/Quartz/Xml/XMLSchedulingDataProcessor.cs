@@ -71,11 +71,11 @@ namespace Quartz.Xml
         // pre-processing commands
         private readonly IList<String> jobGroupsToDelete = new List<String>();
         private readonly IList<String> triggerGroupsToDelete = new List<String>();
-        private readonly IList<Key> jobsToDelete = new List<Key>();
-        private readonly IList<Key> triggersToDelete = new List<Key>();
+        private readonly IList<JobKey> jobsToDelete = new List<JobKey>();
+        private readonly IList<TriggerKey> triggersToDelete = new List<TriggerKey>();
 
         // scheduling commands
-        private readonly List<JobDetailImpl> loadedJobs = new List<JobDetailImpl>();
+        private readonly List<IJobDetail> loadedJobs = new List<IJobDetail>();
         private readonly List<Trigger> loadedTriggers = new List<Trigger>();
 
         // directives
@@ -135,7 +135,7 @@ namespace Quartz.Xml
             get { return log; }
         }
 
-        protected IList<JobDetailImpl> LoadedJobs
+        protected IList<IJobDetail> LoadedJobs
         {
             get { return loadedJobs.AsReadOnly(); }
         }
@@ -476,7 +476,7 @@ namespace Quartz.Xml
             }
         }
 
-        protected virtual void AddJobToSchedule(JobDetailImpl job)
+        protected virtual void AddJobToSchedule(IJobDetail job)
         {
             loadedJobs.Add(job);
         }

@@ -205,7 +205,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<JobExecutionContext> GetCurrentlyExecutingJobs()
+        public virtual IList<IJobExecutionContext> GetCurrentlyExecutingJobs()
         {
             try
             {

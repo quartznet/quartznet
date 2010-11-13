@@ -128,6 +128,8 @@
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />
+    <Compile Include="Listener\BroadcastJobListener.cs" />
+    <Compile Include="Listener\BroadcastTriggerListener.cs" />
     <Compile Include="ScheduleBuilder.cs" />
     <Compile Include="SimpleScheduleBuilder.cs" />
     <Compile Include="Trigger.cs" />
@@ -379,8 +381,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Listener\BroadcastSchedulerListener.cs" />
-    <Compile Include="Listener\FilterAndBroadcastJobListener.cs" />
-    <Compile Include="Listener\FilterAndBroadcastTriggerListener.cs" />
     <Compile Include="Listener\JobChainingJobListener.cs" />
     <Compile Include="Listener\JobListenerSupport.cs" />
     <Compile Include="Listener\SchedulerListenerSupport.cs" />

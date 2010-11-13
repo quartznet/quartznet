@@ -75,7 +75,7 @@ namespace Quartz.Job
 		/// <param name="context">The execution context.</param>
 		/// <seealso cref="IJob">
 		/// </seealso>
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			JobDataMap data = context.MergedJobDataMap;
 			SchedulerContext schedCtxt;

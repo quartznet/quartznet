@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using Common.Logging;
@@ -43,7 +45,6 @@ namespace Quartz.Listener
     {
         private readonly ILog log;
 
-
         protected TriggerListenerSupport()
         {
             log = LogManager.GetLogger(GetType());
@@ -64,21 +65,22 @@ namespace Quartz.Listener
         /// <value></value>
         public abstract string Name { get; }
 
-        public virtual void TriggerFired(Trigger trigger, JobExecutionContext context)
+        public virtual void TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
         }
 
-        public virtual bool VetoJobExecution(Trigger trigger, JobExecutionContext context)
+        public virtual bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
             return false;
         }
 
-        public virtual void TriggerMisfired(Trigger trigger)
+        public virtual void TriggerMisfired(ITrigger trigger)
         {
         }
 
-        public virtual void TriggerComplete(Trigger trigger, JobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public virtual void TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
         }
+
     }
 }

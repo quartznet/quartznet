@@ -24,7 +24,7 @@ namespace Quartz
     /// <summary>
     /// Internal interface preserved for backward compatibility 
     /// </summary>
-    internal interface ICoreTrigger : Trigger
+    internal interface ICoreTrigger : ITrigger
     {
         bool HasAdditionalProperties { get; }
     }

@@ -1,0 +1,145 @@
+#region License
+
+/* 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+ * use this file except in compliance with the License. You may obtain a copy 
+ * of the License at 
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0 
+ *   
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+ * License for the specific language governing permissions and limitations 
+ * under the License.
+ * 
+ */
+
+#endregion
+
+using System;
+using System.Collections.Generic;
+
+namespace Quartz.Listener
+{
+/**
+ * Holds a List of references to TriggerListener instances and broadcasts all
+ * events to them (in order).
+ *
+ * <p>The broadcasting behavior of this listener to delegate listeners may be
+ * more convenient than registering all of the listeners directly with the
+ * Scheduler, and provides the flexibility of easily changing which listeners
+ * get notified.</p>
+ *
+ * @see #addListener(org.quartz.TriggerListener)
+ * @see #removeListener(org.quartz.TriggerListener)
+ * @see #removeListener(String)
+ *
+ * @author James House (jhouse AT revolition DOT net)
+ */
+
+    public class BroadcastTriggerListener : ITriggerListener
+    {
+        private readonly string name;
+        private readonly List<ITriggerListener> listeners;
+
+        /**
+     * Construct an instance with the given name.
+     *
+     * (Remember to add some delegate listeners!)
+     *
+     * @param name the name of this instance
+     */
+
+        public BroadcastTriggerListener(string name)
+        {
+            if (name == null)
+            {
+                throw new ArgumentNullException("name", "Listener name cannot be null!");
+            }
+            this.name = name;
+            listeners = new List<ITriggerListener>();
+        }
+
+        /**
+     * Construct an instance with the given name, and List of listeners.
+     *
+     * @param name the name of this instance
+     * @param listeners the initial List of TriggerListeners to broadcast to.
+     */
+
+        public BroadcastTriggerListener(string name, IList<ITriggerListener> listeners) : this(name)
+        {
+            this.listeners.AddRange(listeners);
+        }
+
+        public string Name
+        {
+            get { return name; }
+        }
+
+        public void AddListener(ITriggerListener listener)
+        {
+            listeners.Add(listener);
+        }
+
+        public bool RemoveListener(ITriggerListener listener)
+        {
+            return listeners.Remove(listener);
+        }
+
+        public bool RemoveListener(string listenerName)
+        {
+            ITriggerListener listener = listeners.Find(x => x.Name == listenerName);
+            if (listener != null)
+            {
+                listeners.Remove(listener);
+                return true;
+            }
+            return false;
+        }
+
+        public IList<ITriggerListener> Listeners
+        {
+            get { return listeners.AsReadOnly(); }
+        }
+
+        public void TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        {
+            foreach (ITriggerListener l in listeners)
+            {
+                l.TriggerFired(trigger, context);
+            }
+        }
+
+        public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        {
+            foreach (ITriggerListener l in listeners)
+            {
+                if (l.VetoJobExecution(trigger, context))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public void TriggerMisfired(ITrigger trigger)
+        {
+            foreach (ITriggerListener l in listeners)
+            {
+                l.TriggerMisfired(trigger);
+            }
+        }
+
+        public void TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        {
+            foreach (ITriggerListener l in listeners)
+            {
+                l.TriggerComplete(trigger, context, triggerInstructionCode);
+            }
+        }
+    }
+}

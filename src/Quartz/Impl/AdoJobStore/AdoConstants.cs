@@ -45,7 +45,8 @@ namespace Quartz.Impl.AdoJobStore
 		public const string ColumnJobGroup = "JOB_GROUP";
 		public const string ColumnIsDurable = "IS_DURABLE";
 		public const string ColumnIsVolatile = "IS_VOLATILE";
-		public const string ColumnIsStateful = "IS_STATEFUL";
+        public const string ColumnIsNonConcurrent = "IS_NONCONCURRENT";
+        public const string ColumnIsUpdateData = "IS_UPDATE_DATA";
 		public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";
 		public const string ColumnJobDataMap = "JOB_DATA";
 		public const string ColumnJobClass = "JOB_CLASS_NAME";
@@ -106,17 +107,12 @@ namespace Quartz.Impl.AdoJobStore
 		public const string StatePaused = "PAUSED";
 		public const string StatePausedBlocked = "PAUSED_BLOCKED";
 		public const string StateDeleted = "DELETED";
-        /**
- * @deprecated Whether a trigger has misfired is no longer a state, but 
- * rather now identified dynamically by whether the trigger's next fire 
- * time is more than the misfire threshold time in the past.
- */
-        public const string StateMisfired = "MISFIRED";
 		public const string AllGroupsPaused = "_$_ALL_GROUPS_PAUSED_$_";
 		
 		// TRIGGER TYPES
 		public const string TriggerTypeSimple = "SIMPLE";
 		public const string TriggerTypeCron = "CRON";
+        public const string TriggerTypeCalendarInterval = "CAL_INT";
 		public const string TriggerTypeBlob = "BLOB";
 	}
 }

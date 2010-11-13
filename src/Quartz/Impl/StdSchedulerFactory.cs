@@ -967,11 +967,11 @@ Please add configuration to your application config file to correctly initialize
                 // add listeners
                 for (int i = 0; i < jobListeners.Length; i++)
                 {
-                    qs.AddGlobalJobListener(jobListeners[i]);
+                    qs.ListenerManager.AddJobListener(jobListeners[i]);
                 }
                 for (int i = 0; i < triggerListeners.Length; i++)
                 {
-                    qs.AddGlobalTriggerListener(triggerListeners[i]);
+                    qs.ListenerManager.AddTriggerListener(triggerListeners[i]);
                 }
 
                 // set scheduler context data...

@@ -119,7 +119,7 @@ namespace Quartz.Job
 		/// </p>
 		/// </summary>
 		/// <param name="context"></param>
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			JobDataMap data = context.MergedJobDataMap;
 

@@ -61,7 +61,7 @@ namespace Quartz.Job
 		/// Executes the job.
 		/// </summary>
 		/// <param name="context">The job execution context.</param>
-		public virtual void Execute(JobExecutionContext context)
+        public virtual void Execute(IJobExecutionContext context)
 		{
 			JobDataMap data = context.JobDetail.JobDataMap;
 

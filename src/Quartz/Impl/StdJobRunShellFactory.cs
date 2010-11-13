@@ -26,10 +26,6 @@ namespace Quartz.Impl
 	/// Responsible for creating the instances of <see cref="JobRunShell" />
 	/// to be used within the <see cref="QuartzScheduler" /> instance.
 	/// </summary>
-	/// <remarks>
-	/// This implementation does not re-use any objects, it simply makes a new
-	/// JobRunShell each time <see cref="BorrowJobRunShell()" /> is called.
-    /// </remarks>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public class StdJobRunShellFactory : IJobRunShellFactory
@@ -39,7 +35,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Initialize the factory, providing a handle to the <see cref="IScheduler" />
 		/// that should be made available within the <see cref="JobRunShell" /> and
-		/// the <see cref="JobExecutionContext" /> s within it.
+		/// the <see cref="IJobExecutionContext" /> s within it.
 		/// </summary>
 		public virtual void Initialize(IScheduler sched)
 		{
@@ -50,18 +46,9 @@ namespace Quartz.Impl
 		/// Called by the <see cref="QuartzSchedulerThread" /> to obtain instances of 
 		/// <see cref="JobRunShell" />.
 		/// </summary>
-		public virtual JobRunShell BorrowJobRunShell()
+        public virtual JobRunShell CreateJobRunShell(TriggerFiredBundle bndle)
 		{
-			return new JobRunShell(this, scheduler);
-		}
-
-		/// <summary>
-		/// Called by the <see cref="QuartzSchedulerThread" /> to return instances of 
-		/// <see cref="JobRunShell" />.
-		/// </summary>
-		public virtual void ReturnJobRunShell(JobRunShell jobRunShell)
-		{
-			jobRunShell.Passivate();
+			return new JobRunShell(scheduler, bndle);
 		}
 	}
 }

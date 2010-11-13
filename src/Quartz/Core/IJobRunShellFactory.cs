@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Quartz.Spi;
+
 namespace Quartz.Core
 {
 	/// <summary>
@@ -38,6 +40,6 @@ namespace Quartz.Core
 		/// Called by the <see cref="QuartzSchedulerThread" />
 		/// to obtain instances of <see cref="JobRunShell" />.
 		/// </summary>
-        JobRunShell CreateJobRunShell();
+        JobRunShell CreateJobRunShell(TriggerFiredBundle bndle);
 	}
 }
