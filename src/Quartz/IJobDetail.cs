@@ -86,13 +86,13 @@ namespace Quartz
         /// <summary>
         /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> TODO annotation.
         /// </summary>
-        /// <seealso cref="PersistJobDataAfterExecution" />
+        /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
         bool PersistJobDataAfterExecution { get; }
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecution" /> TODO annotation.
         /// </summary>
-        /// <seealso cref="DisallowConcurrentExecution"/>
+        /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
         bool ConcurrentExectionDisallowed { get; }
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace Quartz
         /// <remarks>
         /// If not explicitly set, the default value is <see langword="false" />.
         /// </remarks>
-        /// <seealso cref="JobExecutionContext.Recovering" />
+        /// <seealso cref="IJobExecutionContext.Recovering" />
         bool RequestsRecovery { get; }
 
         /// <summary>

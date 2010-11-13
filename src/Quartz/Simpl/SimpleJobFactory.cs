@@ -58,13 +58,13 @@ namespace Quartz.Simpl
 		/// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
 		public virtual IJob NewJob(TriggerFiredBundle bundle)
 		{
-			JobDetailImpl jobDetail = bundle.JobDetail;
+			IJobDetail jobDetail = bundle.JobDetail;
 			Type jobType = jobDetail.JobType;
 			try
 			{
 				if (Log.IsDebugEnabled)
 				{
-					Log.Debug(string.Format(CultureInfo.InvariantCulture, "Producing instance of Job '{0}', class={1}", jobDetail.FullName, jobType.FullName));
+					Log.Debug(string.Format(CultureInfo.InvariantCulture, "Producing instance of Job '{0}', class={1}", jobDetail.Key, jobType.FullName));
 				}
 
 				return ObjectUtils.InstantiateType<IJob>(jobType);

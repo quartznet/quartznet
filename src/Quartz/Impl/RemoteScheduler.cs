@@ -815,11 +815,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> GetTriggerNames(string groupName)
+        public virtual IList<string> GetTriggerKeys(string groupName)
         {
             try
             {
-                return GetRemoteScheduler().GetTriggerNames(groupName);
+                return GetRemoteScheduler().GetTriggerKeys(groupName);
             }
             catch (RemotingException re)
             {

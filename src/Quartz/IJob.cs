@@ -28,11 +28,10 @@ namespace Quartz
 	/// no-argument constructor. <see cref="JobDataMap" /> provides a mechanism for 'instance member data'
 	/// that may be required by some implementations of this interface.
     /// </remarks>
-	/// <seealso cref="JobDetailImpl" />
+	/// <seealso cref="IJobDetail" />
     /// <seealso cref="JobBuilder" />
-    /// <seealso cref="ExecuteInJTATransaction" />
-    /// <seealso cref="DisallowConcurrentExecution" />
-    /// <seealso cref="PersistJobDataAfterExecution" />
+    /// <seealso cref="DisallowConcurrentExecutionAttribute" />
+    /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
 	/// <seealso cref="Trigger" />
 	/// <seealso cref="IScheduler" />
 	/// <author>James House</author>
@@ -52,6 +51,6 @@ namespace Quartz
 		/// execution.
 		/// </remarks>
 		/// <param name="context">The execution context.</param>
-		void Execute(JobExecutionContext context);
+        void Execute(IJobExecutionContext context);
 	}
 }

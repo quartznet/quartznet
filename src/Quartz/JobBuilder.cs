@@ -1,46 +1,68 @@
+#region License
+
+/* 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+ * use this file except in compliance with the License. You may obtain a copy 
+ * of the License at 
+ * 
+ *   http://www.apache.org/licenses/LICENSE-2.0 
+ *   
+ * Unless required by applicable law or agreed to in writing, software 
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+ * License for the specific language governing permissions and limitations 
+ * under the License.
+ * 
+ */
+
+#endregion
+
 using System;
 
+using Quartz.Impl;
 using Quartz.Job;
 using Quartz.Util;
 
 namespace Quartz
 {
-    /**
- * <code>JobBuilder</code> is used to instantiate {@link JobDetail}s.
- *  
- * <p>Quartz provides a builder-style API for constructing scheduling-related
- * entities via a Domain-Specific Language (DSL).  The DSL can best be
- * utilized through the usage of static imports of the methods on the classes
- * <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
- * <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
- * and the various <code>ScheduleBuilder</code> implementations.</p>
- * 
- * <p>Client code can then use the DSL to write code such as this:</p>
- * <pre>
- *         JobDetail job = newJob(MyJob.class)
- *             .withIdentity("myJob")
- *             .build();
- *             
- *         Trigger trigger = newTrigger() 
- *             .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
- *             .withSchedule(simpleSchedule()
- *                 .withIntervalInHours(1)
- *                 .repeatForever())
- *             .startAt(futureDate(10, MINUTES))
- *             .build();
- *         
- *         scheduler.scheduleJob(job, trigger);
- * <pre>
- *  
- * @see TriggerBuilder
- * @see DateBuilder 
- * @see JobDetail
- */
+    /// <summary>
+    /// <code>JobBuilder</code> is used to instantiate {@link JobDetail}s.
+    /// </summary>
+    /// <remarks>
+    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// entities via a Domain-Specific Language (DSL).  The DSL can best be
+    /// utilized through the usage of static imports of the methods on the classes
+    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
+    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
+    /// and the various <code>ScheduleBuilder</code> implementations.</p>
+    /// 
+    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// <pre>
+    ///         JobDetail job = newJob(MyJob.class)
+    ///             .withIdentity("myJob")
+    ///             .build();
+    ///             
+    ///         Trigger trigger = newTrigger() 
+    ///             .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    ///             .withSchedule(simpleSchedule()
+    ///                 .withIntervalInHours(1)
+    ///                 .repeatForever())
+    ///             .startAt(futureDate(10, MINUTES))
+    ///             .build();
+    ///         
+    ///         scheduler.scheduleJob(job, trigger);
+    /// </pre>
+    /// </remarks>
+    /// <seealso cref="TriggerBuilder" />
+    /// <seealso cref="DateBuilder" />
+    /// <seealso cref="IJobDetail" />
     public class JobBuilder
     {
         private JobKey key;
         private string description;
-        private Type jobClass = typeof (NoOpJob);
+        private Type jobType = typeof (NoOpJob);
         private bool durability;
         private bool shouldRecover;
 
@@ -50,307 +72,270 @@ namespace Quartz
         {
         }
 
-        /**
-     * Create a JobBuilder with which to define a <code>JobDetail</code>.
-     * 
-     * @return a new JobBuilder
-     */
-
+        /// <summary>
+        /// Create a JobBuilder with which to define a <code>JobDetail</code>.
+        /// </summary>
+        /// <returns>a new JobBuilder</returns>
         public static JobBuilder NewJob()
         {
             return new JobBuilder();
         }
 
-        /**
-     * Create a JobBuilder with which to define a <code>JobDetail</code>,
-     * and set the class name of the <code>Job</code> to be executed.
-     * 
-     * @return a new JobBuilder
-     */
+        /// <summary>
+        /// Create a JobBuilder with which to define a <code>JobDetail</code>,
+        /// and set the class name of the <code>Job</code> to be executed.
+        /// </summary>
+        /// <returns>a new JobBuilder</returns>
         public static JobBuilder NewJob(Type jobType)
-    {
-        JobBuilder b = new JobBuilder();
-        b.OfType(jobType);
-        return b;
-    }
+        {
+            JobBuilder b = new JobBuilder();
+            b.OfType(jobType);
+            return b;
+        }
 
-        /**
-     * Produce the <code>JobDetail</code> instance defined by this 
-     * <code>JobBuilder</code>.
-     * 
-     * @return the defined JobDetail.
-     */
-
-        public JobDetailImpl Build()
+        /// <summary>
+        /// Produce the <code>JobDetail</code> instance defined by this 
+        /// <code>JobBuilder</code>.
+        /// </summary>
+        /// <returns>the defined JobDetail.</returns>
+        public IJobDetail Build()
         {
             JobDetailImpl job = new JobDetailImpl();
 
-            job.setJobClass(jobClass);
-            job.setDescription(description);
+            job.JobType = jobType;
+            job.Description = description;
             if (key == null)
             {
                 key = new JobKey(Key<string>.CreateUniqueName(null), null);
             }
-            job.setKey(key);
-            job.setDurability(durability);
-            job.setRequestsRecovery(shouldRecover);
+            job.Key = key;
+            job.Durable = durability;
+            job.RequestsRecovery = shouldRecover;
 
 
-            if (!jobDataMap.isEmpty())
+            if (!jobDataMap.IsEmpty)
             {
-                job.setJobDataMap(jobDataMap);
+                job.JobDataMap = jobDataMap;
             }
 
             return job;
         }
 
-        /**
-     * Use a <code>JobKey</code> with the given name and default group to
-     * identify the JobDetail.
-     * 
-     * <p>If none of the 'withIdentity' methods are set on the JobBuilder,
-     * then a random, unique JobKey will be generated.</p>
-     * 
-     * @param name the name element for the Job's JobKey
-     * @return the updated JobBuilder
-     * @see JobKey
-     * @see JobDetail#getKey()
-     */
-
+        /// <summary>
+        /// Use a <code>JobKey</code> with the given name and default group to
+        /// identify the JobDetail.
+        /// </summary>
+        /// <remarks>
+        /// <p>If none of the 'withIdentity' methods are set on the JobBuilder,
+        /// then a random, unique JobKey will be generated.</p>
+        /// </remarks>
+        /// <param name="name">the name element for the Job's JobKey</param>
+        /// <returns>the updated JobBuilder</returns>
+        /// <seealso cref="JobKey
+        /// <seealso cref="IJobDetail#getKey()
         public JobBuilder WithIdentity(string name)
         {
             key = new JobKey(name, null);
             return this;
         }
 
-        /**
-     * Use a <code>JobKey</code> with the given name and group to
-     * identify the JobDetail.
-     * 
-     * <p>If none of the 'withIdentity' methods are set on the JobBuilder,
-     * then a random, unique JobKey will be generated.</p>
-     * 
-     * @param name the name element for the Job's JobKey
-     * @param group the group element for the Job's JobKey
-     * @return the updated JobBuilder
-     * @see JobKey
-     * @see JobDetail#getKey()
-     */
-
+        /// <summary>
+        /// Use a <code>JobKey</code> with the given name and group to
+        /// identify the JobDetail.
+        /// </summary>
+        /// <remarks>
+        /// <p>If none of the 'withIdentity' methods are set on the JobBuilder,
+        /// then a random, unique JobKey will be generated.</p>
+        /// </remarks>
+        /// <param name="name">the name element for the Job's JobKey</param>
+        /// <param name="group"> the group element for the Job's JobKey</param>
+        /// <returns>the updated JobBuilder</returns>
+        /// <seealso cref="JobKey" />
+        /// <seealso cref="IJobDetail#getKey()" />
         public JobBuilder WithIdentity(string name, string group)
         {
             key = new JobKey(name, group);
             return this;
         }
 
-        /**
-     * Use a <code>JobKey</code> to identify the JobDetail.
-     * 
-     * <p>If none of the 'withIdentity' methods are set on the JobBuilder,
-     * then a random, unique JobKey will be generated.</p>
-     * 
-     * @param key the Job's JobKey
-     * @return the updated JobBuilder
-     * @see JobKey
-     * @see JobDetail#getKey()
-     */
-
+        /// <summary>
+        /// Use a <code>JobKey</code> to identify the JobDetail.
+        /// </summary>
+        /// <remarks>
+        /// <p>If none of the 'withIdentity' methods are set on the JobBuilder,
+        /// then a random, unique JobKey will be generated.</p>
+        /// </remarks>
+        /// <param name="key">the Job's JobKey</param>
+        /// <returns>the updated JobBuilder</returns>
+        /// <seealso cref="JobKey" />
+        /// <seealso cref="IJobDetail#getKey()" />
         public JobBuilder WithIdentity(JobKey key)
         {
             this.key = key;
             return this;
         }
 
-        /**
-     * Set the given (human-meaningful) description of the Job.
-     * 
-     * @param description the description for the Job
-     * @return the updated JobBuilder
-     * @see JobDetail#getDescription()
-     */
-
+        /// <summary>
+        /// Set the given (human-meaningful) description of the Job.
+        /// </summary>
+        /// <param name="description"> the description for the Job</param>
+        /// <returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail#getDescription()" />
         public JobBuilder WithDescription(string description)
         {
             this.description = description;
             return this;
         }
 
-        /**
-     * Set the class which will be instantiated and executed when a
-     * Trigger fires that is associated with this JobDetail.
-     * 
-     * @param jobType a class implementing the Job interface.
-     * @return the updated JobBuilder
-     * @see JobDetail#getJobClass()
-     */
+        /// <summary>
+        /// Set the class which will be instantiated and executed when a
+        /// Trigger fires that is associated with this JobDetail.
+        /// </summary>
+        /// <param name="jobType" a class implementing the Job interface.</param>
+        /// <returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail#getJobClass()" />
         public JobBuilder OfType(Type jobType)
-    {
-        this.jobClass = jobType;
-        return this;
-    }
+        {
+            this.jobType = jobType;
+            return this;
+        }
 
-        /**
-     * Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
-     * should be re-executed if a 'recovery' or 'fail-over' situation is
-     * encountered.
-     * 
-     * <p>
-     * If not explicitly set, the default value is <code>false</code>.
-     * </p>
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#requestsRecovery()
-     */
-
+        /// <summary>
+        /// Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
+        /// should be re-executed if a 'recovery' or 'fail-over' situation is
+        /// encountered.
+        /// </summary>
+        /// <remarks>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </remarks>
+        /// <returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.RequestsRecovery" />
         public JobBuilder RequestRecovery()
         {
             this.shouldRecover = true;
             return this;
         }
 
-        /**
-     * Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
-     * should be re-executed if a 'recovery' or 'fail-over' situation is
-     * encountered.
-     * 
-     * <p>
-     * If not explicitly set, the default value is <code>false</code>.
-     * </p>
-     * 
-     * @param shouldRecover
-     * @return the updated JobBuilder
-     */
-
+        /// <summary>
+        /// Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
+        /// should be re-executed if a 'recovery' or 'fail-over' situation is
+        /// encountered.
+        /// </summary>
+        /// <remarks>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </remarks>
+        /// <param name="shouldRecover"></param>
+        /// <returns>the updated JobBuilder</returns>
         public JobBuilder RequestRecovery(bool shouldRecover)
         {
             this.shouldRecover = shouldRecover;
             return this;
         }
 
-        /**
-     * Whether or not the <code>Job</code> should remain stored after it is
-     * orphaned (no <code>{@link Trigger}s</code> point to it).
-     * 
-     * <p>
-     * If not explicitly set, the default value is <code>false</code>.
-     * </p>
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#isDurable()
-     */
-
+        /// <summary>
+        /// Whether or not the <code>Job</code> should remain stored after it is
+        /// orphaned (no <code>{@link Trigger}s</code> point to it).
+        /// </summary>
+        /// <remarks>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </remarks>
+        /// <returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail#isDurable()" />
         public JobBuilder StoreDurably()
         {
             this.durability = true;
             return this;
         }
 
-        /**
-     * Whether or not the <code>Job</code> should remain stored after it is
-     * orphaned (no <code>{@link Trigger}s</code> point to it).
-     * 
-     * <p>
-     * If not explicitly set, the default value is <code>false</code>.
-     * </p>
-     * 
-     * @param durability the value to set for the durability property.
-     * @return the updated JobBuilder
-     * @see JobDetail#isDurable()
-     */
-
+        /// <summary>
+        /// Whether or not the <code>Job</code> should remain stored after it is
+        /// orphaned (no <code>{@link Trigger}s</code> point to it).
+        /// </summary>
+        /// <remarks>
+        /// If not explicitly set, the default value is <code>false</code>.
+        /// </remarks>
+        /// <param name="durability">the value to set for the durability property.
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail#isDurable()" />
         public JobBuilder StoreDurably(bool durability)
         {
             this.durability = durability;
             return this;
         }
 
-        /**
-     * Add the given key-value pair to the JobDetail's {@link JobDataMap}.
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#getJobDataMap()
-     */
-
+        /// <summary>
+        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
         public JobBuilder UsingJobData(string key, string value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-     * Add the given key-value pair to the JobDetail's {@link JobDataMap}.
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#getJobDataMap()
-     */
-
+        /// <summary>
+        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
         public JobBuilder UsingJobData(string key, int value)
         {
-            jobDataMap.put(key, value);
+            jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-     * Add the given key-value pair to the JobDetail's {@link JobDataMap}.
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#getJobDataMap()
-     */
-
+        /// <summary>
+        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
         public JobBuilder UsingJobData(string key, long value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-     * Add the given key-value pair to the JobDetail's {@link JobDataMap}.
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#getJobDataMap()
-     */
-
-        public JobBuilder UsingJobData(string key, Float value)
+        /// <summary>
+        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
+        public JobBuilder UsingJobData(string key, float value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-     * Add the given key-value pair to the JobDetail's {@link JobDataMap}.
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#getJobDataMap()
-     */
-
-        public JobBuilder UsingJobData(string key, Double value)
+        /// <summary>
+        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
+        public JobBuilder UsingJobData(string key, double value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-     * Add the given key-value pair to the JobDetail's {@link JobDataMap}.
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#getJobDataMap()
-     */
-
-        public JobBuilder UsingJobData(string key, Boolean value)
+        /// <summary>
+        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
+        public JobBuilder UsingJobData(string key, bool value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-     * Set the JobDetail's {@link JobDataMap}, adding any values to it
-     * that were already set on this JobBuilder using any of the
-     * other 'usingJobData' methods. 
-     * 
-     * @return the updated JobBuilder
-     * @see JobDetail#getJobDataMap()
-     */
-
+        /// <summary>
+        /// Set the JobDetail's {@link JobDataMap}, adding any values to it
+        /// that were already set on this JobBuilder using any of the
+        /// other 'usingJobData' methods. 
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
         public JobBuilder UsingJobData(JobDataMap newJobDataMap)
         {
             // add any existing data to this new map

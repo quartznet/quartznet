@@ -2,7 +2,7 @@ using System;
 
 namespace Quartz.Spi
 {
-public interface OperableTrigger : IMutableTrigger {
+public interface IOperableTrigger : IMutableTrigger {
 
     /**
      * <p>
@@ -41,7 +41,7 @@ public interface OperableTrigger : IMutableTrigger {
      *         will return (until after the first firing of the <code>Trigger</code>).
      *         </p>
      */
-    DateTimeOffset computeFirstFireTime(ICalendar calendar);
+    DateTimeOffset ComputeFirstFireTimeUtc(ICalendar calendar);
 
     /**
      * <p>
@@ -69,8 +69,7 @@ public interface OperableTrigger : IMutableTrigger {
      * @see #triggered(Calendar)
      */
 
-    int executionComplete(JobExecutionContext context,
-            JobExecutionException result);
+    SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException result);
 
     /**
      * <p>
@@ -87,7 +86,7 @@ public interface OperableTrigger : IMutableTrigger {
      * was created.
      * </p>
      */
-    void updateAfterMisfire(ICalendar cal);
+    void UpdateAfterMisfire(ICalendar cal);
 
     /**
      * <p>
@@ -107,7 +106,7 @@ public interface OperableTrigger : IMutableTrigger {
      * 
      * @param cal
      */
-    void updateWithNewCalendar(ICalendar cal, long misfireThreshold);
+    void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
 
     
     /**
@@ -119,7 +118,7 @@ public interface OperableTrigger : IMutableTrigger {
      *           if a required property (such as Name, Group, Class) is not
      *           set.
      */
-    void validate();
+    void Validate();
     
 
     /**
@@ -135,17 +134,9 @@ public interface OperableTrigger : IMutableTrigger {
      * 
      *  
      */
-    void setFireInstanceId(string id);
-    
-    /**
-     * <p>
-     * This method should not be used by the Quartz client.
-     * </p>
-     */
-    String getFireInstanceId();
+    string FireInstanceId { get;  set; }
 
+    void SetNextFireTimeUtc(DateTimeOffset nextFireTime);
 
-    void setNextFireTime(DateTimeOffset nextFireTime);
-
-    void setPreviousFireTime(DateTimeOffset previousFireTime);
+    void SetPreviousFireTimeUtc(DateTimeOffset previousFireTime);
 }}

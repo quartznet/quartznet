@@ -360,7 +360,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.Standby();
 
                     CollectionAssert.IsNotEmpty(sched.GetCalendarNames());
-                    CollectionAssert.IsNotEmpty(sched.GetJobNames(schedId));
+                    CollectionAssert.IsNotEmpty(sched.GetJobKeys(schedId));
 
                     CollectionAssert.IsNotEmpty(sched.GetTriggersOfJob("job_2", schedId));
                     Assert.IsNotNull(sched.GetJobDetail("job_2", schedId));
@@ -450,7 +450,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             IList<string> groups = inScheduler.TriggerGroupNames;
             foreach (string group in groups)
             {
-                IList<string> names = inScheduler.GetTriggerNames(group);
+                IList<string> names = inScheduler.GetTriggerKeys(group);
                 for (int j = 0; j < names.Count; j++)
                 {
                     inScheduler.UnscheduleJob(names[j], group);
@@ -461,7 +461,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             groups = inScheduler.JobGroupNames;
             foreach (string group in groups)
             {
-                IList<string> jobNames = inScheduler.GetJobNames(group);
+                IList<string> jobNames = inScheduler.GetJobKeys(group);
                 foreach (string jobName in jobNames)
                 {
                     inScheduler.DeleteJob(jobName, group);

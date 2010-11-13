@@ -24,10 +24,11 @@ namespace Quartz
 	/// <see cref="Trigger" /> fires. In general, applications that use a
 	/// <see cref="IScheduler" /> will not have use for this mechanism.
 	/// </summary>
-	/// <seealso cref="IScheduler" />
-	/// <seealso cref="Trigger" />
+	/// <seealso cref="IScheduler.AddTriggerListener" />
+    /// <seealso cref="IMatcher{T}" />
+    /// <seealso cref="Trigger" />
 	/// <seealso cref="IJobListener" />
-	/// <seealso cref="JobExecutionContext" />
+	/// <seealso cref="IJobExecutionContext" />
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface ITriggerListener
@@ -39,7 +40,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
-		/// has fired, and it's associated <see cref="JobDetailImpl" />
+		/// has fired, and it's associated <see cref="IJobDetail" />
 		/// is about to be executed.
 		/// <p>
 		/// It is called before the <see cref="VetoJobExecution" /> method of this
@@ -50,11 +51,11 @@ namespace Quartz
 		/// <param name="context">
 		///     The <see cref="JobExecutionContext" /> that will be passed to the <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
 		/// </param>
-		void TriggerFired(Trigger trigger, JobExecutionContext context);
+		void TriggerFired(ITrigger trigger, IJobExecutionContext context);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
-        /// has fired, and it's associated <see cref="JobDetailImpl"/>
+        /// has fired, and it's associated <see cref="IJobDetail"/>
         /// is about to be executed.
         /// <p>
         /// It is called after the <see cref="TriggerFired"/> method of this
@@ -66,7 +67,7 @@ namespace Quartz
         /// <param name="context">The <see cref="JobExecutionContext"/> that will be passed to
         /// the <see cref="IJob"/>'s<see cref="IJob.Execute"/> method.</param>
         /// <returns>Returns true if job execution should be vetoed, false otherwise.</returns>
-		bool VetoJobExecution(Trigger trigger, JobExecutionContext context);
+        bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context);
 
 
 		/// <summary>
@@ -80,22 +81,22 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <param name="trigger">The <see cref="Trigger" /> that has misfired.</param>
-		void TriggerMisfired(Trigger trigger);
+        void TriggerMisfired(ITrigger trigger);
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
-		/// has fired, it's associated <see cref="JobDetailImpl" />
+		/// has fired, it's associated <see cref="IJobDetail" />
 		/// has been executed, and it's <see cref="Trigger.Triggered" /> method has been
 		/// called.
 		/// </summary>
 		/// <param name="trigger">The <see cref="Trigger" /> that was fired.</param>
 		/// <param name="context">
-		/// The <see cref="JobExecutionContext" /> that was passed to the
+        /// The <see cref="IJobExecutionContext" /> that was passed to the
 		/// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
 		/// </param>
 		/// <param name="triggerInstructionCode">
 		/// The result of the call on the <see cref="Trigger" />'s<see cref="Trigger.Triggered" />  method.
 		/// </param>
-		void TriggerComplete(Trigger trigger, JobExecutionContext context, SchedulerInstruction triggerInstructionCode);
+		void TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode);
 	}
 }

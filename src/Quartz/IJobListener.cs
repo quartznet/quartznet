@@ -24,10 +24,10 @@ namespace Quartz
     /// <see cref="IJobDetail" /> executes. In general,  applications that use a 
 	/// <see cref="IScheduler" /> will not have use for this mechanism.
 	/// </summary>
-    /// <seealso cref="IScheduler.AddJobListener(IJobListener, IMatcher{T})" />
-    /// <seealso cref="IMatcher" />
+    /// <seealso cref="IListenerManager.AddJobListener(Quartz.IJobListener,System.Collections.Generic.IList{Quartz.IMatcher{Quartz.JobKey}})" />
+    /// <seealso cref="IMatcher{T}" />
 	/// <seealso cref="IJob" />
-	/// <seealso cref="JobExecutionContext" />
+	/// <seealso cref="IJobExecutionContext" />
 	/// <seealso cref="JobExecutionException" />
 	/// <seealso cref="ITriggerListener" />
 	/// <author>James House</author>
@@ -48,8 +48,8 @@ namespace Quartz
 		/// by a <see cref="ITriggerListener" />.
 		/// </p>
 		/// </summary>
-		/// <seealso cref="JobExecutionVetoed(JobExecutionContext)" />
-		void JobToBeExecuted(JobExecutionContext context);
+		/// <seealso cref="JobExecutionVetoed(IJobExecutionContext)" />
+		void JobToBeExecuted(IJobExecutionContext context);
 
 		/// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
@@ -57,8 +57,8 @@ namespace Quartz
 		/// has occurred), but a <see cref="ITriggerListener" /> vetoed it's 
 		/// execution.
 		/// </summary>
-		/// <seealso cref="JobToBeExecuted(JobExecutionContext)" />
-		void JobExecutionVetoed(JobExecutionContext context);
+        /// <seealso cref="JobToBeExecuted(IJobExecutionContext)" />
+        void JobExecutionVetoed(IJobExecutionContext context);
 
 
 		/// <summary>
@@ -66,6 +66,6 @@ namespace Quartz
 		/// has been executed, and be for the associated <see cref="Trigger" />'s
 		/// <see cref="Trigger.Triggered" /> method has been called.
 		/// </summary>
-		void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException);
+        void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
 	}
 }

@@ -37,12 +37,9 @@ namespace Quartz.Simpl
 		Type JobStoreClass { get; }
 		Type ThreadPoolClass { get; }
 		int ThreadPoolSize { get; }
-		
-        IList<JobExecutionContext> CurrentlyExecutingJobs { get; }
-
-        IList<IJobListener> GlobalJobListeners { get; }
-		IList<ITriggerListener> GlobalTriggerListeners { get; }
-		IList<ISchedulerListener> SchedulerListeners { get; }
+        
+        void Clear();
+        IList<IJobExecutionContext> CurrentlyExecutingJobs { get; }
 
 		/// <summary>
 		/// Starts this instance.
@@ -71,11 +68,11 @@ namespace Quartz.Simpl
 
         bool Clustered { get; }
 
-        DateTimeOffset ScheduleJob(JobDetailImpl jobDetail, Trigger trigger);
+        DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
 
-        DateTimeOffset ScheduleJob(Trigger trigger);
+        DateTimeOffset ScheduleJob(ITrigger trigger);
 
-		void AddJob(JobDetailImpl jobDetail, bool replace);
+        void AddJob(IJobDetail jobDetail, bool replace);
 
         /// <summary>
         /// returns true if the given JobGroup
@@ -93,31 +90,29 @@ namespace Quartz.Simpl
         /// <returns></returns>
         bool IsTriggerGroupPaused(string groupName);
         
-	    bool DeleteJob(string jobName, string groupName);
+	    bool DeleteJob(JobKey jobKey);
 
-		bool UnscheduleJob(string triggerName, string groupName);
+        bool UnscheduleJob(TriggerKey triggerKey);
 
-        DateTimeOffset? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
+        DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
-		void TriggerJob(string jobName, string groupName, JobDataMap data);
+        void TriggerJob(JobKey jobKey, JobDataMap data);
 
-		void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data);
-
-		void PauseTrigger(string triggerName, string groupName);
+        void PauseTrigger(TriggerKey triggerKey);
 
 		void PauseTriggerGroup(string groupName);
 
-		void PauseJob(string jobName, string groupName);
+        void PauseJob(JobKey jobKey);
 
 		void PauseJobGroup(string groupName);
 
-		void ResumeTrigger(string triggerName, string groupName);
+        void ResumeTrigger(TriggerKey triggerKey);
 
 		void ResumeTriggerGroup(string groupName);
 
         Collection.ISet<string> GetPausedTriggerGroups();
 
-		void ResumeJob(string jobName, string groupName);
+        void ResumeJob(JobKey jobKey);
 
 		void ResumeJobGroup(string groupName);
 
@@ -127,19 +122,19 @@ namespace Quartz.Simpl
 
         IList<string> GetJobGroupNames();
 
-		IList<string> GetJobNames(string groupName);
+		IList<JobKey> GetJobKeys(string groupName);
 
-		IList<Trigger> GetTriggersOfJob(string jobName, string groupName);
+        IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
 		IList<string> GetTriggerGroupNames();
 
-		IList<string> GetTriggerNames(string groupName);
+		IList<TriggerKey> GetTriggerKeys(string groupName);
 
-		JobDetailImpl GetJobDetail(string jobName, string jobGroup);
+        IJobDetail GetJobDetail(JobKey jobKey);
 
-		Trigger GetTrigger(string triggerName, string triggerGroup);
+		ITrigger GetTrigger(TriggerKey triggerKey);
 
-		TriggerState GetTriggerState(string triggerName, string triggerGroup);
+        TriggerState GetTriggerState(TriggerKey triggerKey);
 
 		void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
@@ -149,14 +144,10 @@ namespace Quartz.Simpl
 
 		IList<string> GetCalendarNames();
 
-		void AddGlobalJobListener(IJobListener jobListener);
+        bool Interrupt(JobKey jobKey);
 
-		void AddGlobalTriggerListener(ITriggerListener triggerListener);
-
-		void AddSchedulerListener(ISchedulerListener schedulerListener);
-
-		bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
-
-		bool Interrupt(string jobName, string groupName);
+        bool CheckExists(JobKey jobKey); 
+   
+        bool CheckExists(TriggerKey triggerKey);
 	}
 }

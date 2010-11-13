@@ -33,8 +33,8 @@ namespace Quartz.Spi
     [Serializable]
     public class TriggerFiredBundle
     {
-        private readonly JobDetailImpl job;
-        private readonly Trigger trigger;
+        private readonly IJobDetail job;
+        private readonly IOperableTrigger trigger;
         private readonly ICalendar cal;
         private readonly bool jobIsRecovering;
         private readonly DateTimeOffset? fireTimeUtc;
@@ -46,7 +46,7 @@ namespace Quartz.Spi
         /// Gets the job detail.
         /// </summary>
         /// <value>The job detail.</value>
-        public virtual JobDetailImpl JobDetail
+        public virtual IJobDetail JobDetail
         {
             get { return job; }
         }
@@ -55,7 +55,7 @@ namespace Quartz.Spi
         /// Gets the trigger.
         /// </summary>
         /// <value>The trigger.</value>
-        public virtual Trigger Trigger
+        public virtual IOperableTrigger Trigger
         {
             get { return trigger; }
         }
@@ -124,7 +124,7 @@ namespace Quartz.Spi
         /// <param name="scheduledFireTimeUtc">The scheduled fire time.</param>
         /// <param name="prevFireTimeUtc">The previous fire time.</param>
         /// <param name="nextFireTimeUtc">The next fire time.</param>
-        public TriggerFiredBundle(JobDetailImpl job, Trigger trigger, ICalendar cal, bool jobIsRecovering,
+        public TriggerFiredBundle(IJobDetail job, IOperableTrigger trigger, ICalendar cal, bool jobIsRecovering,
                                   DateTimeOffset? fireTimeUtc,
                                   DateTimeOffset? scheduledFireTimeUtc,
                                   DateTimeOffset? prevFireTimeUtc,

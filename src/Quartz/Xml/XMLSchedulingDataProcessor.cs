@@ -867,7 +867,7 @@ namespace Quartz.Xml
                     {
                         if (!jobGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (string jobName in scheduler.GetJobNames(groupName))
+                            foreach (string jobName in scheduler.GetJobKeys(groupName))
                             {
                                 scheduler.DeleteJob(jobName, groupName);
                             }
@@ -879,7 +879,7 @@ namespace Quartz.Xml
                     if (!jobGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all jobs in group: {}", group);
-                        foreach (string jobName in scheduler.GetJobNames(group))
+                        foreach (string jobName in scheduler.GetJobKeys(group))
                         {
                             scheduler.DeleteJob(jobName, group);
                         }
@@ -896,7 +896,7 @@ namespace Quartz.Xml
                     {
                         if (!triggerGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (string triggerName in scheduler.GetTriggerNames(groupName))
+                            foreach (string triggerName in scheduler.GetTriggerKeys(groupName))
                             {
                                 scheduler.UnscheduleJob(triggerName, groupName);
                             }
@@ -908,7 +908,7 @@ namespace Quartz.Xml
                     if (!triggerGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all triggers in group: {0}", group);
-                        foreach (string triggerName in scheduler.GetTriggerNames(group))
+                        foreach (string triggerName in scheduler.GetTriggerKeys(group))
                         {
                             scheduler.UnscheduleJob(triggerName, group);
                         }

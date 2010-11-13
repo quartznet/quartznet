@@ -155,7 +155,7 @@ namespace Quartz.Util
             return name.CompareTo(o.Name);
         }
 
-        public static String CreateUniqueName(string group)
+        public static string CreateUniqueName(string group)
         {
             if (group == null)
             {

@@ -467,9 +467,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> GetTriggerNames(string groupName)
+        public virtual IList<string> GetTriggerKeys(string groupName)
 		{
-			return sched.GetTriggerNames(groupName);
+			return sched.GetTriggerKeys(groupName);
 		}
 
         /// <summary>

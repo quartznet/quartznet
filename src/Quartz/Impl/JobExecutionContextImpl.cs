@@ -45,12 +45,12 @@ namespace Quartz
 	/// </p>
 	/// 
 	/// <p>
-	/// <see cref="JobExecutionContext" /> s are also returned from the 
+	/// <see cref="IJobExecutionContext" /> s are also returned from the 
 	/// <see cref="IScheduler.GetCurrentlyExecutingJobs()" />
 	/// method. These are the same instances as those past into the jobs that are
 	/// currently executing within the scheduler. The exception to this is when your
 	/// application is using Quartz remotely (i.e. via remoting or WCF) - in which case you get
-	/// a clone of the <see cref="JobExecutionContext" />s, and their references to
+	/// a clone of the <see cref="IJobExecutionContext" />s, and their references to
 	/// the <see cref="IScheduler" /> and <see cref="IJob" /> instances have been lost (a
 	/// clone of the <see cref="JobDetail" /> is still available - just not a handle
 	/// to the job instance that is running).
@@ -64,12 +64,12 @@ namespace Quartz
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public class JobExecutionContext
+	public class JobExecutionContextImpl : IJobExecutionContext
 	{
         [NonSerialized]
         private readonly IScheduler scheduler;
         private readonly Trigger trigger;
-        private readonly JobDetailImpl jobDetail;
+        private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;
         [NonSerialized]
         private readonly IJob job;
@@ -89,7 +89,7 @@ namespace Quartz
         /// <summary>
         /// Create a JobExcecutionContext with the given context data.
         /// </summary>
-        public JobExecutionContext(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
+        public JobExecutionContextImpl(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
         {
             this.scheduler = scheduler;
             trigger = firedBundle.Trigger;
@@ -120,7 +120,7 @@ namespace Quartz
 		/// Get a handle to the <see cref="Trigger" /> instance that fired the
 		/// <see cref="IJob" />.
 		/// </summary>
-		public virtual Trigger Trigger
+		public virtual ITrigger Trigger
 		{
 			get { return trigger; }
 		}
@@ -183,7 +183,7 @@ namespace Quartz
 		/// <summary>
 		/// Get the <see cref="JobDetail" /> associated with the <see cref="IJob" />.
 		/// </summary>
-		public virtual JobDetailImpl JobDetail
+        public virtual IJobDetail JobDetail
 		{
 			get { return jobDetail; }
 		}
@@ -304,7 +304,7 @@ namespace Quartz
 			return
 				string.Format(CultureInfo.InvariantCulture, "JobExecutionContext: trigger: '{0}' job: '{1}' fireTimeUtc: '{2:r}' scheduledFireTimeUtc: '{3:r}' previousFireTimeUtc: '{4:r}' nextFireTimeUtc: '{5:r}' recovering: {6} refireCount: {7}", 
                 Trigger.FullName, 
-                JobDetail.FullName, 
+                JobDetail.Key, 
                 FireTimeUtc, 
                 ScheduledFireTimeUtc, 
                 PreviousFireTimeUtc, 

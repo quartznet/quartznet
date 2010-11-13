@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Quartz.Util;
+
 namespace Quartz
 {
     /// <summary>
@@ -29,14 +31,7 @@ namespace Quartz
         /// A (possibly) useful constant that can be used for specifying the group
         /// that <see cref="IJob" /> and <see cref="Trigger" /> instances belong to.
         /// </summary>
-        public const string DefaultGroup = "DEFAULT";
-
-        /// <summary>
-        /// A constant <see cref="Trigger" /> group name used internally by the
-        /// scheduler - clients should not use the value of this constant
-        /// ("MANUAL_TRIGGER") for thename of a <see cref="Trigger" />'s group.
-        /// </summary>
-        public const string DefaultManualTriggers = "MANUAL_TRIGGER";
+        public const string DefaultGroup = Key<string>.DefaultGroup;
 
         /// <summary>
         /// A constant <see cref="Trigger" /> group name used internally by the

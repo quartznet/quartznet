@@ -21,12 +21,11 @@
 using System;
 
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz
 {
 	/// <summary>
-	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetailImpl" />
+	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="IJobDetail" />
 	/// at given moments in time, defined with Unix 'cron-like' definitions.
 	/// </summary>
 	/// <remarks>
@@ -175,7 +174,7 @@ namespace Quartz
 	/// <author>Contributions from Mads Henderson</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public class CronTrigger : Trigger
+	public class CronTrigger : Trigger, ICronTrigger
 	{
         protected internal const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx;

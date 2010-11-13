@@ -119,8 +119,17 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Core\ListenerManagerImpl.cs" />
+    <Compile Include="CronScheduleBuilder.cs" />
+    <Compile Include="DateBuilder.cs" />
+    <Compile Include="ICronTrigger.cs" />
+    <Compile Include="IJobExecutionContext.cs" />
+    <Compile Include="IListenerManager.cs" />
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
+    <Compile Include="ISimpleTrigger.cs" />
+    <Compile Include="ITrigger.cs" />
     <Compile Include="ScheduleBuilder.cs" />
+    <Compile Include="SimpleScheduleBuilder.cs" />
     <Compile Include="Trigger.cs" />
     <Compile Include="Collection\ISet.cs">
       <SubType>Code</SubType>
@@ -230,7 +239,7 @@
     <Compile Include="Impl\JobDetailImpl.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="JobExecutionContext.cs">
+    <Compile Include="Impl\JobExecutionContextImpl.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="JobExecutionException.cs">
@@ -342,6 +351,7 @@
     <Compile Include="Impl\Triggers\AbstractTrigger.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TriggerBuilder.cs" />
     <Compile Include="TriggerKey.cs" />
     <Compile Include="TriggerUtils.cs">
       <SubType>Code</SubType>
@@ -349,6 +359,7 @@
     <Compile Include="UnableToInterruptJobException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\CollectionExtensions.cs" />
     <Compile Include="Util\DBConnectionManager.cs">
       <SubType>Code</SubType>
     </Compile>

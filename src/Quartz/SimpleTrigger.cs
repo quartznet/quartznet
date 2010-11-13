@@ -19,12 +19,10 @@
 
 using System;
 
-using Quartz.Util;
-
 namespace Quartz
 {
 	/// <summary> 
-	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="JobDetailImpl" />
+	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="IJobDetail" />
 	/// at a given moment in time, and optionally repeated at a specified interval.
 	/// </summary>
 	/// <seealso cref="Trigger" />
@@ -35,7 +33,7 @@ namespace Quartz
 	/// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
 	/// <author>Marko Lahma (.NET)</author>
 	[Serializable]
-	public class SimpleTrigger : Trigger
+	public class SimpleTrigger : Trigger, ISimpleTrigger
 	{
         /// <summary>
         /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in

@@ -56,7 +56,7 @@ namespace Quartz
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public abstract class AbstractTrigger : OperableTrigger
+    public abstract class AbstractTrigger : IOperableTrigger
 	{
 	    /// <summary>
 		/// The default value for priority.

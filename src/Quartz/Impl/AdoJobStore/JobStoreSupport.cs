@@ -1976,7 +1976,7 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no jobs in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public IList<string> GetJobNames(string groupName)
+        public IList<string> GetJobKeys(string groupName)
         {
             // no locks necessary for read...
             return (IList<string>) ExecuteWithoutLock(new GetJobNamesCallback(this, groupName));
@@ -2025,7 +2025,7 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no triggers in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public IList<string> GetTriggerNames(string groupName)
+        public IList<string> GetTriggerKeys(string groupName)
         {
             // no locks necessary for read...
             return (IList<string>) ExecuteWithoutLock(new GetTriggerNamesCallback(this, groupName));

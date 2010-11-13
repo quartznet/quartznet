@@ -32,7 +32,7 @@ namespace Quartz.Job
 		/// <summary>
 		/// Do nothing.
 		/// </summary>
-		public void Execute(JobExecutionContext context)
+		public void Execute(IJobExecutionContext context)
 		{
 		}
 	}

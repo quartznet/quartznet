@@ -4,9 +4,9 @@ namespace Quartz.Spi
 {
     public interface IMutableTrigger : ITrigger
     {
-        void setKey(TriggerKey key);
+        new TriggerKey Key { set; get; }
 
-        void setJobKey(JobKey key);
+        new JobKey JobKey { set; get; }
 
         /**
      * <p>
@@ -15,7 +15,7 @@ namespace Quartz.Spi
      * description has no meaning to Quartz.
      * </p>
      */
-        void setDescription(String description);
+        new string Description { set; }
 
         /**
      * <p>
@@ -26,7 +26,7 @@ namespace Quartz.Spi
      * @param calendarName
      *          use <code>null</code> to dis-associate a Calendar.
      */
-        void setCalendarName(String calendarName);
+        new string CalendarName { set; get; }
 
         /**
      * <p>
@@ -34,7 +34,7 @@ namespace Quartz.Spi
      * <code>Trigger</code>.
      * </p>
      */
-        void setJobDataMap(JobDataMap jobDataMap);
+        new JobDataMap JobDataMap { set; }
 
         /**
      * The priority of a <code>Trigger</code> acts as a tie breaker such that if 
@@ -48,7 +48,7 @@ namespace Quartz.Spi
      * 
      * @see #DEFAULT_PRIORITY
      */
-        void setPriority(int priority);
+        new int Priority { set; }
 
         /**
      * <p>
@@ -63,7 +63,7 @@ namespace Quartz.Spi
      * of the trigger.
      * </p>
      */
-        void setStartTime(DateTimeOffset startTime);
+        new DateTimeOffset StartTimeUtc { set; }
 
         /**
      * <p>
@@ -74,7 +74,7 @@ namespace Quartz.Spi
      * 
      * @see TriggerUtils#computeEndTimeToAllowParticularNumberOfFirings(Trigger, Calendar, int)
      */
-        void setEndTime(DateTimeOffset endTime);
+        new DateTimeOffset EndTimeUtc { set; }
 
         /**
      * <p>
@@ -94,9 +94,6 @@ namespace Quartz.Spi
      * @see SimpleTrigger
      * @see CronTrigger
      */
-        void setMisfireInstruction(int misfireInstruction);
-
-
-        object clone();
+        new int MisfireInstruction { set; }
     }
 }

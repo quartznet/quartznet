@@ -196,6 +196,7 @@ namespace Quartz.Impl
 
                 return key;
             }
+            set { key = value; }
         }
 
         /// <summary>

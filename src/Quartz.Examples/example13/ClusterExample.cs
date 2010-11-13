@@ -78,7 +78,7 @@ namespace Quartz.Examples.Example13
             IList<string> groups = inScheduler.TriggerGroupNames;
 			foreach (string groupName in groups)
 			{
-			    IList<string> names = inScheduler.GetTriggerNames(groupName);
+			    IList<string> names = inScheduler.GetTriggerKeys(groupName);
 			    foreach (string triggerName in names)
 			    {
 			        inScheduler.UnscheduleJob(triggerName, groupName);
@@ -89,7 +89,7 @@ namespace Quartz.Examples.Example13
 			groups = inScheduler.JobGroupNames;
 			foreach (string groupName in groups)
 			{
-			    IList<string> names = inScheduler.GetJobNames(groupName);
+			    IList<string> names = inScheduler.GetJobKeys(groupName);
 			    foreach (string jobName in names)
 			    {
 			        inScheduler.DeleteJob(jobName, groupName);

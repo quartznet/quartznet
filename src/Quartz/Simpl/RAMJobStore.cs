@@ -26,6 +26,7 @@ using System.Threading;
 using Common.Logging;
 
 using Quartz.Collection;
+using Quartz.Impl;
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -45,17 +46,17 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class RAMJobStore : IJobStore
 	{
-		private readonly IDictionary<string, JobWrapper> jobsByFQN = new Dictionary<string, JobWrapper>(1000);
-		private readonly IDictionary<string, TriggerWrapper> triggersByFQN = new Dictionary<string, TriggerWrapper>(1000);
-		private readonly IDictionary<string, IDictionary<string, JobWrapper>> jobsByGroup = new Dictionary<string, IDictionary<string, JobWrapper>>(25);
-		private readonly IDictionary<string, IDictionary<string, TriggerWrapper>> triggersByGroup = new Dictionary<string, IDictionary<string, TriggerWrapper>>(25);
+        private readonly Dictionary<JobKey, JobWrapper> jobsByKey = new Dictionary<JobKey, JobWrapper>(1000);
+        private readonly Dictionary<TriggerKey, TriggerWrapper> triggersByKey = new Dictionary<TriggerKey, TriggerWrapper>(1000);
+        private readonly Dictionary<string, IDictionary<JobKey, JobWrapper>> jobsByGroup = new Dictionary<string, IDictionary<JobKey, JobWrapper>>(25);
+        private readonly Dictionary<string, IDictionary<TriggerKey, TriggerWrapper>> triggersByGroup = new Dictionary<string, IDictionary<TriggerKey, TriggerWrapper>>(25);
 		private readonly TreeSet<TriggerWrapper> timeTriggers = new TreeSet<TriggerWrapper>(new TriggerComparator());
-		private readonly IDictionary<string, ICalendar> calendarsByName = new Dictionary<string, ICalendar>(5);
+		private readonly Dictionary<string, ICalendar> calendarsByName = new Dictionary<string, ICalendar>(5);
 		private readonly List<TriggerWrapper> triggers = new List<TriggerWrapper>(1000);
 		private readonly object lockObject = new object();
         private readonly Collection.HashSet<string> pausedTriggerGroups = new Collection.HashSet<string>();
         private readonly Collection.HashSet<string> pausedJobGroups = new Collection.HashSet<string>();
-        private readonly Collection.HashSet<string> blockedJobs = new Collection.HashSet<string>();
+        private readonly Collection.HashSet<JobKey> blockedJobs = new Collection.HashSet<JobKey>();
 		private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
 		private ISchedulerSignaler signaler;
 		
@@ -139,17 +140,56 @@ namespace Quartz.Simpl
 	        get { return false; }
 	    }
 
+
+        /// <summary>
+        /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="Trigger" />s
+        /// <see cref="ICalendar"/>s.
+        /// </summary>
+        public void ClearAllSchedulingData()
+        {
+            lock (lockObject)
+            {
+                // unschedule jobs (delete triggers)
+                IList<string> lst = GetTriggerGroupNames();
+                foreach (string group in lst)
+                {
+                    IList<TriggerKey> keys = GetTriggerKeys(group);
+                    foreach (TriggerKey key in keys)
+                    {
+                        RemoveTrigger(key);
+                    }
+                }
+                // delete jobs
+                lst = GetJobGroupNames();
+                foreach (string group in lst)
+                {
+                    IList<JobKey> keys = GetJobKeys(group);
+                    foreach (JobKey key in keys)
+                    {
+                        RemoveJob(key);
+                    }
+                }
+                // delete calendars
+                lst = GetCalendarNames();
+                foreach (string name in lst)
+                {
+                    RemoveCalendar(name);
+                }
+            }
+        }
+    
+
 	    protected ILog Log
 	    {
 	        get { return log; }
 	    }
 
 	    /// <summary>
-		/// Store the given <see cref="JobDetailImpl" /> and <see cref="Trigger" />.
+		/// Store the given <see cref="IJobDetail" /> and <see cref="Trigger" />.
 		/// </summary>
-		/// <param name="newJob">The <see cref="JobDetailImpl" /> to be stored.</param>
+		/// <param name="newJob">The <see cref="IJobDetail" /> to be stored.</param>
 		/// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
-		public virtual void StoreJobAndTrigger(JobDetailImpl newJob, Trigger newTrigger)
+        public virtual void StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger)
 		{
 			StoreJob(newJob, false);
 			StoreTrigger(newTrigger, false);
@@ -182,16 +222,15 @@ namespace Quartz.Simpl
 		/// <param name="replaceExisting">If <see langword="true" />, any <see cref="IJob" /> existing in the
 		/// <see cref="IJobStore" /> with the same name and group should be
 		/// over-written.</param>
-		public virtual void StoreJob(JobDetailImpl newJob, bool replaceExisting)
+		public virtual void StoreJob(IJobDetail newJob, bool replaceExisting)
 		{
-            JobWrapper jw = new JobWrapper((JobDetailImpl)newJob.Clone());
+            JobWrapper jw = new JobWrapper((IJobDetail)newJob.Clone());
 
 			bool repl = false;
 
-
             lock (lockObject) {
                 
-                if (jobsByFQN.ContainsKey(jw.key)) {
+                if (jobsByKey.ContainsKey(jw.key)) {
                     if (!replaceExisting) {
                         throw new ObjectAlreadyExistsException(newJob);
                     }
@@ -201,21 +240,21 @@ namespace Quartz.Simpl
                 if (!repl)
 				{
 					// get job group
-					IDictionary<string, JobWrapper> grpMap;
-					if (!jobsByGroup.TryGetValue(newJob.Group, out grpMap))
+					IDictionary<JobKey, JobWrapper> grpMap;
+					if (!jobsByGroup.TryGetValue(newJob.Key.Group, out grpMap))
 					{
-						grpMap = new Dictionary<string, JobWrapper>(100);
-						jobsByGroup[newJob.Group] = grpMap;
+                        grpMap = new Dictionary<JobKey, JobWrapper>(100);
+						jobsByGroup[newJob.Key.Group] = grpMap;
 					}
 					// add to jobs by group
-					grpMap[newJob.Name] = jw;
+					grpMap[newJob.Key] = jw;
 					// add to jobs by FQN map
-					jobsByFQN[jw.key] = jw;
+					jobsByKey[jw.key] = jw;
 				}
 				else
 				{
 					// update job detail
-					JobWrapper orig = jobsByFQN[jw.key];
+					JobWrapper orig = jobsByKey[jw.key];
                     orig.jobDetail = jw.jobDetail;
 				}
 			}
@@ -226,43 +265,39 @@ namespace Quartz.Simpl
 		/// name, and any <see cref="Trigger" /> s that reference
 		/// it.
 		/// </summary>
-		/// <param name="jobName">The name of the <see cref="IJob" /> to be removed.</param>
-		/// <param name="groupName">The group name of the <see cref="IJob" /> to be removed.</param>
 		/// <returns>
 		/// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
 		/// group was found and removed from the store.
 		/// </returns>
-		public virtual bool RemoveJob(string jobName, string groupName)
+        public virtual bool RemoveJob(JobKey jobKey)
 		{
-			string key = JobWrapper.GetJobNameKey(jobName, groupName);
-
 			bool found = false;
 
             lock (lockObject)
 			{
-                IList<Trigger> triggersForJob = GetTriggersForJob(jobName, groupName);
-                foreach (Trigger trigger in triggersForJob)
+                IList<IOperableTrigger> triggersForJob = GetTriggersForJob(jobKey);
+                foreach (IOperableTrigger trigger in triggersForJob)
                 {
-                    RemoveTrigger(trigger.Name, trigger.Group);
+                    RemoveTrigger(trigger.Key);
                     found = true;
                 }
                 
                 JobWrapper tempObject;
-				if (jobsByFQN.TryGetValue(key, out tempObject))
+                if (jobsByKey.TryGetValue(jobKey, out tempObject))
 				{
-				    jobsByFQN.Remove(key);
+                    jobsByKey.Remove(jobKey);
 				}
 				found = (tempObject != null) | found;
 				if (found)
 				{
-				    IDictionary<string, JobWrapper> grpMap;
-				    jobsByGroup.TryGetValue(groupName, out grpMap);
+				    IDictionary<JobKey, JobWrapper> grpMap;
+				    jobsByGroup.TryGetValue(jobKey.Group, out grpMap);
 					if (grpMap != null)
 					{
-						grpMap.Remove(jobName);
+						grpMap.Remove(jobKey);
 						if (grpMap.Count == 0)
 						{
-							jobsByGroup.Remove(groupName);
+                            jobsByGroup.Remove(jobKey.Group);
 						}
 					}
 				}
@@ -275,15 +310,13 @@ namespace Quartz.Simpl
         /// Remove (delete) the <see cref="Trigger" /> with the
         /// given name.
         /// </summary>
-        /// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
-        /// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
         /// <returns>
         /// 	<see langword="true" /> if a <see cref="Trigger" /> with the given
         /// name and group was found and removed from the store.
         /// </returns>
-	    public virtual bool RemoveTrigger(string triggerName, string groupName)
+        public virtual bool RemoveTrigger(TriggerKey triggerKey)
 	    {
-	        return RemoveTrigger(triggerName, groupName, true);
+	        return RemoveTrigger(triggerKey, true);
 	    }
 
 	    /// <summary>
@@ -293,15 +326,15 @@ namespace Quartz.Simpl
 		/// <param name="replaceExisting">If <see langword="true" />, any <see cref="Trigger" /> existing in
 		/// the <see cref="IJobStore" /> with the same name and group should
 		/// be over-written.</param>
-		public virtual void StoreTrigger(Trigger newTrigger, bool replaceExisting)
+        public virtual void StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting)
 		{
-            TriggerWrapper tw = new TriggerWrapper((Trigger)newTrigger.Clone());
+            TriggerWrapper tw = new TriggerWrapper((IOperableTrigger) newTrigger.Clone());
 
             lock (lockObject)
             {
 
 	            TriggerWrapper wrapper;
-                if (triggersByFQN.TryGetValue(tw.key, out wrapper))
+                if (triggersByKey.TryGetValue(tw.key, out wrapper))
 			    {
 				    if (!replaceExisting)
 				    {
@@ -309,12 +342,12 @@ namespace Quartz.Simpl
 				    }
 
                     // don't delete orphaned job, this trigger has the job anyways
-				    RemoveTrigger(newTrigger.Name, newTrigger.Group, false);
+				    RemoveTrigger(newTrigger.Key, false);
 			    }
 
-			    if (RetrieveJob(newTrigger.JobName, newTrigger.JobGroup) == null)
+			    if (RetrieveJob(newTrigger.JobKey) == null)
 			    {
-				    throw new JobPersistenceException("The job (" + newTrigger.FullJobName +
+				    throw new JobPersistenceException("The job (" + newTrigger.JobKey +
 				                                      ") referenced by the trigger does not exist.");
 			    }
 
@@ -322,19 +355,19 @@ namespace Quartz.Simpl
 				triggers.Add(tw);
 
 				// add to triggers by group
-				IDictionary<string, TriggerWrapper> grpMap;
-			    triggersByGroup.TryGetValue(newTrigger.Group, out grpMap);
+				IDictionary<TriggerKey, TriggerWrapper> grpMap;
+			    triggersByGroup.TryGetValue(newTrigger.Key.Group, out grpMap);
 
 				if (grpMap == null)
 				{
-					grpMap = new Dictionary<string, TriggerWrapper>(100);
-					triggersByGroup[newTrigger.Group] = grpMap;
+					grpMap = new Dictionary<TriggerKey, TriggerWrapper>(100);
+                    triggersByGroup[newTrigger.Key.Group] = grpMap;
 				}
-				grpMap[newTrigger.Name] = tw;
+				grpMap[newTrigger.Key] = tw;
 				// add to triggers by FQN map
-				triggersByFQN[tw.key] = tw;
+				triggersByKey[tw.key] = tw;
 
-                if (pausedTriggerGroups.Contains(newTrigger.Group) || pausedJobGroups.Contains(newTrigger.JobGroup))
+                if (pausedTriggerGroups.Contains(newTrigger.Key.Group) || pausedJobGroups.Contains(newTrigger.JobKey.Group))
                 {
                     tw.state = InternalTriggerState.Paused;
                     if (blockedJobs.Contains(tw.jobKey))
@@ -357,53 +390,29 @@ namespace Quartz.Simpl
 		/// Remove (delete) the <see cref="Trigger" /> with the
 		/// given name.
 		/// </summary>
-		/// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
-		/// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
 		/// <returns>
 		/// 	<see langword="true" /> if a <see cref="Trigger" /> with the given
 		/// name and group was found and removed from the store.
 		/// </returns>
-		/// <param name="deleteOrphanedJob">Whether to delete orpahaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
-		public virtual bool RemoveTrigger(string triggerName, string groupName, bool deleteOrphanedJob)
+		/// <param name="removeOrphanedJob">Whether to delete orpahaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
+        public virtual bool RemoveTrigger(TriggerKey key, bool removeOrphanedJob)
 		{
-			string key = TriggerWrapper.GetTriggerNameKey(triggerName, groupName);
-            log.Debug(string.Format(CultureInfo.InvariantCulture, "RemoveTrigger {0},{1}",triggerName,groupName));
-/*
-            //trying to find out if any concurrent thread
-		    //may want to modify (maybe remove) this trigger
-		    //if so, we shouldn't throw an exception when
-		    //trigger is not found
-		    //( the concurrent thread may want to acquire lock
-            //  between Monitor.TryEnter and lock, but let's hope
-            //  this is unlikely)
-		    //Unfortunately, this can lead to not-throwing exceptions
-		    //when there is no trigger to remove but 
-		    //a different trigger is being deleted at the same time
-		    bool locked = !Monitor.TryEnter(lockObject);
-		    if (!locked)
-                Monitor.Exit(lockObject);
-*/          
 		    bool found;
 			lock (lockObject)
 			{
 				// remove from triggers by FQN map
-				TriggerWrapper tempObject;
-				if (triggersByFQN.TryGetValue(key, out tempObject))
-				{
-				    triggersByFQN.Remove(key);
-				}
-                found = (tempObject == null) ? false : true;
+                found = triggersByKey.Remove(key);
                 if (found)
                 {
                     TriggerWrapper tw = null;
                     // remove from triggers by group
-                    IDictionary<string, TriggerWrapper> grpMap = triggersByGroup[groupName];
+                    IDictionary<TriggerKey, TriggerWrapper> grpMap = triggersByGroup[key.Group];
                     if (grpMap != null)
                     {
-                        grpMap.Remove(triggerName);
+                        grpMap.Remove(key);
                         if (grpMap.Count == 0)
                         {
-                            triggersByGroup.Remove(groupName);
+                            triggersByGroup.Remove(key.Group);
                         }
                     }
                     // remove from triggers array
@@ -418,20 +427,17 @@ namespace Quartz.Simpl
                     }
                     timeTriggers.Remove(tw);
 
-                    JobWrapper jw = jobsByFQN[JobWrapper.GetJobNameKey(tw.trigger.JobName, tw.trigger.JobGroup)];
-                    IList<Trigger> triggersForJob = GetTriggersForJob(tw.trigger.JobName, tw.trigger.JobGroup);
-                    if ((triggersForJob == null || triggersForJob.Count == 0) && !jw.jobDetail.Durable && deleteOrphanedJob)
+
+                    if (removeOrphanedJob)
                     {
-                        RemoveJob(tw.trigger.JobName, tw.trigger.JobGroup);
+                        JobWrapper jw = (JobWrapper)jobsByKey[tw.jobKey];
+                        IList<IOperableTrigger> trigs = GetTriggersForJob(tw.jobKey);
+                        if ((trigs == null || trigs.Count == 0) && !jw.jobDetail.Durable)
+                        {
+                            RemoveJob(jw.key);
+                        }
                     }
                 }
-/*                else
-                {
-                    if (!locked)
-                            throw new Quartz.SchedulerException("trigger to delete not found");
-                }
- */
- 
 			}
 
 			return found;
@@ -441,51 +447,47 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Replaces the trigger.
 		/// </summary>
-		/// <param name="triggerName">Name of the trigger.</param>
-		/// <param name="groupName">Name of the group.</param>
 		/// <param name="newTrigger">The new trigger.</param>
 		/// <returns></returns>
-		public virtual bool ReplaceTrigger(string triggerName, string groupName, Trigger newTrigger)
+        public virtual bool ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger)
 		{
-			string key = TriggerWrapper.GetTriggerNameKey(triggerName, groupName);
-
 			bool found;
 
 			lock (lockObject)
 			{
 				// remove from triggers by FQN map
                 TriggerWrapper tw;
-                if (triggersByFQN.TryGetValue(key, out tw))
+                if (triggersByKey.TryGetValue(triggerKey, out tw))
 				{
-				    triggersByFQN.Remove(key);
+                    triggersByKey.Remove(triggerKey);
 				}
 				found = tw != null;
 
 				if (found)
 				{
-					if (!tw.trigger.JobName.Equals(newTrigger.JobName) || !tw.trigger.JobGroup.Equals(newTrigger.JobGroup))
+                    if (!tw.trigger.JobKey.Equals(newTrigger.JobKey))
 					{
 						throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
 					}
 
 					tw = null;
 					// remove from triggers by group
-					IDictionary<string, TriggerWrapper> grpMap;
-				    triggersByGroup.TryGetValue(groupName, out grpMap);
+					IDictionary<TriggerKey, TriggerWrapper> grpMap;
+				    triggersByGroup.TryGetValue(triggerKey.Group, out grpMap);
 
 					if (grpMap != null)
 					{
-						grpMap.Remove(triggerName);
+                        grpMap.Remove(triggerKey);
 						if (grpMap.Count == 0)
 						{
-							triggersByGroup.Remove(groupName);
+                            triggersByGroup.Remove(triggerKey.Group);
 						}
 					}
 					// remove from triggers array
 					for ( int i = 0; i < triggers.Count; ++i)
 					{
 						tw = triggers[i];
-						if (key.Equals(tw.key))
+                        if (triggerKey.Equals(tw.key))
 						{
 							triggers.RemoveAt(i);
 							break;
@@ -509,41 +511,69 @@ namespace Quartz.Simpl
 		}
 
 		/// <summary>
-		/// Retrieve the <see cref="JobDetailImpl" /> for the given
+		/// Retrieve the <see cref="IJobDetail" /> for the given
 		/// <see cref="IJob" />.
 		/// </summary>
-		/// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
-		/// <param name="groupName">The group name of the <see cref="IJob" /> to be retrieved.</param>
 		/// <returns>
 		/// The desired <see cref="IJob" />, or null if there is no match.
 		/// </returns>
-		public virtual JobDetailImpl RetrieveJob(string jobName, string groupName)
+        public virtual IJobDetail RetrieveJob(JobKey jobKey)
 		{
             lock (lockObject)
             {
                 JobWrapper jw;
-			    jobsByFQN.TryGetValue(JobWrapper.GetJobNameKey(jobName, groupName), out jw);
-                return (jw != null) ? (JobDetailImpl) jw.jobDetail.Clone() : null;
+                jobsByKey.TryGetValue(jobKey, out jw);
+                return (jw != null) ? (IJobDetail) jw.jobDetail.Clone() : null;
             }
         }
 
 		/// <summary>
 		/// Retrieve the given <see cref="Trigger" />.
 		/// </summary>
-		/// <param name="triggerName">The name of the <see cref="Trigger" /> to be retrieved.</param>
-		/// <param name="groupName">The group name of the <see cref="Trigger" /> to be retrieved.</param>
 		/// <returns>
 		/// The desired <see cref="Trigger" />, or null if there is no match.
 		/// </returns>
-		public virtual Trigger RetrieveTrigger(string triggerName, string groupName)
+        public virtual IOperableTrigger RetrieveTrigger(TriggerKey triggerKey)
 		{
             lock (lockObject)
             {
                 TriggerWrapper tw;
-                triggersByFQN.TryGetValue(TriggerWrapper.GetTriggerNameKey(triggerName, groupName), out tw);
-                return (tw != null) ? (Trigger)tw.trigger.Clone() : null;
+                triggersByKey.TryGetValue(triggerKey, out tw);
+                return (tw != null) ? (IOperableTrigger)tw.trigger.Clone() : null;
             }
 		}
+
+	    /**
+         * Determine whether a {@link Job} with the given identifier already 
+         * exists within the scheduler.
+         * 
+         * @param jobKey the identifier to check for
+         * @return true if a Job exists with the given identifier
+         * @throws SchedulerException 
+         */
+	    public bool CheckExists(JobKey jobKey)
+	    {
+	        lock (lockObject)
+	        {
+	            return jobsByKey.ContainsKey(jobKey);
+	        }
+	    }
+
+	    /**
+         * Determine whether a {@link Trigger} with the given identifier already 
+         * exists within the scheduler.
+         * 
+         * @param triggerKey the identifier to check for
+         * @return true if a Trigger exists with the given identifier
+         * @throws SchedulerException 
+         */
+	    public bool CheckExists(TriggerKey triggerKey)
+	    {
+	        lock (lockObject)
+	        {
+                return triggersByKey.ContainsKey(triggerKey);
+	        }
+	    }
 
 		/// <summary>
 		/// Get the current state of the identified <see cref="Trigger" />.
@@ -554,12 +584,12 @@ namespace Quartz.Simpl
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.Blocked" />
         /// <seealso cref="TriggerState.None"/>
-		public virtual TriggerState GetTriggerState(string triggerName, string groupName)
+        public virtual TriggerState GetTriggerState(TriggerKey triggerKey)
 		{
             lock (lockObject)
             {
                 TriggerWrapper tw;
-                triggersByFQN.TryGetValue(TriggerWrapper.GetTriggerNameKey(triggerName, groupName), out tw);
+                triggersByKey.TryGetValue(triggerKey, out tw);
 
                 if (tw == null)
                 {
@@ -628,7 +658,7 @@ namespace Quartz.Simpl
 					for (int i = 0; i < trigs.Count; ++i)
 					{
 						TriggerWrapper tw = trigs[i];
-						Trigger trig = tw.trigger;
+						IOperableTrigger trig = tw.trigger;
                         bool removed = timeTriggers.Remove(tw);
 
 						trig.UpdateWithNewCalendar(calendar, MisfireThreshold);
@@ -663,7 +693,7 @@ namespace Quartz.Simpl
 			{
 				foreach (TriggerWrapper triggerWrapper in triggers)
 				{
-                    Trigger trigg = triggerWrapper.trigger;
+                    IOperableTrigger trigg = triggerWrapper.trigger;
 					if (trigg.CalendarName != null && trigg.CalendarName.Equals(calName))
 					{
 						numRefs++;
@@ -701,14 +731,14 @@ namespace Quartz.Simpl
 		}
 
 	    /// <summary>
-		/// Get the number of <see cref="JobDetailImpl" /> s that are
+		/// Get the number of <see cref="IJobDetail" /> s that are
 		/// stored in the <see cref="IJobStore" />.
 		/// </summary>
 		public virtual int GetNumberOfJobs()
 		{
             lock (lockObject)
             {
-                return jobsByFQN.Count;
+                return jobsByKey.Count;
             }
 		}
 
@@ -740,27 +770,27 @@ namespace Quartz.Simpl
 		/// Get the names of all of the <see cref="IJob" /> s that
 		/// have the given group name.
 		/// </summary>
-		public virtual IList<string> GetJobNames(string groupName)
+		public virtual IList<JobKey> GetJobKeys(string groupName)
 		{
-			string[] outList;
+            List<JobKey> outList;
 			lock (lockObject)
 			{
-                IDictionary<string, JobWrapper> grpMap = jobsByGroup[groupName];
+                IDictionary<JobKey, JobWrapper> grpMap = jobsByGroup[groupName];
 			    if (grpMap != null)
 			    {
-				    outList = new string[grpMap.Count];
+				    outList = new List<JobKey>(grpMap.Count);
 					int outListPos = 0;
-				    foreach (KeyValuePair<string, JobWrapper> pair in grpMap)
+				    foreach (KeyValuePair<JobKey, JobWrapper> pair in grpMap)
 				    {
 						if (pair.Value != null)
 						{
-							outList[outListPos++] = pair.Value.jobDetail.Name;
+							outList[outListPos++] = pair.Value.jobDetail.Key;
 						}
 					}
 				}
                 else
                 {
-                    outList = new string[0];
+                    outList = new List<JobKey>(0);
                 }
 			}
 
@@ -787,28 +817,28 @@ namespace Quartz.Simpl
 		/// Get the names of all of the <see cref="Trigger" /> s
 		/// that have the given group name.
 		/// </summary>
-		public virtual IList<string> GetTriggerNames(string groupName)
+        public virtual IList<TriggerKey> GetTriggerKeys(string groupName)
 		{
-			string[] outList;
+            List<TriggerKey> outList;
             lock (lockObject)
 	        {
-                IDictionary<string, TriggerWrapper> grpMap = triggersByGroup[groupName];
+                IDictionary<TriggerKey, TriggerWrapper> grpMap = triggersByGroup[groupName];
 			    if (grpMap != null)
 			    {
 
-					    outList = new string[grpMap.Count];
+					    outList = new List<TriggerKey>(grpMap.Count);
 					    int outListPos = 0;
-				        foreach (KeyValuePair<string, TriggerWrapper> pair in grpMap)
+				        foreach (KeyValuePair<TriggerKey, TriggerWrapper> pair in grpMap)
 				        {
 						    if (pair.Value != null)
 						    {
-							    outList[outListPos++] = pair.Value.trigger.Name;
+							    outList[outListPos++] = pair.Value.trigger.Key;
 						    }
 					    }
 				    }
 			    else
 			    {
-				    outList = new string[0];
+				    outList = new List<TriggerKey>(0);
 			    }
             }
 
@@ -844,11 +874,10 @@ namespace Quartz.Simpl
 		/// If there are no matches, a zero-length array should be returned.
 		/// </p>
 		/// </summary>
-		public virtual IList<Trigger> GetTriggersForJob(string jobName, string groupName)
+        public virtual IList<IOperableTrigger> GetTriggersForJob(JobKey jobKey)
 		{
-			var trigList = new List<Trigger>();
+			var trigList = new List<IOperableTrigger>();
 
-			string jobKey = JobWrapper.GetJobNameKey(jobName, groupName);
 			lock (lockObject)
 			{
 				for (int i = 0; i < triggers.Count; i++)
@@ -856,25 +885,22 @@ namespace Quartz.Simpl
 					TriggerWrapper tw = triggers[i];
 					if (tw.jobKey.Equals(jobKey))
 					{
-						trigList.Add((Trigger) tw.trigger.Clone());
+                        trigList.Add((IOperableTrigger)tw.trigger.Clone());
 					}
 				}
 			}
 
-			return trigList.ToArray();
+			return trigList;
 		}
 
 		/// <summary>
 		/// Gets the trigger wrappers for job.
 		/// </summary>
-		/// <param name="jobName">Name of the job.</param>
-		/// <param name="groupName">Name of the group.</param>
 		/// <returns></returns>
-		protected virtual List<TriggerWrapper> GetTriggerWrappersForJob(string jobName, string groupName)
+        protected virtual List<TriggerWrapper> GetTriggerWrappersForJob(JobKey jobKey)
 		{
 			var trigList = new List<TriggerWrapper>();
 
-			string jobKey = JobWrapper.GetJobNameKey(jobName, groupName);
 			lock (lockObject)
 			{
 				for (int i = 0; i < triggers.Count; i++)
@@ -918,11 +944,11 @@ namespace Quartz.Simpl
 		/// <summary> 
 		/// Pause the <see cref="Trigger" /> with the given name.
 		/// </summary>
-		public virtual void PauseTrigger(string triggerName, string groupName)
+        public virtual void PauseTrigger(TriggerKey triggerKey)
 		{
             lock (lockObject)
             {
-                TriggerWrapper tw = triggersByFQN[TriggerWrapper.GetTriggerNameKey(triggerName, groupName)];
+                TriggerWrapper tw = triggersByKey[triggerKey];
 
 			    // does the trigger exist?
 			    if (tw == null || tw.trigger == null)
@@ -964,33 +990,33 @@ namespace Quartz.Simpl
 					return;
 				}
 				pausedTriggerGroups.Add(groupName);
-				IList<string> triggerNames = GetTriggerNames(groupName);
+				IList<TriggerKey> keys = GetTriggerKeys(groupName);
 
-				foreach (string triggerName in triggerNames)
+				foreach (TriggerKey key in keys)
 				{
-				    PauseTrigger(triggerName, groupName);
+				    PauseTrigger(key);
 				}
 			}
 		}
 
 		/// <summary> 
-		/// Pause the <see cref="JobDetailImpl" /> with the given
+		/// Pause the <see cref="IJobDetail" /> with the given
 		/// name - by pausing all of its current <see cref="Trigger" />s.
 		/// </summary>
-		public virtual void PauseJob(string jobName, string groupName)
+        public virtual void PauseJob(JobKey jobKey)
 		{
             lock (lockObject)
             {
-                IList<Trigger> triggersForJob = GetTriggersForJob(jobName, groupName);
-                foreach (Trigger trigger in triggersForJob)
+                IList<IOperableTrigger> triggersForJob = GetTriggersForJob(jobKey);
+                foreach (IOperableTrigger trigger in triggersForJob)
                 {
-                    PauseTrigger(trigger.Name, trigger.Group);
+                    PauseTrigger(trigger.Key);
                 }
             }
 		}
 
 		/// <summary>
-		/// Pause all of the <see cref="JobDetailImpl" />s in the
+		/// Pause all of the <see cref="IJobDetail" />s in the
 		/// given group - by pausing all of their <see cref="Trigger" />s.
 		/// <p>
 		/// The JobStore should "remember" that the group is paused, and impose the
@@ -1006,31 +1032,31 @@ namespace Quartz.Simpl
                 {
                     pausedJobGroups.Add(groupName);
                 }
-				IList<string> jobNames = GetJobNames(groupName);
+				IList<JobKey> keys = GetJobKeys(groupName);
 
-				foreach (string jobName in jobNames)
+				foreach (JobKey key in keys)
 				{
-				    IList<Trigger> triggersForJob = GetTriggersForJob(jobName, groupName);
-				    foreach (Trigger trigger in triggersForJob)
+				    IList<IOperableTrigger> triggersForJob = GetTriggersForJob(key);
+                    foreach (IOperableTrigger trigger in triggersForJob)
 				    {
-				        PauseTrigger(trigger.Name, trigger.Group);
+				        PauseTrigger(trigger.Key);
 				    }
 				}
 			}
 		}
 
 		/// <summary>
-		/// Resume (un-pause) the <see cref="Trigger" /> with the given name.
+		/// Resume (un-pause) the <see cref="Trigger" /> with the given key.
 		/// </summary>
 		/// <remarks>
 		/// If the <see cref="Trigger" /> missed one or more fire-times, then the
 		/// <see cref="Trigger" />'s misfire instruction will be applied.
 		/// </remarks>
-		public virtual void ResumeTrigger(string triggerName, string groupName)
+        public virtual void ResumeTrigger(TriggerKey triggerKey)
 		{
             lock (lockObject)
             {
-                TriggerWrapper tw = triggersByFQN[TriggerWrapper.GetTriggerNameKey(triggerName, groupName)];
+                TriggerWrapper tw = triggersByKey[triggerKey];
 
                 // does the trigger exist?
                 if (tw == null || tw.trigger == null)
@@ -1038,7 +1064,7 @@ namespace Quartz.Simpl
                     return;
                 }
 
-			    Trigger trig = tw.trigger;
+			    IOperableTrigger trig = tw.trigger;
 
 
 			    // if the trigger is not paused resuming it does not make sense...
@@ -1048,7 +1074,7 @@ namespace Quartz.Simpl
 				    return;
 			    }
 
-				if (blockedJobs.Contains(JobWrapper.GetJobNameKey(trig.JobName, trig.JobGroup)))
+				if (blockedJobs.Contains(trig.JobKey))
 				{
 					tw.state = InternalTriggerState.Blocked;
 				}
@@ -1078,27 +1104,26 @@ namespace Quartz.Simpl
 		{
             lock (lockObject)
 			{
-				IList<string> triggerNames = GetTriggerNames(groupName);
+				IList<TriggerKey> keys = GetTriggerKeys(groupName);
                 
-				foreach (string triggerName in triggerNames)
+				foreach (TriggerKey key in keys)
 				{
-				    string key = TriggerWrapper.GetTriggerNameKey(triggerName, groupName);
-				    if ((triggersByFQN[key] != null))
+				    if ((triggersByKey[key] != null))
 				    {
-				        string jobGroup = triggersByFQN[key].trigger.JobGroup;
+				        string jobGroup = triggersByKey[key].jobKey.Group;
 				        if (pausedJobGroups.Contains(jobGroup))
 				        {
 				            continue;
 				        }
 				    }
-				    ResumeTrigger(triggerName, groupName);
+				    ResumeTrigger(key);
 				}
 				pausedTriggerGroups.Remove(groupName);
 			}
 		}
 
 		/// <summary>
-		/// Resume (un-pause) the <see cref="JobDetailImpl" /> with
+		/// Resume (un-pause) the <see cref="IJobDetail" /> with
 		/// the given name.
 		/// <p>
 		/// If any of the <see cref="IJob" />'s<see cref="Trigger" /> s missed one
@@ -1106,20 +1131,20 @@ namespace Quartz.Simpl
 		/// instruction will be applied.
 		/// </p>
 		/// </summary>
-		public virtual void ResumeJob(string jobName, string groupName)
+        public virtual void ResumeJob(JobKey jobKey)
 		{
             lock (lockObject)
             {
-                IList<Trigger> triggersForJob = GetTriggersForJob(jobName, groupName);
-                foreach (Trigger trigger in triggersForJob)
+                IList<IOperableTrigger> triggersForJob = GetTriggersForJob(jobKey);
+                foreach (IOperableTrigger trigger in triggersForJob)
                 {
-                    ResumeTrigger(trigger.Name, trigger.Group);
+                    ResumeTrigger(trigger.Key);
                 }
             }
 		}
 
 		/// <summary>
-		/// Resume (un-pause) all of the <see cref="JobDetailImpl" />s
+		/// Resume (un-pause) all of the <see cref="IJobDetail" />s
 		/// in the given group.
 		/// <p>
 		/// If any of the <see cref="IJob" /> s had <see cref="Trigger" /> s that
@@ -1135,14 +1160,14 @@ namespace Quartz.Simpl
 			    {
 			        pausedJobGroups.Remove(groupName);
 			    }
-				IList<string> jobNames = GetJobNames(groupName);
+				IList<JobKey> keys = GetJobKeys(groupName);
 
-				foreach (string jobName in jobNames)
+				foreach (JobKey key in keys)
 				{
-				    IList<Trigger> triggersForJob = GetTriggersForJob(jobName, groupName);
-				    foreach (Trigger trigger in triggersForJob)
+				    IList<IOperableTrigger> triggersForJob = GetTriggersForJob(key);
+                    foreach (IOperableTrigger trigger in triggersForJob)
 				    {
-				        ResumeTrigger(trigger.Name, trigger.Group);
+				        ResumeTrigger(trigger.Key);
 				    }
 				}
 			}
@@ -1218,7 +1243,7 @@ namespace Quartz.Simpl
 				cal = RetrieveCalendar(tw.trigger.CalendarName);
 			}
 
-			signaler.NotifyTriggerListenersMisfired(tw.trigger);
+            signaler.NotifyTriggerListenersMisfired((IOperableTrigger)tw.trigger.Clone());
 
 			tw.trigger.UpdateAfterMisfire(cal);
 
@@ -1244,11 +1269,11 @@ namespace Quartz.Simpl
 		/// by the calling scheduler.
 		/// </summary>
 		/// <seealso cref="Trigger" />
-        public virtual IList<Trigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+        public virtual IList<IOperableTrigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
 		{
 			lock (lockObject)
 			{
-                List<Trigger> result = new List<Trigger>();
+                List<IOperableTrigger> result = new List<IOperableTrigger>();
 
                 while (true)
                 {
@@ -1284,7 +1309,7 @@ namespace Quartz.Simpl
                     tw.state = InternalTriggerState.Acquired;
 
                     tw.trigger.FireInstanceId = GetFiredTriggerRecordId();
-                    Trigger trig = (Trigger)tw.trigger.Clone();
+                    IOperableTrigger trig = (IOperableTrigger)tw.trigger.Clone();
                     result.Add(trig);
 
                     if (result.Count == maxCount)
@@ -1300,11 +1325,11 @@ namespace Quartz.Simpl
 		/// fire the given <see cref="Trigger" />, that it had previously acquired
 		/// (reserved).
 		/// </summary>
-		public virtual void ReleaseAcquiredTrigger(Trigger trigger)
+        public virtual void ReleaseAcquiredTrigger(IOperableTrigger trigger)
 		{
 			lock (lockObject)
 			{
-				TriggerWrapper tw = triggersByFQN[TriggerWrapper.GetTriggerNameKey(trigger)];
+				TriggerWrapper tw = triggersByKey[trigger.Key];
                 if (tw != null && tw.state == InternalTriggerState.Acquired)
 				{
                     tw.state = InternalTriggerState.Waiting;
@@ -1318,15 +1343,15 @@ namespace Quartz.Simpl
 		/// given <see cref="Trigger" /> (executing its associated <see cref="IJob" />),
 		/// that it had previously acquired (reserved).
 		/// </summary>
-		public virtual IList<TriggerFiredResult> TriggersFired(IList<Trigger> triggers)
+        public virtual IList<TriggerFiredResult> TriggersFired(IList<IOperableTrigger> triggers)
 		{
 		    lock (lockObject)
 		    {
 		        List<TriggerFiredResult> results = new List<TriggerFiredResult>();
 
-		        foreach (Trigger trigger in triggers)
+                foreach (IOperableTrigger trigger in triggers)
 		        {
-		            TriggerWrapper tw = triggersByFQN[TriggerWrapper.GetTriggerNameKey(trigger)];
+		            TriggerWrapper tw = triggersByKey[trigger.Key];
 		            // was the trigger deleted since being acquired?
 		            if (tw == null || tw.trigger == null)
 		            {
@@ -1343,10 +1368,12 @@ namespace Quartz.Simpl
 		            {
 		                cal = RetrieveCalendar(tw.trigger.CalendarName);
 		                if (cal == null)
+		                {
 		                    return null;
+                        }
 		            }
                     DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
-		            // in case trigger was replaced between acquiring and firering
+		            // in case trigger was replaced between acquiring and firing
 		            timeTriggers.Remove(tw);
 		            // call triggered on our copy, and the scheduler's copy
 		            tw.trigger.Triggered(cal);
@@ -1354,17 +1381,18 @@ namespace Quartz.Simpl
 		            //tw.state = TriggerWrapper.STATE_EXECUTING;
                     tw.state = InternalTriggerState.Waiting;
 
-		            TriggerFiredBundle bndle = new TriggerFiredBundle(RetrieveJob(trigger.JobName, trigger.JobGroup), trigger,
+		            TriggerFiredBundle bndle = new TriggerFiredBundle(RetrieveJob(trigger.JobKey), 
+                                                                      trigger,
 		                                                              cal,
 		                                                              false, SystemTime.UtcNow(),
 		                                                              trigger.GetPreviousFireTimeUtc(), prevFireTime,
 		                                                              trigger.GetNextFireTimeUtc());
 
-		            JobDetailImpl job = bndle.JobDetail;
+		            IJobDetail job = bndle.JobDetail;
 
-		            if (job.Stateful)
+                    if (job.ConcurrentExectionDisallowed)
 		            {
-		                List<TriggerWrapper> trigs = GetTriggerWrappersForJob(job.Name, job.Group);
+		                List<TriggerWrapper> trigs = GetTriggerWrappersForJob(job.Key);
 		                foreach (TriggerWrapper ttw in trigs)
 		                {
                             if (ttw.state == InternalTriggerState.Waiting)
@@ -1377,7 +1405,7 @@ namespace Quartz.Simpl
 		                    }
 		                    timeTriggers.Remove(ttw);
 		                }
-		                blockedJobs.Add(JobWrapper.GetJobNameKey(job));
+		                blockedJobs.Add(job.Key);
 		            }
 		            else if (tw.trigger.GetNextFireTimeUtc() != null)
 		            {
@@ -1397,17 +1425,16 @@ namespace Quartz.Simpl
 		/// Inform the <see cref="IJobStore" /> that the scheduler has completed the
 		/// firing of the given <see cref="Trigger" /> (and the execution its
 		/// associated <see cref="IJob" />), and that the <see cref="JobDataMap" />
-		/// in the given <see cref="JobDetailImpl" /> should be updated if the <see cref="IJob" />
+		/// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
 		/// is stateful.
 		/// </summary>
-		public virtual void TriggeredJobComplete(Trigger trigger, JobDetailImpl jobDetail,
+        public virtual void TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail,
                                                  SchedulerInstruction triggerInstCode)
 		{
 			lock (lockObject)
 			{
-				string jobKey = JobWrapper.GetJobNameKey(jobDetail.Name, jobDetail.Group);
-				JobWrapper jw = jobsByFQN[jobKey];
-				TriggerWrapper tw = triggersByFQN[TriggerWrapper.GetTriggerNameKey(trigger)];
+				JobWrapper jw = jobsByKey[jobDetail.Key];
+				TriggerWrapper tw = triggersByKey[trigger.Key];
 
 				// It's possible that the job is null if:
 				//   1- it was deleted during execution
@@ -1415,19 +1442,22 @@ namespace Quartz.Simpl
 				//      from the JDBC job store
 				if (jw != null)
 				{
-					JobDetailImpl jd = jw.jobDetail;
+					IJobDetail jd = jw.jobDetail;
 
-					if (jobDetail.Stateful)
-					{
-						JobDataMap newData = jobDetail.JobDataMap;
-						if (newData != null)
-						{
-                            newData = (JobDataMap)newData.Clone();
+                    if (jobDetail.PersistJobDataAfterExecution)
+                    {
+                        JobDataMap newData = jobDetail.JobDataMap;
+                        if (newData != null)
+                        {
+                            newData = (JobDataMap) newData.Clone();
                             newData.ClearDirtyFlag();
-						}
-						jd.JobDataMap = newData;
-						blockedJobs.Remove(JobWrapper.GetJobNameKey(jd));
-						List<TriggerWrapper> trigs = GetTriggerWrappersForJob(jd.Name, jd.Group);
+                        }
+                        ((JobDetailImpl) jd).JobDataMap = newData;
+                    }
+                    if (jd.ConcurrentExectionDisallowed)
+                    {
+				        blockedJobs.Remove(jd.Key);
+						List<TriggerWrapper> trigs = GetTriggerWrappersForJob(jd.Key);
 						foreach (TriggerWrapper ttw in trigs)
 						{
                             if (ttw.state == InternalTriggerState.Blocked)
@@ -1447,7 +1477,7 @@ namespace Quartz.Simpl
 				else
 				{
 					// even if it was deleted, there may be cleanup to do
-					blockedJobs.Remove(JobWrapper.GetJobNameKey(jobDetail));
+					blockedJobs.Remove(jobDetail.Key);
 				}
 
 				// check for trigger deleted during execution...
@@ -1464,7 +1494,7 @@ namespace Quartz.Simpl
 							d = tw.trigger.GetNextFireTimeUtc();
 							if (!d.HasValue)
 							{
-								RemoveTrigger(trigger.Name, trigger.Group);
+								RemoveTrigger(trigger.Key);
 							}
 						    else
 							{
@@ -1473,7 +1503,7 @@ namespace Quartz.Simpl
 						}
 						else
 						{
-							RemoveTrigger(trigger.Name, trigger.Group);
+							RemoveTrigger(trigger.Key);
                             signaler.SignalSchedulingChange(null);
 						}
 					}
@@ -1485,19 +1515,19 @@ namespace Quartz.Simpl
 					}
                     else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
 					{
-						Log.Info(string.Format(CultureInfo.InvariantCulture, "Trigger {0} set to ERROR state.", trigger.FullName));
+						Log.Info(string.Format(CultureInfo.InvariantCulture, "Trigger {0} set to ERROR state.", trigger.Key));
                         tw.state = InternalTriggerState.Error;
                         signaler.SignalSchedulingChange(null);
 					}
                     else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
 					{
-						Log.Info(string.Format(CultureInfo.InvariantCulture, "All triggers of Job {0} set to ERROR state.", trigger.FullJobName));
-                        SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, InternalTriggerState.Error);
+						Log.Info(string.Format(CultureInfo.InvariantCulture, "All triggers of Job {0} set to ERROR state.", trigger.JobKey));
+                        SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Error);
                         signaler.SignalSchedulingChange(null);
 					}
 					else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
 					{
-						SetAllTriggersOfJobToState(trigger.JobName, trigger.JobGroup, InternalTriggerState.Complete);
+                        SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Complete);
                         signaler.SignalSchedulingChange(null);
 					}
 				}
@@ -1535,12 +1565,9 @@ namespace Quartz.Simpl
 	    /// <summary>
 		/// Sets the state of all triggers of job to specified state.
 		/// </summary>
-		/// <param name="jobName">Name of the job.</param>
-		/// <param name="jobGroup">The job group.</param>
-		/// <param name="state">The internal state to set.</param>
-		protected internal virtual void SetAllTriggersOfJobToState(string jobName, string jobGroup, InternalTriggerState state)
+		protected internal virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
 		{
-			List<TriggerWrapper> tws = GetTriggerWrappersForJob(jobName, jobGroup);
+			List<TriggerWrapper> tws = GetTriggerWrappersForJob(jobKey);
 			foreach (TriggerWrapper tw in tws)
 			{
 				tw.state = state;
@@ -1558,14 +1585,12 @@ namespace Quartz.Simpl
 		protected internal virtual string PeekTriggers()
 		{
 			StringBuilder str = new StringBuilder();
-			TriggerWrapper tw;
 
 			lock (lockObject)
 			{
-                foreach (string s in triggersByFQN.Keys)
+                foreach (TriggerWrapper tw in triggersByKey.Values)
 				{
-					tw = triggersByFQN[s];
-					str.Append(tw.trigger.Name);
+					str.Append(tw.trigger.Key.Name);
 					str.Append("/");
 				}
 			}
@@ -1573,11 +1598,9 @@ namespace Quartz.Simpl
 
 			lock (lockObject)
 			{
-				IEnumerator<TriggerWrapper> itr = timeTriggers.GetEnumerator();
-				while (itr.MoveNext())
-				{
-					tw = itr.Current;
-					str.Append(tw.trigger.Name);
+			    foreach (TriggerWrapper tw in timeTriggers)
+			    {
+					str.Append(tw.trigger.Key.Name);
 					str.Append("->");
 				}
 			}
@@ -1612,7 +1635,7 @@ namespace Quartz.Simpl
                 return comp;
             }
 
-            return trig1.trigger.FullName.CompareTo(trig2.trigger.FullName);
+            return trig1.trigger.Key.CompareTo(trig2.trigger.Key);
 		}
 
 
@@ -1630,30 +1653,14 @@ namespace Quartz.Simpl
 
 	internal class JobWrapper
 	{
-		public string key;
+        public readonly JobKey key;
 
-		public JobDetailImpl jobDetail;
+		public IJobDetail jobDetail;
 
-		internal JobWrapper(JobDetailImpl jobDetail)
+		internal JobWrapper(IJobDetail jobDetail)
 		{
 			this.jobDetail = jobDetail;
-			key = GetJobNameKey(jobDetail);
-		}
-
-		internal JobWrapper(JobDetailImpl jobDetail, string key)
-		{
-			this.jobDetail = jobDetail;
-			this.key = key;
-		}
-
-		internal static string GetJobNameKey(JobDetailImpl jobDetail)
-		{
-			return jobDetail.Group + "_$x$x$_" + jobDetail.Name;
-		}
-
-		internal static string GetJobNameKey(string jobName, string groupName)
-		{
-			return groupName + "_$x$x$_" + jobName;
+			key = jobDetail.Key;
 		}
 
 		public override bool Equals(object obj)
@@ -1724,45 +1731,28 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// The key used
 		/// </summary>
-		public string key;
+        public readonly TriggerKey key;
 
 		/// <summary>
 		/// Job's key
 		/// </summary>
-		public string jobKey;
+		public readonly JobKey jobKey;
 
 		/// <summary>
 		/// The trigger
 		/// </summary>
-		public Trigger trigger;
+        public readonly IOperableTrigger trigger;
 
 		/// <summary>
 		/// Current state
 		/// </summary>
         public InternalTriggerState state = InternalTriggerState.Waiting;
 
-		internal TriggerWrapper(Trigger trigger)
+        internal TriggerWrapper(IOperableTrigger trigger)
 		{
 			this.trigger = trigger;
-			key = GetTriggerNameKey(trigger);
-			jobKey = JobWrapper.GetJobNameKey(trigger.JobName, trigger.JobGroup);
-		}
-
-		internal TriggerWrapper(Trigger trigger, string key)
-		{
-			this.trigger = trigger;
-			this.key = key;
-			jobKey = JobWrapper.GetJobNameKey(trigger.JobName, trigger.JobGroup);
-		}
-
-		internal static string GetTriggerNameKey(Trigger trigger)
-		{
-			return trigger.Group + "_$x$x$_" + trigger.Name;
-		}
-
-		internal static string GetTriggerNameKey(string triggerName, string groupName)
-		{
-			return groupName + "_$x$x$_" + triggerName;
+			key = trigger.Key;
+			jobKey = trigger.JobKey;
 		}
 
         public bool Equals(TriggerWrapper other)
