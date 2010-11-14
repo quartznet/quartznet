@@ -19,6 +19,7 @@
 
 using System;
 
+using Quartz.Impl.Triggers;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -62,8 +63,8 @@ namespace Quartz
         private TriggerKey key;
         private string description;
         private DateTimeOffset startTime = DateTimeOffset.UtcNow;
-        private DateTimeOffset endTime;
-        private int priority = Trigger.DefaultPriority;
+        private DateTimeOffset? endTime;
+        private int priority = AbstractTrigger.DefaultPriority;
         private string calendarName;
         private JobKey jobKey;
         private JobDataMap jobDataMap = new JobDataMap();
@@ -92,7 +93,7 @@ namespace Quartz
          * @return a Trigger that meets the specifications of the builder.
          */
 
-        public Trigger build()
+        public ITrigger Build()
         {
             if (scheduleBuilder == null)
             {
@@ -102,7 +103,7 @@ namespace Quartz
 
             trig.CalendarName = calendarName;
             trig.Description = description;
-            trig.EndTime = endTime;
+            trig.EndTimeUtc = endTime;
             if (key == null)
             {
                 key = new TriggerKey(Key<string>.CreateUniqueName(null), null);
@@ -113,7 +114,7 @@ namespace Quartz
                 trig.JobKey = jobKey;
             }
             trig.Priority = priority;
-            trig.StartTime = startTime;
+            trig.StartTimeUtc = startTime;
 
             if (!jobDataMap.IsEmpty)
             {
@@ -270,7 +271,7 @@ namespace Quartz
          * @see DateBuilder
          */
 
-        public TriggerBuilder endAt(DateTimeOffset endTime)
+        public TriggerBuilder endAt(DateTimeOffset? endTime)
         {
             this.endTime = endTime;
             return this;

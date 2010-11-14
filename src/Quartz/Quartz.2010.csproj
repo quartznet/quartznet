@@ -119,6 +119,7 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="CalendarIntervalScheduleBuilder.cs" />
     <Compile Include="Core\ListenerManagerImpl.cs" />
     <Compile Include="CronScheduleBuilder.cs" />
     <Compile Include="DateBuilder.cs" />
@@ -126,13 +127,13 @@
     <Compile Include="IJobExecutionContext.cs" />
     <Compile Include="IListenerManager.cs" />
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
+    <Compile Include="ICalendarIntervalTrigger.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />
     <Compile Include="Listener\BroadcastJobListener.cs" />
     <Compile Include="Listener\BroadcastTriggerListener.cs" />
     <Compile Include="ScheduleBuilder.cs" />
     <Compile Include="SimpleScheduleBuilder.cs" />
-    <Compile Include="Trigger.cs" />
     <Compile Include="Collection\ISet.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -165,7 +166,7 @@
     <Compile Include="CronExpression.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CronTrigger.cs">
+    <Compile Include="Impl\Triggers\CronTriggerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="ICalendar.cs">
@@ -296,7 +297,7 @@
     <Compile Include="SchedulerMetaData.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="SimpleTrigger.cs">
+    <Compile Include="Impl\Triggers\SimpleTriggerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
@@ -388,7 +389,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collection\HashSet.cs" />
-    <Compile Include="DateIntervalTrigger.cs" />
+    <Compile Include="Impl\Triggers\CalendarIntervalTriggerImpl.cs" />
     <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\AdoUtil.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbMetadata.cs" />

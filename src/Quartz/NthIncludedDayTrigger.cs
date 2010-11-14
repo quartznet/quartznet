@@ -20,6 +20,7 @@
 using System;
 using System.Globalization;
 
+using Quartz.Impl.Triggers;
 using Quartz.Spi;
 
 namespace Quartz
@@ -72,7 +73,7 @@ namespace Quartz
 	/// <author>Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public class NthIncludedDayTrigger : Trigger
+	public class NthIncludedDayTrigger : AbstractTrigger
 	{
 
 		/// <summary> 
@@ -996,5 +997,28 @@ namespace Quartz
 			get { return triggerCalendarFirstDayOfWeek; }
 			set { triggerCalendarFirstDayOfWeek = value;}
 		}
+
+
+	    /**
+     * Get a {@link ScheduleBuilder} that is configured to produce a 
+     * schedule identical to this trigger's schedule.
+     * 
+     * @see #getTriggerBuilder()
+     */
+
+	    public ScheduleBuilder GetScheduleBuilder()
+	    {
+	        throw new NotImplementedException(); // TODO
+	    }
+
+	    public void SetNextFireTime(DateTimeOffset nextFireTime)
+	    {
+	        throw new NotImplementedException();
+	    }
+
+	    public void SetPreviousFireTime(DateTimeOffset previousFireTime)
+	    {
+	        throw new NotImplementedException();
+	    }
 	}
 }

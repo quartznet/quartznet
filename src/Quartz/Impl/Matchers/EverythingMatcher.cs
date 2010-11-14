@@ -35,12 +35,12 @@ namespace Quartz.Impl.Matchers
         {
         }
 
-        public static EverythingMatcher<JobKey> matchAllJobs()
+        public static EverythingMatcher<JobKey> MatchAllJobs()
         {
             return new EverythingMatcher<JobKey>();
         }
 
-        public static EverythingMatcher<TriggerKey> matchAllTriggers()
+        public static EverythingMatcher<TriggerKey> MatchAllTriggers()
         {
             return new EverythingMatcher<TriggerKey>();
         }

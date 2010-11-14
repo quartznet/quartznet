@@ -434,7 +434,10 @@ namespace Quartz.Simpl
                         IList<IOperableTrigger> trigs = GetTriggersForJob(tw.jobKey);
                         if ((trigs == null || trigs.Count == 0) && !jw.jobDetail.Durable)
                         {
-                            RemoveJob(jw.key);
+                            if (RemoveJob(jw.key))
+                            {
+                                signaler.NotifySchedulerListenersJobDeleted(jw.key);
+                            }
                         }
                     }
                 }

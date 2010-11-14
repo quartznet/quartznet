@@ -26,6 +26,8 @@ using System.Web;
 
 using Common.Logging;
 
+using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -196,19 +198,27 @@ namespace Quartz.Plugin.Xml
                         {
                             string jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
 
-                            SimpleTrigger trig = new SimpleTrigger(
-                                jobTriggerName,
-                                JobInitializationPluginName,
-                                SystemTime.UtcNow(), null,
-                                SimpleTrigger.RepeatIndefinitely, scanInterval);
-                            trig.Volatile = true;
-
-                            JobDetailImpl job = new JobDetailImpl(
-                                jobTriggerName,
+                           TriggerKey tKey = new TriggerKey(jobTriggerName, JOB_INITIALIZATION_PLUGIN_NAME);
+                        
+                        // remove pre-existing job/trigger, if any
+                        Scheduler.UnscheduleJob(tKey);
+                        
+                        // TODO: convert to use builder
+                        SimpleTriggerImpl trig = (SimpleTriggerImpl) Scheduler.GetTrigger(tKey);
+                        trig = new SimpleTriggerImpl();
+                        trig.setName(jobTriggerName);
+                        trig.setGroup(JOB_INITIALIZATION_PLUGIN_NAME);
+                        trig.setStartTime(new Date());
+                        trig.setEndTime(null);
+                        trig.setRepeatCount(SimpleTrigger.REPEAT_INDEFINITELY);
+                        trig.setRepeatInterval(scanInterval);
+                        
+                        // TODO: convert to use builder
+                        JobDetailImpl job = new JobDetailImpl(
+                                jobTriggerName, 
                                 JobInitializationPluginName,
                                 typeof(FileScanJob));
 
-                            job.Volatile = true;
                             job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
                             job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
 

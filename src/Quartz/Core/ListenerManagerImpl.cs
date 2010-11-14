@@ -41,7 +41,7 @@ namespace Quartz.Core
                 }
                 if (matchers.Count == 0)
                 {
-                    matchers.Add(EverythingMatcher<JobKey>.matchAllJobs());
+                    matchers.Add(EverythingMatcher<JobKey>.MatchAllJobs());
                 }
                 globalJobListenersMatchers[jobListener.Name] = new List<IMatcher<JobKey>>(matchers);
             }
@@ -163,7 +163,7 @@ namespace Quartz.Core
                 }
                 if (matchers.Count == 0)
                 {
-                    matchers.Add(EverythingMatcher<TriggerKey>.matchAllTriggers());
+                    matchers.Add(EverythingMatcher<TriggerKey>.MatchAllTriggers());
                 }
                 globalTriggerListenersMatchers[triggerListener.Name] = new List<IMatcher<TriggerKey>>(matchers);
             }

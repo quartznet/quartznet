@@ -31,7 +31,7 @@ namespace Quartz.Xml
     public class JobSchedulingBundle
 	{
 	    private IJobDetail jobDetail;
-	    private IList<Trigger> triggers = new List<Trigger>();
+	    private IList<ITrigger> triggers = new List<ITrigger>();
 		
 		/// <summary>
 		/// Gets or sets the job detail.
@@ -47,7 +47,7 @@ namespace Quartz.Xml
 		/// Gets or sets the triggers associated with this bundle.
 		/// </summary>
 		/// <value>The triggers.</value>
-		public virtual IList<Trigger> Triggers
+		public virtual IList<ITrigger> Triggers
 		{
 			get { return triggers; }
 			set { triggers = value; }
@@ -105,7 +105,7 @@ namespace Quartz.Xml
 		/// Adds a trigger to this bundle.
 		/// </summary>
 		/// <param name="trigger">The trigger.</param>
-		public virtual void AddTrigger(Trigger trigger)
+		public virtual void AddTrigger(ITrigger trigger)
 		{
             if (trigger.StartTimeUtc == DateTimeOffset.MinValue)
 			{
@@ -128,7 +128,7 @@ namespace Quartz.Xml
 		/// Removes the given trigger from this bundle.
 		/// </summary>
 		/// <param name="trigger">The trigger.</param>
-		public virtual void RemoveTrigger(Trigger trigger)
+		public virtual void RemoveTrigger(ITrigger trigger)
 		{
 			triggers.Remove(trigger);
 		}

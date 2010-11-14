@@ -41,7 +41,7 @@ public interface IOperableTrigger : IMutableTrigger {
      *         will return (until after the first firing of the <code>Trigger</code>).
      *         </p>
      */
-    DateTimeOffset ComputeFirstFireTimeUtc(ICalendar calendar);
+    DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar);
 
     /**
      * <p>

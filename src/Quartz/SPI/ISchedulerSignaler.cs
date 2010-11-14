@@ -35,13 +35,15 @@ namespace Quartz.Spi
 		/// Notifies the scheduler about misfired trigger.
 		/// </summary>
 		/// <param name="trigger">The trigger that misfired.</param>
-		void NotifyTriggerListenersMisfired(Trigger trigger);
+        void NotifyTriggerListenersMisfired(ITrigger trigger);
 
         /// <summary>
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        void NotifySchedulerListenersFinalized(Trigger trigger);
+        void NotifySchedulerListenersFinalized(ITrigger trigger);
+
+        void NotifySchedulerListenersJobDeleted(JobKey jobKey);
 
 		/// <summary>
 		/// Signals the scheduling change.

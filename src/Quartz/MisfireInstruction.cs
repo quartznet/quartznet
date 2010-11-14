@@ -176,7 +176,7 @@ namespace Quartz
         /// <summary>
         /// Misfire instructions for DateIntervalTrigger
         /// </summary>
-        public struct DateIntervalTrigger
+        public struct CalendarIntervalTrigger
         {
             /// <summary>
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire

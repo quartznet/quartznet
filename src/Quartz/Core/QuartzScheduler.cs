@@ -29,6 +29,7 @@ using System.Threading;
 using Common.Logging;
 
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Listener;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -1570,7 +1571,7 @@ namespace Quartz.Core
         /// Notifies the trigger listeners about misfired trigger.
         /// </summary>
         /// <param name="trigger">The trigger.</param>
-        public virtual void NotifyTriggerListenersMisfired(Trigger trigger)
+        public virtual void NotifyTriggerListenersMisfired(ITrigger trigger)
         {
             // build a list of all trigger listeners that are to be notified...
             IEnumerable<ITriggerListener> listeners = BuildTriggerListenerList();

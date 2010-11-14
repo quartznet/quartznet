@@ -50,7 +50,7 @@ namespace Quartz.Core
         /// Notifies the scheduler about misfired trigger.
         /// </summary>
         /// <param name="trigger">The trigger that misfired.</param>
-		public virtual void NotifyTriggerListenersMisfired(Trigger trigger)
+        public virtual void NotifyTriggerListenersMisfired(ITrigger trigger)
 		{
 			try
 			{
@@ -79,6 +79,12 @@ namespace Quartz.Core
         public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTime)
         {
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
+        }
+
+
+        public void NotifySchedulerListenersJobDeleted(JobKey jobKey)
+        {
+            sched.NotifySchedulerListenersJobDeleted(jobKey);
         }
 	}
 }

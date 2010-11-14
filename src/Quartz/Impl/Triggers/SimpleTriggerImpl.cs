@@ -19,13 +19,13 @@
 
 using System;
 
-namespace Quartz
+namespace Quartz.Impl.Triggers
 {
 	/// <summary> 
-	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="IJobDetail" />
+	/// A concrete <see cref="ITrigger" /> that is used to fire a <see cref="IJobDetail" />
 	/// at a given moment in time, and optionally repeated at a specified interval.
 	/// </summary>
-	/// <seealso cref="Trigger" />
+    /// <seealso cref="ITrigger" />
 	/// <seealso cref="CronTrigger" />
 	/// <seealso cref="TriggerUtils" />
 	/// 
@@ -33,7 +33,7 @@ namespace Quartz
 	/// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
 	/// <author>Marko Lahma (.NET)</author>
 	[Serializable]
-	public class SimpleTrigger : Trigger, ISimpleTrigger
+	public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 	{
         /// <summary>
         /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in
@@ -52,67 +52,67 @@ namespace Quartz
         private bool complete;
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> with no settings.
+        /// Create a <see cref="SimpleTriggerImpl" /> with no settings.
         /// </summary>
-        public SimpleTrigger()
+        public SimpleTriggerImpl()
         {
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// not repeat.
         /// </summary>
-        public SimpleTrigger(string name) : this(name, null)
+        public SimpleTriggerImpl(string name) : this(name, null)
         {
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
+        /// Create a <see cref="SimpSimpleTriggerImplleTrigger" /> that will occur immediately, and
         /// not repeat.
         /// </summary>
-        public SimpleTrigger(string name, string group)
+        public SimpleTriggerImpl(string name, string group)
             : this(name, group, SystemTime.UtcNow(), null, 0, TimeSpan.Zero)
         {
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// repeat at the the given interval the given number of times.
         /// </summary>
-        public SimpleTrigger(string name, int repeatCount, TimeSpan repeatInterval)
+        public SimpleTriggerImpl(string name, int repeatCount, TimeSpan repeatInterval)
             : this(name, null, repeatCount, repeatInterval)
         {
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur immediately, and
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// repeat at the the given interval the given number of times.
         /// </summary>
-        public SimpleTrigger(string name, string group, int repeatCount, TimeSpan repeatInterval)
+        public SimpleTriggerImpl(string name, string group, int repeatCount, TimeSpan repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, repeatCount, repeatInterval)
         {
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
         /// and not repeat.
         /// </summary>
-        public SimpleTrigger(string name, DateTimeOffset startTimeUtc)
+        public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc)
             : this(name, null, startTimeUtc)
         {
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
         /// and not repeat.
         /// </summary>
-        public SimpleTrigger(string name, string group, DateTimeOffset startTimeUtc)
+        public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc)
             : this(name, group, startTimeUtc, null, 0, TimeSpan.Zero)
         {
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
         /// and repeat at the the given interval the given number of times, or until
         /// the given end time.
         /// </summary>
@@ -123,14 +123,14 @@ namespace Quartz
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-        public SimpleTrigger(string name, DateTimeOffset startTimeUtc,
+        public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
             : this(name, null, startTimeUtc, endTimeUtc, repeatCount, repeatInterval)
         {
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
         /// and repeat at the the given interval the given number of times, or until
         /// the given end time.
         /// </summary>
@@ -142,7 +142,7 @@ namespace Quartz
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-        public SimpleTrigger(string name, string group, DateTimeOffset startTimeUtc,
+        public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
             : base(name, group)
         {
@@ -153,7 +153,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Create a <see cref="SimpleTrigger" /> that will occur at the given time,
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
         /// fire the identified <see cref="IJob" /> and repeat at the the given
         /// interval the given number of times, or until the given end time.
         /// </summary>
@@ -168,7 +168,7 @@ namespace Quartz
         /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
         /// firing, use RepeatIndefinitely for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-        public SimpleTrigger(string name, string group, string jobName, string jobGroup, DateTimeOffset startTimeUtc,
+        public SimpleTriggerImpl(string name, string group, string jobName, string jobGroup, DateTimeOffset startTimeUtc,
                  DateTimeOffset? endTimeUtc,
                  int repeatCount, TimeSpan repeatInterval)
             : base(name, group, jobName, jobGroup)
@@ -180,7 +180,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Get or set thhe number of times the <see cref="SimpleTrigger" /> should
+        /// Get or set thhe number of times the <see cref="SimpleTriggerImpl" /> should
         /// repeat, after which it will be automatically deleted.
         /// </summary>
         /// <seealso cref="RepeatIndefinitely" />

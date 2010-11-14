@@ -15,7 +15,7 @@ namespace Quartz.Spi
      * description has no meaning to Quartz.
      * </p>
      */
-        new string Description { set; }
+        new string Description { get; set; }
 
         /**
      * <p>
@@ -34,7 +34,7 @@ namespace Quartz.Spi
      * <code>Trigger</code>.
      * </p>
      */
-        new JobDataMap JobDataMap { set; }
+        new JobDataMap JobDataMap {  get; set; }
 
         /**
      * The priority of a <code>Trigger</code> acts as a tie breaker such that if 
@@ -48,7 +48,7 @@ namespace Quartz.Spi
      * 
      * @see #DEFAULT_PRIORITY
      */
-        new int Priority { set; }
+        new int Priority {  get; set; }
 
         /**
      * <p>
@@ -63,7 +63,7 @@ namespace Quartz.Spi
      * of the trigger.
      * </p>
      */
-        new DateTimeOffset StartTimeUtc { set; }
+        new DateTimeOffset StartTimeUtc {  get; set; }
 
         /**
      * <p>
@@ -74,7 +74,7 @@ namespace Quartz.Spi
      * 
      * @see TriggerUtils#computeEndTimeToAllowParticularNumberOfFirings(Trigger, Calendar, int)
      */
-        new DateTimeOffset EndTimeUtc { set; }
+        new DateTimeOffset EndTimeUtc {  get; set; }
 
         /**
      * <p>
@@ -94,6 +94,6 @@ namespace Quartz.Spi
      * @see SimpleTrigger
      * @see CronTrigger
      */
-        new int MisfireInstruction { set; }
+        new int MisfireInstruction {  get; set; }
     }
 }

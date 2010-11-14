@@ -68,7 +68,7 @@ namespace Quartz
 		/// <param name="hour">the hour (0-23) upon which to fire</param>
 		/// <param name="minute">the minute (0-59) upon which to fire</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeDailyTrigger(int hour, int minute)
+		public static ITrigger MakeDailyTrigger(int hour, int minute)
 		{
 			ValidateHour(hour);
 			ValidateMinute(minute);
@@ -100,9 +100,9 @@ namespace Quartz
 		/// <param name="hour">the hour (0-23) upon which to fire</param>
 		/// <param name="minute">the minute (0-59) upon which to fire</param>
 		/// <returns>the newly created trigger</returns>
-		public static Trigger MakeDailyTrigger(string trigName, int hour, int minute)
+		public static ITrigger MakeDailyTrigger(string trigName, int hour, int minute)
 		{
-			Trigger trig = MakeDailyTrigger(hour, minute);
+			ITrigger trig = MakeDailyTrigger(hour, minute);
 			trig.Name = trigName;
 			return trig;
 		}
@@ -118,7 +118,7 @@ namespace Quartz
 		/// <param name="hour">the hour (0-23) upon which to fire</param>
 		/// <param name="minute">the minute (0-59) upon which to fire</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeWeeklyTrigger(DayOfWeek dayOfWeek, int hour, int minute)
+		public static ITrigger MakeWeeklyTrigger(DayOfWeek dayOfWeek, int hour, int minute)
 		{
 			ValidateHour(hour);
 			ValidateMinute(minute);
@@ -151,9 +151,9 @@ namespace Quartz
 		/// <param name="hour">the hour (0-23) upon which to fire</param>
 		/// <param name="minute">the minute (0-59) upon which to fire</param>
 		/// <returns>the newly created trigger</returns>
-		public static Trigger MakeWeeklyTrigger(string trigName, DayOfWeek dayOfWeek, int hour, int minute)
+		public static ITrigger MakeWeeklyTrigger(string trigName, DayOfWeek dayOfWeek, int hour, int minute)
 		{
-			Trigger trig = MakeWeeklyTrigger(dayOfWeek, hour, minute);
+			ITrigger trig = MakeWeeklyTrigger(dayOfWeek, hour, minute);
 			trig.Name = trigName;
 			return trig;
 		}
@@ -176,7 +176,7 @@ namespace Quartz
 		/// <param name="hour">the hour (0-23) upon which to fire</param>
 		/// <param name="minute">the minute (0-59) upon which to fire</param>
 		/// <returns>the newly created trigger</returns>
-		public static Trigger MakeMonthlyTrigger(int dayOfMonth, int hour, int minute)
+		public static ITrigger MakeMonthlyTrigger(int dayOfMonth, int hour, int minute)
 		{
 			ValidateDayOfMonth(dayOfMonth);
 			ValidateHour(hour);
@@ -223,9 +223,9 @@ namespace Quartz
 		/// <param name="hour">the hour (0-23) upon which to fire</param>
 		/// <param name="minute">the minute (0-59) upon which to fire</param>
 		/// <returns>the newly created trigger</returns>
-		public static Trigger MakeMonthlyTrigger(string trigName, int dayOfMonth, int hour, int minute)
+		public static ITrigger MakeMonthlyTrigger(string trigName, int dayOfMonth, int hour, int minute)
 		{
-			Trigger trig = MakeMonthlyTrigger(dayOfMonth, hour, minute);
+			ITrigger trig = MakeMonthlyTrigger(dayOfMonth, hour, minute);
 			trig.Name = trigName;
 			return trig;
 		}
@@ -240,7 +240,7 @@ namespace Quartz
 		/// or end-time set.  The Start time defaults to 'now'.
         /// </remarks>
 		/// <returns>the newly created trigger</returns>
-		public static Trigger MakeImmediateTrigger(int repeatCount, TimeSpan repeatInterval)
+		public static ITrigger MakeImmediateTrigger(int repeatCount, TimeSpan repeatInterval)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 			trig.StartTimeUtc = SystemTime.UtcNow();
@@ -259,9 +259,9 @@ namespace Quartz
 		/// </summary>
 		/// <param name="trigName">the trigger's name</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeImmediateTrigger(string trigName, int repeatCount, TimeSpan repeatInterval)
+		public static ITrigger MakeImmediateTrigger(string trigName, int repeatCount, TimeSpan repeatInterval)
 		{
-			Trigger trig = MakeImmediateTrigger(repeatCount, repeatInterval);
+			ITrigger trig = MakeImmediateTrigger(repeatCount, repeatInterval);
 			trig.Name = trigName;
 			return trig;
 		}
@@ -274,7 +274,7 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeSecondlyTrigger()
+		public static ITrigger MakeSecondlyTrigger()
 		{
 			return MakeSecondlyTrigger(1, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -288,7 +288,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="trigName">the trigger's name</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeSecondlyTrigger(string trigName)
+		public static ITrigger MakeSecondlyTrigger(string trigName)
 		{
 			return MakeSecondlyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -303,7 +303,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="intervalInSeconds">the number of seconds between firings</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeSecondlyTrigger(int intervalInSeconds)
+		public static ITrigger MakeSecondlyTrigger(int intervalInSeconds)
 		{
 			return MakeSecondlyTrigger(intervalInSeconds, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -319,7 +319,7 @@ namespace Quartz
 		/// <param name="intervalInSeconds">the number of seconds between firings</param>
 		/// <param name="repeatCount">the number of times to repeat the firing</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeSecondlyTrigger(int intervalInSeconds, int repeatCount)
+		public static ITrigger MakeSecondlyTrigger(int intervalInSeconds, int repeatCount)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 
@@ -342,9 +342,9 @@ namespace Quartz
 		/// <param name="intervalInSeconds">the number of seconds between firings</param>
 		/// <param name="repeatCount">the number of times to repeat the firing</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeSecondlyTrigger(string trigName, int intervalInSeconds, int repeatCount)
+		public static ITrigger MakeSecondlyTrigger(string trigName, int intervalInSeconds, int repeatCount)
 		{
-			Trigger trig = MakeSecondlyTrigger(intervalInSeconds, repeatCount);
+			ITrigger trig = MakeSecondlyTrigger(intervalInSeconds, repeatCount);
 			trig.Name = trigName;
 			return trig;
 		}
@@ -357,7 +357,7 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeMinutelyTrigger()
+		public static ITrigger MakeMinutelyTrigger()
 		{
 			return MakeMinutelyTrigger(1, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -371,7 +371,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="trigName">the trigger's name</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeMinutelyTrigger(string trigName)
+		public static ITrigger MakeMinutelyTrigger(string trigName)
 		{
 			return MakeMinutelyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -385,7 +385,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="intervalInMinutes">the number of minutes between firings</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeMinutelyTrigger(int intervalInMinutes)
+		public static ITrigger MakeMinutelyTrigger(int intervalInMinutes)
 		{
 			return MakeMinutelyTrigger(intervalInMinutes, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -401,7 +401,7 @@ namespace Quartz
 		/// <param name="intervalInMinutes">the number of minutes between firings</param>
 		/// <param name="repeatCount">the number of times to repeat the firing</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeMinutelyTrigger(int intervalInMinutes, int repeatCount)
+		public static ITrigger MakeMinutelyTrigger(int intervalInMinutes, int repeatCount)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 			trig.RepeatInterval = TimeSpan.FromMinutes(intervalInMinutes);
@@ -423,9 +423,9 @@ namespace Quartz
 		/// <param name="intervalInMinutes">the number of minutes between firings</param>
 		/// <param name="repeatCount">the number of times to repeat the firing</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeMinutelyTrigger(string trigName, int intervalInMinutes, int repeatCount)
+		public static ITrigger MakeMinutelyTrigger(string trigName, int intervalInMinutes, int repeatCount)
 		{
-			Trigger trig = MakeMinutelyTrigger(intervalInMinutes, repeatCount);
+			ITrigger trig = MakeMinutelyTrigger(intervalInMinutes, repeatCount);
 			trig.Name = trigName;
 			return trig;
 		}
@@ -438,7 +438,7 @@ namespace Quartz
 		/// </p>
 		/// </summary>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeHourlyTrigger()
+		public static ITrigger MakeHourlyTrigger()
 		{
 			return MakeHourlyTrigger(1, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -452,7 +452,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="trigName">the trigger's name</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeHourlyTrigger(string trigName)
+        public static ITrigger MakeHourlyTrigger(string trigName)
 		{
 			return MakeHourlyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -466,7 +466,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="intervalInHours">the number of hours between firings</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeHourlyTrigger(int intervalInHours)
+        public static ITrigger MakeHourlyTrigger(int intervalInHours)
 		{
 			return MakeHourlyTrigger(intervalInHours, SimpleTrigger.RepeatIndefinitely);
 		}
@@ -482,7 +482,7 @@ namespace Quartz
 		/// <param name="intervalInHours">the number of hours between firings</param>
 		/// <param name="repeatCount">the number of times to repeat the firing</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeHourlyTrigger(int intervalInHours, int repeatCount)
+        public static ITrigger MakeHourlyTrigger(int intervalInHours, int repeatCount)
 		{
 			SimpleTrigger trig = new SimpleTrigger();
 
@@ -505,9 +505,9 @@ namespace Quartz
 		/// <param name="intervalInHours">the number of hours between firings</param>
 		/// <param name="repeatCount">the number of times to repeat the firing</param>
 		/// <returns>the new trigger</returns>
-		public static Trigger MakeHourlyTrigger(string trigName, int intervalInHours, int repeatCount)
+        public static ITrigger MakeHourlyTrigger(string trigName, int intervalInHours, int repeatCount)
 		{
-			Trigger trig = MakeHourlyTrigger(intervalInHours, repeatCount);
+			ITrigger trig = MakeHourlyTrigger(intervalInHours, repeatCount);
 			trig.Name = trigName;
 			return trig;
 		}
@@ -738,11 +738,11 @@ namespace Quartz
 		/// <param name="cal">The calendar to apply to the trigger's schedule</param>
 		/// <param name="numTimes">The number of next fire times to produce</param>
 		/// <returns>List of java.util.Date objects</returns>
-        public static IList<DateTimeOffset> ComputeFireTimes(Trigger trigg, ICalendar cal, int numTimes)
+        public static IList<DateTimeOffset> ComputeFireTimes(ITrigger trigg, ICalendar cal, int numTimes)
 		{
             List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
-			Trigger t = (Trigger) trigg.Clone();
+			ITrigger t = (ITrigger) trigg.Clone();
 
 			if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
 			{
@@ -779,9 +779,9 @@ namespace Quartz
         /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
         /// <param name="numberOfTimes">The number of next fire times to produce</param>
         /// <returns>the computed Date, or null if the trigger (as configured) will not fire that many times</returns>
-        public static DateTimeOffset? ComputeEndTimeToAllowParticularNumberOfFirings(Trigger trigger, ICalendar calendar, int numberOfTimes)
+        public static DateTimeOffset? ComputeEndTimeToAllowParticularNumberOfFirings(ITrigger trigger, ICalendar calendar, int numberOfTimes)
 	    {
-	        Trigger t = (Trigger) trigger.Clone();
+	        ITrigger t = (ITrigger) trigger.Clone();
 
 	        if (t.GetNextFireTimeUtc() == null)
 	        {
@@ -836,11 +836,11 @@ namespace Quartz
 		/// <param name="from">The starting date at which to find fire times</param>
 		/// <param name="to">The ending date at which to stop finding fire times</param>
 		/// <returns>List of java.util.Date objects</returns>
-        public static IList<DateTimeOffset> ComputeFireTimesBetween(Trigger trigg, ICalendar cal, DateTimeOffset from, DateTimeOffset to)
+        public static IList<DateTimeOffset> ComputeFireTimesBetween(ITrigger trigg, ICalendar cal, DateTimeOffset from, DateTimeOffset to)
 		{
             List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
-			Trigger t = (Trigger) trigg.Clone();
+			ITrigger t = (ITrigger) trigg.Clone();
 
 			if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
 			{

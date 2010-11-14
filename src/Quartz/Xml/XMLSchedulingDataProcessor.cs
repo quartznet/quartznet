@@ -76,7 +76,7 @@ namespace Quartz.Xml
 
         // scheduling commands
         private readonly List<IJobDetail> loadedJobs = new List<IJobDetail>();
-        private readonly List<Trigger> loadedTriggers = new List<Trigger>();
+        private readonly List<ITrigger> loadedTriggers = new List<ITrigger>();
 
         // directives
         private bool overWriteExistingData = true;
@@ -140,7 +140,7 @@ namespace Quartz.Xml
             get { return loadedJobs.AsReadOnly(); }
         }
 
-        protected IList<Trigger> LoadedTriggers
+        protected IList<ITrigger> LoadedTriggers
         {
             get { return loadedTriggers.AsReadOnly(); }
         }
@@ -269,7 +269,7 @@ namespace Quartz.Xml
                             {
                                 throw new SchedulerConfigException("Encountered a 'delete-job' command without a name specified.");
                             }
-                            jobsToDelete.Add(new Key(name, group));
+                            jobsToDelete.Add(new JobKey(name, group));
                         }
                     }
                     if (command.deletetrigger != null)
@@ -283,7 +283,7 @@ namespace Quartz.Xml
                             {
                                 throw new SchedulerConfigException("Encountered a 'delete-trigger' command without a name specified.");
                             }
-                            triggersToDelete.Add(new Key(name, group));
+                            triggersToDelete.Add(new TriggerKey(name, group));
                         }
                     }
                 }
@@ -336,16 +336,18 @@ namespace Quartz.Xml
                 string jobGroup = jobDetailType.group.TrimEmptyToNull();
                 string jobDescription = jobDetailType.description.TrimEmptyToNull();
                 string jobTypeName = jobDetailType.jobtype.TrimEmptyToNull();
-                bool jobVolatility = jobDetailType.@volatile;
                 bool jobDurability = jobDetailType.durable;
                 bool jobRecoveryRequested = jobDetailType.recover;
 
                 Type jobClass = typeLoadHelper.LoadType(jobTypeName);
 
-                JobDetailImpl jobDetail = new JobDetailImpl(jobName, jobGroup,
-                                                    jobClass, jobVolatility, jobDurability,
-                                                    jobRecoveryRequested);
-                jobDetail.Description = jobDescription;
+
+                IJobDetail jobDetail = newJob(jobClass)
+                    .withIdentity(jobName, jobGroup)
+                    .withDescription(jobDescription)
+                    .storeDurably(jobDurability)
+                    .requestRecovery(jobRecoveryRequested)
+                    .build();
 
                 if (jobDetailType.jobdatamap != null && jobDetailType.jobdatamap.entry != null)
                 {
@@ -386,12 +388,24 @@ namespace Quartz.Xml
                 string triggerCalendarRef = triggerNode.Item.calendarname.TrimEmptyToNull();
                 string triggerJobName = triggerNode.Item.jobname.TrimEmptyToNull();
                 string triggerJobGroup = triggerNode.Item.jobgroup.TrimEmptyToNull();
-                bool triggerVolatility = triggerNode.Item.volatilitySpecified ? triggerNode.Item.volatility : true;
 
-                DateTime triggerStartTime = triggerNode.Item.starttime;
+                DateTimeOffset triggerStartTime = SystemTime.UtcNow();
+                if (triggerNode.Item.Item != null)
+                {
+                    if (triggerNode.Item.Item is DateTime)
+                    {
+                        triggerStartTime = new DateTimeOffset((DateTime) triggerNode.Item.Item);
+                    }
+                    else
+                    {
+                        triggerStartTime = triggerStartTime.AddSeconds(Convert.ToInt32(triggerNode.Item.Item));
+                    }
+                }
                 DateTime? triggerEndTime = triggerNode.Item.endtimeSpecified ? triggerNode.Item.endtime : (DateTime?) null;
 
-                Trigger trigger;
+                TriggerKey triggerKey = triggerKey(triggerName, triggerGroup);
+
+                ScheduleBuilder sched = null;
 
                 if (triggerNode.Item is simpleTriggerType)
                 {
@@ -403,10 +417,15 @@ namespace Quartz.Xml
                     int repeatCount = ParseSimpleTriggerRepeatCount(repeatCountString);
                     TimeSpan repeatInterval = repeatIntervalString == null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
 
-                    trigger = new SimpleTrigger(triggerName, triggerGroup,
-                                                triggerJobName, triggerJobGroup,
-                                                triggerStartTime, triggerEndTime,
-                                                repeatCount, repeatInterval);
+                    sched = simpleSchedule()
+                    .withIntervalInMilliseconds(repeatInterval)
+                    .withRepeatCount(repeatCount);
+
+                    if (!String.IsNullOrWhiteSpace(simpleTrigger.misfireinstruction))
+                    {
+                        ((SimpleScheduleBuilder) sched).withMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
+                    }
+
                 }
                 else if (triggerNode.Item is cronTriggerType)
                 {
@@ -415,47 +434,46 @@ namespace Quartz.Xml
                     string cronExpression = cronTrigger.cronexpression.TrimEmptyToNull();
                     string timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
-                    if (!String.IsNullOrEmpty(timezoneString))
+                    TimeZoneInfo tz =  timezoneString != null ? TimeZoneInfo.FindSystemTimeZoneById(timezoneString) : null;
+                    sched = cronSchedule(cronExpression)
+                    .inTimeZone(tz);
+
+                    if (!String.IsNullOrWhiteSpace(cronTrigger.misfireinstruction))
                     {
-                        trigger = new CronTrigger(triggerName, triggerGroup,
-                                                  triggerJobName, triggerJobGroup,
-                                                  triggerStartTime, triggerEndTime,
-                                                  cronExpression, TimeZoneInfo.FindSystemTimeZoneById(timezoneString));
-                    }
-                    else
-                    {
-                        trigger = new CronTrigger(triggerName, triggerGroup,
-                                                  triggerJobName, triggerJobGroup,
-                                                  triggerStartTime, triggerEndTime,
-                                                  cronExpression);
+                        ((CronScheduleBuilder)sched).withMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
                     }
                 }
-                else if (triggerNode.Item is dateIntervalTriggerType)
+                else if (triggerNode.Item is calendarIntervalTriggerType)
                 {
-                    dateIntervalTriggerType dateIntervalTrigger = (dateIntervalTriggerType)triggerNode.Item;
-                    string repeatIntervalString = dateIntervalTrigger.repeatinterval.TrimEmptyToNull();
+                    calendarIntervalTriggerType calendarIntervalTrigger = (calendarIntervalTriggerType)triggerNode.Item;
+                    string repeatIntervalString = calendarIntervalTrigger.repeatinterval.TrimEmptyToNull();
 
-                    triggerMisfireInstructionConst = dateIntervalTrigger.misfireinstruction;
-                    DateIntervalTrigger.IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(dateIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
+                    triggerMisfireInstructionConst = calendarIntervalTrigger.misfireinstruction;
+                    IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
                     int repeatInterval = repeatIntervalString == null ? 0 : Convert.ToInt32(repeatIntervalString);
-                    trigger = new DateIntervalTrigger(triggerName, triggerGroup,
-                                                triggerJobName, triggerJobGroup,
-                                                triggerStartTime, triggerEndTime,
-                                                intervalUnit, repeatInterval);
+
+                    sched = calendarIntervalSchedule()
+                    .withInterval(repeatInterval, intervalUnit);
+
+                    if (!String.IsNullOrWhiteSpace(calendarIntervalTrigger.misfireinstruction))
+                    {
+                        ((CalendarIntervalScheduleBuilder)sched).withMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
+                    }
                 }
                 else
                 {
                     throw new SchedulerConfigException("Unknown trigger type in XML configuration");
                 }
 
-                trigger.Volatile = triggerVolatility;
-                trigger.Description = triggerDescription;
-                trigger.CalendarName = triggerCalendarRef;
-
-                if (!String.IsNullOrEmpty(triggerMisfireInstructionConst))
-                {
-                    trigger.MisfireInstruction = ReadMisfireInstructionFromString(triggerMisfireInstructionConst);
-                }
+                IMutableTrigger trigger = newTrigger()
+    .withIdentity(triggerName, triggerGroup)
+    .withDescription(triggerDescription)
+    .forJob(triggerJobName, triggerJobGroup)
+    .startAt(triggerStartTime)
+    .endAt(triggerEndTime)
+    .modifiedByCalendar(triggerCalendarRef)
+    .withSchedule(sched)
+    .build();
 
                 if (triggerNode.Item.jobdatamap != null && triggerNode.Item.jobdatamap.entry != null)
                 {
@@ -481,7 +499,7 @@ namespace Quartz.Xml
             loadedJobs.Add(job);
         }
 
-        protected virtual void AddTriggerToSchedule(Trigger trigger)
+        protected virtual void AddTriggerToSchedule(IMutableTrigger trigger)
         {
             loadedTriggers.Add(trigger);
         }
@@ -500,14 +518,14 @@ namespace Quartz.Xml
             return c.AsNumber(misfireinstruction);
         }
 
-        protected virtual DateIntervalTrigger.IntervalUnit ParseDateIntervalTriggerIntervalUnit(string intervalUnit)
+        protected virtual IntervalUnit ParseDateIntervalTriggerIntervalUnit(string intervalUnit)
         {
             if (String.IsNullOrEmpty(intervalUnit))
             {
-                return DateIntervalTrigger.IntervalUnit.Day;
+                return IntervalUnit.Day;
             }
 
-            DateIntervalTrigger.IntervalUnit retValue;
+            IntervalUnit retValue;
             if (!TryParseEnum(intervalUnit, out retValue))
             {
                 throw new SchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
@@ -628,27 +646,27 @@ namespace Quartz.Xml
         /// <param name="sched">The sched.</param>
         public virtual void ScheduleJobs(IScheduler sched)
         {
-            List<JobDetailImpl> jobs = new List<JobDetailImpl>(LoadedJobs);
-            List<Trigger> triggers = new List<Trigger>(LoadedTriggers);
+            List<IJobDetail> jobs = new List<IJobDetail>(LoadedJobs);
+            List<ITrigger> triggers = new List<ITrigger>(LoadedTriggers);
 
             log.Info("Adding " + jobs.Count + " jobs, " + triggers.Count + " triggers.");
 
-            IDictionary<String, List<Trigger>> triggersByFQJobName = BuildTriggersByFQJobNameMap(triggers);
+            IDictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFQJobNameMap(triggers);
 
             // add each job, and it's associated triggers
             for (int i = 0; i < jobs.Count; i++)
             {
-                JobDetailImpl detail = jobs[i];
+                IJobDetail detail = jobs[i];
                 // remove jobs as we handle them...
                 jobs.Remove(detail);
 
-                JobDetailImpl dupeJ = sched.GetJobDetail(detail.Name, detail.Group);
+                IJobDetail dupeJ = sched.GetJobDetail(detail.Key);
 
                 if ((dupeJ != null))
                 {
                     if (!OverWriteExistingData && IgnoreDuplicates)
                     {
-                        log.Info("Not overwriting existing job: " + dupeJ.FullName);
+                        log.Info("Not overwriting existing job: " + dupeJ.Key);
                         continue; // just ignore the entry
                     }
                     if (!OverWriteExistingData && !IgnoreDuplicates)
@@ -659,15 +677,15 @@ namespace Quartz.Xml
 
                 if (dupeJ != null)
                 {
-                    log.Info("Replacing job: " + detail.FullName);
+                    log.Info("Replacing job: " + detail.Key);
                 }
                 else
                 {
-                    log.Info("Adding job: " + detail.FullName);
+                    log.Info("Adding job: " + detail.Key);
                 }
 
-                List<Trigger> triggersOfJob;
-                triggersByFQJobName.TryGetValue(detail.FullName, out triggersOfJob);
+                List<IMutableTrigger> triggersOfJob;
+                triggersByFQJobName.TryGetValue(detail.Key, out triggersOfJob);
 
                 if (!detail.Durable && (triggersOfJob == null || triggersOfJob.Count == 0))
                 {
@@ -675,15 +693,15 @@ namespace Quartz.Xml
                     {
                         throw new SchedulerException(
                             "A new job defined without any triggers must be durable: " +
-                            detail.FullName);
+                            detail.Key);
                     }
 
                     if ((dupeJ.Durable &&
-                         (sched.GetTriggersOfJob(detail.Name, detail.Group).Count == 0)))
+                         (sched.GetTriggersOfJob(detail.Key).Count == 0)))
                     {
                         throw new SchedulerException(
                             "Can't change existing durable job without triggers to non-durable: " +
-                            detail.FullName);
+                            detail.Key);
                     }
                 }
 
@@ -699,14 +717,14 @@ namespace Quartz.Xml
                     // Add triggers related to the job...
                     for (int j = 0; j < triggersOfJob.Count; j++)
                     {
-                        Trigger trigger = triggersOfJob[j];
+                        IMutableTrigger trigger = triggersOfJob[j];
                         // remove triggers as we handle them...
                         triggers.Remove(trigger);
 
                         bool addedTrigger = false;
                         while (addedTrigger == false)
                         {
-                            Trigger dupeT = sched.GetTrigger(trigger.Name, trigger.Group);
+                            ITrigger dupeT = sched.GetTrigger(trigger.Key);
                             if (dupeT != null)
                             {
                                 if (OverWriteExistingData)
@@ -714,13 +732,12 @@ namespace Quartz.Xml
                                     if (log.IsDebugEnabled)
                                     {
                                         log.Debug(
-                                            "Rescheduling job: " + trigger.FullJobName + " with updated trigger: " +
-                                            trigger.FullName);
+                                            "Rescheduling job: " + trigger.JobKey + " with updated trigger: " + trigger.Key);
                                     }
                                 }
                                 else if (IgnoreDuplicates)
                                 {
-                                    log.Info("Not overwriting existing trigger: " + dupeT.FullName);
+                                    log.Info("Not overwriting existing trigger: " + dupeT.Key);
                                     continue; // just ignore the trigger (and possibly job)
                                 }
                                 else
@@ -728,22 +745,21 @@ namespace Quartz.Xml
                                     throw new ObjectAlreadyExistsException(trigger);
                                 }
 
-                                if (!dupeT.JobGroup.Equals(trigger.JobGroup) ||
-                                    !dupeT.JobName.Equals(trigger.JobName))
+                                if (!dupeT.JobKey.Equals(trigger.JobKey))
                                 {
                                     log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ",
-                                                   trigger.FullName);
+                                                   trigger.Key);
                                 }
 
-                                sched.RescheduleJob(trigger.Name, trigger.Group, trigger);
+                                sched.RescheduleJob(trigger.Key, trigger);
                             }
                             else
                             {
                                 if (log.IsDebugEnabled)
                                 {
                                     log.Debug(
-                                        "Scheduling job: " + trigger.FullJobName + " with trigger: " +
-                                        trigger.FullName);
+                                        "Scheduling job: " + trigger.JobKey + " with trigger: " +
+                                        trigger.Key);
                                 }
 
                                 try
@@ -762,8 +778,8 @@ namespace Quartz.Xml
                                 {
                                     if (log.IsDebugEnabled)
                                     {
-                                        log.Debug("Adding trigger: " + trigger.FullName + " for job: " +
-                                                  detail.FullName + " failed because the trigger already existed.  " +
+                                        log.Debug("Adding trigger: " + trigger.Key + " for job: " +
+                                                  detail.Key + " failed because the trigger already existed.  " +
                                                   "This is likely due to a race condition between multiple instances " +
                                                   "in the cluster.  Will try to reschedule instead.");
                                     }
@@ -777,24 +793,24 @@ namespace Quartz.Xml
             }
 
             // add triggers that weren't associated with a new job... (those we already handled were removed above)
-            foreach (Trigger trigger in triggers)
+            foreach (IMutableTrigger trigger in triggers)
             {
                 bool addedTrigger = false;
                 while (addedTrigger == false)
                 {
-                    Trigger dupeT = sched.GetTrigger(trigger.Name, trigger.Group);
+                    ITrigger dupeT = sched.GetTrigger(trigger.Key);
                     if (dupeT != null)
                     {
                         if (OverWriteExistingData)
                         {
                             if (log.IsDebugEnabled)
                             {
-                                log.DebugFormat("Rescheduling job: " + trigger.FullJobName + " with updated trigger: " + trigger.FullName);
+                                log.DebugFormat("Rescheduling job: " + trigger.JobKey + " with updated trigger: " + trigger.Key);
                             }
                         }
                         else if (IgnoreDuplicates)
                         {
-                            log.Info("Not overwriting existing trigger: " + dupeT.FullName);
+                            log.Info("Not overwriting existing trigger: " + dupeT.Key);
                             continue; // just ignore the trigger 
                         }
                         else
@@ -802,18 +818,18 @@ namespace Quartz.Xml
                             throw new ObjectAlreadyExistsException(trigger);
                         }
 
-                        if (!dupeT.JobGroup.Equals(trigger.JobGroup) || !dupeT.JobName.Equals(trigger.JobName))
+                        if (!dupeT.JobKey.Equals(trigger.JobKey))
                         {
-                            log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ", trigger.FullName);
+                            log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ", trigger.Key);
                         }
 
-                        sched.RescheduleJob(trigger.Name, trigger.Group, trigger);
+                        sched.RescheduleJob(trigger.Key, trigger);
                     }
                     else
                     {
                         if (log.IsDebugEnabled)
                         {
-                            log.Debug("Scheduling job: " + trigger.FullJobName + " with trigger: " + trigger.FullName);
+                            log.Debug("Scheduling job: " + trigger.JobKey + " with trigger: " + trigger.Key);
                         }
 
                         try
@@ -825,7 +841,7 @@ namespace Quartz.Xml
                             if (log.IsDebugEnabled)
                             {
                                 log.Debug(
-                                    "Adding trigger: " + trigger.FullName + " for job: " + trigger.FullJobName +
+                                    "Adding trigger: " + trigger.Key + " for job: " + trigger.JobKey +
                                     " failed because the trigger already existed.  " +
                                     "This is likely due to a race condition between multiple instances " +
                                     "in the cluster.  Will try to reschedule instead.");
@@ -838,17 +854,17 @@ namespace Quartz.Xml
             }
         }
 
-        protected virtual IDictionary<String, List<Trigger>> BuildTriggersByFQJobNameMap(List<Trigger> triggers)
+        protected virtual IDictionary<JobKey, List<IMutableTrigger>> BuildTriggersByFQJobNameMap(List<ITrigger> triggers)
         {
-            IDictionary<String, List<Trigger>> triggersByFQJobName = new Dictionary<String, List<Trigger>>();
+            IDictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = new Dictionary<JobKey, List<IMutableTrigger>>();
 
-            foreach (Trigger trigger in triggers)
+            foreach (IMutableTrigger trigger in triggers)
             {
-                List<Trigger> triggersOfJob;
-                if (!triggersByFQJobName.TryGetValue(trigger.FullJobName, out triggersOfJob))
+                List<IMutableTrigger> triggersOfJob;
+                if (!triggersByFQJobName.TryGetValue(trigger.JobKey, out triggersOfJob))
                 {
-                    triggersOfJob = new List<Trigger>();
-                    triggersByFQJobName[trigger.FullJobName] = triggersOfJob;
+                    triggersOfJob = new List<IMutableTrigger>();
+                    triggersByFQJobName[trigger.JobKey] = triggersOfJob;
                 }
                 triggersOfJob.Add(trigger);
             }
@@ -867,9 +883,9 @@ namespace Quartz.Xml
                     {
                         if (!jobGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (string jobName in scheduler.GetJobKeys(groupName))
+                            foreach (JobKey key in scheduler.GetJobKeys(groupName))
                             {
-                                scheduler.DeleteJob(jobName, groupName);
+                                scheduler.DeleteJob(key);
                             }
                         }
                     }
@@ -879,9 +895,9 @@ namespace Quartz.Xml
                     if (!jobGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all jobs in group: {}", group);
-                        foreach (string jobName in scheduler.GetJobKeys(group))
+                        foreach (JobKey key in scheduler.GetJobKeys(group))
                         {
-                            scheduler.DeleteJob(jobName, group);
+                            scheduler.DeleteJob(key);
                         }
                     }
                 }
@@ -896,9 +912,9 @@ namespace Quartz.Xml
                     {
                         if (!triggerGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (string triggerName in scheduler.GetTriggerKeys(groupName))
+                            foreach (TriggerKey key in scheduler.GetTriggerKeys(groupName))
                             {
-                                scheduler.UnscheduleJob(triggerName, groupName);
+                                scheduler.UnscheduleJob(key);
                             }
                         }
                     }
@@ -908,29 +924,29 @@ namespace Quartz.Xml
                     if (!triggerGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all triggers in group: {0}", group);
-                        foreach (string triggerName in scheduler.GetTriggerKeys(group))
+                        foreach (TriggerKey key in scheduler.GetTriggerKeys(group))
                         {
-                            scheduler.UnscheduleJob(triggerName, group);
+                            scheduler.UnscheduleJob(key);
                         }
                     }
                 }
             }
 
-            foreach (Key key in jobsToDelete)
+            foreach (JobKey key in jobsToDelete)
             {
                 if (!jobGroupsToNeverDelete.Contains(key.Group))
                 {
                     log.InfoFormat("Deleting job: {0}", key);
-                    scheduler.DeleteJob(key.Name, key.Group);
+                    scheduler.DeleteJob(key);
                 }
             }
 
-            foreach (Key key in triggersToDelete)
+            foreach (TriggerKey key in triggersToDelete)
             {
                 if (!triggerGroupsToNeverDelete.Contains(key.Group))
                 {
                     log.InfoFormat("Deleting trigger: {0}", key);
-                    scheduler.UnscheduleJob(key.Name, key.Group);
+                    scheduler.UnscheduleJob(key);
                 }
             }
         }

@@ -19,6 +19,9 @@
 
 #endregion
 
+using System;
+
+using Quartz.Impl.Triggers;
 using Quartz.Spi;
 
 namespace Quartz
@@ -265,6 +268,12 @@ namespace Quartz
         public SimpleScheduleBuilder withMisfireHandlingInstructionNowWithRemainingCount()
         {
             misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;
+            return this;
+        }
+
+        internal SimpleScheduleBuilder withMisfireHandlingInstruction(int readMisfireInstructionFromString)
+        {
+            misfireInstruction = readMisfireInstructionFromString;
             return this;
         }
     }

@@ -17,15 +17,14 @@
  */
 #endregion
 
-
 using System;
 
 using Quartz.Spi;
 
-namespace Quartz
+namespace Quartz.Impl.Triggers
 {
 	/// <summary>
-	/// A concrete <see cref="Trigger" /> that is used to fire a <see cref="IJobDetail" />
+	/// A concrete <see cref="ITrigger" /> that is used to fire a <see cref="IJobDetail" />
 	/// at given moments in time, defined with Unix 'cron-like' definitions.
 	/// </summary>
 	/// <remarks>
@@ -166,15 +165,15 @@ namespace Quartz
 	/// </ul>
 	/// </p>
 	/// </remarks>
-	/// <seealso cref="Trigger"/>
-	/// <seealso cref="SimpleTrigger"/>
+	/// <seealso cref="ITrigger"/>
+	/// <seealso cref="ISimpleTrigger"/>
 	/// <seealso cref="TriggerUtils"/>
 	/// <author>Sharada Jambula</author>
 	/// <author>James House</author>
 	/// <author>Contributions from Mads Henderson</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public class CronTrigger : Trigger, ICronTrigger
+    public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 	{
         protected internal const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx;
@@ -185,32 +184,32 @@ namespace Quartz
         [NonSerialized] private TimeZoneInfo timeZone;
 
 		/// <summary>
-		/// Create a <see cref="CronTrigger" /> with no settings.
+        /// Create a <see cref="CronTriggerImpl" /> with no settings.
 		/// </summary>
 		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
 		/// will be set the the system's default time zone.
         /// </remarks>
-		public CronTrigger()
+		public CronTriggerImpl()
 		{
 			StartTimeUtc = SystemTime.UtcNow();
             TimeZone = TimeZoneInfo.Local;
 		}
 
         /// <summary>
-        /// Create a <see cref="CronTrigger" /> with the given name and default group.
+        /// Create a <see cref="CronTriggerImpl" /> with the given name and default group.
         /// </summary>
         /// <remarks>
         /// The start-time will also be set to the current time, and the time zone
         /// will be set the the system's default time zone.
         /// </remarks>
         /// <param name="name">The name of the <see cref="Trigger" /></param>
-        public CronTrigger(string name) : this(name, null)
+        public CronTriggerImpl(string name) : this(name, null)
         {
         }
 
 		/// <summary>
-		/// Create a <see cref="CronTrigger" /> with the given name and group.
+		/// Create a <see cref="CronTriggerImpl" /> with the given name and group.
 		/// </summary>
 		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
@@ -218,7 +217,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="name">The name of the <see cref="Trigger" /></param>
         /// <param name="group">The group of the <see cref="Trigger" /></param>
-		public CronTrigger(string name, string group) : base(name, group)
+		public CronTriggerImpl(string name, string group) : base(name, group)
 		{
 			StartTimeUtc = SystemTime.UtcNow();
             TimeZone = TimeZoneInfo.Local;
@@ -226,7 +225,7 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Create a <see cref="CronTrigger" /> with the given name, group and
+		/// Create a <see cref="CronTriggerImpl" /> with the given name, group and
 		/// expression.
 		/// </summary>
 		/// <remarks>
@@ -236,7 +235,7 @@ namespace Quartz
         /// <param name="name">The name of the <see cref="Trigger" /></param>
         /// <param name="group">The group of the <see cref="Trigger" /></param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
-		public CronTrigger(string name, string group, string cronExpression) : base(name, group)
+		public CronTriggerImpl(string name, string group, string cronExpression) : base(name, group)
 		{
 			CronExpressionString = cronExpression;
 			StartTimeUtc = SystemTime.UtcNow();
@@ -245,7 +244,7 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Create a <see cref="CronTrigger" /> with the given name and group, and
+		/// Create a <see cref="CronTriggerImpl" /> with the given name and group, and
 		/// associated with the identified <see cref="JobDetailImpl" />.
 		/// </summary>
 		/// <remarks>
@@ -256,7 +255,7 @@ namespace Quartz
         /// <param name="group">The group of the <see cref="Trigger" /></param>
         /// <param name="jobName">name of the <see cref="JobDetailImpl" /> executed on firetime</param>
         /// <param name="jobGroup">Group of the <see cref="JobDetailImpl" /> executed on firetime</param>
-		public CronTrigger(string name, string group, string jobName,
+		public CronTriggerImpl(string name, string group, string jobName,
 			string jobGroup) : base(name, group, jobName, jobGroup)
 		{
 			StartTimeUtc = SystemTime.UtcNow();
@@ -277,7 +276,7 @@ namespace Quartz
         /// <param name="jobName">name of the <see cref="JobDetailImpl" /> executed on firetime</param>
         /// <param name="jobGroup">Group of the <see cref="JobDetailImpl" /> executed on firetime</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
-		public CronTrigger(string name, string group, string jobName,
+		public CronTriggerImpl(string name, string group, string jobName,
 			string jobGroup, string cronExpression)
 			: this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression, TimeZoneInfo.Local)
 		{
@@ -297,7 +296,7 @@ namespace Quartz
         /// Specifies for which time zone the <code>cronExpression</code> should be interpreted, 
         /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
         /// </param>
-		public CronTrigger(string name, string group, string jobName,
+		public CronTriggerImpl(string name, string group, string jobName,
 			string jobGroup, string cronExpression, TimeZoneInfo timeZone)
 			: this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression,
 			timeZone)
@@ -320,7 +319,7 @@ namespace Quartz
         /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
         /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="Trigger" /></param>
-		public CronTrigger(string name, string group, string jobName,
+		public CronTriggerImpl(string name, string group, string jobName,
 			string jobGroup, DateTimeOffset startTimeUtc, 
             DateTimeOffset? endTime, 
             string cronExpression)
@@ -342,7 +341,7 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Create a <see cref="CronTrigger" /> with fire time dictated by the
+		/// Create a <see cref="CronTriggerImpl" /> with fire time dictated by the
 		/// <param name="cronExpression" /> resolved with respect to the specified
         /// <param name="timeZone" /> occurring from the <see cref="startTimeUtc" /> until
 		/// the given <paran name="endTimeUtc" />.
@@ -353,7 +352,7 @@ namespace Quartz
 		/// <param name="jobGroup">Group of the <see cref="JobDetailImpl" /> executed on firetime</param>
         /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="Trigger" /> to start firing.</param>
         /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to quit repeat firing.</param>
-		public CronTrigger(string name, string group, string jobName,
+        public CronTriggerImpl(string name, string group, string jobName,
             string jobGroup, DateTimeOffset startTimeUtc, 
             DateTimeOffset? endTime,
 			string cronExpression, 
@@ -387,7 +386,7 @@ namespace Quartz
 		/// <returns></returns>
 		public override object Clone()
 		{
-			CronTrigger copy = (CronTrigger) MemberwiseClone();
+            CronTriggerImpl copy = (CronTriggerImpl) MemberwiseClone();
 			if (cronEx != null)
 			{
 			    copy.CronExpression = (CronExpression) cronEx.Clone();

@@ -100,7 +100,6 @@
       <xs:element name="description" type="xs:string" minOccurs="0"/>
       <xs:element name="job-type" type="xs:string"/>
       <xs:sequence minOccurs="0">
-        <xs:element name="volatile" type="xs:boolean"/>
         <xs:element name="durable" type="xs:boolean"/>
         <xs:element name="recover" type="xs:boolean"/>
       </xs:sequence>
@@ -134,7 +133,7 @@
     <xs:choice>
       <xs:element name="simple" type="simpleTriggerType"/>
       <xs:element name="cron" type="cronTriggerType"/>
-      <xs:element name="date-interval" type="dateIntervalTriggerType"/>
+      <xs:element name="calendar-interval" type="calendarIntervalTriggerType"/>
     </xs:choice>
   </xs:complexType>
 
@@ -149,10 +148,12 @@
       <xs:element name="job-name" type="xs:string"/>
       <xs:element name="job-group" type="xs:string" minOccurs="0"/>
       <xs:element name="calendar-name" type="xs:string" minOccurs="0"/>
-      <xs:element name="volatile" type="xs:boolean"  minOccurs="0"/>
       <xs:element name="job-data-map" type="job-data-mapType" minOccurs="0"/>
       <xs:sequence minOccurs="0">
-        <xs:element name="start-time" type="xs:dateTime"/>
+        <xs:choice>
+          <xs:element name="start-time" type="xs:dateTime"/>
+          <xs:element name="start-time-seconds-in-future" type="xs:nonNegativeInteger"/>
+        </xs:choice>
         <xs:element name="end-time"  type="xs:dateTime" minOccurs="0"/>
       </xs:sequence>
     </xs:sequence>
@@ -190,7 +191,7 @@
     </xs:complexContent>
   </xs:complexType>
 
-  <xs:complexType name="dateIntervalTriggerType">
+  <xs:complexType name="calendarIntervalTriggerType">
     <xs:annotation>
       <xs:documentation>Define a DateIntervalTrigger</xs:documentation>
     </xs:annotation>

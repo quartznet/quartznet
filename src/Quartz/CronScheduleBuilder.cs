@@ -21,6 +21,7 @@
 
 using System;
 
+using Quartz.Impl.Triggers;
 using Quartz.Spi;
 
 namespace Quartz
@@ -230,6 +231,12 @@ namespace Quartz
         public CronScheduleBuilder withMisfireHandlingInstructionFireAndProceed()
         {
             misfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
+            return this;
+        }
+
+        internal CronScheduleBuilder withMisfireHandlingInstruction(int readMisfireInstructionFromString)
+        {
+            misfireInstruction = readMisfireInstructionFromString;
             return this;
         }
     }

@@ -19,16 +19,16 @@
 
 using System;
 
-namespace Quartz
+namespace Quartz.Impl.Triggers
 {
     /// <summary>
-    ///  A concrete <see cref="Trigger" /> that is used to fire a <see cref="IJobDetail" />
+    ///  A concrete <see cref="ITrigger" /> that is used to fire a <see cref="IJobDetail" />
     ///  based upon repeating calendar time intervals.
     ///  </summary>
     /// <remarks>
     /// The trigger will fire every N (see <see cref="RepeatInterval" />) units of calendar time
     /// (see <see cref="RepeatIntervalUnit" />) as specified in the trigger's definition.  
-    /// This trigger can achieve schedules that are not possible with <see cref="SimpleTrigger" /> (e.g 
+    /// This trigger can achieve schedules that are not possible with <see cref="ISimpleTrigger" /> (e.g 
     /// because months are not a fixed number of seconds) or <see cref="CronTrigger" /> (e.g. because
     /// "every 5 months" is not an even divisor of 12).
     /// <p>
@@ -42,28 +42,17 @@ namespace Quartz
     /// you should use <see cref="CronTrigger" />.
     /// </p> 
     /// </remarks>
-    /// <see cref="Trigger" />
+    /// <see cref="ITrigger" />
     /// <see cref="CronTrigger" />
-    /// <see cref="SimpleTrigger" />
+    /// <see cref="ISimpleTrigger" />
     /// <see cref="NthIncludedDayTrigger" />
     /// <see cref="TriggerUtils" />
     /// <since>1.2</since>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class DateIntervalTrigger : Trigger
+    public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
     {
         private const int YearToGiveupSchedulingAt = 2299;
-
-        public enum IntervalUnit
-        {
-            Second,
-            Minute,
-            Hour,
-            Day,
-            Week,
-            Month,
-            Year
-        } ;
 
         private DateTimeOffset startTime;
         private DateTimeOffset? endTime;
@@ -77,18 +66,18 @@ namespace Quartz
         /// <summary>
         /// Create a <code>DateIntervalTrigger</code> with no settings.
         /// </summary>
-        public DateIntervalTrigger()
+        public CalendarIntervalTriggerImpl()
         {
         }
 
         /// <summary>
-        /// Create a <see cref="DateIntervalTrigger" /> that will occur immediately, and
+        /// Create a <see cref="CalendarIntervalTriggerImpl" /> that will occur immediately, and
         /// repeat at the the given interval.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DateIntervalTrigger(string name, IntervalUnit intervalUnit, int repeatInterval)
+        public CalendarIntervalTriggerImpl(string name, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, null, intervalUnit, repeatInterval)
         {
         }
@@ -101,7 +90,7 @@ namespace Quartz
         /// <param name="group">Group for the trigger instance.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DateIntervalTrigger(string name, string group, IntervalUnit intervalUnit,
+        public CalendarIntervalTriggerImpl(string name, string group, IntervalUnit intervalUnit,
                                    int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, intervalUnit, repeatInterval)
         {
@@ -116,7 +105,7 @@ namespace Quartz
         /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DateIntervalTrigger(string name, DateTimeOffset startTimeUtc,
+        public CalendarIntervalTriggerImpl(string name, DateTimeOffset startTimeUtc,
                                    DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, null, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval)
         {
@@ -132,7 +121,7 @@ namespace Quartz
         /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DateIntervalTrigger(string name, string group, DateTimeOffset startTimeUtc,
+        public CalendarIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
                                    DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
         {
@@ -154,7 +143,7 @@ namespace Quartz
         /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DateIntervalTrigger(string name, string group, string jobName,
+        public CalendarIntervalTriggerImpl(string name, string group, string jobName,
                                    string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
                                    IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group, jobName, jobGroup)
@@ -166,7 +155,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Get the time at which the <see cref="DateIntervalTrigger" /> should occur.
+        /// Get the time at which the <see cref="CalendarIntervalTriggerImpl" /> should occur.
         /// </summary>
         public override DateTimeOffset StartTimeUtc
         {
@@ -274,7 +263,7 @@ namespace Quartz
                 return false;
             }
 
-            if (misfireInstruction > Quartz.MisfireInstruction.DateIntervalTrigger.DoNothing)
+            if (misfireInstruction > Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing)
             {
                 return false;
             }
@@ -300,10 +289,10 @@ namespace Quartz
 
             if (instr == Quartz.MisfireInstruction.SmartPolicy)
             {
-                instr = Quartz.MisfireInstruction.DateIntervalTrigger.FireOnceNow;
+                instr = Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
             }
 
-            if (instr == Quartz.MisfireInstruction.DateIntervalTrigger.DoNothing)
+            if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing)
             {
                 DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
                 while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
@@ -312,7 +301,7 @@ namespace Quartz
                 }
                 NextFireTimeUtc = newFireTime;
             }
-            else if (instr == Quartz.MisfireInstruction.DateIntervalTrigger.FireOnceNow)
+            else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
             {
                 // fire once now...
                 NextFireTimeUtc = SystemTime.UtcNow();
@@ -814,6 +803,36 @@ namespace Quartz
             {
                 throw new SchedulerException("Repeat Interval cannot be zero.");
             }
+        }
+
+        /**
+ * Get a {@link ScheduleBuilder} that is configured to produce a 
+ * schedule identical to this trigger's schedule.
+ * 
+ * @see #getTriggerBuilder()
+ */
+        public ScheduleBuilder GetScheduleBuilder()
+        {
+
+            CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.calendarIntervalSchedule()
+                    .withInterval(RepeatInterval, RepeatIntervalUnit);
+
+            switch (MisfireInstruction)
+            {
+                case MISFIRE_INSTRUCTION_DO_NOTHING: 
+                    cb.withMisfireHandlingInstructionDoNothing();
+                    break;
+                case MISFIRE_INSTRUCTION_FIRE_ONCE_NOW: 
+                    cb.withMisfireHandlingInstructionFireAndProceed();
+                    break;
+            }
+
+            return cb;
+        }
+
+        public override bool HasAdditionalProperties
+        {
+            get { return false; }
         }
     }
 }

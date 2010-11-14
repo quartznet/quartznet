@@ -21,6 +21,8 @@ using System;
 using System.Globalization;
 
 using Common.Logging;
+
+using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
 namespace Quartz.Plugin.History
@@ -330,7 +332,7 @@ namespace Quartz.Plugin.History
         public virtual void Initialize(string pluginName, IScheduler sched)
         {
             name = pluginName;
-            sched.AddGlobalJobListener(this);
+            sched.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.MatchAllJobs());
         }
 
         /// <summary>
@@ -355,7 +357,7 @@ namespace Quartz.Plugin.History
 
         /// <summary>
         ///     Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/> is
-        ///     about to be executed (an associated <see cref="Trigger"/> has occurred). 
+        ///     about to be executed (an associated <see cref="ITrigger"/> has occurred). 
         ///     <para>
         ///         This method will not be invoked if the execution of the Job was vetoed by a
         ///         <see cref="ITriggerListener"/>.
@@ -369,12 +371,12 @@ namespace Quartz.Plugin.History
                 return;
             }
 
-            Trigger trigger = context.Trigger;
+            ITrigger trigger = context.Trigger;
 
             object[] args =
                 new object[]
                     {
-                        context.JobDetail.Name, context.JobDetail.Group, SystemTime.UtcNow(), trigger.Name, trigger.Group,
+                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
                         trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 
@@ -384,14 +386,14 @@ namespace Quartz.Plugin.History
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> after a <see cref="IJobDetail" />
-        /// has been executed, and be for the associated <see cref="Trigger" />'s
-        /// <see cref="Trigger.Triggered" /> method has been called.
+        /// has been executed, and be for the associated <see cref="ITrigger" />'s
+        /// <see cref="IOperableTrigger.Triggered" /> method has been called.
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>
         public virtual void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
-            Trigger trigger = context.Trigger;
+            ITrigger trigger = context.Trigger;
 
             object[] args;
 
@@ -406,7 +408,7 @@ namespace Quartz.Plugin.History
                 args =
                     new object[]
                         {
-                            context.JobDetail.Name, context.JobDetail.Group, SystemTime.UtcNow(), trigger.Name, trigger.Group,
+                            context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
                             trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
                         };
 
@@ -423,7 +425,7 @@ namespace Quartz.Plugin.History
                 args =
                     new object[]
                         {
-                            context.JobDetail.Name, context.JobDetail.Group, SystemTime.UtcNow(), trigger.Name, trigger.Group,
+                            context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
                             trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
                         };
 
@@ -433,12 +435,12 @@ namespace Quartz.Plugin.History
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
-        /// was about to be executed (an associated <see cref="Trigger" />
+        /// was about to be executed (an associated <see cref="ITrigger" />
         /// has occured), but a <see cref="ITriggerListener" /> vetoed it's
         /// execution.
         /// </summary>
         /// <param name="context"></param>
-        /// <seealso cref="JobToBeExecuted(JobExecutionContext)"/>
+        /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
         public virtual void JobExecutionVetoed(IJobExecutionContext context)
         {
             if (!Log.IsInfoEnabled)
@@ -451,7 +453,7 @@ namespace Quartz.Plugin.History
             object[] args =
                 new object[]
                     {
-                        context.JobDetail.Name, context.JobDetail.Group, SystemTime.UtcNow(), trigger.Name, trigger.Group,
+                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
                         trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 

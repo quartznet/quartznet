@@ -301,7 +301,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Add the given <see cref="IJobDetail" /> to the
-		/// Scheduler, and associate the given <see cref="Trigger" /> with
+        /// Scheduler, and associate the given <see cref="ITrigger" /> with
 		/// it.
 		/// </summary>
 		/// <remarks>
@@ -311,10 +311,10 @@ namespace Quartz
 		DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
 
 		/// <summary>
-		/// Schedule the given <see cref="Trigger" /> with the
-		/// <see cref="IJob" /> identified by the <see cref="Trigger" />'s settings.
+        /// Schedule the given <see cref="ITrigger" /> with the
+        /// <see cref="IJob" /> identified by the <see cref="ITrigger" />'s settings.
 		/// </summary>
-		DateTimeOffset ScheduleJob(Trigger trigger);
+        DateTimeOffset ScheduleJob(ITrigger trigger);
 
 
         /**
@@ -349,7 +349,7 @@ namespace Quartz
 		/// name and group was not found and removed from the store, otherwise
 		/// the first fire time of the newly scheduled trigger.
 		/// </returns>
-        DateTimeOffset? RescheduleJob(TriggerKey triggerKey, Trigger newTrigger);
+        DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
         /// <summary>
 		/// Add the given <see cref="IJob" /> to the Scheduler - with no associated

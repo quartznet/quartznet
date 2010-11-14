@@ -20,38 +20,36 @@
 using System;
 using System.Globalization;
 
-using Quartz.Simpl;
 using Quartz.Spi;
-using Quartz.Util;
 
-namespace Quartz
+namespace Quartz.Impl.Triggers
 {
 	/// <summary>
 	/// The base abstract class to be extended by all triggers.
 	/// </summary>
 	/// <remarks>
 	/// <p>
-	/// <see cref="Trigger" />s have a name and group associated with them, which
+    /// <see cref="ITrigger" />s have a name and group associated with them, which
 	/// should uniquely identify them within a single <see cref="IScheduler" />.
 	/// </p>
 	/// 
 	/// <p>
-	/// <see cref="Trigger" />s are the 'mechanism' by which <see cref="IJob" /> s
-	/// are scheduled. Many <see cref="Trigger" /> s can point to the same <see cref="IJob" />,
-	/// but a single <see cref="Trigger" /> can only point to one <see cref="IJob" />.
+	/// <see cref="ITrigger" />s are the 'mechanism' by which <see cref="IJob" /> s
+    /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
+    /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
 	/// </p>
 	/// 
 	/// <p>
 	/// Triggers can 'send' parameters/data to <see cref="IJob" />s by placing contents
-	/// into the <see cref="JobDataMap" /> on the <see cref="Trigger" />.
+    /// into the <see cref="JobDataMap" /> on the <see cref="ITrigger" />.
 	/// </p>
     /// </remarks>
-	/// <seealso cref="SimpleTrigger" />
+	/// <seealso cref="SimpleTriggerImpl" />
     /// <seealso cref="CronTrigger" />
     /// <seealso cref="NthIncludedDayTrigger" />
     /// <seealso cref="TriggerUtils" />
     /// <seealso cref="JobDataMap" />
-    /// <seealso cref="JobExecutionContext" />
+    /// <seealso cref="IJobExecutionContext" />
 	/// <author>James House</author>
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
@@ -69,7 +67,6 @@ namespace Quartz
         private string jobGroup = SchedulerConstants.DefaultGroup;
         private string description;
         private JobDataMap jobDataMap;
-        private bool volatility;
         private string calendarName;
         private string fireInstanceId;
 
@@ -82,7 +79,7 @@ namespace Quartz
 		private TriggerKey key;
 
 		/// <summary>
-		/// Get or sets the name of this <see cref="Trigger" />.
+        /// Get or sets the name of this <see cref="ITrigger" />.
 		/// </summary>
 		/// <exception cref="ArgumentException">If name is null or empty.</exception>
 		public virtual string Name
@@ -97,11 +94,12 @@ namespace Quartz
 				}
 
 				name = value;
+                key = null;
 			}
 		}
 
 		/// <summary>
-		/// Get the group of this <see cref="Trigger" />. If <see langword="null" />, Scheduler.DefaultGroup will be used.
+		/// Get the group of this <see cref="ITrigger" />. If <see langword="null" />, Scheduler.DefaultGroup will be used.
 		/// </summary>
 		/// <exception cref="ArgumentException"> 
 		/// if group is an empty string.
@@ -123,6 +121,7 @@ namespace Quartz
 				}
 
 				group = value;
+			    key = null;
 			}
 		}
 
@@ -175,7 +174,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Returns the 'full name' of the <see cref="Trigger" /> in the format
+		/// Returns the 'full name' of the <see cref="ITrigger" /> in the format
 		/// "group.name".
 		/// </summary>
 		public virtual string FullName
@@ -187,9 +186,9 @@ namespace Quartz
 		/// Gets the key.
 		/// </summary>
 		/// <value>The key.</value>
-        public virtual TriggerKey Key 
+        public virtual TriggerKey Key
 		{
-			get
+		    get
 			{
 				if(key == null) 
 				{
@@ -198,10 +197,34 @@ namespace Quartz
 
 				return key;
 			}
+
+            set
+            {
+                Name = key.Name;
+                Group = key.Group;
+                key = value;
+            }
 		}
 
-		/// <summary>
-		/// Returns the 'full name' of the <see cref="IJob" /> that the <see cref="Trigger" />
+	    public JobKey JobKey
+	    {
+	        set
+	        {
+	            JobName = value.Name;
+	            JobGroup = value.Group;
+	        }
+	        get
+	        {
+                if (JobName == null)
+                {
+                    return null;
+                }
+                return new JobKey(JobName, JobGroup);
+	        }
+	    }
+
+	    /// <summary>
+		/// Returns the 'full name' of the <see cref="IJob" /> that the <see cref="ITrigger" />
 		/// points to, in the format "group.name".
 		/// </summary>
 		public virtual string FullJobName
@@ -209,8 +232,10 @@ namespace Quartz
 			get { return jobGroup + "." + jobName; }
 		}
 
-		/// <summary>
-		/// Get or set the description given to the <see cref="Trigger" /> instance by
+	    public abstract ScheduleBuilder GetScheduleBuilder();
+
+	    /// <summary>
+		/// Get or set the description given to the <see cref="ITrigger" /> instance by
 		/// its creator (if any).
 		/// </summary>
 		public virtual string Description
@@ -231,7 +256,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Get or set the <see cref="JobDataMap" /> that is associated with the 
-		/// <see cref="Trigger" />.
+		/// <see cref="ITrigger" />.
 		/// <p>
 		/// Changes made to this map during job execution are not re-persisted, and
 		/// in fact typically result in an illegal state.
@@ -252,20 +277,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Whether or not the <see cref="Trigger" /> should be persisted in the
-		/// <see cref="IJobStore" /> for re-use after program  restarts.
-		/// <p>
-		/// If not explicitly set, the default value is <see langword="false" />.
-		/// </p>
-		/// </summary>
-		public virtual bool Volatile
-		{
-			get { return volatility; }
-            set { volatility = value; }
-		}
-	
-		/// <summary>
-		/// Returns the last UTC time at which the <see cref="Trigger" /> will fire, if
+		/// Returns the last UTC time at which the <see cref="ITrigger" /> will fire, if
 		/// the Trigger will repeat indefinitely, null will be returned.
 		/// <p>
 		/// Note that the return time *may* be in the past.
@@ -275,8 +287,8 @@ namespace Quartz
 
         /// <summary>
 		/// Get or set the instruction the <see cref="IScheduler" /> should be given for
-		/// handling misfire situations for this <see cref="Trigger" />- the
-		/// concrete <see cref="Trigger" /> type that you are using will have
+		/// handling misfire situations for this <see cref="ITrigger" />- the
+		/// concrete <see cref="ITrigger" /> type that you are using will have
 		/// defined a set of additional MISFIRE_INSTRUCTION_XXX
 		/// constants that may be passed to this method.
 		/// <p>
@@ -306,7 +318,7 @@ namespace Quartz
 		/// <p>
 		/// Usable by <see cref="IJobStore" />
 		/// implementations, in order to facilitate 'recognizing' instances of fired
-		/// <see cref="Trigger" /> s as their jobs complete execution.
+		/// <see cref="ITrigger" /> s as their jobs complete execution.
 		/// </p>
 		/// </summary>
 		public virtual string FireInstanceId
@@ -315,7 +327,10 @@ namespace Quartz
 			set { fireInstanceId = value; }
 		}
 
-		/// <summary>
+	    public abstract void SetNextFireTimeUtc(DateTimeOffset nextFireTime);
+	    public abstract void SetPreviousFireTimeUtc(DateTimeOffset previousFireTime);
+
+	    /// <summary>
 		/// Gets and sets the date/time on which the trigger must stop firing. This 
 		/// defines the final boundary for trigger firings &#x8212; the trigger will
 		/// not fire after to this date and time. If this value is null, no end time
@@ -382,12 +397,12 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a <see cref="Trigger" /> with no specified name, group, or <see cref="IJobDetail" />.
+        /// Create a <see cref="ITrigger" /> with no specified name, group, or <see cref="IJobDetail" />.
 		/// </summary>
 		/// <remarks>
 		/// Note that the <see cref="Name" />, <see cref="Group" /> and
 		/// the <see cref="JobName" /> and <see cref="JobGroup" /> properties
-		/// must be set before the <see cref="Trigger" /> can be placed into a
+		/// must be set before the <see cref="ITrigger" /> can be placed into a
 		/// <see cref="IScheduler" />.
         /// </remarks>
 		protected AbstractTrigger()
@@ -396,11 +411,11 @@ namespace Quartz
 		}
 
         /// <summary>
-        /// Create a <see cref="Trigger" /> with the given name, and default group.
+        /// Create a <see cref="ITrigger" /> with the given name, and default group.
         /// </summary>
         /// <remarks>
         /// Note that the <see cref="JobName" /> and <see cref="JobGroup" />
-        /// properties must be set before the <see cref="Trigger" />
+        /// properties must be set before the <see cref="ITrigger" />
         /// can be placed into a <see cref="IScheduler" />.
         /// </remarks>
         /// <param name="name">The name.</param>
@@ -409,11 +424,11 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Create a <see cref="Trigger" /> with the given name, and group.
+        /// Create a <see cref="ITrigger" /> with the given name, and group.
         /// </summary>
         /// <remarks>
         /// Note that the <see cref="JobName" /> and <see cref="JobGroup" />
-        /// properties must be set before the <see cref="Trigger" />
+        /// properties must be set before the <see cref="ITrigger" />
         /// can be placed into a <see cref="IScheduler" />.
         /// </remarks>
         /// <param name="name">The name.</param>
@@ -425,7 +440,7 @@ namespace Quartz
 		}
 
         /// <summary>
-        /// Create a <see cref="Trigger" /> with the given name, and group.
+        /// Create a <see cref="ITrigger" /> with the given name, and group.
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
@@ -443,8 +458,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// The priority of a <see cref="Trigger" /> acts as a tie breaker such that if 
-        /// two <see cref="Trigger" />s have the same scheduled fire time, then Quartz
+		/// The priority of a <see cref="ITrigger" /> acts as a tie breaker such that if 
+        /// two <see cref="ITrigger" />s have the same scheduled fire time, then Quartz
         /// will do its best to give the one with the higher priority first access 
         /// to a worker thread.
 		/// </summary>
@@ -464,7 +479,7 @@ namespace Quartz
 		/// <p>
 		/// Called when the <see cref="IScheduler" /> has decided to 'fire'
 		/// the trigger (Execute the associated <see cref="IJob" />), in order to
-		/// give the <see cref="Trigger" /> a chance to update itself for its next
+		/// give the <see cref="ITrigger" /> a chance to update itself for its next
 		/// triggering (if any).
 		/// </p>
 		/// 
@@ -479,8 +494,8 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// <p>
-        /// Called by the scheduler at the time a <see cref="Trigger" /> is first
-        /// added to the scheduler, in order to have the <see cref="Trigger" />
+        /// Called by the scheduler at the time a <see cref="ITrigger" /> is first
+        /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
         /// </p>
         /// 
@@ -490,9 +505,9 @@ namespace Quartz
         /// </p>
         /// </remarks>
         /// <returns> 
-        /// The first time at which the <see cref="Trigger" /> will be fired
+        /// The first time at which the <see cref="ITrigger" /> will be fired
         /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
-        /// will return (until after the first firing of the <see cref="Trigger" />).
+        /// will return (until after the first firing of the <see cref="ITrigger" />).
         /// </returns>        
         public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal);
 
@@ -501,7 +516,7 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// Called after the <see cref="IScheduler" /> has executed the
-        /// <see cref="IJobDetail" /> associated with the <see cref="Trigger" />
+        /// <see cref="IJobDetail" /> associated with the <see cref="ITrigger" />
         /// in order to get the final instruction code from the trigger.
         /// </remarks>
         /// <param name="context">
@@ -548,16 +563,16 @@ namespace Quartz
 
 		/// <summary> 
 		/// Used by the <see cref="IScheduler" /> to determine whether or not
-		/// it is possible for this <see cref="Trigger" /> to fire again.
+		/// it is possible for this <see cref="ITrigger" /> to fire again.
 		/// <p>
 		/// If the returned value is <see langword="false" /> then the <see cref="IScheduler" />
-		/// may remove the <see cref="Trigger" /> from the <see cref="IJobStore" />.
+		/// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
 		/// </p>
 		/// </summary>
 		public abstract bool GetMayFireAgain();
 
         /// <summary>
-        /// Returns the next time at which the <see cref="Trigger" /> is scheduled to fire. If
+        /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If
         /// the trigger will not fire again, <see langword="null" /> will be returned.  Note that
         /// the time returned can possibly be in the past, if the time that was computed
         /// for the trigger to next fire has already arrived, but the scheduler has not yet
@@ -565,7 +580,7 @@ namespace Quartz
         /// e.g. threads).
         /// </summary>
         ///<remarks>
-        /// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
+        /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
         /// has been added to the scheduler.
         /// </remarks>
         /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTimeOffset, DateTimeOffset)" />
@@ -573,13 +588,13 @@ namespace Quartz
         public abstract DateTimeOffset? GetNextFireTimeUtc();
 		
         /// <summary>
-		/// Returns the previous time at which the <see cref="Trigger" /> fired.
+		/// Returns the previous time at which the <see cref="ITrigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
 		/// </summary>
         public abstract DateTimeOffset? GetPreviousFireTimeUtc();
 
 		/// <summary>
-		/// Returns the next time at which the <see cref="Trigger" /> will fire,
+		/// Returns the next time at which the <see cref="ITrigger" /> will fire,
 		/// after the given time. If the trigger will not fire after the given time,
 		/// <see langword="null" /> will be returned.
 		/// </summary>
@@ -598,8 +613,8 @@ namespace Quartz
 		/// To be implemented by the concrete classes that extend this class.
 		/// </p>
 		/// <p>
-		/// The implementation should update the <see cref="Trigger" />'s state
-		/// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="Trigger" />
+		/// The implementation should update the <see cref="ITrigger" />'s state
+		/// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="ITrigger" />
 		/// was created.
 		/// </p>
 		/// </summary>
@@ -608,7 +623,7 @@ namespace Quartz
 		/// <summary> 
 		/// This method should not be used by the Quartz client.
 		/// <p>
-		/// The implementation should update the <see cref="Trigger" />'s state
+		/// The implementation should update the <see cref="ITrigger" />'s state
 		/// based on the given new version of the associated <see cref="ICalendar" />
 		/// (the state should be updated so that it's next fire time is appropriate
 		/// given the Calendar's new settings). 
@@ -671,20 +686,20 @@ namespace Quartz
 			return
 				string.Format(
                     CultureInfo.InvariantCulture,
-					"Trigger '{0}':  triggerClass: '{1} isVolatile: {2} calendar: '{3}' misfireInstruction: {4} nextFireTime: {5}",
-					FullName, GetType().FullName, Volatile, CalendarName, MisfireInstruction, GetNextFireTimeUtc());
+					"Trigger '{0}':  triggerClass: '{1} calendar: '{2}' misfireInstruction: {3} nextFireTime: {4}",
+					FullName, GetType().FullName, CalendarName, MisfireInstruction, GetNextFireTimeUtc());
 		}
 
 		/// <summary>
-		/// Compare the next fire time of this <see cref="Trigger" /> to that of
+		/// Compare the next fire time of this <see cref="ITrigger" /> to that of
 		/// another.
 		/// </summary>
 		public virtual int CompareTo(object obj)
 		{
-		    return CompareTo((Trigger) obj);
+		    return CompareTo((ITrigger) obj);
 		}
 
-        public virtual int CompareTo(Trigger other)
+        public virtual int CompareTo(ITrigger other)
         {
             DateTimeOffset? myTime = GetNextFireTimeUtc();
             DateTimeOffset? otherTime = other.GetNextFireTimeUtc();
@@ -726,10 +741,10 @@ namespace Quartz
         /// </returns>
 		public override bool Equals(object obj)
 		{
-            return Equals(obj as Trigger);
+            return Equals(obj as AbstractTrigger);
 		}
 
-        public virtual bool Equals(Trigger trigger)
+        public virtual bool Equals(AbstractTrigger trigger)
         {
             if (trigger == null)
             {
@@ -747,7 +762,7 @@ namespace Quartz
         /// </returns>
 		public override int GetHashCode()
 		{
-			return TriggerWrapper.GetTriggerNameKey(Name,Group).GetHashCode();
+			return FullName.GetHashCode();
 		}
 
         /// <summary>
@@ -758,10 +773,10 @@ namespace Quartz
         /// </returns>
 		public virtual object Clone()
 		{
-			Trigger copy;
+			AbstractTrigger copy;
 			try
 			{
-				copy = (Trigger) MemberwiseClone();
+                copy = (AbstractTrigger) MemberwiseClone();
 
 				// Shallow copy the jobDataMap.  Note that this means that if a user
 				// modifies a value object in this map from the cloned Trigger
@@ -778,6 +793,21 @@ namespace Quartz
 			return copy;
 		}
 
+
+        public TriggerBuilder GetTriggerBuilder()
+        {
+            TriggerBuilder b = TriggerBuilder.newTrigger()
+                .forJob(JobKey)
+                .modifiedByCalendar(CalendarName)
+                .UsingJobData(JobDataMap)
+                .withDescription(Description)
+                .endAt(EndTimeUtc)
+                .withIdentity(Key)
+                .withPriority(Priority)
+                .startAt(StartTimeUtc)
+                .withSchedule(GetScheduleBuilder());
+            return b;
+        }
 	}
 
 }
