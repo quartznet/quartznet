@@ -74,7 +74,7 @@ namespace Quartz.Spi
      * 
      * @see TriggerUtils#computeEndTimeToAllowParticularNumberOfFirings(Trigger, Calendar, int)
      */
-        new DateTimeOffset EndTimeUtc {  get; set; }
+        new DateTimeOffset? EndTimeUtc {  get; set; }
 
         /**
      * <p>

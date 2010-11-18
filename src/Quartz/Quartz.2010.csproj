@@ -126,6 +126,12 @@
     <Compile Include="ICronTrigger.cs" />
     <Compile Include="IJobExecutionContext.cs" />
     <Compile Include="IListenerManager.cs" />
+    <Compile Include="Impl\AdoJobStore\CalendarIntervalTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\CronTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\SimpleTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\ITriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerPersistenceDelegateSupport.cs" />
+    <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerProperties.cs" />
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
     <Compile Include="ICalendarIntervalTrigger.cs" />
     <Compile Include="ISimpleTrigger.cs" />

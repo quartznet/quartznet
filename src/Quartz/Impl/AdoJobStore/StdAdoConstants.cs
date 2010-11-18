@@ -87,9 +87,15 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @triggerName AND {3} = @triggerGroup", TablePrefixSubst,
                           TableTriggers, ColumnTriggerName, ColumnTriggerGroup);
 
-        public static readonly string SqlDeleteVolatileFiredTriggers =
-            string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @volatile", TablePrefixSubst, TableFiredTriggers,
-                          ColumnIsVolatile);
+        public static readonly string SqlDeleteAllSimpleTriggers = "DELETE FROM " + TablePrefixSubst + "SIMPLE_TRIGGERS";
+        public static readonly string SqlDeleteAllSimpropTriggers = "DELETE FROM " + TablePrefixSubst + "SIMPROP_TRIGGERS";
+        public static readonly string SqlDeleteAllCronTriggers = "DELETE FROM " + TablePrefixSubst + "CRON_TRIGGERS";
+        public static readonly string SqlDeleteAllBlobTriggers = "DELETE FROM " + TablePrefixSubst + "BLOB_TRIGGERS";
+        public static readonly string SqlDeleteAllTriggers = "DELETE FROM " + TablePrefixSubst + "TRIGGERS";
+        public static readonly string SqlDeleteAllJobDetails = "DELETE FROM " + TablePrefixSubst + "JOB_DETAILS";
+        public static readonly string SqlDeleteAllCalendars = "DELETE FROM " + TablePrefixSubst + "CALENDARS";
+        public static readonly string SqlDeleteAllPausedTriggerGrps = "DELETE FROM " + TablePrefixSubst + "PAUSED_TRIGGER_GRPS";
+
 
         // INSERT
 
@@ -113,11 +119,11 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlInsertFiredTrigger =
             string.Format(CultureInfo.InvariantCulture,
-                "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}) VALUES(@triggerEntryId, @triggerName, @triggerGroup, @triggerVolatile, @triggerInstanceName, @triggerFireTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority)",
+                "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}) VALUES(@triggerEntryId, @triggerName, @triggerGroup, @triggerInstanceName, @triggerFireTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority)",
                 TablePrefixSubst, TableFiredTriggers, ColumnEntryId,
-                ColumnTriggerName, ColumnTriggerGroup, ColumnIsVolatile,
+                ColumnTriggerName, ColumnTriggerGroup,
                 ColumnInstanceName, ColumnFiredTime, ColumnEntryState,
-                ColumnJobName, ColumnJobGroup, ColumnIsStateful,
+                ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent,
                 ColumnRequestsRecovery, ColumnPriority);
 
         public static readonly string SqlInsertJobDetail =
@@ -125,7 +131,7 @@ namespace Quartz.Impl.AdoJobStore
                 "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10})  VALUES(@jobName, @jobGroup, @jobDescription, @jobType, @jobDurable, @jobVolatile, @jobStateful, @jobRequestsRecovery, @jobDataMap)",
                 TablePrefixSubst, TableJobDetails, ColumnJobName,
                 ColumnJobGroup, ColumnDescription, ColumnJobClass,
-                ColumnIsDurable, ColumnIsVolatile, ColumnIsStateful,
+                ColumnIsDurable, ColumnIsNonConcurrent, ColumnIsUpdateData,
                 ColumnRequestsRecovery, ColumnJobDataMap);
 
         public static readonly string SqlInsertPausedTriggerGroup =
@@ -149,11 +155,11 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlInsertTrigger =
             string.Format(CultureInfo.InvariantCulture,
-                @"INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, {16}, {17})  
-                        VALUES(@triggerName, @triggerGroup, @triggerJobName, @triggerJobGroup, @triggerVolatile, @triggerDescription, @triggerNextFireTime, @triggerPreviousFireTime, @triggerState, @triggerType, @triggerStartTime, @triggerEndTime, @triggerCalendarName, @triggerMisfireInstruction, @triggerJobJobDataMap, @triggerPriority)",
+                @"INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}, {16})  
+                        VALUES(@triggerName, @triggerGroup, @triggerJobName, @triggerJobGroup, @triggerDescription, @triggerNextFireTime, @triggerPreviousFireTime, @triggerState, @triggerType, @triggerStartTime, @triggerEndTime, @triggerCalendarName, @triggerMisfireInstruction, @triggerJobJobDataMap, @triggerPriority)",
                 TablePrefixSubst, TableTriggers, ColumnTriggerName,
                 ColumnTriggerGroup, ColumnJobName, ColumnJobGroup,
-                ColumnIsVolatile, ColumnDescription, ColumnNextFireTime,
+                ColumnDescription, ColumnNextFireTime,
                 ColumnPreviousFireTime, ColumnTriggerState, ColumnTriggerType,
                 ColumnStartTime, ColumnEndTime, ColumnCalendarName,
                 ColumnMifireInstruction, ColumnJobDataMap, ColumnPriority);
@@ -245,8 +251,8 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "SELECT DISTINCT({0}) FROM {1}{2}", ColumnJobGroup, TablePrefixSubst,
                           TableJobDetails);
 
-        public static readonly string SqlSelectJobStateful =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = @jobName AND {4} = @jobGroup", ColumnIsStateful,
+        public static readonly string SqlSelectJobNonConcurrent =
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = @jobName AND {4} = @jobGroup", ColumnIsNonConcurrent,
                           TablePrefixSubst, TableJobDetails, ColumnJobName,
                           ColumnJobGroup);
 
@@ -336,14 +342,14 @@ namespace Quartz.Impl.AdoJobStore
                           TableSimpleTriggers, ColumnTriggerName,
                           ColumnTriggerGroup);
 
-        public static readonly string SqlSelectStatefulJobsOfTriggerGroup =
+        public static readonly string SqlSelectNonConcurrentJobsOfTriggerGroup =
             string.Format(
                 CultureInfo.InvariantCulture,
                 "SELECT DISTINCT J.{0}, J.{1} FROM {2}{3} T, {4}{5} J WHERE T.{6} = @triggerGroup AND T.{7} = J.{8} AND T.{9} = J.{10} AND J.{11} = @stateful",
                 ColumnJobName, ColumnJobGroup, TablePrefixSubst,
                 TableTriggers, TablePrefixSubst, TableJobDetails,
                 ColumnTriggerGroup, ColumnJobName, ColumnJobName,
-                ColumnJobGroup, ColumnJobGroup, ColumnIsStateful);
+                ColumnJobGroup, ColumnJobGroup, ColumnIsNonConcurrent);
 
         public static readonly string SqlSelectTrigger =
             string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = @triggerName AND {3} = @triggerGroup", TablePrefixSubst,
@@ -398,16 +404,6 @@ namespace Quartz.Impl.AdoJobStore
                           ColumnTriggerGroup, TablePrefixSubst, TableTriggers,
                           ColumnTriggerState);
 
-        public static readonly string SqlSelectVolatileJobs =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = @volatile", ColumnJobName,
-                          ColumnJobGroup, TablePrefixSubst, TableJobDetails,
-                          ColumnIsVolatile);
-
-        public static readonly string SqlSelectVolatileTriggers =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = @volatile", ColumnTriggerName,
-                          ColumnTriggerGroup, TablePrefixSubst, TableTriggers,
-                          ColumnIsVolatile);
-
         // UPDATE 
 
         public static readonly string SqlUpdateBlobTrigger =
@@ -422,9 +418,9 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlUpdateCronTrigger =
             string.Format(CultureInfo.InvariantCulture,
-                "UPDATE {0}{1} SET {2} = @triggerCronExpression WHERE {3} = @triggerName AND {4} = @triggerGroup",
+                "UPDATE {0}{1} SET {2} = @triggerCronExpression {3} = @timeZoneId WHERE {4} = @triggerName AND {5} = @triggerGroup",
                 TablePrefixSubst,
-                TableCronTriggers, ColumnCronExpression,
+                TableCronTriggers, ColumnCronExpression, ColumnTimeZoneId,
                 ColumnTriggerName, ColumnTriggerGroup);
 
         public static readonly string SqlUpdateInstancesFiredTriggerState =
@@ -443,8 +439,8 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture,
                 "UPDATE {0}{1} SET {2} = @jobDescription, {3} = @jobType, {4} = @jobDurable, {5} = @jobVolatile, {6} = @jobStateful, {7} = @jobRequestsRecovery, {8} = @jobDataMap  WHERE {9} = @jobName AND {10} = @jobGroup",
                 TablePrefixSubst, TableJobDetails, ColumnDescription,
-                ColumnJobClass, ColumnIsDurable, ColumnIsVolatile,
-                ColumnIsStateful, ColumnRequestsRecovery, ColumnJobDataMap,
+                ColumnJobClass, ColumnIsDurable, ColumnIsNonConcurrent,
+                ColumnIsUpdateData, ColumnRequestsRecovery, ColumnJobDataMap,
                 ColumnJobName, ColumnJobGroup);
 
         public static readonly string SqlUpdateJobTriggerStates =
@@ -474,15 +470,22 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlUpdateTrigger =
             string.Format(CultureInfo.InvariantCulture,
-                @"UPDATE {0}{1} SET {2} = @triggerJobName, {3} = @triggerJobGroup, {4} = @triggerVolatile, {5} = @triggerDescription, {6} = @triggerNextFireTime, {7} = @triggerPreviousFireTime,
-                        {8} = @triggerState, {9} = @triggerType, {10} = @triggerStartTime, {11} = @triggerEndTime, {12} = @triggerCalendarName, {13} = @triggerMisfireInstruction, {14} = @triggerPriority, {15} = @triggerJobJobDataMap
-                        WHERE {16} = @triggerName AND {17} = @triggerGroup",
+                @"UPDATE {0}{1} SET {2} = @triggerJobName, {3} = @triggerJobGroup, {4} = @triggerDescription, {5} = @triggerNextFireTime, {6} = @triggerPreviousFireTime,
+                        {7} = @triggerState, {8} = @triggerType, {9} = @triggerStartTime, {10} = @triggerEndTime, {11} = @triggerCalendarName, {12} = @triggerMisfireInstruction, {13} = @triggerPriority, {14} = @triggerJobJobDataMap
+                        WHERE {15} = @triggerName AND {16} = @triggerGroup",
                 TablePrefixSubst, TableTriggers, ColumnJobName,
-                ColumnJobGroup, ColumnIsVolatile, ColumnDescription,
+                ColumnJobGroup, ColumnDescription,
                 ColumnNextFireTime, ColumnPreviousFireTime, ColumnTriggerState,
                 ColumnTriggerType, ColumnStartTime, ColumnEndTime,
                 ColumnCalendarName, ColumnMifireInstruction, ColumnPriority, ColumnJobDataMap,
                 ColumnTriggerName, ColumnTriggerGroup);
+
+
+        public static readonly string SqlUpdateFiredTrigger = string.Format(
+            CultureInfo.InvariantCulture,
+            "UPDATE {0}{1} SET {2} = @instanceName, {3} = @firedTime, {4} = @entryState, {5} = @jobName, {6} = jobGroup, {7} = @isNonConcurrent, {8} = @requestsRecover WHERE {9} = @entryId", 
+            TablePrefixSubst, TableFiredTriggers, ColumnInstanceName, ColumnFiredTime, ColumnEntryState, 
+            ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent, ColumnRequestsRecovery, ColumnEntryId);
 
         public static readonly string SqlUpdateTriggerGroupState =
             string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = @state", TablePrefixSubst, TableTriggers,
@@ -503,11 +506,11 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlUpdateTriggerSkipData =
             string.Format(CultureInfo.InvariantCulture,
-                @"UPDATE {0}{1} SET {2} = @triggerJobName, {3} = @triggerJobGroup, {4} = @triggerVolatile, {5} = @triggerDescription, {6} = @triggerNextFireTime, {7} = @triggerPreviousFireTime, 
-                        {8} = @triggerState, {9} = @triggerType, {10} = @triggerStartTime, {11} = @triggerEndTime, {12} = @triggerCalendarName, {13} = @triggerMisfireInstruction, {14} = @triggerPriority
-                    WHERE {15} = @triggerName AND {16} = @triggerGroup",
+                @"UPDATE {0}{1} SET {2} = @triggerJobName, {3} = @triggerJobGroup, {4} = @triggerDescription, {5} = @triggerNextFireTime, {6} = @triggerPreviousFireTime, 
+                        {7} = @triggerState, {8} = @triggerType, {9} = @triggerStartTime, {10} = @triggerEndTime, {11} = @triggerCalendarName, {12} = @triggerMisfireInstruction, {13} = @triggerPriority
+                    WHERE {14} = @triggerName AND {15} = @triggerGroup",
                 TablePrefixSubst, TableTriggers, ColumnJobName,
-                ColumnJobGroup, ColumnIsVolatile, ColumnDescription,
+                ColumnJobGroup, ColumnDescription,
                 ColumnNextFireTime, ColumnPreviousFireTime, ColumnTriggerState,
                 ColumnTriggerType, ColumnStartTime, ColumnEndTime,
                 ColumnCalendarName, ColumnMifireInstruction, ColumnPriority, ColumnTriggerName,

@@ -58,7 +58,7 @@ namespace Quartz
      * @return the new CalendarIntervalScheduleBuilder
      */
 
-        public static CalendarIntervalScheduleBuilder calendarIntervalSchedule()
+        public static CalendarIntervalScheduleBuilder CalendarIntervalSchedule()
         {
             return new CalendarIntervalScheduleBuilder();
         }

@@ -146,7 +146,7 @@ namespace Quartz
     /// </p>
     /// </remarks>
     /// <seealso cref="Trigger"/>
-    /// <seealso cref="SimpleTrigger"/>
+    /// <seealso cref="SimpleTriggerImp"/>
     /// <seealso cref="TriggerUtils"/>
     /// <author>Sharada Jambula</author>
     /// <author>James House</author>

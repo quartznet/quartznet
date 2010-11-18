@@ -796,16 +796,16 @@ namespace Quartz.Impl.Triggers
 
         public TriggerBuilder GetTriggerBuilder()
         {
-            TriggerBuilder b = TriggerBuilder.newTrigger()
-                .forJob(JobKey)
-                .modifiedByCalendar(CalendarName)
+            TriggerBuilder b = TriggerBuilder.NewTrigger()
+                .ForJob(JobKey)
+                .ModifiedByCalendar(CalendarName)
                 .UsingJobData(JobDataMap)
-                .withDescription(Description)
-                .endAt(EndTimeUtc)
-                .withIdentity(Key)
-                .withPriority(Priority)
-                .startAt(StartTimeUtc)
-                .withSchedule(GetScheduleBuilder());
+                .WithDescription(Description)
+                .EndAt(EndTimeUtc)
+                .WithIdentity(Key)
+                .WithPriority(Priority)
+                .StartAt(StartTimeUtc)
+                .WithSchedule(GetScheduleBuilder());
             return b;
         }
 	}

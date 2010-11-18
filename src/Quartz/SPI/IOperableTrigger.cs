@@ -136,7 +136,7 @@ public interface IOperableTrigger : IMutableTrigger {
      */
     string FireInstanceId { get;  set; }
 
-    void SetNextFireTimeUtc(DateTimeOffset nextFireTime);
+    void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
 
-    void SetPreviousFireTimeUtc(DateTimeOffset previousFireTime);
+    void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime);
 }}

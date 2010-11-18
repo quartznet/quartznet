@@ -814,7 +814,7 @@ namespace Quartz.Impl.Triggers
         public ScheduleBuilder GetScheduleBuilder()
         {
 
-            CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.calendarIntervalSchedule()
+            CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()
                     .withInterval(RepeatInterval, RepeatIntervalUnit);
 
             switch (MisfireInstruction)
