@@ -120,5 +120,9 @@ namespace Quartz.Listener
         public virtual void SchedulerShuttingdown()
         {
         }
+
+        public virtual void SchedulingDataCleared()
+        {
+        }
     }
 }

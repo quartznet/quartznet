@@ -274,7 +274,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset ScheduleJob(Trigger trigger)
+        public virtual DateTimeOffset ScheduleJob(ITrigger trigger)
         {
             return sched.ScheduleJob(trigger);
         }
@@ -286,6 +286,21 @@ namespace Quartz.Impl
         {
             sched.AddJob(jobDetail, replace);
         }
+
+        public bool DeleteJobs(IList<JobKey> jobKeys)
+        {
+            return sched.DeleteJobs(jobKeys);
+        }
+
+        public void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace)
+        {
+            sched.ScheduleJobs(triggersAndJobs, replace);
+        }
+
+        public bool UnscheduleJobs(IList<TriggerKey> triggerKeys)
+        {
+            return sched.UnscheduleJobs(triggerKeys);
+        } 
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
@@ -306,7 +321,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset? RescheduleJob(TriggerKey triggerKey, Trigger newTrigger)
+        public virtual DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger)
         {
             return sched.RescheduleJob(triggerKey, newTrigger);
         }

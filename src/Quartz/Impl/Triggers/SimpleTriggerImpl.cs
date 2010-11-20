@@ -200,7 +200,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get or set the the time interval at which the <see cref="SimpleTrigger" /> should repeat.
+        /// Get or set the the time interval at which the <see cref="ISimpleTrigger" /> should repeat.
         /// </summary>
         public TimeSpan RepeatInterval
         {
@@ -218,7 +218,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get or set the number of times the <see cref="SimpleTrigger" /> has already
+        /// Get or set the number of times the <see cref="ISimpleTrigger" /> has already
         /// fired.
         /// </summary>
         public virtual int TimesTriggered
@@ -228,7 +228,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary> 
-        /// Returns the final UTC time at which the <see cref="SimpleTrigger" /> will
+        /// Returns the final UTC time at which the <see cref="ISimpleTrigger" /> will
         /// fire, if repeatCount is RepeatIndefinitely, null will be returned.
         /// <p>
         /// Note that the return time may be in the past.
@@ -298,8 +298,8 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary>
-		/// Updates the <see cref="SimpleTrigger" />'s state based on the
-        /// MisfireInstruction value that was selected when the <see cref="SimpleTrigger" />
+		/// Updates the <see cref="ISimpleTrigger" />'s state based on the
+        /// MisfireInstruction value that was selected when the <see cref="ISimpleTrigger" />
 		/// was created.
 		/// </summary>
 		/// <remarks>
@@ -555,7 +555,7 @@ namespace Quartz.Impl.Triggers
 
 		
 		/// <summary>
-		/// Returns the next time at which the <see cref="SimpleTrigger" /> will
+		/// Returns the next time at which the <see cref="ISimpleTrigger" /> will
 		/// fire. If the trigger will not fire again, <see langword="null" /> will be
 		/// returned. The value returned is not guaranteed to be valid until after
 		/// the <see cref="Trigger" /> has been added to the scheduler.
@@ -566,7 +566,7 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary>
-		/// Returns the previous time at which the <see cref="SimpleTrigger" /> fired.
+		/// Returns the previous time at which the <see cref="ISimpleTrigger" /> fired.
 		/// If the trigger has not yet fired, <see langword="null" /> will be
 		/// returned.
 		/// </summary>
@@ -576,7 +576,7 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary>
-		/// Set the next UTC time at which the <see cref="SimpleTrigger" /> should fire.
+		/// Set the next UTC time at which the <see cref="ISimpleTrigger" /> should fire.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
         public void SetNextFireTime(DateTimeOffset? fireTimeUtc)
@@ -585,7 +585,7 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary>
-		/// Set the previous UTC time at which the <see cref="SimpleTrigger" /> fired.
+		/// Set the previous UTC time at which the <see cref="ISimpleTrigger" /> fired.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>
         public virtual void SetPreviousFireTime(DateTimeOffset? fireTimeUtc)
@@ -594,7 +594,7 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary> 
-		/// Returns the next UTC time at which the <see cref="SimpleTrigger" /> will
+		/// Returns the next UTC time at which the <see cref="ISimpleTrigger" /> will
 		/// fire, after the given UTC time. If the trigger will not fire after the given
 		/// time, <see langword="null" /> will be returned.
 		/// </summary>
@@ -655,7 +655,7 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary>
-		/// Returns the last UTC time at which the <see cref="SimpleTrigger" /> will
+		/// Returns the last UTC time at which the <see cref="ISimpleTrigger" /> will
 		/// fire, before the given time. If the trigger will not fire before the
 		/// given time, <see langword="null" /> will be returned.
 		/// </summary>
@@ -683,7 +683,7 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary> 
-		/// Determines whether or not the <see cref="SimpleTrigger" /> will occur
+		/// Determines whether or not the <see cref="ISimpleTrigger" /> will occur
 		/// again.
 		/// </summary>
 		public override bool GetMayFireAgain()

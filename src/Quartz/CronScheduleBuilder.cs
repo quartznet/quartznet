@@ -87,16 +87,16 @@ namespace Quartz
 
             try
             {
-                ct.setCronExpression(cronExpression);
+                ct.CronExpressionString = cronExpression;
             }
-            catch (ParseException e)
+            catch (FormatException)
             {
                 // all methods of construction ensure the expression is valid by this point...
-                throw new RuntimeException("CronExpression '" + cronExpression +
+                throw new Exception("CronExpression '" + cronExpression +
                                            "' is invalid, which should not be possible, please report bug to Quartz developers.");
             }
-            ct.setTimeZone(tz);
-            ct.setMisfireInstruction(misfireInstruction);
+            ct.TimeZone = tz;
+            ct.MisfireInstruction = misfireInstruction;
 
             return ct;
         }
@@ -203,6 +203,20 @@ namespace Quartz
         public CronScheduleBuilder inTimeZone(TimeZoneInfo tz)
         {
             this.tz = tz;
+            return this;
+        }
+
+
+        /**
+         * If the Trigger misfires, use the 
+         * {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
+         * 
+         * @return the updated CronScheduleBuilder
+         * @see Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY
+         */
+        public CronScheduleBuilder withMisfireHandlingInstructionIgnoreMisfires()
+        {
+            misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
             return this;
         }
 

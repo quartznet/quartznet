@@ -42,6 +42,7 @@ namespace Quartz
 		/// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
 		/// is unscheduled.
 		/// </summary>
+        /// <seealso cref="SchedulingDataCleared"/>
         void JobUnscheduled(TriggerKey triggerKey);
 
 		/// <summary> 
@@ -157,5 +158,12 @@ namespace Quartz
         /// that it has begun the shutdown sequence.
         /// </summary>
         void SchedulerShuttingdown();
+
+
+        /// <summary>
+        /// Called by the <code>{@link Scheduler}</code> to inform the listener
+        /// that all jobs, triggers and calendars were deleted.
+        /// </summary>
+        void SchedulingDataCleared();
 	}
 }

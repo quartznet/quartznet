@@ -111,14 +111,14 @@ namespace Quartz
         /// handling misfire situations for this <see cref="Trigger" />- the
         /// concrete <see cref="Trigger" /> type that you are using will have
         /// defined a set of additional MISFIRE_INSTRUCTION_XXX
-        /// constants that may be passed to this method.
+        /// constants that may be set to this property.
         /// <p>
         /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.InstructionNotSet" />.
         /// </p>
         /// </summary>
         /// <seealso cref="Quartz.MisfireInstruction.InstructionNotSet" />
-        /// <seealso cref="SimpleTrigger" />
-        /// <seealso cref="CronTrigger" />
+        /// <seealso cref="ISimpleTrigger" />
+        /// <seealso cref="ICronTrigger" />
         int MisfireInstruction { get; }
 
         /// <summary>

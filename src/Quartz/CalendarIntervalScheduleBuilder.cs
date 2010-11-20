@@ -225,6 +225,20 @@ namespace Quartz
         }
 
         /**
+ * If the Trigger misfires, use the 
+ * {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
+ * 
+ * @return the updated CronScheduleBuilder
+ * @see Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY
+ */
+        public CalendarIntervalScheduleBuilder withMisfireHandlingInstructionIgnoreMisfires()
+        {
+            misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+            return this;
+        }
+    
+
+        /**
      * If the Trigger misfires, use the 
      * {@link CalendarIntervalTrigger#MISFIRE_INSTRUCTION_DO_NOTHING} instruction.
      * 

@@ -149,5 +149,11 @@ namespace Quartz.Simpl
         bool CheckExists(JobKey jobKey); 
    
         bool CheckExists(TriggerKey triggerKey);
+
+        bool DeleteJobs(IList<JobKey> jobKeys);
+
+        void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace);
+
+        bool UnscheduleJobs(IList<TriggerKey> triggerKeys);
 	}
 }

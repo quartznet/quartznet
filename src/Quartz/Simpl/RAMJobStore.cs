@@ -306,6 +306,70 @@ namespace Quartz.Simpl
 			return found;
 		}
 
+	    public bool RemoveJobs(IList<JobKey> jobKeys)
+	    {
+	        bool allFound = true;
+
+	        lock (lockObject)
+	        {
+	            foreach (JobKey key in jobKeys)
+	            {
+	                allFound = RemoveJob(key) && allFound;
+	            }
+	        }
+
+	        return allFound;
+	    }
+
+	    public bool RemoveTriggers(IList<TriggerKey> triggerKeys)
+	    {
+	        bool allFound = true;
+
+	        lock (lockObject)
+	        {
+	            foreach (TriggerKey key in triggerKeys)
+	            {
+	                allFound = RemoveTrigger(key) && allFound;
+	            }
+	        }
+
+	        return allFound;
+	    }
+
+	    public void StoreJobsAndTriggers(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace)
+	    {
+	        lock (lockObject)
+	        {
+	            // make sure there are no collisions...
+	            if (!replace)
+	            {
+	                foreach (IJobDetail job in triggersAndJobs.Keys)
+	                {
+	                    if (CheckExists(job.Key))
+	                    {
+	                        throw new ObjectAlreadyExistsException(job);
+	                    }
+	                    foreach (ITrigger trigger in triggersAndJobs[job])
+	                    {
+	                        if (CheckExists(trigger.Key))
+	                        {
+	                            throw new ObjectAlreadyExistsException(trigger);
+	                        }
+	                    }
+	                }
+	            }
+	            // do bulk add...
+	            foreach (IJobDetail job in triggersAndJobs.Keys)
+	            {
+	                StoreJob(job, true);
+	                foreach (ITrigger trigger in triggersAndJobs[job])
+	                {
+	                    StoreTrigger((IOperableTrigger) trigger, true);
+	                }
+	            }
+	        }
+	    }
+
         /// <summary>
         /// Remove (delete) the <see cref="Trigger" /> with the
         /// given name.
@@ -1235,7 +1299,8 @@ namespace Quartz.Simpl
 			}
 
             DateTimeOffset? tnft = tw.trigger.GetNextFireTimeUtc();
-            if (!tnft.HasValue || tnft.Value > misfireTime)
+            if (!tnft.HasValue || tnft.Value > misfireTime
+                || tw.trigger.MisfireInstruction == MisfireInstruction.IgnoreMisfirePolicy)
 			{
 				return false;
 			}

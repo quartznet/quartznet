@@ -287,6 +287,11 @@ namespace Quartz.Impl.Triggers
         {
             int instr = MisfireInstruction;
 
+            if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
+            {
+                return;
+            }
+
             if (instr == Quartz.MisfireInstruction.SmartPolicy)
             {
                 instr = Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;

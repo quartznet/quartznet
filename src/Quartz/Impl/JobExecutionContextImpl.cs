@@ -68,7 +68,7 @@ namespace Quartz
 	{
         [NonSerialized]
         private readonly IScheduler scheduler;
-        private readonly Trigger trigger;
+        private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;
         [NonSerialized]

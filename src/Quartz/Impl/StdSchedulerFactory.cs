@@ -74,7 +74,8 @@ namespace Quartz.Impl
     /// <author>Anthony Eden</author>
     /// <author>Mohammad Rezaei</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class StdSchedulerFactory : ISchedulerFactory
+    public class 
+        StdSchedulerFactory : ISchedulerFactory
     {
         private const string ConfigurationKeyPrefix = "quartz.";
         public const string PropertiesFile = "quartz.config";
@@ -104,6 +105,7 @@ namespace Quartz.Impl
         public const string PropertyJobStoreLockHandlerPrefix = PropertyJobStorePrefix + ".lockHandler";
         public const string PropertyJobStoreLockHandlerType = PropertyJobStoreLockHandlerPrefix + ".type";
         public const string PropertyTablePrefix = "tablePrefix";
+        public const string PropertySchedulerName = "schedName";
         public const string PropertyJobStoreType = "quartz.jobStore.type";
         public const string PropertyDataSourcePrefix = "quartz.dataSource";
         public const string PropertyDbProviderType = "connectionProvider.type";
@@ -674,6 +676,7 @@ Please add configuration to your application config file to correctly initialize
                         if (lockHandler is ITablePrefixAware)
                         {
                             tProps[PropertyTablePrefix] = ((JobStoreSupport) js).TablePrefix;
+                            tProps[PropertySchedulerName] = schedName;
                         }
 
                         try

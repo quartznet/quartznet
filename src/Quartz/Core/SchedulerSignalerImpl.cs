@@ -68,7 +68,7 @@ namespace Quartz.Core
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        public void NotifySchedulerListenersFinalized(Trigger trigger)
+        public void NotifySchedulerListenersFinalized(ITrigger trigger)
         {
             sched.NotifySchedulerListenersFinalized(trigger);
         }

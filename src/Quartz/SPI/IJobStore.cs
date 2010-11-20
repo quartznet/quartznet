@@ -114,6 +114,8 @@ namespace Quartz.Spi
         /// </param>
 		void StoreJob(IJobDetail newJob, bool replaceExisting);
 
+	    void StoreJobsAndTriggers(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace); 
+
         /// <summary>
         /// Remove (delete) the <see cref="IJob" /> with the given
         /// key, and any <see cref="Trigger" /> s that reference
@@ -129,6 +131,8 @@ namespace Quartz.Spi
         /// group was found and removed from the store.
         /// </returns>
         bool RemoveJob(JobKey jobKey);
+
+	    bool RemoveJobs(IList<JobKey> jobKeys);
 
         /// <summary>
         /// Retrieve the <see cref="IJobDetail" /> for the given
@@ -169,6 +173,8 @@ namespace Quartz.Spi
         /// name and group was found and removed from the store.
         /// </returns>
         bool RemoveTrigger(TriggerKey triggerKey);
+
+	    bool RemoveTriggers(IList<TriggerKey> triggerKeys);
 
         /// <summary>
         /// Remove (delete) the <see cref="Trigger" /> with the

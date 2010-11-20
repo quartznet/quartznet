@@ -809,6 +809,50 @@ namespace Quartz.Core
             return result;
         }
 
+        public bool DeleteJobs(IList<JobKey> jobKeys)
+        {
+            ValidateState();
+
+            bool result = false;
+
+            result = resources.JobStore.RemoveJobs(jobKeys);
+            NotifySchedulerThread(null);
+            foreach (JobKey key in jobKeys)
+            {
+                NotifySchedulerListenersJobDeleted(key);
+            }
+            return result;
+        }
+
+        public void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace)
+        {
+            ValidateState();
+
+            bool result = false;
+
+            resources.JobStore.StoreJobsAndTriggers(triggersAndJobs, replace);
+            NotifySchedulerThread(null);
+            foreach (IJobDetail job in triggersAndJobs.Keys)
+            {
+                NotifySchedulerListenersJobAdded(job);
+            }
+        }
+
+        public bool UnscheduleJobs(IList<TriggerKey> triggerKeys)
+        {
+            ValidateState();
+
+            bool result = false;
+
+            result = resources.JobStore.RemoveTriggers(triggerKeys);
+            NotifySchedulerThread(null);
+            foreach (TriggerKey key in triggerKeys)
+            {
+                NotifySchedulerListenersUnscheduled(key);
+            }
+            return result;
+        }
+
         /// <summary>
         /// Remove the indicated <see cref="Trigger" /> from the
         /// scheduler.
@@ -915,7 +959,7 @@ namespace Quartz.Core
 
             // TODO: use builder
             IOperableTrigger trig = new SimpleTriggerImpl(
-                NewTriggerId(), SchedulerConstants.DefaultGroup, jobKey.Name, jobKey.Group, DateTimeOffset.UtcNow, null, 0, 0);
+                NewTriggerId(), SchedulerConstants.DefaultGroup, jobKey.Name, jobKey.Group, DateTimeOffset.UtcNow, null, 0, TimeSpan.Zero);
 
             trig.ComputeFirstFireTimeUtc(null);
             if (data != null)
@@ -1256,6 +1300,7 @@ namespace Quartz.Core
             ValidateState();
 
             resources.JobStore.ClearAllSchedulingData();
+            NotifySchedulerListenersUnscheduled(null);
         }
 
         /// <summary>
@@ -1770,11 +1815,15 @@ namespace Quartz.Core
             {
                 try
                 {
-                    sl.JobUnscheduled(triggerKey);
+                    sl.SchedulingDataCleared();
                 }
                 catch (Exception e)
                 {
-                    log.ErrorFormat(CultureInfo.InvariantCulture, "Error while notifying SchedulerListener of unscheduled job. Trigger={0}", e, triggerKey);
+                    log.ErrorFormat(
+                        CultureInfo.InvariantCulture, 
+                        "Error while notifying SchedulerListener of unscheduled job. Trigger={0}", 
+                        e, 
+                        (triggerKey == null ? "ALL DATA" : triggerKey.ToString()));
                 }
             }
         }

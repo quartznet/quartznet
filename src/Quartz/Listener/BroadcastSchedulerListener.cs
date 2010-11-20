@@ -134,6 +134,14 @@ namespace Quartz.Listener
             }
         }
 
+        public void SchedulingDataCleared()
+        {
+            foreach (ISchedulerListener l in listeners)
+            {
+                l.SchedulingDataCleared();
+            }
+        }
+
         public void TriggerResumed(TriggerKey triggerKey)
         {
             foreach (ISchedulerListener l in listeners)
