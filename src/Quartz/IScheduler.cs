@@ -199,12 +199,12 @@ namespace Quartz
         /// <summary>
         /// Get the names of all known <see cref="IJobDetail" /> groups.
         /// </summary>
-        IList<string> JobGroupNames { get; }
+        IList<string> GetJobGroupNames();
 
         /// <summary>
         /// Get the names of all known <see cref="Trigger" /> groups.
         /// </summary>
-        IList<string> TriggerGroupNames { get; }
+        IList<string> GetTriggerGroupNames();
 
         /// <summary> 
         /// Get the names of all <see cref="Trigger" /> groups that are paused.

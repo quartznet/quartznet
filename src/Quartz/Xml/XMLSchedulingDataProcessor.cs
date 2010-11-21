@@ -879,7 +879,7 @@ namespace Quartz.Xml
                 if (group.Equals("*"))
                 {
                     log.Info("Deleting all jobs in ALL groups.");
-                    foreach (string groupName in scheduler.JobGroupNames)
+                    foreach (string groupName in scheduler.GetJobGroupNames())
                     {
                         if (!jobGroupsToNeverDelete.Contains(groupName))
                         {
@@ -908,7 +908,7 @@ namespace Quartz.Xml
                 if (group.Equals("*"))
                 {
                     log.Info("Deleting all triggers in ALL groups.");
-                    foreach (string groupName in scheduler.TriggerGroupNames)
+                    foreach (string groupName in scheduler.GetTriggerGroupNames())
                     {
                         if (!triggerGroupsToNeverDelete.Contains(groupName))
                         {

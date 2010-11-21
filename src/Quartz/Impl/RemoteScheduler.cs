@@ -215,36 +215,30 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> JobGroupNames
+        public virtual IList<string> GetJobGroupNames()
         {
-            get
+            try
             {
-                try
-                {
-                    return GetRemoteScheduler().GetJobGroupNames();
-                }
-                catch (RemotingException re)
-                {
-                    throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
-                }
+                return GetRemoteScheduler().GetJobGroupNames();
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> TriggerGroupNames
+        public virtual IList<string> GetTriggerGroupNames()
         {
-            get
+            try
             {
-                try
-                {
-                    return GetRemoteScheduler().GetTriggerGroupNames();
-                }
-                catch (RemotingException re)
-                {
-                    throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
-                }
+                return GetRemoteScheduler().GetTriggerGroupNames();
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
         }
 

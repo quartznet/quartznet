@@ -191,12 +191,11 @@ namespace Quartz
         /// Set the class which will be instantiated and executed when a
         /// Trigger fires that is associated with this JobDetail.
         /// </summary>
-        /// <param name="jobType" a class implementing the Job interface.</param>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail#getJobClass()" />
-        public JobBuilder OfType(Type jobType)
+        public JobBuilder OfType<T>()
         {
-            this.jobType = jobType;
+            jobType = typeof(T);
             return this;
         }
 

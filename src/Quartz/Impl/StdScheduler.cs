@@ -184,17 +184,17 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> JobGroupNames
+        public virtual IList<string> GetJobGroupNames()
         {
-            get { return sched.GetJobGroupNames(); }
+            return sched.GetJobGroupNames();
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> TriggerGroupNames
+        public virtual IList<string> GetTriggerGroupNames()
         {
-            get { return sched.GetTriggerGroupNames(); }
+            return sched.GetTriggerGroupNames();
         }
 
         /// <summary>

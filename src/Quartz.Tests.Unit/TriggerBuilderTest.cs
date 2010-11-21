@@ -1,0 +1,79 @@
+using System;
+
+using NUnit.Framework;
+
+using Quartz.Impl.Triggers;
+
+namespace Quartz.Tests.Unit
+{
+    [TestFixture]
+    public class TriggerBuilderTest
+    {
+        public class TestStatefulJob : IStatefulJob
+        {
+            public void Execute(IJobExecutionContext context)
+            {
+            }
+        }
+
+        public class TestJob : IJob
+        {
+            public void Execute(IJobExecutionContext context)
+            {
+            }
+        }
+
+        [DisallowConcurrentExecution]
+        [PersistJobDataAfterExecution]
+        public class TestAnnotatedJob : IJob
+        {
+            public void Execute(IJobExecutionContext context)
+            {
+            }
+        }
+
+        [SetUp]
+        public void SetUp()
+        {
+        }
+
+        [Test]
+        public void TestTriggerBuilder()
+        {
+            IJobDetail job = JobBuilder.NewJob()
+                .OfType<TestJob>()
+                .WithIdentity("j1")
+                .StoreDurably()
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.NewTrigger()
+                .Build();
+
+            Assert.IsTrue(trigger.Key.Name != null, "Expected non-null trigger name ");
+            Assert.IsTrue(trigger.Key.Group.Equals(JobKey.DefaultGroup), "Unexpected trigger group: " + trigger.Key.Group);
+            Assert.IsTrue(trigger.JobKey == null, "Unexpected job key: " + trigger.JobKey);
+            Assert.IsTrue(trigger.Description == null, "Unexpected job description: " + trigger.Description);
+            Assert.IsTrue(trigger.Priority == AbstractTrigger.DefaultPriority, "Unexpected trigger priority: " + trigger.Priority);
+            Assert.IsTrue(trigger.StartTimeUtc != null, "Unexpected start-time: " + trigger.StartTimeUtc);
+            Assert.IsTrue(trigger.EndTimeUtc == null, "Unexpected end-time: " + trigger.EndTimeUtc);
+
+            DateTimeOffset stime = DateBuilder.evenSecondDateAfterNow();
+
+            trigger = TriggerBuilder.NewTrigger()
+                .WithIdentity("t1")
+                .WithDescription("my description")
+                .WithPriority(2)
+                .EndAt(DateBuilder.futureDate(10, DateBuilder.IntervalUnit.WEEK))
+                .StartAt(stime)
+                .Build();
+
+            Assert.IsTrue(trigger.Key.Name.Equals("t1"), "Unexpected trigger name " + trigger.Key.Name);
+            Assert.IsTrue(trigger.Key.Group.Equals(JobKey.DefaultGroup), "Unexpected trigger group: " + trigger.Key.Group);
+            Assert.IsTrue(trigger.JobKey == null, "Unexpected job key: " + trigger.JobKey);
+            Assert.IsTrue(trigger.Description.Equals("my description"), "Unexpected job description: " + trigger.Description);
+            Assert.IsTrue(trigger.Priority == 2, "Unexpected trigger priortiy: " + trigger);
+            Assert.IsTrue(trigger.StartTimeUtc.Equals(stime), "Unexpected start-time: " + trigger.StartTimeUtc);
+            Assert.IsTrue(trigger.EndTimeUtc != null, "Unexpected end-time: " + trigger.EndTimeUtc);
+        }
+    }
+}
