@@ -173,7 +173,7 @@ namespace Quartz.Impl.Triggers
 	/// <author>Contributions from Mads Henderson</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class CronTriggerImpl : AbstractTrigger<ICronTrigger>, ICronTrigger
+    public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 	{
         protected internal const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx;
@@ -485,18 +485,18 @@ namespace Quartz.Impl.Triggers
 			return nextFireTimeUtc;
 		}
 
-		/// <summary>
-		/// Returns the previous time at which the <see cref="Trigger" /> fired.
-		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
-		/// </summary>
-        /// <returns></returns>
-        public override DateTimeOffset? GetPreviousFireTimeUtc()
-		{
-			return previousFireTimeUtc;
-		}
+	    /// <summary>
+	    /// Returns the previous time at which the <see cref="Trigger" /> fired.
+	    /// If the trigger has not yet fired, <see langword="null" /> will be returned.
+	    /// </summary>
+	    /// <value></value>
+	    public override DateTimeOffset? PreviousFireTimeUtc
+	    {
+	        get { return previousFireTimeUtc; }
+	    }
 
 
-		/// <summary>
+	    /// <summary>
 		/// Sets the next fire time.
 		/// <p>
 		/// <b>This method should not be invoked by client code.</b>

@@ -54,7 +54,7 @@ namespace Quartz.Impl.Triggers
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public abstract class AbstractTrigger<T> : IOperableTrigger where T : ITrigger
+    public abstract class AbstractTrigger : IOperableTrigger
 	{
         private string name;
         private string group = SchedulerConstants.DefaultGroup;
@@ -69,7 +69,7 @@ namespace Quartz.Impl.Triggers
 
         private DateTimeOffset? endTimeUtc;
         private DateTimeOffset startTimeUtc;
-		private int priority = DefaultPriority;
+		private int priority = TriggerConstants.DefaultPriority;
 		[NonSerialized] 
 		private TriggerKey key;
 
@@ -227,7 +227,7 @@ namespace Quartz.Impl.Triggers
 			get { return jobGroup + "." + jobName; }
 		}
 
-	    public abstract IScheduleBuilder GetScheduleBuilder();
+	    public abstract IScheduleBuilder GetScheduleBuilder<T>() where T : ITrigger;
 
 	    /// <summary>
 		/// Get or set the description given to the <see cref="ITrigger" /> instance by
@@ -323,7 +323,12 @@ namespace Quartz.Impl.Triggers
 		}
 
         public abstract DateTimeOffset? NextFireTimeUtc { set; }
-        public abstract DateTimeOffset? PreviousFireTimeUtc { set; }
+
+	    /// <summary>
+	    /// Returns the previous time at which the <see cref="ITrigger" /> fired.
+	    /// If the trigger has not yet fired, <see langword="null" /> will be returned.
+	    /// </summary>
+	    public abstract DateTimeOffset? PreviousFireTimeUtc { set; get; }
 
 	    /// <summary>
 		/// Gets and sets the date/time on which the trigger must stop firing. This 
@@ -581,14 +586,8 @@ namespace Quartz.Impl.Triggers
         /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTimeOffset, DateTimeOffset)" />
         /// <returns></returns>
         public abstract DateTimeOffset? GetNextFireTimeUtc();
-		
-        /// <summary>
-		/// Returns the previous time at which the <see cref="ITrigger" /> fired.
-		/// If the trigger has not yet fired, <see langword="null" /> will be returned.
-		/// </summary>
-        public abstract DateTimeOffset? GetPreviousFireTimeUtc();
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the next time at which the <see cref="ITrigger" /> will fire,
 		/// after the given time. If the trigger will not fire after the given time,
 		/// <see langword="null" /> will be returned.
@@ -736,10 +735,10 @@ namespace Quartz.Impl.Triggers
         /// </returns>
 		public override bool Equals(object obj)
 		{
-            return Equals(obj as AbstractTrigger<T>);
+            return Equals(obj as AbstractTrigger);
 		}
 
-        public virtual bool Equals(AbstractTrigger<T> trigger)
+        public virtual bool Equals(AbstractTrigger trigger)
         {
             if (trigger == null)
             {
@@ -768,10 +767,10 @@ namespace Quartz.Impl.Triggers
         /// </returns>
 		public virtual object Clone()
 		{
-            AbstractTrigger<T> copy;
+            AbstractTrigger copy;
 			try
 			{
-                copy = (AbstractTrigger<T>)MemberwiseClone();
+                copy = (AbstractTrigger)MemberwiseClone();
 
 				// Shallow copy the jobDataMap.  Note that this means that if a user
 				// modifies a value object in this map from the cloned Trigger
@@ -789,9 +788,9 @@ namespace Quartz.Impl.Triggers
 		}
 
 
-        public ITriggerBuilder GetTriggerBuilder()
+        public ITriggerBuilder<T> GetTriggerBuilder<T>() where T : ITrigger
         {
-            TriggerBuilder<T> b = TriggerBuilder<T>.NewTrigger()
+            TriggerBuilder<ITrigger> b = TriggerBuilder<T>.NewTrigger()
                 .ForJob(JobKey)
                 .ModifiedByCalendar(CalendarName)
                 .UsingJobData(JobDataMap)
@@ -800,8 +799,8 @@ namespace Quartz.Impl.Triggers
                 .WithIdentity(Key)
                 .WithPriority(Priority)
                 .StartAt(StartTimeUtc)
-                .WithSchedule(GetScheduleBuilder());
-            return b;
+                .WithSchedule(GetScheduleBuilder<T>());
+            return (ITriggerBuilder<T>) b;
         }
 	}
 }

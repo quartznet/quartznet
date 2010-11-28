@@ -1440,7 +1440,7 @@ namespace Quartz.Simpl
 		                    return null;
                         }
 		            }
-                    DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
+                    DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
 		            // in case trigger was replaced between acquiring and firing
 		            timeTriggers.Remove(tw);
 		            // call triggered on our copy, and the scheduler's copy
@@ -1453,7 +1453,7 @@ namespace Quartz.Simpl
                                                                       trigger,
 		                                                              cal,
 		                                                              false, SystemTime.UtcNow(),
-		                                                              trigger.GetPreviousFireTimeUtc(), prevFireTime,
+		                                                              trigger.PreviousFireTimeUtc, prevFireTime,
 		                                                              trigger.GetNextFireTimeUtc());
 
 		            IJobDetail job = bndle.JobDetail;

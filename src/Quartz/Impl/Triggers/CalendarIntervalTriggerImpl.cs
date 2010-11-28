@@ -50,7 +50,7 @@ namespace Quartz.Impl.Triggers
     /// <since>1.2</since>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class CalendarIntervalTriggerImpl : AbstractTrigger<ICalendarIntervalTrigger>, ICalendarIntervalTrigger
+    public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
     {
         private const int YearToGiveupSchedulingAt = 2299;
 
@@ -507,9 +507,10 @@ namespace Quartz.Impl.Triggers
         /// Returns the previous time at which the <see cref="DateIntervalTrigger" /> fired.
         /// If the trigger has not yet fired, <see langword="null" /> will be returned.
         /// </summary>
-        public override DateTimeOffset? GetPreviousFireTimeUtc()
+        public override DateTimeOffset? PreviousFireTimeUtc
         {
-            return previousFireTime;
+            get { return previousFireTime; }
+            set { previousFireTime = value; }
         }
 
         /**
@@ -525,21 +526,6 @@ namespace Quartz.Impl.Triggers
         public override DateTimeOffset? NextFireTimeUtc
         {
             set { this.nextFireTime = value; }
-        }
-
-        /**
-     * <p>
-     * Set the previous time at which the <code>DateIntervalTrigger</code> fired.
-     * </p>
-     * 
-     * <p>
-     * <b>This method should not be invoked by client code.</b>
-     * </p>
-     */
-
-        public override DateTimeOffset? PreviousFireTimeUtc
-        {
-            set { this.previousFireTime = value; }
         }
 
         /// <summary>
@@ -816,7 +802,7 @@ namespace Quartz.Impl.Triggers
  * 
  * @see #getTriggerBuilder()
  */
-        public override ScheduleBuilder<ICalendarIntervalTrigger> GetScheduleBuilder()
+        public override IScheduleBuilder GetScheduleBuilder()
         {
 
             CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()

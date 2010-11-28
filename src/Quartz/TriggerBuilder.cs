@@ -19,7 +19,6 @@
 
 using System;
 
-using Quartz.Impl.Triggers;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -58,7 +57,7 @@ namespace Quartz
      * @see Trigger
      */
 
-    public interface ITriggerBuilder
+    public interface ITriggerBuilder<T> where T : ITrigger
     {
         T Build();
         TriggerBuilder<T> WithIdentity(string name);
@@ -84,7 +83,7 @@ namespace Quartz
         TriggerBuilder<T> UsingJobData(JobDataMap newJobDataMap);
     }
 
-    public class TriggerBuilder<T> : ITriggerBuilder where T : ITrigger
+    public class TriggerBuilder<T> : ITriggerBuilder<T> where T : ITrigger
     {
         private TriggerKey key;
         private string description;

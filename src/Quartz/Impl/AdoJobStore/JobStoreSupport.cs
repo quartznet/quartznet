@@ -2521,7 +2521,7 @@ namespace Quartz.Impl.AdoJobStore
                 throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
             }
 
-            DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
+            DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
 
             // call triggered - to update the trigger's next-fire-time state...
             trigger.Triggered(cal);
@@ -2561,7 +2561,7 @@ namespace Quartz.Impl.AdoJobStore
                 cal,
                 trigger.Key.Group.Equals(SchedulerConstants.DefaultRecoveryGroup),
                 SystemTime.UtcNow(),
-                trigger.GetPreviousFireTimeUtc(),
+                trigger.PreviousFireTimeUtc,
                 prevFireTime,
                 trigger.GetNextFireTimeUtc());
         }

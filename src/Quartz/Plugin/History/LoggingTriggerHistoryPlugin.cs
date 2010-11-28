@@ -312,7 +312,7 @@ namespace Quartz.Plugin.History
             object[] args =
                 new object[]
                     {
-                        trigger.Key.Name, trigger.Key.Group, trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
+                        trigger.Key.Name, trigger.Key.Group, trigger.PreviousFireTimeUtc, trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
                         context.JobDetail.Key.Name, context.JobDetail.Key.Group, context.RefireCount
                     };
 
@@ -340,7 +340,7 @@ namespace Quartz.Plugin.History
             object[] args =
                 new object[]
                     {
-                        trigger.Key.Name, trigger.Key.Group, trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
+                        trigger.Key.Name, trigger.Key.Group, trigger.PreviousFireTimeUtc, trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
                         trigger.JobKey.Name, trigger.JobKey.Group
                     };
 
@@ -389,7 +389,7 @@ namespace Quartz.Plugin.History
             object[] args =
                 new object[]
                     {
-                        trigger.Key.Name, trigger.Key.Group, trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
+                        trigger.Key.Name, trigger.Key.Group, trigger.PreviousFireTimeUtc, trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
                         context.JobDetail.Key.Name, context.JobDetail.Key.Group, context.RefireCount, triggerInstructionCode, instrCode
                     };
 

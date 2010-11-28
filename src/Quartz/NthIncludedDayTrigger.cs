@@ -364,8 +364,7 @@ namespace Quartz
 			set { nextFireCutoffInterval = value; }
 		}
 
-
-		/// <summary>
+	    /// <summary>
 		/// Returns the last UTC time the <see cref="NthIncludedDayTrigger" /> will fire.
 		/// If the trigger will not fire at any point between <see name="startTime" />
 		/// and <see name="endTime" />, <see langword="null" /> will be returned.
@@ -430,16 +429,17 @@ namespace Quartz
 			return nextFireTimeUtc;
 		}
 
-		/// <summary> 
-		/// Returns the previous UTC time at which the 
-		/// <see cref="NthIncludedDayTrigger" /> fired. If the trigger has not yet 
-		/// fired, <see langword="null" /> will be returned.
-		/// </summary>
-		/// <returns> the previous fire time for the trigger</returns>
-        public override DateTimeOffset? GetPreviousFireTimeUtc()
-		{
-			return previousFireTimeUtc;
-		}
+	    /// <summary> 
+	    /// Returns the previous UTC time at which the 
+	    /// <see cref="NthIncludedDayTrigger" /> fired. If the trigger has not yet 
+	    /// fired, <see langword="null" /> will be returned.
+	    /// </summary>
+	    /// <value> the previous fire time for the trigger</value>
+	    public override DateTimeOffset? PreviousFireTimeUtc
+	    {
+	        get { return previousFireTimeUtc; }
+            set { previousFireTimeUtc = value; }
+	    }
 
 
 	    /// <summary>
@@ -1006,19 +1006,14 @@ namespace Quartz
      * @see #getTriggerBuilder()
      */
 
-	    public ScheduleBuilder GetScheduleBuilder()
+	    public override IScheduleBuilder GetScheduleBuilder<T>()
 	    {
 	        throw new NotImplementedException(); // TODO
 	    }
 
-	    public void SetNextFireTime(DateTimeOffset nextFireTime)
+	    public override DateTimeOffset? NextFireTimeUtc
 	    {
-	        throw new NotImplementedException();
-	    }
-
-	    public void SetPreviousFireTime(DateTimeOffset previousFireTime)
-	    {
-	        throw new NotImplementedException();
+	        set { throw new NotImplementedException(); }
 	    }
 	}
 }

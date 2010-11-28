@@ -45,9 +45,9 @@ namespace Quartz
     /// </p>
     /// </remarks>
     /// <seealso cref="TriggerBuilder" />
-    /// <seealso cref="CalendarIntervalTrigger" />
-    /// <seealso cref="SimpleTrigger" />
-    /// <seealso cref="CronTrigger" />
+    /// <seealso cref="ICalendarIntervalTrigger" />
+    /// <seealso cref="ISimpleTrigger" />
+    /// <seealso cref="ICronTrigger" />
     /// <seealso cref="NthIncludedDayTrigger" />
     /// <seealso cref="TriggerUtils" />
     /// <seealso cref="JobDataMap" />
@@ -66,14 +66,14 @@ namespace Quartz
         /// <code>Trigger</code> identical to this one.
         /// </summary>
         /// <returns></returns>
-        TriggerBuilder<T> GetTriggerBuilder<T>() where T : ITrigger;
+        ITriggerBuilder<T> GetTriggerBuilder<T>() where T : ITrigger;
 
         /// <summary>
         /// Get a <see cref="ScheduleBuilder" /> that is configured to produce a 
         /// schedule identical to this trigger's schedule.
         /// </summary>
         /// <returns></returns>
-        ScheduleBuilder<T> GetScheduleBuilder<T>() where T : ITrigger;
+        IScheduleBuilder GetScheduleBuilder<T>() where T : ITrigger;
 
         /// <summary>
         /// Get or set the description given to the <see cref="Trigger" /> instance by
@@ -185,7 +185,7 @@ namespace Quartz
         /// Returns the previous time at which the <see cref="Trigger" /> fired.
         /// If the trigger has not yet fired, <see langword="null" /> will be returned.
         /// </summary>
-        DateTimeOffset? GetPreviousFireTimeUtc();
+        DateTimeOffset? PreviousFireTimeUtc { get; }
 
         /// <summary>
         /// Returns the next time at which the <see cref="Trigger" /> will fire,

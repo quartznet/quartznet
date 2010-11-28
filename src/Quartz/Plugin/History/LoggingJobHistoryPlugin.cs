@@ -377,7 +377,7 @@ namespace Quartz.Plugin.History
                 new object[]
                     {
                         context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
+                        trigger.PreviousFireTimeUtc, trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 
             Log.Info(String.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
@@ -409,7 +409,7 @@ namespace Quartz.Plugin.History
                     new object[]
                         {
                             context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                            trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
+                            trigger.PreviousFireTimeUtc, trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
                         };
 
                 Log.Warn(String.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
@@ -426,7 +426,7 @@ namespace Quartz.Plugin.History
                     new object[]
                         {
                             context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                            trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
+                            trigger.PreviousFireTimeUtc, trigger.GetNextFireTimeUtc(), context.RefireCount, result
                         };
 
                 Log.Info(String.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
@@ -454,7 +454,7 @@ namespace Quartz.Plugin.History
                 new object[]
                     {
                         context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
+                        trigger.PreviousFireTimeUtc, trigger.GetNextFireTimeUtc(), context.RefireCount
                     };
 
             Log.Info(String.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));

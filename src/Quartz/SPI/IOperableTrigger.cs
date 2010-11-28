@@ -2,9 +2,9 @@ using System;
 
 namespace Quartz.Spi
 {
-public interface IOperableTrigger : IMutableTrigger {
-
-    /**
+    public interface IOperableTrigger : IMutableTrigger
+    {
+        /**
      * <p>
      * This method should not be used by the Quartz client.
      * </p>
@@ -18,9 +18,9 @@ public interface IOperableTrigger : IMutableTrigger {
      * 
      * @see #executionComplete(JobExecutionContext, JobExecutionException)
      */
-    void Triggered(ICalendar calendar);
+        void Triggered(ICalendar calendar);
 
-    /**
+        /**
      * <p>
      * This method should not be used by the Quartz client.
      * </p>
@@ -41,9 +41,9 @@ public interface IOperableTrigger : IMutableTrigger {
      *         will return (until after the first firing of the <code>Trigger</code>).
      *         </p>
      */
-    DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar);
+        DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar);
 
-    /**
+        /**
      * <p>
      * This method should not be used by the Quartz client.
      * </p>
@@ -69,9 +69,9 @@ public interface IOperableTrigger : IMutableTrigger {
      * @see #triggered(Calendar)
      */
 
-    SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException result);
+        SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException result);
 
-    /**
+        /**
      * <p>
      * This method should not be used by the Quartz client.
      * </p>
@@ -86,9 +86,9 @@ public interface IOperableTrigger : IMutableTrigger {
      * was created.
      * </p>
      */
-    void UpdateAfterMisfire(ICalendar cal);
+        void UpdateAfterMisfire(ICalendar cal);
 
-    /**
+        /**
      * <p>
      * This method should not be used by the Quartz client.
      * </p>
@@ -106,10 +106,10 @@ public interface IOperableTrigger : IMutableTrigger {
      * 
      * @param cal
      */
-    void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
+        void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
 
-    
-    /**
+
+        /**
      * <p>
      * Validates whether the properties of the <code>JobDetail</code> are
      * valid for submission into a <code>Scheduler</code>.
@@ -118,10 +118,10 @@ public interface IOperableTrigger : IMutableTrigger {
      *           if a required property (such as Name, Group, Class) is not
      *           set.
      */
-    void Validate();
-    
+        void Validate();
 
-    /**
+
+        /**
      * <p>
      * This method should not be used by the Quartz client.
      * </p>
@@ -134,9 +134,8 @@ public interface IOperableTrigger : IMutableTrigger {
      * 
      *  
      */
-    string FireInstanceId { get;  set; }
+        string FireInstanceId { get; set; }
 
-    void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
-
-    void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime);
-}}
+        DateTimeOffset? NextFireTimeUtc { set; }
+    }
+}

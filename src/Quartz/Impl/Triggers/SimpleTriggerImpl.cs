@@ -26,14 +26,14 @@ namespace Quartz.Impl.Triggers
 	/// at a given moment in time, and optionally repeated at a specified interval.
 	/// </summary>
     /// <seealso cref="ITrigger" />
-	/// <seealso cref="CronTrigger" />
+	/// <seealso cref="ICronTrigger" />
 	/// <seealso cref="TriggerUtils" />
 	/// 
 	/// <author>James House</author>
 	/// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
 	/// <author>Marko Lahma (.NET)</author>
 	[Serializable]
-	public class SimpleTriggerImpl : AbstractTrigger<ISimpleTrigger>, ISimpleTrigger
+	public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 	{
         /// <summary>
         /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in
@@ -345,7 +345,7 @@ namespace Quartz.Impl.Triggers
 
             if (instr == Quartz.MisfireInstruction.SimpleTrigger.FireNow)
 			{
-				SetNextFireTime(SystemTime.UtcNow());
+				NextFireTime = SystemTime.UtcNow();
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
 			{
@@ -366,7 +366,7 @@ namespace Quartz.Impl.Triggers
                         newFireTime = null;
                     }
 				}
-				SetNextFireTime(newFireTime);
+				NextFireTime = newFireTime;
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
 			{
@@ -394,7 +394,7 @@ namespace Quartz.Impl.Triggers
 					TimesTriggered = TimesTriggered + timesMissed;
 				}
 
-				SetNextFireTime(newFireTime);
+				NextFireTime = newFireTime;
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
 			{
@@ -407,12 +407,12 @@ namespace Quartz.Impl.Triggers
 
 				if (EndTimeUtc.HasValue && EndTimeUtc.Value < newFireTime) 
 				{
-					SetNextFireTime(null); // We are past the end time
+					NextFireTime = null; // We are past the end time
 				} 
 				else 
 				{
 					StartTimeUtc = newFireTime;
-					SetNextFireTime(newFireTime);
+					NextFireTime = newFireTime;
 				}
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
@@ -434,12 +434,12 @@ namespace Quartz.Impl.Triggers
 
 				if (EndTimeUtc.HasValue && EndTimeUtc.Value < newFireTime) 
 				{
-					SetNextFireTime(null); // We are past the end time
+					NextFireTime = null; // We are past the end time
 				} 
 				else 
 				{
 					StartTimeUtc = newFireTime;
-					SetNextFireTime(newFireTime);
+					NextFireTime = newFireTime;
 				} 
 			}
 		}
@@ -565,26 +565,27 @@ namespace Quartz.Impl.Triggers
 			return nextFireTimeUtc;
 		}
 
-		/// <summary>
-		/// Returns the previous time at which the <see cref="ISimpleTrigger" /> fired.
-		/// If the trigger has not yet fired, <see langword="null" /> will be
-		/// returned.
-		/// </summary>
-        public override DateTimeOffset? GetPreviousFireTimeUtc()
-		{
-			return previousFireTimeUtc;
-		}
+	    /// <summary>
+	    /// Returns the previous time at which the <see cref="ISimpleTrigger" /> fired.
+	    /// If the trigger has not yet fired, <see langword="null" /> will be
+	    /// returned.
+	    /// </summary>
+	    public override DateTimeOffset? PreviousFireTimeUtc
+	    {
+	        get { return previousFireTimeUtc; }
+            set { previousFireTimeUtc = value; }
+	    }
 
-		/// <summary>
-		/// Set the next UTC time at which the <see cref="ISimpleTrigger" /> should fire.
-		/// <strong>This method should not be invoked by client code.</strong>
-		/// </summary>
-        public void SetNextFireTime(DateTimeOffset? fireTimeUtc)
-		{
-			nextFireTimeUtc = fireTimeUtc;
-		}
+	    /// <summary>
+	    /// Set the next UTC time at which the <see cref="ISimpleTrigger" /> should fire.
+	    /// <strong>This method should not be invoked by client code.</strong>
+	    /// </summary>
+	    public override DateTimeOffset? NextFireTimeUtc
+	    {
+	        set { nextFireTimeUtc = value; }
+	    }
 
-		/// <summary>
+	    /// <summary>
 		/// Set the previous UTC time at which the <see cref="ISimpleTrigger" /> fired.
 		/// <strong>This method should not be invoked by client code.</strong>
 		/// </summary>

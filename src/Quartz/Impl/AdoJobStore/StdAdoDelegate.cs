@@ -885,9 +885,9 @@ namespace Quartz.Impl.AdoJobStore
                     AddCommandParameter(cmd, "triggerNextFireTime", null);
                 }
                 long prevFireTime = -1;
-                if (trigger.GetPreviousFireTimeUtc().HasValue)
+                if (trigger.PreviousFireTimeUtc.HasValue)
                 {
-                    prevFireTime = trigger.GetPreviousFireTimeUtc().Value.Ticks;
+                    prevFireTime = trigger.PreviousFireTimeUtc.Value.Ticks;
                 }
                 AddCommandParameter(cmd, "triggerPreviousFireTime", Convert.ToDecimal(prevFireTime));
                 AddCommandParameter(cmd, "triggerState", state);
@@ -1002,9 +1002,9 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "triggerNextFireTime", Convert.ToDecimal(nextFireTime));
             long prevFireTime = -1;
 
-            if (trigger.GetPreviousFireTimeUtc().HasValue)
+            if (trigger.PreviousFireTimeUtc.HasValue)
             {
-                prevFireTime = trigger.GetPreviousFireTimeUtc().Value.Ticks;
+                prevFireTime = trigger.PreviousFireTimeUtc.Value.Ticks;
             }
             AddCommandParameter(cmd, "triggerPreviousFireTime", Convert.ToDecimal(prevFireTime));
             AddCommandParameter(cmd, "triggerState", state);
@@ -1574,8 +1574,8 @@ namespace Quartz.Impl.AdoJobStore
                             trigger = (IOperableTrigger) tb.Build();
 
                             trigger.MisfireInstruction = misFireInstr;
-                            trigger.SetNextFireTimeUtc(nft);
-                            trigger.SetPreviousFireTimeUtc(pft);
+                            trigger.NextFireTimeUtc = nft;
+                            trigger.PreviousFireTimeUtc = pft;
 
                             setTriggerStateProperties(trigger, triggerProps);
                         }
