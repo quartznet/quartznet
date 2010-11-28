@@ -152,7 +152,7 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Contributions from Mads Henderson</author>
     /// <author>Marko Lahma (.NET)</author>
-    public interface ICronTrigger
+    public interface ICronTrigger : ITrigger
     {
         /// <summary>
         /// Gets or sets the cron expression string.
@@ -179,5 +179,7 @@ namespace Quartz
         /// </summary>
         /// <returns></returns>
         string GetExpressionSummary();
+
+        TriggerBuilder<ICronTrigger> GetTriggerBuilder();
     }
 }

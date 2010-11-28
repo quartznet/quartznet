@@ -44,6 +44,8 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
 	public interface IDriverDelegate
 	{
+        void Initialize(string initString);
+
 		/// <summary>
 		/// Update all triggers having one of the two given states, to the given new
 		/// state.
@@ -120,21 +122,21 @@ namespace Quartz.Impl.AdoJobStore
 		// jobs
 		//---------------------------------------------------------------------------
 
-		/// <summary>
-		/// Insert the job detail record.
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-		/// <param name="job">The job to insert.</param>
-		/// <returns>Number of rows inserted.</returns>
-		int InsertJobDetail(ConnectionAndTransactionHolder conn, JobDetailImpl job);
+        /// <summary>
+        /// Insert the job detail record.
+        /// </summary>
+        /// <param name="conn">The DB Connection</param>
+        /// <param name="job">The job to insert.</param>
+        /// <returns>Number of rows inserted.</returns>
+        int InsertJobDetail(ConnectionAndTransactionHolder conn, IJobDetail job);
 
-		/// <summary>
-		/// Update the job detail record.
-		/// </summary>
-		/// <param name="conn">The DB Connection.</param>
-		/// <param name="job">The job to update.</param>
-		/// <returns>Number of rows updated.</returns>
-		int UpdateJobDetail(ConnectionAndTransactionHolder conn, JobDetailImpl job);
+        /// <summary>
+        /// Update the job detail record.
+        /// </summary>
+        /// <param name="conn">The DB Connection.</param>
+        /// <param name="job">The job to update.</param>
+        /// <returns>Number of rows updated.</returns>
+        int UpdateJobDetail(ConnectionAndTransactionHolder conn, IJobDetail job);
 
 		/// <summary> <p>
 		/// Get the names of all of the triggers associated with the given job.
@@ -173,13 +175,13 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns>true if the job exists, false otherwise</returns>
         bool JobExists(ConnectionAndTransactionHolder conn, JobKey jobKey);
 
-		/// <summary>
-		/// Update the job data map for the given job.
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-		/// <param name="job">The job.</param>
-		/// <returns>the number of rows updated</returns>
-		int UpdateJobData(ConnectionAndTransactionHolder conn, JobDetailImpl job);
+        /// <summary>
+        /// Update the job data map for the given job.
+        /// </summary>
+        /// <param name="conn">The DB Connection</param>
+        /// <param name="job">The job.</param>
+        /// <returns>the number of rows updated</returns>
+        int UpdateJobData(ConnectionAndTransactionHolder conn, IJobDetail job);
 
         /// <summary>
         /// Select the JobDetail object for a given job name / group name.
@@ -225,7 +227,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state that the trigger should be stored in.</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>The number of rows inserted</returns>
-        int InsertTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, JobDetailImpl jobDetail);
+        int InsertTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
 
         /// <summary>
         /// Insert the blob trigger data.
@@ -243,7 +245,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>the number of rows updated</returns>
-        int UpdateTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, JobDetailImpl jobDetail);
+        int UpdateTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
 
         /// <summary>
         /// Update the blob trigger data.
@@ -756,5 +758,13 @@ namespace Quartz.Impl.AdoJobStore
         bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts, int count, IList<TriggerKey> resultList);
 
         int UpdateFiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail job);
+
+    
+        /// <summary>
+        /// Clear (delete!) all scheduling data - all {@link Job}s, {@link Trigger}s
+        /// {@link Calendar}s.
+        /// </summary>
+        /// <param name="conn"></param>
+        void ClearData(ConnectionAndTransactionHolder conn);
 	}
 }

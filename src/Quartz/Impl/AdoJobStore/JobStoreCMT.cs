@@ -130,7 +130,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">Callback to execute.</param>
         protected override object ExecuteInLock(
                 string lockName,
-                ITransactionCallback txCallback)
+                Func<ConnectionAndTransactionHolder, object> txCallback)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
@@ -153,7 +153,7 @@ namespace Quartz.Impl.AdoJobStore
                     conn = GetNonManagedTXConnection();
                 }
 
-                return txCallback.Execute(conn);
+                return txCallback(conn);
             }
             finally
             {

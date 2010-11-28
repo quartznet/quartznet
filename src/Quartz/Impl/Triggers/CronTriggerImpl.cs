@@ -173,7 +173,7 @@ namespace Quartz.Impl.Triggers
 	/// <author>Contributions from Mads Henderson</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class CronTriggerImpl : AbstractTrigger, ICronTrigger
+    public class CronTriggerImpl : AbstractTrigger<ICronTrigger>, ICronTrigger
 	{
         protected internal const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx;

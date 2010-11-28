@@ -20,7 +20,7 @@ namespace Quartz.Tests.Unit
 
             CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
             yearlyTrigger.StartTimeUtc = startCalendar;
-            yearlyTrigger.RepeatIntervalUnit = DateBuilder.IntervalUnit.YEAR;
+            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Year;
             yearlyTrigger.RepeatInterval = 2; // every two years;
 
             DateTimeOffset targetCalendar = new DateTimeOffset(2009, 6, 1, 9, 30, 17, TimeSpan.Zero); // jump 4 years (2 intervals)
@@ -35,150 +35,136 @@ namespace Quartz.Tests.Unit
         [Test]
         public void testMonthlyIntervalGetFireTimeAfter()
         {
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            startCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+
 
             CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.setStartTime(startCalendar.getTime());
-            yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MONTH);
-            yearlyTrigger.setRepeatInterval(5); // every five months
+            yearlyTrigger.StartTimeUtc = startCalendar;
+            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Month;
+            yearlyTrigger.RepeatInterval = 5; // every five months
 
-            Calendar targetCalendar = Calendar.getInstance();
-            targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            targetCalendar.setLenient(true);
-            targetCalendar.add(Calendar.MONTH, 25); // jump 25 five months (5 intervals)
-            targetCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            
+            targetCalendar.AddMonths(25); // jump 25 five months (5 intervals)
 
-            List fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
-            Date fifthTime = (Date) fireTimes.get(5); // get the sixth fire time
 
-            Assert.AreEqual("Month increment result not as expected.", targetCalendar.getTime(), fifthTime);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            DateTimeOffset fifthTime = fireTimes[5]; // get the sixth fire time
+
+            Assert.AreEqual(targetCalendar, fifthTime, "Month increment result not as expected.");
         }
 
         [Test]
         public void testWeeklyIntervalGetFireTimeAfter()
         {
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            startCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+
 
             CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.setStartTime(startCalendar.getTime());
-            yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.WEEK);
-            yearlyTrigger.setRepeatInterval(6); // every six weeks
+            yearlyTrigger.StartTimeUtc = startCalendar;
+            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Week;
+            yearlyTrigger.RepeatInterval = 6; // every six weeks
 
-            Calendar targetCalendar = Calendar.getInstance();
-            targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            targetCalendar.setLenient(true);
-            targetCalendar.add(Calendar.DAY_OF_YEAR, 7*6*4); // jump 24 weeks (4 intervals)
-            targetCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            
+            targetCalendar.AddDays(7*6*4); // jump 24 weeks (4 intervals)
 
-            List fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 7);
-            Date fifthTime = (Date) fireTimes.get(4); // get the fifth fire time
 
-            System.out.
-            println("targetCalendar:" + targetCalendar.getTime());
-            System.out.
-            println("fifthTimee" + fifthTime);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 7);
+            DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
-            Assert.AreEqual("Week increment result not as expected.", targetCalendar.getTime(), fifthTime);
+            Console.Out.WriteLine("targetCalendar:" + targetCalendar);
+            Console.Out.WriteLine("fifthTimee" + fifthTime);
+
+            Assert.AreEqual(targetCalendar, fifthTime, "Week increment result not as expected.");
         }
 
         [Test]
         public void testDailyIntervalGetFireTimeAfter()
         {
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            startCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+
 
             CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.setStartTime(startCalendar.getTime());
-            dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-            dailyTrigger.setRepeatInterval(90); // every ninety days
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 90; // every ninety days
 
-            Calendar targetCalendar = Calendar.getInstance();
-            targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            targetCalendar.setLenient(true);
-            targetCalendar.add(Calendar.DAY_OF_YEAR, 360); // jump 360 days (4 intervals)
-            targetCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            
+            targetCalendar.AddDays(360); // jump 360 days (4 intervals)
 
-            List fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-            Date fifthTime = (Date) fireTimes.get(4); // get the fifth fire time
 
-            Assert.AreEqual("Day increment result not as expected.", targetCalendar.getTime(), fifthTime);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+            DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
+
+            Assert.AreEqual(targetCalendar, fifthTime, "Day increment result not as expected.");
         }
 
         [Test]
         public void testHourlyIntervalGetFireTimeAfter()
         {
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            startCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+
 
             CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.setStartTime(startCalendar.getTime());
-            yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.HOUR);
-            yearlyTrigger.setRepeatInterval(100); // every 100 hours
+            yearlyTrigger.StartTimeUtc = startCalendar;
+            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Hour;
+            yearlyTrigger.RepeatInterval = 100; // every 100 hours
 
-            Calendar targetCalendar = Calendar.getInstance();
-            targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            targetCalendar.setLenient(true);
-            targetCalendar.add(Calendar.HOUR, 400); // jump 400 hours (4 intervals)
-            targetCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            
+            targetCalendar.AddHours(400); // jump 400 hours (4 intervals)
 
-            List fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
-            Date fifthTime = (Date) fireTimes.get(4); // get the fifth fire time
 
-            Assert.AreEqual("Hour increment result not as expected.", targetCalendar.getTime(), fifthTime);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
+
+            Assert.AreEqual(targetCalendar, fifthTime, "Hour increment result not as expected.");
         }
 
         [Test]
         public void testMinutelyIntervalGetFireTimeAfter()
         {
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            startCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+
 
             CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.setStartTime(startCalendar.getTime());
-            yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
-            yearlyTrigger.setRepeatInterval(100); // every 100 minutes
+            yearlyTrigger.StartTimeUtc = startCalendar;
+            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Minute;
+            yearlyTrigger.RepeatInterval = 100; // every 100 minutes
 
-            Calendar targetCalendar = Calendar.getInstance();
-            targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            targetCalendar.setLenient(true);
-            targetCalendar.add(Calendar.MINUTE, 400); // jump 400 minutes (4 intervals)
-            targetCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            
+            targetCalendar.AddMinutes(400); // jump 400 minutes (4 intervals)
 
-            List fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
-            Date fifthTime = (Date) fireTimes.get(4); // get the fifth fire time
 
-            Assert.AreEqual("Minutes increment result not as expected.", targetCalendar.getTime(), fifthTime);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
+
+            Assert.AreEqual(targetCalendar, fifthTime, "Minutes increment result not as expected.");
         }
 
         [Test]
         public void testSecondlyIntervalGetFireTimeAfter()
         {
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            startCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+
 
             CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.setStartTime(startCalendar.getTime());
-            yearlyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.SECOND);
-            yearlyTrigger.setRepeatInterval(100); // every 100 seconds
+            yearlyTrigger.StartTimeUtc = startCalendar;
+            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Second;
+            yearlyTrigger.RepeatInterval = 100; // every 100 seconds
 
-            Calendar targetCalendar = Calendar.getInstance();
-            targetCalendar.set(2005, Calendar.JUNE, 1, 9, 30, 17);
-            targetCalendar.setLenient(true);
-            targetCalendar.add(Calendar.SECOND, 400); // jump 400 seconds (4 intervals)
-            targetCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            
+            targetCalendar.AddSeconds(400); // jump 400 seconds (4 intervals)
 
-            List fireTimes = TriggerUtils.computeFireTimes(yearlyTrigger, null, 6);
-            Date fifthTime = (Date) fireTimes.get(4); // get the third fire time
 
-            Assert.AreEqual("Seconds increment result not as expected.", targetCalendar.getTime(), fifthTime);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            DateTimeOffset fifthTime = fireTimes[4]; // get the third fire time
+
+            Assert.AreEqual(targetCalendar, fifthTime, "Seconds increment result not as expected.");
         }
 
         [Test]
@@ -186,114 +172,102 @@ namespace Quartz.Tests.Unit
         {
             // Pick a day before a daylight savings transition...
 
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.set(2010, Calendar.MARCH, 12, 9, 30, 17);
-            startCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset startCalendar = new DateTimeOffset(2010, 3, 12, 9, 30, 17, TimeSpan.Zero);
+
 
             CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.setStartTime(startCalendar.getTime());
-            dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-            dailyTrigger.setRepeatInterval(5); // every 5 days
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 5; // every 5 days
 
-            Calendar targetCalendar = Calendar.getInstance();
-            targetCalendar.setTime(startCalendar.getTime());
-            targetCalendar.setLenient(true);
-            targetCalendar.add(Calendar.DAY_OF_YEAR, 10); // jump 10 days (2 intervals)
-            targetCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset targetCalendar = startCalendar;
+            
+            targetCalendar.AddDays(10); // jump 10 days (2 intervals)
 
-            List fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-            Date testTime = (Date) fireTimes.get(2); // get the third fire time
 
-            Assert.AreEqual("Day increment result not as expected over spring daylight savings transition.", targetCalendar.getTime(), testTime);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+            DateTimeOffset testTime = fireTimes[2]; // get the third fire time
+
+            Assert.AreEqual(targetCalendar, testTime, "Day increment result not as expected over spring daylight savings transition.");
 
 
             // Pick a day before a daylight savings transition...
 
-            startCalendar = Calendar.getInstance();
-            startCalendar.set(2010, Calendar.OCTOBER, 31, 9, 30, 17);
-            startCalendar.clear(Calendar.MILLISECOND);
+            startCalendar = new DateTimeOffset(2010, 10, 31, 9, 30, 17, TimeSpan.Zero);
+
 
             dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.setStartTime(startCalendar.getTime());
-            dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-            dailyTrigger.setRepeatInterval(5); // every 5 days
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 5; // every 5 days
 
-            targetCalendar = Calendar.getInstance();
-            targetCalendar.setTime(startCalendar.getTime());
-            targetCalendar.setLenient(true);
-            targetCalendar.add(Calendar.DAY_OF_YEAR, 15); // jump 15 days (3 intervals)
-            targetCalendar.clear(Calendar.MILLISECOND);
+            targetCalendar = startCalendar;
+            
+            targetCalendar.AddDays(15); // jump 15 days (3 intervals)
 
-            fireTimes = TriggerUtils.computeFireTimes(dailyTrigger, null, 6);
-            testTime = (Date) fireTimes.get(3); // get the fourth fire time
 
-            Assert.AreEqual("Day increment result not as expected over fall daylight savings transition.", targetCalendar.getTime(), testTime);
+            fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+            testTime = fireTimes[3]; // get the fourth fire time
+
+            Assert.AreEqual(targetCalendar, testTime, "Day increment result not as expected over fall daylight savings transition.");
         }
 
 
         [Test]
         public void testFinalFireTimes()
         {
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.set(2010, Calendar.MARCH, 12, 9, 0, 0);
-            startCalendar.clear(Calendar.MILLISECOND);
+            DateTimeOffset startCalendar = new DateTimeOffset(2010, 3, 12, 9, 0, 0, TimeSpan.Zero);
+
 
             CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.setStartTime(startCalendar.getTime());
-            dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.DAY);
-            dailyTrigger.setRepeatInterval(5); // every 5 days
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 5; // every 5 days
 
-            Calendar endCalendar = Calendar.getInstance();
-            endCalendar.setTime(startCalendar.getTime());
-            endCalendar.setLenient(true);
-            endCalendar.add(Calendar.DAY_OF_YEAR, 10); // jump 10 days (2 intervals)
-            endCalendar.clear(Calendar.MILLISECOND);
-            dailyTrigger.setEndTime(endCalendar.getTime());
+            DateTimeOffset endCalendar = startCalendar;
+            endCalendar.AddDays(10); // jump 10 days (2 intervals)
+            dailyTrigger.EndTimeUtc = endCalendar;
 
-            Date testTime = dailyTrigger.getFinalFireTime();
+            DateTimeOffset? testTime = dailyTrigger.FinalFireTimeUtc;
 
-            Assert.AreEqual("Final fire time not computed correctly for day interval.", endCalendar.getTime(), testTime);
+            Assert.AreEqual(endCalendar, testTime, "Final fire time not computed correctly for day interval.");
 
 
-            startCalendar = Calendar.getInstance();
-            startCalendar.set(2010, Calendar.MARCH, 12, 9, 0, 0);
-            startCalendar.clear(Calendar.MILLISECOND);
+            startCalendar = new DateTimeOffset(2010, 3, 12, 9, 0, 0, TimeSpan.Zero);
+
 
             dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.setStartTime(startCalendar.getTime());
-            dailyTrigger.setRepeatIntervalUnit(DateBuilder.IntervalUnit.MINUTE);
-            dailyTrigger.setRepeatInterval(5); // every 5 minutes
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Minute;
+            dailyTrigger.RepeatInterval = 5; // every 5 minutes
 
-            endCalendar = Calendar.getInstance();
-            endCalendar.setTime(startCalendar.getTime());
-            endCalendar.setLenient(true);
-            endCalendar.add(Calendar.DAY_OF_YEAR, 15); // jump 15 days 
-            endCalendar.add(Calendar.MINUTE, -2); // back up two minutes
-            endCalendar.clear(Calendar.MILLISECOND);
-            dailyTrigger.setEndTime(endCalendar.getTime());
+            endCalendar = startCalendar;
+            endCalendar.AddDays(15); // jump 15 days 
+            endCalendar.AddMinutes(-2); // back up two minutes
+            dailyTrigger.EndTimeUtc = endCalendar;
 
-            testTime = dailyTrigger.getFinalFireTime();
+            testTime = dailyTrigger.FinalFireTimeUtc;
 
-            Assert.IsTrue("Final fire time not computed correctly for minutely interval.", (endCalendar.getTime().after(testTime)));
+            Assert.IsTrue((endCalendar > (testTime)), "Final fire time not computed correctly for minutely interval.");
 
-            endCalendar.add(Calendar.MINUTE, -3); // back up three more minutes
+            endCalendar.AddMinutes(-3); // back up three more minutes
 
-            Assert.IsTrue("Final fire time not computed correctly for minutely interval.", (endCalendar.getTime().equals(testTime)));
+            Assert.IsTrue((endCalendar.Equals(testTime)), "Final fire time not computed correctly for minutely interval.");
         }
 
         protected override object GetTargetObject()
         {
             JobDataMap jobDataMap = new JobDataMap();
-            jobDataMap.put("A", "B");
+            jobDataMap["A"] =  "B";
 
             CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
-            t.setName("test");
-            t.setGroup("testGroup");
-            t.setCalendarName("MyCalendar");
-            t.setDescription("CronTriggerDesc");
-            t.setJobDataMap(jobDataMap);
-            t.setRepeatInterval(5);
-            t.setRepeatIntervalUnit(IntervalUnit.DAY);
+            t.Name = "test";
+            t.Group = "testGroup";
+            t.CalendarName = "MyCalendar";
+            t.Description = "CronTriggerDesc";
+            t.JobDataMap = jobDataMap;
+            t.RepeatInterval = 5;
+            t.RepeatIntervalUnit = IntervalUnit.Day;
 
             return t;
         }
@@ -310,17 +284,17 @@ namespace Quartz.Tests.Unit
             CalendarIntervalTriggerImpl deserializedCalTrigger = (CalendarIntervalTriggerImpl) deserialized;
 
             Assert.IsNotNull(deserializedCalTrigger);
-            Assert.AreEqual(targetCalTrigger.getName(), deserializedCalTrigger.getName());
-            Assert.AreEqual(targetCalTrigger.getGroup(), deserializedCalTrigger.getGroup());
-            Assert.AreEqual(targetCalTrigger.getJobName(), deserializedCalTrigger.getJobName());
-            Assert.AreEqual(targetCalTrigger.getJobGroup(), deserializedCalTrigger.getJobGroup());
-//        assertEquals(targetCronTrigger.getStartTime(), deserializedCronTrigger.getStartTime());
-            Assert.AreEqual(targetCalTrigger.getEndTime(), deserializedCalTrigger.getEndTime());
-            Assert.AreEqual(targetCalTrigger.getCalendarName(), deserializedCalTrigger.getCalendarName());
-            Assert.AreEqual(targetCalTrigger.getDescription(), deserializedCalTrigger.getDescription());
-            Assert.AreEqual(targetCalTrigger.getJobDataMap(), deserializedCalTrigger.getJobDataMap());
-            Assert.AreEqual(targetCalTrigger.getRepeatInterval(), deserializedCalTrigger.getRepeatInterval());
-            Assert.AreEqual(targetCalTrigger.getRepeatIntervalUnit(), deserializedCalTrigger.getRepeatIntervalUnit());
+            Assert.AreEqual(targetCalTrigger.Name, deserializedCalTrigger.Name);
+            Assert.AreEqual(targetCalTrigger.Group, deserializedCalTrigger.Group);
+            Assert.AreEqual(targetCalTrigger.JobName, deserializedCalTrigger.JobName);
+            Assert.AreEqual(targetCalTrigger.JobGroup, deserializedCalTrigger.JobGroup);
+//        assertEquals(targetCronTrigger.getStartTime), deserializedCronTrigger.getStartTime());
+            Assert.AreEqual(targetCalTrigger.EndTimeUtc, deserializedCalTrigger.EndTimeUtc);
+            Assert.AreEqual(targetCalTrigger.CalendarName, deserializedCalTrigger.CalendarName);
+            Assert.AreEqual(targetCalTrigger.Description, deserializedCalTrigger.Description);
+            Assert.AreEqual(targetCalTrigger.JobDataMap, deserializedCalTrigger.JobDataMap);
+            Assert.AreEqual(targetCalTrigger.RepeatInterval, deserializedCalTrigger.RepeatInterval);
+            Assert.AreEqual(targetCalTrigger.RepeatIntervalUnit, deserializedCalTrigger.RepeatIntervalUnit);
         }
     }
 }

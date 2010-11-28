@@ -29,7 +29,7 @@ namespace Quartz.Impl.Triggers
     /// The trigger will fire every N (see <see cref="RepeatInterval" />) units of calendar time
     /// (see <see cref="RepeatIntervalUnit" />) as specified in the trigger's definition.  
     /// This trigger can achieve schedules that are not possible with <see cref="ISimpleTrigger" /> (e.g 
-    /// because months are not a fixed number of seconds) or <see cref="CronTrigger" /> (e.g. because
+    /// because months are not a fixed number of seconds) or <see cref="ICronTrigger" /> (e.g. because
     /// "every 5 months" is not an even divisor of 12).
     /// <p>
     /// If you use an interval unit of <see cref="IntervalUnit.Month" /> then care should be taken when setting
@@ -39,18 +39,18 @@ namespace Quartz.Impl.Triggers
     /// and the next time after that will be March 28th - and essentially each subsequent firing will 
     /// occur on the 28th of the month, even if a 31st day exists.  If you want a trigger that always
     /// fires on the last day of the month - regardless of the number of days in the month, 
-    /// you should use <see cref="CronTrigger" />.
+    /// you should use <see cref="ICronTrigger" />.
     /// </p> 
     /// </remarks>
     /// <see cref="ITrigger" />
-    /// <see cref="CronTrigger" />
+    /// <see cref="ICronTrigger" />
     /// <see cref="ISimpleTrigger" />
     /// <see cref="NthIncludedDayTrigger" />
     /// <see cref="TriggerUtils" />
     /// <since>1.2</since>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
+    public class CalendarIntervalTriggerImpl : AbstractTrigger<ICalendarIntervalTrigger>, ICalendarIntervalTrigger
     {
         private const int YearToGiveupSchedulingAt = 2299;
 
@@ -522,7 +522,7 @@ namespace Quartz.Impl.Triggers
      * </p>
      */
 
-        public DateTimeOffset? NextFireTimeUtc
+        public override DateTimeOffset? NextFireTimeUtc
         {
             set { this.nextFireTime = value; }
         }
@@ -537,7 +537,7 @@ namespace Quartz.Impl.Triggers
      * </p>
      */
 
-        public DateTimeOffset PreviousFireTimeUtc
+        public override DateTimeOffset? PreviousFireTimeUtc
         {
             set { this.previousFireTime = value; }
         }
@@ -816,7 +816,7 @@ namespace Quartz.Impl.Triggers
  * 
  * @see #getTriggerBuilder()
  */
-        public ScheduleBuilder GetScheduleBuilder()
+        public override ScheduleBuilder<ICalendarIntervalTrigger> GetScheduleBuilder()
         {
 
             CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()
@@ -824,10 +824,10 @@ namespace Quartz.Impl.Triggers
 
             switch (MisfireInstruction)
             {
-                case MISFIRE_INSTRUCTION_DO_NOTHING: 
+                case Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing: 
                     cb.withMisfireHandlingInstructionDoNothing();
                     break;
-                case MISFIRE_INSTRUCTION_FIRE_ONCE_NOW: 
+                case Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow: 
                     cb.withMisfireHandlingInstructionFireAndProceed();
                     break;
             }

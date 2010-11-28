@@ -20,6 +20,8 @@
 using System;
 using System.Globalization;
 
+using Quartz.Util;
+
 namespace Quartz.Impl
 {
     /// <summary>
@@ -293,7 +295,7 @@ namespace Quartz.Impl
         /// </summary>
         public bool PersistJobDataAfterExecution
         {
-            get { return ClassUtils.isAnnotationPresent(jobType, typeof (PersistJobDataAfterExecution)); }
+            get { return ObjectUtils.IsAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute)); }
         }
 
         /// <summary>
@@ -301,7 +303,7 @@ namespace Quartz.Impl
         /// </summary>
         public bool ConcurrentExectionDisallowed
         {
-            get { return ClassUtils.isAnnotationPresent(jobType, typeof (DisallowConcurrentExecution)); }
+            get { return ObjectUtils.IsAttributePresent(jobType, typeof (DisallowConcurrentExecutionAttribute)); }
         }
 
         /// <summary> 
@@ -334,8 +336,8 @@ namespace Quartz.Impl
             return
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "JobDetail '{0}':  jobType: '{1} isStateful: {2} isVolatile: {3} isDurable: {4} requestsRecovers: {5}",
-                    FullName, ((JobType == null) ? null : JobType.FullName), Stateful, Volatile, Durable, RequestsRecovery);
+                    "JobDetail '{0}':  jobType: '{1} persistJobDataAfterExecution: {2} concurrentExectionDisallowed: {3} isDurable: {4} requestsRecovers: {5}",
+                    FullName, ((JobType == null) ? null : JobType.FullName), PersistJobDataAfterExecution, ConcurrentExectionDisallowed, Durable, RequestsRecovery);
         }
 
         /// <summary>

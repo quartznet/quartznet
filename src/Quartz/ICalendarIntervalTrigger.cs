@@ -1,6 +1,6 @@
 namespace Quartz
 {
-    public interface ICalendarIntervalTrigger
+    public interface ICalendarIntervalTrigger : ITrigger
     {
         /// <summary>
         /// Get or set the interval unit - the time unit on with the interval applies.
@@ -18,6 +18,8 @@ namespace Quartz
         /// Get the number of times the <code>DateIntervalTrigger</code> has already fired.
         /// </summary>
         int TimesTriggered { get; set; }
+
+        TriggerBuilder<ICalendarIntervalTrigger> GetTriggerBuilder();
     }
 
     public enum IntervalUnit

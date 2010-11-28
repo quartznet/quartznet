@@ -92,7 +92,7 @@ namespace Quartz.Impl.AdoJobStore
                     CronScheduleBuilder cb = null;
                     try
                     {
-                        cb = CronScheduleBuilder.cronSchedule(cronExpr);
+                        cb = CronScheduleBuilder.CronSchedule(cronExpr);
                     }
                     catch (FormatException)
                     {
@@ -101,7 +101,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (timeZoneId != null)
                     {
-                        cb.inTimeZone(TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
+                        cb.InTimeZone(TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
                     }
 
                     return new TriggerPropertyBundle(cb, null, null);

@@ -42,16 +42,16 @@ namespace Quartz.Impl.AdoJobStore
 
             SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
 
-            props.setInt1(calTrig.RepeatInterval);
-            props.setString1(calTrig.RepeatIntervalUnit.ToString());
-            props.setInt2(calTrig.TimesTriggered);
+            props.Int1 = (calTrig.RepeatInterval);
+            props.String1 = (calTrig.RepeatIntervalUnit.ToString());
+            props.Int2 = (calTrig.TimesTriggered);
 
             return props;
         }
 
         protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
         {
-            ScheduleBuilder sb = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()
+            CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()
                 .withInterval(
                     props.Int1, 
                     (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1, true));

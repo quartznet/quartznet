@@ -19,12 +19,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
 
 using Common.Logging;
 
+using Quartz.Impl.Triggers;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
@@ -339,15 +341,15 @@ namespace Quartz.Xml
                 bool jobDurability = jobDetailType.durable;
                 bool jobRecoveryRequested = jobDetailType.recover;
 
-                Type jobClass = typeLoadHelper.LoadType(jobTypeName);
+                Type jobType = typeLoadHelper.LoadType(jobTypeName);
 
 
-                IJobDetail jobDetail = newJob(jobClass)
-                    .withIdentity(jobName, jobGroup)
-                    .withDescription(jobDescription)
-                    .storeDurably(jobDurability)
-                    .requestRecovery(jobRecoveryRequested)
-                    .build();
+                IJobDetail jobDetail = JobBuilder.NewJob(jobType)
+                    .WithIdentity(jobName, jobGroup)
+                    .WithDescription(jobDescription)
+                    .StoreDurably(jobDurability)
+                    .RequestRecovery(jobRecoveryRequested)
+                    .Build();
 
                 if (jobDetailType.jobdatamap != null && jobDetailType.jobdatamap.entry != null)
                 {
@@ -389,6 +391,12 @@ namespace Quartz.Xml
                 string triggerJobName = triggerNode.Item.jobname.TrimEmptyToNull();
                 string triggerJobGroup = triggerNode.Item.jobgroup.TrimEmptyToNull();
 
+                int triggerPriority = TriggerConstants.DefaultPriority;
+                if (!triggerNode.Item.priority.IsNullOrWhiteSpace())
+                {
+                    triggerPriority = Convert.ToInt32(triggerNode.Item.priority);
+                }
+
                 DateTimeOffset triggerStartTime = SystemTime.UtcNow();
                 if (triggerNode.Item.Item != null)
                 {
@@ -405,7 +413,7 @@ namespace Quartz.Xml
 
                 TriggerKey triggerKey = triggerKey(triggerName, triggerGroup);
 
-                ScheduleBuilder sched = null;
+                IScheduleBuilder sched = null;
 
                 if (triggerNode.Item is simpleTriggerType)
                 {
@@ -417,13 +425,13 @@ namespace Quartz.Xml
                     int repeatCount = ParseSimpleTriggerRepeatCount(repeatCountString);
                     TimeSpan repeatInterval = repeatIntervalString == null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
 
-                    sched = simpleSchedule()
-                    .withIntervalInMilliseconds(repeatInterval)
-                    .withRepeatCount(repeatCount);
+                    sched = SimpleScheduleBuilder.SimpleSchedule()
+                    .WithInterval(repeatInterval)
+                    .WithRepeatCount(repeatCount);
 
                     if (!String.IsNullOrWhiteSpace(simpleTrigger.misfireinstruction))
                     {
-                        ((SimpleScheduleBuilder) sched).withMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
+                        ((SimpleScheduleBuilder) sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
                     }
 
                 }
@@ -435,12 +443,12 @@ namespace Quartz.Xml
                     string timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
                     TimeZoneInfo tz =  timezoneString != null ? TimeZoneInfo.FindSystemTimeZoneById(timezoneString) : null;
-                    sched = cronSchedule(cronExpression)
-                    .inTimeZone(tz);
+                    sched = CronScheduleBuilder.CronSchedule(cronExpression)
+                    .InTimeZone(tz);
 
                     if (!String.IsNullOrWhiteSpace(cronTrigger.misfireinstruction))
                     {
-                        ((CronScheduleBuilder)sched).withMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
+                        ((CronScheduleBuilder)sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
                     }
                 }
                 else if (triggerNode.Item is calendarIntervalTriggerType)
@@ -452,7 +460,7 @@ namespace Quartz.Xml
                     IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
                     int repeatInterval = repeatIntervalString == null ? 0 : Convert.ToInt32(repeatIntervalString);
 
-                    sched = calendarIntervalSchedule()
+                    sched = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()
                     .withInterval(repeatInterval, intervalUnit);
 
                     if (!String.IsNullOrWhiteSpace(calendarIntervalTrigger.misfireinstruction))
@@ -465,15 +473,16 @@ namespace Quartz.Xml
                     throw new SchedulerConfigException("Unknown trigger type in XML configuration");
                 }
 
-                IMutableTrigger trigger = newTrigger()
-    .withIdentity(triggerName, triggerGroup)
-    .withDescription(triggerDescription)
-    .forJob(triggerJobName, triggerJobGroup)
-    .startAt(triggerStartTime)
-    .endAt(triggerEndTime)
-    .modifiedByCalendar(triggerCalendarRef)
-    .withSchedule(sched)
-    .build();
+                IMutableTrigger trigger = TriggerBuilder<ISimpleTrigger>.NewTrigger()
+    .WithIdentity(triggerName, triggerGroup)
+    .WithDescription(triggerDescription)
+    .ForJob(triggerJobName, triggerJobGroup)
+    .StartAt(triggerStartTime)
+    .EndAt(triggerEndTime)
+    .WithPriority(triggerPriority)
+    .ModifiedByCalendar(triggerCalendarRef)
+    .WithSchedule(sched)
+    .Build();
 
                 if (triggerNode.Item.jobdatamap != null && triggerNode.Item.jobdatamap.entry != null)
                 {
@@ -992,6 +1001,36 @@ namespace Quartz.Xml
         public void AddTriggerGroupToNeverDelete(string triggerGroupName)
         {
             triggerGroupsToNeverDelete.Add(triggerGroupName);
+        }
+
+
+
+        /// <summary>
+        /// Helper class to map constant names to their values.
+        /// </summary>
+        internal class Constants
+        {
+            private readonly Type[] types;
+
+            public Constants(params Type[] reflectedTypes)
+            {
+                types = reflectedTypes;
+            }
+
+            public int AsNumber(string field)
+            {
+                foreach (Type type in types)
+                {
+                    FieldInfo fi = type.GetField(field);
+                    if (fi != null)
+                    {
+                        return Convert.ToInt32(fi.GetValue(null), CultureInfo.InvariantCulture);
+                    }
+                }
+
+                // not found
+                throw new Exception(string.Format(CultureInfo.InvariantCulture, "Unknown field '{0}'", field));
+            }
         }
     }
 }

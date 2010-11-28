@@ -91,9 +91,9 @@ namespace Quartz.Impl.AdoJobStore
                     long repeatInterval = rs.GetInt64(AdoConstants.ColumnRepeatInterval);
                     int timesTriggered = rs.GetInt32(AdoConstants.ColumnTimesTriggered);
 
-                    SimpleScheduleBuilder sb = SimpleScheduleBuilder.simpleSchedule()
-                        .withRepeatCount(repeatCount)
-                        .withIntervalInMilliseconds(repeatInterval);
+                    SimpleScheduleBuilder sb = SimpleScheduleBuilder.SimpleSchedule()
+                        .WithRepeatCount(repeatCount)
+                        .WithInterval(TimeSpan.FromMilliseconds(repeatInterval));
 
                     string[] statePropertyNames = {"timesTriggered"};
                     object[] statePropertyValues = {timesTriggered};

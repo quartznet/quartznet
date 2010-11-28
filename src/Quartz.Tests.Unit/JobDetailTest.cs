@@ -19,6 +19,7 @@
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Job;
 
 namespace Quartz.Tests.Unit

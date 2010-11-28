@@ -58,18 +58,44 @@ namespace Quartz
      * @see Trigger
      */
 
-    public class TriggerBuilder
+    public interface ITriggerBuilder
+    {
+        T Build();
+        TriggerBuilder<T> WithIdentity(string name);
+        TriggerBuilder<T> WithIdentity(string name, string group);
+        TriggerBuilder<T> WithIdentity(TriggerKey key);
+        TriggerBuilder<T> WithDescription(string description);
+        TriggerBuilder<T> WithPriority(int priority);
+        TriggerBuilder<T> ModifiedByCalendar(string calendarName);
+        TriggerBuilder<T> StartAt(DateTimeOffset startTimeUtc);
+        TriggerBuilder<T> StartNow();
+        TriggerBuilder<T> EndAt(DateTimeOffset? endTimeUtc);
+        TriggerBuilder<T> WithSchedule(IScheduleBuilder scheduleBuilder);
+        TriggerBuilder<T> ForJob(JobKey jobKey);
+        TriggerBuilder<T> ForJob(string jobName);
+        TriggerBuilder<T> ForJob(string jobName, string jobGroup);
+        TriggerBuilder<T> ForJob(IJobDetail jobDetail);
+        TriggerBuilder<T> UsingJobData(string key, string value);
+        TriggerBuilder<T> UsingJobData(string key, int value);
+        TriggerBuilder<T> UsingJobData(string key, long value);
+        TriggerBuilder<T> UsingJobData(string key, float value);
+        TriggerBuilder<T> UsingJobData(string key, Double value);
+        TriggerBuilder<T> UsingJobData(string key, Boolean value);
+        TriggerBuilder<T> UsingJobData(JobDataMap newJobDataMap);
+    }
+
+    public class TriggerBuilder<T> : ITriggerBuilder where T : ITrigger
     {
         private TriggerKey key;
         private string description;
         private DateTimeOffset startTime = DateTimeOffset.UtcNow;
         private DateTimeOffset? endTime;
-        private int priority = AbstractTrigger.DefaultPriority;
+        private int priority = TriggerConstants.DefaultPriority;
         private string calendarName;
         private JobKey jobKey;
         private JobDataMap jobDataMap = new JobDataMap();
 
-        private ScheduleBuilder scheduleBuilder;
+        private IScheduleBuilder scheduleBuilder;
 
         private TriggerBuilder()
         {
@@ -82,9 +108,9 @@ namespace Quartz
          * @return the new TriggerBuilder
          */
 
-        public static TriggerBuilder NewTrigger()
+        public static TriggerBuilder<ITrigger> NewTrigger()
         {
-            return new TriggerBuilder();
+            return new TriggerBuilder<ITrigger>();
         }
 
         /**
@@ -93,11 +119,11 @@ namespace Quartz
          * @return a Trigger that meets the specifications of the builder.
          */
 
-        public ITrigger Build()
+        public T Build()
         {
             if (scheduleBuilder == null)
             {
-                scheduleBuilder = SimpleScheduleBuilder.simpleSchedule();
+                scheduleBuilder = SimpleScheduleBuilder.SimpleSchedule();
             }
             IMutableTrigger trig = scheduleBuilder.Build();
 
@@ -121,7 +147,7 @@ namespace Quartz
                 trig.JobDataMap = jobDataMap;
             }
 
-            return trig;
+            return (T) trig;
         }
 
         /**
@@ -137,7 +163,7 @@ namespace Quartz
          * @see Trigger#getKey()
          */
 
-        public TriggerBuilder WithIdentity(string name)
+        public TriggerBuilder<T> WithIdentity(string name)
         {
             key = new TriggerKey(name, null);
             return this;
@@ -157,7 +183,7 @@ namespace Quartz
          * @see Trigger#getKey()
          */
 
-        public TriggerBuilder WithIdentity(string name, string group)
+        public TriggerBuilder<T> WithIdentity(string name, string group)
         {
             key = new TriggerKey(name, group);
             return this;
@@ -175,7 +201,7 @@ namespace Quartz
          * @see Trigger#getKey()
          */
 
-        public TriggerBuilder WithIdentity(TriggerKey key)
+        public TriggerBuilder<T> WithIdentity(TriggerKey key)
         {
             this.key = key;
             return this;
@@ -189,7 +215,7 @@ namespace Quartz
          * @see Trigger#getDescription()
          */
 
-        public TriggerBuilder WithDescription(string description)
+        public TriggerBuilder<T> WithDescription(string description)
         {
             this.description = description;
             return this;
@@ -206,7 +232,7 @@ namespace Quartz
          * @see Trigger#getPriority()
          */
 
-        public TriggerBuilder WithPriority(int priority)
+        public TriggerBuilder<T> WithPriority(int priority)
         {
             this.priority = priority;
             return this;
@@ -222,7 +248,7 @@ namespace Quartz
          * @see Trigger#getCalendarName()
          */
 
-        public TriggerBuilder ModifiedByCalendar(string calendarName)
+        public TriggerBuilder<T> ModifiedByCalendar(string calendarName)
         {
             this.calendarName = calendarName;
             return this;
@@ -240,7 +266,7 @@ namespace Quartz
          * @see DateBuilder
          */
 
-        public TriggerBuilder StartAt(DateTimeOffset startTimeUtc)
+        public TriggerBuilder<T> StartAt(DateTimeOffset startTimeUtc)
         {
             this.startTime = startTimeUtc;
             return this;
@@ -255,7 +281,7 @@ namespace Quartz
          * @see Trigger#getStartTime()
          */
 
-        public TriggerBuilder StartNow()
+        public TriggerBuilder<T> StartNow()
         {
             this.startTime = DateTimeOffset.UtcNow;
             return this;
@@ -271,7 +297,7 @@ namespace Quartz
          * @see DateBuilder
          */
 
-        public TriggerBuilder EndAt(DateTimeOffset? endTimeUtc)
+        public TriggerBuilder<T> EndAt(DateTimeOffset? endTimeUtc)
         {
             this.endTime = endTimeUtc;
             return this;
@@ -292,7 +318,7 @@ namespace Quartz
          * @see CalendarIntervalScheduleBuilder
          */
 
-        public TriggerBuilder WithSchedule(ScheduleBuilder scheduleBuilder)
+        public TriggerBuilder<T> WithSchedule(IScheduleBuilder scheduleBuilder)
         {
             this.scheduleBuilder = scheduleBuilder;
             return this;
@@ -307,7 +333,7 @@ namespace Quartz
          * @see Trigger#getJobKey()
          */
 
-        public TriggerBuilder ForJob(JobKey jobKey)
+        public TriggerBuilder<T> ForJob(JobKey jobKey)
         {
             this.jobKey = jobKey;
             return this;
@@ -323,7 +349,7 @@ namespace Quartz
          * @see Trigger#getJobKey()
          */
 
-        public TriggerBuilder ForJob(string jobName)
+        public TriggerBuilder<T> ForJob(string jobName)
         {
             this.jobKey = new JobKey(jobName, null);
             return this;
@@ -340,7 +366,7 @@ namespace Quartz
          * @see Trigger#getJobKey()
          */
 
-        public TriggerBuilder ForJob(string jobName, string jobGroup)
+        public TriggerBuilder<T> ForJob(string jobName, string jobGroup)
         {
             this.jobKey = new JobKey(jobName, jobGroup);
             return this;
@@ -355,7 +381,7 @@ namespace Quartz
          * @see Trigger#getJobKey()
          */
 
-        public TriggerBuilder ForJob(IJobDetail jobDetail)
+        public TriggerBuilder<T> ForJob(IJobDetail jobDetail)
         {
             JobKey k = jobDetail.Key;
             if (k.Name == null)
@@ -373,7 +399,7 @@ namespace Quartz
          * @see Trigger#getJobDataMap()
          */
 
-        public TriggerBuilder UsingJobData(string key, string value)
+        public TriggerBuilder<T> UsingJobData(string key, string value)
         {
             jobDataMap.Put(key, value);
             return this;
@@ -386,7 +412,7 @@ namespace Quartz
          * @see Trigger#getJobDataMap()
          */
 
-        public TriggerBuilder UsingJobData(string key, int value)
+        public TriggerBuilder<T> UsingJobData(string key, int value)
         {
             jobDataMap.Put(key, value);
             return this;
@@ -399,7 +425,7 @@ namespace Quartz
          * @see Trigger#getJobDataMap()
          */
 
-        public TriggerBuilder UsingJobData(string key, long value)
+        public TriggerBuilder<T> UsingJobData(string key, long value)
         {
             jobDataMap.Put(key, value);
             return this;
@@ -412,7 +438,7 @@ namespace Quartz
          * @see Trigger#getJobDataMap()
          */
 
-        public TriggerBuilder UsingJobData(string key, float value)
+        public TriggerBuilder<T> UsingJobData(string key, float value)
         {
             jobDataMap.Put(key, value);
             return this;
@@ -425,7 +451,7 @@ namespace Quartz
          * @see Trigger#getJobDataMap()
          */
 
-        public TriggerBuilder UsingJobData(string key, Double value)
+        public TriggerBuilder<T> UsingJobData(string key, Double value)
         {
             jobDataMap.Put(key, value);
             return this;
@@ -438,7 +464,7 @@ namespace Quartz
          * @see Trigger#getJobDataMap()
          */
 
-        public TriggerBuilder UsingJobData(string key, Boolean value)
+        public TriggerBuilder<T> UsingJobData(string key, Boolean value)
         {
             jobDataMap.Put(key, value);
             return this;
@@ -453,7 +479,7 @@ namespace Quartz
          * @see Trigger#getJobDataMap()
          */
 
-        public TriggerBuilder UsingJobData(JobDataMap newJobDataMap)
+        public TriggerBuilder<T> UsingJobData(JobDataMap newJobDataMap)
         {
             // add any existing data to this new map
             foreach (string key in jobDataMap.Keys)

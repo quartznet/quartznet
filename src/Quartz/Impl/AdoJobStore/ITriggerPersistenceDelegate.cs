@@ -47,18 +47,18 @@ namespace Quartz.Impl.AdoJobStore
 
     public class TriggerPropertyBundle
     {
-        private ScheduleBuilder sb;
+        private IScheduleBuilder sb;
         private string[] statePropertyNames;
         private object[] statePropertyValues;
 
-        public TriggerPropertyBundle(ScheduleBuilder sb, string[] statePropertyNames, object[] statePropertyValues)
+        public TriggerPropertyBundle(IScheduleBuilder sb, string[] statePropertyNames, object[] statePropertyValues)
         {
             this.sb = sb;
             this.statePropertyNames = statePropertyNames;
             this.statePropertyValues = statePropertyValues;
         }
 
-        public ScheduleBuilder getScheduleBuilder()
+        public IScheduleBuilder getScheduleBuilder()
         {
             return sb;
         }

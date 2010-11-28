@@ -147,6 +147,7 @@
       <xs:element name="description" type="xs:string" minOccurs="0"/>
       <xs:element name="job-name" type="xs:string"/>
       <xs:element name="job-group" type="xs:string" minOccurs="0"/>
+      <xs:element name="priority" type="xs:nonNegativeInteger" minOccurs="0"/>
       <xs:element name="calendar-name" type="xs:string" minOccurs="0"/>
       <xs:element name="job-data-map" type="job-data-mapType" minOccurs="0"/>
       <xs:sequence minOccurs="0">

@@ -11,7 +11,7 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
     /// <author>Marko Lahma (.NET)</author>
-    public interface ISimpleTrigger
+    public interface ISimpleTrigger : ITrigger
     {
         /// <summary>
         /// Get or set thhe number of times the <see cref="SimpleTrigger" /> should
@@ -30,5 +30,7 @@ namespace Quartz
         /// fired.
         /// </summary>
         int TimesTriggered { get; set; }
+
+        TriggerBuilder<ISimpleTrigger> GetTriggerBuilder();
     }
 }

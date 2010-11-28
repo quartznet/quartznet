@@ -21,6 +21,9 @@ using System;
 
 using NUnit.Framework;
 
+using Quartz.Impl.Triggers;
+using Quartz.Spi;
+
 namespace Quartz.Tests.Unit
 {
     /// <summary>
@@ -42,7 +45,7 @@ namespace Quartz.Tests.Unit
                 tzStr = "GMT Standard Time";
             }
             TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById(tzStr);
-            CronTrigger trigger = new CronTrigger();
+            CronTriggerImpl trigger = new CronTriggerImpl();
             trigger.Name = "Quartz-579";
             trigger.Group = SchedulerConstants.DefaultGroup;
             trigger.TimeZone = tz;
@@ -53,7 +56,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void BasicCronTriggerTest()
         {
-            CronTrigger trigger = new CronTrigger();
+            CronTriggerImpl trigger = new CronTriggerImpl();
             trigger.Name = "Quartz-Sample";
             trigger.Group = SchedulerConstants.DefaultGroup;
             trigger.CronExpressionString = "0 0 12 1 1 ? 2099";
@@ -66,10 +69,38 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestPrecision()
         {
-            Trigger trigger = new CronTrigger();
+            IOperableTrigger trigger = new CronTriggerImpl();
             trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
             Assert.IsFalse(trigger.HasMillisecondPrecision);
             Assert.AreEqual(0, trigger.StartTimeUtc.Millisecond);
+        }
+
+
+        [Test]
+        public void TestClone()
+        {
+            CronTriggerImpl trigger = new CronTriggerImpl();
+            trigger.Name =("test");
+            trigger.Group = ("testGroup");
+            trigger.CronExpressionString = ("0 0 12 * * ?");
+            ICronTrigger trigger2 = (ICronTrigger)trigger.Clone();
+
+            Assert.AreEqual(trigger, trigger2, "Cloning failed");
+
+            // equals() doesn't test the cron expression
+            Assert.AreEqual("0 0 12 * * ?", trigger2.CronExpressionString, "Cloning failed for the cron expression");
+        }
+
+        // http://jira.opensymphony.com/browse/QUARTZ-558
+        [Test]
+        public void TestQuartz558()
+        {
+            CronTriggerImpl trigger = new CronTriggerImpl();
+            trigger.Name =("test");
+            trigger.Group = ("testGroup");
+            ICronTrigger trigger2 = (ICronTrigger)trigger.Clone();
+
+            Assert.AreEqual(trigger, trigger2, "Cloning failed");
         }
     }
 }

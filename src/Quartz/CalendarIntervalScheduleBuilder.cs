@@ -41,7 +41,7 @@ namespace Quartz
      * @see TriggerBuilder
      */
 
-    public class CalendarIntervalScheduleBuilder : ScheduleBuilder
+    public class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarIntervalTrigger>
     {
         private int interval = 1;
         private IntervalUnit intervalUnit = IntervalUnit.Day;

@@ -134,6 +134,7 @@
     <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerProperties.cs" />
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
     <Compile Include="ICalendarIntervalTrigger.cs" />
+    <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />
     <Compile Include="Listener\BroadcastJobListener.cs" />
@@ -361,6 +362,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TriggerBuilder.cs" />
+    <Compile Include="TriggerConstants.cs" />
     <Compile Include="TriggerKey.cs" />
     <Compile Include="TriggerUtils.cs">
       <SubType>Code</SubType>
@@ -427,7 +429,6 @@
     <Compile Include="Impl\AdoJobStore\AdoJobStoreUtil.cs" />
     <Compile Include="Impl\SchedulerDetailsSetter.cs" />
     <Compile Include="MisfireInstruction.cs" />
-    <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
     <Compile Include="SystemTime.cs" />
     <Compile Include="TimeSpanParseRuleAttribute.cs" />
     <Compile Include="SchedulerConstants.cs" />
@@ -439,12 +440,6 @@
     <Compile Include="Util\FileUtil.cs" />
     <Compile Include="Util\LogicalThreadContext.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
-    <Compile Include="Xml\CalendarBundle.cs" />
-    <Compile Include="Xml\JobSchedulingBundle.cs" />
-    <Compile Include="Xml\JobSchedulingDataProcessor.cs" />
-    <Compile Include="Xml\job_scheduling_data_1_0.cs">
-      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
-    </Compile>
     <Compile Include="Xml\job_scheduling_data_2_0.cs">
       <DependentUpon>job_scheduling_data_2_0.xsd</DependentUpon>
     </Compile>
@@ -457,9 +452,6 @@
     <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.properties" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Xml\job_scheduling_data_1_0.xsd">
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
     <EmbeddedResource Include="Xml\job_scheduling_data_2_0.xsd">
       <SubType>Designer</SubType>
     </EmbeddedResource>

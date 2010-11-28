@@ -91,6 +91,9 @@
       <PredefinedRule Inspect="True" Prefix="" Suffix="" Style="AaBb" ElementKind="Other" />
       <Abbreviation Text="FQ" />
       <Abbreviation Text="SQL" />
+      <Abbreviation Text="CMT" />
+      <Abbreviation Text="TX" />
+      <Abbreviation Text="DB" />
     </Naming2>
   </CodeStyleSettings>
 </Configuration>

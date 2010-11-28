@@ -102,6 +102,33 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        public void TestLastDayOffset()
+        {
+            CronExpression cronExpression = new CronExpression("0 15 10 L-2 * ? 2010");
+
+            DateTimeOffset cal =new DateTimeOffset(2010, 10, 29, 10, 15, 0, TimeSpan.Zero); // last day - 2
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+
+            cal = new DateTimeOffset(2010, 10, 28, 10, 15, 0, TimeSpan.Zero);
+            Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
+
+            cronExpression = new CronExpression("0 15 10 L-5W * ? 2010");
+
+            cal = new DateTimeOffset(2010, 10, 26, 10, 15, 0, TimeSpan.Zero); // last day - 5
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+
+            cronExpression = new CronExpression("0 15 10 L-1 * ? 2010");
+
+            cal = new DateTimeOffset(2010, 10, 30, 10, 15, 0, TimeSpan.Zero); // last day - 1
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+
+            cronExpression = new CronExpression("0 15 10 L-1W * ? 2010");
+
+            cal = new DateTimeOffset(2010, 10, 29, 10, 15, 0, TimeSpan.Zero); // nearest weekday to last day - 1 (29th is a friday in 2010)
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+        }
+
+        [Test]
         public void TestCronExpressionPassingMidnight()
         {
             CronExpression cronExpression = new CronExpression("0 15 23 * * ?");

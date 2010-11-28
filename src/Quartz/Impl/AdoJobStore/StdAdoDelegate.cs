@@ -235,8 +235,8 @@ namespace Quartz.Impl.AdoJobStore
                     List<TriggerKey> list = new List<TriggerKey>();
                     while (rs.Read())
                     {
-                        string triggerName = GetString(rs[ColumnTriggerName]);
-                        string groupName = GetString(rs[ColumnTriggerGroup]);
+                        string triggerName = rs.GetString(ColumnTriggerName);
+                        string groupName = rs.GetString(ColumnTriggerGroup);
                         list.Add(new TriggerKey(triggerName, groupName));
                     }
                     return list;
@@ -260,7 +260,7 @@ namespace Quartz.Impl.AdoJobStore
                     List<TriggerKey> list = new List<TriggerKey>();
                     while (rs.Read())
                     {
-                        list.Add(new TriggerKey(GetString(rs[0]), GetString(rs[1])));
+                        list.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
                     }
 
                     return list;
@@ -289,8 +289,8 @@ namespace Quartz.Impl.AdoJobStore
                     List<TriggerKey> list = new List<TriggerKey>();
                     while (rs.Read())
                     {
-                        string triggerName = GetString(rs[ColumnTriggerName]);
-                        string groupName = GetString(rs[ColumnTriggerGroup]);
+                        string triggerName = rs.GetString(ColumnTriggerName);
+                        string groupName = rs.GetString(ColumnTriggerGroup);
                         list.Add(new TriggerKey(triggerName, groupName));
                     }
                     return list;
@@ -330,8 +330,8 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         else
                         {
-                            string triggerName = GetString(rs[ColumnTriggerName]);
-                            string groupName = GetString(rs[ColumnTriggerGroup]);
+                            string triggerName = rs.GetString(ColumnTriggerName);
+                            string groupName = rs.GetString(ColumnTriggerGroup);
                             resultList.Add(new TriggerKey(triggerName, groupName));
                         }
                     }
@@ -389,7 +389,7 @@ namespace Quartz.Impl.AdoJobStore
                     List<TriggerKey> list = new List<TriggerKey>();
                     while (rs.Read())
                     {
-                        string triggerName = GetString(rs[ColumnTriggerName]);
+                        string triggerName = rs.GetString(ColumnTriggerName);
                         list.Add(new TriggerKey(triggerName, groupName));
                     }
                     return list;
@@ -427,10 +427,10 @@ namespace Quartz.Impl.AdoJobStore
 
                     while (rs.Read())
                     {
-                        string jobName = GetString(rs[ColumnJobName]);
-                        string jobGroup = GetString(rs[ColumnJobGroup]);
-                        // string trigName = GetString(rs[ColumnTriggerName]);
-                        // string trigGroup = GetString(rs[ColumnTriggerGroup]);
+                        string jobName = rs.GetString(ColumnJobName);
+                        string jobGroup = rs.GetString(ColumnJobGroup);
+                        // string trigName = rs.GetString(ColumnTriggerName);
+                        // string trigGroup = rs.GetString(ColumnTriggerGroup);
                         long firedTimeInTicks = Convert.ToInt64(rs[ColumnFiredTime], CultureInfo.InvariantCulture);
                         int priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
                         DateTimeOffset firedTime = new DateTimeOffset(firedTimeInTicks, TimeSpan.Zero);
@@ -529,7 +529,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="job">The job to insert.</param>
         /// <returns>Number of rows inserted.</returns>
-        public virtual int InsertJobDetail(ConnectionAndTransactionHolder conn, JobDetailImpl job)
+        public virtual int InsertJobDetail(ConnectionAndTransactionHolder conn, IJobDetail job)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -537,8 +537,8 @@ namespace Quartz.Impl.AdoJobStore
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertJobDetail)))
             {
-                AddCommandParameter(cmd, "jobName", job.Name);
-                AddCommandParameter(cmd, "jobGroup", job.Group);
+                AddCommandParameter(cmd, "jobName", job.Key.Name);
+                AddCommandParameter(cmd, "jobGroup", job.Key.Group);
                 AddCommandParameter(cmd, "jobDescription", job.Description);
                 AddCommandParameter(cmd, "jobType", GetStorableJobTypeName(job.JobType));
                 AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
@@ -582,7 +582,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="job">The job to update.</param>
         /// <returns>Number of rows updated.</returns>
-        public virtual int UpdateJobDetail(ConnectionAndTransactionHolder conn, JobDetailImpl job)
+        public virtual int UpdateJobDetail(ConnectionAndTransactionHolder conn, IJobDetail job)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -595,8 +595,8 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
                 AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
                 AddCommandParameter(cmd, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
-                AddCommandParameter(cmd, "jobName", job.Name);
-                AddCommandParameter(cmd, "jobGroup", job.Group);
+                AddCommandParameter(cmd, "jobName", job.Key.Name);
+                AddCommandParameter(cmd, "jobGroup", job.Key.Group);
 
                 int insertResult = cmd.ExecuteNonQuery();
 
@@ -622,8 +622,8 @@ namespace Quartz.Impl.AdoJobStore
                     List<TriggerKey> list = new List<TriggerKey>(10);
                     while (rs.Read())
                     {
-                        string trigName = GetString(rs[ColumnTriggerName]);
-                        string trigGroup = GetString(rs[ColumnTriggerGroup]);
+                        string trigName = rs.GetString(ColumnTriggerName);
+                        string trigGroup = rs.GetString(ColumnTriggerGroup);
                         list.Add(new TriggerKey(trigName, trigGroup));
                     }
                     return list;
@@ -709,15 +709,15 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The conn.</param>
         /// <param name="job">the job to update</param>
         /// <returns>the number of rows updated</returns>
-        public virtual int UpdateJobData(ConnectionAndTransactionHolder conn, JobDetailImpl job)
+        public virtual int UpdateJobData(ConnectionAndTransactionHolder conn, IJobDetail job)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobData)))
             {
                 AddCommandParameter(cmd, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
-                AddCommandParameter(cmd, "jobName", job.Name);
-                AddCommandParameter(cmd, "jobGroup", job.Group);
+                AddCommandParameter(cmd, "jobName", job.Key.Name);
+                AddCommandParameter(cmd, "jobGroup", job.Key.Group);
 
                 return cmd.ExecuteNonQuery();
             }
@@ -746,12 +746,12 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         job = new JobDetailImpl();
 
-                        job.Name = GetString(rs[ColumnJobName]);
-                        job.Group = GetString(rs[ColumnJobGroup]);
-                        job.Description = GetString(rs[ColumnDescription]);
-                        job.JobType = loadHelper.LoadType(GetString(rs[ColumnJobClass]));
-                        job.Durable = GetBoolean(rs[ColumnIsDurable]);
-                        job.RequestsRecovery = GetBoolean(rs[ColumnRequestsRecovery]);
+                        job.Name = rs.GetString(ColumnJobName);
+                        job.Group = rs.GetString(ColumnJobGroup);
+                        job.Description = rs.GetString(ColumnDescription);
+                        job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass));
+                        job.Durable = rs.GetBoolean(ColumnIsDurable);
+                        job.RequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
 
                         IDictionary map;
                         if (CanUseProperties)
@@ -814,7 +814,7 @@ namespace Quartz.Impl.AdoJobStore
                     List<string> list = new List<string>();
                     while (rs.Read())
                     {
-                        list.Add((string) rs[0]);
+                        list.Add(rs.GetString(0));
                     }
 
                     return list.ToArray();
@@ -839,7 +839,7 @@ namespace Quartz.Impl.AdoJobStore
                     List<JobKey> list = new List<JobKey>();
                     while (rs.Read())
                     {
-                        list.Add(new JobKey(GetString(rs[0]), groupName));
+                        list.Add(new JobKey(rs.GetString(0), groupName));
                     }
 
                     return list;
@@ -859,8 +859,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">the state that the trigger should be stored in</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>the number of rows inserted</returns>
-        public virtual int InsertTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state,
-                                         JobDetailImpl jobDetail)
+        public virtual int InsertTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             byte[] baos = null;
             if (trigger.JobDataMap.Count > 0)
@@ -967,8 +966,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state that the trigger should be stored in.</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>The number of rows updated.</returns>
-        public virtual int UpdateTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state,
-                                         JobDetailImpl jobDetail)
+        public virtual int UpdateTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             // save some clock cycles by unnecessarily writing job data blob ...
             bool updateJobData = trigger.JobDataMap.Dirty;
@@ -1378,11 +1376,11 @@ namespace Quartz.Impl.AdoJobStore
                     if (rs.Read())
                     {
                         JobDetailImpl job = new JobDetailImpl();
-                        job.Name = GetString(rs[0]);
-                        job.Group = GetString(rs[1]);
-                        job.Durable = GetBoolean(rs[2]);
-                        job.JobType = loadHelper.LoadType(GetString(rs[3]));
-                        job.RequestsRecovery = GetBoolean(rs[4]);
+                        job.Name = rs.GetString(0);
+                        job.Group = rs.GetString(1);
+                        job.Durable = rs.GetBoolean(2);
+                        job.JobType = loadHelper.LoadType(rs.GetString(3));
+                        job.RequestsRecovery = rs.GetBoolean(4);
 
                         return job;
                     }
@@ -1453,7 +1451,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     while (rs.Read())
                     {
-                        trigList.Add(SelectTrigger(conn, new TriggerKey(GetString(rs[ColumnTriggerName]), GetString(rs[ColumnTriggerGroup]))));
+                        trigList.Add(SelectTrigger(conn, new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup))));
                     }
                 }
             }
@@ -1492,15 +1490,15 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        jobName = GetString(rs[ColumnJobName]);
-                        jobGroup = GetString(rs[ColumnJobGroup]);
-                        description = GetString(rs[ColumnDescription]);
+                        jobName = rs.GetString(ColumnJobName);
+                        jobGroup = rs.GetString(ColumnJobGroup);
+                        description = rs.GetString(ColumnDescription);
                         long nextFireTime = Convert.ToInt64(rs[ColumnNextFireTime], CultureInfo.InvariantCulture);
                         long prevFireTime = Convert.ToInt64(rs[ColumnPreviousFireTime], CultureInfo.InvariantCulture);
-                        triggerType = GetString(rs[ColumnTriggerType]);
+                        triggerType = rs.GetString(ColumnTriggerType);
                         long startTime = Convert.ToInt64(rs[ColumnStartTime], CultureInfo.InvariantCulture);
                         long endTime = Convert.ToInt64(rs[ColumnEndTime], CultureInfo.InvariantCulture);
-                        calendarName = GetString(rs[ColumnCalendarName]);
+                        calendarName = rs.GetString(ColumnCalendarName);
                         misFireInstr = Convert.ToInt32(rs[ColumnMifireInstruction], CultureInfo.InvariantCulture);
                         priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
 
@@ -1659,7 +1657,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        state = GetString(rs[ColumnTriggerState]);
+                        state = rs.GetString(ColumnTriggerState);
                     }
                     else
                     {
@@ -1691,10 +1689,10 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        string state = GetString(rs[ColumnTriggerState]);
+                        string state = rs.GetString(ColumnTriggerState);
                         long nextFireTime = Convert.ToInt64(rs[ColumnNextFireTime], CultureInfo.InvariantCulture);
-                        string jobName = GetString(rs[ColumnJobName]);
-                        string jobGroup = GetString(rs[ColumnJobGroup]);
+                        string jobName = rs.GetString(ColumnJobName);
+                        string jobGroup = rs.GetString(ColumnJobGroup);
 
                         DateTimeOffset? nft = null;
 
@@ -2092,7 +2090,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        return new TriggerKey(GetString(rs[ColumnTriggerName]), GetString(rs[ColumnTriggerGroup]));
+                        return new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                     }
                     
                     return null;
@@ -2263,17 +2261,17 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     FiredTriggerRecord rec = new FiredTriggerRecord();
 
-                    rec.FireInstanceId = GetString(rs[ColumnEntryId]);
-                    rec.FireInstanceState = GetString(rs[ColumnEntryState]);
+                    rec.FireInstanceId = rs.GetString(ColumnEntryId);
+                    rec.FireInstanceState = rs.GetString(ColumnEntryState);
                     rec.FireTimestamp = Convert.ToInt64(rs[ColumnFiredTime], CultureInfo.InvariantCulture);
                     rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
-                    rec.SchedulerInstanceId = GetString(rs[ColumnInstanceName]);
-                    rec.TriggerKey = new TriggerKey(GetString(rs[ColumnTriggerName]), GetString(rs[ColumnTriggerGroup]));
+                    rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
+                    rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                     if (!rec.FireInstanceState.Equals(StateAcquired))
                     {
-                        rec.JobDisallowsConcurrentExecution = GetBoolean(rs[ColumnIsNonConcurrent]);
-                        rec.JobRequestsRecovery = GetBoolean(rs[ColumnRequestsRecovery]);
-                        rec.JobKey = new JobKey(GetString(rs[ColumnJobName]), GetString(rs[ColumnJobGroup]));
+                        rec.JobDisallowsConcurrentExecution = rs.GetBoolean(ColumnIsNonConcurrent);
+                        rec.JobRequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
+                        rec.JobKey = new JobKey(rs.GetString(ColumnJobName), rs.GetString(ColumnJobGroup));
                     }
                     lst.Add(rec);
                 }
@@ -2313,17 +2311,17 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     FiredTriggerRecord rec = new FiredTriggerRecord();
 
-                    rec.FireInstanceId = GetString(rs[ColumnEntryId]);
-                    rec.FireInstanceState = GetString(rs[ColumnEntryState]);
+                    rec.FireInstanceId = rs.GetString(ColumnEntryId);
+                    rec.FireInstanceState = rs.GetString(ColumnEntryState);
                     rec.FireTimestamp = Convert.ToInt64(rs[ColumnFiredTime], CultureInfo.InvariantCulture);
                     rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
-                    rec.SchedulerInstanceId = GetString(rs[ColumnInstanceName]);
-                    rec.TriggerKey = new TriggerKey(GetString(rs[ColumnTriggerName]), GetString(rs[ColumnTriggerGroup]));
+                    rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
+                    rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                     if (!rec.FireInstanceState.Equals(StateAcquired))
                     {
-                        rec.JobDisallowsConcurrentExecution = GetBoolean(rs[ColumnIsNonConcurrent]);
-                        rec.JobRequestsRecovery = GetBoolean(rs[ColumnRequestsRecovery]);
-                        rec.JobKey = new JobKey(GetString(rs[ColumnJobName]), GetString(rs[ColumnJobGroup]));
+                        rec.JobDisallowsConcurrentExecution = rs.GetBoolean(ColumnIsNonConcurrent);
+                        rec.JobRequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
+                        rec.JobKey = new JobKey(rs.GetString(ColumnJobName), rs.GetString(ColumnJobGroup));
                     }
                     lst.Add(rec);
                 }
@@ -2352,16 +2350,16 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         FiredTriggerRecord rec = new FiredTriggerRecord();
 
-                        rec.FireInstanceId = GetString(rs[ColumnEntryId]);
-                        rec.FireInstanceState = GetString(rs[ColumnEntryState]);
+                        rec.FireInstanceId = rs.GetString(ColumnEntryId);
+                        rec.FireInstanceState = rs.GetString(ColumnEntryState);
                         rec.FireTimestamp = Convert.ToInt64(rs[ColumnFiredTime], CultureInfo.InvariantCulture);
-                        rec.SchedulerInstanceId = GetString(rs[ColumnInstanceName]);
-                        rec.TriggerKey = new TriggerKey(GetString(rs[ColumnTriggerName]), GetString(rs[ColumnTriggerGroup]));
+                        rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
+                        rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                         if (!rec.FireInstanceState.Equals(StateAcquired))
                         {
-                            rec.JobDisallowsConcurrentExecution = GetBoolean(rs[ColumnIsNonConcurrent]);
-                            rec.JobRequestsRecovery = GetBoolean(rs[ColumnRequestsRecovery]);
-                            rec.JobKey = new JobKey(GetString(rs[ColumnJobName]), GetString(rs[ColumnJobGroup]));
+                            rec.JobDisallowsConcurrentExecution = rs.GetBoolean(ColumnIsNonConcurrent);
+                            rec.JobRequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
+                            rec.JobKey = new JobKey(rs.GetString(ColumnJobName), rs.GetString(ColumnJobGroup));
                         }
                         lst.Add(rec);
                     }
@@ -2392,7 +2390,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     while (rs.Read())
                     {
-                        instanceNames.Add((string) rs[ColumnInstanceName]);
+                        instanceNames.Add(rs.GetString(ColumnInstanceName));
                     }
 
                     return instanceNames;
@@ -2529,7 +2527,7 @@ namespace Quartz.Impl.AdoJobStore
                 while (rs.Read())
                 {
                     SchedulerStateRecord rec = new SchedulerStateRecord();
-                    rec.SchedulerInstanceId = GetString(rs[ColumnInstanceName]);
+                    rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
                     rec.CheckinTimestamp = new DateTimeOffset(Convert.ToInt64(rs[ColumnLastCheckinTime], CultureInfo.InvariantCulture), TimeSpan.Zero);
                     rec.CheckinInterval = TimeSpan.FromMilliseconds(Convert.ToInt64(rs[ColumnCheckinInterval], CultureInfo.InvariantCulture));
                     list.Add(rec);

@@ -37,14 +37,14 @@ namespace Quartz.Impl.AdoJobStore
 
         private readonly string status;
 
-        private readonly DateTimeOffset nextFireTime;
+        private readonly DateTimeOffset? nextFireTime;
 
         /// <summary>
         /// Construct a new TriggerStatus with the status name and nextFireTime.
         /// </summary>
         /// <param name="status">The trigger's status</param>
         /// <param name="nextFireTime">The next time trigger will fire</param>
-        public TriggerStatus(string status, DateTimeOffset nextFireTime)
+        public TriggerStatus(string status, DateTimeOffset? nextFireTime)
         {
             this.status = status;
             this.nextFireTime = nextFireTime;
@@ -67,7 +67,7 @@ namespace Quartz.Impl.AdoJobStore
             get { return status; }
         }
 
-        public DateTimeOffset NextFireTimeUtc
+        public DateTimeOffset? NextFireTimeUtc
         {
             get { return nextFireTime; }
         }

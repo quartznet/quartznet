@@ -44,8 +44,8 @@ namespace Quartz.Impl.Triggers
     /// into the <see cref="JobDataMap" /> on the <see cref="ITrigger" />.
 	/// </p>
     /// </remarks>
-	/// <seealso cref="SimpleTriggerImpl" />
-    /// <seealso cref="CronTrigger" />
+	/// <seealso cref="ISimpleTrigger" />
+    /// <seealso cref="ICronTrigger" />
     /// <seealso cref="NthIncludedDayTrigger" />
     /// <seealso cref="TriggerUtils" />
     /// <seealso cref="JobDataMap" />
@@ -54,13 +54,8 @@ namespace Quartz.Impl.Triggers
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public abstract class AbstractTrigger : IOperableTrigger
+    public abstract class AbstractTrigger<T> : IOperableTrigger where T : ITrigger
 	{
-	    /// <summary>
-		/// The default value for priority.
-		/// </summary>
-		public const int DefaultPriority = 5;
-
         private string name;
         private string group = SchedulerConstants.DefaultGroup;
         private string jobName;
@@ -232,7 +227,7 @@ namespace Quartz.Impl.Triggers
 			get { return jobGroup + "." + jobName; }
 		}
 
-	    public abstract ScheduleBuilder GetScheduleBuilder();
+	    public abstract IScheduleBuilder GetScheduleBuilder();
 
 	    /// <summary>
 		/// Get or set the description given to the <see cref="ITrigger" /> instance by
@@ -327,8 +322,8 @@ namespace Quartz.Impl.Triggers
 			set { fireInstanceId = value; }
 		}
 
-	    public abstract void SetNextFireTimeUtc(DateTimeOffset nextFireTime);
-	    public abstract void SetPreviousFireTimeUtc(DateTimeOffset previousFireTime);
+        public abstract DateTimeOffset? NextFireTimeUtc { set; }
+        public abstract DateTimeOffset? PreviousFireTimeUtc { set; }
 
 	    /// <summary>
 		/// Gets and sets the date/time on which the trigger must stop firing. This 
@@ -741,10 +736,10 @@ namespace Quartz.Impl.Triggers
         /// </returns>
 		public override bool Equals(object obj)
 		{
-            return Equals(obj as AbstractTrigger);
+            return Equals(obj as AbstractTrigger<T>);
 		}
 
-        public virtual bool Equals(AbstractTrigger trigger)
+        public virtual bool Equals(AbstractTrigger<T> trigger)
         {
             if (trigger == null)
             {
@@ -773,10 +768,10 @@ namespace Quartz.Impl.Triggers
         /// </returns>
 		public virtual object Clone()
 		{
-			AbstractTrigger copy;
+            AbstractTrigger<T> copy;
 			try
 			{
-                copy = (AbstractTrigger) MemberwiseClone();
+                copy = (AbstractTrigger<T>)MemberwiseClone();
 
 				// Shallow copy the jobDataMap.  Note that this means that if a user
 				// modifies a value object in this map from the cloned Trigger
@@ -794,9 +789,9 @@ namespace Quartz.Impl.Triggers
 		}
 
 
-        public TriggerBuilder GetTriggerBuilder()
+        public ITriggerBuilder GetTriggerBuilder()
         {
-            TriggerBuilder b = TriggerBuilder.NewTrigger()
+            TriggerBuilder<T> b = TriggerBuilder<T>.NewTrigger()
                 .ForJob(JobKey)
                 .ModifiedByCalendar(CalendarName)
                 .UsingJobData(JobDataMap)
@@ -809,7 +804,6 @@ namespace Quartz.Impl.Triggers
             return b;
         }
 	}
-
 }
 
 

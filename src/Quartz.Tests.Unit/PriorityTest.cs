@@ -25,6 +25,8 @@ using System.Threading;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit
 {
@@ -58,14 +60,14 @@ namespace Quartz.Tests.Unit
 			DateTime n = DateTime.UtcNow;
 			DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
 
-			Trigger trig1 = new SimpleTrigger("T1", null, cal);
-			Trigger trig2 = new SimpleTrigger("T2", null, cal);
+            IMutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal);
+            IMutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal);
 
 			JobDetailImpl jobDetail = new JobDetailImpl("JD", null, typeof (TestJob));
 
 			sched.ScheduleJob(jobDetail, trig1);
 
-			trig2.JobName = jobDetail.Name;
+			trig2.JobKey = new JobKey(jobDetail.Key.Name);
 			sched.ScheduleJob(trig2);
 
 			sched.Start();
@@ -89,17 +91,17 @@ namespace Quartz.Tests.Unit
 			DateTime n = DateTime.UtcNow.AddSeconds(1);
 			DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
 
-			Trigger trig1 = new SimpleTrigger("T1", null, cal);
+			IOperableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal);
 			trig1.Priority = 5;
 
-			Trigger trig2 = new SimpleTrigger("T2", null, cal);
+            IOperableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal);
 			trig2.Priority = 10;
 
 			JobDetailImpl jobDetail = new JobDetailImpl("JD", null, typeof (TestJob));
 
 			sched.ScheduleJob(jobDetail, trig1);
 
-			trig2.JobName = jobDetail.Name;
+            trig2.JobKey = new JobKey(jobDetail.Key.Name);
 			sched.ScheduleJob(trig2);
 
 			sched.Start();
@@ -113,9 +115,9 @@ namespace Quartz.Tests.Unit
 
 		class TestJob : IStatefulJob
 		{
-			public void Execute(JobExecutionContext context)
+			public void Execute(IJobExecutionContext context)
 			{
-				result.Append(context.Trigger.Name);
+				result.Append(context.Trigger.Key.Name);
 			}
 		}
 	}

@@ -196,6 +196,11 @@ namespace Quartz.Util
                     throw new ArgumentOutOfRangeException();
             }
 	    }
+
+	    public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
+	    {
+	        return typeToExamine.GetCustomAttributes(attributeType, true).Length > 0;
+	    }
 	}
 
 }

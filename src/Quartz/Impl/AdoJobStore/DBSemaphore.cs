@@ -229,8 +229,8 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (TablePrefix != null && SchedName != null && sql != null && insertSql != null)
             {
-                expandedSQL = Util.rtp(this.sql, TablePrefix, SchedulerNameLiteral);
-                expandedInsertSQL = Util.rtp(this.insertSql, TablePrefix, SchedulerNameLiteral);
+                expandedSQL = AdoJobStoreUtil.ReplaceTablePrefix(this.sql, TablePrefix, SchedulerNameLiteral);
+                expandedInsertSQL = AdoJobStoreUtil.ReplaceTablePrefix(this.insertSql, TablePrefix, SchedulerNameLiteral);
             }
         }
 

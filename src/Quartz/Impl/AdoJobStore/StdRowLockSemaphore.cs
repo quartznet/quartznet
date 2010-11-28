@@ -87,7 +87,7 @@ namespace Quartz.Impl.AdoJobStore
 
                                 if (res != 1)
                                 {
-                                    throw new Exception(Util.rtp(
+                                    throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix(
                                         "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
                                         " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
                                 }

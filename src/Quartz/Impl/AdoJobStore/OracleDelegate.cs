@@ -19,6 +19,8 @@
 
 using Common.Logging;
 
+using Quartz.Spi;
+
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
@@ -36,7 +38,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="tablePrefix">the prefix of all table names</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
-        public OracleDelegate(ILog logger, string tablePrefix, string instanceId, IDbProvider dbProvider) : base(logger, tablePrefix, instanceId, dbProvider)
+        public OracleDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
+            : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper)
         {
             CreateSqlForSelectNextTriggerToAcquire();
         }
@@ -49,7 +52,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
         /// <param name="useProperties">if set to <c>true</c> [use properties].</param>
-        public OracleDelegate(ILog logger, string tablePrefix, string instanceId, IDbProvider dbProvider, bool useProperties) : base(logger, tablePrefix, instanceId, dbProvider, useProperties)
+        public OracleDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper, bool useProperties)
+            : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper, useProperties)
         {
             CreateSqlForSelectNextTriggerToAcquire();
         }

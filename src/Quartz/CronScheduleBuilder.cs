@@ -62,9 +62,9 @@ namespace Quartz
  * @see TriggerBuilder
  */
 
-    public class CronScheduleBuilder : ScheduleBuilder
+    public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     {
-        private string cronExpression;
+        private readonly string cronExpression;
         private TimeZoneInfo tz;
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
@@ -93,7 +93,7 @@ namespace Quartz
             {
                 // all methods of construction ensure the expression is valid by this point...
                 throw new Exception("CronExpression '" + cronExpression +
-                                           "' is invalid, which should not be possible, please report bug to Quartz developers.");
+                                    "' is invalid, which should not be possible, please report bug to Quartz developers.");
             }
             ct.TimeZone = tz;
             ct.MisfireInstruction = misfireInstruction;
@@ -110,7 +110,7 @@ namespace Quartz
      * @see CronExpression
      */
 
-        public static CronScheduleBuilder cronSchedule(string cronExpression)
+        public static CronScheduleBuilder CronSchedule(string cronExpression)
         {
             CronExpression.ValidateExpression(cronExpression);
             return new CronScheduleBuilder(cronExpression);
@@ -127,7 +127,7 @@ namespace Quartz
      * @see CronExpression
      */
 
-        public static CronScheduleBuilder cronScheduleDaily(int hour, int minute)
+        public static CronScheduleBuilder DailyAtHourAndMinute(int hour, int minute)
         {
             DateBuilder.validateHour(hour);
             DateBuilder.validateMinute(minute);
@@ -157,7 +157,7 @@ namespace Quartz
      * @see DateBuilder#SUNDAY
      */
 
-        public static CronScheduleBuilder cronScheduleDailyWeekly(int dayOfWeek, int hour, int minute)
+        public static CronScheduleBuilder WeeklyOnDayAndHourAndMinute(int dayOfWeek, int hour, int minute)
         {
             DateBuilder.validateDayOfWeek(dayOfWeek);
             DateBuilder.validateHour(hour);
@@ -181,7 +181,7 @@ namespace Quartz
      * @see CronExpression
      */
 
-        public static CronScheduleBuilder cronScheduleDailyMonthly(int dayOfMonth, int hour, int minute)
+        public static CronScheduleBuilder MonthlyOnDayAndHourAndMinute(int dayOfMonth, int hour, int minute)
         {
             DateBuilder.validateDayOfMonth(dayOfMonth);
             DateBuilder.validateHour(hour);
@@ -200,7 +200,7 @@ namespace Quartz
      * @see CronExpression#getTimeZone()
      */
 
-        public CronScheduleBuilder inTimeZone(TimeZoneInfo tz)
+        public CronScheduleBuilder InTimeZone(TimeZoneInfo tz)
         {
             this.tz = tz;
             return this;
@@ -214,7 +214,8 @@ namespace Quartz
          * @return the updated CronScheduleBuilder
          * @see Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY
          */
-        public CronScheduleBuilder withMisfireHandlingInstructionIgnoreMisfires()
+
+        public CronScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
         {
             misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
             return this;
@@ -228,7 +229,7 @@ namespace Quartz
      * @see CronTrigger#MISFIRE_INSTRUCTION_DO_NOTHING
      */
 
-        public CronScheduleBuilder withMisfireHandlingInstructionDoNothing()
+        public CronScheduleBuilder WithMisfireHandlingInstructionDoNothing()
         {
             misfireInstruction = MisfireInstruction.CronTrigger.DoNothing;
             return this;
@@ -242,13 +243,13 @@ namespace Quartz
      * @see CronTrigger#MISFIRE_INSTRUCTION_FIRE_ONCE_NOW
      */
 
-        public CronScheduleBuilder withMisfireHandlingInstructionFireAndProceed()
+        public CronScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
         {
             misfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
             return this;
         }
 
-        internal CronScheduleBuilder withMisfireHandlingInstruction(int readMisfireInstructionFromString)
+        internal CronScheduleBuilder WithMisfireHandlingInstruction(int readMisfireInstructionFromString)
         {
             misfireInstruction = readMisfireInstructionFromString;
             return this;

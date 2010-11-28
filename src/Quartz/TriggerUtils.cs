@@ -21,6 +21,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz
 {
 	/// <summary>
@@ -242,7 +244,7 @@ namespace Quartz
 		/// <returns>the newly created trigger</returns>
 		public static ITrigger MakeImmediateTrigger(int repeatCount, TimeSpan repeatInterval)
 		{
-			SimpleTrigger trig = new SimpleTrigger();
+            SimpleTriggerImpl trig = new SimpleTriggerImpl();
 			trig.StartTimeUtc = SystemTime.UtcNow();
 			trig.RepeatCount = repeatCount;
 			trig.RepeatInterval = repeatInterval;
@@ -276,7 +278,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeSecondlyTrigger()
 		{
-			return MakeSecondlyTrigger(1, SimpleTrigger.RepeatIndefinitely);
+			return MakeSecondlyTrigger(1, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -290,7 +292,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeSecondlyTrigger(string trigName)
 		{
-			return MakeSecondlyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
+			return MakeSecondlyTrigger(trigName, 1, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 
@@ -305,7 +307,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeSecondlyTrigger(int intervalInSeconds)
 		{
-			return MakeSecondlyTrigger(intervalInSeconds, SimpleTrigger.RepeatIndefinitely);
+			return MakeSecondlyTrigger(intervalInSeconds, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -321,7 +323,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeSecondlyTrigger(int intervalInSeconds, int repeatCount)
 		{
-			SimpleTrigger trig = new SimpleTrigger();
+			SimpleTriggerImpl trig = new SimpleTriggerImpl();
 
 			trig.RepeatInterval = TimeSpan.FromSeconds(intervalInSeconds);
 			trig.RepeatCount = repeatCount;
@@ -359,7 +361,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeMinutelyTrigger()
 		{
-			return MakeMinutelyTrigger(1, SimpleTrigger.RepeatIndefinitely);
+			return MakeMinutelyTrigger(1, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -373,7 +375,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeMinutelyTrigger(string trigName)
 		{
-			return MakeMinutelyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
+			return MakeMinutelyTrigger(trigName, 1, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -387,7 +389,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeMinutelyTrigger(int intervalInMinutes)
 		{
-			return MakeMinutelyTrigger(intervalInMinutes, SimpleTrigger.RepeatIndefinitely);
+			return MakeMinutelyTrigger(intervalInMinutes, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -403,7 +405,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeMinutelyTrigger(int intervalInMinutes, int repeatCount)
 		{
-			SimpleTrigger trig = new SimpleTrigger();
+			SimpleTriggerImpl trig = new SimpleTriggerImpl();
 			trig.RepeatInterval = TimeSpan.FromMinutes(intervalInMinutes);
 			trig.RepeatCount = repeatCount;
 			trig.StartTimeUtc = SystemTime.UtcNow();
@@ -440,7 +442,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
 		public static ITrigger MakeHourlyTrigger()
 		{
-			return MakeHourlyTrigger(1, SimpleTrigger.RepeatIndefinitely);
+			return MakeHourlyTrigger(1, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -454,7 +456,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
         public static ITrigger MakeHourlyTrigger(string trigName)
 		{
-			return MakeHourlyTrigger(trigName, 1, SimpleTrigger.RepeatIndefinitely);
+            return MakeHourlyTrigger(trigName, 1, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -468,7 +470,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
         public static ITrigger MakeHourlyTrigger(int intervalInHours)
 		{
-			return MakeHourlyTrigger(intervalInHours, SimpleTrigger.RepeatIndefinitely);
+			return MakeHourlyTrigger(intervalInHours, SimpleTriggerImpl.RepeatIndefinitely);
 		}
 
 		/// <summary>
@@ -484,7 +486,7 @@ namespace Quartz
 		/// <returns>the new trigger</returns>
         public static ITrigger MakeHourlyTrigger(int intervalInHours, int repeatCount)
 		{
-			SimpleTrigger trig = new SimpleTrigger();
+			SimpleTriggerImpl trig = new SimpleTriggerImpl();
 
 			trig.RepeatInterval = TimeSpan.FromHours(intervalInHours);
 			trig.RepeatCount = repeatCount;

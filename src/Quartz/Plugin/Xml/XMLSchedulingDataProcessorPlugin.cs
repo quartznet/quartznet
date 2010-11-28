@@ -76,9 +76,7 @@ namespace Quartz.Plugin.Xml
         public XMLSchedulingDataProcessorPlugin()
         {
             log = LogManager.GetLogger(typeof (JobInitializationPlugin));
-            fileNames = JobSchedulingDataProcessor.QuartzXmlFileName;
         }
-
 
         /// <summary>
         /// Gets the log.
@@ -198,7 +196,7 @@ namespace Quartz.Plugin.Xml
                         {
                             string jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
 
-                           TriggerKey tKey = new TriggerKey(jobTriggerName, JOB_INITIALIZATION_PLUGIN_NAME);
+                           TriggerKey tKey = new TriggerKey(jobTriggerName, JobInitializationPluginName);
                         
                         // remove pre-existing job/trigger, if any
                         Scheduler.UnscheduleJob(tKey);
@@ -206,12 +204,12 @@ namespace Quartz.Plugin.Xml
                         // TODO: convert to use builder
                         SimpleTriggerImpl trig = (SimpleTriggerImpl) Scheduler.GetTrigger(tKey);
                         trig = new SimpleTriggerImpl();
-                        trig.setName(jobTriggerName);
-                        trig.setGroup(JOB_INITIALIZATION_PLUGIN_NAME);
-                        trig.setStartTime(new Date());
-                        trig.setEndTime(null);
-                        trig.setRepeatCount(SimpleTrigger.REPEAT_INDEFINITELY);
-                        trig.setRepeatInterval(scanInterval);
+                        trig.Name = (jobTriggerName);
+                        trig.Group = (JobInitializationPluginName);
+                        trig.StartTimeUtc = (DateTimeOffset.UtcNow);
+                        trig.EndTimeUtc = (null);
+                        trig.RepeatCount = (SimpleTriggerImpl.RepeatIndefinitely);
+                        trig.RepeatInterval = (scanInterval);
                         
                         // TODO: convert to use builder
                         JobDetailImpl job = new JobDetailImpl(

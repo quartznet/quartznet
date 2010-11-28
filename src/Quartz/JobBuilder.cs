@@ -195,7 +195,18 @@ namespace Quartz
         /// <seealso cref="IJobDetail#getJobClass()" />
         public JobBuilder OfType<T>()
         {
-            jobType = typeof(T);
+            return OfType(typeof(T));
+        }
+
+        /// <summary>
+        /// Set the class which will be instantiated and executed when a
+        /// Trigger fires that is associated with this JobDetail.
+        /// </summary>
+        /// <returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail#getJobClass()" />
+        public JobBuilder OfType(Type type)
+        {
+            jobType = type;
             return this;
         }
 

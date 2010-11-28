@@ -66,14 +66,14 @@ namespace Quartz
         /// <code>Trigger</code> identical to this one.
         /// </summary>
         /// <returns></returns>
-        TriggerBuilder GetTriggerBuilder();
+        TriggerBuilder<T> GetTriggerBuilder<T>() where T : ITrigger;
 
         /// <summary>
         /// Get a <see cref="ScheduleBuilder" /> that is configured to produce a 
         /// schedule identical to this trigger's schedule.
         /// </summary>
         /// <returns></returns>
-        ScheduleBuilder GetScheduleBuilder();
+        ScheduleBuilder<T> GetScheduleBuilder<T>() where T : ITrigger;
 
         /// <summary>
         /// Get or set the description given to the <see cref="Trigger" /> instance by
@@ -193,5 +193,8 @@ namespace Quartz
         /// <see langword="null" /> will be returned.
         /// </summary>
         DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime);
+
+        bool HasMillisecondPrecision { get; }
+
     }
 }

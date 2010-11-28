@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System;
+
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
@@ -69,7 +71,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <sssseealso crsef="JobStoreCMT.ExecuteInLock(string, ITransactionCallback)" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
-        protected override object ExecuteInLock(string lockName, ITransactionCallback txCallback)
+        protected override object ExecuteInLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback)
         {
             return ExecuteInNonManagedTXLock(lockName, txCallback);
         }

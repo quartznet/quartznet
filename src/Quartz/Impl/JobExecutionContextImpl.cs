@@ -303,7 +303,7 @@ namespace Quartz
 		{
 			return
 				string.Format(CultureInfo.InvariantCulture, "JobExecutionContext: trigger: '{0}' job: '{1}' fireTimeUtc: '{2:r}' scheduledFireTimeUtc: '{3:r}' previousFireTimeUtc: '{4:r}' nextFireTimeUtc: '{5:r}' recovering: {6} refireCount: {7}", 
-                Trigger.FullName, 
+                Trigger.Key, 
                 JobDetail.Key, 
                 FireTimeUtc, 
                 ScheduledFireTimeUtc, 

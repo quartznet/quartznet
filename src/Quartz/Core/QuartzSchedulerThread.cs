@@ -417,7 +417,7 @@ namespace Quartz.Core
                             JobRunShell shell = null;
                             try
                             {
-                                shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell();
+                                shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
                                 shell.Initialize(qs);
                             }
                             catch (SchedulerException)
