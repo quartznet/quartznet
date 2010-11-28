@@ -32,6 +32,9 @@ namespace Quartz.Impl.AdoJobStore
     {
         public const string TablePrefixSubst = "{0}";
 
+        // table prefix substitution string
+        public const string SchedulerNameSubst = "{1}";
+
         // DELETE
         public static readonly string SqlDeleteBlobTrigger =
             string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = @triggerName AND {3} = @triggerGroup", TablePrefixSubst,
@@ -261,27 +264,29 @@ namespace Quartz.Impl.AdoJobStore
                           TableJobDetails, ColumnJobGroup);
 
         public static readonly string SqlSelectMisfiredTriggers =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} < @nextFireTime ORDER BY {3} ASC", TablePrefixSubst,
-                          TableTriggers, ColumnNextFireTime, ColumnNextFireTime);
+            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} <> {3} AND {4} < @nextFireTime ORDER BY {5} ASC", TablePrefixSubst,
+                          TableTriggers, ColumnMifireInstruction, (int) MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnNextFireTime);
 
         public static readonly string SqlSelectMisfiredTriggersInGroupInState =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} < @nextFireTime AND {4} = @triggerGroup AND {5} = @state ORDER BY {6} ASC",
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} <> {4} AND {5} < @nextFireTime AND {6} = @triggerGroup AND {7} = @state ORDER BY {8} ASC",
                           ColumnTriggerName, TablePrefixSubst, TableTriggers,
+                          ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy,
                           ColumnNextFireTime, ColumnTriggerGroup,
                           ColumnTriggerState, ColumnNextFireTime);
 
         public static readonly string SqlSelectMisfiredTriggersInState =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} < @nextFireTime AND {5} = @state ORDER BY {6} ASC", ColumnTriggerName,
-                          ColumnTriggerGroup, TablePrefixSubst, TableTriggers,
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} <> {5} AND {6} < @nextFireTime AND {7} = @state ORDER BY {8} ASC", ColumnTriggerName,
+                          ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnMifireInstruction, (int) MisfireInstruction.IgnoreMisfirePolicy,
                           ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime);
 
-        public static readonly string SqlCountMisfiredTriggersInStates = 
-            string.Format("SELECT COUNT({0}) FROM {1}{2} WHERE {3} < @nextFireTime AND {4} = @state1", 
-            ColumnTriggerName, TablePrefixSubst, TableTriggers, ColumnNextFireTime, ColumnTriggerState);
+        public static readonly string SqlCountMisfiredTriggersInStates =
+            string.Format("SELECT COUNT({0}) FROM {1}{2} WHERE {3} <> {4} AND {5} < @nextFireTime AND {6} = @state1",
+            ColumnTriggerName, TablePrefixSubst, TableTriggers, ColumnMifireInstruction, (int) MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnTriggerState);
 
         public static readonly string SqlSelectHasMisfiredTriggersInState =
-            string.Format("SELECT {0}, {1} FROM {2}{3} WHERE {4} < @nextFireTime AND {5} = @state1 ORDER BY {6} ASC",
-            ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime);
+            string.Format("SELECT {0}, {1} FROM {2}{3} WHERE {4} <> {5} AND {6} < @nextFireTime AND {7} = @state1 ORDER BY {8} ASC",
+            ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, 
+            ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime);
 
         public static readonly string SqlSelectNextFireTime =
             string.Format(CultureInfo.InvariantCulture, "SELECT MIN({0}) AS {1} FROM {2}{3} WHERE {4} = @state AND {5} >= 0",
@@ -341,15 +346,6 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = @triggerName AND {3} = @triggerGroup", TablePrefixSubst,
                           TableSimpleTriggers, ColumnTriggerName,
                           ColumnTriggerGroup);
-
-        public static readonly string SqlSelectNonConcurrentJobsOfTriggerGroup =
-            string.Format(
-                CultureInfo.InvariantCulture,
-                "SELECT DISTINCT J.{0}, J.{1} FROM {2}{3} T, {4}{5} J WHERE T.{6} = @triggerGroup AND T.{7} = J.{8} AND T.{9} = J.{10} AND J.{11} = @stateful",
-                ColumnJobName, ColumnJobGroup, TablePrefixSubst,
-                TableTriggers, TablePrefixSubst, TableJobDetails,
-                ColumnTriggerGroup, ColumnJobName, ColumnJobName,
-                ColumnJobGroup, ColumnJobGroup, ColumnIsNonConcurrent);
 
         public static readonly string SqlSelectTrigger =
             string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = @triggerName AND {3} = @triggerGroup", TablePrefixSubst,
@@ -487,10 +483,6 @@ namespace Quartz.Impl.AdoJobStore
             TablePrefixSubst, TableFiredTriggers, ColumnInstanceName, ColumnFiredTime, ColumnEntryState, 
             ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent, ColumnRequestsRecovery, ColumnEntryId);
 
-        public static readonly string SqlUpdateTriggerGroupState =
-            string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = @state", TablePrefixSubst, TableTriggers,
-                          ColumnTriggerState);
-
         public static readonly string SqlTriggerGroupStateFromState =
             string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = @newState WHERE {3} = @triggerGroup AND {4} = @oldState",
                           TablePrefixSubst,
@@ -521,14 +513,6 @@ namespace Quartz.Impl.AdoJobStore
                           TablePrefixSubst,
                           TableTriggers, ColumnTriggerState, ColumnTriggerName,
                           ColumnTriggerGroup);
-
-        public static readonly string SqlUpdateTriggerStateFromOtherStatesBeforeTime =
-            string.Format(CultureInfo.InvariantCulture,
-                "UPDATE {0}{1} SET {2} = @newState WHERE ({3} = @oldState1 OR {4} = @oldState2) AND {5} < @time",
-                TablePrefixSubst,
-                TableTriggers, ColumnTriggerState,
-                ColumnTriggerState, ColumnTriggerState,
-                ColumnNextFireTime);
 
         public static readonly string SqlUpdateTriggerStateFromState =
             string.Format(CultureInfo.InvariantCulture,

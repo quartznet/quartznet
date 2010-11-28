@@ -40,9 +40,9 @@ namespace Quartz.Impl.AdoJobStore
 		/// <param name="query">The unsubstitued query</param>
 		/// <param name="tablePrefix">The table prefix</param>
 		/// <returns>The query, with proper table prefix substituted</returns>
-		public static string ReplaceTablePrefix(string query, string tablePrefix)
+		public static string ReplaceTablePrefix(string query, string tablePrefix, string schedNameLiteral)
 		{
-			return String.Format(CultureInfo.InvariantCulture, query, tablePrefix);
+			return String.Format(CultureInfo.InvariantCulture, query, tablePrefix, schedNameLiteral);
 		}
 
 		/// <summary>

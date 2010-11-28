@@ -1218,7 +1218,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                IList<Key> jobTriggers = Delegate.SelectTriggerNamesForJob(conn, jobName, groupName);
+                IList<JobKey> jobTriggers = Delegate.SelectTriggerNamesForJob(conn, jobName, groupName);
 
                 foreach (Key trigger in jobTriggers)
                 {
@@ -1232,6 +1232,62 @@ namespace Quartz.Impl.AdoJobStore
                 throw new JobPersistenceException("Couldn't remove job: " + e.Message, e);
             }
         }
+
+
+        public bool RemoveJobs(IList<JobKey> jobKeys)
+        {
+            return ((bool) ExecuteInLock(
+                LockTriggerAccess,
+                conn =>
+                    {
+                        bool allFound = true;
+
+                        // TODO: make this more efficient with a true bulk operation...
+                        foreach (JobKey jobKey in jobKeys)
+                        {
+                            allFound = RemoveJob(conn, jobKey, true) && allFound;
+                        }
+
+                        return allFound;
+                    }));
+        }
+
+        public bool RemoveTriggers(IList<TriggerKey> triggerKeys)
+        {
+            return ((bool) ExecuteInLock(
+                LockTriggerAccess,
+                conn =>
+                    {
+                        bool allFound = true;
+
+                        // TODO: make this more efficient with a true bulk operation...
+                        foreach (TriggerKey triggerKey in triggerKeys)
+                        {
+                            allFound = RemoveTrigger(conn, triggerKey) && allFound;
+                        }
+
+                        return allFound;
+                    }));
+        }
+
+        public void StoreJobsAndTriggers(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace)
+        {
+            ExecuteInLock(
+                (LockOnInsert || replace) ? LockTriggerAccess : null,
+                delegate(ConnectionAndTransactionHolder conn)
+                    {
+                        // TODO: make this more efficient with a true bulk operation...
+                        foreach (IJobDetail job in triggersAndJobs.Keys)
+                        {
+                            StoreJob(conn, job, replace);
+                            foreach (ITrigger trigger in triggersAndJobs[job])
+                            {
+                                StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false);
+                            }
+                        }
+                    });
+        }    
+    
 
 
         /// <summary>
@@ -3898,30 +3954,6 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-
-        /// <summary>
-        /// Implement this interface to provide the code to execute within
-        /// the a transaction template.  If no return value is required, execute
-        /// should just return null.
-        /// </summary>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock(string, ITransactionCallback)" />
-        /// <seealso cref="JobStoreSupport.ExecuteInLock(string, ITransactionCallback)" />
-        /// <seealso cref="JobStoreSupport.ExecuteWithoutLock(ITransactionCallback)" />
-        protected interface ITransactionCallback
-        {
-            object Execute(ConnectionAndTransactionHolder conn);
-        }
-
-        /// <summary>
-        /// Implement this interface to provide the code to execute within
-        /// the a transaction template that has no return value.
-        /// </summary>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock(string, ITransactionCallback)" />
-        protected interface IVoidTransactionCallback
-        {
-            void Execute(ConnectionAndTransactionHolder conn);
-        }
-
         /// <summary>
         /// Execute the given callback in a transaction. Depending on the JobStore, 
         /// the surrounding transaction may be assumed to be already present 
@@ -3931,7 +3963,7 @@ namespace Quartz.Impl.AdoJobStore
         /// This method just forwards to ExecuteInLock() with a null lockName.
         /// </remarks>
         /// <seealso cref="ExecuteInLock(string, ITransactionCallback)" />
-        protected object ExecuteWithoutLock(ITransactionCallback txCallback)
+        protected object ExecuteWithoutLock(Func<ConnectionAndTransactionHolder, object> txCallback)
         {
             return ExecuteInLock(null, txCallback);
         }
@@ -3949,26 +3981,9 @@ namespace Quartz.Impl.AdoJobStore
         /// lockCallback is still executed in a transaction. 
         /// </param>
         /// <seealso cref="ExecuteInLock(string, ITransactionCallback)" />
-        protected void ExecuteInLock(string lockName, IVoidTransactionCallback txCallback)
+        protected void ExecuteInLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
         {
-            ExecuteInLock(lockName, new ExecuteInLockCallback(this, txCallback));
-        }
-
-        protected class ExecuteInLockCallback : CallbackSupport, ITransactionCallback
-        {
-            private readonly IVoidTransactionCallback txCallback;
-
-            public ExecuteInLockCallback(JobStoreSupport js, IVoidTransactionCallback txCallback)
-                : base(js)
-            {
-                this.txCallback = txCallback;
-            }
-
-            public object Execute(ConnectionAndTransactionHolder conn)
-            {
-                txCallback.Execute(conn);
-                return null;
-            }
+            ExecuteInLock(lockName, conn => { txCallback(conn); return null; });
         }
 
         /// <summary>
@@ -3981,7 +3996,7 @@ namespace Quartz.Impl.AdoJobStore
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a transaction. 
         /// </param>
-        protected abstract object ExecuteInLock(string lockName, ITransactionCallback txCallback);
+        protected abstract object ExecuteInLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback);
 
         /// <summary>
         /// Execute the given callback having optionally acquired the given lock.
@@ -3995,26 +4010,9 @@ namespace Quartz.Impl.AdoJobStore
         /// lockCallback is still executed in a non-managed transaction. 
         /// </param>
         /// <seealso cref="ExecuteInNonManagedTXLock(string, ITransactionCallback)" />
-        protected void ExecuteInNonManagedTXLock(string lockName, IVoidTransactionCallback txCallback)
+        protected void ExecuteInNonManagedTXLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
         {
-            ExecuteInNonManagedTXLock(lockName, new ExecuteInNonManagedTXLockCallback(this, txCallback));
-        }
-
-        protected class ExecuteInNonManagedTXLockCallback : CallbackSupport, ITransactionCallback
-        {
-            private readonly IVoidTransactionCallback txCallback;
-
-            public ExecuteInNonManagedTXLockCallback(JobStoreSupport js, IVoidTransactionCallback txCallback)
-                : base(js)
-            {
-                this.txCallback = txCallback;
-            }
-
-            public object Execute(ConnectionAndTransactionHolder conn)
-            {
-                txCallback.Execute(conn);
-                return null;
-            }
+            ExecuteInNonManagedTXLock(lockName, conn => { txCallback(conn); return null; });
         }
 
         /// <summary>
@@ -4026,7 +4024,7 @@ namespace Quartz.Impl.AdoJobStore
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a non-managed transaction. 
         /// </param>
-        protected object ExecuteInNonManagedTXLock(string lockName, ITransactionCallback txCallback)
+        protected object ExecuteInNonManagedTXLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
@@ -4049,7 +4047,7 @@ namespace Quartz.Impl.AdoJobStore
                     conn = GetNonManagedTXConnection();
                 }
 
-                object result = txCallback.Execute(conn);
+                object result = txCallback(conn);
                 CommitConnection(conn, false);
 
                 DateTimeOffset? sigTime = ClearAndGetSignalSchedulingChangeOnTxCompletion();

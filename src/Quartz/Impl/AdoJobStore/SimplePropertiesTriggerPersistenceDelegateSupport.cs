@@ -19,7 +19,11 @@
 
 #endregion
 
+using System;
+using System.Data;
+
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -51,39 +55,47 @@ namespace Quartz.Impl.AdoJobStore
         protected const string ColumnBoolProp1 = "BOOL_PROP_1";
         protected const string ColumnBoolProp2 = "BOOL_PROP_2";
 
-        protected const string SqlSelectSimplePropsTrigger = "SELECT *" + " FROM "
-                                                             + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
-                                                             + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
+protected static readonly string SELECT_SIMPLE_PROPS_TRIGGER = "SELECT *" + " FROM "
+        + StdAdoConstants.TablePrefixSubst + TABLE_SIMPLE_PROPERTIES_TRIGGERS + " WHERE "
+        + StdAdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+        + " AND " + COL_TRIGGER_NAME + " = ? AND " + COL_TRIGGER_GROUP + " = ?";
 
-        protected const string SqlDeleteSimplePropsTrigger = "DELETE FROM "
-                                                             + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
-                                                             + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
+    protected static readonly string DELETE_SIMPLE_PROPS_TRIGGER = "DELETE FROM "
+        + StdAdoConstants.TablePrefixSubst + TABLE_SIMPLE_PROPERTIES_TRIGGERS + " WHERE "
+        + StdAdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+        + " AND " + COL_TRIGGER_NAME + " = ? AND " + COL_TRIGGER_GROUP + " = ?";
 
-        protected const string SqlInsertSimplePropsTrigger = "INSERT INTO "
-                                                             + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " ("
-                                                             + AdoConstants.ColumnTriggerName + ", " + AdoConstants.ColumnTriggerGroup + ", "
-                                                             + ColumnStrProp1 + ", " + ColumnStrProp2 + ", " + ColumnStrProp3 + ", "
-                                                             + ColumnIntProp1 + ", " + ColumnIntProp2 + ", "
-                                                             + ColumnLongProp1 + ", " + ColumnLongProp2 + ", "
-                                                             + ColumnDecProp1 + ", " + ColumnDecProp2 + ", "
-                                                             + ColumnBoolProp1 + ", " + ColumnBoolProp2
-                                                             + ") " + " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    protected static readonly string INSERT_SIMPLE_PROPS_TRIGGER = "INSERT INTO "
+        + StdAdoConstants.TablePrefixSubst + TABLE_SIMPLE_PROPERTIES_TRIGGERS + " ("
+        + StdAdoConstants.ColumnSchedulerName + ", "
+        + COL_TRIGGER_NAME + ", " + COL_TRIGGER_GROUP + ", "
+        + COL_STR_PROP_1 + ", " + COL_STR_PROP_2 + ", " + COL_STR_PROP_3 + ", "
+        + COL_INT_PROP_1 + ", " + COL_INT_PROP_2 + ", "
+        + COL_LONG_PROP_1 + ", " + COL_LONG_PROP_2 + ", "
+        + COL_DEC_PROP_1 + ", " + COL_DEC_PROP_2 + ", "
+        + COL_BOOL_PROP_1 + ", " + COL_BOOL_PROP_2 
+        + ") " + " VALUES(" + StdAdoConstants.SchedulerNameSubst + ", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        protected const string SqUpdateSimplePropsTrigger = "UPDATE "
-                                                            + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
-                                                            + ColumnStrProp1 + " = ?, " + ColumnStrProp2 + " = ?, " + ColumnStrProp3 + " = ?, "
-                                                            + ColumnIntProp1 + " = ?, " + ColumnIntProp2 + " = ?, "
-                                                            + ColumnLongProp1 + " = ?, " + ColumnLongProp2 + " = ?, "
-                                                            + ColumnDecProp1 + " = ?, " + ColumnDecProp2 + " = ?, "
-                                                            + ColumnBoolProp1 + " = ?, " + ColumnBoolProp2
-                                                            + " = ? WHERE " + AdoConstants.ColumnTriggerName
-                                                            + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
-
+    protected static readonly string UPDATE_SIMPLE_PROPS_TRIGGER = "UPDATE "
+        + StdAdoConstants.TablePrefixSubst + TABLE_SIMPLE_PROPERTIES_TRIGGERS + " SET "
+        + COL_STR_PROP_1 + " = ?, " + COL_STR_PROP_2 + " = ?, " + COL_STR_PROP_3 + " = ?, "
+        + COL_INT_PROP_1 + " = ?, " + COL_INT_PROP_2 + " = ?, "
+        + COL_LONG_PROP_1 + " = ?, " + COL_LONG_PROP_2 + " = ?, "
+        + COL_DEC_PROP_1 + " = ?, " + COL_DEC_PROP_2 + " = ?, "
+        + COL_BOOL_PROP_1 + " = ?, " + COL_BOOL_PROP_2 
+        + " = ? WHERE " + StdAdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+        + " AND " + COL_TRIGGER_NAME
+        + " = ? AND " + COL_TRIGGER_GROUP + " = ?";
+        
         protected string tablePrefix;
+        protected string schedNameLiteral;
+        private AdoUtil adoUtil;
 
-        public void Initialize(string tablePrefix, AdoUtil adoUtil)
+        public void Initialize(string tablePrefix, string schedName, AdoUtil adoUtil)
         {
             this.tablePrefix = tablePrefix;
+            this.schedNameLiteral = "'" + schedName + "'";
+            this.adoUtil = adoUtil;
         }
 
         public abstract bool CanHandleTriggerType(IOperableTrigger trigger);
@@ -95,92 +107,92 @@ namespace Quartz.Impl.AdoJobStore
 
         public int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            ps = conn.prepareStatement(Util.rtp(SqlDeleteSimplePropsTrigger, tablePrefix));
-            ps.setString(1, triggerKey.getName());
-            ps.setString(2, triggerKey.getGroup());
+            using (IDbCommand cmd = adoUtil.PrepareCommand(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            {
+                adoUtil.AddCommandParameter(cmd, "@", triggerKey.Name);
+                adoUtil.AddCommandParameter(cmd, "@", triggerKey.Group);
 
-            return ps.executeUpdate();
+                return cmd.ExecuteNonQuery();
+            }
         }
 
         public int InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
-            PreparedStatement ps = null;
+            using (IDbCommand cmd = adoUtil.PrepareCommand(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            {
+                adoUtil.AddCommandParameter(cmd, "@", trigger.Key.Name);
+                adoUtil.AddCommandParameter(cmd, "@", trigger.Key.Group);
+                adoUtil.AddCommandParameter(cmd, "@", properties.String1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.String2);
+                adoUtil.AddCommandParameter(cmd, "@", properties.String3);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Int1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Int2);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Long1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Long2);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Decimal1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Decimal2);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Boolean1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Boolean2);
 
-            ps = conn.prepareStatement(Util.rtp(SqlInsertSimplePropsTrigger, tablePrefix));
-            ps.setString(1, trigger.getKey().getName());
-            ps.setString(2, trigger.getKey().getGroup());
-            ps.setString(3, properties.String1);
-            ps.setString(4, properties.String2);
-            ps.setString(5, properties.String3);
-            ps.setInt(6, properties.Int1);
-            ps.setInt(7, properties.Int2);
-            ps.setLong(8, properties.Long1);
-            ps.setLong(9, properties.Long2);
-            ps.setBigDecimal(10, properties.Decimal1);
-            ps.setBigDecimal(11, properties.Decimal2);
-            ps.setBoolean(12, properties.Boolean1);
-            ps.setBoolean(13, properties.Boolean2);
-
-            return ps.executeUpdate();
+                return cmd.ExecuteNonQuery();
+            }
         }
 
         public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            PreparedStatement ps = null;
-            ResultSet rs = null;
-
-
-            ps = conn.prepareStatement(Util.rtp(SqlSelectSimplePropsTrigger, tablePrefix));
-            ps.setString(1, triggerKey.getName());
-            ps.setString(2, triggerKey.getGroup());
-            rs = ps.executeQuery();
-
-            if (rs.next())
+            using (IDbCommand cmd = adoUtil.PrepareCommand(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
-                SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
+                adoUtil.AddCommandParameter(cmd, "@", triggerKey.Name);
+                adoUtil.AddCommandParameter(cmd, "@", triggerKey.Group);
+                IDataReader rs = cmd.ExecuteReader();
 
-                properties.setString1(rs.getString(ColumnStrProp1));
-                properties.setString2(rs.getString(ColumnStrProp2));
-                properties.setString3(rs.getString(ColumnStrProp3));
-                properties.setInt1(rs.getInt(ColumnIntProp1));
-                properties.setInt2(rs.getInt(ColumnIntProp2));
-                properties.setLong1(rs.getInt(ColumnLongProp1));
-                properties.setLong2(rs.getInt(ColumnLongProp2));
-                properties.setDecimal1(rs.getBigDecimal(ColumnDecProp1));
-                properties.setDecimal2(rs.getBigDecimal(ColumnDecProp2));
-                properties.setBoolean1(rs.getBoolean(ColumnBoolProp1));
-                properties.setBoolean2(rs.getBoolean(ColumnBoolProp2));
+                if (rs.Read())
+                {
+                    SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
 
-                return GetTriggerPropertyBundle(properties);
+                    properties.String1 = (rs.GetString(ColumnStrProp1));
+                    properties.String2 = (rs.GetString(ColumnStrProp2));
+                    properties.String3 = (rs.GetString(ColumnStrProp3));
+                    properties.Int1 = (rs.GetInt32(ColumnIntProp1));
+                    properties.Int2 = (rs.GetInt32(ColumnIntProp2));
+                    properties.Long1 = (rs.GetInt32(ColumnLongProp1));
+                    properties.Long2 = (rs.GetInt32(ColumnLongProp2));
+                    properties.Decimal1 = (rs.GetDecimal(ColumnDecProp1));
+                    properties.Decimal2 = (rs.GetDecimal(ColumnDecProp2));
+                    properties.Boolean1 = (rs.GetBoolean(ColumnBoolProp1));
+                    properties.Boolean2 = (rs.GetBoolean(ColumnBoolProp2));
+
+                    return GetTriggerPropertyBundle(properties);
+                }
             }
 
-            throw new IllegalStateException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + Util.rtp(SELECT_SIMPLE_TRIGGER, tablePrefix));
+            throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + Util.rtp(SELECT_SIMPLE_TRIGGER, tablePrefix));
         }
 
         public int UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
-            PreparedStatement ps = null;
+            using (IDbCommand cmd = adoUtil.PrepareCommand(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqUpdateSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            {
+                adoUtil.AddCommandParameter(cmd, "@", properties.String1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.String2);
+                adoUtil.AddCommandParameter(cmd, "@", properties.String3);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Int1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Int2);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Long1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Long2);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Decimal1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Decimal2);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Boolean1);
+                adoUtil.AddCommandParameter(cmd, "@", properties.Boolean2);
+                adoUtil.AddCommandParameter(cmd, "@", trigger.Key.Name);
+                adoUtil.AddCommandParameter(cmd, "@", trigger.Key.Group);
 
-            ps = conn.prepareStatement(Util.rtp(SqUpdateSimplePropsTrigger, tablePrefix));
-            ps.setString(1, properties.String1);
-            ps.setString(2, properties.String2);
-            ps.setString(3, properties.String3);
-            ps.setInt(4, properties.Int1);
-            ps.setInt(5, properties.Int2);
-            ps.setLong(6, properties.Long1);
-            ps.setLong(7, properties.Long2);
-            ps.setBigDecimal(8, properties.Decimal1);
-            ps.setBigDecimal(9, properties.Decimal2);
-            ps.setBoolean(10, properties.Boolean1);
-            ps.setBoolean(11, properties.Boolean2);
-            ps.setString(12, trigger.getKey().getName());
-            ps.setString(13, trigger.getKey().getGroup());
-
-            return ps.executeUpdate();
+                return cmd.ExecuteNonQuery();
+            }
         }
     }
 }

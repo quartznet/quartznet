@@ -369,6 +369,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Util\CollectionExtensions.cs" />
+    <Compile Include="Util\DataReaderExtensions.cs" />
     <Compile Include="Util\DBConnectionManager.cs">
       <SubType>Code</SubType>
     </Compile>

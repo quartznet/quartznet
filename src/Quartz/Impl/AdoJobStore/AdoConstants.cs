@@ -41,6 +41,7 @@ namespace Quartz.Impl.AdoJobStore
 		public const string TableSchedulerState = "SCHEDULER_STATE";
 		
 		// TableJobDetails columns names
+        public const string ColumnSchedulerName = "SCHED_NAME";
 		public const string ColumnJobName = "JOB_NAME";
 		public const string ColumnJobGroup = "JOB_GROUP";
 		public const string ColumnIsDurable = "IS_DURABLE";

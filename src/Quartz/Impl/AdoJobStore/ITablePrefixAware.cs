@@ -29,6 +29,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Table prefix to use.
         /// </summary>
-        string TablePrefix { get; }
+        string TablePrefix { set; }
+
+        string SchedName { set; }
     }
 }

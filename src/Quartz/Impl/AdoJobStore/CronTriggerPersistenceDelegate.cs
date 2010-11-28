@@ -22,6 +22,7 @@ using System.Data;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -29,10 +30,12 @@ namespace Quartz.Impl.AdoJobStore
     {
         protected string tablePrefix;
         private AdoUtil adoUtil;
+        private string schedNameLiteral;
 
-        public void Initialize(string tablePrefix, AdoUtil adoUtil)
+        public void Initialize(string tablePrefix, string schedName, AdoUtil adoUtil)
         {
             this.tablePrefix = tablePrefix;
+            this.schedNameLiteral = "'" + schedName + "'";
             this.adoUtil = adoUtil;
         }
 
@@ -48,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, tablePrefix)))
+            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
@@ -61,7 +64,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger)))
+            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 adoUtil.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
@@ -74,46 +77,45 @@ namespace Quartz.Impl.AdoJobStore
 
         public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            PreparedStatement ps = null;
-            ResultSet rs = null;
+            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, tablePrefix, schedNameLiteral)))
+            {
+                adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-            ps = conn.prepareStatement(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, tablePrefix));
-                ps.setString(1, triggerKey.getName());
-                ps.setString(2, triggerKey.getGroup());
-                rs = ps.executeQuery();
+                IDataReader rs = cmd.ExecuteReader();
 
-                if (rs.next())
+                if (rs.Read())
                 {
-                    string cronExpr = rs.getString(COL_CRON_EXPRESSION);
-                    string timeZoneId = rs.getString(COL_TIME_ZONE_ID);
+                    string cronExpr = rs.GetString(AdoConstants.ColumnCronExpression);
+                    string timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
 
                     CronScheduleBuilder cb = null;
                     try
                     {
                         cb = CronScheduleBuilder.cronSchedule(cronExpr);
                     }
-                    catch (FormatException neverHappens)
+                    catch (FormatException)
                     {
                         // Can't happen because the expression must have been valid in order to get persisted
                     }
 
                     if (timeZoneId != null)
                     {
-                        cb.inTimeZone(TimeZoneInfo.getTimeZone(timeZoneId));
+                        cb.inTimeZone(TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
                     }
 
                     return new TriggerPropertyBundle(cb, null, null);
                 }
 
-                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + Util.rtp(SELECT_CRON_TRIGGER, tablePrefix));
-
+                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, tablePrefix, schedNameLiteral));
+            }
         }
 
         public int UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, tablePrefix)))
+            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
                 adoUtil.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);

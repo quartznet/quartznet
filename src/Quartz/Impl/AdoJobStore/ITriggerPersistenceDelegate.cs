@@ -30,7 +30,7 @@ namespace Quartz.Impl.AdoJobStore
 
     public interface ITriggerPersistenceDelegate
     {
-        void Initialize(string tablePrefix, AdoUtil adoUtil);
+        void Initialize(string tablePrefix, string schedulerName, AdoUtil adoUtil);
 
         bool CanHandleTriggerType(IOperableTrigger trigger);
 

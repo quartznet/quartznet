@@ -49,6 +49,7 @@ namespace Quartz.Impl.AdoJobStore
         protected ILog logger;
         protected string tablePrefix = DefaultTablePrefix;
         protected string instanceId;
+        protected string schedName;
         protected bool useProperties;
         protected IDbProvider dbProvider;
         protected readonly ITypeLoadHelper typeLoadHelper;
@@ -62,10 +63,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="tablePrefix">the prefix of all table names</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
-        public StdAdoDelegate(ILog logger, string tablePrefix, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
+        public StdAdoDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
         {
             this.logger = logger;
             this.tablePrefix = tablePrefix;
+            this.schedName = schedName;
             this.instanceId = instanceId;
             this.dbProvider = dbProvider;
             this.typeLoadHelper = typeLoadHelper;
@@ -81,11 +83,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
         /// <param name="useProperties">if set to <c>true</c> [use properties].</param>
-        public StdAdoDelegate(ILog logger, string tablePrefix, string instanceId, IDbProvider dbProvider,
+        public StdAdoDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider,
                               ITypeLoadHelper typeLoadHelper, bool useProperties)
         {
             this.logger = logger;
             this.tablePrefix = tablePrefix;
+            this.schedName = schedName;
             this.instanceId = instanceId;
             this.dbProvider = dbProvider;
             this.typeLoadHelper = typeLoadHelper;
@@ -159,7 +162,7 @@ namespace Quartz.Impl.AdoJobStore
         public void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate del)
         {
             logger.Debug("Adding TriggerPersistenceDelegate of type: " + del.GetType());
-            del.Initialize(tablePrefix, TODO);
+            del.Initialize(tablePrefix, schedName, adoUtil);
             this.triggerPersistenceDelegates.Add(del);
         }
 
@@ -1161,36 +1164,6 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-
-        /// <summary>
-        /// Update the all triggers to the given new state, if they are in one of
-        /// the given old states AND its next fire time is before the given time.
-        /// </summary>
-        /// <param name="conn">The DB connection</param>
-        /// <param name="newState">The new state for the trigger</param>
-        /// <param name="oldState1">One of the old state the trigger must be in</param>
-        /// <param name="oldState2">One of the old state the trigger must be in</param>
-        /// <param name="time">The time before which the trigger's next fire time must be</param>
-        /// <returns>int the number of rows updated</returns>
-        public virtual int UpdateTriggerStateFromOtherStatesBeforeTime(ConnectionAndTransactionHolder conn,
-                                                                       string newState,
-                                                                       string oldState1,
-                                                                       string oldState2, long time)
-        {
-            using (
-                IDbCommand cmd =
-                    PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStateFromOtherStatesBeforeTime)))
-            {
-                AddCommandParameter(cmd, "newState", newState);
-                AddCommandParameter(cmd, "oldState1", oldState1);
-                AddCommandParameter(cmd, "oldState2", oldState2);
-                AddCommandParameter(cmd, "time", time);
-
-                return cmd.ExecuteNonQuery();
-            }
-        }
-
-
         /// <summary>
         /// Update all triggers in the given group to the given new state, if they
         /// are in one of the given old states.
@@ -1488,34 +1461,6 @@ namespace Quartz.Impl.AdoJobStore
             return trigList;
         }
 
-
-        /// <summary>
-        /// Selects the stateful jobs of trigger group.
-        /// </summary>
-        /// <param name="conn">The database connection.</param>
-        /// <param name="groupName">Name of the group.</param>
-        /// <returns></returns>
-        public virtual IList<JobKey> SelectNonConcurrentJobsOfTriggerGroup(ConnectionAndTransactionHolder conn, string groupName)
-        {
-            List<JobKey> jobList = new List<JobKey>();
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNonConcurrentJobsOfTriggerGroup)))
-            {
-                AddCommandParameter(cmd, "jobGroup", groupName);
-                AddCommandParameter(cmd, "isStateful", GetDbBooleanValue(true));
-                using (IDataReader rs = cmd.ExecuteReader())
-                {
-                    while (rs.Read())
-                    {
-                        jobList.Add(
-                            new JobKey(GetString(rs[ColumnJobName]), GetString(rs[ColumnJobGroup])));
-                    }
-                }
-            }
-
-            return jobList;
-        }
-
-        /// <summary>
         /// Select a trigger.
         /// </summary>
         /// <param name="conn">the DB Connection</param>
@@ -1655,30 +1600,6 @@ namespace Quartz.Impl.AdoJobStore
             Util.setBeanProps(trigger, props.getStatePropertyNames(), props.getStatePropertyValues());
         }
 
-        protected virtual string GetString(object columnValue)
-        {
-            if (columnValue == DBNull.Value)
-            {
-                return null;
-            }
-            else
-            {
-                return (string)columnValue;
-            }
-        }
-
-        protected virtual bool GetBoolean(object columnValue)
-        {
-            // default to treat values as ints
-            if (columnValue != null)
-            {
-                return Convert.ToInt32(columnValue, CultureInfo.InvariantCulture) == 1;
-            }
-            else
-            {
-                throw new ArgumentException("Value must be non-null.", "columnValue");
-            }
-        }
         /// <summary>
         /// Select a trigger's JobDataMap.
         /// </summary>
@@ -2629,8 +2550,24 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The query, with proper table prefix substituted</returns>
         protected internal string ReplaceTablePrefix(string query)
         {
-            return AdoJobStoreUtil.ReplaceTablePrefix(query, tablePrefix);
+            return AdoJobStoreUtil.ReplaceTablePrefix(query, tablePrefix, SchedulerNameLiteral);
         }
+
+
+        private string schedNameLiteral;
+
+        protected string SchedulerNameLiteral
+        {
+            get
+            {
+                if (schedNameLiteral == null)
+                {
+                    schedNameLiteral = "'" + schedName + "'";
+                }
+                return schedNameLiteral;
+            }
+        }
+
 
         /// <summary>
         /// Create a serialized <see lanword="byte[]"/> version of an Object.

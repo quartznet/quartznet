@@ -35,9 +35,14 @@ namespace Quartz.Impl.AdoJobStore
     public class StdRowLockSemaphore : DBSemaphore
     {
         public static readonly string SelectForLock =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = @lockName FOR UPDATE",
-                          TablePrefixSubst, TableLocks,
-                          ColumnLockName);
+            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = @schedName AND {3} = @lockName FOR UPDATE",
+                          TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName);
+
+        
+    public static readonly string InsertLock = string.Format(
+        CultureInfo.InstalledUICulture,
+        "INSERT INTO {0}{1}({2}, {3}) VALUES ({4}, ?)", 
+        TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName, SchedulerNameSubst); 
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
@@ -45,8 +50,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="tablePrefix">The table prefix.</param>
         /// <param name="selectWithLockSQL">The select with lock SQL.</param>
         /// <param name="dbProvider"></param>
-        public StdRowLockSemaphore(string tablePrefix, string selectWithLockSQL, IDbProvider dbProvider)
-            : base(tablePrefix, selectWithLockSQL, SelectForLock, dbProvider)
+        public StdRowLockSemaphore(string tablePrefix, string schedName, string selectWithLockSQL, IDbProvider dbProvider)
+            : base(tablePrefix, schedName, selectWithLockSQL ?? SelectForLock, InsertLock, dbProvider)
         {
         }
 
@@ -54,7 +59,7 @@ namespace Quartz.Impl.AdoJobStore
      * Execute the SQL select for update that will lock the proper database row.
      */
 
-        protected override void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL)
+        protected override void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL)
         {
             try
             {
@@ -71,10 +76,22 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (!rs.Read())
                         {
-                            throw new Exception(
-                                AdoJobStoreUtil.ReplaceTablePrefix(
-                                    "No row exists in table " + TablePrefixSubst + TableLocks + " for lock named: " +
-                                    lockName, TablePrefix));
+                            Log.Debug(
+                                "Inserting new lock row for lock: '" + lockName + "' being obtained by thread: " +
+                                Thread.CurrentThread.Name);
+
+                            using (IDbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSQL))
+                            {
+                                AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
+                                int res = cmd2.ExecuteNonQuery();
+
+                                if (res != 1)
+                                {
+                                    throw new Exception(Util.rtp(
+                                        "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
+                                        " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
+                                }
+                            }
                         }
                     }
                 }

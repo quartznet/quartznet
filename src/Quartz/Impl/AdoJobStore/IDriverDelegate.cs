@@ -305,19 +305,6 @@ namespace Quartz.Impl.AdoJobStore
 		                                      string oldState1, string oldState2, string oldState3);
 
 		/// <summary>
-		/// Update the all triggers to the given new state, if they are in one of
-		/// the given old states AND its next fire time is before the given time.
-		/// </summary>
-		/// <param name="conn">The DB connection</param>
-        /// <param name="newState">The new state for the trigger</param>
-        /// <param name="oldState1">One of the old state the trigger must be in</param>
-        /// <param name="oldState2">One of the old state the trigger must be in</param>
-        /// <param name="time">The time before which the trigger's next fire time must be</param>
-		/// <returns> int the number of rows updated</returns>
-		int UpdateTriggerStateFromOtherStatesBeforeTime(ConnectionAndTransactionHolder conn, string newState, string oldState1,
-		                                                string oldState2, long time);
-
-		/// <summary>
 		/// Update all triggers in the given group to the given new state, if they
 		/// are in one of the given old states.
 		/// </summary>
@@ -403,15 +390,6 @@ namespace Quartz.Impl.AdoJobStore
         /// The <see cref="JobDetailImpl" /> object associated with the given trigger
         /// </returns>
 		JobDetailImpl SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper);
-
-		/// <summary>
-		/// Select the stateful jobs which are referenced by triggers in the given
-		/// trigger group.
-		/// </summary>
-		/// <param name="conn">The DB Connection</param>
-        /// <param name="groupName">The trigger group.</param>
-		/// <returns> a List of Keys to jobs. </returns>
-		IList<JobKey> SelectNonConcurrentJobsOfTriggerGroup(ConnectionAndTransactionHolder conn, string groupName);
 
 		/// <summary>
 		/// Select the triggers for a job>

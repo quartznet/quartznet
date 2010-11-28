@@ -40,8 +40,15 @@ namespace Quartz.Impl.AdoJobStore
         private readonly ILog log;
         private const string ThreadContextKeyLockOwners = "qrtz_dbs_lck_owners";
         private string sql;
+        private String insertSql;
+
         private string tablePrefix;
+
+        private string schedName; 
+
         private string expandedSQL;
+        private string expandedInsertSQL;
+
         private AdoUtil adoUtil;
 
         /// <summary>
@@ -51,12 +58,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="sql">The SQL.</param>
         /// <param name="defaultSQL">The default SQL.</param>
         /// <param name="dbProvider">The db provider.</param>
-        public DBSemaphore(string tablePrefix, string sql, string defaultSQL, IDbProvider dbProvider)
+        public DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
         {
             log = LogManager.GetLogger(GetType());
-            this.sql = defaultSQL;
+            this.schedName = schedName;
             this.tablePrefix = tablePrefix;
-            SQL = sql;
+            SQL = defaultSQL;
+            InsertSQL = defaultInsertSQL;
             adoUtil = new AdoUtil(dbProvider);
         }
 
@@ -80,13 +88,13 @@ namespace Quartz.Impl.AdoJobStore
             get { return log; }
         }
 
-        private static Collection.HashSet<string> ThreadLocks
+        private static HashSet<string> ThreadLocks
         {
             get
             {
                 if (LockOwners == null)
                 {
-                    LockOwners = new Collection.HashSet<string>();
+                    LockOwners = new HashSet<string>();
                 }
                 return LockOwners;
             }
@@ -98,7 +106,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
         /// <param name="expandedSQL"></param>
-        protected abstract void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL);
+        protected abstract void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL);
 
 
         /// <summary>
@@ -115,19 +123,15 @@ namespace Quartz.Impl.AdoJobStore
 
             if (Log.IsDebugEnabled)
             {
-                Log.Debug(
-                    "Lock '" + lockName + "' is desired by: "
-                    + Thread.CurrentThread.Name);
+                Log.DebugFormat("Lock '{0}' is desired by: {1}", lockName, Thread.CurrentThread.Name);
             }
             if (!IsLockOwner(conn, lockName))
             {
-                ExecuteSQL(conn, lockName, expandedSQL);
+                ExecuteSQL(conn, lockName, expandedSQL, expandedInsertSQL);
 
                 if (Log.IsDebugEnabled)
                 {
-                    Log.Debug(
-                        "Lock '" + lockName + "' given to: "
-                        + Thread.CurrentThread.Name);
+                    Log.DebugFormat("Lock '{0}' given to: {1}", lockName, Thread.CurrentThread.Name);
                 }
                 ThreadLocks.Add(lockName);
                 //getThreadLocksObtainer().put(lockName, new
@@ -135,9 +139,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             else if (log.IsDebugEnabled)
             {
-                Log.Debug(
-                    "Lock '" + lockName + "' Is already owned by: "
-                    + Thread.CurrentThread.Name);
+                Log.DebugFormat("Lock '{0}' Is already owned by: {1}", lockName, Thread.CurrentThread.Name);
             }
 
             return true;
@@ -158,20 +160,17 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (Log.IsDebugEnabled)
                 {
-                    Log.Debug(
-                        "Lock '" + lockName + "' returned by: "
-                        + Thread.CurrentThread.Name);
+                    Log.DebugFormat("Lock '{0}' returned by: {1}", lockName, Thread.CurrentThread.Name);
                 }
                 ThreadLocks.Remove(lockName);
                 //getThreadLocksObtainer().remove(lockName);
             }
             else if (Log.IsDebugEnabled)
             {
-                Log.Warn(
-                    "Lock '" + lockName + "' attempt to return by: "
-                    + Thread.CurrentThread.Name
-                    + " -- but not owner!",
-                    new Exception("stack-trace of wrongful returner"));
+                Log.WarnFormat("Lock '{0}' attempt to return by: {1} -- but not owner!",
+                    new Exception("stack-trace of wrongful returner"),
+                    lockName, 
+                    Thread.CurrentThread.Name);
             }
         }
 
@@ -202,19 +201,60 @@ namespace Quartz.Impl.AdoJobStore
             get { return sql; }
             set
             {
-                if ((value != null) && (value.Trim().Length != 0))
+                if (!String.IsNullOrWhiteSpace(value))
                 {
-                    sql = value;
+                    sql = value.Trim();
                 }
-                SetExpandedSQL();
+                SetExpandedSql();
             }
         }
 
-        private void SetExpandedSQL()
+
+        protected string InsertSQL
         {
-            if (TablePrefix != null)
+            set
             {
-                expandedSQL = AdoJobStoreUtil.ReplaceTablePrefix(sql, TablePrefix);
+                if (!String.IsNullOrWhiteSpace(value))
+                {
+                    insertSql = value.Trim();
+                }
+
+                SetExpandedSql();
+            }
+        }
+
+
+
+        private void SetExpandedSql()
+        {
+            if (TablePrefix != null && SchedName != null && sql != null && insertSql != null)
+            {
+                expandedSQL = Util.rtp(this.sql, TablePrefix, SchedulerNameLiteral);
+                expandedInsertSQL = Util.rtp(this.insertSql, TablePrefix, SchedulerNameLiteral);
+            }
+        }
+
+        private String schedNameLiteral = null;
+
+        protected string SchedulerNameLiteral
+        {
+            get
+            {
+                if (schedNameLiteral == null)
+                {
+                    schedNameLiteral = "'" + schedName + "'";
+                }
+                return schedNameLiteral;
+            }
+        }
+
+        public string SchedName
+        {
+            get { return schedName; }
+            set 
+            {
+                schedName = value;
+                SetExpandedSql();
             }
         }
 
@@ -228,10 +268,9 @@ namespace Quartz.Impl.AdoJobStore
             set
             {
                 tablePrefix = value;
-                SetExpandedSQL();
+                SetExpandedSql();
             }
         }
-
 
         protected AdoUtil AdoUtil
         {
