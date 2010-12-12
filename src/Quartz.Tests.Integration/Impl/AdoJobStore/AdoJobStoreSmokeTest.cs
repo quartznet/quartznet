@@ -217,7 +217,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     ICalendar holidayCalendar = new HolidayCalendar();
 
                     // QRTZNET-86
-                    Trigger t = sched.GetTrigger("NonExistingTrigger", "NonExistingGroup");
+                    ITrigger t = sched.GetTrigger("NonExistingTrigger", "NonExistingGroup");
                     Assert.IsNull(t);
 
                     AnnualCalendar cal = new AnnualCalendar();
@@ -265,7 +265,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.ScheduleJob(job, trigger);
 
                     // check that trigger was stored
-                    Trigger persisted = sched.GetTrigger("trig_" + count, schedId);
+                    ITrigger persisted = sched.GetTrigger("trig_" + count, schedId);
                     Assert.IsNotNull(persisted);
                     Assert.IsTrue(persisted is SimpleTrigger);
 
@@ -556,20 +556,20 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             get { return GetType().FullName; }
         }
 
-        public void TriggerFired(Trigger trigger, JobExecutionContext context)
+        public void TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
         }
 
-        public bool VetoJobExecution(Trigger trigger, JobExecutionContext context)
+        public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
             return false;
         }
 
-        public void TriggerMisfired(Trigger trigger)
+        public void TriggerMisfired(ITrigger trigger)
         {
         }
 
-        public void TriggerComplete(Trigger trigger, JobExecutionContext context,
+        public void TriggerComplete(ITrigger trigger, IJobExecutionContext context,
                                     SchedulerInstruction triggerInstructionCode)
         {
         }
@@ -583,17 +583,17 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             get { return GetType().FullName; }
         }
 
-        public void JobToBeExecuted(JobExecutionContext context)
+        public void JobToBeExecuted(IJobExecutionContext context)
         {
             
         }
 
-        public void JobExecutionVetoed(JobExecutionContext context)
+        public void JobExecutionVetoed(IJobExecutionContext context)
         {
             
         }
 
-        public void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
+        public void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
             
         }
@@ -605,10 +605,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         /// <summary> 
         /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="Trigger" /> fires that is associated with
+        /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(JobExecutionContext context)
+        public virtual void Execute(IJobExecutionContext context)
         {
             // delay for ten seconds
             try

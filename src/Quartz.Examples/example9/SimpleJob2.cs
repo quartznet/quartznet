@@ -30,7 +30,7 @@ namespace Quartz.Examples.Example9
 	{
 		private static readonly ILog log = LogManager.GetLogger(typeof(SimpleJob2));
 		
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			// This job simply prints out its job name and the
 			// date and time that it is running

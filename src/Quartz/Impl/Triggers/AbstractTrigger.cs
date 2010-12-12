@@ -47,7 +47,6 @@ namespace Quartz.Impl.Triggers
 	/// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="ICronTrigger" />
     /// <seealso cref="NthIncludedDayTrigger" />
-    /// <seealso cref="TriggerUtils" />
     /// <seealso cref="JobDataMap" />
     /// <seealso cref="IJobExecutionContext" />
 	/// <author>James House</author>
@@ -227,7 +226,7 @@ namespace Quartz.Impl.Triggers
 			get { return jobGroup + "." + jobName; }
 		}
 
-	    public abstract IScheduleBuilder GetScheduleBuilder<T>() where T : ITrigger;
+	    public abstract IScheduleBuilder GetScheduleBuilder();
 
 	    /// <summary>
 		/// Get or set the description given to the <see cref="ITrigger" /> instance by
@@ -292,8 +291,8 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
         /// <seealso cref="Quartz.MisfireInstruction.InstructionNotSet" />
 		/// <seealso cref="UpdateAfterMisfire" />
-		/// <seealso cref="SimpleTrigger" />
-		/// <seealso cref="CronTrigger" />
+		/// <seealso cref="ISimpleTrigger" />
+		/// <seealso cref="ICronTrigger" />
 		public virtual int MisfireInstruction
 		{
 			get { return misfireInstruction; }
@@ -308,27 +307,28 @@ namespace Quartz.Impl.Triggers
 			}
 		}
 
-		/// <summary> 
-		/// This method should not be used by the Quartz client.
-		/// <p>
-		/// Usable by <see cref="IJobStore" />
-		/// implementations, in order to facilitate 'recognizing' instances of fired
-		/// <see cref="ITrigger" /> s as their jobs complete execution.
-		/// </p>
-		/// </summary>
-		public virtual string FireInstanceId
+        /// <summary> 
+        /// This method should not be used by the Quartz client.
+        /// </summary>
+        /// <remarks>
+        /// Usable by <see cref="IJobStore" />
+        /// implementations, in order to facilitate 'recognizing' instances of fired
+        /// <see cref="ITrigger" /> s as their jobs complete execution.
+        /// </remarks>
+        public virtual string FireInstanceId
 		{
 			get { return fireInstanceId; }
 			set { fireInstanceId = value; }
 		}
 
-        public abstract DateTimeOffset? NextFireTimeUtc { set; }
+	    public abstract void SetNextFireTimeUtc(DateTimeOffset? value);
+	    public abstract void SetPreviousFireTimeUtc(DateTimeOffset? value);
 
 	    /// <summary>
 	    /// Returns the previous time at which the <see cref="ITrigger" /> fired.
 	    /// If the trigger has not yet fired, <see langword="null" /> will be returned.
 	    /// </summary>
-	    public abstract DateTimeOffset? PreviousFireTimeUtc { set; get; }
+	    public abstract DateTimeOffset? GetPreviousFireTimeUtc();
 
 	    /// <summary>
 		/// Gets and sets the date/time on which the trigger must stop firing. This 
@@ -467,7 +467,7 @@ namespace Quartz.Impl.Triggers
 		/// If not explicitly set, the default value is <i>5</i>.
 		/// </remarks>
 		/// <returns></returns>
-		/// <see cref="DefaultPriority" />
+		/// <see cref="TriggerConstants.DefaultPriority" />
 		public virtual int Priority
 		{
 			get { return priority; }
@@ -476,16 +476,14 @@ namespace Quartz.Impl.Triggers
 
 		/// <summary>
 		/// This method should not be used by the Quartz client.
-		/// <p>
+		/// </summary>
+		/// <remarks>
 		/// Called when the <see cref="IScheduler" /> has decided to 'fire'
 		/// the trigger (Execute the associated <see cref="IJob" />), in order to
 		/// give the <see cref="ITrigger" /> a chance to update itself for its next
 		/// triggering (if any).
-		/// </p>
-		/// 
-		/// </summary>
-		/// <seealso cref="JobExecutionException">
-		/// </seealso>
+        /// </remarks>
+		/// <seealso cref="JobExecutionException" />
 		public abstract void Triggered(ICalendar cal);
 
 
@@ -583,7 +581,6 @@ namespace Quartz.Impl.Triggers
         /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
         /// has been added to the scheduler.
         /// </remarks>
-        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTimeOffset, DateTimeOffset)" />
         /// <returns></returns>
         public abstract DateTimeOffset? GetNextFireTimeUtc();
 
@@ -788,9 +785,9 @@ namespace Quartz.Impl.Triggers
 		}
 
 
-        public ITriggerBuilder<T> GetTriggerBuilder<T>() where T : ITrigger
+	    protected TriggerBuilder<T> GetTriggerBuilder<T>() where T : ITrigger
         {
-            TriggerBuilder<ITrigger> b = TriggerBuilder<T>.NewTrigger()
+            TriggerBuilder<T> b = TriggerBuilder<T>.Create()
                 .ForJob(JobKey)
                 .ModifiedByCalendar(CalendarName)
                 .UsingJobData(JobDataMap)
@@ -799,8 +796,8 @@ namespace Quartz.Impl.Triggers
                 .WithIdentity(Key)
                 .WithPriority(Priority)
                 .StartAt(StartTimeUtc)
-                .WithSchedule(GetScheduleBuilder<T>());
-            return (ITriggerBuilder<T>) b;
+                .WithSchedule(GetScheduleBuilder());
+            return b;
         }
 	}
 }

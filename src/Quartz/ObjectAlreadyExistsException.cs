@@ -25,7 +25,7 @@ namespace Quartz
 {
 	/// <summary>
 	/// An exception that is thrown to indicate that an attempt to store a new
-	/// object (i.e. <see cref="IJobDetail" />,<see cref="Trigger" />
+	/// object (i.e. <see cref="IJobDetail" />,<see cref="ITrigger" />
 	/// or <see cref="ICalendar" />) in a <see cref="IScheduler" />
 	/// failed, because one with the same name and group already exists.
 	/// </summary>
@@ -73,7 +73,7 @@ namespace Quartz
 
 		/// <summary> <p>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
-		/// message using the name/group from the given <see cref="Trigger" />.
+		/// message using the name/group from the given <see cref="ITrigger" />.
 		/// </p>
 		/// 
 		/// <p>

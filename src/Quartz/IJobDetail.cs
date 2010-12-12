@@ -31,21 +31,21 @@ namespace Quartz
     /// </summary>
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
-    /// instead allows you to define an instance of one, through the use of a <see cref="JobDetailImpl" />.
+    /// instead allows you to define an instance of one, through the use of a <see cref="IJobDetail" />.
     /// <p>
     /// <see cref="IJob" />s have a name and group associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
     /// </p>
     /// <p>
-    /// <see cref="Trigger" /> s are the 'mechanism' by which <see cref="IJob" /> s
-    /// are scheduled. Many <see cref="Trigger" /> s can point to the same <see cref="IJob" />,
-    /// but a single <see cref="Trigger" /> can only point to one <see cref="IJob" />.
+    /// <see cref="ITrigger" /> s are the 'mechanism' by which <see cref="IJob" /> s
+    /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
+    /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
     /// </p>
     /// </remarks>
     /// <seealso cref="IJob" />
     /// <seealso cref="IStatefulJob"/>
     /// <seealso cref="Quartz.JobDataMap"/>
-    /// <seealso cref="Trigger"/>
+    /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface IJobDetail : ICloneable
@@ -73,7 +73,7 @@ namespace Quartz
 
         /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
-        /// orphaned (no <see cref="Trigger" />s point to it).
+        /// orphaned (no <see cref="ITrigger" />s point to it).
         /// </summary>
         /// <remarks>
         /// If not explicitly set, the default value is <see langword="false" />.
@@ -84,13 +84,13 @@ namespace Quartz
         bool Durable { get; }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> TODO annotation.
+        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecutionAttribute" /> TODO annotation.
         /// </summary>
         /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
         bool PersistJobDataAfterExecution { get; }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecution" /> TODO annotation.
+        /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> TODO annotation.
         /// </summary>
         /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
         bool ConcurrentExectionDisallowed { get; }
@@ -108,7 +108,7 @@ namespace Quartz
 
         /// <summary>
         /// Get a <see cref="JobBuilder" /> that is configured to produce a 
-        /// <see cref="JobDetailImpl" /> identical to this one.
+        /// <see cref="IJobDetail" /> identical to this one.
         /// </summary>
         JobBuilder GetJobBuilder();
     }

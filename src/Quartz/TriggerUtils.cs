@@ -27,10 +27,10 @@ namespace Quartz
 {
 	/// <summary>
 	/// Convenience and utility methods for simplifying the construction and
-    /// configuration of <see cref="Trigger" />s and DateTimeOffsetOffsets.
+    /// configuration of <see cref="ITrigger" />s and DateTimeOffsetOffsets.
 	/// </summary>
-	/// <seealso cref="CronTrigger" />
-	/// <seealso cref="SimpleTrigger" />
+	/// <seealso cref="ICronTrigger" />
+	/// <seealso cref="ISimpleTrigger" />
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public static class TriggerUtils
@@ -732,7 +732,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Returns a list of Dates that are the next fire times of a
-		/// <see cref="Trigger" />.
+		/// <see cref="ITrigger" />.
 		/// The input trigger will be cloned before any work is done, so you need
 		/// not worry about its state being altered by this method.
 		/// </summary>
@@ -770,7 +770,7 @@ namespace Quartz
 
 	    /// <summary>
 	    /// Compute the <code>Date</code> that is 1 second after the Nth firing of 
-	    /// the given <see cref="Trigger" />, taking the triger's associated 
+	    /// the given <see cref="ITrigger" />, taking the triger's associated 
 	    /// <see cref="ICalendar" /> into consideration.
         /// </summary>
         /// <remarks>
@@ -823,7 +823,7 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Returns a list of Dates that are the next fire times of a  <see cref="Trigger" />
+		/// Returns a list of Dates that are the next fire times of a  <see cref="ITrigger" />
 		/// that fall within the given date range. The input trigger will be cloned
 		/// before any work is done, so you need not worry about its state being
 		/// altered by this method.

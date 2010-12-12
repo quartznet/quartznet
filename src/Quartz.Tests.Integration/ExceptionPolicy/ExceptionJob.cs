@@ -9,7 +9,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         public static bool ThrowsException = true;
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// fires that is associated with the <see cref="IJob"/>.
         /// </summary>
         /// <param name="context">The execution context.</param>
@@ -21,7 +21,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         /// <see cref="ITriggerListener"/>s that are watching the job's
         /// execution.
         /// </remarks>
-        public void Execute(JobExecutionContext context)
+        public void Execute(IJobExecutionContext context)
         {
             LaunchCount++;
             if (ThrowsException)

@@ -23,9 +23,9 @@ namespace Quartz.Impl.Matchers
 {
     public enum StringOperatorName
     {
-        EQUALS,
-        STARTS_WITH,
-        ENDS_WITH,
-        CONTAINS
+        Equality,
+        StartsWith,
+        EndsWith,
+        Contains
     }
 }

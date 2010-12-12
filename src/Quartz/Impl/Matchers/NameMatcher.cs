@@ -39,22 +39,22 @@ namespace Quartz.Impl.Matchers
 
         public static NameMatcher<T> matchNameEquals(string compareTo)
         {
-            return new NameMatcher<T>(compareTo, StringOperatorName.EQUALS);
+            return new NameMatcher<T>(compareTo, StringOperatorName.Equality);
         }
 
         public static NameMatcher<T> matchNameStartsWith(string compareTo)
         {
-            return new NameMatcher<T>(compareTo, StringOperatorName.STARTS_WITH);
+            return new NameMatcher<T>(compareTo, StringOperatorName.StartsWith);
         }
 
         public static NameMatcher<T> matchNameEndsWith(string compareTo)
         {
-            return new NameMatcher<T>(compareTo, StringOperatorName.ENDS_WITH);
+            return new NameMatcher<T>(compareTo, StringOperatorName.EndsWith);
         }
 
         public static NameMatcher<T> matchNameContains(string compareTo)
         {
-            return new NameMatcher<T>(compareTo, StringOperatorName.CONTAINS);
+            return new NameMatcher<T>(compareTo, StringOperatorName.Contains);
         }
 
         protected override string getValue(T key)

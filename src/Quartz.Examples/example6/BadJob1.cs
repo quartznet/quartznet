@@ -37,7 +37,7 @@ namespace Quartz.Examples.Example6
 		/// Called by the <see cref="IScheduler" /> when a Trigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// </summary>
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			string jobName = context.JobDetail.FullName;
 			log.Info(string.Format("---{0} executing at {1}", jobName, DateTime.Now.ToString("r")));

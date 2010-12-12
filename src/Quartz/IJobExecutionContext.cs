@@ -11,13 +11,13 @@ namespace Quartz
         IScheduler Scheduler { get; }
 
         /// <summary>
-        /// Get a handle to the <see cref="Trigger" /> instance that fired the
+        /// Get a handle to the <see cref="ITrigger" /> instance that fired the
         /// <see cref="IJob" />.
         /// </summary>
         ITrigger Trigger { get; }
 
         /// <summary>
-        /// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="Trigger" />
+        /// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="ITrigger" />
         /// instance that fired the <see cref="IJob" />.
         /// </summary>
         ICalendar Calendar { get; }
@@ -41,7 +41,7 @@ namespace Quartz
         /// <p>
         /// The <see cref="JobDataMap" /> found on this object serves as a convenience -
         /// it is a merge of the <see cref="JobDataMap" /> found on the 
-        /// <see cref="JobDetail" /> and the one found on the <see cref="Trigger" />, with 
+        /// <see cref="JobDetail" /> and the one found on the <see cref="ITrigger" />, with 
         /// the value in the latter overriding any same-named values in the former.
         /// <i>It is thus considered a 'best practice' that the Execute code of a Job
         /// retrieve data from the JobDataMap found on this object.</i>

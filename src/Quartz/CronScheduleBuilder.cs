@@ -26,42 +26,39 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-/**
- * <code>CronScheduleBuilder</code> is a {@link ScheduleBuilder} that defines
- * {@link CronExpression}-based schedules for <code>Trigger</code>s.
- *  
- * <p>Quartz provides a builder-style API for constructing scheduling-related
- * entities via a Domain-Specific Language (DSL).  The DSL can best be
- * utilized through the usage of static imports of the methods on the classes
- * <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
- * <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
- * and the various <code>ScheduleBuilder</code> implementations.</p>
- * 
- * <p>Client code can then use the DSL to write code such as this:</p>
- * <pre>
- *         JobDetail job = newJob(MyJob.class)
- *             .withIdentity("myJob")
- *             .build();
- *             
- *         Trigger trigger = newTrigger() 
- *             .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
- *             .withSchedule(simpleSchedule()
- *                 .withIntervalInHours(1)
- *                 .repeatForever())
- *             .startAt(futureDate(10, MINUTES))
- *             .build();
- *         
- *         scheduler.scheduleJob(job, trigger);
- * <pre>
- *
- * @see CronExpression
- * @see CronTrigger
- * @see ScheduleBuilder
- * @see SimpleScheduleBuilder 
- * @see CalendarIntervalScheduleBuilder 
- * @see TriggerBuilder
- */
 
+    /// <summary>
+    /// <code>CronScheduleBuilder</code> is a {@link ScheduleBuilder} that defines
+    /// {@link CronExpression}-based schedules for <code>Trigger</code>s.
+    /// </summary>
+    /// <remarks>
+    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// entities via a Domain-Specific Language (DSL).  The DSL can best be
+    /// utilized through the usage of static imports of the methods on the classes
+    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
+    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
+    /// and the various <code>ScheduleBuilder</code> implementations.</p>
+    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// <pre>
+    /// JobDetail job = newJob(MyJob.class)
+    /// .withIdentity("myJob")
+    /// .build();
+    /// Trigger trigger = newTrigger()
+    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    /// .withSchedule(simpleSchedule()
+    /// .withIntervalInHours(1)
+    /// .repeatForever())
+    /// .startAt(futureDate(10, MINUTES))
+    /// .build();
+    /// scheduler.scheduleJob(job, trigger);
+    /// </pre>
+    /// </remarks>
+    /// <seealso cref="CronExpression" />
+    /// <seealso cref="ICronTrigger" />
+    /// <seealso cref="IScheduleBuilder" />
+    /// <seealso cref="SimpleScheduleBuilder" />
+    /// <seealso cref="CalendarIntervalScheduleBuilder" />
+    /// <seealso cref="TriggerBuilder{T}" />
     public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     {
         private readonly string cronExpression;
@@ -73,14 +70,14 @@ namespace Quartz
             this.cronExpression = cronExpression;
         }
 
-        /**
-     * Build the actual Trigger -- NOT intended to be invoked by end users,
-     * but will rather be invoked by a TriggerBuilder which this 
-     * ScheduleBuilder is given to.
-     * 
-     * @see TriggerBuilder#withSchedule(ScheduleBuilder)
-     */
-
+        /// <summary>
+        /// Build the actual Trigger -- NOT intended to be invoked by end users,
+        /// but will rather be invoked by a TriggerBuilder which this
+        /// ScheduleBuilder is given to.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <seealso cref="TriggerBuilder{T}.WithSchedule" />
         public override IMutableTrigger Build()
         {
             CronTriggerImpl ct = new CronTriggerImpl();
@@ -101,105 +98,101 @@ namespace Quartz
             return ct;
         }
 
-        /**
-     * Create a CronScheduleBuilder with the given cron-expression.
-     * 
-     * @param cronExpression the cron expression to base the schedule on.
-     * @return the new CronScheduleBuilder
-     * @throws ParseException
-     * @see CronExpression
-     */
-
+        /// <summary>
+        /// Create a CronScheduleBuilder with the given cron-expression.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="cronExpression">the cron expression to base the schedule on.</param>
+        /// <returns>the new CronScheduleBuilder</returns>
+        /// <seealso cref="CronExpression" />
         public static CronScheduleBuilder CronSchedule(string cronExpression)
         {
             CronExpression.ValidateExpression(cronExpression);
             return new CronScheduleBuilder(cronExpression);
         }
 
-        /**
-     * Create a CronScheduleBuilder with a cron-expression that sets the
-     * schedule to fire every day at the given time (hour and minute).
-     * 
-     * @param hour the hour of day to fire
-     * @param minute the minute of the given hour to fire
-     * @return the new CronScheduleBuilder
-     * @throws ParseException
-     * @see CronExpression
-     */
-
+        /// <summary>
+        /// Create a CronScheduleBuilder with a cron-expression that sets the
+        /// schedule to fire every day at the given time (hour and minute).
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="hour">the hour of day to fire</param>
+        /// <param name="minute">the minute of the given hour to fire</param>
+        /// <returns>the new CronScheduleBuilder</returns>
+        /// <seealso cref="CronExpression" />
         public static CronScheduleBuilder DailyAtHourAndMinute(int hour, int minute)
         {
-            DateBuilder.validateHour(hour);
-            DateBuilder.validateMinute(minute);
+            DateBuilder.ValidateHour(hour);
+            DateBuilder.ValidateMinute(minute);
 
             string cronExpression = String.Format("0 {0} {1} ? * *", minute, hour);
 
             return new CronScheduleBuilder(cronExpression);
         }
 
-        /**
-     * Create a CronScheduleBuilder with a cron-expression that sets the
-     * schedule to fire one per week on the given day at the given time 
-     * (hour and minute).
-     * 
-     * @param dayOfWeek the day of the week to fire
-     * @param hour the hour of day to fire
-     * @param minute the minute of the given hour to fire
-     * @return the new CronScheduleBuilder
-     * @throws ParseException
-     * @see CronExpression
-     * @see DateBuilder#MONDAY
-     * @see DateBuilder#TUESDAY
-     * @see DateBuilder#WEDNESDAY
-     * @see DateBuilder#THURSDAY
-     * @see DateBuilder#FRIDAY
-     * @see DateBuilder#SATURDAY
-     * @see DateBuilder#SUNDAY
-     */
-
+        /// <summary>
+        /// Create a CronScheduleBuilder with a cron-expression that sets the
+        /// schedule to fire one per week on the given day at the given time
+        /// (hour and minute).
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="dayOfWeek">the day of the week to fire</param>
+        /// <param name="hour">the hour of day to fire</param>
+        /// <param name="minute">the minute of the given hour to fire</param>
+        /// <returns>the new CronScheduleBuilder</returns>
+        /// <seealso cref="CronExpression" />
+        /// <seealso cref="DateBuilder.Monday" />
+        /// <seealso cref="DateBuilder.Tuesday" />
+        /// <seealso cref="DateBuilder.Wednesday" />
+        /// <seealso cref="DateBuilder.Thursday" />
+        /// <seealso cref="DateBuilder.Friday" />
+        /// <seealso cref="DateBuilder.Saturday" />
+        /// <seealso cref="DateBuilder.Sunday" />
         public static CronScheduleBuilder WeeklyOnDayAndHourAndMinute(int dayOfWeek, int hour, int minute)
         {
-            DateBuilder.validateDayOfWeek(dayOfWeek);
-            DateBuilder.validateHour(hour);
-            DateBuilder.validateMinute(minute);
+            DateBuilder.ValidateDayOfWeek(dayOfWeek);
+            DateBuilder.ValidateHour(hour);
+            DateBuilder.ValidateMinute(minute);
 
             string cronExpression = String.Format("0 {0} {1} ? * {2}", minute, hour, dayOfWeek);
 
             return new CronScheduleBuilder(cronExpression);
         }
 
-        /**
-     * Create a CronScheduleBuilder with a cron-expression that sets the
-     * schedule to fire one per month on the given day of month at the given 
-     * time (hour and minute).
-     * 
-     * @param dayOfMonth the day of the month to fire
-     * @param hour the hour of day to fire
-     * @param minute the minute of the given hour to fire
-     * @return the new CronScheduleBuilder
-     * @throws ParseException
-     * @see CronExpression
-     */
-
+        /// <summary>
+        /// Create a CronScheduleBuilder with a cron-expression that sets the
+        /// schedule to fire one per month on the given day of month at the given
+        /// time (hour and minute).
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="dayOfMonth">the day of the month to fire</param>
+        /// <param name="hour">the hour of day to fire</param>
+        /// <param name="minute">the minute of the given hour to fire</param>
+        /// <returns>the new CronScheduleBuilder</returns>
+        /// <seealso cref="CronExpression" />
         public static CronScheduleBuilder MonthlyOnDayAndHourAndMinute(int dayOfMonth, int hour, int minute)
         {
-            DateBuilder.validateDayOfMonth(dayOfMonth);
-            DateBuilder.validateHour(hour);
-            DateBuilder.validateMinute(minute);
+            DateBuilder.ValidateDayOfMonth(dayOfMonth);
+            DateBuilder.ValidateHour(hour);
+            DateBuilder.ValidateMinute(minute);
 
             string cronExpression = String.Format("0 {0} {1} {2} * ?", minute, hour, dayOfMonth);
 
             return new CronScheduleBuilder(cronExpression);
         }
 
-        /**
-     * The <code>TimeZone</code> in which to base the schedule.
-     * 
-     * @param tz the time-zone for the schedule.
-     * @return the updated CronScheduleBuilder
-     * @see CronExpression#getTimeZone()
-     */
-
+        /// <summary>
+        /// The <code>TimeZone</code> in which to base the schedule.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="tz">the time-zone for the schedule.</param>
+        /// <returns>the updated CronScheduleBuilder</returns>
+        /// <seealso cref="CronExpression.TimeZone" />
         public CronScheduleBuilder InTimeZone(TimeZoneInfo tz)
         {
             this.tz = tz;
@@ -207,42 +200,42 @@ namespace Quartz
         }
 
 
-        /**
-         * If the Trigger misfires, use the 
-         * {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
-         * 
-         * @return the updated CronScheduleBuilder
-         * @see Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY
-         */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated CronScheduleBuilder</returns>
+        /// <seealso cref="MisfireInstruction.IgnoreMisfirePolicy" />
         public CronScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
         {
             misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
             return this;
         }
 
-        /**
-     * If the Trigger misfires, use the 
-     * {@link CronTrigger#MISFIRE_INSTRUCTION_DO_NOTHING} instruction.
-     * 
-     * @return the updated CronScheduleBuilder
-     * @see CronTrigger#MISFIRE_INSTRUCTION_DO_NOTHING
-     */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// {@link CronTrigger#MISFIRE_INSTRUCTION_DO_NOTHING} instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated CronScheduleBuilder</returns>
+        /// <seealso cref="MisfireInstruction.CronTrigger.DoNothing" />
         public CronScheduleBuilder WithMisfireHandlingInstructionDoNothing()
         {
             misfireInstruction = MisfireInstruction.CronTrigger.DoNothing;
             return this;
         }
 
-        /**
-     * If the Trigger misfires, use the 
-     * {@link CronTrigger#MISFIRE_INSTRUCTION_FIRE_ONCE_NOW} instruction.
-     * 
-     * @return the updated CronScheduleBuilder
-     * @see CronTrigger#MISFIRE_INSTRUCTION_FIRE_ONCE_NOW
-     */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// {@link CronTrigger#MISFIRE_INSTRUCTION_FIRE_ONCE_NOW} instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated CronScheduleBuilder</returns>
+        /// <seealso cref="MisfireInstruction.CronTrigger.FireOnceNow" />
         public CronScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
         {
             misfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;

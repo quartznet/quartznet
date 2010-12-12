@@ -411,7 +411,7 @@ namespace Quartz.Xml
                 }
                 DateTime? triggerEndTime = triggerNode.Item.endtimeSpecified ? triggerNode.Item.endtime : (DateTime?) null;
 
-                TriggerKey triggerKey = triggerKey(triggerName, triggerGroup);
+                TriggerKey triggerKey = new TriggerKey(triggerName, triggerGroup);
 
                 IScheduleBuilder sched = null;
 
@@ -425,7 +425,7 @@ namespace Quartz.Xml
                     int repeatCount = ParseSimpleTriggerRepeatCount(repeatCountString);
                     TimeSpan repeatInterval = repeatIntervalString == null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
 
-                    sched = SimpleScheduleBuilder.SimpleSchedule()
+                    sched = SimpleScheduleBuilder.Create()
                     .WithInterval(repeatInterval)
                     .WithRepeatCount(repeatCount);
 
@@ -460,12 +460,12 @@ namespace Quartz.Xml
                     IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
                     int repeatInterval = repeatIntervalString == null ? 0 : Convert.ToInt32(repeatIntervalString);
 
-                    sched = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()
-                    .withInterval(repeatInterval, intervalUnit);
+                    sched = CalendarIntervalScheduleBuilder.Create()
+                    .WithInterval(repeatInterval, intervalUnit);
 
                     if (!String.IsNullOrWhiteSpace(calendarIntervalTrigger.misfireinstruction))
                     {
-                        ((CalendarIntervalScheduleBuilder)sched).withMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
+                        ((CalendarIntervalScheduleBuilder)sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
                     }
                 }
                 else
@@ -473,16 +473,16 @@ namespace Quartz.Xml
                     throw new SchedulerConfigException("Unknown trigger type in XML configuration");
                 }
 
-                IMutableTrigger trigger = TriggerBuilder<ISimpleTrigger>.NewTrigger()
-    .WithIdentity(triggerName, triggerGroup)
-    .WithDescription(triggerDescription)
-    .ForJob(triggerJobName, triggerJobGroup)
-    .StartAt(triggerStartTime)
-    .EndAt(triggerEndTime)
-    .WithPriority(triggerPriority)
-    .ModifiedByCalendar(triggerCalendarRef)
-    .WithSchedule(sched)
-    .Build();
+                IMutableTrigger trigger = TriggerBuilder<IMutableTrigger>.Create()
+                    .WithIdentity(triggerName, triggerGroup)
+                    .WithDescription(triggerDescription)
+                    .ForJob(triggerJobName, triggerJobGroup)
+                    .StartAt(triggerStartTime)
+                    .EndAt(triggerEndTime)
+                    .WithPriority(triggerPriority)
+                    .ModifiedByCalendar(triggerCalendarRef)
+                    .WithSchedule(sched)
+                    .Build();
 
                 if (triggerNode.Item.jobdatamap != null && triggerNode.Item.jobdatamap.entry != null)
                 {

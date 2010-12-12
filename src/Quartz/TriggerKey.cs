@@ -35,8 +35,8 @@ namespace Quartz
     ///         scheduler.scheduleJob(job, trigger);
     /// </pre>
     /// </remarks>
-    /// <seealso cref="Trigger" />
-    /// <seealso cref="Key.DefaultGroup" />
+    /// <seealso cref="ITrigger" />
+    /// <seealso cref="Key{T}.DefaultGroup" />
     public sealed class TriggerKey : Key<TriggerKey>
     {
         public TriggerKey(string name) : base(name, null)
@@ -45,16 +45,6 @@ namespace Quartz
 
         public TriggerKey(string name, string group) : base(name, group)
         {
-        }
-
-        public static TriggerKey triggerKey(string name)
-        {
-            return new TriggerKey(name, null);
-        }
-
-        public static TriggerKey triggerKey(string name, string group)
-        {
-            return new TriggerKey(name, group);
         }
     }
 }

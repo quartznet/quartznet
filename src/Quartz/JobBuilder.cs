@@ -55,7 +55,7 @@ namespace Quartz
     ///         scheduler.scheduleJob(job, trigger);
     /// </pre>
     /// </remarks>
-    /// <seealso cref="TriggerBuilder" />
+    /// <seealso cref="TriggerBuilder{T}" />
     /// <seealso cref="DateBuilder" />
     /// <seealso cref="IJobDetail" />
     public class JobBuilder
@@ -131,8 +131,8 @@ namespace Quartz
         /// </remarks>
         /// <param name="name">the name element for the Job's JobKey</param>
         /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="JobKey
-        /// <seealso cref="IJobDetail#getKey()
+        /// <seealso cref="JobKey" /> 
+        /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(string name)
         {
             key = new JobKey(name, null);
@@ -151,7 +151,7 @@ namespace Quartz
         /// <param name="group"> the group element for the Job's JobKey</param>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="JobKey" />
-        /// <seealso cref="IJobDetail#getKey()" />
+        /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(string name, string group)
         {
             key = new JobKey(name, group);
@@ -168,7 +168,7 @@ namespace Quartz
         /// <param name="key">the Job's JobKey</param>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="JobKey" />
-        /// <seealso cref="IJobDetail#getKey()" />
+        /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(JobKey key)
         {
             this.key = key;
@@ -180,7 +180,7 @@ namespace Quartz
         /// </summary>
         /// <param name="description"> the description for the Job</param>
         /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="IJobDetail#getDescription()" />
+        /// <seealso cref="IJobDetail.Description" />
         public JobBuilder WithDescription(string description)
         {
             this.description = description;
@@ -192,7 +192,7 @@ namespace Quartz
         /// Trigger fires that is associated with this JobDetail.
         /// </summary>
         /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="IJobDetail#getJobClass()" />
+        /// <seealso cref="IJobDetail.JobType" />
         public JobBuilder OfType<T>()
         {
             return OfType(typeof(T));
@@ -203,7 +203,7 @@ namespace Quartz
         /// Trigger fires that is associated with this JobDetail.
         /// </summary>
         /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="IJobDetail#getJobClass()" />
+        /// <seealso cref="IJobDetail.JobType" />
         public JobBuilder OfType(Type type)
         {
             jobType = type;
@@ -250,7 +250,7 @@ namespace Quartz
         /// If not explicitly set, the default value is <code>false</code>.
         /// </remarks>
         /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="IJobDetail#isDurable()" />
+        /// <seealso cref="IJobDetail.Durable" />
         public JobBuilder StoreDurably()
         {
             this.durability = true;
@@ -264,9 +264,9 @@ namespace Quartz
         /// <remarks>
         /// If not explicitly set, the default value is <code>false</code>.
         /// </remarks>
-        /// <param name="durability">the value to set for the durability property.
+        /// <param name="durability">the value to set for the durability property.</param>
         ///<returns>the updated JobBuilder</returns>
-        /// <seealso cref="IJobDetail#isDurable()" />
+        /// <seealso cref="IJobDetail.Durable" />
         public JobBuilder StoreDurably(bool durability)
         {
             this.durability = durability;

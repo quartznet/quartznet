@@ -46,19 +46,19 @@ namespace Quartz
         void JobUnscheduled(TriggerKey triggerKey);
 
 		/// <summary> 
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// has reached the condition in which it will never fire again.
 		/// </summary>
         void TriggerFinalized(ITrigger trigger);
         
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> a <see cref="Trigger"/>s has been paused.
+        /// Called by the <see cref="IScheduler"/> a <see cref="ITrigger"/>s has been paused.
         /// </summary>
         void TriggerPaused(TriggerKey triggerKey);
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler"/> a group of 
-		/// <see cref="Trigger"/>s has been paused.
+		/// <see cref="ITrigger"/>s has been paused.
         /// </summary>
         /// <remarks>
 		/// If a all groups were paused, then the <see param="triggerName"/> parameter
@@ -68,14 +68,14 @@ namespace Quartz
 		void TriggersPaused(string triggerGroup);
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// has been un-paused.
         /// </summary>
         void TriggerResumed(TriggerKey triggerKey);
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler"/> when a
-		/// group of <see cref="Trigger"/>s has been un-paused.
+		/// group of <see cref="ITrigger"/>s has been un-paused.
         /// </summary>
         /// <remarks>
 		/// If all groups were resumed, then the <see param="triggerName"/> parameter
@@ -131,7 +131,7 @@ namespace Quartz
 		/// Called by the <see cref="IScheduler" /> when a serious error has
 		/// occurred within the scheduler - such as repeated failures in the <see cref="IJobStore" />,
 		/// or the inability to instantiate a <see cref="IJob" /> instance when its
-		/// <see cref="Trigger" /> has fired.
+		/// <see cref="ITrigger" /> has fired.
 		/// </summary>
 		void SchedulerError(string msg, SchedulerException cause);
 

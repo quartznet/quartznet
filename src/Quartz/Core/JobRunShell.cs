@@ -31,7 +31,7 @@ namespace Quartz.Core
 	/// JobRunShell instances are responsible for providing the 'safe' environment
 	/// for <see cref="IJob" /> s to run in, and for performing all of the work of
 	/// executing the <see cref="IJob" />, catching ANY thrown exceptions, updating
-	/// the <see cref="Trigger" /> with the <see cref="IJob" />'s completion code,
+	/// the <see cref="ITrigger" /> with the <see cref="IJob" />'s completion code,
 	/// etc.
 	/// <p>
 	/// A <see cref="JobRunShell" /> instance is created by a <see cref="IJobRunShellFactory" />
@@ -43,7 +43,7 @@ namespace Quartz.Core
 	/// <seealso cref="IJobRunShellFactory" /> 
 	/// <seealso cref="QuartzSchedulerThread" />
 	/// <seealso cref="IJob" />
-	/// <seealso cref="Trigger" />
+	/// <seealso cref="ITrigger" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public class JobRunShell : SchedulerListenerSupport, IThreadRunnable

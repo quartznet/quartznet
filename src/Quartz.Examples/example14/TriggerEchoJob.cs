@@ -31,7 +31,7 @@ namespace Quartz.Examples.Example14
         private static readonly ILog LOG = LogManager.GetLogger(typeof (TriggerEchoJob));
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// fires that is associated with the <see cref="IJob"/>.
         /// <p>
         /// The implementation may wish to set a  result object on the
@@ -44,7 +44,7 @@ namespace Quartz.Examples.Example14
         /// 	<param name="context">The execution context.</param>
         /// </summary>
         /// <param name="context"></param>
-        public void Execute(JobExecutionContext context)
+        public void Execute(IJobExecutionContext context)
         {
             LOG.Info("TRIGGER: " + context.Trigger.Name);
         }

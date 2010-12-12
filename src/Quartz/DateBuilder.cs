@@ -23,249 +23,213 @@ using System;
 
 namespace Quartz
 {
-/**
- * <code>DateBuilder</code> is used to conveniently create 
- * <code>java.util.Date</code> instances that meet particular criteria.
- *  
- * <p>Quartz provides a builder-style API for constructing scheduling-related
- * entities via a Domain-Specific Language (DSL).  The DSL can best be
- * utilized through the usage of static imports of the methods on the classes
- * <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
- * <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
- * and the various <code>ScheduleBuilder</code> implementations.</p>
- * 
- * <p>Client code can then use the DSL to write code such as this:</p>
- * <pre>
- *         JobDetail job = newJob(MyJob.class)
- *             .withIdentity("myJob")
- *             .build();
- *             
- *         Trigger trigger = newTrigger() 
- *             .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
- *             .withSchedule(simpleSchedule()
- *                 .withIntervalInHours(1)
- *                 .repeatForever())
- *             .startAt(futureDate(10, MINUTES))
- *             .build();
- *         
- *         scheduler.scheduleJob(job, trigger);
- * <pre>
- *  
- * @see TriggerBuilder
- * @see JobBuilder 
- */
-
+    /// <summary>
+    /// <code>DateBuilder</code> is used to conveniently create
+    /// <code>java.util.Date</code> instances that meet particular criteria.
+    /// </summary>
+    /// <remarks>
+    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// entities via a Domain-Specific Language (DSL).  The DSL can best be
+    /// utilized through the usage of static imports of the methods on the classes
+    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
+    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
+    /// and the various <code>ScheduleBuilder</code> implementations.</p>
+    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// <pre>
+    /// JobDetail job = newJob(MyJob.class)
+    /// .withIdentity("myJob")
+    /// .build();
+    /// Trigger trigger = newTrigger()
+    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    /// .withSchedule(simpleSchedule()
+    /// .withIntervalInHours(1)
+    /// .repeatForever())
+    /// .startAt(futureDate(10, MINUTES))
+    /// .build();
+    /// scheduler.scheduleJob(job, trigger);
+    /// </pre>
+    /// </remarks>
+    /// <seealso cref="TriggerBuilder{T}" />
+    /// <seealso cref="JobBuilder" />
     public class DateBuilder
     {
         public enum IntervalUnit
         {
-            MILLISECOND,
-            SECOND,
-            MINUTE,
-            HOUR,
-            DAY,
-            WEEK,
-            MONTH,
-            YEAR
+            Millisecond,
+            Second,
+            Minute,
+            Hour,
+            Day,
+            Week,
+            Month,
+            Year
         } ;
 
-        public const int SUNDAY = 1;
+        public const int Sunday = 1;
 
-        public const int MONDAY = 2;
+        public const int Monday = 2;
 
-        public const int TUESDAY = 3;
+        public const int Tuesday = 3;
 
-        public const int WEDNESDAY = 4;
+        public const int Wednesday = 4;
 
-        public const int THURSDAY = 5;
+        public const int Thursday = 5;
 
-        public const int FRIDAY = 6;
+        public const int Friday = 6;
 
-        public const int SATURDAY = 7;
+        public const int Saturday = 7;
 
-        public const long MILLISECONDS_IN_MINUTE = 60l*1000l;
+        public const long MillisecondsInMinute = 60l*1000l;
 
-        public const long MILLISECONDS_IN_HOUR = 60l*60l*1000l;
+        public const long MillisecondsInHour = 60l*60l*1000l;
 
-        public const long SECONDS_IN_MOST_DAYS = 24l*60l*60L;
+        public const long SecondsInMostDays = 24l*60l*60L;
 
-        public const long MILLISECONDS_IN_DAY = SECONDS_IN_MOST_DAYS*1000l;
+        public const long MillisecondsInDay = SecondsInMostDays*1000l;
 
 
         private DateBuilder()
         {
         }
 
-        public static DateTimeOffset futureDate(int interval, IntervalUnit unit)
+        public static DateTimeOffset FutureDate(int interval, IntervalUnit unit)
         {
-            DateTimeOffset c = Calendar.getInstance();
-            c.setTime(new DateTimeOffset());
-            c.setLenient(true);
-
-            c.add(translate(unit), interval);
-
-            return c.getTime();
+            return TranslatedAdd(DateTimeOffset.UtcNow, unit, interval);
         }
 
 
-        private static int translate(IntervalUnit unit)
+        private static DateTimeOffset TranslatedAdd(DateTimeOffset date, IntervalUnit unit, int amountToAdd)
         {
             switch (unit)
             {
-                case DAY:
-                    return Calendar.DAY_OF_YEAR;
-                case HOUR:
-                    return Calendar.HOUR_OF_DAY;
-                case MINUTE:
-                    return Calendar.MINUTE;
-                case MONTH:
-                    return Calendar.MONTH;
-                case SECOND:
-                    return Calendar.SECOND;
-                case MILLISECOND:
-                    return Calendar.MILLISECOND;
-                case WEEK:
-                    return Calendar.WEEK_OF_YEAR;
-                case YEAR:
-                    return Calendar.YEAR;
+                case IntervalUnit.Day:
+                    return date.AddDays(amountToAdd);
+                case IntervalUnit.Hour:
+                    return date.AddHours(amountToAdd);
+                case IntervalUnit.Minute:
+                    return date.AddMinutes(amountToAdd);
+                case IntervalUnit.Month:
+                    return date.AddMonths(amountToAdd);
+                case IntervalUnit.Second:
+                    return date.AddSeconds(amountToAdd);
+                case IntervalUnit.Millisecond:
+                    return date.AddMilliseconds(amountToAdd);
+                case IntervalUnit.Week:
+                    return date.AddDays(amountToAdd * 7);
+                case IntervalUnit.Year:
+                    return date.AddYears(amountToAdd);
                 default:
                     throw new ArgumentException("Unknown IntervalUnit");
             }
         }
 
-        /**
-     * <p>
-     * Get a <code>Date</code> object that represents the given time, on
-     * today's date.
-     * </p>
-     * 
-     * @param second
-     *          The value (0-59) to give the seconds field of the date
-     * @param minute
-     *          The value (0-59) to give the minutes field of the date
-     * @param hour
-     *          The value (0-23) to give the hours field of the date
-     * @return the new date
-     */
-
-        public static DateTimeOffset dateOf(int hour, int minute, int second)
+        /// <summary>
+        /// <p>
+        /// Get a <code>Date</code> object that represents the given time, on
+        /// today's date.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="second"></param>
+        /// The value (0-59) to give the seconds field of the date
+        /// <param name="minute"></param>
+        /// The value (0-59) to give the minutes field of the date
+        /// <param name="hour"></param>
+        /// The value (0-23) to give the hours field of the date
+        /// <returns>the new date</returns>
+        public static DateTimeOffset DateOf(int hour, int minute, int second)
         {
-            validateSecond(second);
-            validateMinute(minute);
-            validateHour(hour);
+            ValidateSecond(second);
+            ValidateMinute(minute);
+            ValidateHour(hour);
 
-            DateTimeOffset c = Calendar.getInstance();
+            DateTimeOffset c = SystemTime.UtcNow();
 
-            c.set(Calendar.HOUR_OF_DAY, hour);
-            c.set(Calendar.MINUTE, minute);
-            c.set(Calendar.SECOND, second);
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c;
+            return new DateTimeOffset(c.Year, c.Month, c.Day, hour, minute, second, TimeSpan.Zero);
         }
 
-        /**
-     * <p>
-     * Get a <code>Date</code> object that represents the given time, on the
-     * given date.
-     * </p>
-     * 
-     * @param second
-     *          The value (0-59) to give the seconds field of the date
-     * @param minute
-     *          The value (0-59) to give the minutes field of the date
-     * @param hour
-     *          The value (0-23) to give the hours field of the date
-     * @param dayOfMonth
-     *          The value (1-31) to give the day of month field of the date
-     * @param month
-     *          The value (1-12) to give the month field of the date
-     * @return the new date
-     */
-
-        public static DateTimeOffset dateOf(int hour, int minute, int second,
+        /// <summary>
+        /// Get a <code>Date</code> object that represents the given time, on the
+        /// given date.
+        /// </summary>
+        /// <param name="second"></param>
+        /// The value (0-59) to give the seconds field of the date
+        /// <param name="minute"></param>
+        /// The value (0-59) to give the minutes field of the date
+        /// <param name="hour"></param>
+        /// The value (0-23) to give the hours field of the date
+        /// <param name="dayOfMonth"></param>
+        /// The value (1-31) to give the day of month field of the date
+        /// <param name="month"></param>
+        /// The value (1-12) to give the month field of the date
+        /// <returns>the new date</returns>
+        public static DateTimeOffset DateOf(int hour, int minute, int second,
                                             int dayOfMonth, int month)
         {
-            validateSecond(second);
-            validateMinute(minute);
-            validateHour(hour);
-            validateDayOfMonth(dayOfMonth);
-            validateMonth(month);
+            ValidateSecond(second);
+            ValidateMinute(minute);
+            ValidateHour(hour);
+            ValidateDayOfMonth(dayOfMonth);
+            ValidateMonth(month);
 
-            DateTimeOffset c = Calendar.getInstance();
+            DateTimeOffset c = SystemTime.UtcNow();
 
-            c.set(Calendar.MONTH, month - 1);
-            c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-            c.set(Calendar.HOUR_OF_DAY, hour);
-            c.set(Calendar.MINUTE, minute);
-            c.set(Calendar.SECOND, second);
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c.getTime();
+            return new DateTimeOffset(c.Year, month, dayOfMonth, hour, minute, second, TimeSpan.Zero);
         }
 
-        /**
-     * <p>
-     * Get a <code>Date</code> object that represents the given time, on the
-     * given date.
-     * </p>
-     * 
-     * @param second
-     *          The value (0-59) to give the seconds field of the date
-     * @param minute
-     *          The value (0-59) to give the minutes field of the date
-     * @param hour
-     *          The value (0-23) to give the hours field of the date
-     * @param dayOfMonth
-     *          The value (1-31) to give the day of month field of the date
-     * @param month
-     *          The value (1-12) to give the month field of the date
-     * @param year
-     *          The value (1970-2099) to give the year field of the date
-     * @return the new date
-     */
-
-        public static DateTimeOffset dateOf(int hour, int minute, int second,
+        /// <summary>
+        /// <p>
+        /// Get a <code>Date</code> object that represents the given time, on the
+        /// given date.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="second"></param>
+        /// The value (0-59) to give the seconds field of the date
+        /// <param name="minute"></param>
+        /// The value (0-59) to give the minutes field of the date
+        /// <param name="hour"></param>
+        /// The value (0-23) to give the hours field of the date
+        /// <param name="dayOfMonth"></param>
+        /// The value (1-31) to give the day of month field of the date
+        /// <param name="month"></param>
+        /// The value (1-12) to give the month field of the date
+        /// <param name="year"></param>
+        /// The value (1970-2099) to give the year field of the date
+        /// <returns>the new date</returns>
+        public static DateTimeOffset DateOf(int hour, int minute, int second,
                                             int dayOfMonth, int month, int year)
         {
-            validateSecond(second);
-            validateMinute(minute);
-            validateHour(hour);
-            validateDayOfMonth(dayOfMonth);
-            validateMonth(month);
-            validateYear(year);
+            ValidateSecond(second);
+            ValidateMinute(minute);
+            ValidateHour(hour);
+            ValidateDayOfMonth(dayOfMonth);
+            ValidateMonth(month);
+            ValidateYear(year);
 
-            DateTimeOffset c = Calendar.getInstance();
+            DateTimeOffset c = SystemTime.UtcNow();
 
-            c.set(Calendar.YEAR, year);
-            c.set(Calendar.MONTH, month - 1);
-            c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-            c.set(Calendar.HOUR_OF_DAY, hour);
-            c.set(Calendar.MINUTE, minute);
-            c.set(Calendar.SECOND, second);
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c.getTime();
+            return new DateTimeOffset(year, month, dayOfMonth, hour, minute, second, TimeSpan.Zero);
         }
 
-
-        /**
-     * <p>
-     * Returns a date that is rounded to the next even hour after the current time.
-     * </p>
-     * 
-     * <p>
-     * For example a current time of 08:13:54 would result in a date
-     * with the time of 09:00:00. If the date's time is in the 23rd hour, the
-     * date's 'day' will be promoted, and the time will be set to 00:00:00.
-     * </p>
-     * 
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenHourDateAfterNow()
+        /// <summary>
+        /// <p>
+        /// Returns a date that is rounded to the next even hour after the current time.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// For example a current time of 08:13:54 would result in a date
+        /// with the time of 09:00:00. If the date's time is in the 23rd hour, the
+        /// date's 'day' will be promoted, and the time will be set to 00:00:00.
+        /// </p>
+        /// </remarks>
+        /// <returns>the new rounded date</returns>
+        public static DateTimeOffset EvenHourDateAfterNow()
         {
-            return evenHourDate(null);
+            return EvenHourDate(null);
         }
 
         /// <summary>
@@ -310,23 +274,22 @@ namespace Quartz
             return new DateTimeOffset(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0, dateUtc.Value.Offset);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the next even minute after the current time.
-     * </p>
-     * 
-     * <p>
-     * For example a current time of 08:13:54 would result in a date
-     * with the time of 08:14:00. If the date's time is in the 59th minute,
-     * then the hour (and possibly the day) will be promoted.
-     * </p>
-     * 
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenMinuteDateAfterNow()
+        /// <summary>
+        /// <p>
+        /// Returns a date that is rounded to the next even minute after the current time.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// For example a current time of 08:13:54 would result in a date
+        /// with the time of 08:14:00. If the date's time is in the 59th minute,
+        /// then the hour (and possibly the day) will be promoted.
+        /// </p>
+        /// </remarks>
+        /// <returns>the new rounded date</returns>
+        public static DateTimeOffset EvenMinuteDateAfterNow()
         {
-            return evenMinuteDate(DateTimeOffset.UtcNow);
+            return EvenMinuteDate(DateTimeOffset.UtcNow);
         }
 
         /// <summary>
@@ -374,182 +337,165 @@ namespace Quartz
             return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the next even second after the current time.
-     * </p>
-     * 
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenSecondDateAfterNow()
+        /// <summary>
+        /// <p>
+        /// Returns a date that is rounded to the next even second after the current time.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new rounded date</returns>
+        public static DateTimeOffset EvenSecondDateAfterNow()
         {
-            return evenSecondDate(DateTimeOffset.UtcNow);
+            return EvenSecondDate(DateTimeOffset.UtcNow);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the next even second above the given
-     * date.
-     * </p>
-     * 
-     * @param date
-     *          the Date to round, if <code>null</code> the current time will
-     *          be used
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenSecondDate(DateTimeOffset date)
+        /// <summary>
+        /// <p>
+        /// Returns a date that is rounded to the next even second above the given
+        /// date.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="date"></param>
+        /// the Date to round, if <code>null</code> the current time will
+        /// be used
+        /// <returns>the new rounded date</returns>
+        public static DateTimeOffset EvenSecondDate(DateTimeOffset date)
         {
-            DateTimeOffset c = Calendar.getInstance();
-
-            c.set(Calendar.SECOND, c.get(Calendar.SECOND) + 1);
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c.getTime();
+            date = date.AddSeconds(1);
+            return new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, 0, date.Offset);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the previous even second below the
-     * given date.
-     * </p>
-     * 
-     * <p>
-     * For example an input date with a time of 08:13:54.341 would result in a
-     * date with the time of 08:13:00.000.
-     * </p>
-     * 
-     * @param date
-     *          the Date to round, if <code>null</code> the current time will
-     *          be used
-     * @return the new rounded date
-     */
-
-        public static DateTimeOffset evenSecondDateBefore(DateTimeOffset date)
+        /// <summary>
+        /// <p>
+        /// Returns a date that is rounded to the previous even second below the
+        /// given date.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// For example an input date with a time of 08:13:54.341 would result in a
+        /// date with the time of 08:13:00.000.
+        /// </p>
+        /// </remarks>
+        /// <param name="date"></param>
+        /// the Date to round, if <code>null</code> the current time will
+        /// be used
+        /// <returns>the new rounded date</returns>
+        public static DateTimeOffset EvenSecondDateBefore(DateTimeOffset date)
         {
-            DateTimeOffset c = Calendar.getInstance();
-
-            c.set(Calendar.MILLISECOND, 0);
-
-            return c.getTime();
+            return new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, 0, date.Offset);
         }
 
-        /**
-     * <p>
-     * Returns a date that is rounded to the next even multiple of the given
-     * minute.
-     * </p>
-     * 
-     * <p>
-     * For example an input date with a time of 08:13:54, and an input
-     * minute-base of 5 would result in a date with the time of 08:15:00. The
-     * same input date with an input minute-base of 10 would result in a date
-     * with the time of 08:20:00. But a date with the time 08:53:31 and an
-     * input minute-base of 45 would result in 09:00:00, because the even-hour
-     * is the next 'base' for 45-minute intervals.
-     * </p>
-     * 
-     * <p>
-     * More examples: <table>
-     * <tr>
-     * <th>Input Time</th>
-     * <th>Minute-Base</th>
-     * <th>Result Time</th>
-     * </tr>
-     * <tr>
-     * <td>11:16:41</td>
-     * <td>20</td>
-     * <td>11:20:00</td>
-     * </tr>
-     * <tr>
-     * <td>11:36:41</td>
-     * <td>20</td>
-     * <td>11:40:00</td>
-     * </tr>
-     * <tr>
-     * <td>11:46:41</td>
-     * <td>20</td>
-     * <td>12:00:00</td>
-     * </tr>
-     * <tr>
-     * <td>11:26:41</td>
-     * <td>30</td>
-     * <td>11:30:00</td>
-     * </tr>
-     * <tr>
-     * <td>11:36:41</td>
-     * <td>30</td>
-     * <td>12:00:00</td>
-     * </tr>
-     * <td>11:16:41</td>
-     * <td>17</td>
-     * <td>11:17:00</td>
-     * </tr>
-     * </tr>
-     * <td>11:17:41</td>
-     * <td>17</td>
-     * <td>11:34:00</td>
-     * </tr>
-     * </tr>
-     * <td>11:52:41</td>
-     * <td>17</td>
-     * <td>12:00:00</td>
-     * </tr>
-     * </tr>
-     * <td>11:52:41</td>
-     * <td>5</td>
-     * <td>11:55:00</td>
-     * </tr>
-     * </tr>
-     * <td>11:57:41</td>
-     * <td>5</td>
-     * <td>12:00:00</td>
-     * </tr>
-     * </tr>
-     * <td>11:17:41</td>
-     * <td>0</td>
-     * <td>12:00:00</td>
-     * </tr>
-     * </tr>
-     * <td>11:17:41</td>
-     * <td>1</td>
-     * <td>11:08:00</td>
-     * </tr>
-     * </table>
-     * </p>
-     * 
-     * @param date
-     *          the Date to round, if <code>null</code> the current time will
-     *          be used
-     * @param minuteBase
-     *          the base-minute to set the time on
-     * @return the new rounded date
-     * 
-     * @see #nextGivenSecondDate(Date, int)
-     */
-
-        public static DateTimeOffset nextGivenMinuteDate(DateTimeOffset date, int minuteBase)
+        /// <summary>
+        /// <p>
+        /// Returns a date that is rounded to the next even multiple of the given
+        /// minute.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// For example an input date with a time of 08:13:54, and an input
+        /// minute-base of 5 would result in a date with the time of 08:15:00. The
+        /// same input date with an input minute-base of 10 would result in a date
+        /// with the time of 08:20:00. But a date with the time 08:53:31 and an
+        /// input minute-base of 45 would result in 09:00:00, because the even-hour
+        /// is the next 'base' for 45-minute intervals.
+        /// </p>
+        /// <p>
+        /// More examples: <table>
+        /// <tr>
+        /// <th>Input Time</th>
+        /// <th>Minute-Base</th>
+        /// <th>Result Time</th>
+        /// </tr>
+        /// <tr>
+        /// <td>11:16:41</td>
+        /// <td>20</td>
+        /// <td>11:20:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:36:41</td>
+        /// <td>20</td>
+        /// <td>11:40:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:46:41</td>
+        /// <td>20</td>
+        /// <td>12:00:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:26:41</td>
+        /// <td>30</td>
+        /// <td>11:30:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:36:41</td>
+        /// <td>30</td>
+        /// <td>12:00:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:16:41</td>
+        /// <td>17</td>
+        /// <td>11:17:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:17:41</td>
+        /// <td>17</td>
+        /// <td>11:34:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:52:41</td>
+        /// <td>17</td>
+        /// <td>12:00:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:52:41</td>
+        /// <td>5</td>
+        /// <td>11:55:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:57:41</td>
+        /// <td>5</td>
+        /// <td>12:00:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:17:41</td>
+        /// <td>0</td>
+        /// <td>12:00:00</td>
+        /// </tr>
+        /// <tr>
+        /// <td>11:17:41</td>
+        /// <td>1</td>
+        /// <td>11:08:00</td>
+        /// </tr>
+        /// </table>
+        /// </p>
+        /// </remarks>
+        /// <param name="date"></param>
+        /// the Date to round, if <code>null</code> the current time will
+        /// be used
+        /// <param name="minuteBase"></param>
+        /// the base-minute to set the time on
+        /// <returns>the new rounded date</returns>
+        /// <seealso cref="NextGivenSecondDate(DateTimeOffset, int)" />
+        public static DateTimeOffset NextGivenMinuteDate(DateTimeOffset date, int minuteBase)
         {
             if (minuteBase < 0 || minuteBase > 59)
             {
                 throw new ArgumentException("minuteBase must be >=0 and <= 59");
             }
 
-
-            DateTimeOffset c = Calendar.getInstance();
+            DateTimeOffset c = date;
 
             if (minuteBase == 0)
             {
-                c.set(Calendar.HOUR_OF_DAY, c.get(Calendar.HOUR_OF_DAY) + 1);
-                c.set(Calendar.MINUTE, 0);
-                c.set(Calendar.SECOND, 0);
-                c.set(Calendar.MILLISECOND, 0);
-
-                return c.getTime();
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour + 1, 0, 0, 0, TimeSpan.Zero);
             }
 
-            int minute = c.get(Calendar.MINUTE);
+            int minute = c.Minute;
 
             int arItr = minute/minuteBase;
 
@@ -557,63 +503,44 @@ namespace Quartz
 
             if (nextMinuteOccurance < 60)
             {
-                c.set(Calendar.MINUTE, nextMinuteOccurance);
-                c.set(Calendar.SECOND, 0);
-                c.set(Calendar.MILLISECOND, 0);
-
-                return c.getTime();
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, nextMinuteOccurance, 0, 0, TimeSpan.Zero);
             }
             else
             {
-                c.set(Calendar.HOUR_OF_DAY, c.get(Calendar.HOUR_OF_DAY) + 1);
-                c.set(Calendar.MINUTE, 0);
-                c.set(Calendar.SECOND, 0);
-                c.set(Calendar.MILLISECOND, 0);
-
-                return c.getTime();
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour + 1, 0, 0, 0, TimeSpan.Zero);
             }
         }
-
-        /**
-     * <p>
-     * Returns a date that is rounded to the next even multiple of the given
-     * minute.
-     * </p>
-     * 
-     * <p>
-     * The rules for calculating the second are the same as those for
-     * calculating the minute in the method 
-     * <code>getNextGivenMinuteDate(..)<code>.
-     * </p>
-     *
-     * @param date the Date to round, if <code>null</code> the current time will
-     * be used
-     * @param secondBase the base-second to set the time on
-     * @return the new rounded date
-     * 
-     * @see #nextGivenMinuteDate(Date, int)
-     */
-
-        public static DateTimeOffset nextGivenSecondDate(DateTimeOffset date, int secondBase)
+        /// <summary>
+        /// <p>
+        /// Returns a date that is rounded to the next even multiple of the given
+        /// minute.
+        /// </p>
+        /// </summary>
+        /// <remarks>
+        /// The rules for calculating the second are the same as those for
+        /// calculating the minute in the method
+        /// <code>getNextGivenMinuteDate(..)</code>.
+        /// </remarks>
+        /// <param name="date">the Date to round, if <code>null</code> the current time will</param>
+        /// be used
+        /// <param name="secondBase">the base-second to set the time on</param>
+        /// <returns>the new rounded date</returns>
+        /// <seealso cref="NextGivenMinuteDate(DateTimeOffset, int)" />
+        public static DateTimeOffset NextGivenSecondDate(DateTimeOffset date, int secondBase)
         {
             if (secondBase < 0 || secondBase > 59)
             {
                 throw new ArgumentException("secondBase must be >=0 and <= 59");
             }
 
-
-            DateTimeOffset c = Calendar.getInstance();
+            DateTimeOffset c = date;
 
             if (secondBase == 0)
             {
-                c.set(Calendar.MINUTE, c.get(Calendar.MINUTE) + 1);
-                c.set(Calendar.SECOND, 0);
-                c.set(Calendar.MILLISECOND, 0);
-
-                return c.getTime();
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute + 1, 0, 0, TimeSpan.Zero);
             }
 
-            int second = c.get(Calendar.SECOND);
+            int second = c.Second;
 
             int arItr = second/secondBase;
 
@@ -621,18 +548,11 @@ namespace Quartz
 
             if (nextSecondOccurance < 60)
             {
-                c.set(Calendar.SECOND, nextSecondOccurance);
-                c.set(Calendar.MILLISECOND, 0);
-
-                return c.getTime();
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, nextSecondOccurance, 0, TimeSpan.Zero);
             }
             else
             {
-                c.set(Calendar.MINUTE, c.get(Calendar.MINUTE) + 1);
-                c.set(Calendar.SECOND, 0);
-                c.set(Calendar.MILLISECOND, 0);
-
-                return c.getTime();
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute + 1, 0, 0, TimeSpan.Zero);
             }
         }
 
@@ -645,7 +565,7 @@ namespace Quartz
         /// <param name="src">the original time-zone</param>
         /// <param name="dest">the destination time-zone</param>
         /// <returns>the translated UTC date</returns>
-        public static DateTimeOffset translateTime(DateTimeOffset date, TimeZoneInfo src, TimeZoneInfo dest)
+        public static DateTimeOffset TranslateTime(DateTimeOffset date, TimeZoneInfo src, TimeZoneInfo dest)
         {
             DateTimeOffset newDate = SystemTime.UtcNow();
             double offset = (GetOffset(date, dest) - GetOffset(date, src));
@@ -676,15 +596,15 @@ namespace Quartz
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        public static void validateDayOfWeek(int dayOfWeek)
+        public static void ValidateDayOfWeek(int dayOfWeek)
         {
-            if (dayOfWeek < SUNDAY || dayOfWeek > SATURDAY)
+            if (dayOfWeek < Sunday || dayOfWeek > Saturday)
             {
                 throw new ArgumentException("Invalid day of week.");
             }
         }
 
-        public static void validateHour(int hour)
+        public static void ValidateHour(int hour)
         {
             if (hour < 0 || hour > 23)
             {
@@ -692,7 +612,7 @@ namespace Quartz
             }
         }
 
-        public static void validateMinute(int minute)
+        public static void ValidateMinute(int minute)
         {
             if (minute < 0 || minute > 59)
             {
@@ -700,7 +620,7 @@ namespace Quartz
             }
         }
 
-        public static void validateSecond(int second)
+        public static void ValidateSecond(int second)
         {
             if (second < 0 || second > 59)
             {
@@ -708,7 +628,7 @@ namespace Quartz
             }
         }
 
-        public static void validateDayOfMonth(int day)
+        public static void ValidateDayOfMonth(int day)
         {
             if (day < 1 || day > 31)
             {
@@ -716,7 +636,7 @@ namespace Quartz
             }
         }
 
-        public static void validateMonth(int month)
+        public static void ValidateMonth(int month)
         {
             if (month < 1 || month > 12)
             {
@@ -724,7 +644,7 @@ namespace Quartz
             }
         }
 
-        public static void validateYear(int year)
+        public static void ValidateYear(int year)
         {
             if (year < 1970 || year > 2099)
             {

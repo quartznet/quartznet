@@ -22,10 +22,10 @@ namespace Quartz.Tests.Integration
     /// <author>Marko Lahma (.NET)</author>
     public class TestJob : IJob
     {
-       private static bool jobFired = false;
+       private static bool jobFired;
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
         /// <p>
         /// The implementation may wish to set a  result object on the 
@@ -37,7 +37,7 @@ namespace Quartz.Tests.Integration
         /// </p>
         /// <param name="context">The execution context.</param>
         /// </summary>
-        public void Execute(JobExecutionContext context)
+        public void Execute(IJobExecutionContext context)
         {
             JobHasFired = true;
         }

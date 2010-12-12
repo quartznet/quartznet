@@ -25,9 +25,9 @@ namespace Quartz
 {
     /// <summary> 
     /// An interface to be implemented by objects that define spaces of time during 
-    /// which an associated <see cref="Trigger" /> may (not) fire. Calendars 
+    /// which an associated <see cref="ITrigger" /> may (not) fire. Calendars 
     /// do not define actual fire times, but rather are used to limit a 
-    /// <see cref="Trigger" /> from firing on its normal schedule if necessary. Most 
+    /// <see cref="ITrigger" /> from firing on its normal schedule if necessary. Most 
     /// Calendars include all times by default and allow the user to specify times 
     /// to exclude. 
     /// </summary>
@@ -35,7 +35,7 @@ namespace Quartz
     /// As such, it is often useful to think of Calendars as being used to <I>exclude</I> a block
     /// of time - as opposed to <I>include</I> a block of time. (i.e. the 
     /// schedule &quot;fire every five minutes except on Sundays&quot; could be 
-    /// implemented with a <see cref="SimpleTrigger" /> and a 
+    /// implemented with a <see cref="ISimpleTrigger" /> and a 
     /// <see cref="WeeklyCalendar" /> which excludes Sundays)
     /// <para>
     /// Implementations MUST take care of being properly cloneable and Serializable.

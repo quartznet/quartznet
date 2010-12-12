@@ -95,12 +95,12 @@ namespace Quartz.Impl.AdoJobStore
 		/// <remarks>
 		/// In order to preserve the ordering of the triggers, the fire time will be
         /// set from the <i>ColumnFiredTime</i> column in the <i>TableFiredTriggers</i>
-		/// table. The caller is responsible for calling <see cref="Trigger.ComputeFirstFireTimeUtc" />
+        /// table. The caller is responsible for calling <see cref="IOperableTrigger.ComputeFirstFireTimeUtc" />
 		/// on each returned trigger. It is also up to the caller to insert the
         /// returned triggers to ensure that they are fired.
         /// </remarks>
 		/// <param name="conn">The DB Connection</param>
-		/// <returns>An array of <see cref="Trigger" /> objects</returns>
+		/// <returns>An array of <see cref="ITrigger" /> objects</returns>
 		IList<IOperableTrigger> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn);
 
 		/// <summary>
@@ -144,35 +144,31 @@ namespace Quartz.Impl.AdoJobStore
 		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The job name</param>
-        /// <param name="groupName">The job group</param>
+        /// <param name="jobKey">The key identifying the job.</param>
         IList<TriggerKey> SelectTriggerNamesForJob(ConnectionAndTransactionHolder conn, JobKey jobKey);
 
 		/// <summary>
 		/// Delete the job detail record for the given job.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="jobName">the name of the job</param>
-		/// <param name="groupName">Name of the group.</param>
-		/// <returns>the number of rows deleted</returns>
+        /// <param name="jobKey">The key identifying the job.</param>
+        /// <returns>the number of rows deleted</returns>
         int DeleteJobDetail(ConnectionAndTransactionHolder conn, JobKey jobKey);
 
 		/// <summary>
 		/// Check whether or not the given job is stateful.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The name of the job</param>
-        /// <param name="groupName">The group containing the job</param>
-		/// <returns> true if the job exists and is stateful, false otherwise</returns>
+        /// <param name="jobKey">The key identifying the job.</param>
+        /// <returns> true if the job exists and is stateful, false otherwise</returns>
         bool IsJobStateful(ConnectionAndTransactionHolder conn, JobKey jobKey);
 
 		/// <summary>
 		/// Check whether or not the given job exists.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="jobName">Name of the job.</param>
-		/// <param name="groupName">Name of the group.</param>
-		/// <returns>true if the job exists, false otherwise</returns>
+        /// <param name="jobKey">The key identifying the job.</param>
+        /// <returns>true if the job exists, false otherwise</returns>
         bool JobExists(ConnectionAndTransactionHolder conn, JobKey jobKey);
 
         /// <summary>
@@ -187,8 +183,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Select the JobDetail object for a given job name / group name.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The job name whose listeners are wanted</param>
-        /// <param name="groupName">The group containing the job</param>
+        /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="classLoadHelper">The class load helper.</param>
         /// <returns>The populated JobDetail object</returns>
         JobDetailImpl SelectJobDetail(ConnectionAndTransactionHolder conn, JobKey jobKey, ITypeLoadHelper classLoadHelper);
@@ -259,8 +254,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Check whether or not a trigger exists.
         /// </summary>
         /// <param name="conn">the DB Connection</param>
-        /// <param name="triggerName">Name of the trigger.</param>
-        /// <param name="groupName">Name of the group.</param>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <returns>the number of rows updated</returns>
 		bool TriggerExists(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
 
@@ -268,8 +262,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Update the state for a given trigger.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-        /// <param name="triggerName">The name of the trigger.</param>
-        /// <param name="groupName">The group containing the trigger.</param>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="state">The new state for the trigger.</param>
 		/// <returns> the number of rows updated</returns>
 		int UpdateTriggerState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, string state);
@@ -279,8 +272,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// old state.
 		/// </summary>
 		/// <param name="conn">The DB connection</param>
-        /// <param name="triggerName">The name of the trigger.</param>
-        /// <param name="groupName">The group containing the trigger</param>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="newState">The new state for the trigger </param>
         /// <param name="oldState">The old state the trigger must be in</param>
 		/// <returns> int the number of rows updated</returns>
@@ -292,8 +284,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// given old states.
 		/// </summary>
 		/// <param name="conn">The DB connection</param>
-        /// <param name="triggerName">The name of the trigger</param>
-        /// <param name="groupName">The group containing the trigger</param>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="newState">The new state for the trigger</param>
         /// <param name="oldState1">One of the old state the trigger must be in</param>
         /// <param name="oldState2">One of the old state the trigger must be in</param>
@@ -335,8 +326,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Update the states of all triggers associated with the given job.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The name of the job.</param>
-        /// <param name="groupName">The group containing the job.</param>
+        /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="state">The new state for the triggers.</param>
 		/// <returns>The number of rows updated</returns>
         int UpdateTriggerStatesForJob(ConnectionAndTransactionHolder conn, JobKey jobKey, string state);
@@ -346,8 +336,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// are the given current state.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The name of the job</param>
-        /// <param name="groupName">The group containing the job</param>
+        /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="state">The new state for the triggers</param>
         /// <param name="oldState">The old state of the triggers</param>
 		/// <returns> the number of rows updated</returns>
@@ -357,9 +346,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// Delete the BLOB trigger data for a trigger.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-		/// <param name="triggerName">The name of the trigger</param>
-		/// <param name="groupName">The group containing the trigger</param>
-		/// <returns>The number of rows deleted</returns>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
+        /// <returns>The number of rows deleted</returns>
 		int DeleteBlobTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
 
 
@@ -367,29 +355,26 @@ namespace Quartz.Impl.AdoJobStore
 		/// Delete the base trigger data for a trigger.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-        /// <param name="triggerName">The name of the trigger</param>
-        /// <param name="groupName">The group containing the trigger</param>
-		/// <returns> the number of rows deleted </returns>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
+        /// <returns> the number of rows deleted </returns>
         int DeleteTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
 
 		/// <summary>
 		/// Select the number of triggers associated with a given job.
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The name of the job</param>
-        /// <param name="groupName">The group containing the job</param>
-		/// <returns> the number of triggers for the given job </returns>
+        /// <param name="jobKey">The key identifying the job.</param>
+        /// <returns> the number of triggers for the given job </returns>
 		int SelectNumTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey);
 
         /// <summary>
         /// Select the job to which the trigger is associated.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
-        /// <param name="triggerName">The name of the trigger</param>
-        /// <param name="groupName">The group containing the trigger</param>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="loadHelper">The load helper.</param>
         /// <returns>
-        /// The <see cref="JobDetailImpl" /> object associated with the given trigger
+        /// The <see cref="IJobDetail" /> object associated with the given trigger
         /// </returns>
 		JobDetailImpl SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper);
 
@@ -397,9 +382,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// Select the triggers for a job>
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">The name of the trigger</param>
-        /// <param name="groupName">The group containing the trigger</param>
-		/// <returns> an array of <see cref="Trigger" /> objects associated with a given job. </returns>
+        /// <param name="jobKey">The key identifying the job.</param>
+        /// <returns> an array of <see cref="ITrigger" /> objects associated with a given job. </returns>
 		IList<IOperableTrigger> SelectTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey);
 
         /// <summary>
@@ -408,7 +392,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="calName">Name of the calendar.</param>
         /// <returns>
-        /// An array of <see cref="Trigger" /> objects associated with a given job.
+        /// An array of <see cref="ITrigger" /> objects associated with a given job.
         /// </returns>
 		IList<IOperableTrigger> SelectTriggersForCalendar(ConnectionAndTransactionHolder conn, string calName);
 
@@ -416,9 +400,8 @@ namespace Quartz.Impl.AdoJobStore
 		/// Select a trigger.
 		/// </summary>
 		/// <param name="conn">The DB Connection.</param>
-		/// <param name="triggerName">The name of the trigger.</param>
-		/// <param name="groupName">The group containing the trigger.</param>
-		/// <returns>The <see cref="Trigger" /> object.
+        /// <param name="triggerKey">The key identifying the trigger.</param>
+        /// <returns>The <see cref="ITrigger" /> object.
 		/// </returns>
         IOperableTrigger SelectTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
 
@@ -426,27 +409,24 @@ namespace Quartz.Impl.AdoJobStore
 		/// Select a trigger's JobDataMap.
 		/// </summary>
 		/// <param name="conn">The DB Connection.</param>
-		/// <param name="triggerName">The name of the trigger.</param>
-		/// <param name="groupName">The group containing the trigger.</param>
-		/// <returns>The <see cref="JobDataMap" /> of the Trigger, never null, but possibly empty.</returns>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
+        /// <returns>The <see cref="JobDataMap" /> of the Trigger, never null, but possibly empty.</returns>
         JobDataMap SelectTriggerJobDataMap(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
 
 		/// <summary>
 		/// Select a trigger's state value.
 		/// </summary>
 		/// <param name="conn">The DB Connection.</param>
-		/// <param name="triggerName">The name of the trigger.</param>
-		/// <param name="groupName">The group containing the trigger.</param>
-		/// <returns>The <see cref="Trigger" /> object.</returns>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
+        /// <returns>The <see cref="ITrigger" /> object.</returns>
         string SelectTriggerState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
 
 		/// <summary> 
 		/// Select a triggers status (state and next fire time).
 		/// </summary>
 		/// <param name="conn">The DB Connection.</param>
-		/// <param name="triggerName">The name of the trigger.</param>
-		/// <param name="groupName">The group containing the trigger.</param>
-		/// <returns>A <see cref="TriggerStatus" /> object, or null</returns>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
+        /// <returns>A <see cref="TriggerStatus" /> object, or null</returns>
         TriggerStatus SelectTriggerStatus(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
 
 		/// <summary>
@@ -669,8 +649,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number instances of the identified job currently executing.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
-        /// <param name="jobName">Name of the job.</param>
-        /// <param name="jobGroup">The job group.</param>
+        /// <param name="jobKey">The key identifying the job.</param>
         /// <returns>
         /// The number instances of the identified job currently executing.
         /// </returns>
@@ -721,8 +700,8 @@ namespace Quartz.Impl.AdoJobStore
         /// in ascending order of fire time, and then descending by priority.
         /// </summary>
         /// <param name="conn">The conn.</param>
-        /// <param name="noLaterThan">highest value of <see cref="Trigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
-        /// <param name="noEarlierThan">highest value of <see cref="Trigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
+        /// <param name="noLaterThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
+        /// <param name="noEarlierThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
         /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
         IList<TriggerKey> SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, DateTimeOffset noEarlierThan);
 

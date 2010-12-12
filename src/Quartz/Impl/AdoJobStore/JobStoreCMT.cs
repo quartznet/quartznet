@@ -118,8 +118,8 @@ namespace Quartz.Impl.AdoJobStore
         /// transaction, it does not attempt to commit or rollback the 
         /// enclosing transaction.
         /// </summary>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock(string, JobStoreSupport.ITransactionCallback)" />
-        /// <seealso cref="JobStoreTX.ExecuteInLock(String, JobStoreSupport.ITransactionCallback)" />
+        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
+        /// <seealso cref="JobStoreTX.ExecuteInLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
         /// <param name="lockName">

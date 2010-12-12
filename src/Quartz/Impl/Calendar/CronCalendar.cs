@@ -33,7 +33,7 @@ namespace Quartz.Impl.Calendar
 	/// It is important to remember that the cron expression here describes a set of
 	/// times to be <i>excluded</i> from firing. Whereas the cron expression in 
 	/// CronTrigger describes a set of times that can
-	/// be <i>included</i> for firing. Thus, if a <see cref="CronTrigger" /> has a 
+	/// be <i>included</i> for firing. Thus, if a <see cref="ICronTrigger" /> has a 
 	/// given cron expression and is associated with a <see cref="CronCalendar" /> with
 	/// the <i>same</i> expression, the calendar will exclude all the times the 
 	/// trigger includes, and they will cancel each other out.

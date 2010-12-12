@@ -24,35 +24,32 @@ using System.Collections.Generic;
 
 namespace Quartz.Listener
 {
-/**
- * Holds a List of references to TriggerListener instances and broadcasts all
- * events to them (in order).
- *
- * <p>The broadcasting behavior of this listener to delegate listeners may be
- * more convenient than registering all of the listeners directly with the
- * Scheduler, and provides the flexibility of easily changing which listeners
- * get notified.</p>
- *
- * @see #addListener(org.quartz.TriggerListener)
- * @see #removeListener(org.quartz.TriggerListener)
- * @see #removeListener(String)
- *
- * @author James House (jhouse AT revolition DOT net)
- */
-
+    /// <summary>
+    /// Holds a List of references to TriggerListener instances and broadcasts all
+    /// events to them (in order).
+    /// </summary>
+    /// <remarks>
+    /// <p>The broadcasting behavior of this listener to delegate listeners may be
+    /// more convenient than registering all of the listeners directly with the
+    /// Scheduler, and provides the flexibility of easily changing which listeners
+    /// get notified.</p>
+    /// </remarks>
+    /// <seealso cref="AddListener(ITriggerListener)" />
+    /// <seealso cref="RemoveListener(ITriggerListener)" />
+    /// <seealso cref="RemoveListener(string)" />
+    /// <author>James House (jhouse AT revolition DOT net)</author>
     public class BroadcastTriggerListener : ITriggerListener
     {
         private readonly string name;
         private readonly List<ITriggerListener> listeners;
 
-        /**
-     * Construct an instance with the given name.
-     *
-     * (Remember to add some delegate listeners!)
-     *
-     * @param name the name of this instance
-     */
-
+        /// <summary>
+        /// Construct an instance with the given name.
+        /// </summary>
+        /// <remarks>
+        /// (Remember to add some delegate listeners!)
+        /// </remarks>
+        /// <param name="name">the name of this instance</param>
         public BroadcastTriggerListener(string name)
         {
             if (name == null)
@@ -63,13 +60,13 @@ namespace Quartz.Listener
             listeners = new List<ITriggerListener>();
         }
 
-        /**
-     * Construct an instance with the given name, and List of listeners.
-     *
-     * @param name the name of this instance
-     * @param listeners the initial List of TriggerListeners to broadcast to.
-     */
-
+        /// <summary>
+        /// Construct an instance with the given name, and List of listeners.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="name">the name of this instance</param>
+        /// <param name="listeners">the initial List of TriggerListeners to broadcast to.</param>
         public BroadcastTriggerListener(string name, IList<ITriggerListener> listeners) : this(name)
         {
             this.listeners.AddRange(listeners);

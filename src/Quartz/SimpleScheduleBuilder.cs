@@ -26,42 +26,38 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-/**
- * <code>SimpleScheduleBuilder</code> is a {@link ScheduleBuilder} 
- * that defines strict/literal interval-based schedules for 
- * <code>Trigger</code>s.
- *  
- * <p>Quartz provides a builder-style API for constructing scheduling-related
- * entities via a Domain-Specific Language (DSL).  The DSL can best be
- * utilized through the usage of static imports of the methods on the classes
- * <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
- * <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
- * and the various <code>ScheduleBuilder</code> implementations.</p>
- * 
- * <p>Client code can then use the DSL to write code such as this:</p>
- * <pre>
- *         JobDetail job = newJob(MyJob.class)
- *             .withIdentity("myJob")
- *             .build();
- *             
- *         Trigger trigger = newTrigger() 
- *             .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
- *             .withSchedule(simpleSchedule()
- *                 .withIntervalInHours(1)
- *                 .repeatForever())
- *             .startAt(futureDate(10, MINUTES))
- *             .build();
- *         
- *         scheduler.scheduleJob(job, trigger);
- * <pre>
- *
- * @see SimpleTrigger 
- * @see CalenderIntervalScheduleBuilder
- * @see CronScheduleBuilder
- * @see ScheduleBuilder
- * @see TriggerBuilder
- */
-
+    /// <summary>
+    /// <code>SimpleScheduleBuilder</code> is a {@link ScheduleBuilder}
+    /// that defines strict/literal interval-based schedules for
+    /// <code>Trigger</code>s.
+    /// </summary>
+    /// <remarks>
+    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// entities via a Domain-Specific Language (DSL).  The DSL can best be
+    /// utilized through the usage of static imports of the methods on the classes
+    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
+    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
+    /// and the various <code>ScheduleBuilder</code> implementations.</p>
+    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// <pre>
+    /// JobDetail job = newJob(MyJob.class)
+    /// .withIdentity("myJob")
+    /// .build();
+    /// Trigger trigger = newTrigger()
+    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    /// .withSchedule(simpleSchedule()
+    /// .withIntervalInHours(1)
+    /// .repeatForever())
+    /// .startAt(futureDate(10, MINUTES))
+    /// .build();
+    /// scheduler.scheduleJob(job, trigger);
+    /// </pre>
+    /// </remarks>
+    /// <seealso cref="ISimpleTrigger" />
+    /// <seealso cref="CalendarIntervalScheduleBuilder" />
+    /// <seealso cref="CronScheduleBuilder" />
+    /// <seealso cref="IScheduleBuilder" />
+    /// <seealso cref="TriggerBuilder{T}" />
     public class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     {
         private TimeSpan interval = TimeSpan.Zero;
@@ -73,119 +69,118 @@ namespace Quartz
         }
 
 
-        /**
-     * Create a SimpleScheduleBuilder.
-     * 
-     * @return the new SimpleScheduleBuilder
-     */
-
-        public static SimpleScheduleBuilder SimpleSchedule()
+        /// <summary>
+        /// Create a SimpleScheduleBuilder.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
+        public static SimpleScheduleBuilder Create()
         {
             return new SimpleScheduleBuilder();
         }
 
-        /**
-     * Create a SimpleScheduleBuilder set to repeat forever with a 1 minute interval.
-     * 
-     * @return the new SimpleScheduleBuilder
-     */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat forever with a 1 minute interval.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatMinutelyForever()
         {
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromMinutes(1))
                 .RepeatForever();
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat forever with an interval
-         * of the given number of minutes.
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat forever with an interval
+        /// of the given number of minutes.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatMinutelyForever(int minutes)
         {
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromMinutes(minutes))
                 .RepeatForever();
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat forever with a 1 second interval.
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat forever with a 1 second interval.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatSecondlyForever()
         {
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromSeconds(1))
                 .RepeatForever();
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat forever with an interval
-         * of the given number of seconds.
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat forever with an interval
+        /// of the given number of seconds.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatSecondlyForever(int seconds)
         {
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromSeconds(seconds))
                 .RepeatForever();
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat forever with a 1 hour interval.
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat forever with a 1 hour interval.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatHourlyForever()
         {
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromHours(1))
                 .RepeatForever();
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat forever with an interval
-         * of the given number of hours.
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat forever with an interval
+        /// of the given number of hours.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatHourlyForever(int hours)
         {
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromHours(hours))
                 .RepeatForever();
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat the given number
-         * of times - 1  with a 1 minute interval.
-         * 
-         * <p>Note: Total count = 1 (at start time) + repeat count</p>
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat the given number
+        /// of times - 1  with a 1 minute interval.
+        /// </summary>
+        /// <remarks>
+        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatMinutelyForTotalCount(int count)
         {
             if (count < 1)
@@ -193,22 +188,21 @@ namespace Quartz
                 throw new ArgumentException("Total count of firings must be at least one! Given count: " + count);
             }
 
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromMinutes(1))
                 .WithRepeatCount(count - 1);
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat the given number
-         * of times - 1  with an interval of the given number of minutes.
-         * 
-         * <p>Note: Total count = 1 (at start time) + repeat count</p>
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat the given number
+        /// of times - 1  with an interval of the given number of minutes.
+        /// </summary>
+        /// <remarks>
+        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatMinutelyForTotalCount(int count, int minutes)
         {
             if (count < 1)
@@ -216,22 +210,21 @@ namespace Quartz
                 throw new ArgumentException("Total count of firings must be at least one! Given count: " + count);
             }
 
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromMinutes(minutes))
                 .WithRepeatCount(count - 1);
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat the given number
-         * of times - 1  with a 1 second interval.
-         * 
-         * <p>Note: Total count = 1 (at start time) + repeat count</p>
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat the given number
+        /// of times - 1  with a 1 second interval.
+        /// </summary>
+        /// <remarks>
+        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatSecondlyForTotalCount(int count)
         {
             if (count < 1)
@@ -239,22 +232,21 @@ namespace Quartz
                 throw new ArgumentException("Total count of firings must be at least one! Given count: " + count);
             }
 
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromSeconds(1))
                 .WithRepeatCount(count - 1);
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat the given number
-         * of times - 1  with an interval of the given number of seconds.
-         * 
-         * <p>Note: Total count = 1 (at start time) + repeat count</p>
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat the given number
+        /// of times - 1  with an interval of the given number of seconds.
+        /// </summary>
+        /// <remarks>
+        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatSecondlyForTotalCount(int count, int seconds)
         {
             if (count < 1)
@@ -262,22 +254,21 @@ namespace Quartz
                 throw new ArgumentException("Total count of firings must be at least one! Given count: " + count);
             }
 
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromSeconds(seconds))
                 .WithRepeatCount(count - 1);
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat the given number
-         * of times - 1  with a 1 hour interval.
-         * 
-         * <p>Note: Total count = 1 (at start time) + repeat count</p>
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat the given number
+        /// of times - 1  with a 1 hour interval.
+        /// </summary>
+        /// <remarks>
+        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatHourlyForTotalCount(int count)
         {
             if (count < 1)
@@ -285,22 +276,21 @@ namespace Quartz
                 throw new ArgumentException("Total count of firings must be at least one! Given count: " + count);
             }
 
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromHours(1))
                 .WithRepeatCount(count - 1);
 
             return sb;
         }
 
-        /**
-         * Create a SimpleScheduleBuilder set to repeat the given number
-         * of times - 1  with an interval of the given number of hours.
-         * 
-         * <p>Note: Total count = 1 (at start time) + repeat count</p>
-         * 
-         * @return the new SimpleScheduleBuilder
-         */
-
+        /// <summary>
+        /// Create a SimpleScheduleBuilder set to repeat the given number
+        /// of times - 1  with an interval of the given number of hours.
+        /// </summary>
+        /// <remarks>
+        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// </remarks>
+        /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatHourlyForTotalCount(int count, int hours)
         {
             if (count < 1)
@@ -308,21 +298,21 @@ namespace Quartz
                 throw new ArgumentException("Total count of firings must be at least one! Given count: " + count);
             }
 
-            SimpleScheduleBuilder sb = SimpleSchedule()
+            SimpleScheduleBuilder sb = Create()
                 .WithInterval(TimeSpan.FromHours(hours))
                 .WithRepeatCount(count - 1);
 
             return sb;
         }
 
-        /**
-     * Build the actual Trigger -- NOT intended to be invoked by end users,
-     * but will rather be invoked by a TriggerBuilder which this 
-     * ScheduleBuilder is given to.
-     * 
-     * @see TriggerBuilder#withSchedule(ScheduleBuilder)
-     */
-
+        /// <summary>
+        /// Build the actual Trigger -- NOT intended to be invoked by end users,
+        /// but will rather be invoked by a TriggerBuilder which this
+        /// ScheduleBuilder is given to.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <seealso cref="TriggerBuilder{T}.WithSchedule(IScheduleBuilder)" />
         public override IMutableTrigger Build()
         {
             SimpleTriggerImpl st = new SimpleTriggerImpl();
@@ -332,134 +322,131 @@ namespace Quartz
             return st;
         }
 
-        /**
-     * Specify a repeat interval in milliseconds. 
-     * 
-     * @param intervalInMillis the number of seconds at which the trigger should repeat.
-     * @return the updated SimpleScheduleBuilder
-     * @see SimpleTrigger#getRepeatInterval()
-     * @see #withRepeatCount(int)
-     */
-
+        /// <summary>
+        /// Specify a repeat interval in milliseconds.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="timeSpan">the time span at which the trigger should repeat.</param>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="ISimpleTrigger.RepeatInterval" />
+        /// <seealso cref="WithRepeatCount(int)" />
         public SimpleScheduleBuilder WithInterval(TimeSpan timeSpan)
         {
             this.interval = timeSpan;
             return this;
         }
 
-        /**
-     * Specify a the number of time the trigger will repeat - total number of 
-     * firings will be this number + 1. 
-     * 
-     * @param repeatCount the number of seconds at which the trigger should repeat.
-     * @return the updated SimpleScheduleBuilder
-     * @see SimpleTrigger#getRepeatCount()
-     * @see #repeatForever(int)
-     */
-
+        /// <summary>
+        /// Specify a the number of time the trigger will repeat - total number of
+        /// firings will be this number + 1.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="repeatCount">the number of seconds at which the trigger should repeat.</param>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="ISimpleTrigger.RepeatCount" />
+        /// <seealso cref="RepeatForever" />
         public SimpleScheduleBuilder WithRepeatCount(int repeatCount)
         {
             this.repeatCount = repeatCount;
             return this;
         }
 
-        /**
-     * Specify that the trigger will repeat indefinitely. 
-     * 
-     * @return the updated SimpleScheduleBuilder
-     * @see SimpleTrigger#getRepeatCount()
-     * @see SimpleTrigger#REPEAT_INDEFINITELY
-     * @see #withIntervalInMilliseconds(long)
-     * @see #withIntervalInSeconds(int)
-     * @see #withIntervalInMinutes(int)
-     * @see #withIntervalInHours(int)
-     */
-
+        /// <summary>
+        /// Specify that the trigger will repeat indefinitely.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="ISimpleTrigger.RepeatCount" />
+        /// <seealso cref="SimpleTriggerImpl.RepeatIndefinitely" />
+        /// <seealso cref="WithInterval" />
         public SimpleScheduleBuilder RepeatForever()
         {
-            this.repeatCount = SimpleTriggerImpl.RepeatIndefinitely;
+            repeatCount = SimpleTriggerImpl.RepeatIndefinitely;
             return this;
         }
 
 
-        /**
-         * If the Trigger misfires, use the 
-         * {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
-         * 
-         * @return the updated CronScheduleBuilder
-         * @see Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY
-         */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated CronScheduleBuilder</returns>
+        ///  <seealso cref="MisfireInstruction.IgnoreMisfirePolicy" />
         public SimpleScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
         {
             misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
             return this;
         }
 
-        /**
-     * If the Trigger misfires, use the 
-     * {@link SimpleTrigger#MISFIRE_INSTRUCTION_FIRE_NOW} instruction.
-     * 
-     * @return the updated SimpleScheduleBuilder
-     * @see SimpleTrigger#MISFIRE_INSTRUCTION_FIRE_NOW
-     */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// <see cref="MisfireInstruction.SimpleTrigger.FireNow" /> instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="MisfireInstruction.SimpleTrigger.FireNow" />
         public SimpleScheduleBuilder WithMisfireHandlingInstructionFireNow()
         {
             misfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
             return this;
         }
 
-        /**
-     * If the Trigger misfires, use the 
-     * {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_EXISTING_COUNT} instruction.
-     * 
-     * @return the updated SimpleScheduleBuilder
-     * @see SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_EXISTING_COUNT
-     */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// <seea cref="MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount" /> instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount" />
         public SimpleScheduleBuilder WithMisfireHandlingInstructionNextWithExistingCount()
         {
             misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
             return this;
         }
 
-        /**
-     * If the Trigger misfires, use the 
-     * {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT} instruction.
-     * 
-     * @return the updated SimpleScheduleBuilder
-     * @see SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT
-     */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT} instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount" />
         public SimpleScheduleBuilder WithMisfireHandlingInstructionNextWithRemainingCount()
         {
             misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
             return this;
         }
 
-        /**
-     * If the Trigger misfires, use the 
-     * {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT} instruction.
-     * 
-     * @return the updated SimpleScheduleBuilder
-     * @see SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT
-     */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT} instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />
         public SimpleScheduleBuilder WithMisfireHandlingInstructionNowWithExistingCount()
         {
             misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
             return this;
         }
 
-        /**
-     * If the Trigger misfires, use the 
-     * {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT} instruction.
-     * 
-     * @return the updated SimpleScheduleBuilder
-     * @see SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT
-     */
-
+        /// <summary>
+        /// If the Trigger misfires, use the
+        /// {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT} instruction.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount" />
         public SimpleScheduleBuilder WithMisfireHandlingInstructionNowWithRemainingCount()
         {
             misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;

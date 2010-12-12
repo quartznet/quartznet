@@ -29,50 +29,50 @@ namespace Quartz
     {
         /// <summary>
         /// A (possibly) useful constant that can be used for specifying the group
-        /// that <see cref="IJob" /> and <see cref="Trigger" /> instances belong to.
+        /// that <see cref="IJob" /> and <see cref="ITrigger" /> instances belong to.
         /// </summary>
         public const string DefaultGroup = Key<string>.DefaultGroup;
 
         /// <summary>
-        /// A constant <see cref="Trigger" /> group name used internally by the
+        /// A constant <see cref="ITrigger" /> group name used internally by the
         /// scheduler - clients should not use the value of this constant
-        /// ("RECOVERING_JOBS") for thename of a <see cref="Trigger" />'s group.
+        /// ("RECOVERING_JOBS") for thename of a <see cref="ITrigger" />'s group.
         /// </summary>
         public const string DefaultRecoveryGroup = "RECOVERING_JOBS";
 
         /// <summary>
-        /// A constant <see cref="Trigger" /> group name used internally by the
+        /// A constant <see cref="ITrigger" /> group name used internally by the
         /// scheduler - clients should not use the value of this constant
-        /// ("FAILED_OVER_JOBS") for thename of a <see cref="Trigger" />'s group.
+        /// ("FAILED_OVER_JOBS") for thename of a <see cref="ITrigger" />'s group.
         /// </summary>
         public const string DefaultFailOverGroup = "FAILED_OVER_JOBS";
 
 
         /// <summary>
         ///  A constant <see cref="JobDataMap" /> key that can be used to retrieve the
-        /// name of the original <see cref="Trigger" /> from a recovery trigger's
+        /// name of the original <see cref="ITrigger" /> from a recovery trigger's
         /// data map in the case of a job recovering after a failed scheduler
         /// instance.
         /// </summary>
-        /// <seealso cref="JobDetailImpl.RequestsRecovery" />
+        /// <seealso cref="IJobDetail.RequestsRecovery" />
         public const string FailedJobOriginalTriggerName = "QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME";
 
         /// <summary>
         /// A constant <see cref="JobDataMap" /> key that can be used to retrieve the
-        /// group of the original <see cref="Trigger" /> from a recovery trigger's
+        /// group of the original <see cref="ITrigger" /> from a recovery trigger's
         /// data map in the case of a job recovering after a failed scheduler
         /// instance.
         /// </summary>
-        /// <seealso cref="JobDetailImpl.RequestsRecovery" />
+        /// <seealso cref="IJobDetail.RequestsRecovery" />
         public const string FailedJobOriginalTriggerGroup = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
 
         /// <summary>
         ///  A constant <see cref="JobDataMap" /> key that can be used to retrieve the
-        /// scheduled fire time of the original <see cref="Trigger" /> from a recovery
+        /// scheduled fire time of the original <see cref="ITrigger" /> from a recovery
         /// trigger's data map in the case of a job recovering after a failed scheduler
         /// instance.
         /// </summary>
-        /// <seealso cref="JobDetailImpl.RequestsRecovery" />
+        /// <seealso cref="IJobDetail.RequestsRecovery" />
         public const string FailedJobOriginalTriggerFiretimeInMillisecoonds = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING";
 
     }

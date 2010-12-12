@@ -51,8 +51,8 @@ namespace Quartz.Impl.AdoJobStore
 
         protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
         {
-            CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()
-                .withInterval(
+            CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.Create()
+                .WithInterval(
                     props.Int1, 
                     (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1, true));
 

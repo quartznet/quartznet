@@ -21,221 +21,220 @@
 
 using System.Collections.Generic;
 
+using Quartz.Impl.Matchers;
+
 namespace Quartz
 {
-/**
- * Client programs may be interested in the 'listener' interfaces that are
- * available from Quartz. The <code>{@link JobListener}</code> interface
- * provides notifications of <code>Job</code> executions. The 
- * <code>{@link TriggerListener}</code> interface provides notifications of 
- * <code>Trigger</code> firings. The <code>{@link SchedulerListener}</code> 
- * interface provides notifications of <code>Scheduler</code> events and 
- * errors.  Listeners can be associated with local schedulers through the 
- * {@link ListenerManager} interface.  
- * 
- * @author jhouse
- * @since 2.0 - previously listeners were managed directly on the Scheduler interface.
- */
-
+    /// <summary>
+    /// Client programs may be interested in the 'listener' interfaces that are
+    /// available from Quartz. The <code>{@link JobListener}</code> interface
+    /// provides notifications of <code>Job</code> executions. The
+    /// <code>{@link TriggerListener}</code> interface provides notifications of
+    /// <code>Trigger</code> firings. The <code>{@link SchedulerListener}</code>
+    /// interface provides notifications of <code>Scheduler</code> events and
+    /// errors.  Listeners can be associated with local schedulers through the
+    /// {@link ListenerManager} interface.
+    /// </summary>
+    /// <remarks>
+    /// </remarks>
+    /// <author>jhouse</author>
+    /// <since>2.0 - previously listeners were managed directly on the Scheduler interface.</since>
     public interface IListenerManager
     {
-        /**
-     * Add the given <code>{@link JobListener}</code> to the <code>Scheduler</code>,
-     * and register it to receive events for Jobs that are matched by ANY of the
-     * given Matchers.
-     * 
-     * If no matchers are provided, the <code>EverythingMatcher</code> will be used.
-     * 
-     * @see Matcher
-     * @see EverythingMatcher
-     */
+        /// <summary>
+        /// Add the given <code>{@link JobListener}</code> to the <code>Scheduler</code>,
+        /// and register it to receive events for Jobs that are matched by ANY of the
+        /// given Matchers.
+        /// </summary>
+        /// <remarks>
+        /// If no matchers are provided, the <code>EverythingMatcher</code> will be used.
+        /// </remarks>
+        /// <seealso cref="IMatcher{T}" />
+        /// <seealso cref="EverythingMatcher{T}" />
         void AddJobListener(IJobListener jobListener, params IMatcher<JobKey>[] matchers);
 
-        /**
-     * Add the given <code>{@link JobListener}</code> to the <code>Scheduler</code>,
-     * and register it to receive events for Jobs that are matched by ANY of the
-     * given Matchers.
-     * 
-     * If no matchers are provided, the <code>EverythingMatcher</code> will be used.
-     * 
-     * @see Matcher
-     * @see EverythingMatcher
-     */
+        /// <summary>
+        /// Add the given <code>{@link JobListener}</code> to the <code>Scheduler</code>,
+        /// and register it to receive events for Jobs that are matched by ANY of the
+        /// given Matchers.
+        /// </summary>
+        /// <remarks>
+        /// If no matchers are provided, the <code>EverythingMatcher</code> will be used.
+        /// </remarks>
+        /// <seealso cref="IMatcher{T}" />
+        /// <seealso cref="EverythingMatcher{T}" />
         void AddJobListener(IJobListener jobListener, IList<IMatcher<JobKey>> matchers);
 
-        /**
-     * Add the given Matcher to the set of matchers for which the listener
-     * will receive events if ANY of the matchers match.
-     *  
-     * @param listenerName the name of the listener to add the matcher to
-     * @param matcher the additional matcher to apply for selecting events
-     * @return true if the identified listener was found and updated
-     * @throws SchedulerException
-     */
+        /// <summary>
+        /// Add the given Matcher to the set of matchers for which the listener
+        /// will receive events if ANY of the matchers match.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="listenerName">the name of the listener to add the matcher to</param>
+        /// <param name="matcher">the additional matcher to apply for selecting events</param>
+        /// <returns>true if the identified listener was found and updated</returns>
         bool AddJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher);
 
-        /**
-     * Remove the given Matcher to the set of matchers for which the listener
-     * will receive events if ANY of the matchers match.
-     *  
-     * @param listenerName the name of the listener to add the matcher to
-     * @param matcher the additional matcher to apply for selecting events
-     * @return true if the given matcher was found and removed from the listener's list of matchers
-     * @throws SchedulerException
-     */
+        /// <summary>
+        /// Remove the given Matcher to the set of matchers for which the listener
+        /// will receive events if ANY of the matchers match.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="listenerName">the name of the listener to add the matcher to</param>
+        /// <param name="matcher">the additional matcher to apply for selecting events</param>
+        /// <returns>true if the given matcher was found and removed from the listener's list of matchers</returns>
         bool RemoveJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher);
 
-        /**
-     * Set the set of Matchers for which the listener
-     * will receive events if ANY of the matchers match.
-     * 
-     * <p>Removes any existing matchers for the identified listener!</p>
-     *  
-     * @param listenerName the name of the listener to add the matcher to
-     * @param matchers the matchers to apply for selecting events
-     * @return true if the given matcher was found and removed from the listener's list of matchers
-     * @throws SchedulerException
-     */
+        /// <summary>
+        /// Set the set of Matchers for which the listener
+        /// will receive events if ANY of the matchers match.
+        /// </summary>
+        /// <remarks>
+        /// <p>Removes any existing matchers for the identified listener!</p>
+        /// </remarks>
+        /// <param name="listenerName">the name of the listener to add the matcher to</param>
+        /// <param name="matchers">the matchers to apply for selecting events</param>
+        /// <returns>true if the given matcher was found and removed from the listener's list of matchers</returns>
         bool SetJobListenerMatchers(string listenerName, IList<IMatcher<JobKey>> matchers);
 
-        /**
-     * Get the set of Matchers for which the listener
-     * will receive events if ANY of the matchers match.
-     * 
-     *  
-     * @param listenerName the name of the listener to add the matcher to
-     * @return the matchers registered for selecting events for the identified listener
-     * @throws SchedulerException
-     */
+        /// <summary>
+        /// Get the set of Matchers for which the listener
+        /// will receive events if ANY of the matchers match.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="listenerName">the name of the listener to add the matcher to</param>
+        /// <returns>the matchers registered for selecting events for the identified listener</returns>
         IList<IMatcher<JobKey>> GetJobListenerMatchers(string listenerName);
 
-        /**
-     * Remove the identified <code>{@link JobListener}</code> from the <code>Scheduler</code>.
-     * 
-     * @return true if the identified listener was found in the list, and
-     *         removed.
-     */
+        /// <summary>
+        /// Remove the identified <code>{@link JobListener}</code> from the <code>Scheduler</code>.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>true if the identified listener was found in the list, and removed.</returns>
         bool RemoveJobListener(string name);
 
-        /**
-     * Get a List containing all of the <code>{@link JobListener}</code>s in
-     * the <code>Scheduler</code>.
-     */
+        /// <summary>
+        /// Get a List containing all of the <code>{@link JobListener}</code>s in
+        /// the <code>Scheduler</code>.
+        /// </summary>
         IList<IJobListener> GetJobListeners();
 
-        /**
-     * Get the <code>{@link JobListener}</code> that has the given name.
-     */
+        /// <summary>
+        /// Get the <code>{@link JobListener}</code> that has the given name.
+        /// </summary>
         IJobListener GetJobListener(string name);
 
-        /**
-     * Add the given <code>{@link TriggerListener}</code> to the <code>Scheduler</code>,
-     * and register it to receive events for Triggers that are matched by ANY of the
-     * given Matchers.
-     * 
-     * If no matcher is provided, the <code>EverythingMatcher</code> will be used.
-     * 
-     * @see Matcher
-     * @see EverythingMatcher
-     */
+        /// <summary>
+        /// Add the given <code>{@link TriggerListener}</code> to the <code>Scheduler</code>,
+        /// and register it to receive events for Triggers that are matched by ANY of the
+        /// given Matchers.
+        /// </summary>
+        /// <remarks>
+        /// If no matcher is provided, the <code>EverythingMatcher</code> will be used.
+        /// </remarks>
+        /// <seealso cref="IMatcher{T}" />
+        /// <seealso cref="EverythingMatcher{T}" />
         void AddTriggerListener(ITriggerListener triggerListener, params IMatcher<TriggerKey>[] matchers);
 
-        /**
-     * Add the given <code>{@link TriggerListener}</code> to the <code>Scheduler</code>,
-     * and register it to receive events for Triggers that are matched by ANY of the
-     * given Matchers.
-     * 
-     * If no matcher is provided, the <code>EverythingMatcher</code> will be used.
-     * 
-     * @see Matcher
-     * @see EverythingMatcher
-     */
+        /// <summary>
+        /// Add the given <code>{@link TriggerListener}</code> to the <code>Scheduler</code>,
+        /// and register it to receive events for Triggers that are matched by ANY of the
+        /// given Matchers.
+        /// </summary>
+        /// <remarks>
+        /// If no matcher is provided, the <code>EverythingMatcher</code> will be used.
+        /// </remarks>
+        /// <seealso cref="IMatcher{T}" />
+        /// <seealso cref="EverythingMatcher{T}" />
         void AddTriggerListener(ITriggerListener triggerListener, IList<IMatcher<TriggerKey>> matchers);
 
-        /**
-     * Add the given Matcher to the set of matchers for which the listener
-     * will receive events if ANY of the matchers match.
-     *  
-     * @param listenerName the name of the listener to add the matcher to
-     * @param matcher the additional matcher to apply for selecting events
-     * @return true if the identified listener was found and updated
-     * @throws SchedulerException
-     */
+        /// <summary>
+        /// Add the given Matcher to the set of matchers for which the listener
+        /// will receive events if ANY of the matchers match.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="listenerName">the name of the listener to add the matcher to</param>
+        /// <param name="matcher">the additional matcher to apply for selecting events</param>
+        /// <returns>true if the identified listener was found and updated</returns>
         bool AddTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher);
 
-        /**
-     * Remove the given Matcher to the set of matchers for which the listener
-     * will receive events if ANY of the matchers match.
-     *  
-     * @param listenerName the name of the listener to add the matcher to
-     * @param matcher the additional matcher to apply for selecting events
-     * @return true if the given matcher was found and removed from the listener's list of matchers
-     * @throws SchedulerException
-     */
+        /// <summary>
+        /// Remove the given Matcher to the set of matchers for which the listener
+        /// will receive events if ANY of the matchers match.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="listenerName">the name of the listener to add the matcher to</param>
+        /// <param name="matcher">the additional matcher to apply for selecting events</param>
+        /// <returns>true if the given matcher was found and removed from the listener's list of matchers</returns>
         bool RemoveTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher);
 
-        /**
-     * Set the set of Matchers for which the listener
-     * will receive events if ANY of the matchers match.
-     * 
-     * <p>Removes any existing matchers for the identified listener!</p>
-     *  
-     * @param listenerName the name of the listener to add the matcher to
-     * @param matchers the matchers to apply for selecting events
-     * @return true if the given matcher was found and removed from the listener's list of matchers
-     * @throws SchedulerException
-     */
+        /// <summary>
+        /// Set the set of Matchers for which the listener
+        /// will receive events if ANY of the matchers match.
+        /// </summary>
+        /// <remarks>
+        /// <p>Removes any existing matchers for the identified listener!</p>
+        /// </remarks>
+        /// <param name="listenerName">the name of the listener to add the matcher to</param>
+        /// <param name="matchers">the matchers to apply for selecting events</param>
+        /// <returns>true if the given matcher was found and removed from the listener's list of matchers</returns>
         bool SetTriggerListenerMatchers(string listenerName, IList<IMatcher<TriggerKey>> matchers);
 
-        /**
-     * Get the set of Matchers for which the listener
-     * will receive events if ANY of the matchers match.
-     * 
-     *  
-     * @param listenerName the name of the listener to add the matcher to
-     * @return the matchers registered for selecting events for the identified listener
-     * @throws SchedulerException
-     */
+        /// <summary>
+        /// Get the set of Matchers for which the listener
+        /// will receive events if ANY of the matchers match.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="listenerName">the name of the listener to add the matcher to</param>
+        /// <returns>the matchers registered for selecting events for the identified listener</returns>
         IList<IMatcher<TriggerKey>> GetTriggerListenerMatchers(string listenerName);
 
-        /**
-     * Remove the identified <code>{@link TriggerListener}</code> from the <code>Scheduler</code>.
-     * 
-     * @return true if the identified listener was found in the list, and
-     *         removed.
-     */
+        /// <summary>
+        /// Remove the identified <code>{@link TriggerListener}</code> from the <code>Scheduler</code>.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>true if the identified listener was found in the list, and</returns>
+        /// removed.
         bool RemoveTriggerListener(string name);
 
-        /**
-     * Get a List containing all of the <code>{@link TriggerListener}</code>s 
-     * in the <code>Scheduler</code>.
-     */
+        /// <summary>
+        /// Get a List containing all of the <code>{@link TriggerListener}</code>s
+        /// in the <code>Scheduler</code>.
+        /// </summary>
         IList<ITriggerListener> GetTriggerListeners();
 
-        /**
-     * Get the <code>{@link TriggerListener}</code> that has the given name.
-     */
+        /// <summary>
+        /// Get the <code>{@link TriggerListener}</code> that has the given name.
+        /// </summary>
         ITriggerListener GetTriggerListener(string name);
 
-        /**
-     * Register the given <code>{@link SchedulerListener}</code> with the
-     * <code>Scheduler</code>.
-     */
+        /// <summary>
+        /// Register the given <code>{@link SchedulerListener}</code> with the
+        /// <code>Scheduler</code>.
+        /// </summary>
         void AddSchedulerListener(ISchedulerListener schedulerListener);
 
-        /**
-     * Remove the given <code>{@link SchedulerListener}</code> from the
-     * <code>Scheduler</code>.
-     * 
-     * @return true if the identified listener was found in the list, and
-     *         removed.
-     */
+        /// <summary>
+        /// Remove the given <code>{@link SchedulerListener}</code> from the
+        /// <code>Scheduler</code>.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>true if the identified listener was found in the list, and removed.</returns>
         bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
 
-        /**
-     * Get a List containing all of the <code>{@link SchedulerListener}</code>s
-     * registered with the <code>Scheduler</code>.
-     */
+        /// <summary>
+        /// Get a List containing all of the <code>{@link SchedulerListener}</code>s
+        /// registered with the <code>Scheduler</code>.
+        /// </summary>
         IList<ISchedulerListener> GetSchedulerListeners();
     }
 }

@@ -29,21 +29,21 @@ namespace Quartz.Impl
     /// </summary>
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
-    /// instead allows you to define an instance of one, through the use of a <see cref="JobDetailImpl" />.
+    /// instead allows you to define an instance of one, through the use of a <see cref="IJobDetail" />.
     /// <p>
     /// <see cref="IJob" />s have a name and group associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
     /// </p>
     /// <p>
-    /// <see cref="Trigger" /> s are the 'mechanism' by which <see cref="IJob" /> s
-    /// are scheduled. Many <see cref="Trigger" /> s can point to the same <see cref="IJob" />,
-    /// but a single <see cref="Trigger" /> can only point to one <see cref="IJob" />.
+    /// <see cref="ITrigger" /> s are the 'mechanism' by which <see cref="IJob" /> s
+    /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
+    /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
     /// </p>
     /// </remarks>
     /// <seealso cref="IJob" />
     /// <seealso cref="IStatefulJob"/>
     /// <seealso cref="JobDataMap"/>
-    /// <seealso cref="Trigger"/>
+    /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
@@ -60,7 +60,7 @@ namespace Quartz.Impl
         [NonSerialized] private JobKey key;
 
         /// <summary>
-        /// Create a <see cref="JobDetailImpl" /> with no specified name or group, and
+        /// Create a <see cref="IJobDetail" /> with no specified name or group, and
         /// the default settings of all the other properties.
         /// <p>
         /// Note that the <see cref="Name" />,<see cref="Group" /> and
@@ -74,7 +74,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Create a <see cref="JobDetailImpl" /> with the given name, default group, and
+        /// Create a <see cref="IJobDetail" /> with the given name, default group, and
         /// the default settings of all the other properties.
         /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
         /// </summary>
@@ -86,7 +86,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Create a <see cref="JobDetailImpl" /> with the given name, and group, and
+        /// Create a <see cref="IJobDetail" /> with the given name, and group, and
         /// the default settings of all the other properties.
         /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
         /// </summary>
@@ -101,7 +101,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Create a <see cref="JobDetailImpl" /> with the given name, and group, and
+        /// Create a <see cref="IJobDetail" /> with the given name, and group, and
         /// the given settings of all the other properties.
         /// </summary>
         /// <param name="name">The name.</param>
@@ -171,7 +171,7 @@ namespace Quartz.Impl
         }
 
         /// <summary> 
-        /// Returns the 'full name' of the <see cref="Trigger" /> in the format
+        /// Returns the 'full name' of the <see cref="ITrigger" /> in the format
         /// "group.name".
         /// </summary>
         public virtual string FullName
@@ -266,7 +266,7 @@ namespace Quartz.Impl
         /// If not explicitly set, the default value is <see langword="false" />.
         /// </p>
         /// </summary>
-        /// <seealso cref="JobExecutionContext.Recovering" />
+        /// <seealso cref="IJobExecutionContext.Recovering" />
         public virtual bool RequestsRecovery
         {
             set { shouldRecover = value; }
@@ -275,7 +275,7 @@ namespace Quartz.Impl
 
         /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
-        /// orphaned (no <see cref="Trigger" />s point to it).
+        /// orphaned (no <see cref="ITrigger" />s point to it).
         /// <p>
         /// If not explicitly set, the default value is <see langword="false" />.
         /// </p>
@@ -299,7 +299,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecution" /> attribute.
+        /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
         /// </summary>
         public bool ConcurrentExectionDisallowed
         {
@@ -307,7 +307,7 @@ namespace Quartz.Impl
         }
 
         /// <summary> 
-        /// Validates whether the properties of the <see cref="JobDetailImpl" /> are
+        /// Validates whether the properties of the <see cref="IJobDetail" /> are
         /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
         public virtual void Validate()

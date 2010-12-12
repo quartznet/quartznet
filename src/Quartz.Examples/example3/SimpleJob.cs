@@ -35,9 +35,9 @@ namespace Quartz.Examples.Example3
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a
-		/// <see cref="Trigger" /> fires that is associated with the <see cref="IJob" />.
+		/// <see cref="ITrigger" /> fires that is associated with the <see cref="IJob" />.
 		/// </summary>
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			
 			// This job simply prints out its job name and the

@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Quartz.Spi;
+
 namespace Quartz
 {
 	/// <summary>
@@ -41,7 +43,7 @@ namespace Quartz
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
-		/// is about to be executed (an associated <see cref="Trigger" />
+		/// is about to be executed (an associated <see cref="ITrigger" />
 		/// has occurred).
 		/// <p>
 		/// This method will not be invoked if the execution of the Job was vetoed
@@ -53,7 +55,7 @@ namespace Quartz
 
 		/// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
-		/// was about to be executed (an associated <see cref="Trigger" />
+		/// was about to be executed (an associated <see cref="ITrigger" />
 		/// has occurred), but a <see cref="ITriggerListener" /> vetoed it's 
 		/// execution.
 		/// </summary>
@@ -63,8 +65,8 @@ namespace Quartz
 
 		/// <summary>
         /// Called by the <see cref="IScheduler" /> after a <see cref="IJobDetail" />
-		/// has been executed, and be for the associated <see cref="Trigger" />'s
-		/// <see cref="Trigger.Triggered" /> method has been called.
+        /// has been executed, and be for the associated <see cref="IOperableTrigger" />'s
+		/// <see cref="IOperableTrigger.Triggered" /> method has been called.
 		/// </summary>
         void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
 	}

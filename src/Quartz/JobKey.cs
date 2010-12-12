@@ -24,7 +24,7 @@ using Quartz.Util;
 namespace Quartz
 {
     /// <summary>
-    /// Uniquely identifies a <see cref="JobDetailImpl" />.
+    /// Uniquely identifies a <see cref="IJobDetail" />.
     /// </summary>
     /// <remarks>
     /// <p>Keys are composed of both a name and group, and the name must be unique
@@ -34,9 +34,9 @@ namespace Quartz
     /// <p>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />, 
+    /// <see cref="TriggerBuilder{T}" />, <see cref="JobBuilder" />, 
     /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" /> 
-    /// and the various <see cref="ScheduleBuilder" /> implementations.</p>
+    /// and the various <see cref="IScheduleBuilder" /> implementations.</p>
     /// 
     /// <p>Client code can then use the DSL to write code such as this:</p>
     /// <pre>

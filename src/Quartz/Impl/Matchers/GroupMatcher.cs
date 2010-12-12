@@ -39,22 +39,22 @@ namespace Quartz.Impl.Matchers
 
         public static GroupMatcher<T> matchGroupEquals(string compareTo)
         {
-            return new GroupMatcher<T>(compareTo, StringOperatorName.EQUALS);
+            return new GroupMatcher<T>(compareTo, StringOperatorName.Equality);
         }
 
         public static GroupMatcher<T> matchGroupStartsWith(string compareTo)
         {
-            return new GroupMatcher<T>(compareTo, StringOperatorName.STARTS_WITH);
+            return new GroupMatcher<T>(compareTo, StringOperatorName.StartsWith);
         }
 
         public static GroupMatcher<T> matchGroupEndsWith(string compareTo)
         {
-            return new GroupMatcher<T>(compareTo, StringOperatorName.ENDS_WITH);
+            return new GroupMatcher<T>(compareTo, StringOperatorName.EndsWith);
         }
 
         public static GroupMatcher<T> matchGroupContains(string compareTo)
         {
-            return new GroupMatcher<T>(compareTo, StringOperatorName.CONTAINS);
+            return new GroupMatcher<T>(compareTo, StringOperatorName.Contains);
         }
 
         protected override string getValue(T key)

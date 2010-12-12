@@ -71,11 +71,11 @@ namespace Quartz.Plugin.Xml
         private string name;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="JobInitializationPlugin"/> class.
+        /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
         /// </summary>
         public XMLSchedulingDataProcessorPlugin()
         {
-            log = LogManager.GetLogger(typeof (JobInitializationPlugin));
+            log = LogManager.GetLogger(typeof(XMLSchedulingDataProcessorPlugin));
         }
 
         /// <summary>
@@ -303,7 +303,7 @@ namespace Quartz.Plugin.Xml
 
             try
             {
-                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(this.TypeLoadHelper);
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(TypeLoadHelper);
 
                 processor.AddJobGroupToNeverDelete(JobInitializationPluginName);
                 processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);

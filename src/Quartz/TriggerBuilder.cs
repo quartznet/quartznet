@@ -24,66 +24,36 @@ using Quartz.Util;
 
 namespace Quartz
 {
-    /**
-     * <code>TriggerBuilder</code> is used to instantiate {@link Trigger}s.
-     *  
-     * <p>Quartz provides a builder-style API for constructing scheduling-related
-     * entities via a Domain-Specific Language (DSL).  The DSL can best be
-     * utilized through the usage of static imports of the methods on the classes
-     * <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
-     * <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
-     * and the various <code>ScheduleBuilder</code> implementations.</p>
-     * 
-     * <p>Client code can then use the DSL to write code such as this:</p>
-     * <pre>
-     *         JobDetail job = newJob(MyJob.class)
-     *             .withIdentity("myJob")
-     *             .build();
-     *             
-     *         Trigger trigger = newTrigger() 
-     *             .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-     *             .withSchedule(simpleSchedule()
-     *                 .withIntervalInHours(1)
-     *                 .repeatForever())
-     *             .startAt(futureDate(10, MINUTES))
-     *             .build();
-     *         
-     *         scheduler.scheduleJob(job, trigger);
-     * <pre>
-     *  
-     * @see JobBuilder
-     * @see ScheduleBuilder
-     * @see DateBuilder 
-     * @see Trigger
-     */
-
-    public interface ITriggerBuilder<T> where T : ITrigger
-    {
-        T Build();
-        TriggerBuilder<T> WithIdentity(string name);
-        TriggerBuilder<T> WithIdentity(string name, string group);
-        TriggerBuilder<T> WithIdentity(TriggerKey key);
-        TriggerBuilder<T> WithDescription(string description);
-        TriggerBuilder<T> WithPriority(int priority);
-        TriggerBuilder<T> ModifiedByCalendar(string calendarName);
-        TriggerBuilder<T> StartAt(DateTimeOffset startTimeUtc);
-        TriggerBuilder<T> StartNow();
-        TriggerBuilder<T> EndAt(DateTimeOffset? endTimeUtc);
-        TriggerBuilder<T> WithSchedule(IScheduleBuilder scheduleBuilder);
-        TriggerBuilder<T> ForJob(JobKey jobKey);
-        TriggerBuilder<T> ForJob(string jobName);
-        TriggerBuilder<T> ForJob(string jobName, string jobGroup);
-        TriggerBuilder<T> ForJob(IJobDetail jobDetail);
-        TriggerBuilder<T> UsingJobData(string key, string value);
-        TriggerBuilder<T> UsingJobData(string key, int value);
-        TriggerBuilder<T> UsingJobData(string key, long value);
-        TriggerBuilder<T> UsingJobData(string key, float value);
-        TriggerBuilder<T> UsingJobData(string key, Double value);
-        TriggerBuilder<T> UsingJobData(string key, Boolean value);
-        TriggerBuilder<T> UsingJobData(JobDataMap newJobDataMap);
-    }
-
-    public class TriggerBuilder<T> : ITriggerBuilder<T> where T : ITrigger
+    /// <summary>
+    /// <code>TriggerBuilder</code> is used to instantiate {@link Trigger}s.
+    /// </summary>
+    /// <remarks>
+    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// entities via a Domain-Specific Language (DSL).  The DSL can best be
+    /// utilized through the usage of static imports of the methods on the classes
+    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
+    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
+    /// and the various <code>ScheduleBuilder</code> implementations.</p>
+    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// <pre>
+    /// JobDetail job = newJob(MyJob.class)
+    /// .withIdentity("myJob")
+    /// .build();
+    /// Trigger trigger = newTrigger()
+    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    /// .withSchedule(simpleSchedule()
+    /// .withIntervalInHours(1)
+    /// .repeatForever())
+    /// .startAt(futureDate(10, MINUTES))
+    /// .build();
+    /// scheduler.scheduleJob(job, trigger);
+    /// </pre>
+    /// </remarks>
+    /// <seealso cref="JobBuilder" />
+    /// <seealso cref="IScheduleBuilder" />
+    /// <seealso cref="DateBuilder" />
+    /// <seealso cref="ITrigger" />
+    public class TriggerBuilder<T>where T : ITrigger
     {
         private TriggerKey key;
         private string description;
@@ -100,29 +70,29 @@ namespace Quartz
         {
         }
 
-        /**
-         * Create a new TriggerBuilder with which to define a 
-         * specification for a Trigger.
-         * 
-         * @return the new TriggerBuilder
-         */
-
-        public static TriggerBuilder<ITrigger> NewTrigger()
+        /// <summary>
+        /// Create a new TriggerBuilder with which to define a
+        /// specification for a Trigger.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the new TriggerBuilder</returns>
+        public static TriggerBuilder<T> Create()
         {
-            return new TriggerBuilder<ITrigger>();
+            return new TriggerBuilder<T>();
         }
 
-        /**
-         * Produce the <code>Trigger</code>.
-         * 
-         * @return a Trigger that meets the specifications of the builder.
-         */
-
+        /// <summary>
+        /// Produce the <code>Trigger</code>.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>a Trigger that meets the specifications of the builder.</returns>
         public T Build()
         {
             if (scheduleBuilder == null)
             {
-                scheduleBuilder = SimpleScheduleBuilder.SimpleSchedule();
+                scheduleBuilder = SimpleScheduleBuilder.Create();
             }
             IMutableTrigger trig = scheduleBuilder.Build();
 
@@ -149,237 +119,233 @@ namespace Quartz
             return (T) trig;
         }
 
-        /**
-         * Use a <code>TriggerKey</code> with the given name and default group to
-         * identify the Trigger.
-         * 
-         * <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
-         * then a random, unique TriggerKey will be generated.</p>
-         * 
-         * @param name the name element for the Trigger's TriggerKey
-         * @return the updated TriggerBuilder
-         * @see TriggerKey
-         * @see Trigger#getKey()
-         */
-
+        /// <summary>
+        /// Use a <code>TriggerKey</code> with the given name and default group to
+        /// identify the Trigger.
+        /// </summary>
+        /// <remarks>
+        /// <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
+        /// then a random, unique TriggerKey will be generated.</p>
+        /// </remarks>
+        /// <param name="name">the name element for the Trigger's TriggerKey</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="TriggerKey" />
+        /// <seealso cref="ITrigger.Key" />
         public TriggerBuilder<T> WithIdentity(string name)
         {
             key = new TriggerKey(name, null);
             return this;
         }
 
-        /**
-         * Use a TriggerKey with the given name and group to
-         * identify the Trigger.
-         * 
-         * <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
-         * then a random, unique TriggerKey will be generated.</p>
-         * 
-         * @param name the name element for the Trigger's TriggerKey
-         * @param group the group element for the Trigger's TriggerKey
-         * @return the updated TriggerBuilder
-         * @see TriggerKey
-         * @see Trigger#getKey()
-         */
-
+        /// <summary>
+        /// Use a TriggerKey with the given name and group to
+        /// identify the Trigger.
+        /// </summary>
+        /// <remarks>
+        /// <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
+        /// then a random, unique TriggerKey will be generated.</p>
+        /// </remarks>
+        /// <param name="name">the name element for the Trigger's TriggerKey</param>
+        /// <param name="group">the group element for the Trigger's TriggerKey</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="TriggerKey" />
+        /// <seealso cref="ITrigger.Key" />
         public TriggerBuilder<T> WithIdentity(string name, string group)
         {
             key = new TriggerKey(name, group);
             return this;
         }
 
-        /**
-         * Use the given TriggerKey to identify the Trigger.  
-         * 
-         * <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
-         * then a random, unique TriggerKey will be generated.</p>
-         * 
-         * @param key the TriggerKey for the Trigger to be built
-         * @return the updated TriggerBuilder
-         * @see TriggerKey
-         * @see Trigger#getKey()
-         */
-
+        /// <summary>
+        /// Use the given TriggerKey to identify the Trigger.
+        /// </summary>
+        /// <remarks>
+        /// <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
+        /// then a random, unique TriggerKey will be generated.</p>
+        /// </remarks>
+        /// <param name="key">the TriggerKey for the Trigger to be built</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="TriggerKey" />
+        /// <seealso cref="ITrigger.Key" />
         public TriggerBuilder<T> WithIdentity(TriggerKey key)
         {
             this.key = key;
             return this;
         }
 
-        /**
-         * Set the given (human-meaningful) description of the Trigger.
-         * 
-         * @param description the description for the Trigger
-         * @return the updated TriggerBuilder
-         * @see Trigger#getDescription()
-         */
-
+        /// <summary>
+        /// Set the given (human-meaningful) description of the Trigger.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="description">the description for the Trigger</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.Description" />
         public TriggerBuilder<T> WithDescription(string description)
         {
             this.description = description;
             return this;
         }
 
-        /**
-         * Set the Trigger's priority.  When more than one Trigger have the same
-         * fire time, the scheduler will fire the one with the highest priority
-         * first.
-         * 
-         * @param priority the priority for the Trigger
-         * @return the updated TriggerBuilder
-         * @see Trigger#DEFAULT_PRIORITY
-         * @see Trigger#getPriority()
-         */
-
+        /// <summary>
+        /// Set the Trigger's priority.  When more than one Trigger have the same
+        /// fire time, the scheduler will fire the one with the highest priority
+        /// first.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="priority">the priority for the Trigger</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="TriggerConstants.DefaultPriority" />
+        /// <seealso cref="ITrigger.Priority" />
         public TriggerBuilder<T> WithPriority(int priority)
         {
             this.priority = priority;
             return this;
         }
 
-        /**
-         * Set the name of the {@link Calendar} that should be applied to this
-         * Trigger's schedule.
-         * 
-         * @param calendarName the name of the Calendar to reference.
-         * @return the updated TriggerBuilder
-         * @see Calendar
-         * @see Trigger#getCalendarName()
-         */
-
+        /// <summary>
+        /// Set the name of the {@link Calendar} that should be applied to this
+        /// Trigger's schedule.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="calendarName">the name of the Calendar to reference.</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ICalendar" />
+        /// <seealso cref="ITrigger.CalendarName" />
         public TriggerBuilder<T> ModifiedByCalendar(string calendarName)
         {
             this.calendarName = calendarName;
             return this;
         }
 
-        /**
-         * Set the time the Trigger should start at - the trigger may or may
-         * not fire at this time - depending upon the schedule configured for
-         * the Trigger.  However the Trigger will NOT fire before this time,
-         * regardless of the Trigger's schedule.
-         *  
-         * @param startTime the start time for the Trigger.
-         * @return the updated TriggerBuilder
-         * @see Trigger#getStartTime()
-         * @see DateBuilder
-         */
-
+        /// <summary>
+        /// Set the time the Trigger should start at - the trigger may or may
+        /// not fire at this time - depending upon the schedule configured for
+        /// the Trigger.  However the Trigger will NOT fire before this time,
+        /// regardless of the Trigger's schedule.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="startTimeUtc">the start time for the Trigger.</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.StartTimeUtc" />
+        /// <seealso cref="DateBuilder" />
         public TriggerBuilder<T> StartAt(DateTimeOffset startTimeUtc)
         {
             this.startTime = startTimeUtc;
             return this;
         }
 
-        /**
-         * Set the time the Trigger should start at to the current moment - 
-         * the trigger may or may not fire at this time - depending upon the 
-         * schedule configured for the Trigger.  
-         * 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getStartTime()
-         */
-
+        /// <summary>
+        /// Set the time the Trigger should start at to the current moment -
+        /// the trigger may or may not fire at this time - depending upon the
+        /// schedule configured for the Trigger.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.StartTimeUtc" />
         public TriggerBuilder<T> StartNow()
         {
             this.startTime = DateTimeOffset.UtcNow;
             return this;
         }
 
-        /**
-         * Set the time at which the Trigger will no longer fire - even if it's
-         * schedule has remaining repeats.    
-         *  
-         * @param endTime the end time for the Trigger.  If null, the end time is indefinite.
-         * @return the updated TriggerBuilder
-         * @see Trigger#getEndTime()
-         * @see DateBuilder
-         */
-
+        /// <summary>
+        /// Set the time at which the Trigger will no longer fire - even if it's
+        /// schedule has remaining repeats.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="endTimeUtc">the end time for the Trigger.  If null, the end time is indefinite.</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.EndTimeUtc" />
+        /// <seealso cref="DateBuilder" />
         public TriggerBuilder<T> EndAt(DateTimeOffset? endTimeUtc)
         {
             this.endTime = endTimeUtc;
             return this;
         }
 
-        /**
-         * Set the {@link ScheduleBuilder} that will be used to define the 
-         * Trigger's schedule.
-         * 
-         * <p>The particular <code>SchedulerBuilder</code> used will dictate
-         * the concrete type of Trigger that is produced by the TriggerBuilder.</p>
-         * 
-         * @param scheduleBuilder the SchedulerBuilder to use.
-         * @return the updated TriggerBuilder
-         * @see ScheduleBuilder
-         * @see SimpleScheduleBuilder
-         * @see CronScheduleBuilder
-         * @see CalendarIntervalScheduleBuilder
-         */
-
+        /// <summary>
+        /// Set the {@link ScheduleBuilder} that will be used to define the
+        /// Trigger's schedule.
+        /// </summary>
+        /// <remarks>
+        /// <p>The particular <code>SchedulerBuilder</code> used will dictate
+        /// the concrete type of Trigger that is produced by the TriggerBuilder.</p>
+        /// </remarks>
+        /// <param name="scheduleBuilder">the SchedulerBuilder to use.</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="IScheduleBuilder" />
+        /// <seealso cref="SimpleScheduleBuilder" />
+        /// <seealso cref="CronScheduleBuilder" />
+        /// <seealso cref="CalendarIntervalScheduleBuilder" />
         public TriggerBuilder<T> WithSchedule(IScheduleBuilder scheduleBuilder)
         {
             this.scheduleBuilder = scheduleBuilder;
             return this;
         }
 
-        /**
-         * Set the identity of the Job which should be fired by the produced 
-         * Trigger.
-         * 
-         * @param jobKey the identity of the Job to fire.
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobKey()
-         */
-
+        /// <summary>
+        /// Set the identity of the Job which should be fired by the produced
+        /// Trigger.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="jobKey">the identity of the Job to fire.</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobKey" />
         public TriggerBuilder<T> ForJob(JobKey jobKey)
         {
             this.jobKey = jobKey;
             return this;
         }
 
-        /**
-         * Set the identity of the Job which should be fired by the produced 
-         * Trigger - a <code>JobKey</code> will be produced with the given
-         * name and default group.
-         * 
-         * @param jobName the name of the job (in default group) to fire. 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobKey()
-         */
-
+        /// <summary>
+        /// Set the identity of the Job which should be fired by the produced
+        /// Trigger - a <code>JobKey</code> will be produced with the given
+        /// name and default group.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="jobName">the name of the job (in default group) to fire.</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobKey" />
         public TriggerBuilder<T> ForJob(string jobName)
         {
             this.jobKey = new JobKey(jobName, null);
             return this;
         }
 
-        /**
-         * Set the identity of the Job which should be fired by the produced 
-         * Trigger - a <code>JobKey</code> will be produced with the given
-         * name and group.
-         * 
-         * @param jobName the name of the job to fire. 
-         * @param jobGroup the group of the job to fire. 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobKey()
-         */
-
+        /// <summary>
+        /// Set the identity of the Job which should be fired by the produced
+        /// Trigger - a <code>JobKey</code> will be produced with the given
+        /// name and group.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="jobName">the name of the job to fire.</param>
+        /// <param name="jobGroup">the group of the job to fire.</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobKey" />
         public TriggerBuilder<T> ForJob(string jobName, string jobGroup)
         {
             this.jobKey = new JobKey(jobName, jobGroup);
             return this;
         }
 
-        /**
-         * Set the identity of the Job which should be fired by the produced 
-         * Trigger, by extracting the JobKey from the given job.
-         * 
-         * @param jobDetail the Job to fire.
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobKey()
-         */
-
+        /// <summary>
+        /// Set the identity of the Job which should be fired by the produced
+        /// Trigger, by extracting the JobKey from the given job.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="jobDetail">the Job to fire.</param>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobKey" />
         public TriggerBuilder<T> ForJob(IJobDetail jobDetail)
         {
             JobKey k = jobDetail.Key;
@@ -391,93 +357,108 @@ namespace Quartz
             return this;
         }
 
-        /**
-         * Add the given key-value pair to the Trigger's {@link JobDataMap}.
-         * 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobDataMap()
-         */
-
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
         public TriggerBuilder<T> UsingJobData(string key, string value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-         * Add the given key-value pair to the Trigger's {@link JobDataMap}.
-         * 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobDataMap()
-         */
-
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
         public TriggerBuilder<T> UsingJobData(string key, int value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-         * Add the given key-value pair to the Trigger's {@link JobDataMap}.
-         * 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobDataMap()
-         */
-
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
         public TriggerBuilder<T> UsingJobData(string key, long value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-         * Add the given key-value pair to the Trigger's {@link JobDataMap}.
-         * 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobDataMap()
-         */
 
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
         public TriggerBuilder<T> UsingJobData(string key, float value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-         * Add the given key-value pair to the Trigger's {@link JobDataMap}.
-         * 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobDataMap()
-         */
 
-        public TriggerBuilder<T> UsingJobData(string key, Double value)
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
+        public TriggerBuilder<T> UsingJobData(string key, double value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-         * Add the given key-value pair to the Trigger's {@link JobDataMap}.
-         * 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobDataMap()
-         */
 
-        public TriggerBuilder<T> UsingJobData(string key, Boolean value)
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
+        public TriggerBuilder<T> UsingJobData(string key, decimal value)
         {
             jobDataMap.Put(key, value);
             return this;
         }
 
-        /**
-         * Set the Trigger's {@link JobDataMap}, adding any values to it
-         * that were already set on this TriggerBuilder using any of the
-         * other 'usingJobData' methods. 
-         * 
-         * @return the updated TriggerBuilder
-         * @see Trigger#getJobDataMap()
-         */
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
+        public TriggerBuilder<T> UsingJobData(string key, bool value)
+        {
+            jobDataMap.Put(key, value);
+            return this;
+        }
 
+
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
         public TriggerBuilder<T> UsingJobData(JobDataMap newJobDataMap)
         {
             // add any existing data to this new map

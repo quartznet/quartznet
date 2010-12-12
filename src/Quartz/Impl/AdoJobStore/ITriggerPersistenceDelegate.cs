@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,19 +16,20 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
 {
-/**
- * An interface which provides an implementation for storing a particular
- * type of <code>Trigger</code>'s extended properties.
- *  
- * @author jhouse
- */
-
+    /// <summary>
+    /// An interface which provides an implementation for storing a particular
+    /// type of <code>Trigger</code>'s extended properties.
+    /// </summary>
+    /// <remarks>
+    /// </remarks>
+    /// <author>jhouse</author>
     public interface ITriggerPersistenceDelegate
     {
         void Initialize(string tablePrefix, string schedulerName, AdoUtil adoUtil);
@@ -48,8 +50,8 @@ namespace Quartz.Impl.AdoJobStore
     public class TriggerPropertyBundle
     {
         private IScheduleBuilder sb;
-        private string[] statePropertyNames;
-        private object[] statePropertyValues;
+        private readonly string[] statePropertyNames;
+        private readonly object[] statePropertyValues;
 
         public TriggerPropertyBundle(IScheduleBuilder sb, string[] statePropertyNames, object[] statePropertyValues)
         {
@@ -58,19 +60,19 @@ namespace Quartz.Impl.AdoJobStore
             this.statePropertyValues = statePropertyValues;
         }
 
-        public IScheduleBuilder getScheduleBuilder()
+        public IScheduleBuilder ScheduleBuilder
         {
-            return sb;
+            get { return sb; }
         }
 
-        public string[] getStatePropertyNames()
+        public string[] StatePropertyNames
         {
-            return statePropertyNames;
+            get { return statePropertyNames; }
         }
 
-        public object[] getStatePropertyValues()
+        public object[] StatePropertyValues
         {
-            return statePropertyValues;
+            get { return statePropertyValues; }
         }
     }
 }

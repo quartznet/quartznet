@@ -466,7 +466,7 @@ namespace Quartz
 
         /// <summary>
         /// Sets or gets the time zone for which the <see cref="CronExpression" /> of this
-        /// <see cref="CronTrigger" /> will be resolved.
+        /// <see cref="ICronTrigger" /> will be resolved.
         /// </summary>
         public virtual TimeZoneInfo TimeZone
         {

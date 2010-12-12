@@ -19,6 +19,8 @@
 
 using System;
 
+using Quartz.Spi;
+
 namespace Quartz.Impl.Triggers
 {
     /// <summary>
@@ -46,8 +48,7 @@ namespace Quartz.Impl.Triggers
     /// <see cref="ICronTrigger" />
     /// <see cref="ISimpleTrigger" />
     /// <see cref="NthIncludedDayTrigger" />
-    /// <see cref="TriggerUtils" />
-    /// <since>1.2</since>
+    /// <since>2.0</since>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
@@ -56,8 +57,8 @@ namespace Quartz.Impl.Triggers
 
         private DateTimeOffset startTime;
         private DateTimeOffset? endTime;
-        private DateTimeOffset? nextFireTime;
-        private DateTimeOffset? previousFireTime;
+        private DateTimeOffset? nextFireTimeUtc;
+        private DateTimeOffset? previousFireTimeUtc;
         private int repeatInterval;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
         private int timesTriggered;
@@ -83,7 +84,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <see cref="DateIntervalTrigger" /> that will occur immediately, and
+        /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur immediately, and
         /// repeat at the the given interval
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
@@ -97,7 +98,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <see cref="DateIntervalTrigger" /> that will occur at the given time,
+        /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
         /// and repeat at the the given interval until the given end time.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
@@ -112,7 +113,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <see cref="DateIntervalTrigger" /> that will occur at the given time,
+        /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
         /// and repeat at the the given interval until the given end time.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
@@ -132,7 +133,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <see cref="DateIntervalTrigger" /> that will occur at the given time,
+        /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
         /// and repeat at the the given interval until the given end time.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
@@ -194,7 +195,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get the time at which the <see cref="DateIntervalTrigger" /> should quit
+        /// Get the time at which the <see cref="ICalendarIntervalTrigger" /> should quit
         /// repeating.
         /// </summary>
         public override DateTimeOffset? EndTimeUtc
@@ -223,7 +224,7 @@ namespace Quartz.Impl.Triggers
 
 
         /// <summary>
-        /// Get the the time interval that will be added to the <see cref="DateIntervalTrigger" />'s
+        /// Get the the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
         /// fire time (in the set repeat interval unit) in order to calculate the time of the 
         /// next trigger repeat.
         /// </summary>
@@ -250,6 +251,11 @@ namespace Quartz.Impl.Triggers
             set { this.timesTriggered = value; }
         }
 
+        public TriggerBuilder<ICalendarIntervalTrigger> GetTriggerBuilder()
+        {
+            throw new NotImplementedException();
+        }
+
 
         /// <summary>
         /// Validates the misfire instruction.
@@ -272,7 +278,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary> 
-        /// Updates the <see cref="DateIntervalTrigger" />'s state based on the
+        /// Updates the <see cref="ICalendarIntervalTrigger" />'s state based on the
         /// MISFIRE_INSTRUCTION_XXX that was selected when the <code>DateIntervalTrigger</code>
         /// was created.
         /// </summary>
@@ -304,12 +310,12 @@ namespace Quartz.Impl.Triggers
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
                 }
-                NextFireTimeUtc = newFireTime;
+                SetNextFireTimeUtc(newFireTime);
             }
             else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
             {
                 // fire once now...
-                NextFireTimeUtc = SystemTime.UtcNow();
+                SetNextFireTimeUtc(SystemTime.UtcNow());
                 // the new fire time afterward will magically preserve the original  
                 // time of day for firing for day/week/month interval triggers, 
                 // because of the way getFireTimeAfter() works - in its always restarting
@@ -322,7 +328,7 @@ namespace Quartz.Impl.Triggers
         /// <p>
         /// Called when the <see cref="IScheduler" /> has decided to 'fire'
         /// the trigger (Execute the associated <see cref="IJob" />), in order to
-        /// give the <see cref="Trigger" /> a chance to update itself for its next
+        /// give the <see cref="ITrigger" /> a chance to update itself for its next
         /// triggering (if any).
         /// </p>
         /// </summary>
@@ -330,21 +336,21 @@ namespace Quartz.Impl.Triggers
         public override void Triggered(ICalendar calendar)
         {
             timesTriggered++;
-            previousFireTime = nextFireTime;
-            nextFireTime = GetFireTimeAfter(nextFireTime);
+            previousFireTimeUtc = nextFireTimeUtc;
+            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-            while (nextFireTime != null && calendar != null
-                   && !calendar.IsTimeIncluded(nextFireTime.Value))
+            while (nextFireTimeUtc != null && calendar != null
+                   && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
             {
-                nextFireTime = GetFireTimeAfter(nextFireTime);
+                nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-                if (nextFireTime == null)
+                if (nextFireTimeUtc == null)
                     break;
 
                 //avoid infinite loop
-                if (nextFireTime.Value.Year > YearToGiveupSchedulingAt)
+                if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
                 {
-                    nextFireTime = null;
+                    nextFireTimeUtc = null;
                 }
             }
         }
@@ -352,7 +358,7 @@ namespace Quartz.Impl.Triggers
         /// <summary> 
         /// This method should not be used by the Quartz client.
         /// <p>
-        /// The implementation should update the <see cref="Trigger" />'s state
+        /// The implementation should update the <see cref="ITrigger" />'s state
         /// based on the given new version of the associated <see cref="ICalendar" />
         /// (the state should be updated so that it's next fire time is appropriate
         /// given the Calendar's new settings). 
@@ -362,33 +368,33 @@ namespace Quartz.Impl.Triggers
         /// <param name="misfireThreshold"></param>
         public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
         {
-            nextFireTime = GetFireTimeAfter(previousFireTime);
+            nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-            if (nextFireTime == null || calendar == null)
+            if (nextFireTimeUtc == null || calendar == null)
             {
                 return;
             }
 
             DateTimeOffset now = SystemTime.UtcNow();
-            while (nextFireTime != null && !calendar.IsTimeIncluded(nextFireTime.Value))
+            while (nextFireTimeUtc != null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
             {
-                nextFireTime = GetFireTimeAfter(nextFireTime);
+                nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-                if (nextFireTime == null)
+                if (nextFireTimeUtc == null)
                     break;
 
                 //avoid infinite loop
-                if (nextFireTime.Value.Year > YearToGiveupSchedulingAt)
+                if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
                 {
-                    nextFireTime = null;
+                    nextFireTimeUtc = null;
                 }
 
-                if (nextFireTime != null && nextFireTime < now)
+                if (nextFireTimeUtc != null && nextFireTimeUtc < now)
                 {
-                    TimeSpan diff = now - nextFireTime.Value;
+                    TimeSpan diff = now - nextFireTimeUtc.Value;
                     if (diff >= misfireThreshold)
                     {
-                        nextFireTime = GetFireTimeAfter(nextFireTime);
+                        nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
                     }
                 }
             }
@@ -399,41 +405,41 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <remarks>
         /// <p>
-        /// Called by the scheduler at the time a <see cref="Trigger" /> is first
-        /// added to the scheduler, in order to have the <see cref="Trigger" />
+        /// Called by the scheduler at the time a <see cref="ITrigger" /> is first
+        /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
         /// </p>
         /// 
         /// <p>
-        /// After this method has been called, <see cref="Trigger.GetNextFireTimeUtc" />
+        /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
         /// should return a valid answer.
         /// </p>
         /// </remarks>
         /// <returns> 
-        /// The first time at which the <see cref="Trigger" /> will be fired
-        /// by the scheduler, which is also the same value <see cref="Trigger.GetNextFireTimeUtc" />
-        /// will return (until after the first firing of the <see cref="Trigger" />).
+        /// The first time at which the <see cref="ITrigger" /> will be fired
+        /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
+        /// will return (until after the first firing of the <see cref="ITrigger" />).
         /// </returns>        
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
         {
-            nextFireTime = StartTimeUtc;
+            nextFireTimeUtc = StartTimeUtc;
 
-            while (nextFireTime != null && calendar != null
-                   && !calendar.IsTimeIncluded(nextFireTime.Value))
+            while (nextFireTimeUtc != null && calendar != null
+                   && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
             {
-                nextFireTime = GetFireTimeAfter(nextFireTime);
+                nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-                if (nextFireTime == null)
+                if (nextFireTimeUtc == null)
                     break;
 
                 //avoid infinite loop
-                if (nextFireTime.Value.Year > YearToGiveupSchedulingAt)
+                if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
                 {
                     return null;
                 }
             }
 
-            return nextFireTime;
+            return nextFireTimeUtc;
         }
 
         /// <summary>
@@ -441,7 +447,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <remarks>
         /// Called after the <see cref="IScheduler" /> has executed the
-        /// <see cref="IJobDetail" /> associated with the <see cref="Trigger" />
+        /// <see cref="IJobDetail" /> associated with the <see cref="ITrigger" />
         /// in order to get the final instruction code from the trigger.
         /// </remarks>
         /// <param name="context">
@@ -457,7 +463,7 @@ namespace Quartz.Impl.Triggers
         /// <seealso cref="SchedulerInstruction.ReExecuteJob" />
         /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
         /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
-        /// <seealso cref="Trigger.Triggered" />
+        /// <seealso cref="IOperableTrigger.Triggered" />
         public override SchedulerInstruction ExecutionComplete(IJobExecutionContext context,
                                                                JobExecutionException result)
         {
@@ -485,7 +491,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Returns the next time at which the <see cref="Trigger" /> is scheduled to fire. If
+        /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If
         /// the trigger will not fire again, <see langword="null" /> will be returned.  Note that
         /// the time returned can possibly be in the past, if the time that was computed
         /// for the trigger to next fire has already arrived, but the scheduler has not yet
@@ -493,43 +499,36 @@ namespace Quartz.Impl.Triggers
         /// e.g. threads).
         /// </summary>
         ///<remarks>
-        /// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
+        /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
         /// has been added to the scheduler.
         /// </remarks>
-        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTimeOffset, DateTimeOffset)" />
         /// <returns></returns>
         public override DateTimeOffset? GetNextFireTimeUtc()
         {
-            return nextFireTime;
+            return nextFireTimeUtc;
         }
 
         /// <summary>
-        /// Returns the previous time at which the <see cref="DateIntervalTrigger" /> fired.
+        /// Returns the previous time at which the <see cref="ICalendarIntervalTrigger" /> fired.
         /// If the trigger has not yet fired, <see langword="null" /> will be returned.
         /// </summary>
-        public override DateTimeOffset? PreviousFireTimeUtc
+        public override DateTimeOffset? GetPreviousFireTimeUtc()
         {
-            get { return previousFireTime; }
-            set { previousFireTime = value; }
+            return previousFireTimeUtc;
         }
 
-        /**
-     * <p>
-     * Set the next time at which the <code>DateIntervalTrigger</code> should fire.
-     * </p>
-     * 
-     * <p>
-     * <b>This method should not be invoked by client code.</b>
-     * </p>
-     */
-
-        public override DateTimeOffset? NextFireTimeUtc
+        public override void SetNextFireTimeUtc(DateTimeOffset? value)
         {
-            set { this.nextFireTime = value; }
+            nextFireTimeUtc = value;
+        }
+
+        public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTimeUtc)
+        {
+            this.previousFireTimeUtc = previousFireTimeUtc;
         }
 
         /// <summary>
-        /// Returns the next time at which the <see cref="DateIntervalTrigger" /> will fire,
+        /// Returns the next time at which the <see cref="ICalendarIntervalTrigger" /> will fire,
         /// after the given time. If the trigger will not fire after the given time,
         /// <see langword="null" /> will be returned.
         /// </summary>
@@ -796,25 +795,26 @@ namespace Quartz.Impl.Triggers
             }
         }
 
-        /**
- * Get a {@link ScheduleBuilder} that is configured to produce a 
- * schedule identical to this trigger's schedule.
- * 
- * @see #getTriggerBuilder()
- */
+        /// <summary>
+        /// Get a {@link ScheduleBuilder} that is configured to produce a
+        /// schedule identical to this trigger's schedule.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <seealso cref="GetTriggerBuilder()" />
         public override IScheduleBuilder GetScheduleBuilder()
         {
 
-            CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.CalendarIntervalSchedule()
-                    .withInterval(RepeatInterval, RepeatIntervalUnit);
+            CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.Create()
+                    .WithInterval(RepeatInterval, RepeatIntervalUnit);
 
             switch (MisfireInstruction)
             {
                 case Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing: 
-                    cb.withMisfireHandlingInstructionDoNothing();
+                    cb.WithMisfireHandlingInstructionDoNothing();
                     break;
                 case Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow: 
-                    cb.withMisfireHandlingInstructionFireAndProceed();
+                    cb.WithMisfireHandlingInstructionFireAndProceed();
                     break;
             }
 

@@ -50,7 +50,7 @@ namespace Quartz.Spi
 		/// configuration problem led to the issue wih instantiating the Job. 
         /// </remarks>
 		/// <param name="bundle">
-		/// The TriggerFiredBundle from which the <see cref="JobDetailImpl" />
+		/// The TriggerFiredBundle from which the <see cref="IJobDetail" />
 		/// and other info relating to the trigger firing can be obtained.
 		/// </param>
 		/// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>

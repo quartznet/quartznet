@@ -23,12 +23,12 @@ using Quartz.Util;
 
 namespace Quartz.Impl.Matchers
 {
-/**
- * Matches on the complete key being equal (both name and group). 
- *  
- * @author jhouse
- */
-
+    /// <summary>
+    /// Matches on the complete key being equal (both name and group).
+    /// </summary>
+    /// <remarks>
+    /// </remarks>
+    /// <author>jhouse</author>
     public class EverythingMatcher<T> : IMatcher<T> where T : Key<T>
     {
         protected EverythingMatcher()

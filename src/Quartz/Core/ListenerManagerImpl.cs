@@ -21,7 +21,7 @@ namespace Quartz.Core
 
         public void AddJobListener(IJobListener jobListener, params IMatcher<JobKey>[] matchers)
         {
-            AddJobListener(jobListener, matchers);
+            AddJobListener(jobListener, new List<IMatcher<JobKey>>(matchers));
         }
 
         public void AddJobListener(IJobListener jobListener, IList<IMatcher<JobKey>> matchers)
@@ -144,7 +144,7 @@ namespace Quartz.Core
 
         public void AddTriggerListener(ITriggerListener triggerListener, params IMatcher<TriggerKey>[] matchers)
         {
-            AddTriggerListener(triggerListener, matchers);
+            AddTriggerListener(triggerListener, new List<IMatcher<TriggerKey>>(matchers));
         }
 
         public void AddTriggerListener(ITriggerListener triggerListener, IList<IMatcher<TriggerKey>> matchers)
@@ -169,7 +169,7 @@ namespace Quartz.Core
             }
         }
 
-        public void addTriggerListener(ITriggerListener triggerListener, IMatcher<TriggerKey> matcher)
+        public void AddTriggerListener(ITriggerListener triggerListener, IMatcher<TriggerKey> matcher)
         {
             if (matcher == null)
             {
@@ -184,8 +184,7 @@ namespace Quartz.Core
             lock (globalTriggerListeners)
             {
                 globalTriggerListeners[triggerListener.Name] = triggerListener;
-                List<IMatcher<TriggerKey>> matchers = new List<IMatcher<TriggerKey>>();
-                matchers.Add(matcher);
+                var matchers = new List<IMatcher<TriggerKey>> {matcher};
                 globalTriggerListenersMatchers[triggerListener.Name] = matchers;
             }
         }

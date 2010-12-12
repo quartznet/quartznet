@@ -364,9 +364,6 @@
     <Compile Include="TriggerBuilder.cs" />
     <Compile Include="TriggerConstants.cs" />
     <Compile Include="TriggerKey.cs" />
-    <Compile Include="TriggerUtils.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="UnableToInterruptJobException.cs">
       <SubType>Code</SubType>
     </Compile>

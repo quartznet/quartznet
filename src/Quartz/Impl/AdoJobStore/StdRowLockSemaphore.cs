@@ -55,10 +55,9 @@ namespace Quartz.Impl.AdoJobStore
         {
         }
 
-        /**
-     * Execute the SQL select for update that will lock the proper database row.
-     */
-
+        /// <summary>
+        /// Execute the SQL select for update that will lock the proper database row.
+        /// </summary>
         protected override void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL)
         {
             try

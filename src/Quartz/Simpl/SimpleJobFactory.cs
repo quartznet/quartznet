@@ -52,7 +52,7 @@ namespace Quartz.Simpl
 		/// intervention (e.g. an application restart after fixing whatever
 		/// configuration problem led to the issue wih instantiating the Job.
         /// </remarks>
-		/// <param name="bundle">The TriggerFiredBundle from which the <see cref="JobDetailImpl" />
+		/// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
 		/// and other info relating to the trigger firing can be obtained.</param>
 		/// <returns>the newly instantiated Job</returns>
 		/// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>

@@ -46,7 +46,7 @@ namespace Quartz.Tests.Unit
                 .StoreDurably()
                 .Build();
 
-            ITrigger trigger = TriggerBuilder.NewTrigger()
+            ITrigger trigger = TriggerBuilder.Create()
                 .Build();
 
             Assert.IsTrue(trigger.Key.Name != null, "Expected non-null trigger name ");
@@ -57,13 +57,13 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(trigger.StartTimeUtc != null, "Unexpected start-time: " + trigger.StartTimeUtc);
             Assert.IsTrue(trigger.EndTimeUtc == null, "Unexpected end-time: " + trigger.EndTimeUtc);
 
-            DateTimeOffset stime = DateBuilder.evenSecondDateAfterNow();
+            DateTimeOffset stime = DateBuilder.EvenSecondDateAfterNow();
 
-            trigger = TriggerBuilder.NewTrigger()
+            trigger = TriggerBuilder.Create()
                 .WithIdentity("t1")
                 .WithDescription("my description")
                 .WithPriority(2)
-                .EndAt(DateBuilder.futureDate(10, DateBuilder.IntervalUnit.WEEK))
+                .EndAt(DateBuilder.FutureDate(10, DateBuilder.IntervalUnit.Week))
                 .StartAt(stime)
                 .Build();
 

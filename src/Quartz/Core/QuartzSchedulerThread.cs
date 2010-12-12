@@ -30,12 +30,12 @@ using Quartz.Spi;
 namespace Quartz.Core
 {
     /// <summary>
-    /// The thread responsible for performing the work of firing <see cref="Trigger" />
+    /// The thread responsible for performing the work of firing <see cref="ITrigger" />
     /// s that are registered with the <see cref="QuartzScheduler" />.
     /// </summary>
     /// <seealso cref="QuartzScheduler" />
     /// <seealso cref="IJob" />
-    /// <seealso cref="Trigger" />
+    /// <seealso cref="ITrigger" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public class QuartzSchedulerThread : QuartzThread

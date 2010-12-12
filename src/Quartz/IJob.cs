@@ -32,14 +32,14 @@ namespace Quartz
     /// <seealso cref="JobBuilder" />
     /// <seealso cref="DisallowConcurrentExecutionAttribute" />
     /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
-	/// <seealso cref="Trigger" />
+	/// <seealso cref="ITrigger" />
 	/// <seealso cref="IScheduler" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public interface IJob
 	{
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
         /// </summary>
 		/// <remarks>

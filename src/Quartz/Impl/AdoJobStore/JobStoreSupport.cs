@@ -76,7 +76,7 @@ namespace Quartz.Impl.AdoJobStore
         protected int maxToRecoverAtATime = 20;
         private bool setTxIsolationLevelSequential;
         private TimeSpan dbRetryInterval = TimeSpan.FromSeconds(10);
-        private bool acquireTriggersWithinLock = false;
+        private bool acquireTriggersWithinLock;
         private bool makeThreadsDaemons;
         private bool doubleCheckLockMisfireHandler = true;
         private readonly ILog log;
@@ -301,8 +301,8 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public string DriverDelegateInitString
         {
-            set { this.delegateInitString = value; }
-            get { return this.delegateInitString; }
+            set { delegateInitString = value; }
+            get { return delegateInitString; }
         }
 
         /// <summary>
@@ -818,7 +818,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Store the given <see cref="JobDetailImpl" /> and <see cref="IOperableTrigger" />.
+        /// Store the given <see cref="IJobDetail" /> and <see cref="IOperableTrigger" />.
         /// </summary>
         /// <param name="newJob">Job to be stored.</param>
         /// <param name="newTrigger">Trigger to be stored.</param>
@@ -855,9 +855,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Stores the given <see cref="JobDetailImpl" />.
+        /// Stores the given <see cref="IJobDetail" />.
         /// </summary>
-        /// <param name="newJob">The <see cref="JobDetailImpl" /> to be stored.</param>
+        /// <param name="newJob">The <see cref="IJobDetail" /> to be stored.</param>
         /// <param name="replaceExisting">
         /// If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name &amp; group should be over-written.
@@ -921,16 +921,16 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// Store the given <see cref="Trigger" />.
+        /// Store the given <see cref="ITrigger" />.
         /// </summary>
-        /// <param name="newTrigger">The <see cref="Trigger" /> to be stored.</param>
+        /// <param name="newTrigger">The <see cref="ITrigger" /> to be stored.</param>
         /// <param name="replaceExisting">
-        /// If <see langword="true" />, any <see cref="Trigger" /> existing in
+        /// If <see langword="true" />, any <see cref="ITrigger" /> existing in
         /// the <see cref="IJobStore" /> with the same name &amp; group should
         /// be over-written.
         /// </param>
         /// <exception cref="ObjectAlreadyExistsException">
-        /// if a <see cref="Trigger" /> with the same name/group already
+        /// if a <see cref="ITrigger" /> with the same name/group already
         /// exists, and replaceExisting is set to false.
         /// </exception>
         public void StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting)
@@ -1023,7 +1023,7 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Remove (delete) the <see cref="IJob" /> with the given
-        /// name, and any <see cref="Trigger" /> s that reference
+        /// name, and any <see cref="ITrigger" /> s that reference
         /// it.
         /// </summary>
         /// 
@@ -1122,8 +1122,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Delete a job and its listeners.
         /// </summary>
-        /// <seealso cref="JobStoreSupport.RemoveJob(ConnectionAndTransactionHolder, string, string, bool)" />
-        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, string, string)" />
+        /// <seealso cref="JobStoreSupport.RemoveJob(ConnectionAndTransactionHolder, JobKey, bool)" />
+        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey)" />
         private bool DeleteJobAndChildren(ConnectionAndTransactionHolder conn, JobKey key)
         {
             return (Delegate.DeleteJobDetail(conn, key) > 0);
@@ -1132,9 +1132,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Delete a trigger, its listeners, and its Simple/Cron/BLOB sub-table entry.
         /// </summary>
-        /// <seealso cref="RemoveJob(ConnectionAndTransactionHolder, string, string, bool)" />
-        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, string, string)" />
-        /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, string, string, Trigger)" />
+        /// <seealso cref="RemoveJob(ConnectionAndTransactionHolder, JobKey, bool)" />
+        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey)" />
+        /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, TriggerKey, IOperableTrigger)" />
         private bool DeleteTriggerAndChildren(ConnectionAndTransactionHolder conn, TriggerKey key)
         {
             IDriverDelegate del = Delegate;
@@ -1142,11 +1142,10 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Retrieve the <see cref="JobDetailImpl" /> for the given
+        /// Retrieve the <see cref="IJobDetail" /> for the given
         /// <see cref="IJob" />.
         /// </summary>
-        /// <param name="jobName">The name of the <see cref="IJob" /> to be retrieved.</param>
-        /// <param name="groupName">The group name of the <see cref="IJob" /> to be retrieved.</param>
+        /// <param name="jobKey">The key identifying the job.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
         public IJobDetail RetrieveJob(JobKey jobKey)
         {
@@ -1175,27 +1174,26 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// Remove (delete) the <see cref="Trigger" /> with the
+        /// Remove (delete) the <see cref="ITrigger" /> with the
         /// given name.
         /// </summary>
         /// 
         /// <remarks>
         /// <p>
-        /// If removal of the <see cref="Trigger" /> results in an empty group, the
+        /// If removal of the <see cref="ITrigger" /> results in an empty group, the
         /// group should be removed from the <see cref="IJobStore" />'s list of
         /// known group names.
         /// </p>
         /// 
         /// <p>
-        /// If removal of the <see cref="Trigger" /> results in an 'orphaned' <see cref="IJob" />
+        /// If removal of the <see cref="ITrigger" /> results in an 'orphaned' <see cref="IJob" />
         /// that is not 'durable', then the <see cref="IJob" /> should be deleted
         /// also.
         /// </p>
         /// </remarks>
-        /// <param name="triggerName">The name of the <see cref="Trigger" /> to be removed.</param>
-        /// <param name="groupName">The group name of the <see cref="Trigger" /> to be removed.</param>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <returns>
-        /// <see langword="true" /> if a <see cref="Trigger" /> with the given
+        /// <see langword="true" /> if a <see cref="ITrigger" /> with the given
         /// name &amp; group was found and removed from the store.
         ///</returns>
         public bool RemoveTrigger(TriggerKey triggerKey)
@@ -1257,7 +1255,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <see cref="IJobStore.ReplaceTrigger( string, string, Trigger)" />
+        /// <see cref="IJobStore.ReplaceTrigger(TriggerKey, IOperableTrigger)" />
         public bool ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger)
         {
             return
@@ -1296,11 +1294,10 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Retrieve the given <see cref="Trigger" />.
+        /// Retrieve the given <see cref="ITrigger" />.
         /// </summary>
-        /// <param name="triggerName">The name of the <see cref="Trigger" /> to be retrieved.</param>
-        /// <param name="groupName">The group name of the <see cref="Trigger" /> to be retrieved.</param>
-        /// <returns>The desired <see cref="Trigger" />, or null if there is no match.</returns>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
+        /// <returns>The desired <see cref="ITrigger" />, or null if there is no match.</returns>
         public IOperableTrigger RetrieveTrigger(TriggerKey triggerKey)
         {
             return (IOperableTrigger) ExecuteWithoutLock( // no locks necessary for read...
@@ -1322,7 +1319,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// Get the current state of the identified <see cref="Trigger" />.
+        /// Get the current state of the identified <see cref="ITrigger" />.
         /// </summary>
         /// <seealso cref="TriggerState.Normal" />
         /// <seealso cref="TriggerState.Paused" />
@@ -1339,8 +1336,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets the state of the trigger.
         /// </summary>
         /// <param name="conn">The conn.</param>
-        /// <param name="triggerName">Name of the trigger.</param>
-        /// <param name="groupName">Name of the group.</param>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <returns></returns>
         public virtual TriggerState GetTriggerState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
@@ -1488,7 +1484,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <remarks>
         /// If removal of the <see cref="ICalendar" /> would result in
-        /// <see cref="Trigger" />s pointing to non-existent calendars, then a
+        /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
         /// <see cref="JobPersistenceException" /> will be thrown.
         /// </remarks>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be removed.</param>
@@ -1525,7 +1521,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Retrieve the given <see cref="Trigger" />.
+        /// Retrieve the given <see cref="ITrigger" />.
         /// </summary>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
         /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
@@ -1593,7 +1589,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Get the number of <see cref="Trigger" /> s that are
+        /// Get the number of <see cref="ITrigger" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
         public int GetNumberOfTriggers()
@@ -1666,15 +1662,14 @@ namespace Quartz.Impl.AdoJobStore
             return jobNames;
         }
 
-        /**
-     * Determine whether a {@link Job} with the given identifier already 
-     * exists within the scheduler.
-     * 
-     * @param jobKey the identifier to check for
-     * @return true if a Job exists with the given identifier
-     * @throws SchedulerException 
-     */
-
+        /// <summary>
+        /// Determine whether a {@link Job} with the given identifier already
+        /// exists within the scheduler.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="jobKey">the identifier to check for</param>
+        /// <returns>true if a Job exists with the given identifier</returns>
         public bool CheckExists(JobKey jobKey)
         {
             return (bool) ExecuteWithoutLock( // no locks necessary for read...
@@ -1693,15 +1688,14 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /**
-     * Determine whether a {@link Trigger} with the given identifier already 
-     * exists within the scheduler.
-     * 
-     * @param triggerKey the identifier to check for
-     * @return true if a Trigger exists with the given identifier
-     * @throws SchedulerException 
-     */
-
+        /// <summary>
+        /// Determine whether a {@link Trigger} with the given identifier already
+        /// exists within the scheduler.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="triggerKey">the identifier to check for</param>
+        /// <returns>true if a Trigger exists with the given identifier</returns>
         public bool CheckExists(TriggerKey triggerKey)
         {
             return (bool) ExecuteWithoutLock( // no locks necessary for read...
@@ -1720,18 +1714,15 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /**
-     * Clear (delete!) all scheduling data - all {@link Job}s, {@link Trigger}s
-     * {@link Calendar}s.
-     * 
-     * @throws JobPersistenceException
-     */
-
+        /// <summary>
+        /// Clear (delete!) all scheduling data - all {@link Job}s, {@link Trigger}s
+        /// {@link Calendar}s.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
         public void ClearAllSchedulingData()
         {
-            ExecuteInLock(
-                LockTriggerAccess,
-                conn => ClearAllSchedulingData(conn));
+            ExecuteInLock(LockTriggerAccess, conn => ClearAllSchedulingData(conn));
         }
 
         protected void ClearAllSchedulingData(ConnectionAndTransactionHolder conn)
@@ -1748,7 +1739,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// Get the names of all of the <see cref="Trigger" /> s
+        /// Get the names of all of the <see cref="ITrigger" /> s
         /// that have the given group name.
         /// </summary>
         /// <remarks>
@@ -1810,7 +1801,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Get the names of all of the <see cref="Trigger" />
+        /// Get the names of all of the <see cref="ITrigger" />
         /// groups.
         /// </summary>
         /// 
@@ -1897,7 +1888,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Pause the <see cref="Trigger" /> with the given name.
+        /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
         public void PauseTrigger(TriggerKey triggerKey)
         {
@@ -1905,7 +1896,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Pause the <see cref="Trigger" /> with the given name.
+        /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
         public virtual void PauseTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
@@ -1932,9 +1923,9 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Pause the <see cref="IJob" /> with the given name - by
-        /// pausing all of its current <see cref="Trigger" />s.
+        /// pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
-        /// <seealso cref="ResumeJob(string, string)" />
+        /// <seealso cref="ResumeJob(JobKey)" />
         public virtual void PauseJob(JobKey jobKey)
         {
             ExecuteInLock(LockTriggerAccess,
@@ -1950,7 +1941,7 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Pause all of the <see cref="IJob" />s in the given
-        /// group - by pausing all of their <see cref="Trigger" />s.
+        /// group - by pausing all of their <see cref="ITrigger" />s.
         /// </summary>
         /// <seealso cref="ResumeJobGroup(string)" />
         public virtual void PauseJobGroup(string groupName)
@@ -2013,12 +2004,12 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Resume (un-pause) the <see cref="Trigger" /> with the
+        /// Resume (un-pause) the <see cref="ITrigger" /> with the
         /// given name.
         /// </summary>
         /// <remarks>
-        /// If the <see cref="Trigger" /> missed one or more fire-times, then the
-        /// <see cref="Trigger" />'s misfire instruction will be applied.
+        /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
         public virtual void ResumeTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
@@ -2070,11 +2061,11 @@ namespace Quartz.Impl.AdoJobStore
         /// given name.
         /// </summary>
         /// <remarks>
-        /// If any of the <see cref="IJob"/>'s <see cref="Trigger" /> s missed one
-        /// or more fire-times, then the <see cref="Trigger" />'s misfire
+        /// If any of the <see cref="IJob"/>'s <see cref="ITrigger" /> s missed one
+        /// or more fire-times, then the <see cref="ITrigger" />'s misfire
         /// instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseJob(string, string)" />
+        /// <seealso cref="PauseJob(JobKey)" />
         public virtual void ResumeJob(JobKey jobKey)
         {
             ExecuteInLock(LockTriggerAccess, conn =>
@@ -2092,8 +2083,8 @@ namespace Quartz.Impl.AdoJobStore
         /// the given group.
         /// </summary>
         /// <remarks>
-        /// If any of the <see cref="IJob" /> s had <see cref="Trigger" /> s that
-        /// missed one or more fire-times, then the <see cref="Trigger" />'s
+        /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
+        /// missed one or more fire-times, then the <see cref="ITrigger" />'s
         /// misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseJobGroup(string)" />
@@ -2115,7 +2106,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Pause all of the <see cref="Trigger" />s in the given group.
+        /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
         /// <seealso cref="ResumeTriggerGroup(string)" />
         public virtual void PauseTriggerGroup(string groupName)
@@ -2124,7 +2115,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Pause all of the <see cref="Trigger" />s in the given group.
+        /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
         public virtual void PauseTriggerGroup(ConnectionAndTransactionHolder conn, string groupName)
         {
@@ -2156,7 +2147,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary> 
-        /// Pause all of the <see cref="Trigger" />s in the
+        /// Pause all of the <see cref="ITrigger" />s in the
         /// given group.
         /// </summary>
         public virtual Collection.ISet<string> GetPausedTriggerGroups(ConnectionAndTransactionHolder conn)
@@ -2178,11 +2169,11 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Resume (un-pause) all of the <see cref="Trigger" />s
+        /// Resume (un-pause) all of the <see cref="ITrigger" />s
         /// in the given group.
         /// <p>
-        /// If any <see cref="Trigger" /> missed one or more fire-times, then the
-        /// <see cref="Trigger" />'s misfire instruction will be applied.
+        /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
         public virtual void ResumeTriggerGroup(ConnectionAndTransactionHolder conn,
@@ -2281,8 +2272,8 @@ namespace Quartz.Impl.AdoJobStore
         /// on every group.
         /// </summary>
         /// <remarks>
-        /// If any <see cref="Trigger" /> missed one or more fire-times, then the
-        /// <see cref="Trigger" />'s misfire instruction will be applied.
+        /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseAll()" />
         public virtual void ResumeAll()
@@ -2294,8 +2285,8 @@ namespace Quartz.Impl.AdoJobStore
         /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(string)" />
         /// on every group.
         /// <p>
-        /// If any <see cref="Trigger" /> missed one or more fire-times, then the
-        /// <see cref="Trigger" />'s misfire instruction will be applied.
+        /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
         /// <seealso cref="PauseAll()" />
@@ -2325,7 +2316,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Get a handle to the next N triggers to be fired, and mark them as 'reserved'
         /// by the calling scheduler.
         /// </summary>
-        /// <seealso cref="ReleaseAcquiredTrigger(Trigger)" />
+        /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger)" />
         public virtual IList<IOperableTrigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             if (AcquireTriggersWithinLock)
@@ -2409,7 +2400,7 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
-        /// fire the given <see cref="Trigger" />, that it had previously acquired
+        /// fire the given <see cref="ITrigger" />, that it had previously acquired
         /// (reserved).
         /// </summary>
         public void ReleaseAcquiredTrigger(IOperableTrigger trigger)
@@ -2521,7 +2512,7 @@ namespace Quartz.Impl.AdoJobStore
                 throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
             }
 
-            DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
+            DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
 
             // call triggered - to update the trigger's next-fire-time state...
             trigger.Triggered(cal);
@@ -2561,7 +2552,7 @@ namespace Quartz.Impl.AdoJobStore
                 cal,
                 trigger.Key.Group.Equals(SchedulerConstants.DefaultRecoveryGroup),
                 SystemTime.UtcNow(),
-                trigger.PreviousFireTimeUtc,
+                trigger.GetPreviousFireTimeUtc(),
                 prevFireTime,
                 trigger.GetNextFireTimeUtc());
         }
@@ -2569,9 +2560,9 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> that the scheduler has completed the
-        /// firing of the given <see cref="Trigger" /> (and the execution its
+        /// firing of the given <see cref="ITrigger" /> (and the execution its
         /// associated <see cref="IJob" />), and that the <see cref="JobDataMap" />
-        /// in the given <see cref="JobDetailImpl" /> should be updated if the <see cref="IJob" />
+        /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
         /// is stateful.
         /// </summary>
         public virtual void TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail,
@@ -3227,7 +3218,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// This method just forwards to ExecuteInLock() with a null lockName.
         /// </remarks>
-        /// <seealso cref="ExecuteInLock(string, ITransactionCallback)" />
+        /// <seealso cref="ExecuteInLock(string,System.Action{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder})" />
         protected object ExecuteWithoutLock(Func<ConnectionAndTransactionHolder, object> txCallback)
         {
             return ExecuteInLock(null, txCallback);
@@ -3245,7 +3236,7 @@ namespace Quartz.Impl.AdoJobStore
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a transaction. 
         /// </param>
-        /// <seealso cref="ExecuteInLock(string, ITransactionCallback)" />
+        /// <seealso cref="ExecuteInLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
         protected void ExecuteInLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
         {
             ExecuteInLock(lockName, conn => { txCallback(conn); return null; });
@@ -3274,7 +3265,7 @@ namespace Quartz.Impl.AdoJobStore
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a non-managed transaction. 
         /// </param>
-        /// <seealso cref="ExecuteInNonManagedTXLock(string, ITransactionCallback)" />
+        /// <seealso cref="ExecuteInNonManagedTXLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
         protected void ExecuteInNonManagedTXLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
         {
             ExecuteInNonManagedTXLock(lockName, conn => { txCallback(conn); return null; });
@@ -3544,9 +3535,9 @@ namespace Quartz.Impl.AdoJobStore
         {
             public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0, DateTimeOffset.MaxValue);
 
-            private readonly bool _hasMoreMisfiredTriggers;
-            private readonly int _processedMisfiredTriggerCount;
-            private readonly DateTimeOffset _earliestNewTimeUtc;
+            private readonly bool hasMoreMisfiredTriggers;
+            private readonly int processedMisfiredTriggerCount;
+            private readonly DateTimeOffset earliestNewTimeUtc;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="RecoverMisfiredJobsResult"/> class.
@@ -3556,9 +3547,9 @@ namespace Quartz.Impl.AdoJobStore
             /// <param name="earliestNewTimeUtc"></param>
             public RecoverMisfiredJobsResult(bool hasMoreMisfiredTriggers, int processedMisfiredTriggerCount, DateTimeOffset earliestNewTimeUtc)
             {
-                _hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
-                _processedMisfiredTriggerCount = processedMisfiredTriggerCount;
-                _earliestNewTimeUtc = earliestNewTimeUtc;
+                this.hasMoreMisfiredTriggers = hasMoreMisfiredTriggers;
+                this.processedMisfiredTriggerCount = processedMisfiredTriggerCount;
+                this.earliestNewTimeUtc = earliestNewTimeUtc;
             }
 
             /// <summary>
@@ -3569,7 +3560,7 @@ namespace Quartz.Impl.AdoJobStore
             /// </value>
             public bool HasMoreMisfiredTriggers
             {
-                get { return _hasMoreMisfiredTriggers; }
+                get { return hasMoreMisfiredTriggers; }
             }
 
             /// <summary>
@@ -3578,12 +3569,12 @@ namespace Quartz.Impl.AdoJobStore
             /// <value>The processed misfired trigger count.</value>
             public int ProcessedMisfiredTriggerCount
             {
-                get { return _processedMisfiredTriggerCount; }
+                get { return processedMisfiredTriggerCount; }
             }
 
             public DateTimeOffset EarliestNewTime
             {
-                get { return _earliestNewTimeUtc; }
+                get { return earliestNewTimeUtc; }
             }
         }
     }

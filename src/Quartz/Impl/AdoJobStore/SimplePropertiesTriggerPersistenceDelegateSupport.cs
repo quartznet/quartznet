@@ -27,18 +27,17 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
-/**
- * A base implementation of {@link TriggerPersistenceDelegate} that persists 
- * trigger fields in the "QRTZ_SIMPROP_TRIGGERS" table.  This allows extending
- * concrete classes to simply implement a couple methods that do the work of
- * getting/setting the trigger's fields, and creating the {@link ScheduleBuilder}
- * for the particular type of trigger. 
- * 
- * @see CalendarIntervalTriggerPersistenceDelegate for an example extension
- * 
- * @author jhouse
- */
-
+    /// <summary>
+    /// A base implementation of {@link TriggerPersistenceDelegate} that persists
+    /// trigger fields in the "QRTZ_SIMPROP_TRIGGERS" table.  This allows extending
+    /// concrete classes to simply implement a couple methods that do the work of
+    /// getting/setting the trigger's fields, and creating the {@link ScheduleBuilder}
+    /// for the particular type of trigger.
+    /// </summary>
+    /// <remarks>
+    /// </remarks>
+    /// <seealso cref="CalendarIntervalTriggerPersistenceDelegate" />
+    /// <author>jhouse</author>
     public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITriggerPersistenceDelegate
     {
         protected const string TableSimplePropertiesTriggers = "SIMPROP_TRIGGERS";
@@ -55,18 +54,18 @@ namespace Quartz.Impl.AdoJobStore
         protected const string ColumnBoolProp1 = "BOOL_PROP_1";
         protected const string ColumnBoolProp2 = "BOOL_PROP_2";
 
-protected static readonly string SELECT_SIMPLE_PROPS_TRIGGER = "SELECT *" + " FROM "
-        + StdAdoConstants.TablePrefixSubst + TABLE_SIMPLE_PROPERTIES_TRIGGERS + " WHERE "
+protected static readonly string SelectSimplePropsTrigger = "SELECT *" + " FROM "
+        + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
         + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
         + " AND " + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
 
-    protected static readonly string DELETE_SIMPLE_PROPS_TRIGGER = "DELETE FROM "
-        + StdAdoConstants.TablePrefixSubst + TABLE_SIMPLE_PROPERTIES_TRIGGERS + " WHERE "
+    protected static readonly string DeleteSimplePropsTrigger = "DELETE FROM "
+        + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
         + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
         + " AND " + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
 
-    protected static readonly string INSERT_SIMPLE_PROPS_TRIGGER = "INSERT INTO "
-        + StdAdoConstants.TablePrefixSubst + TABLE_SIMPLE_PROPERTIES_TRIGGERS + " ("
+    protected static readonly string InsertSimplePropsTrigger = "INSERT INTO "
+        + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " ("
         + AdoConstants.ColumnSchedulerName + ", "
         + AdoConstants.ColumnTriggerName + ", " + AdoConstants.ColumnTriggerGroup + ", "
         + ColumnStrProp1 + ", " + ColumnStrProp2 + ", " + ColumnStrProp3 + ", "
@@ -76,8 +75,8 @@ protected static readonly string SELECT_SIMPLE_PROPS_TRIGGER = "SELECT *" + " FR
         + ColumnBoolProp1 + ", " + ColumnBoolProp2 
         + ") " + " VALUES(" + StdAdoConstants.SchedulerNameSubst + ", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    protected static readonly string UPDATE_SIMPLE_PROPS_TRIGGER = "UPDATE "
-        + StdAdoConstants.TablePrefixSubst + TABLE_SIMPLE_PROPERTIES_TRIGGERS + " SET "
+    protected static readonly string UpdateSimplePropsTrigger = "UPDATE "
+        + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
         + ColumnStrProp1 + " = ?, " + ColumnStrProp2 + " = ?, " + ColumnStrProp3 + " = ?, "
         + ColumnIntProp1 + " = ?, " + ColumnIntProp2 + " = ?, "
         + ColumnLongProp1 + " = ?, " + ColumnLongProp2 + " = ?, "
@@ -94,7 +93,7 @@ protected static readonly string SELECT_SIMPLE_PROPS_TRIGGER = "SELECT *" + " FR
         public void Initialize(string tablePrefix, string schedName, AdoUtil adoUtil)
         {
             this.tablePrefix = tablePrefix;
-            this.schedNameLiteral = "'" + schedName + "'";
+            schedNameLiteral = "'" + schedName + "'";
             this.adoUtil = adoUtil;
         }
 
@@ -107,7 +106,7 @@ protected static readonly string SELECT_SIMPLE_PROPS_TRIGGER = "SELECT *" + " FR
 
         public int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = adoUtil.PrepareCommand(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(DeleteSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
@@ -120,7 +119,7 @@ protected static readonly string SELECT_SIMPLE_PROPS_TRIGGER = "SELECT *" + " FR
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
-            using (IDbCommand cmd = adoUtil.PrepareCommand(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(InsertSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 adoUtil.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
@@ -143,7 +142,7 @@ protected static readonly string SELECT_SIMPLE_PROPS_TRIGGER = "SELECT *" + " FR
 
         public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = adoUtil.PrepareCommand(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "@", triggerKey.Name);
                 adoUtil.AddCommandParameter(cmd, "@", triggerKey.Group);
@@ -176,7 +175,7 @@ protected static readonly string SELECT_SIMPLE_PROPS_TRIGGER = "SELECT *" + " FR
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
-            using (IDbCommand cmd = adoUtil.PrepareCommand(AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqUpdateSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(UpdateSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "string1", properties.String1);
                 adoUtil.AddCommandParameter(cmd, "string1", properties.String2);

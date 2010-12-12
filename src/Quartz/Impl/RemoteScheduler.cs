@@ -261,7 +261,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Get the names of all <see cref="Trigger" /> groups that are paused.
+        /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
         /// <value></value>
         public virtual Collection.ISet<string> GetPausedTriggerGroups()

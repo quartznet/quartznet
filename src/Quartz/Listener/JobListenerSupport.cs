@@ -19,6 +19,8 @@
 
 using Common.Logging;
 
+using Quartz.Spi;
+
 namespace Quartz.Listener
 {
     /// <summary>
@@ -66,7 +68,7 @@ namespace Quartz.Listener
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
-        /// is about to be executed (an associated <see cref="Trigger"/>
+        /// is about to be executed (an associated <see cref="ITrigger"/>
         /// has occured).
         /// <p>
         /// This method will not be invoked if the execution of the Job was vetoed
@@ -81,7 +83,7 @@ namespace Quartz.Listener
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
-        /// was about to be executed (an associated <see cref="Trigger"/>
+        /// was about to be executed (an associated <see cref="ITrigger"/>
         /// has occured), but a <see cref="ITriggerListener"/> vetoed it's
         /// execution.
         /// </summary>
@@ -93,8 +95,8 @@ namespace Quartz.Listener
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> after a <see cref="IJobDetail"/>
-        /// has been executed, and be for the associated <see cref="Trigger"/>'s
-        /// <see cref="Trigger.Triggered"/> method has been called.
+        /// has been executed, and be for the associated <see cref="ITrigger"/>'s
+        /// <see cref="IOperableTrigger.Triggered"/> method has been called.
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>

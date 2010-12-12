@@ -1,12 +1,14 @@
 using System;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz
 {
     /// <summary> 
-    /// A <see cref="Trigger" /> that is used to fire a <see cref="IJob" />
+    /// A <see cref="ITrigger" /> that is used to fire a <see cref="IJob" />
     /// at a given moment in time, and optionally repeated at a specified interval.
     /// </summary>
-    /// <seealso cref="TriggerBuilder" />
+    /// <seealso cref="TriggerBuilder{T}" />
     /// <seealso cref="SimpleScheduleBuilder" />
     /// <author>James House</author>
     /// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
@@ -14,19 +16,19 @@ namespace Quartz
     public interface ISimpleTrigger : ITrigger
     {
         /// <summary>
-        /// Get or set thhe number of times the <see cref="SimpleTrigger" /> should
+        /// Get or set thhe number of times the <see cref="ISimpleTrigger" /> should
         /// repeat, after which it will be automatically deleted.
         /// </summary>
-        /// <seealso cref="RepeatIndefinitely" />
+        /// <seealso cref="SimpleTriggerImpl.RepeatIndefinitely" />
         int RepeatCount { get; set; }
 
         /// <summary>
-        /// Get or set the the time interval at which the <see cref="SimpleTrigger" /> should repeat.
+        /// Get or set the the time interval at which the <see cref="ISimpleTrigger" /> should repeat.
         /// </summary>
         TimeSpan RepeatInterval { get; set; }
 
         /// <summary>
-        /// Get or set the number of times the <see cref="SimpleTrigger" /> has already
+        /// Get or set the number of times the <see cref="ISimpleTrigger" /> has already
         /// fired.
         /// </summary>
         int TimesTriggered { get; set; }

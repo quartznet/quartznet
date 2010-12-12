@@ -49,13 +49,13 @@ namespace Quartz.Impl.AdoJobStore
         private string expandedSQL;
         private string expandedInsertSQL;
 
-        private AdoUtil adoUtil;
+        private readonly AdoUtil adoUtil;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
         /// </summary>
         /// <param name="tablePrefix">The table prefix.</param>
-        /// <param name="sql">The SQL.</param>
+        /// <param name="defaultInsertSQL">The SQL.</param>
         /// <param name="defaultSQL">The default SQL.</param>
         /// <param name="dbProvider">The db provider.</param>
         public DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
@@ -72,7 +72,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the lock owners.
         /// </summary>
         /// <value>The lock owners.</value>
-        private static Collection.HashSet<string> LockOwners
+        private static HashSet<string> LockOwners
         {
             get { return LogicalThreadContext.GetData<HashSet<string>>(ThreadContextKeyLockOwners); }
             set { LogicalThreadContext.SetData(ThreadContextKeyLockOwners, value); }
@@ -229,12 +229,12 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (TablePrefix != null && SchedName != null && sql != null && insertSql != null)
             {
-                expandedSQL = AdoJobStoreUtil.ReplaceTablePrefix(this.sql, TablePrefix, SchedulerNameLiteral);
-                expandedInsertSQL = AdoJobStoreUtil.ReplaceTablePrefix(this.insertSql, TablePrefix, SchedulerNameLiteral);
+                expandedSQL = AdoJobStoreUtil.ReplaceTablePrefix(sql, TablePrefix, SchedulerNameLiteral);
+                expandedInsertSQL = AdoJobStoreUtil.ReplaceTablePrefix(insertSql, TablePrefix, SchedulerNameLiteral);
             }
         }
 
-        private String schedNameLiteral = null;
+        private String schedNameLiteral;
 
         protected string SchedulerNameLiteral
         {

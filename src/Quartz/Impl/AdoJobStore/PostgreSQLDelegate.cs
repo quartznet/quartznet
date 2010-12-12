@@ -35,7 +35,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Initializes a new instance of the <see cref="PostgreSQLDelegate"/> class.
         /// </summary>
-        /// <param name="log">The log.</param>
+        /// <param name="logger">The logger.</param>
         /// <param name="tablePrefix">The table prefix.</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
@@ -47,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Initializes a new instance of the <see cref="PostgreSQLDelegate"/> class.
         /// </summary>
-        /// <param name="log">The log.</param>
+        /// <param name="logger">The logger.</param>
         /// <param name="tablePrefix">The table prefix.</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>

@@ -34,10 +34,10 @@ namespace Quartz.Examples.Example5
 		public const string ExecutionDelay = "ExecutionDelay";
 		
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// </summary>
-		public virtual void  Execute(JobExecutionContext context)
+		public virtual void  Execute(IJobExecutionContext context)
 		{
 			Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.FullName, DateTime.Now.ToString("r"));
 			

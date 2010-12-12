@@ -107,7 +107,7 @@ namespace Quartz.Job
 	    }
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// <p>
 		/// The implementation may wish to set a  result object on the

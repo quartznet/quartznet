@@ -4,138 +4,110 @@ namespace Quartz.Spi
 {
     public interface IOperableTrigger : IMutableTrigger
     {
-        /**
-     * <p>
-     * This method should not be used by the Quartz client.
-     * </p>
-     * 
-     * <p>
-     * Called when the <code>{@link Scheduler}</code> has decided to 'fire'
-     * the trigger (execute the associated <code>Job</code>), in order to
-     * give the <code>Trigger</code> a chance to update itself for its next
-     * triggering (if any).
-     * </p>
-     * 
-     * @see #executionComplete(JobExecutionContext, JobExecutionException)
-     */
+        /// <summary>
+        /// This method should not be used by the Quartz client.
+        /// </summary>
+        /// <remarks>
+        /// Called when the <see cref="IScheduler" /> has decided to 'fire'
+        /// the trigger (Execute the associated <see cref="IJob" />), in order to
+        /// give the <see cref="ITrigger" /> a chance to update itself for its next
+        /// triggering (if any).
+        /// </remarks>
+        /// <seealso cref="JobExecutionException" />
         void Triggered(ICalendar calendar);
 
-        /**
-     * <p>
-     * This method should not be used by the Quartz client.
-     * </p>
-     * 
-     * <p>
-     * Called by the scheduler at the time a <code>Trigger</code> is first
-     * added to the scheduler, in order to have the <code>Trigger</code>
-     * compute its first fire time, based on any associated calendar.
-     * </p>
-     * 
-     * <p>
-     * After this method has been called, <code>getNextFireTime()</code>
-     * should return a valid answer.
-     * </p>
-     * 
-     * @return the first time at which the <code>Trigger</code> will be fired
-     *         by the scheduler, which is also the same value <code>getNextFireTime()</code>
-     *         will return (until after the first firing of the <code>Trigger</code>).
-     *         </p>
-     */
+        /// <summary>
+        /// This method should not be used by the Quartz client.
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// Called by the scheduler at the time a <see cref="ITrigger" /> is first
+        /// added to the scheduler, in order to have the <see cref="ITrigger" />
+        /// compute its first fire time, based on any associated calendar.
+        /// </p>
+        /// 
+        /// <p>
+        /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
+        /// should return a valid answer.
+        /// </p>
+        /// </remarks>
+        /// <returns> 
+        /// The first time at which the <see cref="ITrigger" /> will be fired
+        /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
+        /// will return (until after the first firing of the <see cref="ITrigger" />).
+        /// </returns>     
         DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar);
 
-        /**
-     * <p>
-     * This method should not be used by the Quartz client.
-     * </p>
-     * 
-     * <p>
-     * Called after the <code>{@link Scheduler}</code> has executed the
-     * <code>{@link org.quartz.JobDetail}</code> associated with the <code>Trigger</code>
-     * in order to get the final instruction code from the trigger.
-     * </p>
-     * 
-     * @param context
-     *          is the <code>JobExecutionContext</code> that was used by the
-     *          <code>Job</code>'s<code>execute(xx)</code> method.
-     * @param result
-     *          is the <code>JobExecutionException</code> thrown by the
-     *          <code>Job</code>, if any (may be null).
-     * @return one of the Trigger.INSTRUCTION_XXX constants.
-     * 
-     * @see #INSTRUCTION_NOOP
-     * @see #INSTRUCTION_RE_EXECUTE_JOB
-     * @see #INSTRUCTION_DELETE_TRIGGER
-     * @see #INSTRUCTION_SET_TRIGGER_COMPLETE
-     * @see #triggered(Calendar)
-     */
-
+        /// <summary>
+        /// This method should not be used by the Quartz client.
+        /// </summary>
+        /// <remarks>
+        /// Called after the <see cref="IScheduler" /> has executed the
+        /// <see cref="IJobDetail" /> associated with the <see cref="ITrigger" />
+        /// in order to get the final instruction code from the trigger.
+        /// </remarks>
+        /// <param name="context">
+        /// is the <see cref="IJobExecutionContext" /> that was used by the
+        /// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.</param>
+        /// <param name="result">is the <see cref="JobExecutionException" /> thrown by the
+        /// <see cref="IJob" />, if any (may be null).
+        /// </param>
+        /// <returns>
+        /// One of the <see cref="SchedulerInstruction"/> members.
+        /// </returns>
+        /// <seealso cref="SchedulerInstruction.NoInstruction" />
+        /// <seealso cref="SchedulerInstruction.ReExecuteJob" />
+        /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
+        /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
+        /// <seealso cref="Triggered" />
         SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException result);
 
-        /**
-     * <p>
-     * This method should not be used by the Quartz client.
-     * </p>
-     * 
-     * <p>
-     * To be implemented by the concrete classes that extend this class.
-     * </p>
-     * 
-     * <p>
-     * The implementation should update the <code>Trigger</code>'s state
-     * based on the MISFIRE_INSTRUCTION_XXX that was selected when the <code>Trigger</code>
-     * was created.
-     * </p>
-     */
+        /// <summary> 
+        /// This method should not be used by the Quartz client.
+        /// <p>
+        /// To be implemented by the concrete classes that extend this class.
+        /// </p>
+        /// <p>
+        /// The implementation should update the <see cref="ITrigger" />'s state
+        /// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="ITrigger" />
+        /// was created.
+        /// </p>
+        /// </summary>
         void UpdateAfterMisfire(ICalendar cal);
 
-        /**
-     * <p>
-     * This method should not be used by the Quartz client.
-     * </p>
-     * 
-     * <p>
-     * To be implemented by the concrete class.
-     * </p>
-     * 
-     * <p>
-     * The implementation should update the <code>Trigger</code>'s state
-     * based on the given new version of the associated <code>Calendar</code>
-     * (the state should be updated so that it's next fire time is appropriate
-     * given the Calendar's new settings). 
-     * </p>
-     * 
-     * @param cal
-     */
+        /// <summary> 
+        /// This method should not be used by the Quartz client.
+        /// <p>
+        /// The implementation should update the <see cref="ITrigger" />'s state
+        /// based on the given new version of the associated <see cref="ICalendar" />
+        /// (the state should be updated so that it's next fire time is appropriate
+        /// given the Calendar's new settings). 
+        /// </p>
+        /// </summary>
+        /// <param name="cal"> </param>
+        /// <param name="misfireThreshold"></param>
         void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
 
 
-        /**
-     * <p>
-     * Validates whether the properties of the <code>JobDetail</code> are
-     * valid for submission into a <code>Scheduler</code>.
-     * 
-     * @throws IllegalStateException
-     *           if a required property (such as Name, Group, Class) is not
-     *           set.
-     */
+        /// <summary>
+        /// Validates whether the properties of the <see cref="IJobDetail" /> are
+        /// valid for submission into a <see cref="IScheduler" />.
+        /// </summary>
         void Validate();
 
 
-        /**
-     * <p>
-     * This method should not be used by the Quartz client.
-     * </p>
-     * 
-     * <p>
-     * Usable by <code>{@link org.quartz.spi.JobStore}</code>
-     * implementations, in order to facilitate 'recognizing' instances of fired
-     * <code>Trigger</code> s as their jobs complete execution.
-     * </p>
-     * 
-     *  
-     */
+        /// <summary> 
+        /// This method should not be used by the Quartz client.
+        /// </summary>
+        /// <remarks>
+        /// Usable by <see cref="IJobStore" />
+        /// implementations, in order to facilitate 'recognizing' instances of fired
+        /// <see cref="ITrigger" /> s as their jobs complete execution.
+        /// </remarks>
         string FireInstanceId { get; set; }
 
-        DateTimeOffset? NextFireTimeUtc { set; }
+        void SetNextFireTimeUtc(DateTimeOffset? value);
+
+        void SetPreviousFireTimeUtc(DateTimeOffset? value);
     }
 }

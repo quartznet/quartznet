@@ -25,31 +25,30 @@ namespace Quartz
 {
     /// <summary>
     /// The base interface with properties common to all <code>Trigger</code>s - 
-    /// use <see cref="TriggerBuilder" /> to instantiate an actual Trigger.
+    /// use <see cref="TriggerBuilder{T}" /> to instantiate an actual Trigger.
     /// </summary>
     /// <remarks>
     /// <p>
-    /// <see cref="Trigger" />s have a <see cref="TriggerKey" /> associated with them, which
+    /// <see cref="ITrigger" />s have a <see cref="TriggerKey" /> associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
     /// </p>
     /// 
     /// <p>
-    /// <see cref="Trigger" />s are the 'mechanism' by which <see cref="IJob" /> s
-    /// are scheduled. Many <see cref="Trigger" /> s can point to the same <see cref="IJob" />,
-    /// but a single <see cref="Trigger" /> can only point to one <see cref="IJob" />.
+    /// <see cref="ITrigger" />s are the 'mechanism' by which <see cref="IJob" /> s
+    /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
+    /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
     /// </p>
     /// 
     /// <p>
     /// Triggers can 'send' parameters/data to <see cref="IJob" />s by placing contents
-    /// into the <see cref="JobDataMap" /> on the <see cref="Trigger" />.
+    /// into the <see cref="JobDataMap" /> on the <see cref="ITrigger" />.
     /// </p>
     /// </remarks>
-    /// <seealso cref="TriggerBuilder" />
+    /// <seealso cref="TriggerBuilder{T}" />
     /// <seealso cref="ICalendarIntervalTrigger" />
     /// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="ICronTrigger" />
     /// <seealso cref="NthIncludedDayTrigger" />
-    /// <seealso cref="TriggerUtils" />
     /// <seealso cref="JobDataMap" />
     /// <seealso cref="IJobExecutionContext" />
     /// <author>James House</author>
@@ -62,21 +61,14 @@ namespace Quartz
         JobKey JobKey { get; }
 
         /// <summary>
-        /// Get a <see cref="TriggerBuilder" /> that is configured to produce a 
-        /// <code>Trigger</code> identical to this one.
-        /// </summary>
-        /// <returns></returns>
-        ITriggerBuilder<T> GetTriggerBuilder<T>() where T : ITrigger;
-
-        /// <summary>
-        /// Get a <see cref="ScheduleBuilder" /> that is configured to produce a 
+        /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a 
         /// schedule identical to this trigger's schedule.
         /// </summary>
         /// <returns></returns>
-        IScheduleBuilder GetScheduleBuilder<T>() where T : ITrigger;
+        IScheduleBuilder GetScheduleBuilder();
 
         /// <summary>
-        /// Get or set the description given to the <see cref="Trigger" /> instance by
+        /// Get or set the description given to the <see cref="ITrigger" /> instance by
         /// its creator (if any).
         /// </summary>
         string Description { get; }
@@ -89,7 +81,7 @@ namespace Quartz
 
         /// <summary>
         /// Get or set the <see cref="JobDataMap" /> that is associated with the 
-        /// <see cref="Trigger" />.
+        /// <see cref="ITrigger" />.
         /// <p>
         /// Changes made to this map during job execution are not re-persisted, and
         /// in fact typically result in an illegal state.
@@ -98,7 +90,7 @@ namespace Quartz
         JobDataMap JobDataMap { get; }
 
         /// <summary>
-        /// Returns the last UTC time at which the <see cref="Trigger" /> will fire, if
+        /// Returns the last UTC time at which the <see cref="ITrigger" /> will fire, if
         /// the Trigger will repeat indefinitely, null will be returned.
         /// <p>
         /// Note that the return time *may* be in the past.
@@ -108,8 +100,8 @@ namespace Quartz
 
         /// <summary>
         /// Get or set the instruction the <see cref="IScheduler" /> should be given for
-        /// handling misfire situations for this <see cref="Trigger" />- the
-        /// concrete <see cref="Trigger" /> type that you are using will have
+        /// handling misfire situations for this <see cref="ITrigger" />- the
+        /// concrete <see cref="ITrigger" /> type that you are using will have
         /// defined a set of additional MISFIRE_INSTRUCTION_XXX
         /// constants that may be set to this property.
         /// <p>
@@ -143,8 +135,8 @@ namespace Quartz
         DateTimeOffset StartTimeUtc { get; }
 
         /// <summary>
-        /// The priority of a <see cref="Trigger" /> acts as a tie breaker such that if 
-        /// two <see cref="Trigger" />s have the same scheduled fire time, then Quartz
+        /// The priority of a <see cref="ITrigger" /> acts as a tie breaker such that if 
+        /// two <see cref="ITrigger" />s have the same scheduled fire time, then Quartz
         /// will do its best to give the one with the higher priority first access 
         /// to a worker thread.
         /// </summary>
@@ -152,21 +144,21 @@ namespace Quartz
         /// If not explicitly set, the default value is <i>5</i>.
         /// </remarks>
         /// <returns></returns>
-        /// <see cref="DefaultPriority" />
+        /// <see cref="TriggerConstants.DefaultPriority" />
         int Priority { get; set; }
 
         /// <summary> 
         /// Used by the <see cref="IScheduler" /> to determine whether or not
-        /// it is possible for this <see cref="Trigger" /> to fire again.
+        /// it is possible for this <see cref="ITrigger" /> to fire again.
         /// <p>
         /// If the returned value is <see langword="false" /> then the <see cref="IScheduler" />
-        /// may remove the <see cref="Trigger" /> from the <see cref="IJobStore" />.
+        /// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
         /// </p>
         /// </summary>
         bool GetMayFireAgain();
 
         /// <summary>
-        /// Returns the next time at which the <see cref="Trigger" /> is scheduled to fire. If
+        /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If
         /// the trigger will not fire again, <see langword="null" /> will be returned.  Note that
         /// the time returned can possibly be in the past, if the time that was computed
         /// for the trigger to next fire has already arrived, but the scheduler has not yet
@@ -174,21 +166,20 @@ namespace Quartz
         /// e.g. threads).
         /// </summary>
         ///<remarks>
-        /// The value returned is not guaranteed to be valid until after the <see cref="Trigger" />
+        /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
         /// has been added to the scheduler.
         /// </remarks>
-        /// <seealso cref="TriggerUtils.ComputeFireTimesBetween(Trigger, ICalendar , DateTimeOffset, DateTimeOffset)" />
         /// <returns></returns>
         DateTimeOffset? GetNextFireTimeUtc();
 
         /// <summary>
-        /// Returns the previous time at which the <see cref="Trigger" /> fired.
+        /// Returns the previous time at which the <see cref="ITrigger" /> fired.
         /// If the trigger has not yet fired, <see langword="null" /> will be returned.
         /// </summary>
-        DateTimeOffset? PreviousFireTimeUtc { get; }
+        DateTimeOffset? GetPreviousFireTimeUtc();
 
         /// <summary>
-        /// Returns the next time at which the <see cref="Trigger" /> will fire,
+        /// Returns the next time at which the <see cref="ITrigger" /> will fire,
         /// after the given time. If the trigger will not fire after the given time,
         /// <see langword="null" /> will be returned.
         /// </summary>

@@ -34,7 +34,7 @@ namespace Quartz.Examples.Example6
 		private static ILog _log = LogManager.GetLogger(typeof(BadJob2));
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// <p>
 		/// The implementation may wish to set a  result object on the
@@ -46,7 +46,7 @@ namespace Quartz.Examples.Example6
 		/// </p>
 		/// </summary>
 		/// <param name="context">Execution context.</param>
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			string jobName = context.JobDetail.FullName;
 			_log.Info(string.Format("---{0} executing at {1}", jobName, System.DateTime.Now.ToString("r")));

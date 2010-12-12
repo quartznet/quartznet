@@ -42,10 +42,6 @@ namespace Quartz.Impl.Matchers
             {
                 throw new ArgumentNullException("compareTo", "CompareTo value cannot be null!");
             }
-            if (compareWith == null)
-            {
-                throw new ArgumentNullException("compareWith", "CompareWith operator cannot be null!");
-            }
 
             this.compareTo = compareTo;
             this.compareWith = compareWith;
@@ -57,13 +53,13 @@ namespace Quartz.Impl.Matchers
         {
             switch (compareWith)
             {
-                case StringOperatorName.EQUALS:
+                case StringOperatorName.Equality:
                     return getValue(key).Equals(compareTo);
-                case StringOperatorName.STARTS_WITH:
+                case StringOperatorName.StartsWith:
                     return getValue(key).StartsWith(compareTo);
-                case StringOperatorName.ENDS_WITH:
+                case StringOperatorName.EndsWith:
                     return getValue(key).EndsWith(compareTo);
-                case StringOperatorName.CONTAINS:
+                case StringOperatorName.Contains:
                     return getValue(key).Contains(compareTo);
             }
 
@@ -75,10 +71,8 @@ namespace Quartz.Impl.Matchers
         {
             int prime = 31;
             int result = 1;
-            result = prime*result
-                     + ((compareTo == null) ? 0 : compareTo.GetHashCode());
-            result = prime*result
-                     + ((compareWith == null) ? 0 : compareWith.GetHashCode());
+            result = prime*result + ((compareTo == null) ? 0 : compareTo.GetHashCode());
+            result = prime*result + compareWith.GetHashCode();
             return result;
         }
 
@@ -108,14 +102,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            if (compareWith == null)
-            {
-                if (other.compareWith != null)
-                {
-                    return false;
-                }
-            }
-            else if (!compareWith.Equals(other.compareWith))
+            if (!compareWith.Equals(other.compareWith))
             {
                 return false;
             }

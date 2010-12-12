@@ -125,8 +125,7 @@ namespace Quartz
         /// fireAtTime="12:00").
         /// </summary>
         /// <remarks>
-        /// Note that <see cref="Trigger.Name" />, <see cref="Trigger.Group" />, 
-        /// <see cref="Trigger.JobName" />, and <see cref="Trigger.JobGroup" />, must be 
+        /// Note that <see cref="ITrigger.Key" /> and <see cref="ITrigger.JobKey" />, must be 
         /// called before the <see cref="NthIncludedDayTrigger" /> can be placed into
         /// a <see cref="IScheduler" />.
         /// </remarks>
@@ -143,7 +142,7 @@ namespace Quartz
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
         /// fireAtTime=12:00").
         /// <p>
-        /// Note that <see cref="Trigger.JobName" /> and <see cref="Trigger.JobGroup" /> must
+        /// Note that <see cref="ITrigger.JobKey" /> must
         /// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
         /// into a <see cref="IScheduler" />.
         /// </p>
@@ -162,7 +161,7 @@ namespace Quartz
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
         /// fireAtTime=12:00").
         /// <p>
-        /// Note that <see cref="Trigger.JobName" /> and <see cref="Trigger.JobGroup" /> must
+        /// Note that <see cref="ITrigger.JobKey" /> must
         /// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
         /// into a <see cref="IScheduler" />.
         /// </p>
@@ -434,11 +433,10 @@ namespace Quartz
 	    /// <see cref="NthIncludedDayTrigger" /> fired. If the trigger has not yet 
 	    /// fired, <see langword="null" /> will be returned.
 	    /// </summary>
-	    /// <value> the previous fire time for the trigger</value>
-	    public override DateTimeOffset? PreviousFireTimeUtc
+	    /// <returns> the previous fire time for the trigger</returns>
+	    public override DateTimeOffset? GetPreviousFireTimeUtc()
 	    {
-	        get { return previousFireTimeUtc; }
-            set { previousFireTimeUtc = value; }
+	        return previousFireTimeUtc;
 	    }
 
 
@@ -533,7 +531,7 @@ namespace Quartz
 		/// <summary>
 		/// Called when the <see cref="IScheduler" /> has decided to 'fire' the trigger
 		/// (Execute the associated <see cref="IJob" />), in order to give the 
-		/// <see cref="Trigger" /> a chance to update itself for its next triggering 
+		/// <see cref="ITrigger" /> a chance to update itself for its next triggering 
 		/// (if any).
 		/// </summary>
 		public override void Triggered(ICalendar cal)
@@ -544,8 +542,8 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Called by the scheduler at the time a <see cref="Trigger" /> is first
-		/// added to the scheduler, in order to have the <see cref="Trigger" />
+		/// Called by the scheduler at the time a <see cref="ITrigger" /> is first
+		/// added to the scheduler, in order to have the <see cref="ITrigger" />
 		/// compute its first fire time, based on any associated calendar.
 		/// <p>
 		/// After this method has been called, <see cref="GetNextFireTimeUtc" />
@@ -553,10 +551,10 @@ namespace Quartz
 		/// </p>
 		/// 
 		/// </summary>
-		/// <returns> the first time at which the <see cref="Trigger" /> will be fired
+		/// <returns> the first time at which the <see cref="ITrigger" /> will be fired
 		/// by the scheduler, which is also the same value 
         /// <see cref="GetNextFireTimeUtc" /> will return (until after the first 
-		/// firing of the <see cref="Trigger" />).
+		/// firing of the <see cref="ITrigger" />).
 		/// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal)
 		{
@@ -569,11 +567,11 @@ namespace Quartz
 
 		/// <summary> 
 		/// Called after the <see cref="IScheduler" /> has executed the 
-		/// <see cref="IJobDetail" /> associated with the <see cref="Trigger" /> in order
+		/// <see cref="IJobDetail" /> associated with the <see cref="ITrigger" /> in order
 		/// to get the final instruction code from the trigger.
 		/// </summary>
 		/// <param name="jobCtx">
-		/// The <see cref="JobExecutionContext" /> that was used by the
+		/// The <see cref="IJobExecutionContext" /> that was used by the
 		/// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.
 		/// </param>
 		/// <param name="result">
@@ -609,12 +607,12 @@ namespace Quartz
 
 		/// <summary> 
 		/// Used by the <see cref="IScheduler" /> to determine whether or not it is
-		/// possible for this <see cref="Trigger" /> to fire again.
+		/// possible for this <see cref="ITrigger" /> to fire again.
 		/// </summary>'
 		/// <remarks>
 		/// <p>
 		/// If the returned value is <see langword="false" /> then the 
-		/// <see cref="IScheduler" /> may remove the <see cref="Trigger" /> from the
+		/// <see cref="IScheduler" /> may remove the <see cref="ITrigger" /> from the
 		/// <see cref="IJobStore" />
 		/// </p>
 		/// </remarks>
@@ -629,7 +627,7 @@ namespace Quartz
 
 		/// <summary> 
 		/// Indicates whether <param name="misfireInstruction" /> is a valid misfire
-		/// instruction for this <see cref="Trigger" />.
+		/// instruction for this <see cref="ITrigger" />.
 		/// </summary>
         /// <returns>Whether <see param="misfireInstruction" /> is valid.</returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
@@ -999,21 +997,25 @@ namespace Quartz
 		}
 
 
-	    /**
-     * Get a {@link ScheduleBuilder} that is configured to produce a 
-     * schedule identical to this trigger's schedule.
-     * 
-     * @see #getTriggerBuilder()
-     */
-
-	    public override IScheduleBuilder GetScheduleBuilder<T>()
+        /// <summary>
+        /// Get a {@link ScheduleBuilder} that is configured to produce a
+        /// schedule identical to this trigger's schedule.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+	    public override IScheduleBuilder GetScheduleBuilder()
 	    {
 	        throw new NotImplementedException(); // TODO
 	    }
 
-	    public override DateTimeOffset? NextFireTimeUtc
-	    {
-	        set { throw new NotImplementedException(); }
-	    }
+        public override void SetNextFireTimeUtc(DateTimeOffset? nextFireTime)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)
+        {
+            throw new NotImplementedException();
+        }
 	}
 }

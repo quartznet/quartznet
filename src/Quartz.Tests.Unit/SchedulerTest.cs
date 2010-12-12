@@ -66,7 +66,7 @@ namespace Quartz.Tests.Unit
 
             sched.DeleteJob(new JobKey("j1"));
 
-            ITrigger trigger = TriggerBuilder.NewTrigger()
+            ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("t1")
                 .ForJob(job)
                 .StartNow()
@@ -94,7 +94,7 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("j2", "g1")
                 .Build();
 
-            trigger = TriggerBuilder.NewTrigger()
+            trigger = TriggerBuilder.Create()
                 .WithIdentity("t2", "g1")
                 .ForJob(job)
                 .StartNow()
@@ -110,7 +110,7 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("j3", "g1")
                 .Build();
 
-            trigger = TriggerBuilder.NewTrigger()
+            trigger = TriggerBuilder.Create()
                 .WithIdentity("t3", "g1")
                 .ForJob(job)
                 .StartNow()
@@ -163,7 +163,7 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("j4", "g1")
                 .Build();
 
-            trigger = TriggerBuilder.NewTrigger()
+            trigger = TriggerBuilder.Create()
                 .WithIdentity("t4", "g1")
                 .ForJob(job)
                 .StartNow()

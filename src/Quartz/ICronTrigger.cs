@@ -145,9 +145,8 @@ namespace Quartz
     /// </ul>
     /// </p>
     /// </remarks>
-    /// <seealso cref="Trigger"/>
-    /// <seealso cref="SimpleTriggerImp"/>
-    /// <seealso cref="TriggerUtils"/>
+    /// <seealso cref="ITrigger"/>
+    /// <seealso cref="ISimpleTrigger"/>
     /// <author>Sharada Jambula</author>
     /// <author>James House</author>
     /// <author>Contributions from Mads Henderson</author>
@@ -161,11 +160,11 @@ namespace Quartz
         string CronExpressionString { set; get; }
 
         /// <summary>
-        /// Sets the time zone for which the <see cref="CronTrigger.CronExpression" /> of this
-        /// <see cref="CronTrigger" /> will be resolved.
+        /// Sets the time zone for which the <see cref="CronExpressionString" /> of this
+        /// <see cref="ICronTrigger" /> will be resolved.
         /// </summary>
         /// <remarks>
-        /// If <see cref="CronTrigger.CronExpression" /> is set after this
+        /// If <see cref="CronExpressionString" /> is set after this
         /// property, the TimeZone setting on the CronExpression will "win".  However
         /// if <see cref="CronExpressionString" /> is set after this property, the
         /// time zone applied by this method will remain in effect, since the 

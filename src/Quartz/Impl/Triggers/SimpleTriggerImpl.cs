@@ -27,8 +27,6 @@ namespace Quartz.Impl.Triggers
 	/// </summary>
     /// <seealso cref="ITrigger" />
 	/// <seealso cref="ICronTrigger" />
-	/// <seealso cref="TriggerUtils" />
-	/// 
 	/// <author>James House</author>
 	/// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
 	/// <author>Marko Lahma (.NET)</author>
@@ -67,7 +65,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <see cref="SimpSimpleTriggerImplleTrigger" /> that will occur immediately, and
+        /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// not repeat.
         /// </summary>
         public SimpleTriggerImpl(string name, string group)
@@ -117,10 +115,10 @@ namespace Quartz.Impl.Triggers
         /// the given end time.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="startTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to fire.</param>
-        /// <param name="endTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" />
+        /// <param name="startTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
+        /// <param name="endTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />
         /// to quit repeat firing.</param>
-        /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
+        /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
         public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc,
@@ -136,10 +134,10 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="group">The group.</param>
-        /// <param name="startTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" /> to fire.</param>
-        /// <param name="endTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" />
+        /// <param name="startTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
+        /// <param name="endTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />
         /// to quit repeat firing.</param>
-        /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
+        /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
         public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
@@ -161,11 +159,11 @@ namespace Quartz.Impl.Triggers
         /// <param name="group">The group.</param>
         /// <param name="jobName">Name of the job.</param>
         /// <param name="jobGroup">The job group.</param>
-        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" />
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />
         /// to fire.</param>
-        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="Trigger" />
+        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />
         /// to quit repeat firing.</param>
-        /// <param name="repeatCount">The number of times for the <see cref="Trigger" /> to repeat
+        /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
         /// firing, use RepeatIndefinitely for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
         public SimpleTriggerImpl(string name, string group, string jobName, string jobGroup, DateTimeOffset startTimeUtc,
@@ -227,7 +225,35 @@ namespace Quartz.Impl.Triggers
             set { timesTriggered = value; }
         }
 
-        /// <summary> 
+	    public TriggerBuilder<ISimpleTrigger> GetTriggerBuilder()
+	    {
+	        return GetTriggerBuilder<ISimpleTrigger>();
+	    }
+
+	    public override IScheduleBuilder GetScheduleBuilder()
+	    {
+            SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
+            .WithInterval(RepeatInterval)
+            .WithRepeatCount(RepeatCount);
+
+            switch (MisfireInstruction)
+            {
+                case Quartz.MisfireInstruction.SimpleTrigger.FireNow: sb.WithMisfireHandlingInstructionFireNow();
+                    break;
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount: sb.WithMisfireHandlingInstructionNextWithExistingCount();
+                    break;
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount : sb.WithMisfireHandlingInstructionNextWithRemainingCount();
+                    break;
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount : sb.WithMisfireHandlingInstructionNowWithExistingCount();
+                    break;
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount: sb.WithMisfireHandlingInstructionNowWithRemainingCount();
+                    break;
+            }
+
+            return sb;
+	    }
+
+	    /// <summary> 
         /// Returns the final UTC time at which the <see cref="ISimpleTrigger" /> will
         /// fire, if repeatCount is RepeatIndefinitely, null will be returned.
         /// <p>
@@ -345,7 +371,7 @@ namespace Quartz.Impl.Triggers
 
             if (instr == Quartz.MisfireInstruction.SimpleTrigger.FireNow)
 			{
-				NextFireTime = SystemTime.UtcNow();
+				nextFireTimeUtc = SystemTime.UtcNow();
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
 			{
@@ -366,7 +392,7 @@ namespace Quartz.Impl.Triggers
                         newFireTime = null;
                     }
 				}
-				NextFireTime = newFireTime;
+				nextFireTimeUtc = newFireTime;
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
 			{
@@ -394,7 +420,7 @@ namespace Quartz.Impl.Triggers
 					TimesTriggered = TimesTriggered + timesMissed;
 				}
 
-				NextFireTime = newFireTime;
+                nextFireTimeUtc = newFireTime;
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
 			{
@@ -407,12 +433,12 @@ namespace Quartz.Impl.Triggers
 
 				if (EndTimeUtc.HasValue && EndTimeUtc.Value < newFireTime) 
 				{
-					NextFireTime = null; // We are past the end time
+					nextFireTimeUtc = null; // We are past the end time
 				} 
 				else 
 				{
 					StartTimeUtc = newFireTime;
-					NextFireTime = newFireTime;
+					nextFireTimeUtc = newFireTime;
 				}
 			}
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
@@ -434,12 +460,12 @@ namespace Quartz.Impl.Triggers
 
 				if (EndTimeUtc.HasValue && EndTimeUtc.Value < newFireTime) 
 				{
-					NextFireTime = null; // We are past the end time
+					nextFireTimeUtc = null; // We are past the end time
 				} 
 				else 
 				{
 					StartTimeUtc = newFireTime;
-					NextFireTime = newFireTime;
+					nextFireTimeUtc = newFireTime;
 				} 
 			}
 		}
@@ -447,7 +473,7 @@ namespace Quartz.Impl.Triggers
 		/// <summary>
 		/// Called when the <see cref="IScheduler" /> has decided to 'fire'
 		/// the trigger (Execute the associated <see cref="IJob" />), in order to
-		/// give the <see cref="Trigger" /> a chance to update itself for its next
+		/// give the <see cref="ITrigger" /> a chance to update itself for its next
 		/// triggering (if any).
 		/// </summary>
 		/// <seealso cref="JobExecutionException" />
@@ -517,8 +543,8 @@ namespace Quartz.Impl.Triggers
         }
 
 		/// <summary>
-		/// Called by the scheduler at the time a <see cref="Trigger" /> is first
-		/// added to the scheduler, in order to have the <see cref="Trigger" />
+		/// Called by the scheduler at the time a <see cref="ITrigger" /> is first
+		/// added to the scheduler, in order to have the <see cref="ITrigger" />
 		/// compute its first fire time, based on any associated calendar.
 		/// <p>
 		/// After this method has been called, <see cref="GetNextFireTimeUtc" />
@@ -526,9 +552,9 @@ namespace Quartz.Impl.Triggers
 		/// </p>
 		/// </summary>
 		/// <returns> 
-		/// The first time at which the <see cref="Trigger" /> will be fired
+		/// The first time at which the <see cref="ITrigger" /> will be fired
 		/// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
-		/// will return (until after the first firing of the <see cref="Trigger" />).
+		/// will return (until after the first firing of the <see cref="ITrigger" />).
 		/// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal)
     	{
@@ -558,41 +584,32 @@ namespace Quartz.Impl.Triggers
 		/// Returns the next time at which the <see cref="ISimpleTrigger" /> will
 		/// fire. If the trigger will not fire again, <see langword="null" /> will be
 		/// returned. The value returned is not guaranteed to be valid until after
-		/// the <see cref="Trigger" /> has been added to the scheduler.
+		/// the <see cref="ITrigger" /> has been added to the scheduler.
 		/// </summary>
         public override DateTimeOffset? GetNextFireTimeUtc()
 		{
 			return nextFireTimeUtc;
 		}
 
+	    public override void SetNextFireTimeUtc(DateTimeOffset? value)
+	    {
+	        throw new NotImplementedException();
+	    }
+
+	    public override void SetPreviousFireTimeUtc(DateTimeOffset? value)
+	    {
+	        throw new NotImplementedException();
+	    }
+
 	    /// <summary>
 	    /// Returns the previous time at which the <see cref="ISimpleTrigger" /> fired.
 	    /// If the trigger has not yet fired, <see langword="null" /> will be
 	    /// returned.
 	    /// </summary>
-	    public override DateTimeOffset? PreviousFireTimeUtc
+	    public override DateTimeOffset? GetPreviousFireTimeUtc()
 	    {
-	        get { return previousFireTimeUtc; }
-            set { previousFireTimeUtc = value; }
+	        return previousFireTimeUtc;
 	    }
-
-	    /// <summary>
-	    /// Set the next UTC time at which the <see cref="ISimpleTrigger" /> should fire.
-	    /// <strong>This method should not be invoked by client code.</strong>
-	    /// </summary>
-	    public override DateTimeOffset? NextFireTimeUtc
-	    {
-	        set { nextFireTimeUtc = value; }
-	    }
-
-	    /// <summary>
-		/// Set the previous UTC time at which the <see cref="ISimpleTrigger" /> fired.
-		/// <strong>This method should not be invoked by client code.</strong>
-		/// </summary>
-        public virtual void SetPreviousFireTime(DateTimeOffset? fireTimeUtc)
-		{
-			previousFireTimeUtc = fireTimeUtc;
-		}
 
 		/// <summary> 
 		/// Returns the next UTC time at which the <see cref="ISimpleTrigger" /> will
@@ -693,7 +710,7 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary>
-		/// Validates whether the properties of the <see cref="JobDetailImpl" /> are
+		/// Validates whether the properties of the <see cref="IJobDetail" /> are
 		/// valid for submission into a <see cref="IScheduler" />.
 		/// </summary>
 		public override void Validate()

@@ -162,8 +162,8 @@ namespace Quartz.Util
                 group = DefaultGroup;
             }
 
-            string n1 = UUID.randomUUID().toString();
-            string n2 = UUID.nameUUIDFromBytes(group.getBytes()).toString();
+            string n1 = Guid.NewGuid().ToString();
+            string n2 = Guid.NewGuid().ToString();
 
             return String.Format("{0}-{1}", n2.Substring(24), n1);
         }
