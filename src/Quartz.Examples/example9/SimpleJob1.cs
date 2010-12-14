@@ -38,8 +38,8 @@ namespace Quartz.Examples.Example9
 		/// The implementation may wish to set a  result object on the
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to
-		/// <see cref="JobListeners" /> or
-		/// <see cref="TriggerListeners" /> that are watching the job's
+		/// <see cref="IJobListener" />s or
+		/// <see cref="ITriggerListener" />s that are watching the job's
 		/// execution.
 		/// </p>
 		/// </summary>
@@ -49,8 +49,8 @@ namespace Quartz.Examples.Example9
 			
 			// This job simply prints out its job name and the
 			// date and time that it is running
-			string jobName = context.JobDetail.FullName;
-			log.Info(string.Format("SimpleJob1 says: {0} executing at {1}", jobName, DateTime.Now.ToString("r")));
+			JobKey jobKey = context.JobDetail.Key;
+			log.InfoFormat("SimpleJob1 says: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
 		}
 	}
 }

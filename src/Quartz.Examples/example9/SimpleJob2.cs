@@ -34,8 +34,8 @@ namespace Quartz.Examples.Example9
 		{
 			// This job simply prints out its job name and the
 			// date and time that it is running
-			string jobName = context.JobDetail.FullName;
-			log.Info(string.Format("SimpleJob2 says: {0} executing at {1}", jobName, System.DateTime.Now.ToString("r")));
+			JobKey jobKey = context.JobDetail.Key;
+			log.InfoFormat("SimpleJob2 says: {0} executing at {1}", jobKey, System.DateTime.Now.ToString("r"));
 		}
 	}
 }

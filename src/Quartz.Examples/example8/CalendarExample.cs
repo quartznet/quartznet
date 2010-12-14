@@ -74,11 +74,21 @@ namespace Quartz.Examples.Example8
 			
 			// schedule a job to run hourly, starting on halloween
 			// at 10 am
-			DateTime runDate = new DateTime(DateTime.UtcNow.Year, 10, 31, 10, 0, 0).ToUniversalTime();
-			JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof(SimpleJob));
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runDate, null, SimpleTrigger.RepeatIndefinitely, TimeSpan.FromHours(1));
-			// tell the trigger to obey the Holidays calendar!
-			trigger.CalendarName = "holidays";
+			
+        DateTimeOffset  runDate = DateBuilder.DateOf(0, 0, 10, 31, 10);
+        
+        IJobDetail job = JobBuilder.NewJob<SimpleJob>()
+            .WithIdentity("job1", "group1")
+            .Build();
+        
+        ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create() 
+                                                      .WithIdentity("trigger1", "group1")
+                                                      .StartAt(runDate)
+                                                      .WithSchedule(SimpleScheduleBuilder.Create()
+                                                                        .WithIntervalInHours(1)
+                                                                        .RepeatForever())
+                                                      .ModifiedByCalendar("holidays")
+                                                      .Build();
 			
 			// schedule the job and print the first run date
             DateTimeOffset firstRunTime = sched.ScheduleJob(job, trigger);
@@ -86,7 +96,7 @@ namespace Quartz.Examples.Example8
 			// print out the first execution date.
 			// Note:  Since Halloween (Oct 31) is a holiday, then
 			// we will not run unti the next day! (Nov 1)
-			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.FullName, firstRunTime.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
+			log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, firstRunTime.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 			
 			// All of the jobs have been added to the scheduler, but none of the jobs
 			// will run until the scheduler has been started

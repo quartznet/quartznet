@@ -36,7 +36,7 @@ namespace Quartz
     /// <seealso cref="CronScheduleBuilder" />
     /// <seealso cref="IScheduleBuilder" />
     /// <seealso cref="SimpleScheduleBuilder" />
-    /// <seealso cref="TriggerBuilder{T}" />
+    /// <seealso cref="TriggerBuilder" />
     public class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarIntervalTrigger>
     {
         private int interval = 1;

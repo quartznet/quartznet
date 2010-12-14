@@ -473,16 +473,16 @@ namespace Quartz.Xml
                     throw new SchedulerConfigException("Unknown trigger type in XML configuration");
                 }
 
-                IMutableTrigger trigger = TriggerBuilder<IMutableTrigger>.Create()
-                    .WithIdentity(triggerName, triggerGroup)
-                    .WithDescription(triggerDescription)
-                    .ForJob(triggerJobName, triggerJobGroup)
-                    .StartAt(triggerStartTime)
-                    .EndAt(triggerEndTime)
-                    .WithPriority(triggerPriority)
-                    .ModifiedByCalendar(triggerCalendarRef)
-                    .WithSchedule(sched)
-                    .Build();
+                IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create()
+                                                                .WithIdentity(triggerName, triggerGroup)
+                                                                .WithDescription(triggerDescription)
+                                                                .ForJob(triggerJobName, triggerJobGroup)
+                                                                .StartAt(triggerStartTime)
+                                                                .EndAt(triggerEndTime)
+                                                                .WithPriority(triggerPriority)
+                                                                .ModifiedByCalendar(triggerCalendarRef)
+                                                                .WithSchedule(sched)
+                                                                .Build();
 
                 if (triggerNode.Item.jobdatamap != null && triggerNode.Item.jobdatamap.entry != null)
                 {

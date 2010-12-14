@@ -1533,7 +1533,7 @@ namespace Quartz.Impl.AdoJobStore
 
                             TriggerPropertyBundle triggerProps = tDel.LoadExtendedTriggerProperties(conn, triggerKey);
 
-                            TriggerBuilder<ISimpleTrigger> tb = TriggerBuilder<ISimpleTrigger>.Create()
+                            TriggerBuilder tb = TriggerBuilder.Create()
                                 .WithDescription(description)
                                 .WithPriority(priority)
                                 .StartAt(startTimeD)

@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,34 +16,32 @@
  * under the License.
  * 
  */
+
 #endregion
 
-using System;
 using System.Collections.Specialized;
 
 using Common.Logging;
+
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example12
 {
-	
-	/// <summary> 
-	/// This example is a client program that will remotely 
-	/// talk to the scheduler to schedule a job.   In this 
-	/// example, we will need to use the JDBC Job Store.  The 
-	/// client will connect to the JDBC Job Store remotely to 
-	/// schedule the job.
-	/// </summary>
-	/// <author>James House</author>
+    /// <summary> 
+    /// This example is a client program that will remotely 
+    /// talk to the scheduler to schedule a job.   In this 
+    /// example, we will need to use the JDBC Job Store.  The 
+    /// client will connect to the JDBC Job Store remotely to 
+    /// schedule the job.
+    /// </summary>
+    /// <author>James House</author>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
     public class RemoteClientExample : IExample
-	{
-		
-		public virtual void Run()
-		{
-			
-			ILog log = LogManager.GetLogger(typeof(RemoteClientExample));
+    {
+        public virtual void Run()
+        {
+            ILog log = LogManager.GetLogger(typeof (RemoteClientExample));
 
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.scheduler.instanceName"] = "RemoteClient";
@@ -56,30 +55,34 @@ namespace Quartz.Examples.Example12
             properties["quartz.scheduler.proxy"] = "true";
             properties["quartz.scheduler.proxy.address"] = "tcp://localhost:555/QuartzScheduler";
 
-			// First we must get a reference to a scheduler
-			ISchedulerFactory sf = new StdSchedulerFactory(properties);
-			IScheduler sched = sf.GetScheduler();
-			
-			// define the job and ask it to run
-			JobDetailImpl job = new JobDetailImpl("remotelyAddedJob", "default", typeof(SimpleJob));
-			JobDataMap map = new JobDataMap();
-			map.Put("msg", "Your remotely added job has executed!");
-			job.JobDataMap = map;
-			CronTrigger trigger = new CronTrigger("remotelyAddedTrigger", "default", "remotelyAddedJob", "default", DateTime.UtcNow, null, "/5 * * ? * *");
-			
-			// schedule the job
-			sched.ScheduleJob(job, trigger);
-			
-			log.Info("Remote job scheduled.");
-		}
+            // First we must get a reference to a scheduler
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler sched = sf.GetScheduler();
 
-		public string Name
-		{
-			get
-			{
-				return null;
-			}
-		}
+            // define the job and ask it to run
 
-	}
+            IJobDetail job = JobBuilder.NewJob<SimpleJob>()
+                .WithIdentity("remotelyAddedJob", "default")
+                .Build();
+
+            JobDataMap map = job.JobDataMap;
+            map.Put("msg", "Your remotely added job has executed!");
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("remotelyAddedTrigger", "default")
+                .ForJob(job.Key)
+                .WithSchedule(CronScheduleBuilder.CronSchedule("/5 * * ? * *"))
+                .Build();
+
+            // schedule the job
+            sched.ScheduleJob(job, trigger);
+
+            log.Info("Remote job scheduled.");
+        }
+
+        public string Name
+        {
+            get { return null; }
+        }
+    }
 }

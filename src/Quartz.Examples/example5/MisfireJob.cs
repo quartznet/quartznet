@@ -29,7 +29,9 @@ namespace Quartz.Examples.Example5
 	/// </summary>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class MisfireJob : IStatefulJob
+    [PersistJobDataAfterExecution]
+    [DisallowConcurrentExecution]
+    public class MisfireJob : IJob
 	{
 		// Logging
 		private static readonly ILog log = LogManager.GetLogger(typeof(MisfireJob));
@@ -44,8 +46,8 @@ namespace Quartz.Examples.Example5
 		/// </summary>
 		public virtual void  Execute(IJobExecutionContext context)
 		{
-			string jobName = context.JobDetail.FullName;
-			log.Info(string.Format("---{0} executing at {1}", jobName, DateTime.Now.ToString("r")));
+			JobKey jobKey = context.JobDetail.Key;
+			log.Info(string.Format("---{0} executing at {1}", jobKey, DateTime.Now.ToString("r")));
 			
 			// default delay to five seconds
 			int delay = 5;
@@ -65,7 +67,7 @@ namespace Quartz.Examples.Example5
 			{
 			}
 			
-			log.Info(string.Format("---{0} completed at {1}", jobName, DateTime.Now.ToString("r")));
+			log.Info(string.Format("---{0} completed at {1}", jobKey, DateTime.Now.ToString("r")));
 		}
 
 	}

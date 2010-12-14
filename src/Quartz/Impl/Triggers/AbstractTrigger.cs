@@ -785,9 +785,9 @@ namespace Quartz.Impl.Triggers
 		}
 
 
-	    protected TriggerBuilder<T> GetTriggerBuilder<T>() where T : ITrigger
+	    protected TriggerBuilder GetTriggerBuilder<T>() where T : ITrigger
         {
-            TriggerBuilder<T> b = TriggerBuilder<T>.Create()
+            TriggerBuilder b = TriggerBuilder.Create()
                 .ForJob(JobKey)
                 .ModifiedByCalendar(CalendarName)
                 .UsingJobData(JobDataMap)

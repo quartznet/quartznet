@@ -29,7 +29,9 @@ namespace Quartz.Examples.Example4
 	/// </summary>
 	/// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class ColorJob : IStatefulJob
+    [PersistJobDataAfterExecution]
+    [DisallowConcurrentExecution]
+    public class ColorJob : IJob
 	{
 		private static readonly ILog log = LogManager.GetLogger(typeof(ColorJob));
 		
@@ -52,14 +54,18 @@ namespace Quartz.Examples.Example4
 			
 			// This job simply prints out its job name and the
 			// date and time that it is running
-			string jobName = context.JobDetail.FullName;
+			JobKey jobKey = context.JobDetail.Key;
 			
 			// Grab and print passed parameters
 			JobDataMap data = context.JobDetail.JobDataMap;
 			string favoriteColor = data.GetString(FavoriteColor);
 			int count = data.GetInt(ExecutionCount);
-			log.Info(string.Format("ColorJob: {0} executing at {1}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}", 
-                jobName, DateTime.Now.ToString("r"), favoriteColor, count, counter));
+			log.InfoFormat(
+                "ColorJob: {0} executing at {1}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}", 
+                jobKey, 
+                DateTime.Now.ToString("r"), 
+                favoriteColor, 
+                count, counter);
 			
 			// increment the count and store it back into the 
 			// job map so that job state can be properly maintained

@@ -40,7 +40,7 @@ namespace Quartz.Impl.Matchers
             this.compareTo = compareTo;
         }
 
-        public static KeyMatcher<U> matchKey<U>(U compareTo) where U : Key<U>
+        public static KeyMatcher<U> MatchKey<U>(U compareTo) where U : Key<U>
         {
             return new KeyMatcher<U>(compareTo);
         }
@@ -50,9 +50,9 @@ namespace Quartz.Impl.Matchers
             return compareTo.Equals(key);
         }
 
-        public T getCompareToValue()
+        public T CompareToValue
         {
-            return compareTo;
+            get { return compareTo; }
         }
 
         public override int GetHashCode()

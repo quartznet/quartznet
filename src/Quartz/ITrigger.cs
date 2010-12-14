@@ -25,7 +25,7 @@ namespace Quartz
 {
     /// <summary>
     /// The base interface with properties common to all <code>Trigger</code>s - 
-    /// use <see cref="TriggerBuilder{T}" /> to instantiate an actual Trigger.
+    /// use <see cref="TriggerBuilder" /> to instantiate an actual Trigger.
     /// </summary>
     /// <remarks>
     /// <p>
@@ -44,7 +44,7 @@ namespace Quartz
     /// into the <see cref="JobDataMap" /> on the <see cref="ITrigger" />.
     /// </p>
     /// </remarks>
-    /// <seealso cref="TriggerBuilder{T}" />
+    /// <seealso cref="TriggerBuilder" />
     /// <seealso cref="ICalendarIntervalTrigger" />
     /// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="ICronTrigger" />

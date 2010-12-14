@@ -19,7 +19,7 @@ namespace Quartz
         /// </summary>
         int TimesTriggered { get; set; }
 
-        TriggerBuilder<ICalendarIntervalTrigger> GetTriggerBuilder();
+        TriggerBuilder GetTriggerBuilder();
     }
 
     public enum IntervalUnit

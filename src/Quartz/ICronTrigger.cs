@@ -179,6 +179,6 @@ namespace Quartz
         /// <returns></returns>
         string GetExpressionSummary();
 
-        TriggerBuilder<ICronTrigger> GetTriggerBuilder();
+        TriggerBuilder GetTriggerBuilder();
     }
 }

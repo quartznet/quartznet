@@ -251,7 +251,7 @@ namespace Quartz.Impl.Triggers
             set { this.timesTriggered = value; }
         }
 
-        public TriggerBuilder<ICalendarIntervalTrigger> GetTriggerBuilder()
+        public TriggerBuilder GetTriggerBuilder()
         {
             throw new NotImplementedException();
         }

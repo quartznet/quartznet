@@ -49,7 +49,7 @@ namespace Quartz
     /// scheduler.scheduleJob(job, trigger);
     /// </pre>
     /// </remarks>
-    /// <seealso cref="TriggerBuilder{T}" />
+    /// <seealso cref="TriggerBuilder" />
     /// <seealso cref="JobBuilder" />
     public class DateBuilder
     {
@@ -94,7 +94,7 @@ namespace Quartz
 
         public static DateTimeOffset FutureDate(int interval, IntervalUnit unit)
         {
-            return TranslatedAdd(DateTimeOffset.UtcNow, unit, interval);
+            return TranslatedAdd(SystemTime.UtcNow(), unit, interval);
         }
 
 
@@ -289,7 +289,7 @@ namespace Quartz
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenMinuteDateAfterNow()
         {
-            return EvenMinuteDate(DateTimeOffset.UtcNow);
+            return EvenMinuteDate(SystemTime.UtcNow());
         }
 
         /// <summary>
@@ -347,7 +347,7 @@ namespace Quartz
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenSecondDateAfterNow()
         {
-            return EvenSecondDate(DateTimeOffset.UtcNow);
+            return EvenSecondDate(SystemTime.UtcNow());
         }
 
         /// <summary>
@@ -480,15 +480,15 @@ namespace Quartz
         /// <param name="minuteBase"></param>
         /// the base-minute to set the time on
         /// <returns>the new rounded date</returns>
-        /// <seealso cref="NextGivenSecondDate(DateTimeOffset, int)" />
-        public static DateTimeOffset NextGivenMinuteDate(DateTimeOffset date, int minuteBase)
+        /// <seealso cref="NextGivenSecondDate(DateTimeOffset?, int)" />
+        public static DateTimeOffset NextGivenMinuteDate(DateTimeOffset? date, int minuteBase)
         {
             if (minuteBase < 0 || minuteBase > 59)
             {
                 throw new ArgumentException("minuteBase must be >=0 and <= 59");
             }
 
-            DateTimeOffset c = date;
+            DateTimeOffset c = date ?? SystemTime.UtcNow();
 
             if (minuteBase == 0)
             {
@@ -525,15 +525,15 @@ namespace Quartz
         /// be used
         /// <param name="secondBase">the base-second to set the time on</param>
         /// <returns>the new rounded date</returns>
-        /// <seealso cref="NextGivenMinuteDate(DateTimeOffset, int)" />
-        public static DateTimeOffset NextGivenSecondDate(DateTimeOffset date, int secondBase)
+        /// <seealso cref="NextGivenMinuteDate(DateTimeOffset?, int)" />
+        public static DateTimeOffset NextGivenSecondDate(DateTimeOffset? date, int secondBase)
         {
             if (secondBase < 0 || secondBase > 59)
             {
                 throw new ArgumentException("secondBase must be >=0 and <= 59");
             }
 
-            DateTimeOffset c = date;
+            DateTimeOffset c = date ?? SystemTime.UtcNow();
 
             if (secondBase == 0)
             {

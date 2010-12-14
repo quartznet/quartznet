@@ -58,7 +58,7 @@ namespace Quartz
     /// <seealso cref="IScheduleBuilder" />
     /// <seealso cref="SimpleScheduleBuilder" />
     /// <seealso cref="CalendarIntervalScheduleBuilder" />
-    /// <seealso cref="TriggerBuilder{T}" />
+    /// <seealso cref="TriggerBuilder" />
     public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     {
         private readonly string cronExpression;
@@ -77,7 +77,7 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// </remarks>
-        /// <seealso cref="TriggerBuilder{T}.WithSchedule" />
+        /// <seealso cref="TriggerBuilder.WithSchedule" />
         public override IMutableTrigger Build()
         {
             CronTriggerImpl ct = new CronTriggerImpl();

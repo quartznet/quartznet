@@ -55,7 +55,7 @@ namespace Quartz
     ///         scheduler.scheduleJob(job, trigger);
     /// </pre>
     /// </remarks>
-    /// <seealso cref="TriggerBuilder{T}" />
+    /// <seealso cref="TriggerBuilder" />
     /// <seealso cref="DateBuilder" />
     /// <seealso cref="IJobDetail" />
     public class JobBuilder
@@ -90,6 +90,18 @@ namespace Quartz
         {
             JobBuilder b = new JobBuilder();
             b.OfType(jobType);
+            return b;
+        }
+
+        /// <summary>
+        /// Create a JobBuilder with which to define a <code>JobDetail</code>,
+        /// and set the class name of the <code>Job</code> to be executed.
+        /// </summary>
+        /// <returns>a new JobBuilder</returns>
+        public static JobBuilder NewJob<T>() where T : IJob
+        {
+            JobBuilder b = new JobBuilder();
+            b.OfType(typeof(T));
             return b;
         }
 

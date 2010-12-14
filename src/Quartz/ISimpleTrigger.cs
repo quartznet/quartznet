@@ -8,7 +8,7 @@ namespace Quartz
     /// A <see cref="ITrigger" /> that is used to fire a <see cref="IJob" />
     /// at a given moment in time, and optionally repeated at a specified interval.
     /// </summary>
-    /// <seealso cref="TriggerBuilder{T}" />
+    /// <seealso cref="TriggerBuilder" />
     /// <seealso cref="SimpleScheduleBuilder" />
     /// <author>James House</author>
     /// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
@@ -33,6 +33,6 @@ namespace Quartz
         /// </summary>
         int TimesTriggered { get; set; }
 
-        TriggerBuilder<ISimpleTrigger> GetTriggerBuilder();
+        TriggerBuilder GetTriggerBuilder();
     }
 }

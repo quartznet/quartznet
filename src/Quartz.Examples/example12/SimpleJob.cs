@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,42 +16,41 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
+
 using Common.Logging;
 
 namespace Quartz.Examples.Example12
 {
-	
-	/// <summary>
-	/// A dumb implementation of Job, for unittesting purposes.
-	/// </summary>
-	/// <author>James House</author>
+    /// <summary>
+    /// A dumb implementation of Job, for unittesting purposes.
+    /// </summary>
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob : IJob
-	{
-		public const string MESSAGE = "msg";
-		private static ILog _log = LogManager.GetLogger(typeof(SimpleJob));
-		
-	
-		/// <summary> 
-		/// Called by the <see cref="IScheduler" /> when a
-		/// <see cref="ITrigger" /> fires that is associated with
-		/// the <see cref="IJob" />.
-		/// </summary>
-		public virtual void Execute(IJobExecutionContext context)
-		{
-			
-			// This job simply prints out its job name and the
-			// date and time that it is running
-			string jobName = context.JobDetail.FullName;
-			
-			string message = context.JobDetail.JobDataMap.GetString(MESSAGE);
-			
-			_log.Info("SimpleJob: " + jobName + " executing at " + DateTime.Now.ToString("r"));
-			_log.Info("SimpleJob: msg: " + message);
-		}
+    {
+        public const string Message = "msg";
+        private static readonly ILog log = LogManager.GetLogger(typeof (SimpleJob));
 
-	}
+
+        /// <summary> 
+        /// Called by the <see cref="IScheduler" /> when a
+        /// <see cref="ITrigger" /> fires that is associated with
+        /// the <see cref="IJob" />.
+        /// </summary>
+        public virtual void Execute(IJobExecutionContext context)
+        {
+            // This job simply prints out its job name and the
+            // date and time that it is running
+            JobKey jobKey = context.JobDetail.Key;
+
+            string message = context.JobDetail.JobDataMap.GetString(Message);
+
+            log.InfoFormat("SimpleJob: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
+            log.InfoFormat("SimpleJob: msg: {0}", message);
+        }
+    }
 }

@@ -28,7 +28,7 @@ namespace Quartz.Examples.Example14
     /// <author>Marko Lahma (.NET)</author>
     public class TriggerEchoJob : IJob
     {
-        private static readonly ILog LOG = LogManager.GetLogger(typeof (TriggerEchoJob));
+        private static readonly ILog log = LogManager.GetLogger(typeof (TriggerEchoJob));
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
@@ -46,7 +46,7 @@ namespace Quartz.Examples.Example14
         /// <param name="context"></param>
         public void Execute(IJobExecutionContext context)
         {
-            LOG.Info("TRIGGER: " + context.Trigger.Name);
+            log.Info("TRIGGER: " + context.Trigger.Key);
         }
 
     }

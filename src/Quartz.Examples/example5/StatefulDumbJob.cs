@@ -28,7 +28,9 @@ namespace Quartz.Examples.Example5
 	/// </summary>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class StatefulDumbJob : IStatefulJob
+    [PersistJobDataAfterExecution]
+    [DisallowConcurrentExecution]
+    public class StatefulDumbJob : IJob
 	{
 		public const string NumExecutions = "NumExecutions";
 		public const string ExecutionDelay = "ExecutionDelay";
@@ -39,7 +41,7 @@ namespace Quartz.Examples.Example5
 		/// </summary>
 		public virtual void  Execute(IJobExecutionContext context)
 		{
-			Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.FullName, DateTime.Now.ToString("r"));
+			Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.Key, DateTime.Now.ToString("r"));
 			
 			JobDataMap map = context.JobDetail.JobDataMap;
 			
@@ -62,8 +64,8 @@ namespace Quartz.Examples.Example5
             catch (ThreadInterruptedException)
 			{
 			}
-			
-			Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.FullName, executeCount);
+
+            Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
 		}
 	}
 }

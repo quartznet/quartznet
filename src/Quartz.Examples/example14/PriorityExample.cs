@@ -61,7 +61,9 @@ namespace Quartz.Examples.Example14
 
             log.Info("------- Scheduling Jobs -------------------");
 
-            JobDetailImpl job = new JobDetailImpl("TriggerEchoJob", null, typeof (TriggerEchoJob));
+            IJobDetail job = JobBuilder.NewJob<TriggerEchoJob>()
+                .WithIdentity("TriggerEchoJob")
+                .Build();
 
             // All three triggers will fire their first time at the same time, 
             // ordered by their priority, and then repeat once, firing in a 
@@ -76,24 +78,33 @@ namespace Quartz.Examples.Example14
             // 6. Priority10Trigger15SecondRepeat
 
             // Calculate the start time of all triggers as 5 seconds from now
-            DateTime startTime = DateTime.UtcNow.AddSeconds(5);
+            DateTimeOffset startTime = DateBuilder.FutureDate(5, DateBuilder.IntervalUnit.Second);
 
             // First trigger has priority of 1, and will repeat after 5 seconds
-            SimpleTrigger trigger1 =
-                new SimpleTrigger("PriorityNeg5Trigger5SecondRepeat", null, startTime, null, 1, TimeSpan.FromSeconds(5));
-            trigger1.Priority = 1;
-            trigger1.JobName = "TriggerEchoJob";
+            ITrigger trigger1 = TriggerBuilder.Create()
+                .WithIdentity("PriorityNeg5Trigger5SecondRepeat")
+                .StartAt(startTime)
+                .WithSchedule(SimpleScheduleBuilder.Create().WithRepeatCount(1).WithIntervalInSeconds(5))
+                .WithPriority(1)
+                .ForJob(job)
+                .Build();
 
-            // Second trigger has default priority of 5, and will repeat after 10 seconds
-            SimpleTrigger trigger2 =
-                new SimpleTrigger("Priority5Trigger10SecondRepeat", null, startTime, null, 1, TimeSpan.FromSeconds(10));
-            trigger2.JobName = "TriggerEchoJob";
+            // Second trigger has default priority of 5 (default), and will repeat after 10 seconds
+            ITrigger trigger2 = TriggerBuilder.Create()
+                .WithIdentity("Priority5Trigger10SecondRepeat")
+                .StartAt(startTime)
+                .WithSchedule(SimpleScheduleBuilder.Create().WithRepeatCount(1).WithIntervalInSeconds(10))
+                .ForJob(job)
+                .Build();
 
             // Third trigger has priority 10, and will repeat after 15 seconds
-            SimpleTrigger trigger3 =
-                new SimpleTrigger("Priority10Trigger15SecondRepeat", null, startTime, null, 1, TimeSpan.FromSeconds(15));
-            trigger3.Priority = 10;
-            trigger3.JobName = "TriggerEchoJob";
+            ITrigger trigger3 = TriggerBuilder.Create()
+                .WithIdentity("Priority10Trigger15SecondRepeat")
+                .StartAt(startTime)
+                .WithSchedule(SimpleScheduleBuilder.Create().WithRepeatCount(1).WithIntervalInSeconds(15))
+                .WithPriority(10)
+                .ForJob(job)
+                .Build();
 
             // Tell quartz to schedule the job using our trigger
             sched.ScheduleJob(job, trigger1);
@@ -111,7 +122,7 @@ namespace Quartz.Examples.Example14
 
             try
             {
-                Thread.Sleep(30*1000);
+                Thread.Sleep(TimeSpan.FromSeconds(30));
             }
             catch (ThreadInterruptedException)
             {

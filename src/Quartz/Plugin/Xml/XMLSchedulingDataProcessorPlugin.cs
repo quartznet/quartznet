@@ -206,7 +206,7 @@ namespace Quartz.Plugin.Xml
                         trig = new SimpleTriggerImpl();
                         trig.Name = (jobTriggerName);
                         trig.Group = (JobInitializationPluginName);
-                        trig.StartTimeUtc = (DateTimeOffset.UtcNow);
+                        trig.StartTimeUtc = SystemTime.UtcNow();
                         trig.EndTimeUtc = (null);
                         trig.RepeatCount = (SimpleTriggerImpl.RepeatIndefinitely);
                         trig.RepeatInterval = (scanInterval);

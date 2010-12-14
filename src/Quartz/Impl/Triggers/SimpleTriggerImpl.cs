@@ -225,7 +225,7 @@ namespace Quartz.Impl.Triggers
             set { timesTriggered = value; }
         }
 
-	    public TriggerBuilder<ISimpleTrigger> GetTriggerBuilder()
+	    public TriggerBuilder GetTriggerBuilder()
 	    {
 	        return GetTriggerBuilder<ISimpleTrigger>();
 	    }

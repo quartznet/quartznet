@@ -34,7 +34,7 @@ namespace Quartz
     /// <p>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <see cref="TriggerBuilder{T}" />, <see cref="JobBuilder" />, 
+    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />, 
     /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" /> 
     /// and the various <see cref="IScheduleBuilder" /> implementations.</p>
     /// 

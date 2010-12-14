@@ -956,7 +956,7 @@ namespace Quartz.Core
 
             // TODO: use builder
             IOperableTrigger trig = new SimpleTriggerImpl(
-                NewTriggerId(), SchedulerConstants.DefaultGroup, jobKey.Name, jobKey.Group, DateTimeOffset.UtcNow, null, 0, TimeSpan.Zero);
+                NewTriggerId(), SchedulerConstants.DefaultGroup, jobKey.Name, jobKey.Group, SystemTime.UtcNow(), null, 0, TimeSpan.Zero);
 
             trig.ComputeFirstFireTimeUtc(null);
             if (data != null)

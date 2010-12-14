@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -26,126 +28,169 @@ using Quartz.Impl;
 
 namespace Quartz.Examples.Example3
 {
-	
-	/// <summary> 
-	/// This Example will demonstrate all of the basics of scheduling capabilities of
-	/// Quartz using Cron Triggers.
-	/// </summary>
-	/// <author>Bill Kratzer</author>
+    /// <summary> 
+    /// This Example will demonstrate all of the basics of scheduling capabilities of
+    /// Quartz using Cron Triggers.
+    /// </summary>
+    /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
     public class CronTriggerExample : IExample
-	{
-		public string Name
-		{
-			get { throw new NotImplementedException(); }
-		}
+    {
+        public string Name
+        {
+            get { throw new NotImplementedException(); }
+        }
 
-		public virtual void  Run()
-		{
-			ILog log = LogManager.GetLogger(typeof(CronTriggerExample));
-			
-			log.Info("------- Initializing -------------------");
-			
-			// First we must get a reference to a scheduler
-			ISchedulerFactory sf = new StdSchedulerFactory();
-			IScheduler sched = sf.GetScheduler();
-			
-			log.Info("------- Initialization Complete --------");
-			
-			log.Info("------- Scheduling Jobs ----------------");
-			
-			// jobs can be scheduled before sched.start() has been called
-			
-			// job 1 will run every 20 seconds
-			JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof(SimpleJob));
-			CronTrigger trigger = new CronTrigger("trigger1", "group1", "job1", "group1", "0/20 * * * * ?");
-			sched.AddJob(job, true);
-            DateTimeOffset ft = sched.ScheduleJob(trigger);
-            ft = TimeZoneInfo.ConvertTime(ft, trigger.TimeZone);
+        public virtual void Run()
+        {
+            ILog log = LogManager.GetLogger(typeof (CronTriggerExample));
 
-            log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName,  ft.ToString("r"), trigger.CronExpressionString));
-			
-			// job 2 will run every other minute (at 15 seconds past the minute)
-			job = new JobDetailImpl("job2", "group1", typeof(SimpleJob));
-			trigger = new CronTrigger("trigger2", "group1", "job2", "group1", "15 0/2 * * * ?");
-			sched.AddJob(job, true);
-			ft = sched.ScheduleJob(trigger);
-            ft = TimeZoneInfo.ConvertTime(ft, trigger.TimeZone);
-            log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName, ft.ToString("r"), trigger.CronExpressionString));
-			
-			// job 3 will run every other minute but only between 8am and 5pm
-			job = new JobDetailImpl("job3", "group1", typeof(SimpleJob));
-			trigger = new CronTrigger("trigger3", "group1", "job3", "group1", "0 0/2 8-17 * * ?");
-			sched.AddJob(job, true);
-			ft = sched.ScheduleJob(trigger);
-            ft = TimeZoneInfo.ConvertTime(ft, trigger.TimeZone);
-            log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName, ft.ToString("r"), trigger.CronExpressionString));
-			
-			// job 4 will run every three minutes but only between 5pm and 11pm
-			job = new JobDetailImpl("job4", "group1", typeof(SimpleJob));
-			trigger = new CronTrigger("trigger4", "group1", "job4", "group1", "0 0/3 17-23 * * ?");
-			sched.AddJob(job, true);
-            ft = sched.ScheduleJob(trigger);
-            ft = TimeZoneInfo.ConvertTime(ft, trigger.TimeZone);
-            log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName, ft.ToString("r"), trigger.CronExpressionString));
-			
-			// job 5 will run at 10am on the 1st and 15th days of the month
-			job = new JobDetailImpl("job5", "group1", typeof(SimpleJob));
-			trigger = new CronTrigger("trigger5", "group1", "job5", "group1", "0 0 10am 1,15 * ?");
-			sched.AddJob(job, true);
-            ft = sched.ScheduleJob(trigger);
-            ft = TimeZoneInfo.ConvertTime(ft, trigger.TimeZone);
-            log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", job.FullName, ft.ToString("r"), trigger.CronExpressionString));
-			
-			// job 6 will run every 30 seconds but only on Weekdays (Monday through
-			// Friday)
-			job = new JobDetailImpl("job6", "group1", typeof(SimpleJob));
-			trigger = new CronTrigger("trigger6", "group1", "job6", "group1", "0,30 * * ? * MON-FRI");
-			sched.AddJob(job, true);
-            ft = sched.ScheduleJob(trigger);
-            ft = TimeZoneInfo.ConvertTime(ft, trigger.TimeZone);
-            log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", 
-                job.FullName, ft.ToString("r"), trigger.CronExpressionString));
-			
-			// job 7 will run every 30 seconds but only on Weekends (Saturday and
-			// Sunday)
-			job = new JobDetailImpl("job7", "group1", typeof(SimpleJob));
-			trigger = new CronTrigger("trigger7", "group1", "job7", "group1", "0,30 * * ? * SAT,SUN");
-			sched.AddJob(job, true);
-			ft = sched.ScheduleJob(trigger);
-            ft = TimeZoneInfo.ConvertTime(ft, trigger.TimeZone);
-            log.Info(string.Format("{0} has been scheduled to run at: {1} and repeat based on expression: {2}", 
-                job.FullName, ft.ToString("r"), trigger.CronExpressionString));
-			
-			log.Info("------- Starting Scheduler ----------------");
-			
-			// All of the jobs have been added to the scheduler, but none of the
-			// jobs
-			// will run until the scheduler has been started
-			sched.Start();
-			
-			log.Info("------- Started Scheduler -----------------");
-			
-			log.Info("------- Waiting five minutes... ------------");
-			try
-			{
-				// wait five minutes to show jobs
-				Thread.Sleep(300*1000);
-				// executing...
-			}
+            log.Info("------- Initializing -------------------");
+
+            // First we must get a reference to a scheduler
+            ISchedulerFactory sf = new StdSchedulerFactory();
+            IScheduler sched = sf.GetScheduler();
+
+            log.Info("------- Initialization Complete --------");
+
+            log.Info("------- Scheduling Jobs ----------------");
+
+            // jobs can be scheduled before sched.start() has been called
+
+            // job 1 will run every 20 seconds
+
+            IJobDetail job = JobBuilder.NewJob<SimpleJob>()
+                .WithIdentity("job1", "group1")
+                .Build();
+
+            ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
+                                                      .WithIdentity("trigger1", "group1")
+                                                      .WithSchedule(CronScheduleBuilder.CronSchedule("0/20 * * * * ?"))
+                                                      .Build();
+
+            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
+            log.Info(job.Key + " has been scheduled to run at: " + ft
+                     + " and repeat based on expression: "
+                     + trigger.CronExpressionString);
+
+            // job 2 will run every other minute (at 15 seconds past the minute)
+            job = JobBuilder.NewJob<SimpleJob>()
+                .WithIdentity("job2", "group1")
+                .Build();
+
+            trigger = (ICronTrigger) TriggerBuilder.Create()
+                                         .WithIdentity("trigger2", "group1")
+                                         .WithSchedule(CronScheduleBuilder.CronSchedule("15 0/2 * * * ?"))
+                                         .Build();
+
+            ft = sched.ScheduleJob(job, trigger);
+            log.Info(job.Key + " has been scheduled to run at: " + ft
+                     + " and repeat based on expression: "
+                     + trigger.CronExpressionString);
+
+            // job 3 will run every other minute but only between 8am and 5pm
+            job = JobBuilder.NewJob<SimpleJob>()
+                .WithIdentity("job3", "group1")
+                .Build();
+
+            trigger = (ICronTrigger) TriggerBuilder.Create()
+                                         .WithIdentity("trigger3", "group1")
+                                         .WithSchedule(CronScheduleBuilder.CronSchedule("0 0/2 8-17 * * ?"))
+                                         .Build();
+
+            ft = sched.ScheduleJob(job, trigger);
+            log.Info(job.Key + " has been scheduled to run at: " + ft
+                     + " and repeat based on expression: "
+                     + trigger.CronExpressionString);
+
+            // job 4 will run every three minutes but only between 5pm and 11pm
+            job = JobBuilder.NewJob<SimpleJob>()
+                .WithIdentity("job4", "group1")
+                .Build();
+
+            trigger = (ICronTrigger) TriggerBuilder.Create()
+                                         .WithIdentity("trigger4", "group1")
+                                         .WithSchedule(CronScheduleBuilder.CronSchedule("0 0/3 17-23 * * ?"))
+                                         .Build();
+
+            ft = sched.ScheduleJob(job, trigger);
+            log.Info(job.Key + " has been scheduled to run at: " + ft
+                     + " and repeat based on expression: "
+                     + trigger.CronExpressionString);
+
+            // job 5 will run at 10am on the 1st and 15th days of the month
+            job = JobBuilder.NewJob<SimpleJob>()
+                .WithIdentity("job5", "group1")
+                .Build();
+
+            trigger = (ICronTrigger) TriggerBuilder.Create()
+                                         .WithIdentity("trigger5", "group1")
+                                         .WithSchedule(CronScheduleBuilder.CronSchedule("0 0 10am 1,15 * ?"))
+                                         .Build();
+
+            ft = sched.ScheduleJob(job, trigger);
+            log.Info(job.Key + " has been scheduled to run at: " + ft
+                     + " and repeat based on expression: "
+                     + trigger.CronExpressionString);
+
+            // job 6 will run every 30 seconds but only on Weekdays (Monday through Friday)
+            job = JobBuilder.NewJob<SimpleJob>()
+                .WithIdentity("job6", "group1")
+                .Build();
+
+            trigger = (ICronTrigger) TriggerBuilder.Create()
+                                         .WithIdentity("trigger6", "group1")
+                                         .WithSchedule(CronScheduleBuilder.CronSchedule("0,30 * * ? * MON-FRI"))
+                                         .Build();
+
+            ft = sched.ScheduleJob(job, trigger);
+            log.Info(job.Key + " has been scheduled to run at: " + ft
+                     + " and repeat based on expression: "
+                     + trigger.CronExpressionString);
+
+            // job 7 will run every 30 seconds but only on Weekends (Saturday and Sunday)
+            job = JobBuilder.NewJob<SimpleJob>()
+                .WithIdentity("job7", "group1")
+                .Build();
+
+            trigger = (ICronTrigger) TriggerBuilder.Create()
+                                         .WithIdentity("trigger7", "group1")
+                                         .WithSchedule(CronScheduleBuilder.CronSchedule("0,30 * * ? * SAT,SUN"))
+                                         .Build();
+
+            ft = sched.ScheduleJob(job, trigger);
+            log.Info(job.Key + " has been scheduled to run at: " + ft
+                     + " and repeat based on expression: "
+                     + trigger.CronExpressionString);
+
+            log.Info("------- Starting Scheduler ----------------");
+
+            // All of the jobs have been added to the scheduler, but none of the
+            // jobs
+            // will run until the scheduler has been started
+            sched.Start();
+
+            log.Info("------- Started Scheduler -----------------");
+
+            log.Info("------- Waiting five minutes... ------------");
+            try
+            {
+                // wait five minutes to show jobs
+                Thread.Sleep(300*1000);
+                // executing...
+            }
             catch (ThreadInterruptedException)
-			{
-			}
-			
-			log.Info("------- Shutting Down ---------------------");
-			
-			sched.Shutdown(true);
-			
-			log.Info("------- Shutdown Complete -----------------");
-			
-			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
-		}
+            {
+            }
 
-	}
+            log.Info("------- Shutting Down ---------------------");
+
+            sched.Shutdown(true);
+
+            log.Info("------- Shutdown Complete -----------------");
+
+            SchedulerMetaData metaData = sched.GetMetaData();
+            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+        }
+    }
 }
