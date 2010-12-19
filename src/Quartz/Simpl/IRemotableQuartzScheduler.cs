@@ -20,6 +20,8 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Spi;
+
 namespace Quartz.Simpl
 {
     /// <summary>
@@ -97,6 +99,8 @@ namespace Quartz.Simpl
         DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
         void TriggerJob(JobKey jobKey, JobDataMap data);
+
+        void TriggerJob(IOperableTrigger trig);
 
         void PauseTrigger(TriggerKey triggerKey);
 

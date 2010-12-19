@@ -316,6 +316,12 @@ namespace Quartz.Core
         {
             log = LogManager.GetLogger(GetType());
             this.resources = resources;
+            
+            if (resources.JobStore is IJobListener) 
+            {
+                AddInternalJobListener((IJobListener) resources.JobStore);
+            }
+
             try
             {
                 Bind();
@@ -963,6 +969,34 @@ namespace Quartz.Core
             {
                 trig.JobDataMap = data;
             }
+
+            bool collision = true;
+            while (collision)
+            {
+                try
+                {
+                    resources.JobStore.StoreTrigger(trig, false);
+                    collision = false;
+                }
+                catch (ObjectAlreadyExistsException)
+                {
+                    trig.Key = new TriggerKey(NewTriggerId(), SchedulerConstants.DefaultGroup);
+                }
+            }
+
+            NotifySchedulerThread(trig.GetNextFireTimeUtc());
+            NotifySchedulerListenersScheduled(trig);
+        }
+
+        /// <summary>
+        /// Store and schedule the identified <code>{@link org.quartz.spi.OperableTrigger}</code>
+        /// </summary>
+        /// <param name="trig"></param>
+        public void TriggerJob(IOperableTrigger trig)
+        {
+            ValidateState();
+
+            trig.ComputeFirstFireTimeUtc(null);
 
             bool collision = true;
             while (collision)
@@ -1807,7 +1841,14 @@ namespace Quartz.Core
             {
                 try
                 {
-                    sl.SchedulingDataCleared();
+                    if (triggerKey == null)
+                    {
+                        sl.SchedulingDataCleared();
+                    }
+                    else
+                    {
+                        sl.JobUnscheduled(triggerKey);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -2250,13 +2291,13 @@ namespace Quartz.Core
             }
         }
 
-        internal Dictionary<string, IJobExecutionContext> executingJobs = new Dictionary<string, IJobExecutionContext>();
+        private Dictionary<string, IJobExecutionContext> executingJobs = new Dictionary<string, IJobExecutionContext>();
 
-        internal int numJobsFired;
+        private int numJobsFired;
 
         public virtual void JobToBeExecuted(IJobExecutionContext context)
         {
-            numJobsFired++;
+            Interlocked.Increment(ref numJobsFired);
 
             lock (executingJobs)
             {

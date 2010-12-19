@@ -417,8 +417,7 @@ namespace Quartz.Core
 				try
 				{
                     Thread.Sleep(TimeSpan.FromSeconds(15)); 
-                    // retry every 15 seconds (the db
-					// connection must be failed)
+                    // retry every 15 seconds (the db connection must be failed)
 					qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode);
 					return true;
 				}
@@ -450,7 +449,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    Thread.Sleep(5 * 1000); // retry every 5 seconds (the db
+                    Thread.Sleep(TimeSpan.FromSeconds(5)); // retry every 5 seconds (the db
                     // connection must be failed)
                     qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode);
                     return true;

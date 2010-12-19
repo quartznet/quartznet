@@ -160,6 +160,11 @@ namespace Quartz.Impl.AdoJobStore
             set { instanceName = value; }
         }
 
+        public int ThreadPoolSize
+        {
+            set { }
+        }
+
         public virtual long EstimatedTimeToReleaseAndAcquireTrigger
         {
             get { return 70; }

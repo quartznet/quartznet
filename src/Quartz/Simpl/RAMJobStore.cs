@@ -1620,7 +1620,12 @@ namespace Quartz.Simpl
 	        set {  }
 	    }
 
-        public long EstimatedTimeToReleaseAndAcquireTrigger
+	    public int ThreadPoolSize
+	    {
+	        set { }
+	    }
+
+	    public long EstimatedTimeToReleaseAndAcquireTrigger
         {
             get { return 5; }
         }

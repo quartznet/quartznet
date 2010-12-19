@@ -521,5 +521,10 @@ namespace Quartz.Spi
         /// prior to initialize being invoked.
         /// </summary>
 	    string InstanceName { set; }
+
+        /// <summary>
+        /// Tells the JobStore the pool size used to execute jobs.
+        /// </summary>
+	    int ThreadPoolSize { set; }
 	}
 }
