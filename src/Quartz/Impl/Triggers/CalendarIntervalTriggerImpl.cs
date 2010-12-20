@@ -443,54 +443,6 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// This method should not be used by the Quartz client.
-        /// </summary>
-        /// <remarks>
-        /// Called after the <see cref="IScheduler" /> has executed the
-        /// <see cref="IJobDetail" /> associated with the <see cref="ITrigger" />
-        /// in order to get the final instruction code from the trigger.
-        /// </remarks>
-        /// <param name="context">
-        /// is the <see cref="IJobExecutionContext" /> that was used by the
-        /// <see cref="IJob" />'s<see cref="IJob.Execute" /> method.</param>
-        /// <param name="result">is the <see cref="JobExecutionException" /> thrown by the
-        /// <see cref="IJob" />, if any (may be null).
-        /// </param>
-        /// <returns>
-        /// One of the <see cref="SchedulerInstruction"/> members.
-        /// </returns>
-        /// <seealso cref="SchedulerInstruction.NoInstruction" />
-        /// <seealso cref="SchedulerInstruction.ReExecuteJob" />
-        /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
-        /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
-        /// <seealso cref="IOperableTrigger.Triggered" />
-        public override SchedulerInstruction ExecutionComplete(IJobExecutionContext context,
-                                                               JobExecutionException result)
-        {
-            if (result != null && result.RefireImmediately)
-            {
-                return SchedulerInstruction.ReExecuteJob;
-            }
-
-            if (result != null && result.UnscheduleFiringTrigger)
-            {
-                return SchedulerInstruction.SetTriggerComplete;
-            }
-
-            if (result != null && result.UnscheduleAllTriggers)
-            {
-                return SchedulerInstruction.SetAllJobTriggersComplete;
-            }
-
-            if (!GetMayFireAgain())
-            {
-                return SchedulerInstruction.DeleteTrigger;
-            }
-
-            return SchedulerInstruction.NoInstruction;
-        }
-
-        /// <summary>
         /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If
         /// the trigger will not fire again, <see langword="null" /> will be returned.  Note that
         /// the time returned can possibly be in the past, if the time that was computed

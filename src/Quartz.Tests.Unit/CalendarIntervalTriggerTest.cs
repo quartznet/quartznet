@@ -10,11 +10,11 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class CalendarIntervalTriggerTest : SerializationTestSupport
     {
-        private static string[] VERSIONS = new string[] {"2.0"};
+        private static readonly string[] versions = new string[] {"2.0"};
 
 
         [Test]
-        public void testYearlyIntervalGetFireTimeAfter()
+        public void TestYearlyIntervalGetFireTimeAfter()
         {
             DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
 
@@ -33,7 +33,7 @@ namespace Quartz.Tests.Unit
 
 
         [Test]
-        public void testMonthlyIntervalGetFireTimeAfter()
+        public void TestMonthlyIntervalGetFireTimeAfter()
         {
             DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
 
@@ -55,7 +55,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void testWeeklyIntervalGetFireTimeAfter()
+        public void TestWeeklyIntervalGetFireTimeAfter()
         {
             DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
 
@@ -80,7 +80,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void testDailyIntervalGetFireTimeAfter()
+        public void TestDailyIntervalGetFireTimeAfter()
         {
             DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
 
@@ -102,7 +102,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void testHourlyIntervalGetFireTimeAfter()
+        public void TestHourlyIntervalGetFireTimeAfter()
         {
             DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
 
@@ -124,7 +124,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void testMinutelyIntervalGetFireTimeAfter()
+        public void TestMinutelyIntervalGetFireTimeAfter()
         {
             DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
 
@@ -146,7 +146,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void testSecondlyIntervalGetFireTimeAfter()
+        public void TestSecondlyIntervalGetFireTimeAfter()
         {
             DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
 
@@ -168,7 +168,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void testDaylightSavingsTransitions()
+        public void TestDaylightSavingsTransitions()
         {
             // Pick a day before a daylight savings transition...
 
@@ -214,7 +214,7 @@ namespace Quartz.Tests.Unit
 
 
         [Test]
-        public void testFinalFireTimes()
+        public void TestFinalFireTimes()
         {
             DateTimeOffset startCalendar = new DateTimeOffset(2010, 3, 12, 9, 0, 0, TimeSpan.Zero);
 
@@ -275,7 +275,7 @@ namespace Quartz.Tests.Unit
 
         protected override string[] GetVersions()
         {
-            return VERSIONS;
+            return versions;
         }
 
         protected override void VerifyMatch(object target, object deserialized)

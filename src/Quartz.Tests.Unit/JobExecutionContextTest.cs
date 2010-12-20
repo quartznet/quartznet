@@ -32,7 +32,7 @@ namespace Quartz.Tests.Unit
         public void TestToString()
         {
             // QRTZNET-48
-            JobExecutionContext ctx = new JobExecutionContext(null, TestUtil.NewMinimalTriggerFiredBundle(), null);
+            IJobExecutionContext ctx = new JobExecutionContextImpl(null, TestUtil.NewMinimalTriggerFiredBundle(), null);
             ctx.ToString();
         }
     }

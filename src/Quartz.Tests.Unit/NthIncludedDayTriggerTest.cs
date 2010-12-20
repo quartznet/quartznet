@@ -22,6 +22,8 @@ using System.Globalization;
 
 using NUnit.Framework;
 
+using Quartz.Spi;
+
 namespace Quartz.Tests.Unit
 {
 	/// <summary>
@@ -329,7 +331,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestPrecision()
         {
-            Trigger trigger = new NthIncludedDayTrigger();
+            IOperableTrigger trigger = new NthIncludedDayTrigger();
             trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
             Assert.IsFalse(trigger.HasMillisecondPrecision);
             Assert.AreEqual(0, trigger.StartTimeUtc.Millisecond);

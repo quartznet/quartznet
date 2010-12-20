@@ -2,14 +2,14 @@ using System;
 
 using NUnit.Framework;
 
-using Quartz.Impl.Triggers;
-
 namespace Quartz.Tests.Unit
 {
     [TestFixture]
     public class TriggerBuilderTest
     {
-        public class TestStatefulJob : IStatefulJob
+        [DisallowConcurrentExecution]
+        [PersistJobDataAfterExecution]
+        public class TestStatefulJob : IJob
         {
             public void Execute(IJobExecutionContext context)
             {
@@ -53,7 +53,7 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(trigger.Key.Group.Equals(JobKey.DefaultGroup), "Unexpected trigger group: " + trigger.Key.Group);
             Assert.IsTrue(trigger.JobKey == null, "Unexpected job key: " + trigger.JobKey);
             Assert.IsTrue(trigger.Description == null, "Unexpected job description: " + trigger.Description);
-            Assert.IsTrue(trigger.Priority == AbstractTrigger.DefaultPriority, "Unexpected trigger priority: " + trigger.Priority);
+            Assert.IsTrue(trigger.Priority == TriggerConstants.DefaultPriority, "Unexpected trigger priority: " + trigger.Priority);
             Assert.IsTrue(trigger.StartTimeUtc != null, "Unexpected start-time: " + trigger.StartTimeUtc);
             Assert.IsTrue(trigger.EndTimeUtc == null, "Unexpected end-time: " + trigger.EndTimeUtc);
 

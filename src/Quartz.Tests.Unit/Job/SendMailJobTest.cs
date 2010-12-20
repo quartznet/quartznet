@@ -42,7 +42,7 @@ namespace Quartz.Tests.Unit.Job
 
             TestSendMailJob job = new TestSendMailJob();
 
-            JobExecutionContext context = TestUtil.NewJobExecutionContextFor(job);
+            IJobExecutionContext context = TestUtil.NewJobExecutionContextFor(job);
             context.JobDetail.JobDataMap.Put("smtp_host", "someserver");
             context.JobDetail.JobDataMap.Put("recipient", expectedMail.Recipient);
             context.JobDetail.JobDataMap.Put("sender", expectedMail.Sender);
@@ -70,7 +70,7 @@ namespace Quartz.Tests.Unit.Job
 
             TestSendMailJob job = new TestSendMailJob();
 
-            JobExecutionContext context = TestUtil.NewJobExecutionContextFor(job);
+            IJobExecutionContext context = TestUtil.NewJobExecutionContextFor(job);
             context.JobDetail.JobDataMap.Put("smtp_host", "someserver");
             context.JobDetail.JobDataMap.Put("recipient", expectedMail.Recipient);
             context.JobDetail.JobDataMap.Put("cc_recipient", expectedMail.CcRecipient);

@@ -35,7 +35,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 Arg<string>.Is.Equal(AdoConstants.StateWaiting),
                 Arg<DateTimeOffset>.Is.Anything,
                 Arg<int>.Is.Anything,
-                Arg<IList<Key>>.Is.Anything));
+                Arg<IList<TriggerKey>>.Is.Anything));
         }
 
         public class TestJobStoreSupport : JobStoreSupport
@@ -45,7 +45,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 return new ConnectionAndTransactionHolder(null, null);
             }
 
-            protected override object ExecuteInLock(string lockName, ITransactionCallback txCallback)
+            protected override object ExecuteInLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback)
             {
                 return false;
             }

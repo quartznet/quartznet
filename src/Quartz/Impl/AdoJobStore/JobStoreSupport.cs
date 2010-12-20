@@ -455,21 +455,21 @@ namespace Quartz.Impl.AdoJobStore
                             IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(DataSource);
                             if (CanUseProperties)
                             {
-                                Type[] ctorParamTypes =
-                                    new Type[]
-                                        {
-                                            typeof (ILog), typeof (String), typeof (String), typeof (String), typeof(ITypeLoadHelper), typeof (IDbProvider),
-                                            typeof (Boolean)
-                                        };
+                                Type[] ctorParamTypes = new Type[] 
+                                                            { 
+                                                                typeof (ILog), typeof (String), typeof (String), typeof (String), typeof (IDbProvider), typeof(ITypeLoadHelper), typeof (Boolean)
+                                                            };
                                 ctor = delegateType.GetConstructor(ctorParamTypes);
-                                ctorParams = new Object[] {Log, tablePrefix, instanceName, instanceId, typeLoadHelper, dbProvider, CanUseProperties};
+                                ctorParams = new Object[] { Log, tablePrefix, instanceName, instanceId, dbProvider, typeLoadHelper, CanUseProperties };
                             }
                             else
                             {
-                                Type[] ctorParamTypes =
-                                    new Type[] { typeof(ILog), typeof(String), typeof(String), typeof(String), typeof(IDbProvider) };
+                                Type[] ctorParamTypes = new Type[]
+                                                            {
+                                                                typeof(ILog), typeof(String), typeof(String), typeof(String), typeof(IDbProvider), typeof(ITypeLoadHelper)
+                                                            };
                                 ctor = delegateType.GetConstructor(ctorParamTypes);
-                                ctorParams = new Object[] {Log, tablePrefix, instanceName, instanceId, typeLoadHelper, dbProvider};
+                                ctorParams = new Object[] { Log, tablePrefix, instanceName, instanceId, dbProvider, typeLoadHelper };
                             }
 
                             driverDelegate = (IDriverDelegate) ctor.Invoke(ctorParams);

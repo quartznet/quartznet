@@ -23,6 +23,7 @@ using NUnit.Framework;
 
 using Quartz.Job;
 using Quartz.Plugin.History;
+using Quartz.Spi;
 
 using Rhino.Mocks;
 
@@ -49,11 +50,13 @@ namespace Quartz.Tests.Unit.Plugin.History
             // arrange
             mockLog.Stub(log => log.IsInfoEnabled).Return(true);
 
-            Trigger t = new SimpleTrigger();
+            ITrigger t = TriggerBuilder.Create()
+                                        .WithSchedule(SimpleScheduleBuilder.Create())
+                                        .Build();
             
-            JobExecutionContext ctx = new JobExecutionContext(
+            IJobExecutionContext ctx = new JobExecutionContextImpl(
                 null, 
-                TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t), 
+                TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), (IOperableTrigger) t), 
                 null);
 
             // act
@@ -69,8 +72,12 @@ namespace Quartz.Tests.Unit.Plugin.History
         {
             // arrange
             mockLog.Stub(log => log.IsInfoEnabled).Return(true);
-            Trigger t = new SimpleTrigger();
+            IOperableTrigger t = (IOperableTrigger) TriggerBuilder.Create()
+                                                        .WithSchedule(SimpleScheduleBuilder.Create())
+                                                        .Build();
 
+            t.JobKey = new JobKey("name", "group");
+            
             // act
             plugin.TriggerMisfired(t);
 
@@ -83,12 +90,14 @@ namespace Quartz.Tests.Unit.Plugin.History
         {
             // arrange
             mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+
+            ITrigger t = TriggerBuilder.Create()
+                                        .WithSchedule(SimpleScheduleBuilder.Create())
+                                        .Build();
             
-            Trigger t = new SimpleTrigger();
-            
-            JobExecutionContext ctx = new JobExecutionContext(
+            IJobExecutionContext ctx = new JobExecutionContextImpl(
                 null,
-                TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t),
+                TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), (IOperableTrigger) t),
                 null);
 
             // act

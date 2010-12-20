@@ -23,6 +23,7 @@ using Common.Logging;
 
 using NUnit.Framework;
 
+using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Plugin.History;
 using Quartz.Spi;
@@ -99,11 +100,11 @@ namespace Quartz.Tests.Unit.Plugin.History
             mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
         }
 
-        protected virtual JobExecutionContext CreateJobExecutionContext()
+        protected virtual IJobExecutionContext CreateJobExecutionContext()
         {
-            Trigger t = new SimpleTrigger();
+            IOperableTrigger t = new SimpleTriggerImpl("name", "group");
             TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
-            JobExecutionContext ctx = new JobExecutionContext(null,  firedBundle, null);
+            IJobExecutionContext ctx = new JobExecutionContextImpl(null,  firedBundle, null);
 
             return ctx;
         }

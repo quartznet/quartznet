@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <quartz xmlns="http://quartznet.sourceforge.net/JobSchedulingData"
-				version="1.0"
+				version="2.0"
 				overwrite-existing-jobs="true">
   
 	<job-listener type="Quartz.Tests.Unit.Xml.NoOpJobListener, Quartz.Tests.Unit" name="jobListener1"/>

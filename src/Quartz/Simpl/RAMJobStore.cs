@@ -846,12 +846,11 @@ namespace Quartz.Simpl
 			    if (grpMap != null)
 			    {
 				    outList = new List<JobKey>(grpMap.Count);
-					int outListPos = 0;
 				    foreach (KeyValuePair<JobKey, JobWrapper> pair in grpMap)
 				    {
 						if (pair.Value != null)
 						{
-							outList[outListPos++] = pair.Value.jobDetail.Key;
+							outList.Add(pair.Value.jobDetail.Key);
 						}
 					}
 				}
@@ -892,14 +891,12 @@ namespace Quartz.Simpl
                 IDictionary<TriggerKey, TriggerWrapper> grpMap = triggersByGroup[groupName];
 			    if (grpMap != null)
 			    {
-
 					    outList = new List<TriggerKey>(grpMap.Count);
-					    int outListPos = 0;
 				        foreach (KeyValuePair<TriggerKey, TriggerWrapper> pair in grpMap)
 				        {
 						    if (pair.Value != null)
 						    {
-							    outList[outListPos++] = pair.Value.trigger.Key;
+							    outList.Add(pair.Value.trigger.Key);
 						    }
 					    }
 				    }

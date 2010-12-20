@@ -5,7 +5,9 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class JobBuilderTest
     {
-        public class TestStatefulJob : IStatefulJob
+        [DisallowConcurrentExecution]
+        [PersistJobDataAfterExecution]
+        public class TestStatefulJob : IJob
         {
             public void Execute(IJobExecutionContext context)
             {

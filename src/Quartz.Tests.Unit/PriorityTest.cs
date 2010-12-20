@@ -113,7 +113,9 @@ namespace Quartz.Tests.Unit
 			sched.Shutdown();
 		}
 
-		class TestJob : IStatefulJob
+        [DisallowConcurrentExecution]
+        [PersistJobDataAfterExecution]
+        class TestJob : IJob
 		{
 			public void Execute(IJobExecutionContext context)
 			{

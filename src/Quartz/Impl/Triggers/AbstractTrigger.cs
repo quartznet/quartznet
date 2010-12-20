@@ -194,8 +194,8 @@ namespace Quartz.Impl.Triggers
 
             set
             {
-                Name = key.Name;
-                Group = key.Group;
+                Name = value.Name;
+                Group = value.Group;
                 key = value;
             }
 		}
@@ -526,10 +526,7 @@ namespace Quartz.Impl.Triggers
         /// <returns>
         /// One of the <see cref="SchedulerInstruction"/> members.
         /// </returns>
-        /// <seealso cref="SchedulerInstruction.NoInstruction" />
-        /// <seealso cref="SchedulerInstruction.ReExecuteJob" />
-        /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
-        /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
+        /// <seealso cref="SchedulerInstruction" />
         /// <seealso cref="Triggered" />
         public virtual SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException result)
         {

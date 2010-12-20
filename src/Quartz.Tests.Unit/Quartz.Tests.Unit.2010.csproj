@@ -169,8 +169,6 @@
     <Compile Include="Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Xml\JobSchedulingBundleTest.cs" />
-    <Compile Include="Xml\JobSchedulingDataProcessorTest.cs" />
     <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
   </ItemGroup>
   <ItemGroup>

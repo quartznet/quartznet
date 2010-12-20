@@ -22,6 +22,8 @@ using System.Collections.Generic;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
 
@@ -49,7 +51,7 @@ namespace Quartz.Tests.Unit
         /// <param name="jobType">Type of the job.</param>
         /// <param name="trigger">The trigger.</param>
         /// <returns>Minimal TriggerFiredBundle</returns>
-        public static TriggerFiredBundle CreateMinimalFiredBundleWithTypedJobDetail(Type jobType, Trigger trigger)
+        public static TriggerFiredBundle CreateMinimalFiredBundleWithTypedJobDetail(Type jobType, IOperableTrigger trigger)
         {
             JobDetailImpl jd = new JobDetailImpl("jobName", "jobGroup", jobType);
             TriggerFiredBundle bundle = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
@@ -58,16 +60,16 @@ namespace Quartz.Tests.Unit
 
         public static TriggerFiredBundle NewMinimalTriggerFiredBundle()
         {
-            JobDetailImpl jd = new JobDetailImpl("jobName", "jobGroup", typeof(NoOpJob));
-            SimpleTrigger trigger = new SimpleTrigger("triggerName", "triggerGroup");
+            IJobDetail jd = new JobDetailImpl("jobName", "jobGroup", typeof(NoOpJob));
+            IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
             TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
 
             return retValue;
         }
 
-        public static JobExecutionContext NewJobExecutionContextFor(IJob job)
+        public static IJobExecutionContext NewJobExecutionContextFor(IJob job)
         {
-            return new JobExecutionContext(null, NewMinimalTriggerFiredBundle(), job);
+            return new JobExecutionContextImpl(null, NewMinimalTriggerFiredBundle(), job);
         }
     }
 }

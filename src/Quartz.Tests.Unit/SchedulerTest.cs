@@ -10,7 +10,9 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class SchedulerTest
     {
-        public class TestStatefulJob : IStatefulJob
+        [DisallowConcurrentExecution]
+        [PersistJobDataAfterExecution]
+        public class TestStatefulJob : IJob
         {
             public void Execute(IJobExecutionContext context)
             {
@@ -70,9 +72,9 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t1")
                 .ForJob(job)
                 .StartNow()
-                .WithSchedule(SimpleScheduleBuilder.simpleSchedule()
-                                  .repeatForever()
-                                  .withIntervalInSeconds(5))
+                .WithSchedule(SimpleScheduleBuilder.Create()
+                                  .RepeatForever()
+                                  .WithIntervalInSeconds(5))
                 .Build();
 
             Assert.IsFalse(sched.CheckExists(new TriggerKey("t1")), "Unexpected existence of trigger named '11'.");
@@ -98,9 +100,9 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t2", "g1")
                 .ForJob(job)
                 .StartNow()
-                .WithSchedule(SimpleScheduleBuilder.simpleSchedule()
-                                  .repeatForever()
-                                  .withIntervalInSeconds(5))
+                .WithSchedule(SimpleScheduleBuilder.Create()
+                                  .RepeatForever()
+                                  .WithIntervalInSeconds(5))
                 .Build();
 
             sched.ScheduleJob(job, trigger);
@@ -114,9 +116,9 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t3", "g1")
                 .ForJob(job)
                 .StartNow()
-                .WithSchedule(SimpleScheduleBuilder.simpleSchedule()
-                                  .repeatForever()
-                                  .withIntervalInSeconds(5))
+                .WithSchedule(SimpleScheduleBuilder.Create()
+                                  .RepeatForever()
+                                  .WithIntervalInSeconds(5))
                 .Build();
 
             sched.ScheduleJob(job, trigger);
@@ -167,9 +169,9 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t4", "g1")
                 .ForJob(job)
                 .StartNow()
-                .WithSchedule(SimpleScheduleBuilder.simpleSchedule()
-                                  .repeatForever()
-                                  .withIntervalInSeconds(5))
+                .WithSchedule(SimpleScheduleBuilder.Create()
+                                  .RepeatForever()
+                                  .WithIntervalInSeconds(5))
                 .Build();
 
             sched.ScheduleJob(job, trigger);
@@ -181,7 +183,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(TriggerState.Paused, s, "State of trigger t2 expected to be PAUSED ");
 
             s = sched.GetTriggerState(new TriggerKey("t4", "g1"));
-            Assert.AreEqual("State of trigger t4 expected to be PAUSED ", s.Equals(TriggerState.Paused));
+            Assert.AreEqual("State of trigger t4 expected to be PAUSED", s.Equals(TriggerState.Paused));
 
             sched.ResumeTriggerGroup("g1");
             s = sched.GetTriggerState(new TriggerKey("t2", "g1"));

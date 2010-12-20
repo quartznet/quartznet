@@ -23,7 +23,6 @@
       <job-type>
         Quartz.Job.NoOpJob, Quartz
       </job-type>
-      <volatile>true</volatile>
       <durable>true</durable>
       <recover>true</recover>
     </job>

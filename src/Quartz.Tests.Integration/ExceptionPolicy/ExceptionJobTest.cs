@@ -3,6 +3,8 @@ using System.Threading;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Integration.ExceptionPolicy
 {
@@ -26,9 +28,8 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             myDesc.Durable = true;
             sched.AddJob(myDesc, false);
             string trigGroup = "ExceptionPolicyFrinigTriggerGroup";
-            Trigger trigger = new CronTrigger("trigName", trigGroup, "0/2 * * * * ?");
-            trigger.JobName = jobName;
-            trigger.JobGroup = jobGroup;
+            IOperableTrigger trigger = new CronTriggerImpl("trigName", trigGroup, "0/2 * * * * ?");
+            trigger.JobKey = new JobKey(jobName, jobGroup);
 
             ExceptionJob.ThrowsException = true;
             ExceptionJob.LaunchCount = 0;
@@ -39,7 +40,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             sched.ScheduleJob(trigger);
 
             Thread.Sleep(7*1000);
-            sched.DeleteJob(jobName, jobGroup);
+            sched.DeleteJob(trigger.JobKey);
             Assert.AreEqual(1, ExceptionJob.LaunchCount,
                             "The job shouldn't have been refired (UnscheduleFiringTrigger)");
 
@@ -49,16 +50,14 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             ExceptionJob.UnscheduleAllTriggers = false;
 
             sched.AddJob(myDesc, false);
-            trigger = new CronTrigger("trigName", trigGroup, "0/2 * * * * ?");
-            trigger.JobName = jobName;
-            trigger.JobGroup = jobGroup;
+            trigger = new CronTriggerImpl("trigName", trigGroup, "0/2 * * * * ?");
+            trigger.JobKey = new JobKey(jobName, jobGroup);
             sched.ScheduleJob(trigger);
-            trigger = new CronTrigger("trigName1", trigGroup, "0/3 * * * * ?");
-            trigger.JobName = jobName;
-            trigger.JobGroup = jobGroup;
+            trigger = new CronTriggerImpl("trigName1", trigGroup, "0/3 * * * * ?");
+            trigger.JobKey = new JobKey(jobName, jobGroup);
             sched.ScheduleJob(trigger);
             Thread.Sleep(7*1000);
-            sched.DeleteJob(jobName, jobGroup);
+            sched.DeleteJob(trigger.JobKey);
             Assert.AreEqual(2, ExceptionJob.LaunchCount,
                             "The job shouldn't have been refired(UnscheduleFiringTrigger)");
         }
@@ -67,10 +66,12 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         public void ExceptionPolicyRestartImmediately()
         {
             sched.Start();
-            string jobName = "ExceptionPolicyRestartJob";
-            string jobGroup = "ExceptionPolicyRestartGroup";
-            JobDetailImpl exceptionJob = new JobDetailImpl(jobName, jobGroup, typeof (ExceptionJob));
-            exceptionJob.Durable = true;
+            JobKey jobKey = new JobKey("ExceptionPolicyRestartJob", "ExceptionPolicyRestartGroup");
+            IJobDetail exceptionJob = JobBuilder.NewJob<ExceptionJob>()
+                .WithIdentity(jobKey)
+                .StoreDurably()
+                .Build();
+
             sched.AddJob(exceptionJob, false);
 
             ExceptionJob.ThrowsException = true;
@@ -78,7 +79,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             ExceptionJob.UnscheduleAllTriggers = false;
             ExceptionJob.UnscheduleFiringTrigger = false;
             ExceptionJob.LaunchCount = 0;
-            sched.TriggerJob(jobName, jobGroup);
+            sched.TriggerJob(jobKey);
 
             int i = 10;
             while ((i > 0) && (ExceptionJob.LaunchCount <= 1))
@@ -93,7 +94,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             // to ensure job will not be refired in consequent tests
             // in fact, it would be better to have a separate class
             ExceptionJob.ThrowsException = false;
-            sched.DeleteJob(jobName, jobGroup);
+            sched.DeleteJob(jobKey);
             Thread.Sleep(1000);
             Assert.Greater(ExceptionJob.LaunchCount, 1, "The job should have been refired after exception");
         }
@@ -102,9 +103,8 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         public void ExceptionPolicyNoRestartImmediately()
         {
             sched.Start();
-            string jobName = "ExceptionPolicyNoRestartJob";
-            string jobGroup = "ExceptionPolicyNoRestartGroup";
-            JobDetailImpl exceptionJob = new JobDetailImpl(jobName, jobGroup, typeof (ExceptionJob));
+            JobKey jobKey = new JobKey("ExceptionPolicyNoRestartJob", "ExceptionPolicyNoRestartGroup");
+            JobDetailImpl exceptionJob = new JobDetailImpl(jobKey.Name, jobKey.Group, typeof (ExceptionJob));
             exceptionJob.Durable = true;
             sched.AddJob(exceptionJob, false);
 
@@ -113,7 +113,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             ExceptionJob.UnscheduleAllTriggers = false;
             ExceptionJob.UnscheduleFiringTrigger = false;
             ExceptionJob.LaunchCount = 0;
-            sched.TriggerJob(jobName, jobGroup);
+            sched.TriggerJob(jobKey);
 
             int i = 10;
             while ((i > 0) && (ExceptionJob.LaunchCount <= 1))
@@ -125,7 +125,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
                     break;
                 }
             }
-            sched.DeleteJob(jobName, jobGroup);
+            sched.DeleteJob(jobKey);
             Assert.AreEqual(1, ExceptionJob.LaunchCount, "The job should NOT have been refired after exception");
         }
     }

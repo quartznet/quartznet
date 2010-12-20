@@ -129,7 +129,7 @@ namespace Quartz.Tests.Unit
 		{
 			SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
-			DateTimeOffset startTime = TriggerUtils.GetEvenSecondDate(DateTime.UtcNow);
+			DateTimeOffset startTime = DateBuilder.EvenSecondDate(DateTime.UtcNow);
 
 			simpleTrigger.StartTimeUtc = startTime;
 			simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
