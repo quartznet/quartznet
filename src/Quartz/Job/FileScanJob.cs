@@ -35,13 +35,37 @@ namespace Quartz.Job
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="IFileScanListener" />
-	public class FileScanJob : IStatefulJob
+    [DisallowConcurrentExecution]
+    [PersistJobDataAfterExecution]
+	public class FileScanJob : IJob
 	{
+        /// <summary>
+        /// JobDataMap key with which to specify the name of the file to monitor.
+        /// </summary>
 		public const string FileName = "FILE_NAME";
-		public const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
-		private const string LastModifiedTime = "LAST_MODIFIED_TIME";
-		private readonly ILog log;
 
+        /// <summary>
+        /// JobDataMap key with which to specify the {@link org.quartz.jobs.FileScanListener} 
+        /// to be notified when the file contents change. 
+        /// </summary>
+		public const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
+
+	    /// <summary>
+	    /// <code>JobDataMap</code> key with which to specify a <code>long</code>
+	    /// value that represents the minimum number of milliseconds that must have
+	    /// past since the file's last modified time in order to consider the file
+	    /// new/altered.  This is necessary because another process may still be
+	    /// in the middle of writing to the file when the scan occurs, and the
+	    /// file may therefore not yet be ready for processing.
+	    /// 
+	    /// <p>If this parameter is not specified, a default value of 
+	    /// <code>5000</code> (five seconds) will be used.</p>
+	    /// </summary>
+	    public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE"; 
+	    
+	    private const string LastModifiedTime = "LAST_MODIFIED_TIME";
+
+        private readonly ILog log;
 
         /// <summary>
         /// Gets the log.
@@ -77,7 +101,7 @@ namespace Quartz.Job
 		/// </seealso>
 		public virtual void Execute(IJobExecutionContext context)
 		{
-			JobDataMap data = context.MergedJobDataMap;
+			JobDataMap mergedJobDataMap = context.MergedJobDataMap;
 			SchedulerContext schedCtxt;
 			try
 			{
@@ -88,8 +112,8 @@ namespace Quartz.Job
 				throw new JobExecutionException("Error obtaining scheduler context.", e, false);
 			}
 
-			string fileName = data.GetString(FileName);
-			string listenerName = data.GetString(FileScanListenerName);
+			string fileName = mergedJobDataMap.GetString(FileName);
+			string listenerName = mergedJobDataMap.GetString(FileScanListenerName);
 
 			if (fileName == null)
 			{
@@ -108,11 +132,19 @@ namespace Quartz.Job
 			}
 
 			DateTime lastDate = DateTime.MinValue;
-			if (data.ContainsKey(LastModifiedTime))
+			if (mergedJobDataMap.ContainsKey(LastModifiedTime))
 			{
-				lastDate = data.GetDateTime(LastModifiedTime);
+				lastDate = mergedJobDataMap.GetDateTime(LastModifiedTime);
 			}
 
+            long minAge = 5000;
+            if (mergedJobDataMap.ContainsKey(MinimumUpdateAge))
+            {
+                minAge = mergedJobDataMap.GetLong(MinimumUpdateAge);
+            }
+            
+            DateTime maxAgeDate = DateTime.Now.AddMilliseconds(minAge);
+        
 			DateTime newDate = GetLastModifiedDate(fileName);
 
 			if (newDate == DateTime.MinValue)
@@ -121,7 +153,7 @@ namespace Quartz.Job
 				return;
 			}
 
-			if (lastDate != DateTime.MinValue && (newDate != lastDate))
+            if (lastDate != DateTime.MinValue && (newDate != lastDate && newDate < maxAgeDate))
 			{
 				// notify call back...
 				Log.Info(string.Format(CultureInfo.InvariantCulture, "File '{0}' updated, notifying listener.", fileName));

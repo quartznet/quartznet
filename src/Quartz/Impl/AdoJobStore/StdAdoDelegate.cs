@@ -1944,7 +1944,7 @@ namespace Quartz.Impl.AdoJobStore
                     ICalendar cal = null;
                     if (rs.Read())
                     {
-                        cal = (ICalendar)GetObjectFromBlob(rs, 1);
+                        cal = (ICalendar) GetObjectFromBlob(rs, 2);
                     }
                     if (null == cal)
                     {

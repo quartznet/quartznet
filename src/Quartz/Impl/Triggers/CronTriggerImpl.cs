@@ -760,6 +760,13 @@ namespace Quartz.Impl.Triggers
 			}
 
             DateTimeOffset? fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));
+
+
+            if (fta == null)
+            {
+                return false;
+            }
+
             DateTimeOffset p = TimeZoneInfo.ConvertTime(fta.Value, TimeZone);
 
 			if (dayOnly)
