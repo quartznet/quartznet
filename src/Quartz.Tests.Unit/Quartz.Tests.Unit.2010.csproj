@@ -118,6 +118,7 @@
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
     <Compile Include="JobBuilderTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
+    <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPluginTest.cs" />
     <Compile Include="SchedulerTest.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
@@ -206,6 +207,7 @@
       <Name>Quartz.2010</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

@@ -33,7 +33,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="fName">File name to check</param>
         /// <returns>Expanded file name or actual no resolving was done.</returns>
-        protected internal static string ResolveFile(string fName)
+        public static string ResolveFile(string fName)
         {
             if (fName != null && fName.StartsWith("~"))
             {

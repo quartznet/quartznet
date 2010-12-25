@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,17 +16,18 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 #if !ClientProfile
 using System.Web;
 #endif
-
 using Common.Logging;
 
 using Quartz.Impl;
@@ -77,7 +79,7 @@ namespace Quartz.Plugin.Xml
         /// </summary>
         public XMLSchedulingDataProcessorPlugin()
         {
-            log = LogManager.GetLogger(typeof(XMLSchedulingDataProcessorPlugin));
+            log = LogManager.GetLogger(typeof (XMLSchedulingDataProcessorPlugin));
         }
 
         /// <summary>
@@ -136,6 +138,11 @@ namespace Quartz.Plugin.Xml
             set { failOnFileNotFound = value; }
         }
 
+        public IEnumerable<KeyValuePair<string, JobFile>> JobFiles
+        {
+            get { return jobFiles; }
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -165,7 +172,7 @@ namespace Quartz.Plugin.Xml
             Log.Info("Registering Quartz Job Initialization Plug-in.");
 
             // Create JobFile objects
-            string[] tokens = fileNames.Split(FileNameDelimiter);
+            var tokens = fileNames.Split(FileNameDelimiter).Select(x => x.TrimStart());
 
             foreach (string token in tokens)
             {
@@ -198,26 +205,26 @@ namespace Quartz.Plugin.Xml
                         {
                             string jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
 
-                           TriggerKey tKey = new TriggerKey(jobTriggerName, JobInitializationPluginName);
-                        
-                        // remove pre-existing job/trigger, if any
-                        Scheduler.UnscheduleJob(tKey);
-                        
-                        // TODO: convert to use builder
-                        SimpleTriggerImpl trig = (SimpleTriggerImpl) Scheduler.GetTrigger(tKey);
-                        trig = new SimpleTriggerImpl();
-                        trig.Name = (jobTriggerName);
-                        trig.Group = (JobInitializationPluginName);
-                        trig.StartTimeUtc = SystemTime.UtcNow();
-                        trig.EndTimeUtc = (null);
-                        trig.RepeatCount = (SimpleTriggerImpl.RepeatIndefinitely);
-                        trig.RepeatInterval = (scanInterval);
-                        
-                        // TODO: convert to use builder
-                        JobDetailImpl job = new JobDetailImpl(
-                                jobTriggerName, 
+                            TriggerKey tKey = new TriggerKey(jobTriggerName, JobInitializationPluginName);
+
+                            // remove pre-existing job/trigger, if any
+                            Scheduler.UnscheduleJob(tKey);
+
+                            // TODO: convert to use builder
+                            SimpleTriggerImpl trig = (SimpleTriggerImpl) Scheduler.GetTrigger(tKey);
+                            trig = new SimpleTriggerImpl();
+                            trig.Name = (jobTriggerName);
+                            trig.Group = (JobInitializationPluginName);
+                            trig.StartTimeUtc = SystemTime.UtcNow();
+                            trig.EndTimeUtc = (null);
+                            trig.RepeatCount = (SimpleTriggerImpl.RepeatIndefinitely);
+                            trig.RepeatInterval = (scanInterval);
+
+                            // TODO: convert to use builder
+                            JobDetailImpl job = new JobDetailImpl(
+                                jobTriggerName,
                                 JobInitializationPluginName,
-                                typeof(FileScanJob));
+                                typeof (FileScanJob));
 
                             job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
                             job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
@@ -311,9 +318,9 @@ namespace Quartz.Plugin.Xml
                 processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);
 
                 processor.ProcessFileAndScheduleJobs(
-                        jobFile.FileName,
-                        jobFile.FileName, // systemId 
-                        scheduler);
+                    jobFile.FileName,
+                    jobFile.FileName, // systemId 
+                    scheduler);
             }
             catch (Exception e)
             {
@@ -332,124 +339,123 @@ namespace Quartz.Plugin.Xml
             ProcessFile(file);
         }
 
-    internal class JobFile
-    {
-        private readonly string fileName;
-
-        // These are set by initialize()
-        private string filePath;
-        private string fileBasename;
-        private bool fileFound;
-        private readonly XMLSchedulingDataProcessorPlugin plugin;
-
-        public JobFile(XMLSchedulingDataProcessorPlugin plugin, string fileName)
+        public class JobFile
         {
-            this.plugin = plugin;
-            this.fileName = fileName;
-            Initialize();
-        }
+            private readonly string fileName;
 
-        public string FileName
-        {
-            get { return fileName; }
-        }
+            // These are set by initialize()
+            private string filePath;
+            private string fileBasename;
+            private bool fileFound;
+            private readonly XMLSchedulingDataProcessorPlugin plugin;
 
-        public bool FileFound
-        {
-            get { return fileFound; }
-        }
-
-        public string FilePath
-        {
-            get { return filePath; }
-        }
-
-        public string FileBasename
-        {
-            get { return fileBasename; }
-        }
-
-        public void Initialize()
-        {
-            Stream f = null;
-            try
+            public JobFile(XMLSchedulingDataProcessorPlugin plugin, string fileName)
             {
-                string furl = null;
+                this.plugin = plugin;
+                this.fileName = fileName;
+                Initialize();
+            }
 
-                string fName = FileName;
-                
-                // check for special lookup
-                fName = FileUtil.ResolveFile(fName);
+            public string FileName
+            {
+                get { return fileName; }
+            }
 
-                FileInfo file = new FileInfo(fName); // files in filesystem
-                if (!file.Exists)
+            public bool FileFound
+            {
+                get { return fileFound; }
+            }
+
+            public string FilePath
+            {
+                get { return filePath; }
+            }
+
+            public string FileBasename
+            {
+                get { return fileBasename; }
+            }
+
+            public void Initialize()
+            {
+                Stream f = null;
+                try
                 {
-                    Uri url = plugin.typeLoadHelper.GetResource(FileName);
-                    if (url != null)
+                    string furl = null;
+
+                    string fName = FileName;
+
+                    // check for special lookup
+                    fName = FileUtil.ResolveFile(fName);
+
+                    FileInfo file = new FileInfo(fName); // files in filesystem
+                    if (!file.Exists)
                     {
+                        Uri url = plugin.typeLoadHelper.GetResource(FileName);
+                        if (url != null)
+                        {
 #if !ClientProfile
-                        furl = HttpUtility.UrlDecode(url.AbsolutePath);
+                            furl = HttpUtility.UrlDecode(url.AbsolutePath);
 #else
                         furl = url.AbsolutePath;
 #endif
-                        file = new FileInfo(furl);
-                        try
-                        {
-                            f = WebRequest.Create(url).GetResponse().GetResponseStream();
+                            file = new FileInfo(furl);
+                            try
+                            {
+                                f = WebRequest.Create(url).GetResponse().GetResponseStream();
+                            }
+                            catch (IOException)
+                            {
+                                // Swallow the exception
+                            }
                         }
-                        catch (IOException)
-                        {
-                            // Swallow the exception
-                        }
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        f = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
-                    }
-                    catch (FileNotFoundException)
-                    {
-                        // ignore
-                    }
-                }
-
-                if (f == null)
-                {
-                    if (plugin.FailOnFileNotFound)
-                    {
-                        throw new SchedulerException(
-                            "File named '" + FileName + "' does not exist.");
                     }
                     else
                     {
-                        plugin.Log.Warn(string.Format(CultureInfo.InvariantCulture, "File named '{0}' does not exist.", FileName));
+                        try
+                        {
+                            f = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+                        }
+                        catch (FileNotFoundException)
+                        {
+                            // ignore
+                        }
                     }
-                }
-                else
-                {
-                    fileFound = true;
-                    filePath = furl ?? file.FullName;
-                    fileBasename = file.Name;
-                }
-            }
-            finally
-            {
-                try
-                {
-                    if (f != null)
+
+                    if (f == null)
                     {
-                        f.Close();
+                        if (plugin.FailOnFileNotFound)
+                        {
+                            throw new SchedulerException(
+                                "File named '" + FileName + "' does not exist.");
+                        }
+                        else
+                        {
+                            plugin.Log.Warn(string.Format(CultureInfo.InvariantCulture, "File named '{0}' does not exist.", FileName));
+                        }
+                    }
+                    else
+                    {
+                        fileFound = true;
+                        filePath = furl ?? file.FullName;
+                        fileBasename = file.Name;
                     }
                 }
-                catch (IOException ioe)
+                finally
                 {
-                    plugin.Log.Warn("Error closing jobs file " + FileName, ioe);
+                    try
+                    {
+                        if (f != null)
+                        {
+                            f.Dispose();
+                        }
+                    }
+                    catch (IOException ioe)
+                    {
+                        plugin.Log.Warn("Error closing jobs file " + FileName, ioe);
+                    }
                 }
             }
         }
-    }
-
     }
 }
