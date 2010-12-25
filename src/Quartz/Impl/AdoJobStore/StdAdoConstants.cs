@@ -177,7 +177,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlSelectCalendars =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4}", 
-                ColumnCalendarName, TablePrefixSubst,ColumnSchedulerName, SchedulerNameSubst, TableCalendars);
+                ColumnCalendarName, TablePrefixSubst, TableCalendars, ColumnSchedulerName, SchedulerNameSubst);
 
         public static readonly string SqlSelectCronTriggers =
             string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup", TablePrefixSubst,
@@ -280,8 +280,8 @@ namespace Quartz.Impl.AdoJobStore
                           TableTriggers, ColumnSchedulerName, SchedulerNameSubst,  ColumnTriggerState, ColumnNextFireTime);
 
         public static readonly string SqlSelectNextTriggerToAcquire =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2}, {9} FROM {3}{4} WHERE {5} = {6} AND {7} = @state AND {8} < @noLaterThan AND ({9} >= @noEarlierThan) ORDER BY {10} ASC, {11} DESC", 
-            ColumnTriggerName, ColumnTriggerGroup, ColumnNextFireTime, 
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2}, {3} FROM {4}{5} WHERE {6} = {7} AND {8} = @state AND {9} < @noLaterThan AND {10} >= @noEarlierThan ORDER BY {11} ASC, {12} DESC", 
+            ColumnTriggerName, ColumnTriggerGroup, ColumnNextFireTime, ColumnPriority,
             TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst,
             ColumnTriggerState, ColumnNextFireTime, 
             ColumnNextFireTime, ColumnNextFireTime, 
@@ -387,7 +387,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlUpdateCronTrigger =
             string.Format(CultureInfo.InvariantCulture,
-                "UPDATE {0}{1} SET {2} = @triggerCronExpression {3} = @timeZoneId WHERE {4} = {5} AND {6} = @triggerName AND {7} = @triggerGroup",
+                "UPDATE {0}{1} SET {2} = @triggerCronExpression, {3} = @timeZoneId WHERE {4} = {5} AND {6} = @triggerName AND {7} = @triggerGroup",
                 TablePrefixSubst, TableCronTriggers, ColumnCronExpression, ColumnTimeZoneId, ColumnSchedulerName, SchedulerNameSubst, 
                 ColumnTriggerName, ColumnTriggerGroup);
 
@@ -447,7 +447,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlUpdateFiredTrigger = string.Format(
             CultureInfo.InvariantCulture,
-            "UPDATE {0}{1} SET {2} = @instanceName, {3} = @firedTime, {4} = @entryState, {5} = @jobName, {6} = jobGroup, {7} = @isNonConcurrent, {8} = @requestsRecover WHERE {9} = {10} AND {11} = @entryId", 
+            "UPDATE {0}{1} SET {2} = @instanceName, {3} = @firedTime, {4} = @entryState, {5} = @jobName, {6} = @jobGroup, {7} = @isNonConcurrent, {8} = @requestsRecover WHERE {9} = {10} AND {11} = @entryId", 
             TablePrefixSubst, TableFiredTriggers, ColumnInstanceName, ColumnFiredTime, ColumnEntryState, 
             ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent, ColumnRequestsRecovery, ColumnSchedulerName, SchedulerNameSubst, ColumnEntryId);
 

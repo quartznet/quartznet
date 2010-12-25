@@ -22,16 +22,16 @@ namespace Quartz.Util
             return (int) columnValue;
         }
 
-        public static int GetInt64(this IDataReader reader, string columnName)
+        public static long GetInt64(this IDataReader reader, string columnName)
         {
             object columnValue = reader[columnName];
-            return (int)columnValue;
+            return (long) columnValue;
         }
 
         public static decimal GetDecimal(this IDataReader reader, string columnName)
         {
             object columnValue = reader[columnName];
-            return (decimal)columnValue;
+            return (decimal) columnValue;
         }
 
         public static bool GetBoolean(this IDataReader reader, string columnName)

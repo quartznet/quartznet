@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -82,29 +84,22 @@ namespace Quartz.Impl.AdoJobStore
                 adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                IDataReader rs = cmd.ExecuteReader();
-
-                if (rs.Read())
+                using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    string cronExpr = rs.GetString(AdoConstants.ColumnCronExpression);
-                    string timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
-
-                    CronScheduleBuilder cb = null;
-                    try
+                    if (rs.Read())
                     {
-                        cb = CronScheduleBuilder.CronSchedule(cronExpr);
-                    }
-                    catch (FormatException)
-                    {
-                        // Can't happen because the expression must have been valid in order to get persisted
-                    }
+                        string cronExpr = rs.GetString(AdoConstants.ColumnCronExpression);
+                        string timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
 
-                    if (timeZoneId != null)
-                    {
-                        cb.InTimeZone(TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
-                    }
+                        CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(cronExpr);
+  
+                        if (timeZoneId != null)
+                        {
+                            cb.InTimeZone(TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
+                        }
 
-                    return new TriggerPropertyBundle(cb, null, null);
+                        return new TriggerPropertyBundle(cb, null, null);
+                    }
                 }
 
                 throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, tablePrefix, schedNameLiteral));
@@ -118,6 +113,7 @@ namespace Quartz.Impl.AdoJobStore
             using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
+                adoUtil.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);
                 adoUtil.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 adoUtil.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 

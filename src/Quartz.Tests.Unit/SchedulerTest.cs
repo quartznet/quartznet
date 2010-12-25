@@ -44,8 +44,8 @@ namespace Quartz.Tests.Unit
         public void TestBasicStorageFunctions()
         {
             NameValueCollection config = new NameValueCollection();
-            config["org.quartz.threadPool.threadCount"] = "2";
-            config["org.quartz.threadPool.type"] = "org.quartz.simpl.SimpleThreadPool";
+            config["quartz.threadPool.threadCount"] = "2";
+            config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             IScheduler sched = new StdSchedulerFactory(config).GetScheduler();
 
             // test basic storage functions of scheduler...
@@ -183,13 +183,16 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(TriggerState.Paused, s, "State of trigger t2 expected to be PAUSED ");
 
             s = sched.GetTriggerState(new TriggerKey("t4", "g1"));
-            Assert.AreEqual("State of trigger t4 expected to be PAUSED", s.Equals(TriggerState.Paused));
+            Assert.AreEqual(TriggerState.Paused, s, "State of trigger t4 expected to be PAUSED");
 
             sched.ResumeTriggerGroup("g1");
+            
             s = sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.AreEqual(TriggerState.Normal, s, "State of trigger t2 expected to be NORMAL ");
+            
             s = sched.GetTriggerState(new TriggerKey("t4", "g1"));
             Assert.AreEqual(TriggerState.Normal, s, "State of trigger t2 expected to be NORMAL ");
+            
             pausedGroups = sched.GetPausedTriggerGroups();
             Assert.AreEqual(0, pausedGroups.Count, "Size of paused trigger groups list expected to be 0 ");
 

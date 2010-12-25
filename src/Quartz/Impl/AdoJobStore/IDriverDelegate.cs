@@ -186,7 +186,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="classLoadHelper">The class load helper.</param>
         /// <returns>The populated JobDetail object</returns>
-        JobDetailImpl SelectJobDetail(ConnectionAndTransactionHolder conn, JobKey jobKey, ITypeLoadHelper classLoadHelper);
+        IJobDetail SelectJobDetail(ConnectionAndTransactionHolder conn, JobKey jobKey, ITypeLoadHelper classLoadHelper);
 
 		/// <summary>
 		/// Select the total number of jobs stored.
@@ -376,7 +376,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// The <see cref="IJobDetail" /> object associated with the given trigger
         /// </returns>
-		JobDetailImpl SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper);
+        IJobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper);
 
 		/// <summary>
 		/// Select the triggers for a job>

@@ -51,6 +51,7 @@ namespace Quartz.Impl.Triggers
     /// <since>2.0</since>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+    [Serializable]
     public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
     {
         private const int YearToGiveupSchedulingAt = 2299;

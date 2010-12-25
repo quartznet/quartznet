@@ -54,38 +54,38 @@ namespace Quartz.Impl.AdoJobStore
         protected const string ColumnBoolProp1 = "BOOL_PROP_1";
         protected const string ColumnBoolProp2 = "BOOL_PROP_2";
 
-protected static readonly string SelectSimplePropsTrigger = "SELECT *" + " FROM "
-        + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
-        + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
-        + " AND " + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
+        protected static readonly string SelectSimplePropsTrigger = "SELECT *" + " FROM "
+                                                                    + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
+                                                                    + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+                                                                    + " AND " + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
 
-    protected static readonly string DeleteSimplePropsTrigger = "DELETE FROM "
-        + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
-        + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
-        + " AND " + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
+        protected static readonly string DeleteSimplePropsTrigger = "DELETE FROM "
+                                                                    + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
+                                                                    + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+                                                                    + " AND " + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
 
-    protected static readonly string InsertSimplePropsTrigger = "INSERT INTO "
-        + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " ("
-        + AdoConstants.ColumnSchedulerName + ", "
-        + AdoConstants.ColumnTriggerName + ", " + AdoConstants.ColumnTriggerGroup + ", "
-        + ColumnStrProp1 + ", " + ColumnStrProp2 + ", " + ColumnStrProp3 + ", "
-        + ColumnIntProp1 + ", " + ColumnIntProp2 + ", "
-        + ColumnLongProp1 + ", " + ColumnLongProp2 + ", "
-        + ColumnDecProp1 + ", " + ColumnDecProp2 + ", "
-        + ColumnBoolProp1 + ", " + ColumnBoolProp2 
-        + ") " + " VALUES(" + StdAdoConstants.SchedulerNameSubst + ", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        protected static readonly string InsertSimplePropsTrigger = "INSERT INTO "
+                                                                    + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " ("
+                                                                    + AdoConstants.ColumnSchedulerName + ", "
+                                                                    + AdoConstants.ColumnTriggerName + ", " + AdoConstants.ColumnTriggerGroup + ", "
+                                                                    + ColumnStrProp1 + ", " + ColumnStrProp2 + ", " + ColumnStrProp3 + ", "
+                                                                    + ColumnIntProp1 + ", " + ColumnIntProp2 + ", "
+                                                                    + ColumnLongProp1 + ", " + ColumnLongProp2 + ", "
+                                                                    + ColumnDecProp1 + ", " + ColumnDecProp2 + ", "
+                                                                    + ColumnBoolProp1 + ", " + ColumnBoolProp2
+                                                                    + ") " + " VALUES(" + StdAdoConstants.SchedulerNameSubst + ", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    protected static readonly string UpdateSimplePropsTrigger = "UPDATE "
-        + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
-        + ColumnStrProp1 + " = ?, " + ColumnStrProp2 + " = ?, " + ColumnStrProp3 + " = ?, "
-        + ColumnIntProp1 + " = ?, " + ColumnIntProp2 + " = ?, "
-        + ColumnLongProp1 + " = ?, " + ColumnLongProp2 + " = ?, "
-        + ColumnDecProp1 + " = ?, " + ColumnDecProp2 + " = ?, "
-        + ColumnBoolProp1 + " = ?, " + ColumnBoolProp2
-        + " = ? WHERE " + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
-        + " AND " + AdoConstants.ColumnTriggerName
-        + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
-        
+        protected static readonly string UpdateSimplePropsTrigger = "UPDATE "
+                                                                    + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
+                                                                    + ColumnStrProp1 + " = ?, " + ColumnStrProp2 + " = ?, " + ColumnStrProp3 + " = ?, "
+                                                                    + ColumnIntProp1 + " = ?, " + ColumnIntProp2 + " = ?, "
+                                                                    + ColumnLongProp1 + " = ?, " + ColumnLongProp2 + " = ?, "
+                                                                    + ColumnDecProp1 + " = ?, " + ColumnDecProp2 + " = ?, "
+                                                                    + ColumnBoolProp1 + " = ?, " + ColumnBoolProp2
+                                                                    + " = ? WHERE " + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+                                                                    + " AND " + AdoConstants.ColumnTriggerName
+                                                                    + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
+
         protected string tablePrefix;
         protected string schedNameLiteral;
         private AdoUtil adoUtil;
@@ -146,25 +146,27 @@ protected static readonly string SelectSimplePropsTrigger = "SELECT *" + " FROM 
             {
                 adoUtil.AddCommandParameter(cmd, "@", triggerKey.Name);
                 adoUtil.AddCommandParameter(cmd, "@", triggerKey.Group);
-                IDataReader rs = cmd.ExecuteReader();
 
-                if (rs.Read())
+                using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
+                    if (rs.Read())
+                    {
+                        SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
 
-                    properties.String1 = (rs.GetString(ColumnStrProp1));
-                    properties.String2 = (rs.GetString(ColumnStrProp2));
-                    properties.String3 = (rs.GetString(ColumnStrProp3));
-                    properties.Int1 = (rs.GetInt32(ColumnIntProp1));
-                    properties.Int2 = (rs.GetInt32(ColumnIntProp2));
-                    properties.Long1 = (rs.GetInt32(ColumnLongProp1));
-                    properties.Long2 = (rs.GetInt32(ColumnLongProp2));
-                    properties.Decimal1 = (rs.GetDecimal(ColumnDecProp1));
-                    properties.Decimal2 = (rs.GetDecimal(ColumnDecProp2));
-                    properties.Boolean1 = (rs.GetBoolean(ColumnBoolProp1));
-                    properties.Boolean2 = (rs.GetBoolean(ColumnBoolProp2));
+                        properties.String1 = (rs.GetString(ColumnStrProp1));
+                        properties.String2 = (rs.GetString(ColumnStrProp2));
+                        properties.String3 = (rs.GetString(ColumnStrProp3));
+                        properties.Int1 = (rs.GetInt32(ColumnIntProp1));
+                        properties.Int2 = (rs.GetInt32(ColumnIntProp2));
+                        properties.Long1 = (rs.GetInt32(ColumnLongProp1));
+                        properties.Long2 = (rs.GetInt32(ColumnLongProp2));
+                        properties.Decimal1 = (rs.GetDecimal(ColumnDecProp1));
+                        properties.Decimal2 = (rs.GetDecimal(ColumnDecProp2));
+                        properties.Boolean1 = (rs.GetBoolean(ColumnBoolProp1));
+                        properties.Boolean2 = (rs.GetBoolean(ColumnBoolProp2));
 
-                    return GetTriggerPropertyBundle(properties);
+                        return GetTriggerPropertyBundle(properties);
+                    }
                 }
             }
 

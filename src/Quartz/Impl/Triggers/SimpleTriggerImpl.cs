@@ -591,14 +591,14 @@ namespace Quartz.Impl.Triggers
 			return nextFireTimeUtc;
 		}
 
-	    public override void SetNextFireTimeUtc(DateTimeOffset? value)
+        public override void SetNextFireTimeUtc(DateTimeOffset? nextFireTime)
 	    {
-	        throw new NotImplementedException();
+            nextFireTimeUtc = nextFireTime;
 	    }
 
-	    public override void SetPreviousFireTimeUtc(DateTimeOffset? value)
+        public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)
 	    {
-	        throw new NotImplementedException();
+            previousFireTimeUtc = previousFireTime;
 	    }
 
 	    /// <summary>

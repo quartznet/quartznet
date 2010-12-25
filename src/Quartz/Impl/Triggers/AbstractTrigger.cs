@@ -321,8 +321,9 @@ namespace Quartz.Impl.Triggers
 			set { fireInstanceId = value; }
 		}
 
-	    public abstract void SetNextFireTimeUtc(DateTimeOffset? value);
-	    public abstract void SetPreviousFireTimeUtc(DateTimeOffset? value);
+        public abstract void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
+
+        public abstract void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime);
 
 	    /// <summary>
 	    /// Returns the previous time at which the <see cref="ITrigger" /> fired.

@@ -888,8 +888,10 @@ namespace Quartz.Simpl
             List<TriggerKey> outList;
             lock (lockObject)
 	        {
-                IDictionary<TriggerKey, TriggerWrapper> grpMap = triggersByGroup[groupName];
-			    if (grpMap != null)
+                IDictionary<TriggerKey, TriggerWrapper> grpMap;
+	            triggersByGroup.TryGetValue(groupName, out grpMap);
+
+                if (grpMap != null)
 			    {
 					    outList = new List<TriggerKey>(grpMap.Count);
 				        foreach (KeyValuePair<TriggerKey, TriggerWrapper> pair in grpMap)

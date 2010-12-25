@@ -1155,14 +1155,14 @@ namespace Quartz.Impl.AdoJobStore
         public IJobDetail RetrieveJob(JobKey jobKey)
         {
             // no locks necessary for read...
-            return (JobDetailImpl)ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey));
+            return (IJobDetail) ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey));
         }
 
-        protected virtual JobDetailImpl RetrieveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        protected virtual IJobDetail RetrieveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             try
             {
-                JobDetailImpl job = Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper);
+                IJobDetail job = Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper);
                 return job;
             }
 
@@ -1203,9 +1203,7 @@ namespace Quartz.Impl.AdoJobStore
         ///</returns>
         public bool RemoveTrigger(TriggerKey triggerKey)
         {
-            return (bool) ExecuteInLock(
-                LockTriggerAccess,
-                conn => RemoveTrigger(conn, triggerKey));
+            return (bool) ExecuteInLock(LockTriggerAccess, conn => RemoveTrigger(conn, triggerKey));
         }
 
         protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
@@ -1215,7 +1213,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 // this must be called before we delete the trigger, obviously
                 // we use fault tolerant type loading as we only want to delete things
-                JobDetailImpl job = Delegate.SelectJobForTrigger(conn, triggerKey, new NoOpJobTypeLoader());
+                IJobDetail job = Delegate.SelectJobForTrigger(conn, triggerKey, new NoOpJobTypeLoader());
 
                 removedTrigger = DeleteTriggerAndChildren(conn, triggerKey);
 
@@ -1274,7 +1272,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // this must be called before we delete the trigger, obviously
-                JobDetailImpl job = Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper);
+                IJobDetail job = Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper);
 
                 if (job == null)
                 {
@@ -2459,7 +2457,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual TriggerFiredBundle TriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
         {
-            JobDetailImpl job;
+            IJobDetail job;
             ICalendar cal = null;
 
             // Make sure trigger wasn't deleted, paused, or completed...

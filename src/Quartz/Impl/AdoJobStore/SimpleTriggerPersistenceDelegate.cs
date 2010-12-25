@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -78,29 +80,29 @@ namespace Quartz.Impl.AdoJobStore
 
         public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-
             using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "", triggerKey.Name);
-                adoUtil.AddCommandParameter(cmd, "", triggerKey.Group);
-                IDataReader rs = cmd.ExecuteReader();
+                adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                if (rs.Read())
+                using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
-                    long repeatInterval = rs.GetInt64(AdoConstants.ColumnRepeatInterval);
-                    int timesTriggered = rs.GetInt32(AdoConstants.ColumnTimesTriggered);
+                    if (rs.Read())
+                    {
+                        int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
+                        long repeatInterval = rs.GetInt64(AdoConstants.ColumnRepeatInterval);
+                        int timesTriggered = rs.GetInt32(AdoConstants.ColumnTimesTriggered);
 
-                    SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
-                        .WithRepeatCount(repeatCount)
-                        .WithInterval(TimeSpan.FromMilliseconds(repeatInterval));
+                        SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
+                            .WithRepeatCount(repeatCount)
+                            .WithInterval(TimeSpan.FromMilliseconds(repeatInterval));
 
-                    string[] statePropertyNames = {"timesTriggered"};
-                    object[] statePropertyValues = {timesTriggered};
+                        string[] statePropertyNames = {"timesTriggered"};
+                        object[] statePropertyValues = {timesTriggered};
 
-                    return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
+                        return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
+                    }
                 }
-
                 throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, tablePrefix, schedNameLiteral));
             }
         }
