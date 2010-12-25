@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -52,19 +52,19 @@ namespace Quartz.Simpl
 		/// intervention (e.g. an application restart after fixing whatever
 		/// configuration problem led to the issue wih instantiating the Job.
         /// </remarks>
-		/// <param name="bundle">The TriggerFiredBundle from which the <see cref="JobDetail" />
+		/// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
 		/// and other info relating to the trigger firing can be obtained.</param>
 		/// <returns>the newly instantiated Job</returns>
 		/// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
 		public virtual IJob NewJob(TriggerFiredBundle bundle)
 		{
-			JobDetail jobDetail = bundle.JobDetail;
+			IJobDetail jobDetail = bundle.JobDetail;
 			Type jobType = jobDetail.JobType;
 			try
 			{
 				if (Log.IsDebugEnabled)
 				{
-					Log.Debug(string.Format(CultureInfo.InvariantCulture, "Producing instance of Job '{0}', class={1}", jobDetail.FullName, jobType.FullName));
+					Log.Debug(string.Format(CultureInfo.InvariantCulture, "Producing instance of Job '{0}', class={1}", jobDetail.Key, jobType.FullName));
 				}
 
 				return ObjectUtils.InstantiateType<IJob>(jobType);

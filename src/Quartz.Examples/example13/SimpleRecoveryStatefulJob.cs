@@ -1,6 +1,7 @@
 #region License
+
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -15,19 +16,23 @@
  * under the License.
  * 
  */
+
 #endregion
 
 namespace Quartz.Examples.Example13
 {
-	
-	/// <summary> 
-	/// This job has the same functionality of SimpleRecoveryJob
-	/// except that this job implements the IStatefulJob interface.
-	/// </summary>
-	/// <author>Bill Kratzer</author>
+    /// <summary> 
+    /// This job has the same functionality of SimpleRecoveryJob
+    /// except that this job implements is 'stateful', in that it
+    /// will have it's data (JobDataMap) automatically re-persisted 
+    /// after each execution, and only one instance of the JobDetail
+    /// can be executed at a time.
+    /// </summary>
+    /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class SimpleRecoveryStatefulJob : SimpleRecoveryJob, IStatefulJob
-	{
-		
-	}
+    [PersistJobDataAfterExecution]
+    [DisallowConcurrentExecution]
+    public class SimpleRecoveryStatefulJob : SimpleRecoveryJob
+    {
+    }
 }

@@ -111,12 +111,14 @@
       <Link>AssemblyInfo.cs</Link>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="CalendarIntervalTriggerTest.cs" />
     <Compile Include="CronTriggerTest.cs" />
-    <Compile Include="DateIntervalTriggerTest.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
     <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
+    <Compile Include="JobBuilderTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
+    <Compile Include="SchedulerTest.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
     <Compile Include="CronExpressionTest.cs">
@@ -161,14 +163,12 @@
     <Compile Include="Simpl\RAMJobStoreTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TriggerBuilderTest.cs" />
     <Compile Include="Utils\DirtyFlagMapTest.cs" />
     <Compile Include="Utils\ObjectUtilsTest.cs" />
-    <Compile Include="Utils\PairTest.cs" />
     <Compile Include="Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Xml\JobSchedulingBundleTest.cs" />
-    <Compile Include="Xml\JobSchedulingDataProcessorTest.cs" />
     <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -21,6 +21,8 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Triggers;
+using Quartz.Spi;
 
 
 namespace Quartz.Tests.Unit
@@ -30,7 +32,7 @@ namespace Quartz.Tests.Unit
 	/// </summary>
 	public class SimpleTriggerTest : SerializationTestSupport
 	{
-		private static readonly string[] Versions = new string[] {"0.6"};
+		private static readonly string[] Versions = new string[] {"2.0"};
 
 		//private static TimeZone EST_TIME_ZONE = TimeZone.CurrentTimeZone; 
 		private static readonly DateTimeOffset StartTime;
@@ -55,14 +57,13 @@ namespace Quartz.Tests.Unit
 			JobDataMap jobDataMap = new JobDataMap();
 			jobDataMap.Put("A", "B");
 
-			SimpleTrigger t = new SimpleTrigger("SimpleTrigger", "SimpleGroup",
+			SimpleTriggerImpl t = new SimpleTriggerImpl("SimpleTrigger", "SimpleGroup",
 			                                    "JobName", "JobGroup", StartTime,
 			                                    EndTime, 5, TimeSpan.FromSeconds(1));
 			t.CalendarName = "MyCalendar";
 			t.Description = "SimpleTriggerDesc";
 			t.JobDataMap = jobDataMap;
             t.MisfireInstruction = (MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount);
-			t.Volatile = true;
 
 			return t;
 		}
@@ -86,8 +87,8 @@ namespace Quartz.Tests.Unit
 		/// <param name="deserialized"></param>
 		protected override void VerifyMatch(Object target, Object deserialized)
 		{
-			SimpleTrigger targetSimpleTrigger = (SimpleTrigger) target;
-			SimpleTrigger deserializedSimpleTrigger = (SimpleTrigger) deserialized;
+			SimpleTriggerImpl targetSimpleTrigger = (SimpleTriggerImpl) target;
+			SimpleTriggerImpl deserializedSimpleTrigger = (SimpleTriggerImpl) deserialized;
 
 			Assert.IsNotNull(deserializedSimpleTrigger);
 			Assert.AreEqual(targetSimpleTrigger.Name, deserializedSimpleTrigger.Name);
@@ -102,7 +103,6 @@ namespace Quartz.Tests.Unit
 			Assert.AreEqual(targetSimpleTrigger.Description, deserializedSimpleTrigger.Description);
 			Assert.AreEqual(targetSimpleTrigger.JobDataMap, deserializedSimpleTrigger.JobDataMap);
 			Assert.AreEqual(targetSimpleTrigger.MisfireInstruction, deserializedSimpleTrigger.MisfireInstruction);
-			Assert.IsTrue(targetSimpleTrigger.Volatile);
 		}
 
 		[Test]
@@ -112,7 +112,7 @@ namespace Quartz.Tests.Unit
 
 			DateTimeOffset endTime = new DateTimeOffset(2005, 7, 5, 10, 0, 0, TimeSpan.Zero);
 
-			SimpleTrigger simpleTrigger = new SimpleTrigger();
+			SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 			simpleTrigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
 			simpleTrigger.RepeatCount = 5;
 			simpleTrigger.StartTimeUtc = startTime;
@@ -127,9 +127,9 @@ namespace Quartz.Tests.Unit
 		[Test]
 		public void TestGetFireTimeAfter()
 		{
-			SimpleTrigger simpleTrigger = new SimpleTrigger();
+			SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
-			DateTimeOffset startTime = TriggerUtils.GetEvenSecondDate(DateTime.UtcNow);
+			DateTimeOffset startTime = DateBuilder.EvenSecondDate(DateTime.UtcNow);
 
 			simpleTrigger.StartTimeUtc = startTime;
 			simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
@@ -143,16 +143,16 @@ namespace Quartz.Tests.Unit
 		[Test]
 		public void TestClone()
 		{
-			SimpleTrigger simpleTrigger = new SimpleTrigger();
+			SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
 			// Make sure empty sub-objects are cloned okay
-			Trigger clone = (Trigger) simpleTrigger.Clone();
+			ITrigger clone = (ITrigger) simpleTrigger.Clone();
 			Assert.AreEqual(0, clone.JobDataMap.Count);
 
 			// Make sure non-empty sub-objects are cloned okay
 			simpleTrigger.JobDataMap.Put("K1", "V1");
 			simpleTrigger.JobDataMap.Put("K2", "V2");
-			clone = (Trigger) simpleTrigger.Clone();
+			clone = (ITrigger) simpleTrigger.Clone();
 			Assert.AreEqual(2, clone.JobDataMap.Count);
 			Assert.AreEqual("V1", clone.JobDataMap.Get("K1"));
 			Assert.AreEqual("V2", clone.JobDataMap.Get("K2"));
@@ -172,10 +172,10 @@ namespace Quartz.Tests.Unit
         public void TestGetFireTimeAfter_WithCalendar()
         {
             DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-            SimpleTrigger simpleTrigger = new SimpleTrigger();
+            SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
             simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
             simpleTrigger.RepeatCount = 1;
-            DateTimeOffset neverFireTime = TriggerUtils.GetEvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(DateTime.Now)); 
+            DateTimeOffset neverFireTime = DateBuilder.EvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(DateTime.Now)); 
             simpleTrigger.StartTimeUtc = neverFireTime;
 
             simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
@@ -187,7 +187,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestPrecision()
         {
-            Trigger trigger = new SimpleTrigger();
+            IOperableTrigger trigger = new SimpleTriggerImpl();
             trigger.StartTimeUtc = new DateTimeOffset(1982, 6, 28, 13, 5, 5, 233, TimeSpan.Zero);
             Assert.IsTrue(trigger.HasMillisecondPrecision);
             Assert.AreEqual(233, trigger.StartTimeUtc.Millisecond);

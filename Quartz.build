@@ -257,6 +257,8 @@
       <resources dynamicprefix="false" prefix="Quartz.Tests.Unit.Xml.TestData">
         <include name="src/Quartz.Tests.Unit/Xml/TestData/MinimalConfiguration.xml" />
         <include name="src/Quartz.Tests.Unit/Xml/TestData/RichConfiguration.xml" />
+        <include name="src/Quartz.Tests.Unit/Xml/TestData/MinimalConfiguration_20.xml" />
+        <include name="src/Quartz.Tests.Unit/Xml/TestData/RichConfiguration_20.xml" />
       </resources>
       <references>
         <include name="System.dll" />
@@ -465,9 +467,8 @@
 
     <call target="build-quartz" />
     <call target="build-examples" />
-    <!--
     <call target="build-tests" />
-    -->
+
   </target>
 
   <target name="build-website">

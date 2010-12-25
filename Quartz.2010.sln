@@ -15,7 +15,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tables", "tables", "{E1A1F9
 		database\tables\tables_mysql_innodb.sql = database\tables\tables_mysql_innodb.sql
 		database\tables\tables_oracle.sql = database\tables\tables_oracle.sql
 		database\tables\tables_postgres.sql = database\tables\tables_postgres.sql
-		database\tables\tables_postgres7.sql = database\tables\tables_postgres7.sql
 		database\tables\tables_sqlite.sql = database\tables\tables_sqlite.sql
 		database\tables\tables_sqlServer.sql = database\tables\tables_sqlServer.sql
 		database\tables\tables_sqlServerCe.sql = database\tables\tables_sqlServerCe.sql

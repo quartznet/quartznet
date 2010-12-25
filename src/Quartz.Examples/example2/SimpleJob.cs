@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -30,26 +30,19 @@ namespace Quartz.Examples.Example2
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob : IJob
 	{
-		private static ILog _log = LogManager.GetLogger(typeof(SimpleJob));
-		
-		/// <summary> 
-		/// Empty constructor for job initilization.
-		/// </summary>
-		public SimpleJob()
-		{
-		}
-		
-		/// <summary>
+		private static readonly ILog log = LogManager.GetLogger(typeof(SimpleJob));
+
+	    /// <summary>
 		/// Called by the <see cref="IScheduler" /> when a
-		/// <see cref="Trigger" /> fires that is associated with
+		/// <see cref="ITrigger" /> fires that is associated with
 		/// the <see cref="IJob" />.
 		/// </summary>
-		public virtual void  Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			// This job simply prints out its job name and the
 			// date and time that it is running
-			string jobName = context.JobDetail.FullName;
-			_log.Info(string.Format("SimpleJob says: {0} executing at {1}", jobName, DateTime.Now.ToString("r")));
+			JobKey jobKey = context.JobDetail.Key;
+			log.InfoFormat("SimpleJob says: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
 		}
 	}
 }

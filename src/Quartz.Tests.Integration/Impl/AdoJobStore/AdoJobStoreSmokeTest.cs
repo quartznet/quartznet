@@ -8,7 +8,9 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
@@ -217,16 +219,16 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     ICalendar holidayCalendar = new HolidayCalendar();
 
                     // QRTZNET-86
-                    Trigger t = sched.GetTrigger("NonExistingTrigger", "NonExistingGroup");
+                    ITrigger t = sched.GetTrigger(new TriggerKey("NonExistingTrigger", "NonExistingGroup"));
                     Assert.IsNull(t);
 
                     AnnualCalendar cal = new AnnualCalendar();
                     sched.AddCalendar("annualCalendar", cal, false, true);
 
-                    SimpleTrigger calendarsTrigger = new SimpleTrigger("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
+                    IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
                     calendarsTrigger.CalendarName = "annualCalendar";
 
-                    JobDetail jd = new JobDetail("testJob", "test", typeof(NoOpJob));
+                    JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof(NoOpJob));
                     sched.ScheduleJob(jd, calendarsTrigger);
 
                     // QRTZNET-93
@@ -244,7 +246,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     Assert.IsNotNull(sched.GetCalendar("annualCalendar"));
 
-                    JobDetail lonelyJob = new JobDetail("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
+                    JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
                     lonelyJob.Durable = true;
                     lonelyJob.RequestsRecovery = true;
                     sched.AddJob(lonelyJob, false);
@@ -254,71 +256,71 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     int count = 1;
 
-                    JobDetail job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    JobDetailImpl job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
 
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = true;
-                    SimpleTrigger trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
+                    IOperableTrigger trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
 
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                     sched.ScheduleJob(job, trigger);
 
                     // check that trigger was stored
-                    Trigger persisted = sched.GetTrigger("trig_" + count, schedId);
+                    ITrigger persisted = sched.GetTrigger(new TriggerKey("trig_" + count, schedId));
                     Assert.IsNotNull(persisted);
-                    Assert.IsTrue(persisted is SimpleTrigger);
+                    Assert.IsTrue(persisted is SimpleTriggerImpl);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
+                    trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
 
                     trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(2000L));
                     sched.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(3));
+                    trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(3));
 
                     trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(1000L));
                     sched.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromSeconds(4));
+                    trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(4));
 
                     trigger.StartTimeUtc = (DateTime.Now.AddMilliseconds(1000L));
                     sched.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    trigger = new SimpleTrigger("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
+                    trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
                     sched.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    CronTrigger ct = new CronTrigger("cron_trig_" + count, schedId, "0/10 * * * * ?");
+                    IOperableTrigger ct = new CronTriggerImpl("cron_trig_" + count, schedId, "0/10 * * * * ?");
                     ct.StartTimeUtc = DateTime.Now.AddMilliseconds(1000);
 
                     sched.ScheduleJob(job, ct);
 
                     count++;
-                    job = new JobDetail("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
@@ -334,9 +336,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     sched.ResumeAll();
 
-                    sched.PauseJob("job_1", schedId);
+                    sched.PauseJob(new JobKey("job_1", schedId));
 
-                    sched.ResumeJob("job_1", schedId);
+                    sched.ResumeJob(new JobKey("job_1", schedId));
 
                     sched.PauseJobGroup(schedId);
                     
@@ -344,8 +346,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     sched.ResumeJobGroup(schedId);
 
-                    sched.PauseTrigger("trig_2", schedId);
-                    sched.ResumeTrigger("trig_2", schedId);
+                    sched.PauseTrigger(new TriggerKey("trig_2", schedId));
+                    sched.ResumeTrigger(new TriggerKey("trig_2", schedId));
 
                     sched.PauseTriggerGroup(schedId);
                     
@@ -360,14 +362,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.Standby();
 
                     CollectionAssert.IsNotEmpty(sched.GetCalendarNames());
-                    CollectionAssert.IsNotEmpty(sched.GetJobNames(schedId));
+                    CollectionAssert.IsNotEmpty(sched.GetJobKeys(schedId));
 
-                    CollectionAssert.IsNotEmpty(sched.GetTriggersOfJob("job_2", schedId));
-                    Assert.IsNotNull(sched.GetJobDetail("job_2", schedId));
+                    CollectionAssert.IsNotEmpty(sched.GetTriggersOfJob(new JobKey("job_2", schedId)));
+                    Assert.IsNotNull(sched.GetJobDetail(new JobKey("job_2", schedId)));
 
                     sched.DeleteCalendar("cronCalendar");
                     sched.DeleteCalendar("holidayCalendar");
-                    sched.DeleteJob("lonelyJob", "lonelyGroup");
+                    sched.DeleteJob(new JobKey("lonelyJob", "lonelyGroup"));
                     
                 }
             }
@@ -426,8 +428,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     for (int i = 0; i < 100000; ++i)
                     {
-                        SimpleTrigger trigger = new SimpleTrigger("calendarsTrigger_" + i, "test", SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(1));
-                        JobDetail jd = new JobDetail("testJob_" + i, "test", typeof(NoOpJob));
+                        ITrigger trigger = new SimpleTriggerImpl("calendarsTrigger", "test", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
+                        JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof(NoOpJob));
                         sched.ScheduleJob(jd, trigger);
                     }
                 }
@@ -444,24 +446,24 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         private static void CleanUp(IScheduler inScheduler)
         {
             // unschedule jobs
-            IList<string> groups = inScheduler.TriggerGroupNames;
+            IList<string> groups = inScheduler.GetTriggerGroupNames();
             foreach (string group in groups)
             {
-                IList<string> names = inScheduler.GetTriggerNames(group);
+                IList<TriggerKey> names = inScheduler.GetTriggerKeys(group);
                 for (int j = 0; j < names.Count; j++)
                 {
-                    inScheduler.UnscheduleJob(names[j], group);
+                    inScheduler.UnscheduleJob(names[j]);
                 }
             }
 
             // delete jobs
-            groups = inScheduler.JobGroupNames;
+            groups = inScheduler.GetJobGroupNames();
             foreach (string group in groups)
             {
-                IList<string> jobNames = inScheduler.GetJobNames(group);
-                foreach (string jobName in jobNames)
+                IList<JobKey> jobNames = inScheduler.GetJobKeys(group);
+                foreach (JobKey jobKey in jobNames)
                 {
-                    inScheduler.DeleteJob(jobName, group);
+                    inScheduler.DeleteJob(jobKey);
                 }
             }
 
@@ -507,7 +509,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                     CleanUp(sched);
 
-                    JobDetail lonelyJob = new JobDetail("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
+                    JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
                     lonelyJob.Durable = true;
                     lonelyJob.RequestsRecovery = true;
                     sched.AddJob(lonelyJob, false);
@@ -515,18 +517,18 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     string schedId = sched.SchedulerInstanceId;
 
-                    JobDetail job = new JobDetail("job_to_use", schedId, typeof(SimpleRecoveryJob));
+                    JobDetailImpl job = new JobDetailImpl("job_to_use", schedId, typeof(SimpleRecoveryJob));
 
                     for (int i = 0; i < 100000; ++i)
                     {
-                        SimpleTrigger trigger = new SimpleTrigger("stressing_simple", SimpleTrigger.RepeatIndefinitely,TimeSpan.FromSeconds(1));
+                        IOperableTrigger trigger = new SimpleTriggerImpl("stressing_simple", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
                         trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
                         sched.ScheduleJob(job, trigger);
                     }
 
                     for (int i = 0; i < 100000; ++i)
                     {
-                        CronTrigger ct = new CronTrigger("stressing_cron", "0/1 * * * * ?");
+                        IOperableTrigger ct = new CronTriggerImpl("stressing_cron", "0/1 * * * * ?");
                         ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
                         sched.ScheduleJob(job, ct);
                     }
@@ -553,20 +555,20 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             get { return GetType().FullName; }
         }
 
-        public void TriggerFired(Trigger trigger, JobExecutionContext context)
+        public void TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
         }
 
-        public bool VetoJobExecution(Trigger trigger, JobExecutionContext context)
+        public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
             return false;
         }
 
-        public void TriggerMisfired(Trigger trigger)
+        public void TriggerMisfired(ITrigger trigger)
         {
         }
 
-        public void TriggerComplete(Trigger trigger, JobExecutionContext context,
+        public void TriggerComplete(ITrigger trigger, IJobExecutionContext context,
                                     SchedulerInstruction triggerInstructionCode)
         {
         }
@@ -580,17 +582,17 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             get { return GetType().FullName; }
         }
 
-        public void JobToBeExecuted(JobExecutionContext context)
+        public void JobToBeExecuted(IJobExecutionContext context)
         {
             
         }
 
-        public void JobExecutionVetoed(JobExecutionContext context)
+        public void JobExecutionVetoed(IJobExecutionContext context)
         {
             
         }
 
-        public void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
+        public void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
             
         }
@@ -602,10 +604,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         /// <summary> 
         /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="Trigger" /> fires that is associated with
+        /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(JobExecutionContext context)
+        public virtual void Execute(IJobExecutionContext context)
         {
             // delay for ten seconds
             try
@@ -631,7 +633,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
     }
 
-    public class SimpleRecoveryStatefulJob : SimpleRecoveryJob, IStatefulJob
+    [DisallowConcurrentExecution]
+    [PersistJobDataAfterExecution]
+    public class SimpleRecoveryStatefulJob : SimpleRecoveryJob
     {
     }
 }

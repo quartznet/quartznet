@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -118,8 +118,8 @@ namespace Quartz.Impl.AdoJobStore
         /// transaction, it does not attempt to commit or rollback the 
         /// enclosing transaction.
         /// </summary>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock(string, JobStoreSupport.ITransactionCallback)" />
-        /// <seealso cref="JobStoreTX.ExecuteInLock(String, JobStoreSupport.ITransactionCallback)" />
+        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
+        /// <seealso cref="JobStoreTX.ExecuteInLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
         /// <param name="lockName">
@@ -130,7 +130,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">Callback to execute.</param>
         protected override object ExecuteInLock(
                 string lockName,
-                ITransactionCallback txCallback)
+                Func<ConnectionAndTransactionHolder, object> txCallback)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
@@ -153,7 +153,7 @@ namespace Quartz.Impl.AdoJobStore
                     conn = GetNonManagedTXConnection();
                 }
 
-                return txCallback.Execute(conn);
+                return txCallback(conn);
             }
             finally
             {

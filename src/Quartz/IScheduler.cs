@@ -1,6 +1,7 @@
 #region License
+
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -15,12 +16,12 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
 using System.Collections.Generic;
 
-using Quartz.Collection;
 using Quartz.Spi;
 
 namespace Quartz
@@ -31,9 +32,9 @@ namespace Quartz
     /// <remarks>
     /// 	<para>
     ///         A <see cref="IScheduler"/> maintains a registry of
-    ///         <see cref="JobDetail"/>s and <see cref="Trigger"/>s. Once
+    ///         <see cref="IJobDetail"/>s and <see cref="ITrigger"/>s. Once
     ///         registered, the <see cref="IScheduler"/> is responsible for executing
-    ///         <see cref="IJob"/> s when their associated <see cref="Trigger"/> s
+    ///         <see cref="IJob"/> s when their associated <see cref="ITrigger"/> s
     ///         fire (when their scheduled time arrives).
     ///     </para>
     /// 	<para>
@@ -47,27 +48,27 @@ namespace Quartz
     /// 	<para>
     /// 		<see cref="IJob"/> s are to be created by the 'client program', by
     ///         defining a class that implements the <see cref="IJob"/> interface.
-    ///         <see cref="JobDetail"/> objects are then created (also by the client) to
+    ///         <see cref="IJobDetail"/> objects are then created (also by the client) to
     ///         define a individual instances of the <see cref="IJob"/>.
-    ///         <see cref="JobDetail"/> instances can then be registered with the
+    ///         <see cref="IJobDetail"/> instances can then be registered with the
     ///         <see cref="IScheduler"/> via the %IScheduler.ScheduleJob(JobDetail,
     ///         Trigger)% or %IScheduler.AddJob(JobDetail, bool)% method.
     ///     </para>
     /// 	<para>
-    /// 		<see cref="Trigger"/> s can then be defined to fire individual
+    /// 		<see cref="ITrigger"/> s can then be defined to fire individual
     ///         <see cref="IJob"/> instances based on given schedules.
-    ///         <see cref="SimpleTrigger"/> s are most useful for one-time firings, or
+    ///         <see cref="ISimpleTrigger"/> s are most useful for one-time firings, or
     ///         firing at an exact moment in time, with N repeats with a given delay between
-    ///         them. <see cref="CronTrigger"/> s allow scheduling based on time of day,
+    ///         them. <see cref="ICronTrigger"/> s allow scheduling based on time of day,
     ///         day of week, day of month, and month of year.
     ///     </para>
     /// 	<para>
-    /// 		<see cref="IJob"/> s and <see cref="Trigger"/> s have a name and
+    /// 		<see cref="IJob"/> s and <see cref="ITrigger"/> s have a name and
     ///         group associated with them, which should uniquely identify them within a single
     ///         <see cref="IScheduler"/>. The 'group' feature may be useful for creating
     ///         logical groupings or categorizations of <see cref="IJob"/>s and
-    ///         <see cref="Trigger"/>s. If you don't have need for assigning a group to a
-    ///         given <see cref="IJob"/>s of <see cref="Trigger"/>s, then you can use
+    ///         <see cref="ITrigger"/>s. If you don't have need for assigning a group to a
+    ///         given <see cref="IJob"/>s of <see cref="ITrigger"/>s, then you can use
     ///         the <see cref="SchedulerConstants.DefaultGroup"/> constant defined on
     ///         this interface.
     ///     </para>
@@ -80,9 +81,10 @@ namespace Quartz
     ///         available from Quartz. The <see cref="IJobListener"/> interface provides
     ///         notifications of <see cref="IJob"/> executions. The
     ///         <see cref="ITriggerListener"/> interface provides notifications of
-    ///         <see cref="Trigger"/> firings. The <see cref="ISchedulerListener"/>
+    ///         <see cref="ITrigger"/> firings. The <see cref="ISchedulerListener"/>
     ///         interface provides notifications of <see cref="IScheduler"/> events and
-    ///         errors.
+    ///         errors.  Listeners can be associated with local schedulers through the
+    ///         <see cref="IListenerManager" /> interface.  
     ///     </para>
     /// 	<para>
     ///         The setup/configuration of a <see cref="IScheduler"/> instance is very
@@ -90,14 +92,14 @@ namespace Quartz
     ///     </para>
     /// </remarks>
     /// <seealso cref="IJob"/>
-    /// <seealso cref="JobDetail"/>
-    /// <seealso cref="Trigger"/>
+    /// <seealso cref="IJobDetail"/>
+    /// <seealso cref="ITrigger"/>
     /// <seealso cref="IJobListener"/>
     /// <seealso cref="ITriggerListener"/>
     /// <seealso cref="ISchedulerListener"/>
     /// <author>Marko Lahma (.NET)</author>
     public interface IScheduler
-	{
+    {
         /// <summary>
         /// returns true if the given JobGroup
         /// is paused
@@ -113,46 +115,46 @@ namespace Quartz
         /// <param name="groupName"></param>
         /// <returns></returns>
         bool IsTriggerGroupPaused(string groupName);
-        
-		/// <summary> 
-		/// Returns the name of the <see cref="IScheduler" />.
-		/// </summary>
-		string SchedulerName { get; }
 
-		/// <summary>
-		/// Returns the instance Id of the <see cref="IScheduler" />.
-		/// </summary>
-		string SchedulerInstanceId { get; }
+        /// <summary> 
+        /// Returns the name of the <see cref="IScheduler" />.
+        /// </summary>
+        string SchedulerName { get; }
 
-		/// <summary>
-		/// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
-		/// </summary>
-		SchedulerContext Context { get; }
+        /// <summary>
+        /// Returns the instance Id of the <see cref="IScheduler" />.
+        /// </summary>
+        string SchedulerInstanceId { get; }
 
-		/// <summary>
-		/// Reports whether the <see cref="IScheduler" /> is in stand-by mode.
-		/// </summary>
-		/// <seealso cref="Standby()" />
-		/// <seealso cref="Start()" />
-		bool InStandbyMode { get; }
+        /// <summary>
+        /// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
+        /// </summary>
+        SchedulerContext Context { get; }
 
-		/// <summary>
-		/// Reports whether the <see cref="IScheduler" /> has been Shutdown.
-		/// </summary>
-		bool IsShutdown { get; }
+        /// <summary>
+        /// Reports whether the <see cref="IScheduler" /> is in stand-by mode.
+        /// </summary>
+        /// <seealso cref="Standby()" />
+        /// <seealso cref="Start()" />
+        bool InStandbyMode { get; }
 
-		/// <summary>
-		/// Get a <see cref="SchedulerMetaData" /> object describing the settings
-		/// and capabilities of the scheduler instance.
-		/// </summary>
-		/// <remarks>
-		/// Note that the data returned is an 'instantaneous' snap-shot, and that as
-		/// soon as it's returned, the meta data values may be different.
+        /// <summary>
+        /// Reports whether the <see cref="IScheduler" /> has been Shutdown.
+        /// </summary>
+        bool IsShutdown { get; }
+
+        /// <summary>
+        /// Get a <see cref="SchedulerMetaData" /> object describing the settings
+        /// and capabilities of the scheduler instance.
+        /// </summary>
+        /// <remarks>
+        /// Note that the data returned is an 'instantaneous' snap-shot, and that as
+        /// soon as it's returned, the meta data values may be different.
         /// </remarks>
-		SchedulerMetaData GetMetaData();
+        SchedulerMetaData GetMetaData();
 
-		/// <summary>
-        /// Return a list of <see cref="JobExecutionContext" /> objects that
+        /// <summary>
+        /// Return a list of <see cref="IJobExecutionContext" /> objects that
         /// represent all currently executing Jobs in this Scheduler instance.
         /// </summary>
         /// <remarks>
@@ -161,96 +163,73 @@ namespace Quartz
         /// currently executing in this Scheduler instance, not across the entire
         /// cluster.
         /// </p>
-		/// <p>
-		/// Note that the list returned is an 'instantaneous' snap-shot, and that as
-		/// soon as it's returned, the true list of executing jobs may be different.
-		/// Also please read the doc associated with <see cref="JobExecutionContext" />-
-		/// especially if you're using remoting.
-		/// </p>
+        /// <p>
+        /// Note that the list returned is an 'instantaneous' snap-shot, and that as
+        /// soon as it's returned, the true list of executing jobs may be different.
+        /// Also please read the doc associated with <see cref="IJobExecutionContext" />-
+        /// especially if you're using remoting.
+        /// </p>
         /// </remarks>
-		/// <seealso cref="JobExecutionContext" />
-        IList<JobExecutionContext> GetCurrentlyExecutingJobs();
+        /// <seealso cref="IJobExecutionContext" />
+        IList<IJobExecutionContext> GetCurrentlyExecutingJobs();
 
-		/// <summary>
-		/// Set the <see cref="JobFactory" /> that will be responsible for producing 
-		/// instances of <see cref="IJob" /> classes.
-		/// </summary>
-		/// <remarks>
-		/// JobFactories may be of use to those wishing to have their application
-		/// produce <see cref="IJob" /> instances via some special mechanism, such as to
+        /// <summary>
+        /// Set the <see cref="JobFactory" /> that will be responsible for producing 
+        /// instances of <see cref="IJob" /> classes.
+        /// </summary>
+        /// <remarks>
+        /// JobFactories may be of use to those wishing to have their application
+        /// produce <see cref="IJob" /> instances via some special mechanism, such as to
         /// give the opportunity for dependency injection.
         /// </remarks>
-		/// <seealso cref="IJobFactory" />
-		IJobFactory JobFactory { set; }
+        /// <seealso cref="IJobFactory" />
+        IJobFactory JobFactory { set; }
 
-		/// <summary>
-		/// Get the names of all known <see cref="JobDetail" /> groups.
-		/// </summary>
-        IList<string> JobGroupNames { get; }
+        /// <summary>
+        /// Get a reference to the scheduler's <code>ListenerManager</code>,
+        /// through which listeners may be registered.
+        /// </summary>
+        /// <returns>the scheduler's <code>ListenerManager</code></returns>
+        /// <seealso cref="ListenerManager" />
+        /// <seealso cref="IJobListener" />
+        /// <seealso cref="ITriggerListener" />
+        /// <seealso cref="ISchedulerListener" />
+        IListenerManager ListenerManager { get; }
 
-		/// <summary>
-		/// Get the names of all known <see cref="Trigger" /> groups.
-		/// </summary>
-        IList<string> TriggerGroupNames { get; }
+        /// <summary>
+        /// Get the names of all known <see cref="IJobDetail" /> groups.
+        /// </summary>
+        IList<string> GetJobGroupNames();
 
-		/// <summary> 
-		/// Get the names of all <see cref="Trigger" /> groups that are paused.
-		/// </summary>
+        /// <summary>
+        /// Get the names of all known <see cref="ITrigger" /> groups.
+        /// </summary>
+        IList<string> GetTriggerGroupNames();
+
+        /// <summary> 
+        /// Get the names of all <see cref="ITrigger" /> groups that are paused.
+        /// </summary>
         Collection.ISet<string> GetPausedTriggerGroups();
 
-		/// <summary>
-		/// Get the names of all registered <see cref="ICalendar" />s.
-		/// </summary>
+        /// <summary>
+        /// Get the names of all registered <see cref="ICalendar" />s.
+        /// </summary>
         IList<string> CalendarNames { get; }
 
-		/// <summary>
-		/// Get a List containing all of the <see cref="IJobListener" /> s in
-		/// the <see cref="IScheduler" />'s<i>global</i> list.
-		/// </summary>
-        IList<IJobListener> GlobalJobListeners { get; }
-
         /// <summary>
-        /// Get the <i>global</i><see cref="IJobListener" /> that has
-        /// the given name.
+        /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s.
+        /// When a scheduler is first created it is in "stand-by" mode, and will not
+        /// fire triggers.  The scheduler can also be put into stand-by mode by
+        /// calling the <see cref="Standby" /> method.
         /// </summary>
-        /// <param name="name">Global job listener's name</param>
-        /// <returns></returns>
-        IJobListener GetGlobalJobListener(string name);
-
-        /// <summary>
-        /// Get the <i>global</i><see cref="ITriggerListener" /> that
-        /// has the given name.
-        /// </summary>
-        /// <param name="name">Global trigger listener's name</param>
-        /// <returns></returns>
-        ITriggerListener GetGlobalTriggerListener(string name);
-
-		/// <summary>
-		/// Get a List containing all of the <see cref="ITriggerListener" />
-		/// s in the <see cref="IScheduler" />'s<i>global</i> list.
-		/// </summary>
-		IList<ITriggerListener> GlobalTriggerListeners { get; }
-
-		/// <summary>
-		/// Get a List containing all of the <see cref="ISchedulerListener" />
-		/// s registered with the <see cref="IScheduler" />.
-		/// </summary>
-        IList<ISchedulerListener> SchedulerListeners { get; }
-
-        /// <summary>
-		/// Starts the <see cref="IScheduler" />'s threads that fire <see cref="Trigger" />s.
-		/// When a scheduler is first created it is in "stand-by" mode, and will not
-		/// fire triggers.  The scheduler can also be put into stand-by mode by
-		/// calling the <see cref="Standby" /> method.
-		/// </summary>
-		/// <remarks>
-		/// The misfire/recovery process will be started, if it is the initial call
-		/// to this method on this scheduler instance.
-		/// </remarks>
-		/// <seealso cref="StartDelayed(TimeSpan)"/>
-		/// <seealso cref="Standby"/>
-		/// <seealso cref="Shutdown(bool)"/>
-		void Start();
+        /// <remarks>
+        /// The misfire/recovery process will be started, if it is the initial call
+        /// to this method on this scheduler instance.
+        /// </remarks>
+        /// <seealso cref="StartDelayed(TimeSpan)"/>
+        /// <seealso cref="Standby"/>
+        /// <seealso cref="Shutdown(bool)"/>
+        void Start();
 
         /// <summary>
         /// Calls <see cref="Start" /> after the indicated delay.
@@ -262,7 +241,7 @@ namespace Quartz
         /// <seealso cref="Standby"/>
         /// <seealso cref="Shutdown(bool)"/>
         void StartDelayed(TimeSpan delay);
- 
+
         /// <summary>
         /// Whether the scheduler has been started.  
         /// </summary>
@@ -275,320 +254,352 @@ namespace Quartz
         /// <seealso cref="Start" />
         /// <seealso cref="IsShutdown" />
         /// <seealso cref="InStandbyMode" />
-        bool IsStarted {  get; }
-
-		/// <summary>
-		/// Temporarily halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s.
-		/// </summary>
-		/// <remarks>
-		/// <p>
-		/// When <see cref="Start" /> is called (to bring the scheduler out of 
-		/// stand-by mode), trigger misfire instructions will NOT be applied
-		/// during the execution of the <see cref="Start" /> method - any misfires 
-		/// will be detected immediately afterward (by the <see cref="IJobStore" />'s 
-		/// normal process).
-		/// </p>
-		/// <p>
-		/// The scheduler is not destroyed, and can be re-started at any time.
-		/// </p>
-		/// </remarks>
-		/// <seealso cref="Start()"/>
-		/// <seealso cref="PauseAll()"/>
-		void Standby();
-
-		/// <summary> 
-		/// Halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s,
-		/// and cleans up all resources associated with the Scheduler. Equivalent to
-		/// <see cref="Shutdown(bool)" />.
-		/// </summary>
-		/// <remarks>
-		/// The scheduler cannot be re-started.
-		/// </remarks>
-		/// <seealso cref="Shutdown(bool)" />
-		void Shutdown();
-
-		/// <summary>
-		/// Halts the <see cref="IScheduler" />'s firing of <see cref="Trigger" />s,
-		/// and cleans up all resources associated with the Scheduler. 
-		/// </summary>
-		/// <remarks>
-		/// The scheduler cannot be re-started.
-        /// </remarks>
-		/// <param name="waitForJobsToComplete">
-		/// if <see langword="true" /> the scheduler will not allow this method
-		/// to return until all currently executing jobs have completed.
-		/// </param>
-		/// <seealso cref="Shutdown()" /> 
-		void Shutdown(bool waitForJobsToComplete);
-
-
-		/// <summary>
-		/// Add the given <see cref="JobDetail" /> to the
-		/// Scheduler, and associate the given <see cref="Trigger" /> with
-		/// it.
-		/// </summary>
-		/// <remarks>
-		/// If the given Trigger does not reference any <see cref="IJob" />, then it
-		/// will be set to reference the Job passed with it into this method.
-		/// </remarks>
-		DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger);
-
-		/// <summary>
-		/// Schedule the given <see cref="Trigger" /> with the
-		/// <see cref="IJob" /> identified by the <see cref="Trigger" />'s settings.
-		/// </summary>
-		DateTimeOffset ScheduleJob(Trigger trigger);
-
-		/// <summary>
-		/// Remove the indicated <see cref="Trigger" /> from the scheduler.
-		/// </summary>
-		bool UnscheduleJob(string triggerName, string groupName);
-
-		/// <summary>
-		/// Remove (delete) the <see cref="Trigger" /> with the
-		/// given name, and store the new given one - which must be associated
-		/// with the same job (the new trigger must have the job name &amp; group specified) 
-		/// - however, the new trigger need not have the same name as the old trigger.
-		/// </summary>
-		/// <param name="triggerName">
-		/// The name of the <see cref="Trigger" /> to be replaced.
-		/// </param>
-		/// <param name="groupName">
-		/// The group name of the <see cref="Trigger" /> to be replaced.
-		/// </param>
-		/// <param name="newTrigger">
-		/// The new <see cref="Trigger" /> to be stored.
-		/// </param>
-		/// <returns> 
-		/// <see langword="null" /> if a <see cref="Trigger" /> with the given
-		/// name and group was not found and removed from the store, otherwise
-		/// the first fire time of the newly scheduled trigger.
-		/// </returns>
-        DateTimeOffset? RescheduleJob(string triggerName, string groupName, Trigger newTrigger);
+        bool IsStarted { get; }
 
         /// <summary>
-		/// Add the given <see cref="IJob" /> to the Scheduler - with no associated
-		/// <see cref="Trigger" />. The <see cref="IJob" /> will be 'dormant' until
-		/// it is scheduled with a <see cref="Trigger" />, or <see cref="IScheduler.TriggerJob(string, string)" />
-		/// is called for it.
-		/// </summary>
-		/// <remarks>
-		/// The <see cref="IJob" /> must by definition be 'durable', if it is not,
-		/// SchedulerException will be thrown.
-		/// </remarks>
-		void AddJob(JobDetail jobDetail, bool replace);
-
-		/// <summary>
-		/// Delete the identified <see cref="IJob" /> from the Scheduler - and any
-		/// associated <see cref="Trigger" />s.
-		/// </summary>
-		/// <returns> true if the Job was found and deleted.</returns>
-		bool DeleteJob(string jobName, string groupName);
-
-		/// <summary>
-		/// Trigger the identified <see cref="JobDetail" />
-		/// (Execute it now) - the generated trigger will be non-volatile.
-		/// </summary>
-		void TriggerJob(string jobName, string groupName);
-
-		/// <summary>
-		/// Trigger the identified <see cref="JobDetail" />
-		/// (Execute it now) - the generated trigger will be volatile.
-		/// </summary>
-		void TriggerJobWithVolatileTrigger(string jobName, string groupName);
-
-		/// <summary>
-		/// Trigger the identified <see cref="JobDetail" />
-		/// (Execute it now) - the generated trigger will be non-volatile.
-		/// </summary>
-		/// <param name="jobName">the name of the Job to trigger</param>
-		/// <param name="groupName">the group name of the Job to trigger</param>
-		/// <param name="data">
-		/// the (possibly <see langword="null" />) JobDataMap to be
-		/// associated with the trigger that fires the job immediately.
-		/// </param>
-		void TriggerJob(string jobName, string groupName, JobDataMap data);
-
-		/// <summary>
-		/// Trigger the identified <see cref="JobDetail" />
-		/// (Execute it now) - the generated trigger will be volatile.
-		/// </summary>
-		/// <param name="jobName">the name of the Job to trigger</param>
-		/// <param name="groupName">the group name of the Job to trigger</param>
-		/// <param name="data">
-		/// the (possibly <see langword="null" />) JobDataMap to be
-		/// associated with the trigger that fires the job immediately.
-		/// </param>
-		void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data);
-
-		/// <summary>
-		/// Pause the <see cref="JobDetail" /> with the given
-		/// name - by pausing all of its current <see cref="Trigger" />s.
-		/// </summary>
-		void PauseJob(string jobName, string groupName);
-
-		/// <summary>
-		/// Pause all of the <see cref="JobDetail" />s in the
-		/// given group - by pausing all of their <see cref="Trigger" />s.
-		/// </summary>
-		/// <remarks>
-		/// The Scheduler will "remember" that the group is paused, and impose the
-		/// pause on any new jobs that are added to the group while the group is
-		/// paused.
-		/// </remarks>
-		/// <seealso cref="ResumeJobGroup(string)" />
-		void PauseJobGroup(string groupName);
-
-		/// <summary> 
-		/// Pause the <see cref="Trigger" /> with the given name.
-		/// </summary>
-		void PauseTrigger(string triggerName, string groupName);
-
-		/// <summary>
-		/// Pause all of the <see cref="Trigger" />s in the given group.
-		/// </summary>
-		/// <remarks>
-		/// The Scheduler will "remember" that the group is paused, and impose the
-		/// pause on any new triggers that are added to the group while the group is
-		/// paused.
+        /// Temporarily halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s.
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// When <see cref="Start" /> is called (to bring the scheduler out of 
+        /// stand-by mode), trigger misfire instructions will NOT be applied
+        /// during the execution of the <see cref="Start" /> method - any misfires 
+        /// will be detected immediately afterward (by the <see cref="IJobStore" />'s 
+        /// normal process).
+        /// </p>
+        /// <p>
+        /// The scheduler is not destroyed, and can be re-started at any time.
+        /// </p>
         /// </remarks>
-		/// <seealso cref="ResumeTriggerGroup(string)" />
-		void PauseTriggerGroup(string groupName);
+        /// <seealso cref="Start()"/>
+        /// <seealso cref="PauseAll()"/>
+        void Standby();
 
-		/// <summary>
-		/// Resume (un-pause) the <see cref="JobDetail" /> with
-		/// the given name.
-		/// </summary>
-		/// <remarks>
-		/// If any of the <see cref="IJob" />'s<see cref="Trigger" /> s missed one
-		/// or more fire-times, then the <see cref="Trigger" />'s misfire
-		/// instruction will be applied.
-		/// </remarks>
-		void ResumeJob(string jobName, string groupName);
+        /// <summary> 
+        /// Halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s,
+        /// and cleans up all resources associated with the Scheduler. Equivalent to
+        /// <see cref="Shutdown(bool)" />.
+        /// </summary>
+        /// <remarks>
+        /// The scheduler cannot be re-started.
+        /// </remarks>
+        /// <seealso cref="Shutdown(bool)" />
+        void Shutdown();
 
-		/// <summary>
-		/// Resume (un-pause) all of the <see cref="JobDetail" />s
-		/// in the given group.
-		/// </summary>
-		/// <remarks>
-		/// If any of the <see cref="IJob" /> s had <see cref="Trigger" /> s that
-		/// missed one or more fire-times, then the <see cref="Trigger" />'s
-		/// misfire instruction will be applied.
-		/// </remarks>
-		/// <seealso cref="PauseJobGroup(string)" />
-		void ResumeJobGroup(string groupName);
+        /// <summary>
+        /// Halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s,
+        /// and cleans up all resources associated with the Scheduler. 
+        /// </summary>
+        /// <remarks>
+        /// The scheduler cannot be re-started.
+        /// </remarks>
+        /// <param name="waitForJobsToComplete">
+        /// if <see langword="true" /> the scheduler will not allow this method
+        /// to return until all currently executing jobs have completed.
+        /// </param>
+        /// <seealso cref="Shutdown()" /> 
+        void Shutdown(bool waitForJobsToComplete);
 
-		/// <summary>
-		/// Resume (un-pause) the <see cref="Trigger" /> with the given
-		/// name.
-		/// </summary>
-		/// <remarks>
-		/// If the <see cref="Trigger" /> missed one or more fire-times, then the
-		/// <see cref="Trigger" />'s misfire instruction will be applied.
-		/// </remarks>
-		void ResumeTrigger(string triggerName, string groupName);
 
-		/// <summary>
-		/// Resume (un-pause) all of the <see cref="Trigger" />s in the
-		/// given group.
-		/// </summary>
-		/// <remarks>
-		/// If any <see cref="Trigger" /> missed one or more fire-times, then the
-		/// <see cref="Trigger" />'s misfire instruction will be applied.
-		/// </remarks>
-		/// <seealso cref="PauseTriggerGroup(string)" />
-		void ResumeTriggerGroup(string groupName);
+        /// <summary>
+        /// Add the given <see cref="IJobDetail" /> to the
+        /// Scheduler, and associate the given <see cref="ITrigger" /> with
+        /// it.
+        /// </summary>
+        /// <remarks>
+        /// If the given Trigger does not reference any <see cref="IJob" />, then it
+        /// will be set to reference the Job passed with it into this method.
+        /// </remarks>
+        DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
 
-		/// <summary>
-		/// Pause all triggers - similar to calling <see cref="PauseTriggerGroup(string)" />
-		/// on every group, however, after using this method <see cref="ResumeAll()" /> 
-		/// must be called to clear the scheduler's state of 'remembering' that all 
-		/// new triggers will be paused as they are added. 
-		/// </summary>
-		/// <remarks>
-		/// When <see cref="ResumeAll()" /> is called (to un-pause), trigger misfire
-		/// instructions WILL be applied.
-		/// </remarks>
-		/// <seealso cref="ResumeAll()" />
-		/// <seealso cref="PauseTriggerGroup(string)" />
-		/// <seealso cref="Standby()" />
-		void PauseAll();
+        /// <summary>
+        /// Schedule the given <see cref="ITrigger" /> with the
+        /// <see cref="IJob" /> identified by the <see cref="ITrigger" />'s settings.
+        /// </summary>
+        DateTimeOffset ScheduleJob(ITrigger trigger);
 
-		/// <summary> 
-		/// Resume (un-pause) all triggers - similar to calling 
-		/// <see cref="ResumeTriggerGroup(string)" /> on every group.
-		/// </summary>
-		/// <remarks>
-		/// If any <see cref="Trigger" /> missed one or more fire-times, then the
-		/// <see cref="Trigger" />'s misfire instruction will be applied.
-		/// </remarks>
-		/// <seealso cref="PauseAll()" />
-		void ResumeAll();
+        /// <summary>
+        /// Schedule all of the given jobs with the related set of triggers.
+        /// </summary>
+        /// <remarks>
+        /// <p>If any of the given jobs or triggers already exist (or more
+        /// specifically, if the keys are not unique) and the replace
+        /// parameter is not set to true then an exception will be thrown.</p>
+        /// </remarks>
+        void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace);
 
-		/// <summary>
-		/// Get the names of all the <see cref="JobDetail" />s in the given group.
-		/// </summary>
-        IList<string> GetJobNames(string groupName);
-		
-		/// <summary>
-		/// Get all <see cref="Trigger" /> s that are associated with the
-		/// identified <see cref="JobDetail" />.
-		/// </summary>
-        IList<Trigger> GetTriggersOfJob(string jobName, string groupName);
 
-		/// <summary>
-		/// Get the names of all the <see cref="Trigger" />s in the given
-		/// group.
-		/// </summary>
-        IList<string> GetTriggerNames(string groupName);
+        /// <summary>
+        /// Remove the indicated <see cref="ITrigger" /> from the scheduler.
+        /// <p>If the related job does not have any other triggers, and the job is
+        /// not durable, then the job will also be deleted.</p>
+        /// </summary>
+        bool UnscheduleJob(TriggerKey triggerKey);
 
-		/// <summary>
-		/// Get the <see cref="JobDetail" /> for the <see cref="IJob" />
-		/// instance with the given name and group.
-		/// </summary>
-		JobDetail GetJobDetail(string jobName, string jobGroup);
+        /// <summary>
+        /// Remove all of the indicated <code>{@link Trigger}</code>s from the scheduler.
+        /// </summary>
+        /// <remarks>
+        /// <p>If the related job does not have any other triggers, and the job is
+        /// not durable, then the job will also be deleted.</p>
+        /// Note that while this bulk operation is likely more efficient than
+        /// invoking <code>unscheduleJob(TriggerKey triggerKey)</code> several
+        /// times, it may have the adverse affect of holding data locks for a
+        /// single long duration of time (rather than lots of small durations
+        /// of time).
+        /// </remarks>
+        bool UnscheduleJobs(IList<TriggerKey> triggerKeys);
 
-		/// <summary>
-		/// Get the <see cref="Trigger" /> instance with the given name and
-		/// group.
-		/// </summary>
-		Trigger GetTrigger(string triggerName, string triggerGroup);
+        /// <summary>
+        /// Remove (delete) the <see cref="ITrigger" /> with the
+        /// given key, and store the new given one - which must be associated
+        /// with the same job (the new trigger must have the job name &amp; group specified) 
+        /// - however, the new trigger need not have the same name as the old trigger.
+        /// </summary>
+        /// <param name="newTrigger">
+        /// The new <see cref="ITrigger" /> to be stored.
+        /// </param>
+        /// <returns> 
+        /// <see langword="null" /> if a <see cref="ITrigger" /> with the given
+        /// name and group was not found and removed from the store, otherwise
+        /// the first fire time of the newly scheduled trigger.
+        /// </returns>
+        DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
-		/// <summary>
-		/// Get the current state of the identified <see cref="Trigger" />.
-		/// </summary>
+        /// <summary>
+        /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
+        /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
+        /// it is scheduled with a <see cref="ITrigger" />, or <see cref="TriggerJob(Quartz.JobKey)" />
+        /// is called for it.
+        /// </summary>
+        /// <remarks>
+        /// The <see cref="IJob" /> must by definition be 'durable', if it is not,
+        /// SchedulerException will be thrown.
+        /// </remarks>
+        void AddJob(IJobDetail jobDetail, bool replace);
+
+        /// <summary>
+        /// Delete the identified <see cref="IJob" /> from the Scheduler - and any
+        /// associated <see cref="ITrigger" />s.
+        /// </summary>
+        /// <returns> true if the Job was found and deleted.</returns>
+        bool DeleteJob(JobKey jobKey);
+
+
+        /// <summary>
+        /// Delete the identified <code>Job</code>s from the Scheduler - and any
+        /// associated <code>Trigger</code>s.
+        /// </summary>
+        /// <remarks>
+        /// <p>Note that while this bulk operation is likely more efficient than
+        /// invoking <code>deleteJob(JobKey jobKey)</code> several
+        /// times, it may have the adverse affect of holding data locks for a
+        /// single long duration of time (rather than lots of small durations
+        /// of time).</p>
+        /// </remarks>
+        /// <returns>
+        /// true if all of the Jobs were found and deleted, false if
+        /// one or more were not deleted.
+        /// </returns>
+        bool DeleteJobs(IList<JobKey> jobKeys);
+
+        /// <summary>
+        /// Trigger the identified <see cref="IJobDetail" />
+        /// (Execute it now).
+        /// </summary>
+        void TriggerJob(JobKey jobKey);
+
+        /// <summary>
+        /// Trigger the identified <see cref="IJobDetail" /> (Execute it now).
+        /// </summary>
+        /// <param name="data">
+        /// the (possibly <see langword="null" />) JobDataMap to be
+        /// associated with the trigger that fires the job immediately.
+        /// </param>
+        void TriggerJob(JobKey jobKey, JobDataMap data);
+
+        /// <summary>
+        /// Pause the <see cref="IJobDetail" /> with the given
+        /// key - by pausing all of its current <see cref="ITrigger" />s.
+        /// </summary>
+        void PauseJob(JobKey jobKey);
+
+        /// <summary>
+        /// Pause all of the <see cref="IJobDetail" />s in the
+        /// given group - by pausing all of their <see cref="ITrigger" />s.
+        /// </summary>
+        /// <remarks>
+        /// The Scheduler will "remember" that the group is paused, and impose the
+        /// pause on any new jobs that are added to the group while the group is
+        /// paused.
+        /// </remarks>
+        /// <seealso cref="ResumeJobGroup(string)" />
+        void PauseJobGroup(string groupName);
+
+        /// <summary> 
+        /// Pause the <see cref="ITrigger" /> with the given key.
+        /// </summary>
+        void PauseTrigger(TriggerKey triggerKey);
+
+        /// <summary>
+        /// Pause all of the <see cref="ITrigger" />s in the given group.
+        /// </summary>
+        /// <remarks>
+        /// The Scheduler will "remember" that the group is paused, and impose the
+        /// pause on any new triggers that are added to the group while the group is
+        /// paused.
+        /// </remarks>
+        /// <seealso cref="ResumeTriggerGroup(string)" />
+        void PauseTriggerGroup(string groupName);
+
+        /// <summary>
+        /// Resume (un-pause) the <see cref="IJobDetail" /> with
+        /// the given key.
+        /// </summary>
+        /// <remarks>
+        /// If any of the <see cref="IJob" />'s<see cref="ITrigger" /> s missed one
+        /// or more fire-times, then the <see cref="ITrigger" />'s misfire
+        /// instruction will be applied.
+        /// </remarks>
+        void ResumeJob(JobKey jobKey);
+
+        /// <summary>
+        /// Resume (un-pause) all of the <see cref="IJobDetail" />s
+        /// in the given group.
+        /// </summary>
+        /// <remarks>
+        /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
+        /// missed one or more fire-times, then the <see cref="ITrigger" />'s
+        /// misfire instruction will be applied.
+        /// </remarks>
+        /// <seealso cref="PauseJobGroup(string)" />
+        void ResumeJobGroup(string groupName);
+
+        /// <summary>
+        /// Resume (un-pause) the <see cref="ITrigger" /> with the given
+        /// key.
+        /// </summary>
+        /// <remarks>
+        /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
+        /// </remarks>
+        void ResumeTrigger(TriggerKey triggerKey);
+
+        /// <summary>
+        /// Resume (un-pause) all of the <see cref="ITrigger" />s in the
+        /// given group.
+        /// </summary>
+        /// <remarks>
+        /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
+        /// </remarks>
+        /// <seealso cref="PauseTriggerGroup(string)" />
+        void ResumeTriggerGroup(string groupName);
+
+        /// <summary>
+        /// Pause all triggers - similar to calling <see cref="PauseTriggerGroup(string)" />
+        /// on every group, however, after using this method <see cref="ResumeAll()" /> 
+        /// must be called to clear the scheduler's state of 'remembering' that all 
+        /// new triggers will be paused as they are added. 
+        /// </summary>
+        /// <remarks>
+        /// When <see cref="ResumeAll()" /> is called (to un-pause), trigger misfire
+        /// instructions WILL be applied.
+        /// </remarks>
+        /// <seealso cref="ResumeAll()" />
+        /// <seealso cref="PauseTriggerGroup(string)" />
+        /// <seealso cref="Standby()" />
+        void PauseAll();
+
+        /// <summary> 
+        /// Resume (un-pause) all triggers - similar to calling 
+        /// <see cref="ResumeTriggerGroup(string)" /> on every group.
+        /// </summary>
+        /// <remarks>
+        /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
+        /// </remarks>
+        /// <seealso cref="PauseAll()" />
+        void ResumeAll();
+
+        /// <summary>
+        /// Get the keys of all the <see cref="IJobDetail" />s in the given group.
+        /// </summary>
+        IList<JobKey> GetJobKeys(string groupName);
+
+        /// <summary>
+        /// Get all <see cref="ITrigger" /> s that are associated with the
+        /// identified <see cref="IJobDetail" />.
+        /// </summary>
+        /// <remarks>
+        /// The returned Trigger objects will be snap-shots of the actual stored
+        /// triggers.  If you wish to modify a trigger, you must re-store the
+        /// trigger afterward (e.g. see {@link #rescheduleJob(TriggerKey, Trigger)}).
+        /// </remarks>
+        IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
+
+        /// <summary>
+        /// Get the names of all the <see cref="ITrigger" />s in the given
+        /// group.
+        /// </summary>
+        IList<TriggerKey> GetTriggerKeys(string groupName);
+
+        /// <summary>
+        /// Get the <see cref="IJobDetail" /> for the <see cref="IJob" />
+        /// instance with the given key .
+        /// </summary>
+        /// <remarks>
+        /// The returned JobDetail object will be a snap-shot of the actual stored
+        /// JobDetail.  If you wish to modify the JobDetail, you must re-store the
+        /// JobDetail afterward (e.g. see {@link #addJob(JobDetail, boolean)}).
+        /// </remarks>
+        IJobDetail GetJobDetail(JobKey jobKey);
+
+        /// <summary>
+        /// Get the <see cref="ITrigger" /> instance with the given key.
+        /// </summary>
+        /// <remarks>
+        /// The returned Trigger object will be a snap-shot of the actual stored
+        /// trigger.  If you wish to modify the trigger, you must re-store the
+        /// trigger afterward (e.g. see {@link #rescheduleJob(TriggerKey, Trigger)}).
+        /// </remarks>
+        ITrigger GetTrigger(TriggerKey triggerKey);
+
+        /// <summary>
+        /// Get the current state of the identified <see cref="ITrigger" />.
+        /// </summary>
         /// <seealso cref="TriggerState.Normal" />
         /// <seealso cref="TriggerState.Paused" />
         /// <seealso cref="TriggerState.Complete" />
         /// <seealso cref="TriggerState.Blocked" />
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.None" />
-		TriggerState GetTriggerState(string triggerName, string triggerGroup);
+        TriggerState GetTriggerState(TriggerKey triggerKey);
 
-		/// <summary>
-		/// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
-		/// </summary>
-		/// <param name="calName">Name of the calendar.</param>
-		/// <param name="calendar">The calendar.</param>
-		/// <param name="replace">if set to <c>true</c> [replace].</param>
-		/// <param name="updateTriggers">whether or not to update existing triggers that
-		/// referenced the already existing calendar so that they are 'correct'
-		/// based on the new trigger.</param>
-		void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
+        /// <summary>
+        /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
+        /// </summary>
+        /// <param name="calName">Name of the calendar.</param>
+        /// <param name="calendar">The calendar.</param>
+        /// <param name="replace">if set to <c>true</c> [replace].</param>
+        /// <param name="updateTriggers">whether or not to update existing triggers that
+        /// referenced the already existing calendar so that they are 'correct'
+        /// based on the new trigger.</param>
+        void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
-		/// <summary>
-		/// Delete the identified <see cref="ICalendar" /> from the Scheduler.
-		/// </summary>
-		/// <param name="calName">Name of the calendar.</param>
-		/// <returns>
-		/// true if the Calendar was found and deleted.
-		/// </returns>
-		bool DeleteCalendar(string calName);
+        /// <summary>
+        /// Delete the identified <see cref="ICalendar" /> from the Scheduler.
+        /// </summary>
+        /// <param name="calName">Name of the calendar.</param>
+        /// <returns>
+        /// true if the Calendar was found and deleted.
+        /// </returns>
+        bool DeleteCalendar(string calName);
 
-		/// <summary>
-		/// Get the <see cref="ICalendar" /> instance with the given name.
-		/// </summary>
-		ICalendar GetCalendar(string calName);
+        /// <summary>
+        /// Get the <see cref="ICalendar" /> instance with the given name.
+        /// </summary>
+        ICalendar GetCalendar(string calName);
 
         /// <summary>
         /// Get the names of all registered <see cref="ICalendar" />.
@@ -596,91 +607,61 @@ namespace Quartz
         /// <returns>An array of calendar names.</returns>
         IList<string> GetCalendarNames();
 
-		/// <summary>
-		/// Request the interruption, within this Scheduler instance, of all 
+        /// <summary>
+        /// Request the interruption, within this Scheduler instance, of all 
         /// currently executing instances of the identified <see cref="IJob" />, which 
         /// must be an implementor of the <see cref="IInterruptableJob" /> interface.
-		/// </summary>
-		/// <remarks>
-		/// <p>
-		/// If more than one instance of the identified job is currently executing,
-		/// the <see cref="IInterruptableJob.Interrupt" /> method will be called on
-		/// each instance.  However, there is a limitation that in the case that  
-		/// <see cref="Interrupt" /> on one instances throws an exception, all 
-		/// remaining  instances (that have not yet been interrupted) will not have 
-		/// their <see cref="Interrupt" /> method called.
-		/// </p>
-		/// 
-		/// <p>
-		/// If you wish to interrupt a specific instance of a job (when more than
-		/// one is executing) you can do so by calling 
-		/// <see cref="GetCurrentlyExecutingJobs" /> to obtain a handle 
-		/// to the job instance, and then invoke <see cref="Interrupt" /> on it
-		/// yourself.
-		/// </p>
-		/// <p>
+        /// </summary>
+        /// <remarks>
+        /// <p>
+        /// If more than one instance of the identified job is currently executing,
+        /// the <see cref="IInterruptableJob.Interrupt" /> method will be called on
+        /// each instance.  However, there is a limitation that in the case that  
+        /// <see cref="Interrupt" /> on one instances throws an exception, all 
+        /// remaining  instances (that have not yet been interrupted) will not have 
+        /// their <see cref="Interrupt" /> method called.
+        /// </p>
+        /// 
+        /// <p>
+        /// If you wish to interrupt a specific instance of a job (when more than
+        /// one is executing) you can do so by calling 
+        /// <see cref="GetCurrentlyExecutingJobs" /> to obtain a handle 
+        /// to the job instance, and then invoke <see cref="Interrupt" /> on it
+        /// yourself.
+        /// </p>
+        /// <p>
         /// This method is not cluster aware.  That is, it will only interrupt 
         /// instances of the identified InterruptableJob currently executing in this 
         /// Scheduler instance, not across the entire cluster.
         /// </p>
         /// </remarks>
-		/// <param name="jobName"> </param>
-		/// <param name="groupName"> </param>
-		/// <returns> 
-		/// true is at least one instance of the identified job was found and interrupted.
-		/// </returns>
-		/// <seealso cref="IInterruptableJob" />
-		/// <seealso cref="GetCurrentlyExecutingJobs" />
-		bool Interrupt(string jobName, string groupName);
+        /// <returns> 
+        /// true is at least one instance of the identified job was found and interrupted.
+        /// </returns>
+        /// <seealso cref="IInterruptableJob" />
+        /// <seealso cref="GetCurrentlyExecutingJobs" />
+        bool Interrupt(JobKey jobKey);
 
-		/// <summary>
-		/// Add the given <see cref="IJobListener" /> to the <see cref="IScheduler" />'s
-		/// <i>global</i> list.
-		/// </summary>
-		/// <remarks>
-		/// Listeners in the 'global' list receive notification of execution events
-		/// for ALL <see cref="JobDetail" />s.
-		/// </remarks>
-		void AddGlobalJobListener(IJobListener jobListener);
-
-		/// <summary>
-        /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
-        /// list of <i>global</i> listeners.
+        /// <summary>
+        /// Determine whether a <see cref="IJob" /> with the given identifier already 
+        /// exists within the scheduler.
         /// </summary>
-        /// <param name="name">Global job listener's name</param>
-        /// <returns>true if the identified listener was found in the list, and removed</returns>
-        bool RemoveGlobalJobListener(string name);
+        /// <param name="jobKey">the identifier to check for</param>
+        /// <returns>true if a Job exists with the given identifier</returns>
+        bool CheckExists(JobKey jobKey);
 
-		/// <summary>
-		/// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />'s
-		/// <i>global</i> list.
-		/// </summary>
-		/// <remarks>
-		/// Listeners in the 'global' list receive notification of execution events
-		/// for ALL <see cref="Trigger" />s.
-		/// </remarks>
-		void AddGlobalTriggerListener(ITriggerListener triggerListener);
-
-		/// <summary>
-        /// Remove the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />'s
-        /// list of <i>global</i> listeners.
+        /// <summary>
+        /// Determine whether a <see cref="ITrigger" /> with the given identifier already 
+        /// exists within the scheduler.
         /// </summary>
-        /// <param name="name">The name.</param>
-        /// <returns>true if the identified listener was found in the list, and removed.</returns>
-        bool RemoveGlobalTriggerListener(string name);
-        
-		/// <summary>
-		/// Register the given <see cref="ISchedulerListener" /> with the
-		/// </summary>
-		void AddSchedulerListener(ISchedulerListener schedulerListener);
+        /// <param name="triggerKey">the identifier to check for</param>
+        /// <returns>true if a Trigger exists with the given identifier</returns>
+        bool CheckExists(TriggerKey triggerKey);
 
-		/// <summary> 
-		/// Remove the given <see cref="ISchedulerListener" /> from the
-		/// <see cref="IScheduler" />.
-		/// </summary>
-        /// <returns> true if the identified listener was found in the list, and
-		/// removed.
-		/// </returns>
-		bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
-	}
+        /// <summary>
+        /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
+        /// <see cref="ICalendar"/>s.
+        /// </summary>
+        void Clear();
+    }
 }

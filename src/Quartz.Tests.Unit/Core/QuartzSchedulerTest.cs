@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -23,7 +23,9 @@ using System.Threading;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Spi;
 
 using Rhino.Mocks;
 
@@ -36,7 +38,7 @@ namespace Quartz.Tests.Unit.Core
         [Test]
         public void TestInvalidCalendarScheduling()
         {
-            const string expectedError = "Calendar not found: FOOBAR";
+            const string ExpectedError = "Calendar not found: FOOBAR";
 
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = sf.GetScheduler();
@@ -44,10 +46,10 @@ namespace Quartz.Tests.Unit.Core
             DateTime runTime = DateTime.Now.AddMinutes(10);
 
             // define the job and tie it to our HelloJob class
-            JobDetail job = new JobDetail("job1", "group1", typeof(NoOpJob));
+            JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof(NoOpJob));
 
             // Trigger the job to run on the next round minute
-            SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runTime);
+            IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "group1", runTime);
 
             // set invalid calendar
             trigger.CalendarName = "FOOBAR";
@@ -59,7 +61,7 @@ namespace Quartz.Tests.Unit.Core
             }
             catch (SchedulerException ex)
             {
-                Assert.AreEqual(expectedError, ex.Message);
+                Assert.AreEqual(ExpectedError, ex.Message);
             }
 
             try
@@ -69,7 +71,7 @@ namespace Quartz.Tests.Unit.Core
             }
             catch (SchedulerException ex)
             {
-                Assert.AreEqual(expectedError, ex.Message);
+                Assert.AreEqual(ExpectedError, ex.Message);
             }
             
             sched.Shutdown(false);
@@ -97,21 +99,21 @@ namespace Quartz.Tests.Unit.Core
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler scheduler = sf.GetScheduler();
             DateTime startTimeUtc = DateTime.UtcNow.AddSeconds(2);
-            JobDetail jobDetail = new JobDetail(JobName, JobGroup, typeof(NoOpJob));
-            SimpleTrigger jobTrigger = new SimpleTrigger(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
+            JobDetailImpl jobDetail = new JobDetailImpl(JobName, JobGroup, typeof(NoOpJob));
+            SimpleTriggerImpl jobTrigger = new SimpleTriggerImpl(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
 
             ISchedulerListener listener = MockRepository.GenerateMock<ISchedulerListener>();
 
             scheduler.ScheduleJob(jobDetail, jobTrigger);
             // add listener after scheduled
-            scheduler.AddSchedulerListener(listener);
+            scheduler.ListenerManager.AddSchedulerListener(listener);
 
             // act
-            scheduler.RescheduleJob(TriggerName, TriggerGroup, jobTrigger);
+            scheduler.RescheduleJob(new TriggerKey(TriggerName, TriggerGroup), jobTrigger);
 
             // assert
             // expect unschedule and schedule
-            listener.AssertWasCalled(l => l.JobUnscheduled(TriggerName, TriggerGroup));
+            listener.AssertWasCalled(l => l.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup)));
             listener.AssertWasCalled(l => l.JobScheduled(jobTrigger));
 
         }

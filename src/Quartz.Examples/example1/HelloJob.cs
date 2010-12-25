@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -45,10 +45,10 @@ namespace Quartz.Examples.Example1
 		
 		/// <summary> 
 		/// Called by the <see cref="IScheduler" /> when a
-		/// <see cref="Trigger" /> fires that is associated with
+		/// <see cref="ITrigger" /> fires that is associated with
 		/// the <see cref="IJob" />.
 		/// </summary>
-		public virtual void  Execute(JobExecutionContext context)
+		public virtual void  Execute(IJobExecutionContext context)
 		{
 			
 			// Say Hello to the World and display the date/time

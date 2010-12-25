@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Data.SqlClient;
 using System.Globalization;
 using System.Threading;
 
@@ -31,12 +30,12 @@ using Quartz.Spi;
 namespace Quartz.Core
 {
     /// <summary>
-    /// The thread responsible for performing the work of firing <see cref="Trigger" />
+    /// The thread responsible for performing the work of firing <see cref="ITrigger" />
     /// s that are registered with the <see cref="QuartzScheduler" />.
     /// </summary>
     /// <seealso cref="QuartzScheduler" />
     /// <seealso cref="IJob" />
-    /// <seealso cref="Trigger" />
+    /// <seealso cref="ITrigger" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public class QuartzSchedulerThread : QuartzThread
@@ -269,7 +268,7 @@ namespace Quartz.Core
                     int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
                     if (availThreadCount > 0) // will always be true, due to semantics of blockForAvailableThreads...
                     {
-                        IList<Trigger> triggers = null;
+                        IList<IOperableTrigger> triggers = null;
 
                         DateTimeOffset now = SystemTime.UtcNow();
 
@@ -376,7 +375,7 @@ namespace Quartz.Core
                             TriggerFiredBundle bndle = result.TriggerFiredBundle;
                             Exception exception = result.Exception;
 
-                            Trigger trigger = triggers[i];
+                            IOperableTrigger trigger = triggers[i];
                             // TODO SQL exception?
                             if (exception != null &&  (exception is DbException || exception.InnerException is DbException))
                             {
@@ -399,7 +398,7 @@ namespace Quartz.Core
                                 catch (SchedulerException se)
                                 {
                                     qs.NotifySchedulerListenersError(
-                                        "An error occurred while releasing triggers '" + trigger.FullName + "'", se);
+                                        "An error occurred while releasing triggers '" + trigger.Key + "'", se);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ReleaseTriggerRetryLoop(trigger);
@@ -418,8 +417,8 @@ namespace Quartz.Core
                             JobRunShell shell = null;
                             try
                             {
-                                shell = qsRsrcs.JobRunShellFactory.BorrowJobRunShell();
-                                shell.Initialize(qs, bndle);
+                                shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
+                                shell.Initialize(qs);
                             }
                             catch (SchedulerException)
                             {
@@ -432,7 +431,7 @@ namespace Quartz.Core
                                 {
                                     qs.NotifySchedulerListenersError(
                                         "An error occurred while placing job's triggers in error state '" +
-                                        trigger.FullName + "'", se2);
+                                        trigger.Key + "'", se2);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ErrorTriggerRetryLoop(bndle);
@@ -458,7 +457,7 @@ namespace Quartz.Core
                                     qs.NotifySchedulerListenersError(
                                         string.Format(CultureInfo.InvariantCulture,
                                                       "An error occurred while placing job's triggers in error state '{0}'",
-                                                      trigger.FullName), se2);
+                                                      trigger.Key), se2);
                                     // db connection must have failed... keep retrying
                                     // until it's up...
                                     ReleaseTriggerRetryLoop(trigger);
@@ -505,11 +504,11 @@ namespace Quartz.Core
         }
 
 
-        private bool ReleaseIfScheduleChangedSignificantly(IList<Trigger> triggers, DateTimeOffset triggerTime)
+        private bool ReleaseIfScheduleChangedSignificantly(IList<IOperableTrigger> triggers, DateTimeOffset triggerTime)
         {
             if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
             {
-                foreach (Trigger trigger in triggers)
+                foreach (IOperableTrigger trigger in triggers)
                 {
                     try
                     {
@@ -519,7 +518,7 @@ namespace Quartz.Core
                     catch (JobPersistenceException jpe)
                     {
                         qs.NotifySchedulerListenersError(
-                            string.Format("An error occurred while releasing trigger '{0}'", trigger.FullName), jpe);
+                            string.Format("An error occurred while releasing trigger '{0}'", trigger.Key), jpe);
                         // db connection must have failed... keep
                         // retrying until it's up...
                         ReleaseTriggerRetryLoop(trigger);
@@ -623,7 +622,7 @@ namespace Quartz.Core
                         if (retryCount%4 == 0)
                         {
                             qs.NotifySchedulerListenersError(
-                                string.Format(CultureInfo.InvariantCulture, "An error occurred while releasing trigger '{0}'", bndle.Trigger.FullName),
+                                string.Format(CultureInfo.InvariantCulture, "An error occurred while releasing trigger '{0}'", bndle.Trigger.Key),
                                 jpe);
                         }
                     }
@@ -650,7 +649,7 @@ namespace Quartz.Core
         /// Releases the trigger retry loop.
         /// </summary>
         /// <param name="trigger">The trigger.</param>
-        public virtual void ReleaseTriggerRetryLoop(Trigger trigger)
+        public virtual void ReleaseTriggerRetryLoop(IOperableTrigger trigger)
         {
             int retryCount = 0;
             try
@@ -671,7 +670,7 @@ namespace Quartz.Core
                         if (retryCount%4 == 0)
                         {
                             qs.NotifySchedulerListenersError(
-                                string.Format(CultureInfo.InvariantCulture, "An error occurred while releasing trigger '{0}'", trigger.FullName), jpe);
+                                string.Format(CultureInfo.InvariantCulture, "An error occurred while releasing trigger '{0}'", trigger.Key), jpe);
                         }
                     }
                     catch (ThreadInterruptedException e)

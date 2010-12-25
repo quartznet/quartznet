@@ -21,6 +21,8 @@ using System.Data;
 
 using Common.Logging;
 
+using Quartz.Spi;
+
 namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary>
@@ -33,25 +35,25 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Initializes a new instance of the <see cref="PostgreSQLDelegate"/> class.
         /// </summary>
-        /// <param name="log">The log.</param>
+        /// <param name="logger">The logger.</param>
         /// <param name="tablePrefix">The table prefix.</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
-        public PostgreSQLDelegate(ILog log, string tablePrefix, string instanceId, IDbProvider dbProvider)
-            : base(log, tablePrefix, instanceId, dbProvider)
+        public PostgreSQLDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
+            : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper)
 		{
 		}
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PostgreSQLDelegate"/> class.
         /// </summary>
-        /// <param name="log">The log.</param>
+        /// <param name="logger">The logger.</param>
         /// <param name="tablePrefix">The table prefix.</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
         /// <param name="useProperties">if set to <c>true</c> [use properties].</param>
-        public PostgreSQLDelegate(ILog log, string tablePrefix, string instanceId, IDbProvider dbProvider, bool useProperties)
-            : base(log, tablePrefix, instanceId, dbProvider, useProperties)
+        public PostgreSQLDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper, bool useProperties)
+            : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper, useProperties)
 		{
 		}
 

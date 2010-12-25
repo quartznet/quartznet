@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -31,12 +31,12 @@ namespace Quartz.Simpl
 	/// <summary> 
 	/// A JobFactory that instantiates the Job instance (using the default no-arg
 	/// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType" />), and
-	/// then attempts to set all values in the <see cref="JobExecutionContext" />'s
+	/// then attempts to set all values in the <see cref="IJobExecutionContext" />'s
 	/// <see cref="JobDataMap" /> onto bean properties of the <see cref="IJob" />.
 	/// </summary>
 	/// <seealso cref="IJobFactory" />
 	/// <seealso cref="SimpleJobFactory" />
-	/// <seealso cref="JobExecutionContext.MergedJobDataMap" />
+	/// <seealso cref="IJobExecutionContext.MergedJobDataMap" />
 	/// <seealso cref="WarnIfPropertyNotFound" />
 	/// <seealso cref="ThrowIfPropertyNotFound" />
 	/// <author>James Houser</author>
@@ -85,7 +85,7 @@ namespace Quartz.Simpl
 		/// configuration problem led to the issue wih instantiating the Job.
 		/// </p>
         /// </remarks>
-		/// <param name="bundle">The TriggerFiredBundle from which the <see cref="JobDetail" />
+		/// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
 		/// and other info relating to the trigger firing can be obtained.</param>
 		/// <returns>the newly instantiated Job</returns>
 		/// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>

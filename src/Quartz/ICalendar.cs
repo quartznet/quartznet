@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -23,24 +23,26 @@ using Quartz.Impl.Calendar;
 
 namespace Quartz
 {
-	/// <summary> 
-	///  An interface to be implemented by objects that define spaces of time during 
-    /// which an associated <see cref="Trigger" /> may fire. 
+    /// <summary> 
+    /// An interface to be implemented by objects that define spaces of time during 
+    /// which an associated <see cref="ITrigger" /> may (not) fire. Calendars 
+    /// do not define actual fire times, but rather are used to limit a 
+    /// <see cref="ITrigger" /> from firing on its normal schedule if necessary. Most 
+    /// Calendars include all times by default and allow the user to specify times 
+    /// to exclude. 
     /// </summary>
     /// <remarks>
-    /// Calendars do not  define actual fire times, but rather are used to limit a 
-    /// <see cref="Trigger" /> from firing on its normal schedule if necessary. Most 
-    /// Calendars include all times by default and allow the user to specify times to
-    /// exclude. As such, it is often useful to think of Calendars as being used to
-    /// <i>exclude</i> a block of time - as opposed to <i>include</i> 
-    /// a block of time. (i.e. the  schedule &quot;fire every five minutes except on Sundays&quot; could be 
-    /// implemented with a <see cref="SimpleTrigger" /> and a <see cref="WeeklyCalendar" /> which excludes Sundays)
+    /// As such, it is often useful to think of Calendars as being used to <I>exclude</I> a block
+    /// of time - as opposed to <I>include</I> a block of time. (i.e. the 
+    /// schedule &quot;fire every five minutes except on Sundays&quot; could be 
+    /// implemented with a <see cref="ISimpleTrigger" /> and a 
+    /// <see cref="WeeklyCalendar" /> which excludes Sundays)
     /// <para>
     /// Implementations MUST take care of being properly cloneable and Serializable.
     /// </para>
     /// </remarks>
-	/// <author>James House</author>
-	/// <author>Juergen Donnerstag</author>
+    /// <author>James House</author>
+    /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface ICalendar : ICloneable
 	{

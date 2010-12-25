@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -31,11 +31,11 @@ namespace Quartz.Examples.Example11
     /// <author>Marko Lahma (.NET)</author>
     public class LoadExample : IExample
 	{
-		private int _numberOfJobs = 500;
+		private readonly int numberOfJobs = 500;
 
 		public LoadExample(int inNumberOfJobs)
 		{
-			_numberOfJobs = inNumberOfJobs;
+			numberOfJobs = inNumberOfJobs;
 		}
 
 		public string Name
@@ -57,17 +57,23 @@ namespace Quartz.Examples.Example11
 
             Random r = new Random();
 			// schedule 500 jobs to run
-			for (int count = 1; count <= _numberOfJobs; count++)
+			for (int count = 1; count <= numberOfJobs; count++)
 			{
-				JobDetail job = new JobDetail("job" + count, "group1", typeof (SimpleJob));
+				IJobDetail job = JobBuilder
+                    .NewJob<SimpleJob>()
+                    .WithIdentity("job" + count, "group_1")
+                    .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
+                    .Build();
+
                 // tell the job to delay some small amount... to simulate work...
                 long timeDelay = (long)(r.NextDouble() * 2500);
-                job.JobDataMap.Put(SimpleJob.DELAY_TIME, timeDelay);
-				// ask scheduler to re-Execute this job if it was in progress when
-				// the scheduler went down...
-				job.RequestsRecovery = true;
-				SimpleTrigger trigger = new SimpleTrigger("trigger_" + count, "group_1");
-				trigger.StartTimeUtc = DateTime.UtcNow.AddMilliseconds(10000L).AddMilliseconds(count*100);
+                job.JobDataMap.Put(SimpleJob.DelayTime, timeDelay);
+
+			    ITrigger trigger = TriggerBuilder.Create()
+			        .WithIdentity("trigger_" + count, "group_1")
+			        .StartAt(DateBuilder.FutureDate((10000 + (count*100)), DateBuilder.IntervalUnit.Millisecond)) // space fire times a small bit
+			        .Build();
+
 				sched.ScheduleJob(job, trigger);
 				if (count%25 == 0)
 				{

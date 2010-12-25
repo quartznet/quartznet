@@ -1,6 +1,7 @@
 #region License
+
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -15,77 +16,81 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
 using System.Threading;
+
 using Common.Logging;
 #if !NET_20
-
 #endif
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example1
 {
-	
-	/// <summary> 
-	/// This Example will demonstrate how to start and shutdown the Quartz 
-	/// scheduler and how to schedule a job to run in Quartz.
-	/// </summary>
-	/// <author>Bill Kratzer</author>
+    /// <summary> 
+    /// This Example will demonstrate how to start and shutdown the Quartz 
+    /// scheduler and how to schedule a job to run in Quartz.
+    /// </summary>
+    /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleExample : IExample
-	{
-		public string Name
-		{
-			get { throw new NotImplementedException(); }
-		}
+    {
+        public string Name
+        {
+            get { throw new NotImplementedException(); }
+        }
 
-		public virtual void  Run()
-		{
-			ILog log = LogManager.GetLogger(typeof(SimpleExample));
-	
-			log.Info("------- Initializing ----------------------");
-			
-			// First we must get a reference to a scheduler
-			ISchedulerFactory sf = new StdSchedulerFactory();
-			IScheduler sched = sf.GetScheduler();
-			
-			log.Info("------- Initialization Complete -----------");
-			
-			log.Info("------- Scheduling Jobs -------------------");
-			
-			// computer a time that is on the next round minute
-            DateTimeOffset runTime = TriggerUtils.GetEvenMinuteDate(DateTime.UtcNow);
-			
-			// define the job and tie it to our HelloJob class
-			JobDetail job = new JobDetail("job1", "group1", typeof(HelloJob));
-			
-			// Trigger the job to run on the next round minute
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", runTime);
-			
-			// Tell quartz to schedule the job using our trigger
-			sched.ScheduleJob(job, trigger);
-			log.Info(string.Format("{0} will run at: {1}", job.FullName, runTime.ToString("r")));
-			
-			// Start up the scheduler (nothing can actually run until the 
-			// scheduler has been started)
-			sched.Start();
-			log.Info("------- Started Scheduler -----------------");
-			
-			// wait long enough so that the scheduler as an opportunity to 
-			// run the job!
-			log.Info("------- Waiting 90 seconds... -------------");
+        public virtual void Run()
+        {
+            ILog log = LogManager.GetLogger(typeof (SimpleExample));
 
-			// wait 90 seconds to show jobs
-			Thread.Sleep(90 * 1000);
+            log.Info("------- Initializing ----------------------");
 
-			// shut down the scheduler
-			log.Info("------- Shutting Down ---------------------");
-			sched.Shutdown(true);
-			log.Info("------- Shutdown Complete -----------------");
-		}
-		
+            // First we must get a reference to a scheduler
+            ISchedulerFactory sf = new StdSchedulerFactory();
+            IScheduler sched = sf.GetScheduler();
 
-	}
+            log.Info("------- Initialization Complete -----------");
+
+
+            // computer a time that is on the next round minute
+            DateTimeOffset runTime = DateBuilder.EvenMinuteDate(DateTimeOffset.UtcNow);
+
+            log.Info("------- Scheduling Job  -------------------");
+
+            // define the job and tie it to our HelloJob class
+            IJobDetail job = JobBuilder.NewJob<HelloJob>()
+                .WithIdentity("job1", "group1")
+                .Build();
+
+            // Trigger the job to run on the next round minute
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger1", "group1")
+                .StartAt(runTime)
+                .Build();
+
+            // Tell quartz to schedule the job using our trigger
+            sched.ScheduleJob(job, trigger);
+            log.Info(string.Format("{0} will run at: {1}", job.Key, runTime.ToString("r")));
+
+            // Start up the scheduler (nothing can actually run until the 
+            // scheduler has been started)
+            sched.Start();
+            log.Info("------- Started Scheduler -----------------");
+
+            // wait long enough so that the scheduler as an opportunity to 
+            // run the job!
+            log.Info("------- Waiting 65 seconds... -------------");
+
+            // wait 65 seconds to show jobs
+            Thread.Sleep(TimeSpan.FromSeconds(65));
+
+            // shut down the scheduler
+            log.Info("------- Shutting Down ---------------------");
+            sched.Shutdown(true);
+            log.Info("------- Shutdown Complete -----------------");
+        }
+    }
 }

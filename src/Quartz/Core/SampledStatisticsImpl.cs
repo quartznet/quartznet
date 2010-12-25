@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 
+using Quartz.Impl.Matchers;
 using Quartz.Listener;
 
 namespace Quartz.Core
@@ -37,8 +38,8 @@ namespace Quartz.Core
             jobsExecutingCount = CreateSampledCounter(CounterNameJobsExecuting);
             jobsCompletedCount = CreateSampledCounter(CounterNameJobsCompleted);
 
-            scheduler.AddSchedulerListener(this);
-            scheduler.AddGlobalJobListener(this);
+            scheduler.ListenerManager.AddSchedulerListener(this);
+            scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.MatchAllJobs());
         }
 
         private void EnsureCounters()
@@ -99,31 +100,31 @@ namespace Quartz.Core
             get { return ListenerName; }
         }
 
-        public override void JobScheduled(Trigger trigger)
+        public override void JobScheduled(ITrigger trigger)
         {
             jobsScheduledCount.Increment();
         }
 
-        public void JobExecutionVetoed(JobExecutionContext context)
+        public void JobExecutionVetoed(IJobExecutionContext context)
         {
         }
 
-        public void JobToBeExecuted(JobExecutionContext context)
+        public void JobToBeExecuted(IJobExecutionContext context)
         {
             jobsExecutingCount.Increment();
         }
 
-        public void JobWasExecuted(JobExecutionContext context,
+        public void JobWasExecuted(IJobExecutionContext context,
                                    JobExecutionException jobException)
         {
             jobsCompletedCount.Increment();
         }
 
-        public override void JobAdded(JobDetail jobDetail)
+        public override void JobAdded(IJobDetail jobDetail)
         {
         }
 
-        public override void JobDeleted(string jobName, string groupName)
+        public override void JobDeleted(JobKey jobKey)
         {
         }
     }

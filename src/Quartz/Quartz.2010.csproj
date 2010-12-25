@@ -120,6 +120,30 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="CalendarIntervalScheduleBuilder.cs" />
+    <Compile Include="Core\ListenerManagerImpl.cs" />
+    <Compile Include="CronScheduleBuilder.cs" />
+    <Compile Include="DateBuilder.cs" />
+    <Compile Include="ICronTrigger.cs" />
+    <Compile Include="IJobExecutionContext.cs" />
+    <Compile Include="IListenerManager.cs" />
+    <Compile Include="Impl\AdoJobStore\CalendarIntervalTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\CronTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\SimpleTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\ITriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerPersistenceDelegateSupport.cs" />
+    <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerProperties.cs" />
+    <Compile Include="Impl\Triggers\CoreTrigger.cs" />
+    <Compile Include="ICalendarIntervalTrigger.cs" />
+    <Compile Include="IScheduleBuilder.cs" />
+    <Compile Include="ISimpleTrigger.cs" />
+    <Compile Include="ITrigger.cs" />
+    <Compile Include="Job\DirectoryScanJob.cs" />
+    <Compile Include="Job\IDirectoryScanListener.cs" />
+    <Compile Include="Listener\BroadcastJobListener.cs" />
+    <Compile Include="Listener\BroadcastTriggerListener.cs" />
+    <Compile Include="ScheduleBuilder.cs" />
+    <Compile Include="SimpleScheduleBuilder.cs" />
     <Compile Include="Collection\ISet.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -129,6 +153,8 @@
     <Compile Include="Collection\TreeSet.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DisallowConcurrentExecutionAttribute.cs" />
+    <Compile Include="IJobDetail.cs" />
     <Compile Include="Core\IJobRunShellFactory.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -147,13 +173,10 @@
     <Compile Include="Core\SchedulerSignalerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CriticalSchedulerException.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="CronExpression.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="CronTrigger.cs">
+    <Compile Include="Impl\Triggers\CronTriggerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="ICalendar.cs">
@@ -168,7 +191,9 @@
     <Compile Include="IJobListener.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="IMatcher.cs" />
     <Compile Include="Impl\AdoJobStore\ConnectionAndTransactionHolder.cs" />
+    <Compile Include="Impl\AdoJobStore\TriggerStatus.cs" />
     <Compile Include="Impl\Calendar\AnnualCalendar.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -189,6 +214,7 @@
     <Compile Include="Impl\DirectSchedulerFactory.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Impl\Matchers\StringOperatorName.cs" />
     <Compile Include="Impl\RemoteScheduler.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -219,18 +245,20 @@
     <Compile Include="ITriggerListener.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="JobBuilder.cs" />
     <Compile Include="JobDataMap.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="JobDetail.cs">
+    <Compile Include="Impl\JobDetailImpl.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="JobExecutionContext.cs">
+    <Compile Include="Impl\JobExecutionContextImpl.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="JobExecutionException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="JobKey.cs" />
     <Compile Include="JobPersistenceException.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -255,7 +283,7 @@
     <Compile Include="ObjectAlreadyExistsException.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="ObjectDoesNotExistException.cs" />
+    <Compile Include="PersistJobDataAfterExecutionAttribute.cs" />
     <Compile Include="Plugin\History\LoggingJobHistoryPlugin.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -279,7 +307,7 @@
     <Compile Include="SchedulerMetaData.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="SimpleTrigger.cs">
+    <Compile Include="Impl\Triggers\SimpleTriggerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
@@ -306,6 +334,8 @@
     <Compile Include="Simpl\SimpleThreadPool.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SPI\IMutableTrigger.cs" />
+    <Compile Include="SPI\IOperableTrigger.cs" />
     <Compile Include="SPI\ITypeLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -331,15 +361,18 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SPI\TriggerFiredResult.cs" />
-    <Compile Include="Trigger.cs">
+    <Compile Include="Impl\Triggers\AbstractTrigger.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TriggerUtils.cs">
-      <SubType>Code</SubType>
-    </Compile>
+    <Compile Include="TriggerBuilder.cs" />
+    <Compile Include="TriggerConstants.cs" />
+    <Compile Include="TriggerKey.cs" />
+    <Compile Include="TriggerUtils.cs" />
     <Compile Include="UnableToInterruptJobException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\CollectionExtensions.cs" />
+    <Compile Include="Util\DataReaderExtensions.cs" />
     <Compile Include="Util\DBConnectionManager.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -352,21 +385,13 @@
     <Compile Include="Util\ObjectUtils.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Util\Pair.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Util\PropertiesParser.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Util\StringExtensions.cs" />
-    <Compile Include="Util\TriggerStatus.cs">
-      <SubType>Code</SubType>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Listener\BroadcastSchedulerListener.cs" />
-    <Compile Include="Listener\FilterAndBroadcastJobListener.cs" />
-    <Compile Include="Listener\FilterAndBroadcastTriggerListener.cs" />
     <Compile Include="Listener\JobChainingJobListener.cs" />
     <Compile Include="Listener\JobListenerSupport.cs" />
     <Compile Include="Listener\SchedulerListenerSupport.cs" />
@@ -374,7 +399,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Collection\HashSet.cs" />
-    <Compile Include="DateIntervalTrigger.cs" />
+    <Compile Include="Impl\Triggers\CalendarIntervalTriggerImpl.cs" />
     <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\AdoUtil.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbMetadata.cs" />
@@ -405,7 +430,6 @@
     <Compile Include="Impl\AdoJobStore\AdoJobStoreUtil.cs" />
     <Compile Include="Impl\SchedulerDetailsSetter.cs" />
     <Compile Include="MisfireInstruction.cs" />
-    <Compile Include="Plugin\Xml\JobInitializationPlugin.cs" />
     <Compile Include="SystemTime.cs" />
     <Compile Include="TimeSpanParseRuleAttribute.cs" />
     <Compile Include="SchedulerConstants.cs" />
@@ -417,12 +441,6 @@
     <Compile Include="Util\FileUtil.cs" />
     <Compile Include="Util\LogicalThreadContext.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
-    <Compile Include="Xml\CalendarBundle.cs" />
-    <Compile Include="Xml\JobSchedulingBundle.cs" />
-    <Compile Include="Xml\JobSchedulingDataProcessor.cs" />
-    <Compile Include="Xml\job_scheduling_data_1_0.cs">
-      <DependentUpon>job_scheduling_data_1_0.xsd</DependentUpon>
-    </Compile>
     <Compile Include="Xml\job_scheduling_data_2_0.cs">
       <DependentUpon>job_scheduling_data_2_0.xsd</DependentUpon>
     </Compile>
@@ -435,9 +453,6 @@
     <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.properties" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Xml\job_scheduling_data_1_0.xsd">
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
     <EmbeddedResource Include="Xml\job_scheduling_data_2_0.xsd">
       <SubType>Designer</SubType>
     </EmbeddedResource>
@@ -471,6 +486,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Xml\XMLSchedulingDataProcessor.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Impl\Matchers\StringMatcher.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Impl\Matchers\AndMatcher.cs" />
+    <Compile Include="Impl\Matchers\EverythingMatcher.cs" />
+    <Compile Include="Impl\Matchers\GroupMatcher.cs" />
+    <Compile Include="Impl\Matchers\KeyMatcher.cs" />
+    <Compile Include="Impl\Matchers\NameMatcher.cs" />
+    <Compile Include="Impl\Matchers\NotMatcher.cs" />
+    <Compile Include="Impl\Matchers\OrMatcher.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

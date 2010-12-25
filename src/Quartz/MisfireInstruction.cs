@@ -1,6 +1,7 @@
 #region License
+
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 namespace Quartz
@@ -36,13 +38,25 @@ namespace Quartz
         public const int SmartPolicy = 0;
 
         /// <summary>
+        /// Instructs the <code>{@link Scheduler}</code> that the
+        /// <code>Trigger</code> will never be evaluated for a misfire situation,
+        /// and that the scheduler will simply try to fire it as soon as it can,
+        /// and then update the Trigger as if it had fired at the proper time.
+        /// </summary>
+        /// <remarks>
+        /// NOTE: if a trigger uses this instruction, and it has missed
+        /// several of its scheduled firings, then
+        /// </remarks>
+        public const int IgnoreMisfirePolicy = -1;
+
+        /// <summary>
         /// Misfire policy settings for SimpleTrigger.
         /// </summary>
         public struct SimpleTrigger
         {
             /// <summary> 
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="SimpleTrigger" /> wants to be fired
+            /// situation, the <see cref="ISimpleTrigger" /> wants to be fired
             /// now by <see cref="IScheduler" />.
             /// <p>
             /// <i>NOTE:</i> This instruction should typically only be used for
@@ -55,11 +69,11 @@ namespace Quartz
 
             /// <summary>
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="SimpleTrigger" /> wants to be
+            /// situation, the <see cref="ISimpleTrigger" /> wants to be
             /// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
             /// excludes 'now') with the repeat count left as-is.   This does obey the
-            /// <see cref="Trigger" /> end-time however, so if 'now' is after the
-            /// end-time the <see cref="Trigger" /> will not fire again.
+            /// <see cref="ITrigger" /> end-time however, so if 'now' is after the
+            /// end-time the <see cref="ITrigger" /> will not fire again.
             /// </summary>
             /// <remarks>
             /// <p>
@@ -73,11 +87,11 @@ namespace Quartz
 
             /// <summary>
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="SimpleTrigger" /> wants to be
+            /// situation, the <see cref="ISimpleTrigger" /> wants to be
             /// re-scheduled to 'now' (even if the associated <see cref="ICalendar" />
             /// excludes 'now') with the repeat count set to what it would be, if it had
-            /// not missed any firings. This does obey the <see cref="Trigger" /> end-time 
-            /// however, so if 'now' is after the end-time the <see cref="Trigger" /> will 
+            /// not missed any firings. This does obey the <see cref="ITrigger" /> end-time 
+            /// however, so if 'now' is after the end-time the <see cref="ITrigger" /> will 
             /// not fire again.
             /// 
             /// <p>
@@ -90,7 +104,7 @@ namespace Quartz
             /// </p>
             /// 
             /// <p>
-            /// <i>NOTE:</i> This instruction could cause the <see cref="Trigger" />
+            /// <i>NOTE:</i> This instruction could cause the <see cref="ITrigger" />
             /// to go to the 'COMPLETE' state after firing 'now', if all the
             /// repeat-fire-times where missed.
             /// </p>
@@ -99,33 +113,32 @@ namespace Quartz
 
             /// <summary> 
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="SimpleTrigger" /> wants to be
+            /// situation, the <see cref="ISimpleTrigger" /> wants to be
             /// re-scheduled to the next scheduled time after 'now' - taking into
             /// account any associated <see cref="ICalendar" />, and with the
             /// repeat count set to what it would be, if it had not missed any firings.
             /// </summary>
             /// <remarks>
-            /// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="Trigger" />
+            /// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="ITrigger" />
             /// to go directly to the 'COMPLETE' state if all fire-times where missed.
             /// </remarks>
             public const int RescheduleNextWithRemainingCount = 4;
 
             /// <summary>
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="SimpleTrigger" /> wants to be
+            /// situation, the <see cref="ISimpleTrigger" /> wants to be
             /// re-scheduled to the next scheduled time after 'now' - taking into
             /// account any associated <see cref="ICalendar" />, and with the
             /// repeat count left unchanged.
             /// </summary>
             /// <remarks>
             /// <p>
-            /// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="Trigger" />
+            /// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="ITrigger" />
             /// to go directly to the 'COMPLETE' state if all the end-time of the trigger 
             /// has arrived.
             /// </p>
             /// </remarks>
             public const int RescheduleNextWithExistingCount = 5;
-
         }
 
         /// <summary>
@@ -135,20 +148,19 @@ namespace Quartz
         {
             /// <summary>
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="CronTrigger" /> wants to be fired now
+            /// situation, the <see cref="ICronTrigger" /> wants to be fired now
             /// by <see cref="IScheduler" />.
             /// </summary>
             public const int FireOnceNow = 1;
 
             /// <summary>
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="CronTrigger" /> wants to have it's
+            /// situation, the <see cref="ICronTrigger" /> wants to have it's
             /// next-fire-time updated to the next time in the schedule after the
             /// current time (taking into account any associated <see cref="ICalendar" />,
             /// but it does not want to be fired now.
             /// </summary>
             public const int DoNothing = 2;
-
         }
 
         /// <summary>
@@ -170,31 +182,28 @@ namespace Quartz
             /// the current time, but it does not want to be fired now.
             /// </summary>
             public const int DoNothing = 2;
-
         }
 
         /// <summary>
         /// Misfire instructions for DateIntervalTrigger
         /// </summary>
-        public struct DateIntervalTrigger
+        public struct CalendarIntervalTrigger
         {
             /// <summary>
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="Quartz.DateIntervalTrigger" /> wants to be 
+            /// situation, the <see cref="ICalendarIntervalTrigger" /> wants to be 
             /// fired now by <see cref="IScheduler" />.
             /// </summary>
             public const int FireOnceNow = 1;
 
             /// <summary>
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
-            /// situation, the <see cref="Quartz.DateIntervalTrigger" /> wants to have it's
+            /// situation, the <see cref="ICalendarIntervalTrigger" /> wants to have it's
             /// next-fire-time updated to the next time in the schedule after the
             /// current time (taking into account any associated <see cref="ICalendar" />,
             /// but it does not want to be fired now.
             /// </summary>
             public const int DoNothing = 2;
-
         }
     }
-
 }

@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -30,25 +30,25 @@ namespace Quartz.Examples.Example11
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob : IJob
 	{
-		private static ILog _log = LogManager.GetLogger(typeof (SimpleJob));
+		private static readonly ILog log = LogManager.GetLogger(typeof (SimpleJob));
 		// job parameter
-		public const string DELAY_TIME = "delay time";
+		public const string DelayTime = "delay time";
 
 		/// <summary> 
 		/// Called by the <see cref="IScheduler" /> when a
-		/// <see cref="Trigger" /> fires that is associated with
+		/// <see cref="ITrigger" /> fires that is associated with
 		/// the <see cref="IJob" />.
 		/// </summary>
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			// This job simply prints out its job name and the
 			// date and time that it is running
-			string jobName = context.JobDetail.FullName;
+			JobKey jobKey = context.JobDetail.Key;
 
-			_log.Info("Executing job: " + jobName + " executing at " + DateTime.Now.ToString("r"));
+			log.InfoFormat("Executing job: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
 
 			// wait for a period of time
-			long delayTime = context.JobDetail.JobDataMap.GetLong(DELAY_TIME);
+			long delayTime = context.JobDetail.JobDataMap.GetLong(DelayTime);
 			try
 			{
 				Thread.Sleep(new TimeSpan(10000*delayTime));
@@ -57,7 +57,7 @@ namespace Quartz.Examples.Example11
 			{
 			}
 
-			_log.Info("Finished Executing job: " + jobName + " at " + DateTime.Now.ToString("r"));
+			log.InfoFormat("Finished Executing job: {0} at {1}", jobKey, DateTime.Now.ToString("r"));
 		}
 	}
 }

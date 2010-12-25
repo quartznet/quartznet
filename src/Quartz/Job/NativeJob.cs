@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -107,7 +107,7 @@ namespace Quartz.Job
 	    }
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// <p>
 		/// The implementation may wish to set a  result object on the
@@ -119,13 +119,13 @@ namespace Quartz.Job
 		/// </p>
 		/// </summary>
 		/// <param name="context"></param>
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			JobDataMap data = context.MergedJobDataMap;
 
-			String command = data.GetString(PropertyCommand);
+			string command = data.GetString(PropertyCommand);
 
-			String parameters = data.GetString(PropertyParameters) ?? "";
+			string parameters = data.GetString(PropertyParameters) ?? "";
 
 		    bool wait = true;
 			if (data.ContainsKey(PropertyWaitForProcess))
@@ -144,7 +144,7 @@ namespace Quartz.Job
 		    context.Result = exitCode;
 		}
 
-		private int RunNativeCommand(String command, string parameters, string workingDirectory, bool wait, bool consumeStreams)
+		private int RunNativeCommand(string command, string parameters, string workingDirectory, bool wait, bool consumeStreams)
 		{
 			string[] cmd;
 			string[] args = new string[2];

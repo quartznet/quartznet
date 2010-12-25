@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -26,17 +26,17 @@ namespace Quartz
     public enum TriggerState
     {
         /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "normal" state.
+        /// Indicates that the <see cref="ITrigger" /> is in the "normal" state.
         /// </summary>
         Normal,
 
 	   /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "paused" state.
+        /// Indicates that the <see cref="ITrigger" /> is in the "paused" state.
         /// </summary>
         Paused,
 
         /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "complete" state.
+        /// Indicates that the <see cref="ITrigger" /> is in the "complete" state.
         /// </summary>
         /// <remarks>
         /// "Complete" indicates that the trigger has not remaining fire-times in
@@ -45,11 +45,11 @@ namespace Quartz
         Complete,
 
         /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "error" state.
+        /// Indicates that the <see cref="ITrigger" /> is in the "error" state.
         /// </summary>
         /// <remarks>
         /// <p>
-        /// A <see cref="Trigger" /> arrives at the error state when the scheduler
+        /// A <see cref="ITrigger" /> arrives at the error state when the scheduler
         /// attempts to fire it, but cannot due to an error creating and executing
         /// its related job. Often this is due to the <see cref="IJob" />'s
         /// class not existing in the classpath.
@@ -63,10 +63,10 @@ namespace Quartz
         Error,
 
         /// <summary>
-        /// Indicates that the <see cref="Trigger" /> is in the "blocked" state.
+        /// Indicates that the <see cref="ITrigger" /> is in the "blocked" state.
         /// </summary>
         /// <remarks>
-        /// A <see cref="Trigger" /> arrives at the blocked state when the job that
+        /// A <see cref="ITrigger" /> arrives at the blocked state when the job that
         /// it is associated with is a <see cref="IStatefulJob" /> and it is 
         /// currently executing.
         /// </remarks>
@@ -74,7 +74,7 @@ namespace Quartz
         Blocked,
 
 		/// <summary>
-        /// Indicates that the <see cref="Trigger" /> does not exist.
+        /// Indicates that the <see cref="ITrigger" /> does not exist.
         /// </summary>
         None
     }

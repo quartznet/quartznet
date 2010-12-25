@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -21,6 +21,8 @@ using System;
 using System.Globalization;
 
 using NUnit.Framework;
+
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit
 {
@@ -329,7 +331,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestPrecision()
         {
-            Trigger trigger = new NthIncludedDayTrigger();
+            IOperableTrigger trigger = new NthIncludedDayTrigger();
             trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
             Assert.IsFalse(trigger.HasMillisecondPrecision);
             Assert.AreEqual(0, trigger.StartTimeUtc.Millisecond);

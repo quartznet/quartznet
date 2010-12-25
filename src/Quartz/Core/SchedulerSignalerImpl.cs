@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -50,7 +50,7 @@ namespace Quartz.Core
         /// Notifies the scheduler about misfired trigger.
         /// </summary>
         /// <param name="trigger">The trigger that misfired.</param>
-		public virtual void NotifyTriggerListenersMisfired(Trigger trigger)
+        public virtual void NotifyTriggerListenersMisfired(ITrigger trigger)
 		{
 			try
 			{
@@ -68,7 +68,7 @@ namespace Quartz.Core
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        public void NotifySchedulerListenersFinalized(Trigger trigger)
+        public void NotifySchedulerListenersFinalized(ITrigger trigger)
         {
             sched.NotifySchedulerListenersFinalized(trigger);
         }
@@ -79,6 +79,12 @@ namespace Quartz.Core
         public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTime)
         {
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
+        }
+
+
+        public void NotifySchedulerListenersJobDeleted(JobKey jobKey)
+        {
+            sched.NotifySchedulerListenersJobDeleted(jobKey);
         }
 	}
 }

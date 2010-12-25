@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
@@ -113,8 +114,28 @@ namespace Quartz.Util
 			return (T) ci.Invoke(new object[0]);
 		}
 
-		
-		/// <summary>
+	    /// <summary>
+		/// Sets the object properties using reflection.
+		/// </summary>
+        public static void SetObjectProperties(object obj, string[] propertyNames, object[] propertyValues)
+		{
+			for (int i = 0; i < propertyNames.Length; i++)
+			{
+				string name = propertyNames[i];
+				string propertyName = name.Substring(0, 1).ToUpper(CultureInfo.InvariantCulture) + name.Substring(1);
+
+				try
+				{
+				    SetPropertyValue(obj, propertyName, propertyValues[i]);
+				}
+				catch (Exception nfe)
+				{
+				    throw new SchedulerConfigException(string.Format(CultureInfo.InvariantCulture, "Could not parse property '{0}' into correct data type: {1}", name, nfe.Message), nfe);
+				}
+			}
+		}
+
+	    /// <summary>
 		/// Sets the object properties using reflection.
 		/// </summary>
 		/// <param name="obj">The object to set values to.</param>
@@ -195,6 +216,11 @@ namespace Quartz.Util
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+	    }
+
+	    public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
+	    {
+	        return typeToExamine.GetCustomAttributes(attributeType, true).Length > 0;
 	    }
 	}
 

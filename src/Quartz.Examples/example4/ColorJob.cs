@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -29,7 +29,9 @@ namespace Quartz.Examples.Example4
 	/// </summary>
 	/// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class ColorJob : IStatefulJob
+    [PersistJobDataAfterExecution]
+    [DisallowConcurrentExecution]
+    public class ColorJob : IJob
 	{
 		private static readonly ILog log = LogManager.GetLogger(typeof(ColorJob));
 		
@@ -44,22 +46,26 @@ namespace Quartz.Examples.Example4
 		
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a
-		/// <see cref="Trigger" /> fires that is associated with
+		/// <see cref="ITrigger" /> fires that is associated with
 		/// the <see cref="IJob" />.
 		/// </summary>
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			
 			// This job simply prints out its job name and the
 			// date and time that it is running
-			string jobName = context.JobDetail.FullName;
+			JobKey jobKey = context.JobDetail.Key;
 			
 			// Grab and print passed parameters
 			JobDataMap data = context.JobDetail.JobDataMap;
 			string favoriteColor = data.GetString(FavoriteColor);
 			int count = data.GetInt(ExecutionCount);
-			log.Info(string.Format("ColorJob: {0} executing at {1}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}", 
-                jobName, DateTime.Now.ToString("r"), favoriteColor, count, counter));
+			log.InfoFormat(
+                "ColorJob: {0} executing at {1}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}", 
+                jobKey, 
+                DateTime.Now.ToString("r"), 
+                favoriteColor, 
+                count, counter);
 			
 			// increment the count and store it back into the 
 			// job map so that job state can be properly maintained

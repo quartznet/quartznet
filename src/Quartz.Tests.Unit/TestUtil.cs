@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -22,6 +22,8 @@ using System.Collections.Generic;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
 
@@ -49,25 +51,25 @@ namespace Quartz.Tests.Unit
         /// <param name="jobType">Type of the job.</param>
         /// <param name="trigger">The trigger.</param>
         /// <returns>Minimal TriggerFiredBundle</returns>
-        public static TriggerFiredBundle CreateMinimalFiredBundleWithTypedJobDetail(Type jobType, Trigger trigger)
+        public static TriggerFiredBundle CreateMinimalFiredBundleWithTypedJobDetail(Type jobType, IOperableTrigger trigger)
         {
-            JobDetail jd = new JobDetail("jobName", "jobGroup", jobType);
+            JobDetailImpl jd = new JobDetailImpl("jobName", "jobGroup", jobType);
             TriggerFiredBundle bundle = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
             return bundle;
         }
 
         public static TriggerFiredBundle NewMinimalTriggerFiredBundle()
         {
-            JobDetail jd = new JobDetail("jobName", "jobGroup", typeof(NoOpJob));
-            SimpleTrigger trigger = new SimpleTrigger("triggerName", "triggerGroup");
+            IJobDetail jd = new JobDetailImpl("jobName", "jobGroup", typeof(NoOpJob));
+            IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
             TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
 
             return retValue;
         }
 
-        public static JobExecutionContext NewJobExecutionContextFor(IJob job)
+        public static IJobExecutionContext NewJobExecutionContextFor(IJob job)
         {
-            return new JobExecutionContext(null, NewMinimalTriggerFiredBundle(), job);
+            return new JobExecutionContextImpl(null, NewMinimalTriggerFiredBundle(), job);
         }
     }
 }

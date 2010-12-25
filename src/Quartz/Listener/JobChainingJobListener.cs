@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -20,8 +20,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-
-using Quartz.Util;
 
 namespace Quartz.Listener
 {
@@ -50,7 +48,7 @@ namespace Quartz.Listener
     public class JobChainingJobListener : JobListenerSupport
     {
         private readonly string name;
-        private readonly IDictionary<Key, Key> chainLinks;
+        private readonly IDictionary<JobKey, JobKey> chainLinks;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -63,7 +61,7 @@ namespace Quartz.Listener
                 throw new ArgumentException("Listener name cannot be null!");
             }
             this.name = name;
-            chainLinks = new Dictionary<Key, Key>();
+            chainLinks = new Dictionary<JobKey, JobKey>();
         }
 
         public override string Name
@@ -75,9 +73,9 @@ namespace Quartz.Listener
         /// Add a chain mapping - when the Job identified by the first key completes
         /// the job identified by the second key will be triggered.
         /// </summary>
-        /// <param name="firstJob">a Key with the name and group of the first job</param>
-        /// <param name="secondJob">a Key with the name and group of the follow-up job</param>
-        public void AddJobChainLink(Key firstJob, Key secondJob)
+        /// <param name="firstJob">a JobKey with the name and group of the first job</param>
+        /// <param name="secondJob">a JobKey with the name and group of the follow-up job</param>
+        public void AddJobChainLink(JobKey firstJob, JobKey secondJob)
         {
             if (firstJob == null || secondJob == null)
             {
@@ -91,9 +89,9 @@ namespace Quartz.Listener
             chainLinks.Add(firstJob, secondJob);
         }
 
-        public override void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException)
+        public override void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
-            Key sj;
+            JobKey sj;
             chainLinks.TryGetValue(context.JobDetail.Key, out sj);
 
             if (sj == null)
@@ -101,18 +99,11 @@ namespace Quartz.Listener
                 return;
             }
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Job '{0}' will now chain to Job '{1}'", context.JobDetail.FullName, sj));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, "Job '{0}' will now chain to Job '{1}'", context.JobDetail.Key, sj));
 
             try
             {
-                if (context.JobDetail.Volatile || context.Trigger.Volatile)
-                {
-                    context.Scheduler.TriggerJobWithVolatileTrigger(sj.Name, sj.Group);
-                }
-                else
-                {
-                    context.Scheduler.TriggerJob(sj.Name, sj.Group);
-                }
+                context.Scheduler.TriggerJob(sj);
             }
             catch (SchedulerException se)
             {

@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -23,6 +23,7 @@ using Common.Logging;
 using NUnit.Framework;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
@@ -33,7 +34,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 		[Test]
 		public void TestSerializeJobData()
 		{
-			StdAdoDelegate del = new StdAdoDelegate(LogManager.GetLogger(GetType()), "QRTZ_", "INSTANCE", new DbProvider("SqlServer-11", ""));
+			StdAdoDelegate del = new StdAdoDelegate(LogManager.GetLogger(GetType()), "QRTZ_", "TESTSCHED", "INSTANCE", new DbProvider("SqlServer-11", ""), new SimpleTypeLoadHelper());
 
 			JobDataMap jdm = new JobDataMap();
 			del.SerializeJobData(jdm);

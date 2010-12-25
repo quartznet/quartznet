@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -50,7 +50,7 @@ namespace Quartz.Spi
 		/// configuration problem led to the issue wih instantiating the Job. 
         /// </remarks>
 		/// <param name="bundle">
-		/// The TriggerFiredBundle from which the <see cref="JobDetail" />
+		/// The TriggerFiredBundle from which the <see cref="IJobDetail" />
 		/// and other info relating to the trigger firing can be obtained.
 		/// </param>
 		/// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>

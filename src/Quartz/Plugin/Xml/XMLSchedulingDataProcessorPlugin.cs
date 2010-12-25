@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -28,6 +28,8 @@ using System.Web;
 
 using Common.Logging;
 
+using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -71,14 +73,12 @@ namespace Quartz.Plugin.Xml
         private string name;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="JobInitializationPlugin"/> class.
+        /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
         /// </summary>
         public XMLSchedulingDataProcessorPlugin()
         {
-            log = LogManager.GetLogger(typeof (JobInitializationPlugin));
-            fileNames = JobSchedulingDataProcessor.QuartzXmlFileName;
+            log = LogManager.GetLogger(typeof(XMLSchedulingDataProcessorPlugin));
         }
-
 
         /// <summary>
         /// Gets the log.
@@ -198,19 +198,27 @@ namespace Quartz.Plugin.Xml
                         {
                             string jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
 
-                            SimpleTrigger trig = new SimpleTrigger(
-                                jobTriggerName,
-                                JobInitializationPluginName,
-                                SystemTime.UtcNow(), null,
-                                SimpleTrigger.RepeatIndefinitely, scanInterval);
-                            trig.Volatile = true;
-
-                            JobDetail job = new JobDetail(
-                                jobTriggerName,
+                           TriggerKey tKey = new TriggerKey(jobTriggerName, JobInitializationPluginName);
+                        
+                        // remove pre-existing job/trigger, if any
+                        Scheduler.UnscheduleJob(tKey);
+                        
+                        // TODO: convert to use builder
+                        SimpleTriggerImpl trig = (SimpleTriggerImpl) Scheduler.GetTrigger(tKey);
+                        trig = new SimpleTriggerImpl();
+                        trig.Name = (jobTriggerName);
+                        trig.Group = (JobInitializationPluginName);
+                        trig.StartTimeUtc = SystemTime.UtcNow();
+                        trig.EndTimeUtc = (null);
+                        trig.RepeatCount = (SimpleTriggerImpl.RepeatIndefinitely);
+                        trig.RepeatInterval = (scanInterval);
+                        
+                        // TODO: convert to use builder
+                        JobDetailImpl job = new JobDetailImpl(
+                                jobTriggerName, 
                                 JobInitializationPluginName,
                                 typeof(FileScanJob));
 
-                            job.Volatile = true;
                             job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
                             job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
 
@@ -297,7 +305,7 @@ namespace Quartz.Plugin.Xml
 
             try
             {
-                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(this.TypeLoadHelper);
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(TypeLoadHelper);
 
                 processor.AddJobGroupToNeverDelete(JobInitializationPluginName);
                 processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);

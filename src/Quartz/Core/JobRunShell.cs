@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -31,7 +31,7 @@ namespace Quartz.Core
 	/// JobRunShell instances are responsible for providing the 'safe' environment
 	/// for <see cref="IJob" /> s to run in, and for performing all of the work of
 	/// executing the <see cref="IJob" />, catching ANY thrown exceptions, updating
-	/// the <see cref="Trigger" /> with the <see cref="IJob" />'s completion code,
+	/// the <see cref="ITrigger" /> with the <see cref="IJob" />'s completion code,
 	/// etc.
 	/// <p>
 	/// A <see cref="JobRunShell" /> instance is created by a <see cref="IJobRunShellFactory" />
@@ -43,31 +43,30 @@ namespace Quartz.Core
 	/// <seealso cref="IJobRunShellFactory" /> 
 	/// <seealso cref="QuartzSchedulerThread" />
 	/// <seealso cref="IJob" />
-	/// <seealso cref="Trigger" />
+	/// <seealso cref="ITrigger" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public class JobRunShell : SchedulerListenerSupport, IThreadRunnable
 	{
 		private readonly ILog log;
 
-		private JobExecutionContext jec;
+        private JobExecutionContextImpl jec;
 		private QuartzScheduler qs;
 		private readonly IScheduler scheduler;
-		private readonly IJobRunShellFactory jobRunShellFactory;
-		private volatile bool shutdownRequested;
+	    private TriggerFiredBundle firedTriggerBundle = null;
+        private volatile bool shutdownRequested;
 
 
 		/// <summary>
 		/// Create a JobRunShell instance with the given settings.
 		/// </summary>
-		/// <param name="jobRunShellFactory">A handle to the <see cref="IJobRunShellFactory" /> that produced
-		/// this <see cref="JobRunShell" />.</param>
 		/// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
-		/// available within the <see cref="JobExecutionContext" />.</param>
-		public JobRunShell(IJobRunShellFactory jobRunShellFactory, IScheduler scheduler)
+		/// available within the <see cref="IJobExecutionContext" />.</param>
+		/// <param name="bndle"></param>
+        public JobRunShell(IScheduler scheduler, TriggerFiredBundle bndle)
 		{
-			this.jobRunShellFactory = jobRunShellFactory;
 			this.scheduler = scheduler;
+            this.firedTriggerBundle = bndle;
             log = LogManager.GetLogger(GetType());
 		}
 
@@ -80,31 +79,30 @@ namespace Quartz.Core
 		/// Initializes the job execution context with given scheduler and bundle.
 		/// </summary>
 		/// <param name="sched">The scheduler.</param>
-		/// <param name="firedBundle">The bundle offired triggers.</param>
-		public virtual void Initialize(QuartzScheduler sched, TriggerFiredBundle firedBundle)
+		public virtual void Initialize(QuartzScheduler sched)
 		{
 			qs = sched;
 
 			IJob job;
-			JobDetail jobDetail = firedBundle.JobDetail;
+            IJobDetail jobDetail = firedTriggerBundle.JobDetail;
 
 			try
 			{
-				job = sched.JobFactory.NewJob(firedBundle);
+                job = sched.JobFactory.NewJob(firedTriggerBundle);
 			}
 			catch (SchedulerException se)
 			{
-				sched.NotifySchedulerListenersError(string.Format(CultureInfo.InvariantCulture, "An error occured instantiating job to be executed. job= '{0}'", jobDetail.FullName), se);
+				sched.NotifySchedulerListenersError(string.Format(CultureInfo.InvariantCulture, "An error occured instantiating job to be executed. job= '{0}'", jobDetail.Key), se);
 				throw;
 			}
 			catch (Exception e)
 			{
 				SchedulerException se = new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Problem instantiating type '{0}'", jobDetail.JobType.FullName), e);
-				sched.NotifySchedulerListenersError(string.Format(CultureInfo.InvariantCulture, "An error occured instantiating job to be executed. job= '{0}'", jobDetail.FullName), se);
+				sched.NotifySchedulerListenersError(string.Format(CultureInfo.InvariantCulture, "An error occured instantiating job to be executed. job= '{0}'", jobDetail.Key), se);
 				throw se;
 			}
 
-			jec = new JobExecutionContext(scheduler, firedBundle, job);
+            jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, job);
 		}
 
 		/// <summary>
@@ -125,8 +123,8 @@ namespace Quartz.Core
 
             try
             {
-                Trigger trigger = jec.Trigger;
-                JobDetail jobDetail = jec.JobDetail;
+                IOperableTrigger trigger = (IOperableTrigger) jec.Trigger;
+                IJobDetail jobDetail = jec.JobDetail;
                 do
                 {
                     JobExecutionException jobExEx = null;
@@ -139,7 +137,7 @@ namespace Quartz.Core
                     catch (SchedulerException se)
                     {
                         qs.NotifySchedulerListenersError(
-                            string.Format(CultureInfo.InvariantCulture, "Error executing Job ({0}: couldn't begin execution.", jec.JobDetail.FullName),
+                            string.Format(CultureInfo.InvariantCulture, "Error executing Job ({0}: couldn't begin execution.", jec.JobDetail.Key),
                             se);
                         break;
                     }
@@ -172,7 +170,7 @@ namespace Quartz.Core
                         {
                             qs.NotifySchedulerListenersError(
                                 string.Format(CultureInfo.InvariantCulture, "Error during veto of Job ({0}: couldn't finalize execution.",
-                                              jec.JobDetail.FullName), se);
+                                              jec.JobDetail.Key), se);
                         }
                         break;
                     }
@@ -185,7 +183,7 @@ namespace Quartz.Core
                     {
                         if (log.IsDebugEnabled)
                         {
-                            log.Debug("Calling Execute on job " + jobDetail.FullName);
+                            log.Debug("Calling Execute on job " + jobDetail.Key);
                         }
                         job.Execute(jec);
                         endTime = SystemTime.UtcNow();
@@ -194,15 +192,15 @@ namespace Quartz.Core
                     {
                         endTime = SystemTime.UtcNow();
                         jobExEx = jee;
-                        log.Info(string.Format(CultureInfo.InvariantCulture, "Job {0} threw a JobExecutionException: ", jobDetail.FullName), jobExEx);
+                        log.Info(string.Format(CultureInfo.InvariantCulture, "Job {0} threw a JobExecutionException: ", jobDetail.Key), jobExEx);
                     }
                     catch (Exception e)
                     {
                         endTime = SystemTime.UtcNow();
-                        log.Error(string.Format(CultureInfo.InvariantCulture, "Job {0} threw an unhandled Exception: ", jobDetail.FullName), e);
+                        log.Error(string.Format(CultureInfo.InvariantCulture, "Job {0} threw an unhandled Exception: ", jobDetail.Key), e);
                         SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
                         qs.NotifySchedulerListenersError(
-                            string.Format(CultureInfo.InvariantCulture, "Job ({0} threw an exception.", jec.JobDetail.FullName), se);
+                            string.Format(CultureInfo.InvariantCulture, "Job ({0} threw an exception.", jec.JobDetail.Key), se);
                         jobExEx = new JobExecutionException(se, false);
                     }
 
@@ -253,7 +251,7 @@ namespace Quartz.Core
                         {
                             qs.NotifySchedulerListenersError(
                                 string.Format(CultureInfo.InvariantCulture, "Error executing Job ({0}: couldn't finalize execution.",
-                                              jec.JobDetail.FullName), se);
+                                              jec.JobDetail.Key), se);
                         }
                         continue;
                     }
@@ -266,7 +264,7 @@ namespace Quartz.Core
                     {
                         qs.NotifySchedulerListenersError(
                             string.Format(CultureInfo.InvariantCulture, "Error executing Job ({0}: couldn't finalize execution.",
-                                          jec.JobDetail.FullName), se);
+                                          jec.JobDetail.Key), se);
                         continue;
                     }
 
@@ -278,7 +276,7 @@ namespace Quartz.Core
                     {
                         qs.NotifySchedulerListenersError(
                             string.Format(CultureInfo.InvariantCulture, "An error occured while marking executed job complete. job= '{0}'",
-                                          jobDetail.FullName), jpe);
+                                          jobDetail.Key), jpe);
                         if (!CompleteTriggerRetryLoop(trigger, jobDetail, instCode))
                         {
                         }
@@ -292,7 +290,6 @@ namespace Quartz.Core
 		    finally
             {
                 qs.RemoveInternalSchedulerListener(this);
-                jobRunShellFactory.ReturnJobRunShell(this);
             }
 		}
 
@@ -320,7 +317,7 @@ namespace Quartz.Core
 			qs = null;
 		}
 
-		private bool NotifyListenersBeginning(JobExecutionContext ctx)
+		private bool NotifyListenersBeginning(IJobExecutionContext ctx)
 		{
 			bool vetoed;
 
@@ -332,7 +329,7 @@ namespace Quartz.Core
 			catch (SchedulerException se)
 			{
 				qs.NotifySchedulerListenersError(
-					string.Format(CultureInfo.InvariantCulture, "Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {0} job= {1}", ctx.Trigger.FullName, ctx.JobDetail.FullName), se);
+					string.Format(CultureInfo.InvariantCulture, "Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {0} job= {1}", ctx.Trigger.Key, ctx.JobDetail.Key), se);
 
 				return false;
 			}
@@ -346,7 +343,7 @@ namespace Quartz.Core
 				catch (SchedulerException se)
 				{
 					qs.NotifySchedulerListenersError(
-						string.Format(CultureInfo.InvariantCulture, "Unable to notify JobListener(s) of vetoed execution while firing trigger (Trigger and Job will NOT be fired!). trigger= {0} job= {1}", ctx.Trigger.FullName, ctx.JobDetail.FullName), se);
+						string.Format(CultureInfo.InvariantCulture, "Unable to notify JobListener(s) of vetoed execution while firing trigger (Trigger and Job will NOT be fired!). trigger= {0} job= {1}", ctx.Trigger.Key, ctx.JobDetail.Key), se);
 				}
 				throw new VetoedException(this);
 			}
@@ -359,7 +356,7 @@ namespace Quartz.Core
 			catch (SchedulerException se)
 			{
 				qs.NotifySchedulerListenersError(
-					string.Format(CultureInfo.InvariantCulture, "Unable to notify JobListener(s) of Job to be executed: (Job will NOT be executed!). trigger= {0} job= {1}", ctx.Trigger.FullName, ctx.JobDetail.FullName), se);
+					string.Format(CultureInfo.InvariantCulture, "Unable to notify JobListener(s) of Job to be executed: (Job will NOT be executed!). trigger= {0} job= {1}", ctx.Trigger.Key, ctx.JobDetail.Key), se);
 
 				return false;
 			}
@@ -367,7 +364,7 @@ namespace Quartz.Core
 			return true;
 		}
 
-		private bool NotifyJobListenersComplete(JobExecutionContext ctx, JobExecutionException jobExEx)
+		private bool NotifyJobListenersComplete(IJobExecutionContext ctx, JobExecutionException jobExEx)
 		{
 			try
 			{
@@ -376,7 +373,7 @@ namespace Quartz.Core
 			catch (SchedulerException se)
 			{
 				qs.NotifySchedulerListenersError(
-					string.Format(CultureInfo.InvariantCulture, "Unable to notify JobListener(s) of Job that was executed: (error will be ignored). trigger= {0} job= {1}", ctx.Trigger.FullName, ctx.JobDetail.FullName), se);
+					string.Format(CultureInfo.InvariantCulture, "Unable to notify JobListener(s) of Job that was executed: (error will be ignored). trigger= {0} job= {1}", ctx.Trigger.Key, ctx.JobDetail.Key), se);
 
 				return false;
 			}
@@ -384,7 +381,7 @@ namespace Quartz.Core
 			return true;
 		}
 
-		private bool NotifyTriggerListenersComplete(JobExecutionContext ctx, SchedulerInstruction instCode)
+		private bool NotifyTriggerListenersComplete(IJobExecutionContext ctx, SchedulerInstruction instCode)
 		{
 			try
 			{
@@ -393,7 +390,7 @@ namespace Quartz.Core
 			catch (SchedulerException se)
 			{
 				qs.NotifySchedulerListenersError(
-					string.Format(CultureInfo.InvariantCulture, "Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {0} job= {1}", ctx.Trigger.FullName, ctx.JobDetail.FullName), se);
+					string.Format(CultureInfo.InvariantCulture, "Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {0} job= {1}", ctx.Trigger.Key, ctx.JobDetail.Key), se);
 
 				return false;
 			}
@@ -413,7 +410,7 @@ namespace Quartz.Core
 		/// <param name="jobDetail">The job detail.</param>
 		/// <param name="instCode">The inst code.</param>
 		/// <returns></returns>
-        public virtual bool CompleteTriggerRetryLoop(Trigger trigger, JobDetail jobDetail, SchedulerInstruction instCode)
+        public virtual bool CompleteTriggerRetryLoop(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction instCode)
 		{
             long count = 0;
 			while (!shutdownRequested && !qs.IsShuttingDown)
@@ -421,8 +418,7 @@ namespace Quartz.Core
 				try
 				{
                     Thread.Sleep(TimeSpan.FromSeconds(15)); 
-                    // retry every 15 seconds (the db
-					// connection must be failed)
+                    // retry every 15 seconds (the db connection must be failed)
 					qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode);
 					return true;
 				}
@@ -431,7 +427,7 @@ namespace Quartz.Core
                     if (count % 4 == 0)
 					qs.NotifySchedulerListenersError(
                             "An error occured while marking executed job complete (will continue attempts). job= '"
-                                    + jobDetail.FullName + "'", jpe);
+                                    + jobDetail.Key + "'", jpe);
 				}
 				catch (ThreadInterruptedException)
 				{
@@ -448,13 +444,13 @@ namespace Quartz.Core
 		/// <param name="jobDetail">The job detail.</param>
 		/// <param name="instCode">The inst code.</param>
 		/// <returns></returns>
-        public bool VetoedJobRetryLoop(Trigger trigger, JobDetail jobDetail, SchedulerInstruction instCode)
+        public bool VetoedJobRetryLoop(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction instCode)
         {
             while (!shutdownRequested)
             {
                 try
                 {
-                    Thread.Sleep(5 * 1000); // retry every 5 seconds (the db
+                    Thread.Sleep(TimeSpan.FromSeconds(5)); // retry every 5 seconds (the db
                     // connection must be failed)
                     qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode);
                     return true;
@@ -462,7 +458,7 @@ namespace Quartz.Core
                 catch (JobPersistenceException jpe)
                 {
                     qs.NotifySchedulerListenersError(
-                            string.Format(CultureInfo.InvariantCulture, "An error occured while marking executed job vetoed. job= '{0}'", jobDetail.FullName), jpe);
+                            string.Format(CultureInfo.InvariantCulture, "An error occured while marking executed job vetoed. job= '{0}'", jobDetail.Key), jpe);
                 }
                 catch (ThreadInterruptedException)
                 {

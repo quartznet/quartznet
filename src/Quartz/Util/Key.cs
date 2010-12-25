@@ -1,6 +1,7 @@
 #region License
+
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -15,65 +16,156 @@
  * under the License.
  * 
  */
+
 #endregion
+
+using System;
 
 namespace Quartz.Util
 {
-	/// <summary>
-	/// object representing a job or trigger key.
-	/// </summary>
-	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+    /// <summary>
+    /// Object representing a job or trigger key.
+    /// </summary>
+    /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>Marko Lahma (.NET)</author>
-    public class Key : Pair<string, string>
-	{
-		/// <summary>
-		/// Get the name portion of the key.
-		/// </summary>
-		/// <returns> the name
-		/// </returns>
-		public virtual string Name
-		{
-			get { return First; }
-		}
+    public class Key<T> : IComparable<Key<T>>
+    {
+        // The default group for scheduling entities, with the value "DEFAULT".
+        public const string DefaultGroup = "DEFAULT";
 
-		/// <summary> <p>
-		/// Get the group portion of the key.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <returns> the group
-		/// </returns>
-		public virtual string Group
-		{
-			get { return Second; }
-		}
+        private readonly string name;
+        private readonly string group;
 
-		/// <summary> Construct a new key with the given name and group.
-		/// 
-		/// </summary>
-		/// <param name="name">
-		/// the name
-		/// </param>
-		/// <param name="group">
-		/// the group
-		/// </param>
-		public Key(string name, string group)
-		{
-			base.First = name;
-			base.Second = group;
-		}
+        /// <summary> 
+        /// Construct a new key with the given name and group.
+        /// </summary>
+        /// <param name="name">the name</param>
+        /// <param name="group">the group</param>
+        public Key(string name, string group)
+        {
+            if (name == null)
+            {
+                throw new ArgumentNullException("name", "Name cannot be null.");
+            }
+            this.name = name;
+            if (group != null)
+            {
+                this.group = group;
+            }
+            else
+            {
+                this.group = DefaultGroup;
+            }
+        }
 
-		/// <summary> <p>
-		/// Return the string representation of the key. The format will be:
-		/// &lt;group&gt;.&lt;name&gt;.
-		/// </p>
-		/// 
-		/// </summary>
-		/// <returns> the string representation of the key
-		/// </returns>
-		public override string ToString()
-		{
-			return Group + '.' + Name;
-		}
-	}
+        /// <summary>
+        /// Get the name portion of the key.
+        /// </summary>
+        /// <returns> the name
+        /// </returns>
+        public virtual string Name
+        {
+            get { return name; }
+        }
+
+        /// <summary> <p>
+        /// Get the group portion of the key.
+        /// </p>
+        /// 
+        /// </summary>
+        /// <returns> the group
+        /// </returns>
+        public virtual string Group
+        {
+            get { return group; }
+        }
+
+
+        /// <summary> <p>
+        /// Return the string representation of the key. The format will be:
+        /// &lt;group&gt;.&lt;name&gt;.
+        /// </p>
+        /// 
+        /// </summary>
+        /// <returns> the string representation of the key
+        /// </returns>
+        public override string ToString()
+        {
+            return Group + '.' + Name;
+        }
+
+
+        public override int GetHashCode()
+        {
+            const int prime = 31;
+            int result = 1;
+            result = prime*result + ((group == null) ? 0 : group.GetHashCode());
+            result = prime*result + ((name == null) ? 0 : name.GetHashCode());
+            return result;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (this == obj)
+            {
+                return true;
+            }
+            if (obj == null)
+            {
+                return false;
+            }
+            if (GetType() != obj.GetType())
+            {
+                return false;
+            }
+            Key<T> other = (Key<T>) obj;
+            if (group == null)
+            {
+                if (other.group != null)
+                {
+                    return false;
+                }
+            }
+            else if (!group.Equals(other.group))
+            {
+                return false;
+            }
+            if (name == null)
+            {
+                if (other.name != null)
+                {
+                    return false;
+                }
+            }
+            else if (!name.Equals(other.name))
+            {
+                return false;
+            }
+            return true;
+        }
+
+        public int CompareTo(Key<T> o)
+        {
+            int r = group.CompareTo(o.Group);
+            if (r != 0)
+            {
+                return r;
+            }
+
+            return name.CompareTo(o.Name);
+        }
+
+        public static string CreateUniqueName(string group)
+        {
+            if (group == null)
+            {
+                group = DefaultGroup;
+            }
+
+            string n1 = Guid.NewGuid().ToString();
+            string n2 = Guid.NewGuid().ToString();
+
+            return String.Format("{0}-{1}", n2.Substring(24), n1);
+        }
+    }
 }

@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -104,6 +104,7 @@ namespace Quartz.Impl
         public const string PropertyJobStoreLockHandlerPrefix = PropertyJobStorePrefix + ".lockHandler";
         public const string PropertyJobStoreLockHandlerType = PropertyJobStoreLockHandlerPrefix + ".type";
         public const string PropertyTablePrefix = "tablePrefix";
+        public const string PropertySchedulerName = "schedName";
         public const string PropertyJobStoreType = "quartz.jobStore.type";
         public const string PropertyDataSourcePrefix = "quartz.dataSource";
         public const string PropertyDbProviderType = "connectionProvider.type";
@@ -674,6 +675,7 @@ Please add configuration to your application config file to correctly initialize
                         if (lockHandler is ITablePrefixAware)
                         {
                             tProps[PropertyTablePrefix] = ((JobStoreSupport) js).TablePrefix;
+                            tProps[PropertySchedulerName] = schedName;
                         }
 
                         try
@@ -967,11 +969,11 @@ Please add configuration to your application config file to correctly initialize
                 // add listeners
                 for (int i = 0; i < jobListeners.Length; i++)
                 {
-                    qs.AddGlobalJobListener(jobListeners[i]);
+                    qs.ListenerManager.AddJobListener(jobListeners[i]);
                 }
                 for (int i = 0; i < triggerListeners.Length; i++)
                 {
-                    qs.AddGlobalTriggerListener(triggerListeners[i]);
+                    qs.ListenerManager.AddTriggerListener(triggerListeners[i]);
                 }
 
                 // set scheduler context data...
@@ -985,6 +987,7 @@ Please add configuration to your application config file to correctly initialize
 
                 js.InstanceId = schedInstId;
                 js.InstanceName = schedName;
+                js.ThreadPoolSize = tp.PoolSize;
                 js.Initialize(loadHelper, qs.SchedulerSignaler);
 
                 jrsf.Initialize(sched);

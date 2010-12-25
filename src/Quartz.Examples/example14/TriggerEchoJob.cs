@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -28,10 +28,10 @@ namespace Quartz.Examples.Example14
     /// <author>Marko Lahma (.NET)</author>
     public class TriggerEchoJob : IJob
     {
-        private static readonly ILog LOG = LogManager.GetLogger(typeof (TriggerEchoJob));
+        private static readonly ILog log = LogManager.GetLogger(typeof (TriggerEchoJob));
 
         /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// fires that is associated with the <see cref="IJob"/>.
         /// <p>
         /// The implementation may wish to set a  result object on the
@@ -44,9 +44,9 @@ namespace Quartz.Examples.Example14
         /// 	<param name="context">The execution context.</param>
         /// </summary>
         /// <param name="context"></param>
-        public void Execute(JobExecutionContext context)
+        public void Execute(IJobExecutionContext context)
         {
-            LOG.Info("TRIGGER: " + context.Trigger.Name);
+            log.Info("TRIGGER: " + context.Trigger.Key);
         }
 
     }

@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -99,6 +99,33 @@ namespace Quartz.Tests.Unit
             cal = new DateTime(2007, 6, 9, 10, 15, 0).ToUniversalTime();
             Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
             Assert.IsFalse(cronExpression.IsSatisfiedBy(cal.AddDays(1)));
+        }
+
+        [Test]
+        public void TestLastDayOffset()
+        {
+            CronExpression cronExpression = new CronExpression("0 15 10 L-2 * ? 2010");
+
+            DateTime cal = new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime(); // last day - 2
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+
+            cal = new DateTime(2010, 10, 28, 10, 15, 0).ToUniversalTime();
+            Assert.IsFalse(cronExpression.IsSatisfiedBy(cal));
+
+            cronExpression = new CronExpression("0 15 10 L-5W * ? 2010");
+
+            cal = new DateTime(2010, 10, 26, 10, 15, 0).ToUniversalTime(); // last day - 5
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+
+            cronExpression = new CronExpression("0 15 10 L-1 * ? 2010");
+
+            cal = new DateTime(2010, 10, 30, 10, 15, 0).ToUniversalTime(); // last day - 1
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+
+            cronExpression = new CronExpression("0 15 10 L-1W * ? 2010");
+
+            cal = new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime(); // nearest weekday to last day - 1 (29th is a friday in 2010)
+            Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
         }
 
         [Test]
@@ -435,7 +462,7 @@ namespace Quartz.Tests.Unit
 
     class TestCronExpression : CronExpression
     {
-        public TestCronExpression(String cronExpression)
+        public TestCronExpression(string cronExpression)
             : base(cronExpression)
         {
         }

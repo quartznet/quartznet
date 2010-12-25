@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -28,16 +28,18 @@ namespace Quartz
 	/// no-argument constructor. <see cref="JobDataMap" /> provides a mechanism for 'instance member data'
 	/// that may be required by some implementations of this interface.
     /// </remarks>
-	/// <seealso cref="JobDetail" />
-	/// <seealso cref="IStatefulJob" />
-	/// <seealso cref="Trigger" />
+	/// <seealso cref="IJobDetail" />
+    /// <seealso cref="JobBuilder" />
+    /// <seealso cref="DisallowConcurrentExecutionAttribute" />
+    /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
+	/// <seealso cref="ITrigger" />
 	/// <seealso cref="IScheduler" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public interface IJob
 	{
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
         /// </summary>
 		/// <remarks>
@@ -49,6 +51,6 @@ namespace Quartz
 		/// execution.
 		/// </remarks>
 		/// <param name="context">The execution context.</param>
-		void Execute(JobExecutionContext context);
+        void Execute(IJobExecutionContext context);
 	}
 }

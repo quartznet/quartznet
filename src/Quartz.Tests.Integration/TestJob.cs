@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -22,10 +22,10 @@ namespace Quartz.Tests.Integration
     /// <author>Marko Lahma (.NET)</author>
     public class TestJob : IJob
     {
-       private static bool jobFired = false;
+       private static bool jobFired;
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
         /// <p>
         /// The implementation may wish to set a  result object on the 
@@ -37,7 +37,7 @@ namespace Quartz.Tests.Integration
         /// </p>
         /// <param name="context">The execution context.</param>
         /// </summary>
-        public void Execute(JobExecutionContext context)
+        public void Execute(IJobExecutionContext context)
         {
             JobHasFired = true;
         }

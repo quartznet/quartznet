@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -19,6 +19,7 @@
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Job;
 
 namespace Quartz.Tests.Unit
@@ -31,9 +32,9 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestEquals()
         {
-            JobDetail jd1 = new JobDetail("name", "group", typeof(NoOpJob));
-            JobDetail jd2 = new JobDetail("name", "group", typeof(NoOpJob));
-            JobDetail jd3 = new JobDetail("namediff", "groupdiff", typeof(NoOpJob));
+            JobDetailImpl jd1 = new JobDetailImpl("name", "group", typeof(NoOpJob));
+            JobDetailImpl jd2 = new JobDetailImpl("name", "group", typeof(NoOpJob));
+            JobDetailImpl jd3 = new JobDetailImpl("namediff", "groupdiff", typeof(NoOpJob));
             Assert.AreEqual(jd1, jd2);
             Assert.AreNotEqual(jd1, jd3);
             Assert.AreNotEqual(jd2, jd3);
@@ -44,8 +45,8 @@ namespace Quartz.Tests.Unit
 		[Test]
 		public void TestClone() 
 		{
-			JobDetail jobDetail = new JobDetail();
-			JobDetail clonedJobDetail = (JobDetail)jobDetail.Clone();
+			JobDetailImpl jobDetail = new JobDetailImpl();
+			JobDetailImpl clonedJobDetail = (JobDetailImpl)jobDetail.Clone();
 
             Assert.AreEqual(jobDetail, clonedJobDetail);
 		}

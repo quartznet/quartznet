@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -17,10 +17,12 @@
  */
 #endregion
 
+using System;
+
 namespace Quartz
 {
 	/// <summary>
-	/// A marker interface for <see cref="JobDetail" /> s that
+    /// A marker interface for <see cref="IJobDetail" /> s that
 	/// wish to have their state maintained between executions.
 	/// </summary>
 	/// <remarks>
@@ -32,12 +34,15 @@ namespace Quartz
 	/// concurrently, which means new triggers that occur before the completion of
 	/// the <see cref="IJob.Execute" /> method will be delayed.
 	/// </remarks>
-	/// <seealso cref="IJob" />
-	/// <seealso cref="JobDetail" />
+    /// <seealso cref="DisallowConcurrentExecutionAttribute" />
+    /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
+    /// <seealso cref="IJob" />
+	/// <seealso cref="IJobDetail" />
 	/// <seealso cref="JobDataMap" />
 	/// <seealso cref="IScheduler" /> 
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
+    [Obsolete("Use DisallowConcurrentExecutionAttribute and/or PersistJobDataAfterExecutionAttribute annotations instead.")]
 	public interface IStatefulJob : IJob
 	{
 	}

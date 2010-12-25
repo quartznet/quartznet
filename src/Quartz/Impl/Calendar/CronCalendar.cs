@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -33,7 +33,7 @@ namespace Quartz.Impl.Calendar
 	/// It is important to remember that the cron expression here describes a set of
 	/// times to be <i>excluded</i> from firing. Whereas the cron expression in 
 	/// CronTrigger describes a set of times that can
-	/// be <i>included</i> for firing. Thus, if a <see cref="CronTrigger" /> has a 
+	/// be <i>included</i> for firing. Thus, if a <see cref="ICronTrigger" /> has a 
 	/// given cron expression and is associated with a <see cref="CronCalendar" /> with
 	/// the <i>same</i> expression, the calendar will exclude all the times the 
 	/// trigger includes, and they will cancel each other out.
@@ -49,7 +49,7 @@ namespace Quartz.Impl.Calendar
 		/// <summary>
 		/// Initializes a new instance of the <see cref="CronCalendar"/> class.
 		/// </summary>
-		/// <param name="expression">a String representation of the desired cron expression</param>
+		/// <param name="expression">a string representation of the desired cron expression</param>
 		public CronCalendar(string expression)
 		{
 			cronExpression = new CronExpression(expression);
@@ -64,7 +64,7 @@ namespace Quartz.Impl.Calendar
 		/// see BaseCalendar for more information on base
 		/// calendar functionality
 		/// </param>
-		/// <param name="expression">a String representation of the desired cron expression</param>
+		/// <param name="expression">a string representation of the desired cron expression</param>
 		public CronCalendar( ICalendar baseCalendar,
 		                    string expression) : base(baseCalendar)
 		{
@@ -80,7 +80,7 @@ namespace Quartz.Impl.Calendar
         /// see BaseCalendar for more information on base
         /// calendar functionality
         /// </param>
-        /// <param name="expression">a String representation of the desired cron expression</param>
+        /// <param name="expression">a string representation of the desired cron expression</param>
         /// <param name="timeZone"></param>
         public CronCalendar(ICalendar baseCalendar,
                             string expression,

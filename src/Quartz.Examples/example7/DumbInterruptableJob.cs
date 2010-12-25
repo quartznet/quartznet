@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -24,7 +24,7 @@ using Common.Logging;
 namespace Quartz.Examples.Example7
 {
 	/// <summary>
-	/// A dumb implementation of an InterruptableJob, for unittesting purposes.
+	/// A dumb implementation of an InterruptableJob, for unit testing purposes.
 	/// </summary>
 	/// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 	/// <author>Bill Kratzer</author>
@@ -36,16 +36,16 @@ namespace Quartz.Examples.Example7
 		// has the job been interrupted?
 		private bool interrupted;
 		// job name 
-		private string jobName = "";
+		private JobKey jobKey;
 		
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// </summary>
-		public virtual void  Execute(JobExecutionContext context)
+		public virtual void  Execute(IJobExecutionContext context)
 		{
-			jobName = context.JobDetail.FullName;
-			log.Info(string.Format("---- {0} executing at {1}", jobName, DateTime.Now.ToString("r")));
+			jobKey = context.JobDetail.Key;
+			log.InfoFormat("---- {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
 			
 			try
 			{
@@ -66,7 +66,7 @@ namespace Quartz.Examples.Example7
 					// periodically check if we've been interrupted...
 					if (interrupted)
 					{
-						log.Info(string.Format("--- {0}  -- Interrupted... bailing out!", jobName));
+						log.InfoFormat("--- {0}  -- Interrupted... bailing out!", jobKey);
 						return ; // could also choose to throw a JobExecutionException 
 						// if that made for sense based on the particular  
 						// job's responsibilities/behaviors
@@ -75,7 +75,7 @@ namespace Quartz.Examples.Example7
 			}
 			finally
 			{
-				log.Info(string.Format("---- {0} completed at {1}", jobName, DateTime.Now.ToString("r")));
+				log.InfoFormat("---- {0} completed at {1}", jobKey, DateTime.Now.ToString("r"));
 			}
 		}
 		

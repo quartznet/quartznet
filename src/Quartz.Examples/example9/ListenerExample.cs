@@ -1,6 +1,7 @@
 #region License
+
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -15,81 +16,90 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
 using System.Threading;
+
 using Common.Logging;
+
 using Quartz.Impl;
+using Quartz.Impl.Matchers;
 
 namespace Quartz.Examples.Example9
 {
-	
-	/// <summary> 
-	/// Demonstrates the behavior of <see cref="IJobListener" />s.  In particular, 
-	/// this example will use a job listener to trigger another job after one
-	/// job succesfully executes.
-	/// </summary>
+    /// <summary> 
+    /// Demonstrates the behavior of <see cref="IJobListener" />s.  In particular, 
+    /// this example will use a job listener to trigger another job after one
+    /// job succesfully executes.
+    /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     public class ListenerExample : IExample
-	{
-		public string Name
-		{
-			get { return GetType().Name; }
-		}
+    {
+        public string Name
+        {
+            get { return GetType().Name; }
+        }
 
-		public virtual void Run()
-		{
-			ILog log = LogManager.GetLogger(typeof(ListenerExample));
-			
-			log.Info("------- Initializing ----------------------");
-			
-			// First we must get a reference to a scheduler
-			ISchedulerFactory sf = new StdSchedulerFactory();
-			IScheduler sched = sf.GetScheduler();
-			
-			log.Info("------- Initialization Complete -----------");
-			
-			log.Info("------- Scheduling Jobs -------------------");
-			
-			// schedule a job to run immediately
-			JobDetail job = new JobDetail("job1", "group1", typeof(SimpleJob1));
-			SimpleTrigger trigger = new SimpleTrigger("trigger1", "group1", DateTime.UtcNow, null, 0, TimeSpan.Zero);
-			
-			// Set up the listener
-			IJobListener listener = new Job1Listener();
-            sched.AddGlobalJobListener(listener); // TODO: Add pattern to only match job 1
-			
-			// schedule the job to run
-			sched.ScheduleJob(job, trigger);
-			
-			// All of the jobs have been added to the scheduler, but none of the jobs
-			// will run until the scheduler has been started
-			log.Info("------- Starting Scheduler ----------------");
-			sched.Start();
-			
-			// wait 30 seconds:
-			// note:  nothing will run
-			log.Info("------- Waiting 30 seconds... --------------");
-			try
-			{
-				// wait 30 seconds to show jobs
-				Thread.Sleep(TimeSpan.FromSeconds(30));
-				// executing...
-			}
+        public virtual void Run()
+        {
+            ILog log = LogManager.GetLogger(typeof (ListenerExample));
+
+            log.Info("------- Initializing ----------------------");
+
+            // First we must get a reference to a scheduler
+            ISchedulerFactory sf = new StdSchedulerFactory();
+            IScheduler sched = sf.GetScheduler();
+
+            log.Info("------- Initialization Complete -----------");
+
+            log.Info("------- Scheduling Jobs -------------------");
+
+            // schedule a job to run immediately
+            IJobDetail job = JobBuilder.NewJob<SimpleJob1>()
+                .WithIdentity("job1")
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger1")
+                .StartNow()
+                .Build();
+
+            // Set up the listener
+            IJobListener listener = new Job1Listener();
+            IMatcher<JobKey> matcher = KeyMatcher<JobKey>.MatchKey(job.Key);
+            sched.ListenerManager.AddJobListener(listener, matcher);
+
+            // schedule the job to run
+            sched.ScheduleJob(job, trigger);
+
+            // All of the jobs have been added to the scheduler, but none of the jobs
+            // will run until the scheduler has been started
+            log.Info("------- Starting Scheduler ----------------");
+            sched.Start();
+
+            // wait 30 seconds:
+            // note:  nothing will run
+            log.Info("------- Waiting 30 seconds... --------------");
+            try
+            {
+                // wait 30 seconds to show jobs
+                Thread.Sleep(TimeSpan.FromSeconds(30));
+                // executing...
+            }
             catch (ThreadInterruptedException)
-			{
-			}
-			
-			
-			// shut down the scheduler
-			log.Info("------- Shutting Down ---------------------");
-			sched.Shutdown(true);
-			log.Info("------- Shutdown Complete -----------------");
-			
-			SchedulerMetaData metaData = sched.GetMetaData();
-			log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
-		}
-		
-	}
+            {
+            }
+
+
+            // shut down the scheduler
+            log.Info("------- Shutting Down ---------------------");
+            sched.Shutdown(true);
+            log.Info("------- Shutdown Complete -----------------");
+
+            SchedulerMetaData metaData = sched.GetMetaData();
+            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+        }
+    }
 }

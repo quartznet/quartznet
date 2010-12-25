@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -49,39 +49,55 @@ namespace Quartz.Listener
             get { return log; }
         }
 
-        public virtual void JobScheduled(Trigger trigger)
+        public virtual void JobScheduled(ITrigger trigger)
         {
         }
 
-        public virtual void JobUnscheduled(string triggerName, string triggerGroup)
+        public virtual void JobUnscheduled(TriggerKey triggerKey)
         {
         }
 
-        public virtual void TriggerFinalized(Trigger trigger)
+        public virtual void TriggerFinalized(ITrigger trigger)
         {
         }
 
-        public virtual void TriggersPaused(string triggerName, string triggerGroup)
+        public virtual void TriggersPaused(string triggerGroup)
         {
         }
 
-        public virtual void TriggersResumed(string triggerName, string triggerGroup)
+        public virtual void TriggerPaused(TriggerKey triggerKey)
         {
         }
 
-        public virtual void JobAdded(JobDetail jobDetail)
+        public virtual void TriggersResumed(string triggerGroup)
         {
         }
 
-        public virtual void JobDeleted(string jobName, string groupName)
+        public virtual void TriggerResumed(TriggerKey triggerKey)
         {
         }
 
-        public virtual void JobsPaused(string jobName, string jobGroup)
+        public virtual void JobAdded(IJobDetail jobDetail)
         {
         }
 
-        public virtual void JobsResumed(string jobName, string jobGroup)
+        public virtual void JobDeleted(JobKey jobKey)
+        {
+        }
+
+        public virtual void JobsPaused(string jobGroup)
+        {
+        }
+
+        public virtual void JobPaused(JobKey jobKey)
+        {
+        }
+
+        public virtual void JobsResumed(string jobGroup)
+        {
+        }
+
+        public virtual void JobResumed(JobKey jobKey)
         {
         }
 
@@ -102,6 +118,10 @@ namespace Quartz.Listener
         }
 
         public virtual void SchedulerShuttingdown()
+        {
+        }
+
+        public virtual void SchedulingDataCleared()
         {
         }
     }

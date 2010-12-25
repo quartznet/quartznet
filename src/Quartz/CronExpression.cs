@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 using Quartz.Collection;
 
@@ -325,6 +326,10 @@ namespace Quartz
         /// </summary>
         [NonSerialized]
         protected bool nearestWeekday;
+
+        [NonSerialized]
+        protected int lastdayOffset = 0;
+
         /// <summary>
         /// Calendar day of week.
         /// </summary>
@@ -340,6 +345,8 @@ namespace Quartz
         /// </summary>
         [NonSerialized]
         protected bool expressionParsed;
+
+        public const int MaxYear = 2299;
 
         static CronExpression()
         {
@@ -459,7 +466,7 @@ namespace Quartz
 
         /// <summary>
         /// Sets or gets the time zone for which the <see cref="CronExpression" /> of this
-        /// <see cref="CronTrigger" /> will be resolved.
+        /// <see cref="ICronTrigger" /> will be resolved.
         /// </summary>
         public virtual TimeZoneInfo TimeZone
         {
@@ -503,6 +510,12 @@ namespace Quartz
             }
 
             return true;
+        }
+
+        
+        public static void ValidateExpression(string cronExpression)
+        {
+            new CronExpression(cronExpression);
         }
 
         ////////////////////////////////////////////////////////////////////////////
@@ -648,9 +661,9 @@ namespace Quartz
                 return i;
             }
             char c = s[i];
-            if ((c >= 'A') && (c <= 'Z') && (!s.Equals("L")) && (!s.Equals("LW")))
+            if ((c >= 'A') && (c <= 'Z') && (!s.Equals("L")) && (!s.Equals("LW")) && (!Regex.IsMatch(s, "^L-[0-9]*[W]?")))
             {
-                String sub = s.Substring(i, 3);
+                string sub = s.Substring(i, 3);
                 int sval;
                 int eval = -1;
                 if (type == Month)
@@ -842,10 +855,24 @@ namespace Quartz
                 if (type == DayOfMonth && s.Length > i)
                 {
                     c = s[i];
-                    if (c == 'W')
+                    if (c == '-')
                     {
-                        nearestWeekday = true;
-                        i++;
+                        ValueSet vs = GetValue(0, s, i + 1);
+                        lastdayOffset = vs.theValue;
+                        if (lastdayOffset > 30)
+                        {
+                            throw new FormatException("Offset from last day must be <= 30");
+                        }
+                        i = vs.pos;
+                    }
+                    if (s.Length > i)
+                    {
+                        c = s[i];
+                        if (c == 'W')
+                        {
+                            nearestWeekday = true;
+                            i++;
+                        }
                     }
                 }
                 return i;
@@ -1328,7 +1355,7 @@ namespace Quartz
             {
                 if (stopAt == -1)
                 {
-                    stopAt = CronTrigger.YearToGiveupSchedulingAt;
+                    stopAt = MaxYear;
                 }
                 if (startAt == -1 || startAt == AllSpecInt)
                 {
@@ -1637,11 +1664,13 @@ namespace Quartz
                         {
                             t = day;
                             day = GetLastDayOfMonth(mon, d.Year);
+                            day -= lastdayOffset;
                         }
                         else
                         {
                             t = day;
                             day = GetLastDayOfMonth(mon, d.Year);
+                            day -= lastdayOffset;
 
                             DateTimeOffset tcal = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
 
@@ -1917,7 +1946,7 @@ namespace Quartz
 
                 // test for expressions that never generate a valid fire date,
                 // but keep looping...
-                if (year > CronTrigger.YearToGiveupSchedulingAt)
+                if (year > MaxYear)
                 {
                     return null;
                 }

@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -33,90 +33,105 @@ namespace Quartz
     public interface ISchedulerListener
 	{
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
 		/// is scheduled.
 		/// </summary>
-		void JobScheduled(Trigger trigger);
+		void JobScheduled(ITrigger trigger);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
 		/// is unscheduled.
 		/// </summary>
-		void JobUnscheduled(string triggerName, string triggerGroup);
+        /// <seealso cref="SchedulingDataCleared"/>
+        void JobUnscheduled(TriggerKey triggerKey);
 
 		/// <summary> 
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// has reached the condition in which it will never fire again.
 		/// </summary>
-		void TriggerFinalized(Trigger trigger);
+        void TriggerFinalized(ITrigger trigger);
+        
+        /// <summary>
+        /// Called by the <see cref="IScheduler"/> a <see cref="ITrigger"/>s has been paused.
+        /// </summary>
+        void TriggerPaused(TriggerKey triggerKey);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
-		/// or group of <see cref="Trigger"/>s has been paused.
-		/// <p>
-		/// If a group was paused, then the <see param="triggerName"/> parameter
+		/// Called by the <see cref="IScheduler"/> a group of 
+		/// <see cref="ITrigger"/>s has been paused.
+        /// </summary>
+        /// <remarks>
+		/// If a all groups were paused, then the <see param="triggerName"/> parameter
 		/// will be null.
-		/// </p>
-		/// </summary>
-		/// <param name="triggerName">Name of the trigger.</param>
+        /// </remarks>
 		/// <param name="triggerGroup">The trigger group.</param>
-		void TriggersPaused(string triggerName, string triggerGroup);
-
-		/// <summary>
-		/// Called by the <see cref="IScheduler"/> when a <see cref="Trigger"/>
-		/// or group of <see cref="Trigger"/>s has been un-paused.
-		/// <p>
-		/// If a group was resumed, then the <see param="triggerName"/> parameter
-		/// will be null.
-		/// </p>
-		/// </summary>
-		/// <param name="triggerName">Name of the trigger.</param>
-		/// <param name="triggerGroup">The trigger group.</param>
-		void TriggersResumed(string triggerName, string triggerGroup);
+		void TriggersPaused(string triggerGroup);
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
+        /// has been un-paused.
+        /// </summary>
+        void TriggerResumed(TriggerKey triggerKey);
+
+		/// <summary>
+		/// Called by the <see cref="IScheduler"/> when a
+		/// group of <see cref="ITrigger"/>s has been un-paused.
+        /// </summary>
+        /// <remarks>
+		/// If all groups were resumed, then the <see param="triggerName"/> parameter
+		/// will be null.
+        /// </remarks>
+		/// <param name="triggerGroup">The trigger group.</param>
+		void TriggersResumed(string triggerGroup);
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been added.
         /// </summary>
         /// <param name="jobDetail"></param>
-        void JobAdded(JobDetail jobDetail);
+        void JobAdded(IJobDetail jobDetail);
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
+        /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been deleted.
         /// </summary>
-        /// <param name="jobName"></param>
-        /// <param name="groupName"></param>
-        void JobDeleted(string jobName, string groupName);
+        void JobDeleted(JobKey jobKey);
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
+        /// has been  paused.
+        /// </summary>
+        void JobPaused(JobKey jobKey);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler"/> when a <see cref="JobDetail"/>
-		/// or group of <see cref="JobDetail"/>s has been  paused.
+		/// Called by the <see cref="IScheduler"/> when a
+		/// group of <see cref="IJobDetail"/>s has been  paused.
 		/// <p>
-		/// If a group was paused, then the <see param="jobName"/> parameter will be
+		/// If all groups were paused, then the <see param="jobName"/> parameter will be
 		/// null. If all jobs were paused, then both parameters will be null.
 		/// </p>
 		/// </summary>
-		/// <param name="jobName">Name of the job.</param>
 		/// <param name="jobGroup">The job group.</param>
-		void JobsPaused(string jobName, string jobGroup);
+		void JobsPaused(string jobGroup);
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
+        /// has been  un-paused.
+        /// </summary>
+        void JobResumed(JobKey jobKey);
 
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="JobDetail" />
-		/// or group of <see cref="JobDetail" />s has been  un-paused.
-		/// <p>
-		/// If a group was resumed, then the <param name="jobName" /> parameter will
-		/// be null. If all jobs were paused, then both parameters will be null.
-		/// </p>
+		/// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
+		/// has been  un-paused.
 		/// </summary>
 		/// <param name="jobGroup">The job group.</param>
-		void JobsResumed(string jobName, string jobGroup);
+		void JobsResumed(string jobGroup);
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a serious error has
 		/// occurred within the scheduler - such as repeated failures in the <see cref="IJobStore" />,
 		/// or the inability to instantiate a <see cref="IJob" /> instance when its
-		/// <see cref="Trigger" /> has fired.
+		/// <see cref="ITrigger" /> has fired.
 		/// </summary>
 		void SchedulerError(string msg, SchedulerException cause);
 
@@ -143,5 +158,12 @@ namespace Quartz
         /// that it has begun the shutdown sequence.
         /// </summary>
         void SchedulerShuttingdown();
+
+
+        /// <summary>
+        /// Called by the <code>{@link Scheduler}</code> to inform the listener
+        /// that all jobs, triggers and calendars were deleted.
+        /// </summary>
+        void SchedulingDataCleared();
 	}
 }

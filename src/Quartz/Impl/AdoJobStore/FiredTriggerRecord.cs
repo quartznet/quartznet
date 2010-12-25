@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -19,8 +19,6 @@
 
 using System;
 
-using Quartz.Util;
-
 namespace Quartz.Impl.AdoJobStore
 {
 	/// <summary>
@@ -34,11 +32,10 @@ namespace Quartz.Impl.AdoJobStore
         private string fireInstanceId;
         private long fireTimestamp;
         private string schedulerInstanceId;
-        private Key triggerKey;
+        private TriggerKey triggerKey;
         private string fireInstanceState;
-        private bool triggerIsVolatile;
-        private Key jobKey;
-        private bool jobIsStateful;
+        private JobKey jobKey;
+        private bool jobDisallowsConcurrentExecution;
         private bool jobRequestsRecovery;
         private int priority;
 
@@ -63,20 +60,19 @@ namespace Quartz.Impl.AdoJobStore
 		}
 
         /// <summary>
-        /// Gets or sets a value indicating whether [job is stateful].
+        /// Gets or sets a value indicating whether job disallows concurrent execution.
         /// </summary>
-        /// <value><c>true</c> if [job is stateful]; otherwise, <c>false</c>.</value>
-		public virtual bool JobIsStateful
+        public virtual bool JobDisallowsConcurrentExecution
 		{
-			get { return jobIsStateful; }
-			set { jobIsStateful = value; }
+            get { return jobDisallowsConcurrentExecution; }
+            set { jobDisallowsConcurrentExecution = value; }
 		}
 
         /// <summary>
         /// Gets or sets the job key.
         /// </summary>
         /// <value>The job key.</value>
-		public virtual Key JobKey
+		public virtual JobKey JobKey
 		{
 			get { return jobKey; }
 			set { jobKey = value; }
@@ -98,7 +94,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the trigger key.
         /// </summary>
         /// <value>The trigger key.</value>
-		public virtual Key TriggerKey
+		public virtual TriggerKey TriggerKey
 		{
 			get { return triggerKey; }
 			set { triggerKey = value; }
@@ -124,17 +120,6 @@ namespace Quartz.Impl.AdoJobStore
 		{
 			get { return jobRequestsRecovery; }
 			set { jobRequestsRecovery = value; }
-
-		}
-
-        /// <summary>
-        /// Gets or sets a value indicating whether [trigger is volatile].
-        /// </summary>
-        /// <value><c>true</c> if [trigger is volatile]; otherwise, <c>false</c>.</value>
-		public virtual bool TriggerIsVolatile
-		{
-			get { return triggerIsVolatile; }
-			set { triggerIsVolatile = value; }
 
 		}
 

@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -70,7 +70,7 @@ namespace Quartz.Listener
         }
 
 
-        public void JobAdded(JobDetail jobDetail)
+        public void JobAdded(IJobDetail jobDetail)
         {
             foreach (ISchedulerListener listener in listeners)
             {
@@ -78,15 +78,15 @@ namespace Quartz.Listener
             }
         }
 
-        public void JobDeleted(string jobName, string groupName)
+        public void JobDeleted(JobKey jobKey)
         {
             foreach (ISchedulerListener listener in listeners)
             {
-                listener.JobDeleted(jobName, groupName);
+                listener.JobDeleted(jobKey);
             }
         }
 
-        public void JobScheduled(Trigger trigger)
+        public void JobScheduled(ITrigger trigger)
         {
             foreach (ISchedulerListener l in listeners)
             {
@@ -94,15 +94,15 @@ namespace Quartz.Listener
             }
         }
 
-        public void JobUnscheduled(string triggerName, string triggerGroup)
+        public void JobUnscheduled(TriggerKey triggerKey)
         {
             foreach (ISchedulerListener l in listeners)
             {
-                l.JobUnscheduled(triggerName, triggerGroup);
+                l.JobUnscheduled(triggerKey);
             }
         }
 
-        public void TriggerFinalized(Trigger trigger)
+        public void TriggerFinalized(ITrigger trigger)
         {
             foreach (ISchedulerListener l in listeners)
             {
@@ -110,35 +110,75 @@ namespace Quartz.Listener
             }
         }
 
-        public void TriggersPaused(string triggerName, string triggerGroup)
+        public void TriggersPaused(string triggerGroup)
         {
             foreach (ISchedulerListener l in listeners)
             {
-                l.TriggersPaused(triggerName, triggerGroup);
+                l.TriggersPaused(triggerGroup);
             }
         }
 
-        public void TriggersResumed(string triggerName, string triggerGroup)
+        public void TriggerPaused(TriggerKey triggerKey)
         {
             foreach (ISchedulerListener l in listeners)
             {
-                l.TriggersResumed(triggerName, triggerGroup);
+                l.TriggerPaused(triggerKey);
             }
         }
 
-        public void JobsPaused(string jobName, string jobGroup)
+        public void TriggersResumed(string triggerGroup)
         {
             foreach (ISchedulerListener l in listeners)
             {
-                l.JobsPaused(jobName, jobGroup);
+                l.TriggersResumed(triggerGroup);
             }
         }
 
-        public void JobsResumed(string jobName, string jobGroup)
+        public void SchedulingDataCleared()
         {
             foreach (ISchedulerListener l in listeners)
             {
-                l.JobsResumed(jobName, jobGroup);
+                l.SchedulingDataCleared();
+            }
+        }
+
+        public void TriggerResumed(TriggerKey triggerKey)
+        {
+            foreach (ISchedulerListener l in listeners)
+            {
+                l.TriggerResumed(triggerKey);
+            }
+        }
+
+        public void JobsPaused(string jobGroup)
+        {
+            foreach (ISchedulerListener l in listeners)
+            {
+                l.JobsPaused(jobGroup);
+            }
+        }
+
+        public void JobPaused(JobKey jobKey)
+        {
+            foreach (ISchedulerListener l in listeners)
+            {
+                l.JobPaused(jobKey);
+            }
+        }
+
+        public void JobsResumed(string jobGroup)
+        {
+            foreach (ISchedulerListener l in listeners)
+            {
+                l.JobsResumed(jobGroup);
+            }
+        }
+
+        public void JobResumed(JobKey jobKey)
+        {
+            foreach (ISchedulerListener l in listeners)
+            {
+                l.JobResumed(jobKey);
             }
         }
 

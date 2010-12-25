@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -28,18 +28,20 @@ namespace Quartz.Examples.Example5
 	/// </summary>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class StatefulDumbJob : IStatefulJob
+    [PersistJobDataAfterExecution]
+    [DisallowConcurrentExecution]
+    public class StatefulDumbJob : IJob
 	{
 		public const string NumExecutions = "NumExecutions";
 		public const string ExecutionDelay = "ExecutionDelay";
 		
 		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
 		/// </summary>
-		public virtual void  Execute(JobExecutionContext context)
+		public virtual void  Execute(IJobExecutionContext context)
 		{
-			Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.FullName, DateTime.Now.ToString("r"));
+			Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.Key, DateTime.Now.ToString("r"));
 			
 			JobDataMap map = context.JobDetail.JobDataMap;
 			
@@ -62,8 +64,8 @@ namespace Quartz.Examples.Example5
             catch (ThreadInterruptedException)
 			{
 			}
-			
-			Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.FullName, executeCount);
+
+            Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
 		}
 	}
 }

@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -43,7 +43,6 @@ namespace Quartz.Impl
     {
         private IRemotableQuartzScheduler rsched;
         private readonly string schedId;
-        private string remoteSchedulerAddress;
 
         /// <summary>
         /// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
@@ -116,11 +115,7 @@ namespace Quartz.Impl
         /// Gets or sets the remote scheduler address.
         /// </summary>
         /// <value>The remote scheduler address.</value>
-        public virtual string RemoteSchedulerAddress
-        {
-            get { return remoteSchedulerAddress; }
-            set { remoteSchedulerAddress = value; }
-        }
+        public virtual string RemoteSchedulerAddress { get; set; }
 
         /// <summary>
         /// Get a <see cref="SchedulerMetaData"/> object describiing the settings
@@ -205,7 +200,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<JobExecutionContext> GetCurrentlyExecutingJobs()
+        public virtual IList<IJobExecutionContext> GetCurrentlyExecutingJobs()
         {
             try
             {
@@ -220,36 +215,30 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> JobGroupNames
+        public virtual IList<string> GetJobGroupNames()
         {
-            get
+            try
             {
-                try
-                {
-                    return GetRemoteScheduler().GetJobGroupNames();
-                }
-                catch (RemotingException re)
-                {
-                    throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
-                }
+                return GetRemoteScheduler().GetJobGroupNames();
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> TriggerGroupNames
+        public virtual IList<string> GetTriggerGroupNames()
         {
-            get
+            try
             {
-                try
-                {
-                    return GetRemoteScheduler().GetTriggerGroupNames();
-                }
-                catch (RemotingException re)
-                {
-                    throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
-                }
+                return GetRemoteScheduler().GetTriggerGroupNames();
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
         }
 
@@ -272,54 +261,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equialent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual IList<IJobListener> GlobalJobListeners
-        {
-            get { throw new SchedulerException("Operation not supported for remote schedulers."); }
-        }
-
-        /// <summary>
-        /// Get the <i>global</i><see cref="IJobListener"/> that has
-        /// the given name.
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public virtual IJobListener GetGlobalJobListener(string name)
-        {
-            throw new SchedulerException("Operation not supported for remote schedulers.");
-        }
-
-        /// <summary>
-        /// Get the <i>global</i><see cref="ITriggerListener"/> that
-        /// has the given name.
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public virtual ITriggerListener GetGlobalTriggerListener(string name)
-        {
-            throw new SchedulerException(
-                "Operation not supported for remote schedulers.");
-        }
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual IList<ITriggerListener> GlobalTriggerListeners
-        {
-            get { throw new SchedulerException("Operation not supported for remote schedulers."); }
-        }
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual IList<ISchedulerListener> SchedulerListeners
-        {
-            get { throw new SchedulerException("Operation not supported for remote schedulers."); }
-        }
-
-        /// <summary>
-        /// Get the names of all <see cref="Trigger" /> groups that are paused.
+        /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
         /// <value></value>
         public virtual Collection.ISet<string> GetPausedTriggerGroups()
@@ -492,7 +434,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset ScheduleJob(JobDetail jobDetail, Trigger trigger)
+        public virtual DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
         {
             try
             {
@@ -507,7 +449,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset ScheduleJob(Trigger trigger)
+        public virtual DateTimeOffset ScheduleJob(ITrigger trigger)
         {
             try
             {
@@ -522,7 +464,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void AddJob(JobDetail jobDetail, bool replace)
+        public virtual void AddJob(IJobDetail jobDetail, bool replace)
         {
             try
             {
@@ -534,15 +476,35 @@ namespace Quartz.Impl
             }
         }
 
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual bool DeleteJob(string jobName, string groupName)
+        public virtual bool DeleteJobs(IList<JobKey> jobKeys)
         {
             try
             {
-                return GetRemoteScheduler().DeleteJob(jobName, groupName);
+                return GetRemoteScheduler().DeleteJobs(jobKeys);
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
+            }
+        }
+
+        public virtual void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace)
+        {
+            try
+            {
+                GetRemoteScheduler().ScheduleJobs(triggersAndJobs, replace);
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
+            }
+        }
+
+        public virtual bool UnscheduleJobs(IList<TriggerKey> triggerKeys)
+        {
+            try
+            {
+                return GetRemoteScheduler().UnscheduleJobs(triggerKeys);
             }
             catch (RemotingException re)
             {
@@ -553,11 +515,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual bool UnscheduleJob(string triggerName, string groupName)
+        public virtual bool DeleteJob(JobKey jobKey)
         {
             try
             {
-                return GetRemoteScheduler().UnscheduleJob(triggerName, groupName);
+                return GetRemoteScheduler().DeleteJob(jobKey);
             }
             catch (RemotingException re)
             {
@@ -568,11 +530,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset? RescheduleJob(string triggerName, string groupName, Trigger newTrigger)
+        public virtual bool UnscheduleJob(TriggerKey triggerKey)
         {
             try
             {
-                return GetRemoteScheduler().RescheduleJob(triggerName, groupName, newTrigger);
+                return GetRemoteScheduler().UnscheduleJob(triggerKey);
             }
             catch (RemotingException re)
             {
@@ -583,19 +545,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void TriggerJob(string jobName, string groupName)
-        {
-            TriggerJob(jobName, groupName, null);
-        }
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual void TriggerJob(string jobName, string groupName, JobDataMap data)
+        public virtual DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger)
         {
             try
             {
-                GetRemoteScheduler().TriggerJob(jobName, groupName, data);
+                return GetRemoteScheduler().RescheduleJob(triggerKey, newTrigger);
             }
             catch (RemotingException re)
             {
@@ -606,19 +560,19 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName)
+        public virtual void TriggerJob(JobKey jobKey)
         {
-            TriggerJobWithVolatileTrigger(jobName, groupName, null);
+            TriggerJob(jobKey, null);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void TriggerJobWithVolatileTrigger(string jobName, string groupName, JobDataMap data)
+        public virtual void TriggerJob(JobKey jobKey, JobDataMap data)
         {
             try
             {
-                GetRemoteScheduler().TriggerJobWithVolatileTrigger(jobName, groupName, data);
+                GetRemoteScheduler().TriggerJob(jobKey, data);
             }
             catch (RemotingException re)
             {
@@ -626,15 +580,14 @@ namespace Quartz.Impl
             }
         }
 
-
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseTrigger(string triggerName, string groupName)
+        public virtual void PauseTrigger(TriggerKey triggerKey)
         {
             try
             {
-                GetRemoteScheduler().PauseTrigger(triggerName, groupName);
+                GetRemoteScheduler().PauseTrigger(triggerKey);
             }
             catch (RemotingException re)
             {
@@ -660,11 +613,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseJob(string jobName, string groupName)
+        public virtual void PauseJob(JobKey jobKey)
         {
             try
             {
-                GetRemoteScheduler().PauseJob(jobName, groupName);
+                GetRemoteScheduler().PauseJob(jobKey);
             }
             catch (RemotingException re)
             {
@@ -691,11 +644,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeTrigger(string triggerName, string groupName)
+        public virtual void ResumeTrigger(TriggerKey triggerKey)
         {
             try
             {
-                GetRemoteScheduler().ResumeTrigger(triggerName, groupName);
+                GetRemoteScheduler().ResumeTrigger(triggerKey);
             }
             catch (RemotingException re)
             {
@@ -722,11 +675,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeJob(string jobName, string groupName)
+        public virtual void ResumeJob(JobKey jobKey)
         {
             try
             {
-                GetRemoteScheduler().ResumeJob(jobName, groupName);
+                GetRemoteScheduler().ResumeJob(jobKey);
             }
             catch (RemotingException re)
             {
@@ -784,11 +737,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> GetJobNames(string groupName)
+        public virtual IList<JobKey> GetJobKeys(string groupName)
         {
             try
             {
-                return GetRemoteScheduler().GetJobNames(groupName);
+                return GetRemoteScheduler().GetJobKeys(groupName);
             }
             catch (RemotingException re)
             {
@@ -800,11 +753,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<Trigger> GetTriggersOfJob(string jobName, string groupName)
+        public virtual IList<ITrigger> GetTriggersOfJob(JobKey jobKey)
         {
             try
             {
-                return GetRemoteScheduler().GetTriggersOfJob(jobName, groupName);
+                return GetRemoteScheduler().GetTriggersOfJob(jobKey);
             }
             catch (RemotingException re)
             {
@@ -815,11 +768,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> GetTriggerNames(string groupName)
+        public virtual IList<TriggerKey> GetTriggerKeys(string groupName)
         {
             try
             {
-                return GetRemoteScheduler().GetTriggerNames(groupName);
+                return GetRemoteScheduler().GetTriggerKeys(groupName);
             }
             catch (RemotingException re)
             {
@@ -830,11 +783,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual JobDetail GetJobDetail(string jobName, string jobGroup)
+        public virtual IJobDetail GetJobDetail(JobKey jobKey)
         {
             try
             {
-                return GetRemoteScheduler().GetJobDetail(jobName, jobGroup);
+                return GetRemoteScheduler().GetJobDetail(jobKey);
             }
             catch (RemotingException re)
             {
@@ -845,11 +798,56 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Trigger GetTrigger(string triggerName, string triggerGroup)
+        public virtual bool CheckExists(JobKey jobKey)
         {
             try
             {
-                return GetRemoteScheduler().GetTrigger(triggerName, triggerGroup);
+                return GetRemoteScheduler().CheckExists(jobKey);
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
+            }
+        }
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual bool CheckExists(TriggerKey triggerKey)
+        {
+            try
+            {
+                return GetRemoteScheduler().CheckExists(triggerKey);
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
+            }
+        }
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void Clear()
+        {
+            try
+            {
+                GetRemoteScheduler().Clear();
+            }
+            catch (RemotingException re)
+            {
+                throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
+            }
+        }
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual ITrigger GetTrigger(TriggerKey triggerKey)
+        {
+            try
+            {
+                return GetRemoteScheduler().GetTrigger(triggerKey);
             }
             catch (RemotingException re)
             {
@@ -861,11 +859,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual TriggerState GetTriggerState(string triggerName, string triggerGroup)
+        public virtual TriggerState GetTriggerState(TriggerKey triggerKey)
         {
             try
             {
-                return GetRemoteScheduler().GetTriggerState(triggerName, triggerGroup);
+                return GetRemoteScheduler().GetTriggerState(triggerKey);
             }
             catch (RemotingException re)
             {
@@ -935,74 +933,22 @@ namespace Quartz.Impl
             }
         }
 
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual void AddGlobalJobListener(IJobListener jobListener)
+        public IListenerManager ListenerManager
         {
-            throw new SchedulerException("Operation not supported for remote schedulers.");
-        }
-
-        /// <summary>
-        /// Remove the identifed <see cref="IJobListener"/> from the <see cref="IScheduler"/>'s
-        /// list of <i>global</i> listeners.
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns>
-        /// true if the identifed listener was found in the list, and removed
-        /// </returns>
-        public virtual bool RemoveGlobalJobListener(string name)
-        {
-            throw new SchedulerException("Operation not supported for remote schedulers.");
+            get
+            {
+                throw new SchedulerException("Operation not supported for remote schedulers.");
+            }
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void AddGlobalTriggerListener(ITriggerListener triggerListener)
-        {
-            throw new SchedulerException("Operation not supported for remote schedulers.");
-        }
-
-        /// <summary>
-        /// Remove the identifed <see cref="ITriggerListener"/> from the <see cref="IScheduler"/>'s
-        /// list of <i>global</i> listeners.
-        /// </summary>
-        /// <param name="name">The name.</param>
-        /// <returns>
-        /// true if the identifed listener was found in the list, and removed.
-        /// </returns>
-        public virtual bool RemoveGlobalTriggerListener(string name)
-        {
-            throw new SchedulerException(
-                "Operation not supported for remote schedulers.");
-        }
-
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual void AddSchedulerListener(ISchedulerListener schedulerListener)
-        {
-            throw new SchedulerException("Operation not supported for remote schedulers.");
-        }
-
-        /// <summary> 
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual bool RemoveSchedulerListener(ISchedulerListener schedulerListener)
-        {
-            throw new SchedulerException("Operation not supported for remote schedulers.");
-        }
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual bool Interrupt(string jobName, string groupName)
+        public virtual bool Interrupt(JobKey jobKey)
         {
             try
             {
-                return GetRemoteScheduler().Interrupt(jobName, groupName);
+                return GetRemoteScheduler().Interrupt(jobKey);
             }
             catch (RemotingException re)
             {

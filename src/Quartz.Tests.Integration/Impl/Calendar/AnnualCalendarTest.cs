@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -24,6 +24,8 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Triggers;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Integration.Impl.Calendar
 {
@@ -43,17 +45,17 @@ namespace Quartz.Tests.Integration.Impl.Calendar
         {
             sched.Start();
             TestJob.JobHasFired = false;
-            JobDetail myDesc = new JobDetail("name", "group", typeof(TestJob));
-            Trigger trigger = new CronTrigger("trigName", "trigGroup", "0/15 * * * * ?");
+            JobDetailImpl myDesc = new JobDetailImpl("name", "group", typeof(TestJob));
+            IOperableTrigger trigger = new CronTriggerImpl("trigName", "trigGroup", "0/15 * * * * ?");
             AnnualCalendar calendar = new AnnualCalendar();
 
             calendar.SetDayExcluded(DateTime.Now, true);
             sched.AddCalendar("calendar", calendar, true, true);
             trigger.CalendarName = "calendar";
             sched.ScheduleJob(myDesc, trigger);
-            Trigger triggerreplace = new CronTrigger("foo", "trigGroup", "name", "group", "0/15 * * * * ?");
+            IOperableTrigger triggerreplace = new CronTriggerImpl("foo", "trigGroup", "name", "group", "0/15 * * * * ?");
             triggerreplace.CalendarName = "calendar";
-            sched.RescheduleJob("trigName", "trigGroup", triggerreplace);
+            sched.RescheduleJob(new TriggerKey("trigName", "trigGroup"), triggerreplace);
             Thread.Sleep(1000 * 20);
             Assert.IsFalse(TestJob.JobHasFired, "task must not be neglected - it is forbidden by the calendar");
 
@@ -62,7 +64,7 @@ namespace Quartz.Tests.Integration.Impl.Calendar
             Thread.Sleep(1000 * 20);
             Assert.IsTrue(TestJob.JobHasFired, "task must be neglected - it is permitted by the calendar");
 
-            sched.DeleteJob("name", "group");
+            sched.DeleteJob(new JobKey("name", "group"));
             sched.DeleteCalendar("calendar");
 
             sched.Shutdown();

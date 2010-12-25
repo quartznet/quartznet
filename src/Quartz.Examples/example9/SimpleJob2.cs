@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -30,12 +30,12 @@ namespace Quartz.Examples.Example9
 	{
 		private static readonly ILog log = LogManager.GetLogger(typeof(SimpleJob2));
 		
-		public virtual void Execute(JobExecutionContext context)
+		public virtual void Execute(IJobExecutionContext context)
 		{
 			// This job simply prints out its job name and the
 			// date and time that it is running
-			string jobName = context.JobDetail.FullName;
-			log.Info(string.Format("SimpleJob2 says: {0} executing at {1}", jobName, System.DateTime.Now.ToString("r")));
+			JobKey jobKey = context.JobDetail.Key;
+			log.InfoFormat("SimpleJob2 says: {0} executing at {1}", jobKey, System.DateTime.Now.ToString("r"));
 		}
 	}
 }

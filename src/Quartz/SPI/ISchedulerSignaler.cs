@@ -1,6 +1,6 @@
 #region License
 /* 
- * Copyright 2001-2009 Terracotta, Inc. 
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -35,13 +35,15 @@ namespace Quartz.Spi
 		/// Notifies the scheduler about misfired trigger.
 		/// </summary>
 		/// <param name="trigger">The trigger that misfired.</param>
-		void NotifyTriggerListenersMisfired(Trigger trigger);
+        void NotifyTriggerListenersMisfired(ITrigger trigger);
 
         /// <summary>
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        void NotifySchedulerListenersFinalized(Trigger trigger);
+        void NotifySchedulerListenersFinalized(ITrigger trigger);
+
+        void NotifySchedulerListenersJobDeleted(JobKey jobKey);
 
 		/// <summary>
 		/// Signals the scheduling change.
