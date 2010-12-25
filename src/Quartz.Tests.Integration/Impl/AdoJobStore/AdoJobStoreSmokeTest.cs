@@ -415,10 +415,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             try
             {
-                if (clearJobs)
-                {
+
                     CleanUp(sched);
-                }
+
 
                 if (scheduleJobs)
                 {
@@ -427,15 +426,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     for (int i = 0; i < 100000; ++i)
                     {
-                        SimpleTrigger trigger = new SimpleTrigger("calendarsTrigger", "test", SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(1));
-                        JobDetail jd = new JobDetail("testJob", "test", typeof(NoOpJob));
+                        SimpleTrigger trigger = new SimpleTrigger("calendarsTrigger_" + i, "test", SimpleTrigger.RepeatIndefinitely, TimeSpan.FromSeconds(1));
+                        JobDetail jd = new JobDetail("testJob_" + i, "test", typeof(NoOpJob));
                         sched.ScheduleJob(jd, trigger);
                     }
-
-
-        
-                    sched.Start();
                 }
+                sched.Start();
+                Thread.Sleep(TimeSpan.FromSeconds(30));
             }
             finally
             {

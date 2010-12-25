@@ -475,15 +475,16 @@
     <loadtasks assembly="lib\other\Anakia.dll" verbose="true" />
 
     <mkdir dir="website" failonerror="false" />
+	<property name="website.src" value="../website" />
 
     <anakia
-            navigationfile="doc\website\navigation.xml"
-            templatefile="doc\website\site.vsl"
-            projectfile="doc\website\project.xml"
+            navigationfile="${website.src}/navigation.xml"
+            templatefile="${website.src}/site.vsl"
+            projectfile="${website.src}/project.xml"
             targetdir="website\"
             >
 
-      <source basedir="doc\website">
+      <source basedir="${website.src}">
         <include name="**.*" />
 
         <exclude name="**/project.xml" />

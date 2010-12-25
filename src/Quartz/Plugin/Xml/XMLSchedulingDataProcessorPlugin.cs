@@ -22,7 +22,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
+#if !ClientProfile
 using System.Web;
+#endif
 
 using Common.Logging;
 
@@ -377,7 +379,11 @@ namespace Quartz.Plugin.Xml
                     Uri url = plugin.typeLoadHelper.GetResource(FileName);
                     if (url != null)
                     {
+#if !ClientProfile
                         furl = HttpUtility.UrlDecode(url.AbsolutePath);
+#else
+                        furl = url.AbsolutePath;
+#endif
                         file = new FileInfo(furl);
                         try
                         {

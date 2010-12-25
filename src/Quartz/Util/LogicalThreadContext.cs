@@ -18,7 +18,10 @@
 #endregion
 
 using System.Runtime.Remoting.Messaging;
+
+#if !ClientProfile
 using System.Web;
+#endif
 
 namespace Quartz.Util
 {
@@ -41,14 +44,15 @@ namespace Quartz.Util
 		/// <returns>The object in the call context associated with the specified name or null if no object has been stored previously</returns>
 		public static T GetData<T>(string name)
 		{
-			HttpContext ctx = HttpContext.Current;
-			if (ctx == null)
+#if !ClientProfile
+		    if (HttpContext.Current != null)
 			{
-				return (T) CallContext.GetData(name);
-			}
+                return (T)HttpContext.Current.Items[name];
+            }
 			else
+#endif
 			{
-				return (T) ctx.Items[name];
+                return (T)CallContext.GetData(name);
 			}
 		}
 
@@ -59,15 +63,16 @@ namespace Quartz.Util
 		/// <param name="value">The object to store in the call context.</param>
 		public static void SetData(string name, object value)
 		{
-			HttpContext ctx = HttpContext.Current;
-			if (ctx == null)
+#if !ClientProfile
+            if (HttpContext.Current != null)
 			{
-				CallContext.SetData(name, value);
+                HttpContext.Current.Items[name] = value;
 			}
 			else
+#endif
 			{
-				ctx.Items[name] = value;
-			}
+                CallContext.SetData(name, value);
+            }
 		}
 
 		/// <summary>
@@ -76,14 +81,15 @@ namespace Quartz.Util
 		/// <param name="name">The name of the data slot to empty.</param>
 		public static void FreeNamedDataSlot(string name)
 		{
-			HttpContext ctx = HttpContext.Current;
-			if (ctx == null)
+#if !ClientProfile
+		    if (HttpContext.Current != null)
 			{
-				CallContext.FreeNamedDataSlot(name);
-			}
+                HttpContext.Current.Items.Remove(name);
+            }
 			else
+#endif
 			{
-				ctx.Items.Remove(name);
+                CallContext.FreeNamedDataSlot(name);
 			}
 		}
 	}
