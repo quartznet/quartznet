@@ -6,7 +6,7 @@ using Quartz.Listener;
 
 namespace Quartz.Core
 {
-    public class SampledStatisticsImpl : SchedulerListenerSupport, ISampledStatistics, IJobListener, ISchedulerListener
+    public class SampledStatisticsImpl : SchedulerListenerSupport, ISampledStatistics, IJobListener
     {
         private readonly IScheduler scheduler;
 

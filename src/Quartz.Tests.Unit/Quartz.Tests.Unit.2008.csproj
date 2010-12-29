@@ -121,10 +121,12 @@
       <Link>AssemblyInfo.cs</Link>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="CalendarIntervalTriggerTest.cs" />
     <Compile Include="CronTriggerTest.cs" />
-    <Compile Include="DateIntervalTriggerTest.cs" />
+    <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
     <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
+    <Compile Include="JobBuilderTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
@@ -172,29 +174,26 @@
     </Compile>
     <Compile Include="Utils\DirtyFlagMapTest.cs" />
     <Compile Include="Utils\ObjectUtilsTest.cs" />
-    <Compile Include="Utils\PairTest.cs" />
     <Compile Include="Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Xml\JobSchedulingBundleTest.cs" />
-    <Compile Include="Xml\JobSchedulingDataProcessorTest.cs" />
+    <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\RichConfiguration.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Serialized\AnnualCalendar-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\CronExpression-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\DailyCalendar-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\JobDataMap-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\NthIncludedDayTrigger-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\SimpleTrigger-0.7.0.1.ser" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\MinimalConfiguration.xml" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Xml\TestData\MinimalConfiguration_20.xml" />
+    <EmbeddedResource Include="Xml\TestData\RichConfiguration_20.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Serialized\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

@@ -15,7 +15,6 @@
         <group>sampleGroup</group>
         <description>Sample job for Quartz Server</description>
         <job-type>Quartz.Server.Core.SampleJob, Quartz.Server.Core</job-type>
-        <volatile>false</volatile>
         <durable>true</durable>
         <recover>false</recover>
     </job>
@@ -27,7 +26,6 @@
         <description>Simple trigger to simply fire sample job</description>
         <job-name>sampleJob</job-name>
         <job-group>sampleGroup</job-group>
-        <volatile>false</volatile>
         <misfire-instruction>SmartPolicy</misfire-instruction>
         <repeat-count>-1</repeat-count>
         <repeat-interval>10000</repeat-interval>

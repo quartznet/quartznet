@@ -12,7 +12,7 @@ namespace Quartz.Server.Core
         private static readonly ILog logger = LogManager.GetLogger(typeof(SampleJob));
 
         /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="Trigger" />
+        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
         /// </summary>
         /// <remarks>
@@ -24,7 +24,7 @@ namespace Quartz.Server.Core
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>
-        public void Execute(JobExecutionContext context)
+        public void Execute(IJobExecutionContext context)
         {
             logger.Info("SampleJob running...");
             Thread.Sleep(TimeSpan.FromSeconds(5));
