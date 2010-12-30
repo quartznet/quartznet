@@ -3,20 +3,44 @@ QUARTZ.NET CHANGELOG
 http://quartznet.sourceforge.net
 
 
-Release vNext, xx.2010
+Release 2.0, xx.2011
 -------------------------------
+
+* A separate migration guide must be written *
 
 BREAKING CHANGES
 
-* .NET 1.1 support is dropped, Quartz.NET now requires now runtime 2.0 or later
-* Quartz.NET needs compiler version 3.5 of later due to use of things like extension methods
+* .NET 1.1 support is dropped
+* Quartz.NET now needs .NET version 3.5 SP1 or later to run due to use of new language features and classes
 * Many public interface methods have changed from returning arrays to generic IList or ISet interfaces
+* TriggerBuilder implementations and JobBuilder should now be used to create different job and trigger definitions
+* Introduced IJobDetail, IContrigger, ISimpleTrigger, ICalendarIntervalTrigger have far less members and especially mutators
 * When C5 collections were introduced as set-based implementation provider, ISet and ISortedSet interfaces were narrowed (IList inheritance removed)
+* string triggerName, string triggerGroup are now encapsulated in TriggerKey (has the same fields) 
+* string jobName, string jobGroup are now encapsulated in JobKey (has the same fields)
+* JobInitializationPlugin is now deprecated in favor of XMLSchedulingDataProcessorPlugin, JobInitializationPlugin no longer included
 
 OTHER NOTABLE CHANGES
 
-* JobInitializationPlugin is now deprecated in favor of XMLSchedulingDataProcessorPlugin, JobInitializationPlugin is still included
 * XMLSchedulingDataProcessorPlugin uses new XML format that allows more control over triggers but no support for calendars
+
+
+
+Release 1.0.3, Aug 22, 2010
+-------------------------------
+
+Bug
+
+    * [QRTZNET-190] - Most outstanding misfired trigger should be first to be updated
+    * [QRTZNET-192] - Trigger Listeners Having Misfire Handler Called Twice
+    * [QRTZNET-194] - Select Trigger method for Cron Triggers does not set the Priority property
+    * [QRTZNET-217] - Triggers fail to obey millisecond precision when setting start time
+
+Improvement
+
+    * [QRTZNET-219] - PostgreSQL database scripts should create database indexes
+    * [QRTZNET-220] - CronExpression should check that the 'L' field's value is between 1 and 7
+
 
 
 Release 1.0.2, Dec 12, 2009

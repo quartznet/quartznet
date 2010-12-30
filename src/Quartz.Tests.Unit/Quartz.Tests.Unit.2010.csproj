@@ -176,14 +176,6 @@
     <EmbeddedResource Include="Xml\TestData\RichConfiguration.xml" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Serialized\AnnualCalendar-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\CronExpression-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\DailyCalendar-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\JobDataMap-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\NthIncludedDayTrigger-0.7.0.1.ser" />
-    <EmbeddedResource Include="Serialized\SimpleTrigger-0.7.0.1.ser" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\MinimalConfiguration.xml" />
   </ItemGroup>
   <ItemGroup>

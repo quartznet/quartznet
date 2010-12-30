@@ -192,9 +192,6 @@
     <EmbeddedResource Include="Xml\TestData\MinimalConfiguration_20.xml" />
     <EmbeddedResource Include="Xml\TestData\RichConfiguration_20.xml" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Serialized\" />
-  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>
