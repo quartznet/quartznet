@@ -14,7 +14,7 @@
         <name>sampleJob</name>
         <group>sampleGroup</group>
         <description>Sample job for Quartz Server</description>
-        <job-type>Quartz.Server.Core.SampleJob, Quartz.Server.Core</job-type>
+        <job-type>Quartz.Server.SampleJob, Quartz.Server</job-type>
         <durable>true</durable>
         <recover>false</recover>
     </job>

@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using Common.Logging;
 
-namespace Quartz.Server.Core
+namespace Quartz.Server
 {
     /// <summary>
     /// A sample job that just prints info on console for demostration purposes.

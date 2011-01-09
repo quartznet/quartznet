@@ -1,6 +1,6 @@
 using System;
 
-namespace Quartz.Server.Core
+namespace Quartz.Server
 {
     /// <summary>
     /// Service interface for core Quartz.NET server.

@@ -1,8 +1,7 @@
 using System;
-
 using Common.Logging;
 
-namespace Quartz.Server.Core
+namespace Quartz.Server
 {
     /// <summary>
     /// Factory class to create Quartz server implementations from.

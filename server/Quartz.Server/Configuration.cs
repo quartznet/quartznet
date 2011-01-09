@@ -1,7 +1,7 @@
 using System.Collections.Specialized;
 using System.Configuration;
 
-namespace Quartz.Server.Core
+namespace Quartz.Server
 {
 	/// <summary>
 	/// Configuration for the Quartz server.

@@ -1,11 +1,9 @@
 using System;
 using System.Threading;
-
 using Common.Logging;
-
 using Quartz.Impl;
 
-namespace Quartz.Server.Core
+namespace Quartz.Server
 {
 	/// <summary>
 	/// The main server logic.
@@ -102,6 +100,22 @@ namespace Quartz.Server.Core
 	    public virtual void Dispose()
 	    {
 	        // no-op for now
+	    }
+
+        /// <summary>
+        /// Pauses all activity in scheudler.
+        /// </summary>
+	    public virtual void Pause()
+	    {
+	        scheduler.PauseAll();
+	    }
+
+        /// <summary>
+        /// Resumes all acitivity in server.
+        /// </summary>
+	    public void Resume()
+	    {
+	        scheduler.ResumeAll();
 	    }
 	}
 }
