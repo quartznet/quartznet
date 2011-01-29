@@ -31,10 +31,10 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public abstract class StringMatcher<T> : IMatcher<T> where T : Key<T>
+    public abstract class StringMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
     {
-        protected readonly string compareTo;
-        protected readonly StringOperatorName compareWith;
+        private readonly string compareTo;
+        private readonly StringOperatorName compareWith;
 
         protected StringMatcher(string compareTo, StringOperatorName compareWith)
         {
@@ -47,20 +47,20 @@ namespace Quartz.Impl.Matchers
             this.compareWith = compareWith;
         }
 
-        protected abstract string getValue(T key);
+        protected abstract string GetValue(TTarget key);
 
-        public bool IsMatch(T key)
+        public bool IsMatch(TTarget key)
         {
             switch (compareWith)
             {
                 case StringOperatorName.Equality:
-                    return getValue(key).Equals(compareTo);
+                    return GetValue(key).Equals(compareTo);
                 case StringOperatorName.StartsWith:
-                    return getValue(key).StartsWith(compareTo);
+                    return GetValue(key).StartsWith(compareTo);
                 case StringOperatorName.EndsWith:
-                    return getValue(key).EndsWith(compareTo);
+                    return GetValue(key).EndsWith(compareTo);
                 case StringOperatorName.Contains:
-                    return getValue(key).Contains(compareTo);
+                    return GetValue(key).Contains(compareTo);
             }
 
             throw new InvalidOperationException("Unknown StringOperatorName: " + compareWith);
@@ -90,7 +90,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            StringMatcher<T> other = (StringMatcher<T>) obj;
+            StringMatcher<TTarget> other = (StringMatcher<TTarget>) obj;
             if (compareTo == null)
             {
                 if (other.compareTo != null)
@@ -109,14 +109,14 @@ namespace Quartz.Impl.Matchers
             return true;
         }
 
-        public string getCompareToValue()
+        public string CompareToValue
         {
-            return compareTo;
+            get { return compareTo; }
         }
 
-        public StringOperatorName getCompareWithOperator()
+        public StringOperatorName CompareWithOperator
         {
-            return compareWith;
+            get { return compareWith; }
         }
     }
 }

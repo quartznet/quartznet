@@ -268,7 +268,7 @@ namespace Quartz.Plugin.History
         public virtual void Initialize(string pluginName, IScheduler sched)
         {
             name = pluginName;
-            sched.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.MatchAllTriggers());
+            sched.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.AllTriggers());
         }
 
         /// <summary>

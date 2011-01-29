@@ -31,33 +31,53 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class NameMatcher<T> : StringMatcher<T> where T : Key<T>
+    public class NameMatcher<TTarget> : StringMatcher<TTarget> where TTarget : Key<TTarget>
     {
         protected NameMatcher(string compareTo, StringOperatorName compareWith) : base(compareTo, compareWith)
         {
         }
 
-        public static NameMatcher<T> matchNameEquals(string compareTo)
+        /// <summary>
+        /// Create a NameMatcher that matches names equaling the given string.
+        /// </summary>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static NameMatcher<TTarget> NameEquals(string compareTo)
         {
-            return new NameMatcher<T>(compareTo, StringOperatorName.Equality);
+            return new NameMatcher<TTarget>(compareTo, StringOperatorName.Equality);
         }
 
-        public static NameMatcher<T> matchNameStartsWith(string compareTo)
+        /// <summary>
+        /// Create a NameMatcher that matches names starting with the given string.
+        /// </summary>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static NameMatcher<TTarget> NameStartsWith(string compareTo)
         {
-            return new NameMatcher<T>(compareTo, StringOperatorName.StartsWith);
+            return new NameMatcher<TTarget>(compareTo, StringOperatorName.StartsWith);
         }
 
-        public static NameMatcher<T> matchNameEndsWith(string compareTo)
+        /// <summary>
+        /// Create a NameMatcher that matches names ending with the given string.
+        /// </summary>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static NameMatcher<TTarget> NameEndsWith(string compareTo)
         {
-            return new NameMatcher<T>(compareTo, StringOperatorName.EndsWith);
+            return new NameMatcher<TTarget>(compareTo, StringOperatorName.EndsWith);
         }
 
-        public static NameMatcher<T> matchNameContains(string compareTo)
+        /// <summary>
+        /// Create a NameMatcher that matches names containing the given string.
+        /// </summary>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static NameMatcher<TTarget> NameContains(string compareTo)
         {
-            return new NameMatcher<T>(compareTo, StringOperatorName.Contains);
+            return new NameMatcher<TTarget>(compareTo, StringOperatorName.Contains);
         }
 
-        protected override string getValue(T key)
+        protected override string GetValue(TTarget key)
         {
             return key.Name;
         }

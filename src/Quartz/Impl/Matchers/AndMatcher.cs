@@ -31,12 +31,12 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class AndMatcher<T> : IMatcher<T> where T : Key<T>
+    public class AndMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
     {
-        protected readonly IMatcher<T> leftOperand;
-        protected readonly IMatcher<T> rightOperand;
+        private readonly IMatcher<TTarget> leftOperand;
+        private readonly IMatcher<TTarget> rightOperand;
 
-        protected AndMatcher(IMatcher<T> leftOperand, IMatcher<T> rightOperand)
+        protected AndMatcher(IMatcher<TTarget> leftOperand, IMatcher<TTarget> rightOperand)
         {
             if (leftOperand == null || rightOperand == null)
             {
@@ -47,34 +47,39 @@ namespace Quartz.Impl.Matchers
             this.rightOperand = rightOperand;
         }
 
-        public static AndMatcher<U> And<U>(IMatcher<U> leftOperand, IMatcher<U> rightOperand) where U : Key<U>
+        /// <summary>
+        /// Create an AndMatcher that depends upon the result of both of the given matchers.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="leftOperand"></param>
+        /// <param name="rightOperand"></param>
+        /// <returns></returns>
+        public static AndMatcher<T> And<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T>
         {
-            return new AndMatcher<U>(leftOperand, rightOperand);
+            return new AndMatcher<T>(leftOperand, rightOperand);
         }
 
-        public bool IsMatch(T key)
+        public bool IsMatch(TTarget key)
         {
             return leftOperand.IsMatch(key) && rightOperand.IsMatch(key);
         }
 
-        public IMatcher<T> getLeftOperand()
+        public IMatcher<TTarget> LeftOperand
         {
-            return leftOperand;
+            get { return leftOperand; }
         }
 
-        public IMatcher<T> getRightOperand()
+        public IMatcher<TTarget> RightOperand
         {
-            return rightOperand;
+            get { return rightOperand; }
         }
 
         public override int GetHashCode()
         {
-            const int prime = 31;
+            const int Prime = 31;
             int result = 1;
-            result = prime*result
-                     + ((leftOperand == null) ? 0 : leftOperand.GetHashCode());
-            result = prime*result
-                     + ((rightOperand == null) ? 0 : rightOperand.GetHashCode());
+            result = Prime*result + ((leftOperand == null) ? 0 : leftOperand.GetHashCode());
+            result = Prime*result + ((rightOperand == null) ? 0 : rightOperand.GetHashCode());
             return result;
         }
 
@@ -92,7 +97,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            AndMatcher<T> other = (AndMatcher<T>) obj;
+            AndMatcher<TTarget> other = (AndMatcher<TTarget>) obj;
             if (leftOperand == null)
             {
                 if (other.leftOperand != null)

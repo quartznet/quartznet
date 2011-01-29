@@ -68,7 +68,7 @@ namespace Quartz.Examples.Example9
 
             // Set up the listener
             IJobListener listener = new Job1Listener();
-            IMatcher<JobKey> matcher = KeyMatcher<JobKey>.MatchKey(job.Key);
+            IMatcher<JobKey> matcher = KeyMatcher<JobKey>.KeyEquals(job.Key);
             sched.ListenerManager.AddJobListener(listener, matcher);
 
             // schedule the job to run

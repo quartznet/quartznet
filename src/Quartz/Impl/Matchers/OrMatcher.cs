@@ -31,12 +31,12 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class OrMatcher<T> : IMatcher<T> where T : Key<T>
+    public class OrMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
     {
-        protected IMatcher<T> leftOperand;
-        protected IMatcher<T> rightOperand;
+        private readonly IMatcher<TTarget> leftOperand;
+        private readonly IMatcher<TTarget> rightOperand;
 
-        protected OrMatcher(IMatcher<T> leftOperand, IMatcher<T> rightOperand)
+        protected OrMatcher(IMatcher<TTarget> leftOperand, IMatcher<TTarget> rightOperand)
         {
             if (leftOperand == null || rightOperand == null)
             {
@@ -47,24 +47,31 @@ namespace Quartz.Impl.Matchers
             this.rightOperand = rightOperand;
         }
 
-        public static OrMatcher<U> or<U>(IMatcher<U> leftOperand, IMatcher<U> rightOperand) where U : Key<U>
+        /// <summary>
+        /// Create an OrMatcher that depends upon the result of at least one of the given matchers.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="leftOperand"></param>
+        /// <param name="rightOperand"></param>
+        /// <returns></returns>
+        public static OrMatcher<T> Or<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T>
         {
-            return new OrMatcher<U>(leftOperand, rightOperand);
+            return new OrMatcher<T>(leftOperand, rightOperand);
         }
 
-        public bool IsMatch(T key)
+        public bool IsMatch(TTarget key)
         {
             return leftOperand.IsMatch(key) || rightOperand.IsMatch(key);
         }
 
-        public IMatcher<T> getLeftOperand()
+        public IMatcher<TTarget> LeftOperand
         {
-            return leftOperand;
+            get { return leftOperand; }
         }
 
-        public IMatcher<T> getRightOperand()
+        public IMatcher<TTarget> RightOperand
         {
-            return rightOperand;
+            get { return rightOperand; }
         }
 
         public override int GetHashCode()
@@ -92,7 +99,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            OrMatcher<T> other = (OrMatcher<T>) obj;
+            OrMatcher<TTarget> other = (OrMatcher<TTarget>) obj;
             if (leftOperand == null)
             {
                 if (other.leftOperand != null)

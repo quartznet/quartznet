@@ -29,23 +29,31 @@ namespace Quartz.Impl.Matchers
     /// <remarks>
     /// </remarks>
     /// <author>jhouse</author>
-    public class EverythingMatcher<T> : IMatcher<T> where T : Key<T>
+    public class EverythingMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
     {
         protected EverythingMatcher()
         {
         }
 
-        public static EverythingMatcher<JobKey> MatchAllJobs()
+        /// <summary>
+        /// Create an EverythingMatcher that matches all jobs.
+        /// </summary>
+        /// <returns></returns>
+        public static EverythingMatcher<JobKey> AllJobs()
         {
             return new EverythingMatcher<JobKey>();
         }
 
-        public static EverythingMatcher<TriggerKey> MatchAllTriggers()
+        /// <summary>
+        /// Create an EverythingMatcher that matches all triggers.
+        /// </summary>
+        /// <returns></returns>
+        public static EverythingMatcher<TriggerKey> AllTriggers()
         {
             return new EverythingMatcher<TriggerKey>();
         }
 
-        public bool IsMatch(T key)
+        public bool IsMatch(TTarget key)
         {
             return true;
         }

@@ -31,6 +31,7 @@ using Common.Logging;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -969,11 +970,11 @@ Please add configuration to your application config file to correctly initialize
                 // add listeners
                 for (int i = 0; i < jobListeners.Length; i++)
                 {
-                    qs.ListenerManager.AddJobListener(jobListeners[i]);
+                    qs.ListenerManager.AddJobListener(jobListeners[i], EverythingMatcher<JobKey>.AllJobs());
                 }
                 for (int i = 0; i < triggerListeners.Length; i++)
                 {
-                    qs.ListenerManager.AddTriggerListener(triggerListeners[i]);
+                    qs.ListenerManager.AddTriggerListener(triggerListeners[i], EverythingMatcher<TriggerKey>.AllTriggers());
                 }
 
                 // set scheduler context data...

@@ -31,26 +31,32 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class KeyMatcher<T> : IMatcher<T> where T : Key<T>
+    public class KeyMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
     {
-        protected readonly T compareTo;
+        private readonly TTarget compareTo;
 
-        protected KeyMatcher(T compareTo)
+        protected KeyMatcher(TTarget compareTo)
         {
             this.compareTo = compareTo;
         }
 
-        public static KeyMatcher<U> MatchKey<U>(U compareTo) where U : Key<U>
+        /// <summary>
+        /// Create a KeyMatcher that matches Keys that equal the given key. 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static KeyMatcher<T> KeyEquals<T>(T compareTo) where T : Key<T>
         {
-            return new KeyMatcher<U>(compareTo);
+            return new KeyMatcher<T>(compareTo);
         }
 
-        public bool IsMatch(T key)
+        public bool IsMatch(TTarget key)
         {
             return compareTo.Equals(key);
         }
 
-        public T CompareToValue
+        public TTarget CompareToValue
         {
             get { return compareTo; }
         }
@@ -59,8 +65,7 @@ namespace Quartz.Impl.Matchers
         {
             const int prime = 31;
             int result = 1;
-            result = prime*result
-                     + ((compareTo == null) ? 0 : compareTo.GetHashCode());
+            result = prime*result + ((compareTo == null) ? 0 : compareTo.GetHashCode());
             return result;
         }
 
@@ -78,7 +83,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            KeyMatcher<T> other = (KeyMatcher<T>) obj;
+            KeyMatcher<TTarget> other = (KeyMatcher<TTarget>) obj;
             if (compareTo == null)
             {
                 if (other.compareTo != null)

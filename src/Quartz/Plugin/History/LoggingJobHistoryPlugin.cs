@@ -332,7 +332,7 @@ namespace Quartz.Plugin.History
         public virtual void Initialize(string pluginName, IScheduler sched)
         {
             name = pluginName;
-            sched.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.MatchAllJobs());
+            sched.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
         }
 
         /// <summary>

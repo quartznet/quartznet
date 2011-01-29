@@ -31,33 +31,53 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class GroupMatcher<T> : StringMatcher<T> where T : Key<T>
+    public class GroupMatcher<TTarget> : StringMatcher<TTarget> where TTarget : Key<TTarget>
     {
         protected GroupMatcher(string compareTo, StringOperatorName compareWith) : base(compareTo, compareWith)
         {
         }
 
-        public static GroupMatcher<T> matchGroupEquals(string compareTo)
+        /// <summary>
+        /// Create a GroupMatcher that matches groups equaling the given string.
+        /// </summary>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static GroupMatcher<TTarget> GroupEquals(string compareTo)
         {
-            return new GroupMatcher<T>(compareTo, StringOperatorName.Equality);
+            return new GroupMatcher<TTarget>(compareTo, StringOperatorName.Equality);
         }
 
-        public static GroupMatcher<T> matchGroupStartsWith(string compareTo)
+        /// <summary>
+        /// Create a GroupMatcher that matches groups starting with the given string.
+        /// </summary>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static GroupMatcher<TTarget> GroupStartsWith(string compareTo)
         {
-            return new GroupMatcher<T>(compareTo, StringOperatorName.StartsWith);
+            return new GroupMatcher<TTarget>(compareTo, StringOperatorName.StartsWith);
         }
 
-        public static GroupMatcher<T> matchGroupEndsWith(string compareTo)
+        /// <summary>
+        /// Create a GroupMatcher that matches groups ending with the given string.
+        /// </summary>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static GroupMatcher<TTarget> GroupEndsWith(string compareTo)
         {
-            return new GroupMatcher<T>(compareTo, StringOperatorName.EndsWith);
+            return new GroupMatcher<TTarget>(compareTo, StringOperatorName.EndsWith);
         }
 
-        public static GroupMatcher<T> matchGroupContains(string compareTo)
+        /// <summary>
+        /// Create a GroupMatcher that matches groups containing the given string.
+        /// </summary>
+        /// <param name="compareTo"></param>
+        /// <returns></returns>
+        public static GroupMatcher<TTarget> GroupContains(string compareTo)
         {
-            return new GroupMatcher<T>(compareTo, StringOperatorName.Contains);
+            return new GroupMatcher<TTarget>(compareTo, StringOperatorName.Contains);
         }
 
-        protected override string getValue(T key)
+        protected override string GetValue(TTarget key)
         {
             return key.Group;
         }

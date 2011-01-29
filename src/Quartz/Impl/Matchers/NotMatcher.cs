@@ -31,11 +31,11 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class NotMatcher<T> : IMatcher<T> where T : Key<T>
+    public class NotMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
     {
-        protected readonly IMatcher<T> operand;
+        private readonly IMatcher<TTarget> operand;
 
-        protected NotMatcher(IMatcher<T> operand)
+        protected NotMatcher(IMatcher<TTarget> operand)
         {
             if (operand == null)
             {
@@ -45,21 +45,26 @@ namespace Quartz.Impl.Matchers
             this.operand = operand;
         }
 
-
-        public static NotMatcher<U> and<U>(IMatcher<U> operand) where U : Key<U>
+        /// <summary>
+        /// Create a NotMatcher that reverses the result of the given matcher.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="operand"></param>
+        /// <returns></returns>
+        public static NotMatcher<T> Not<T>(IMatcher<T> operand) where T : Key<T>
         {
-            return new NotMatcher<U>(operand);
+            return new NotMatcher<T>(operand);
         }
 
 
-        public bool IsMatch(T key)
+        public bool IsMatch(TTarget key)
         {
             return !operand.IsMatch(key);
         }
 
-        public IMatcher<T> getOperand()
+        public IMatcher<TTarget> Operand
         {
-            return operand;
+            get { return operand; }
         }
 
         public override int GetHashCode()
@@ -84,7 +89,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            NotMatcher<T> other = (NotMatcher<T>) obj;
+            NotMatcher<TTarget> other = (NotMatcher<TTarget>) obj;
             if (operand == null)
             {
                 if (other.operand != null)
