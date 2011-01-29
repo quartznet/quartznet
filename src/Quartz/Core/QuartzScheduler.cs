@@ -834,6 +834,24 @@ namespace Quartz.Core
         {
             ValidateState();
 
+            // make sure all triggers refer to their associated job
+            foreach (IJobDetail job in triggersAndJobs.Keys)
+            {
+                if (job == null) // there can be one of these (for adding a bulk set of triggers for pre-existing jobs)
+                {
+                    continue;
+                }
+                IList<ITrigger> triggers = triggersAndJobs[job];
+                if (triggers == null) // this is possible because the job may be durable, and not yet be having triggers
+                {
+                    continue;
+                }
+                foreach (ITrigger trigger in triggers)
+                {
+                    ((IOperableTrigger) trigger).JobKey = job.Key;
+                }
+            }
+
             resources.JobStore.StoreJobsAndTriggers(triggersAndJobs, replace);
             NotifySchedulerThread(null);
             foreach (IJobDetail job in triggersAndJobs.Keys)
