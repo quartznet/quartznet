@@ -278,6 +278,10 @@ namespace Quartz.Core
                             triggers = qsRsrcs.JobStore.AcquireNextTriggers(
                                 now + idleWaitTime, Math.Min(availThreadCount, qsRsrcs.MaxBatchSize), qsRsrcs.BatchTimeWindow);
                             lastAcquireFailed = false;
+                            if (log.IsDebugEnabled)
+                            {
+                                log.DebugFormat("Batch acquisition of {0} triggers", (triggers == null ? 0 : triggers.Count));
+                            }
                         }
                         catch (JobPersistenceException jpe)
                         {

@@ -88,7 +88,7 @@ namespace Quartz.Core
 
 			try
 			{
-                job = sched.JobFactory.NewJob(firedTriggerBundle);
+                job = sched.JobFactory.NewJob(firedTriggerBundle, scheduler);
 			}
 			catch (SchedulerException se)
 			{
