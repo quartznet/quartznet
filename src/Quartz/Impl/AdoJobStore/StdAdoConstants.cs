@@ -69,7 +69,7 @@ namespace Quartz.Impl.AdoJobStore
                     TablePrefixSubst, TableFiredTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnInstanceName, ColumnRequestsRecovery);
 
         public static readonly string SqlDeletePausedTriggerGroup =
-            string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerGroup",
+            string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = {3} AND {4} LIKE @triggerGroup",
             TablePrefixSubst, TablePausedTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerGroup);
 
         public static readonly string SqlDeletePausedTriggerGroups =
@@ -246,8 +246,8 @@ namespace Quartz.Impl.AdoJobStore
                 ColumnIsNonConcurrent, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobName, ColumnJobGroup);
 
         public static readonly string SqlSelectJobsInGroup =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} = @jobGroup",
-                ColumnJobName, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobGroup);
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} LIKE @jobGroup",
+                ColumnJobName, ColumnJobGroup, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobGroup);
 
         public static readonly string SqlSelectMisfiredTriggers =
             string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} <> {5} AND {6} < @nextFireTime ORDER BY {7} ASC", TablePrefixSubst,
@@ -350,6 +350,10 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "SELECT DISTINCT({0}) FROM {1}{2} WHERE {3} = {4}",
                 ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst);
 
+        public static readonly string SqlSelectTriggerGroupsFiltered =
+            string.Format(CultureInfo.InvariantCulture, "SELECT DISTINCT({0}) FROM {1}{2} WHERE {3} = {4} AND {0} LIKE @triggerGroup",
+            ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst);
+
         public static readonly string SqlSelectTriggerState =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} = @triggerName AND {6} = @triggerGroup", 
                 ColumnTriggerState, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName, ColumnTriggerGroup);
@@ -368,8 +372,8 @@ namespace Quartz.Impl.AdoJobStore
                 ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnJobName, ColumnJobGroup);
 
         public static readonly string SqlSelectTriggersInGroup =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} = @triggerGroup",
-                ColumnTriggerName, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerGroup);
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} LIKE @triggerGroup",
+                ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerGroup);
 
         public static readonly string SqlSelectTriggersInState =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} = @state", 
@@ -451,15 +455,15 @@ namespace Quartz.Impl.AdoJobStore
             TablePrefixSubst, TableFiredTriggers, ColumnInstanceName, ColumnFiredTime, ColumnEntryState, 
             ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent, ColumnRequestsRecovery, ColumnSchedulerName, SchedulerNameSubst, ColumnEntryId);
 
-        public static readonly string SqlTriggerGroupStateFromState =
-            string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = @newState WHERE {3} = {4} AND {5} = @triggerGroup AND {6} = @oldState",
+        public static readonly string SqlUpdateTriggerGroupStateFromState =
+            string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = @newState WHERE {3} = {4} AND {5} LIKE @triggerGroup AND {6} = @oldState",
                           TablePrefixSubst,
                           TableTriggers, ColumnTriggerState, ColumnSchedulerName, SchedulerNameSubst,
                           ColumnTriggerGroup, ColumnTriggerState);
 
         public static readonly string SqlUpdateTriggerGroupStateFromStates =
             string.Format(CultureInfo.InvariantCulture,
-                "UPDATE {0}{1} SET {2} = @newState WHERE {3} = {4} AND {5} = @groupName AND ({6} = @oldState1 OR {7} = @oldState2 OR {8} = @oldState3)",
+                "UPDATE {0}{1} SET {2} = @newState WHERE {3} = {4} AND {5} LIKE @groupName AND ({6} = @oldState1 OR {7} = @oldState2 OR {8} = @oldState3)",
                 TablePrefixSubst, TableTriggers, ColumnTriggerState, ColumnSchedulerName, SchedulerNameSubst,
                 ColumnTriggerGroup, ColumnTriggerState,
                 ColumnTriggerState, ColumnTriggerState);

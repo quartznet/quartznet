@@ -31,11 +31,11 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class NotMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
+    public class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        private readonly IMatcher<TTarget> operand;
+        private readonly IMatcher<TKey> operand;
 
-        protected NotMatcher(IMatcher<TTarget> operand)
+        protected NotMatcher(IMatcher<TKey> operand)
         {
             if (operand == null)
             {
@@ -57,12 +57,12 @@ namespace Quartz.Impl.Matchers
         }
 
 
-        public bool IsMatch(TTarget key)
+        public bool IsMatch(TKey key)
         {
             return !operand.IsMatch(key);
         }
 
-        public IMatcher<TTarget> Operand
+        public IMatcher<TKey> Operand
         {
             get { return operand; }
         }
@@ -89,7 +89,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            NotMatcher<TTarget> other = (NotMatcher<TTarget>) obj;
+            NotMatcher<TKey> other = (NotMatcher<TKey>) obj;
             if (operand == null)
             {
                 if (other.operand != null)

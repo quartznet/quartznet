@@ -84,8 +84,8 @@ namespace Quartz.Impl
         public const string PropertySchedulerInstanceIdGeneratorPrefix = "quartz.scheduler.instanceIdGenerator";
         public const string PropertySchedulerInstanceIdGeneratorType = PropertySchedulerInstanceIdGeneratorPrefix + ".type";
         public const string PropertySchedulerThreadName = "quartz.scheduler.threadName";
-        public const string PropertySchedulerBatchTimeWindow = "quartz.scheduler.batchTimeWindow";
-        public const string PropertySchedulerMaxBatchSize = "quartz.scheduler.maxBatchSize";
+        public const string PropertySchedulerBatchTimeWindow = "quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow";
+        public const string PropertySchedulerMaxBatchSize = "quartz.scheduler.batchTriggerAcquisitionMaxCount";
         public const string PropertySchedulerExporterPrefix = "quartz.scheduler.exporter";
         public const string PropertySchedulerExporterType = PropertySchedulerExporterPrefix + ".type";
         public const string PropertySchedulerProxy = "quartz.scheduler.proxy";

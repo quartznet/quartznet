@@ -31,9 +31,9 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class NameMatcher<TTarget> : StringMatcher<TTarget> where TTarget : Key<TTarget>
+    public class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
     {
-        protected NameMatcher(string compareTo, StringOperatorName compareWith) : base(compareTo, compareWith)
+        protected NameMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
         {
         }
 
@@ -42,9 +42,9 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="compareTo"></param>
         /// <returns></returns>
-        public static NameMatcher<TTarget> NameEquals(string compareTo)
+        public static NameMatcher<TKey> NameEquals(string compareTo)
         {
-            return new NameMatcher<TTarget>(compareTo, StringOperatorName.Equality);
+            return new NameMatcher<TKey>(compareTo, StringOperator.Equality);
         }
 
         /// <summary>
@@ -52,9 +52,9 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="compareTo"></param>
         /// <returns></returns>
-        public static NameMatcher<TTarget> NameStartsWith(string compareTo)
+        public static NameMatcher<TKey> NameStartsWith(string compareTo)
         {
-            return new NameMatcher<TTarget>(compareTo, StringOperatorName.StartsWith);
+            return new NameMatcher<TKey>(compareTo, StringOperator.StartsWith);
         }
 
         /// <summary>
@@ -62,9 +62,9 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="compareTo"></param>
         /// <returns></returns>
-        public static NameMatcher<TTarget> NameEndsWith(string compareTo)
+        public static NameMatcher<TKey> NameEndsWith(string compareTo)
         {
-            return new NameMatcher<TTarget>(compareTo, StringOperatorName.EndsWith);
+            return new NameMatcher<TKey>(compareTo, StringOperator.EndsWith);
         }
 
         /// <summary>
@@ -72,12 +72,12 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="compareTo"></param>
         /// <returns></returns>
-        public static NameMatcher<TTarget> NameContains(string compareTo)
+        public static NameMatcher<TKey> NameContains(string compareTo)
         {
-            return new NameMatcher<TTarget>(compareTo, StringOperatorName.Contains);
+            return new NameMatcher<TKey>(compareTo, StringOperator.Contains);
         }
 
-        protected override string GetValue(TTarget key)
+        protected override string GetValue(TKey key)
         {
             return key.Name;
         }

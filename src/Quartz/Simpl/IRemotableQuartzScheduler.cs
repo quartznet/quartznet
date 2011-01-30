@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -104,21 +105,21 @@ namespace Quartz.Simpl
 
         void PauseTrigger(TriggerKey triggerKey);
 
-		void PauseTriggerGroup(string groupName);
+        void PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
         void PauseJob(JobKey jobKey);
 
-		void PauseJobGroup(string groupName);
+        void PauseJobs(GroupMatcher<JobKey> matcher);
 
         void ResumeTrigger(TriggerKey triggerKey);
 
-		void ResumeTriggerGroup(string groupName);
+        void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
         Collection.ISet<string> GetPausedTriggerGroups();
 
         void ResumeJob(JobKey jobKey);
 
-		void ResumeJobGroup(string groupName);
+        void ResumeJobs(GroupMatcher<JobKey> matcher);
 
 		void PauseAll();
 
@@ -126,13 +127,13 @@ namespace Quartz.Simpl
 
         IList<string> GetJobGroupNames();
 
-		IList<JobKey> GetJobKeys(string groupName);
+        Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
         IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
 		IList<string> GetTriggerGroupNames();
 
-		IList<TriggerKey> GetTriggerKeys(string groupName);
+        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
         IJobDetail GetJobDetail(JobKey jobKey);
 

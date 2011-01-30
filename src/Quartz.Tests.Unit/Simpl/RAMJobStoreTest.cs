@@ -24,6 +24,7 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
@@ -265,7 +266,7 @@ namespace Quartz.Tests.Unit.Simpl
             JobDetailImpl detail = new JobDetailImpl(jobName1, jobGroup, typeof (NoOpJob));
             detail.Durable = true;
             fJobStore.StoreJob(detail, false);
-            fJobStore.PauseJobGroup(jobGroup);
+            fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
             detail = new JobDetailImpl(jobName2, jobGroup, typeof (NoOpJob));
             detail.Durable = true;

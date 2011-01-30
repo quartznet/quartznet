@@ -29,6 +29,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 using Common.Logging;
 
+using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
 using Quartz.Util;
@@ -816,25 +817,52 @@ namespace Quartz.Impl.AdoJobStore
         /// Select all of the jobs contained in a given group.
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
-        /// <param name="groupName">The group containing the jobs.</param>
+        /// <param name="matcher"></param>
         /// <returns>An array of <see cref="String" /> job names.</returns>
-        public virtual IList<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, string groupName)
+        public virtual Collection.ISet<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobsInGroup)))
             {
-                AddCommandParameter(cmd, "jobGroup", groupName);
+                AddCommandParameter(cmd, "jobGroup", ToSqlLikeClause(matcher));
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    List<JobKey> list = new List<JobKey>();
+                    Collection.HashSet<JobKey> list = new Collection.HashSet<JobKey>();
                     while (rs.Read())
                     {
-                        list.Add(new JobKey(rs.GetString(0), groupName));
+                        list.Add(new JobKey(rs.GetString(0), rs.GetString(1)));
                     }
 
                     return list;
                 }
             }
+        }
+
+
+        protected static string ToSqlLikeClause<T>(GroupMatcher<T> matcher) where T : Key<T>
+        {
+            string groupName;
+            if (matcher.CompareWithOperator == StringOperator.Equality)
+            {
+                groupName = matcher.CompareToValue;
+            }
+            else if (matcher.CompareWithOperator == StringOperator.Contains)
+            {
+                groupName = "%" + matcher.CompareToValue + "%";
+            }
+            else if (matcher.CompareWithOperator == StringOperator.EndsWith)
+            {
+                groupName = "%" + matcher.CompareToValue;
+            }
+            else if (matcher.CompareWithOperator == StringOperator.StartsWith)
+            {
+                 groupName = matcher.CompareToValue + "%";
+            }
+            else 
+            {
+                throw new ArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
+            }
+            return groupName;
         }
 
         //---------------------------------------------------------------------------
@@ -1153,20 +1181,18 @@ namespace Quartz.Impl.AdoJobStore
         /// are in one of the given old states.
         /// </summary>
         /// <param name="conn">The DB connection.</param>
-        /// <param name="groupName">The group containing the trigger.</param>
+        /// <param name="matcher"></param>
         /// <param name="newState">The new state for the trigger.</param>
         /// <param name="oldState1">One of the old state the trigger must be in.</param>
         /// <param name="oldState2">One of the old state the trigger must be in.</param>
         /// <param name="oldState3">One of the old state the trigger must be in.</param>
         /// <returns>The number of rows updated.</returns>
-        public virtual int UpdateTriggerGroupStateFromOtherStates(ConnectionAndTransactionHolder conn, string groupName,
-                                                                  string newState,
-                                                                  string oldState1, string oldState2, string oldState3)
+        public virtual int UpdateTriggerGroupStateFromOtherStates(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, string newState, string oldState1, string oldState2, string oldState3)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerGroupStateFromStates)))
             {
                 AddCommandParameter(cmd, "newState", newState);
-                AddCommandParameter(cmd, "groupName", groupName);
+                AddCommandParameter(cmd, "groupName", ToSqlLikeClause(matcher));
                 AddCommandParameter(cmd, "oldState1", oldState1);
                 AddCommandParameter(cmd, "oldState2", oldState2);
                 AddCommandParameter(cmd, "oldState3", oldState3);
@@ -1203,18 +1229,16 @@ namespace Quartz.Impl.AdoJobStore
         /// they are in the given old state.
         /// </summary>
         /// <param name="conn">the DB connection</param>
-        /// <param name="groupName">the group containing the triggers</param>
+        /// <param name="matcher"></param>
         /// <param name="newState">the new state for the trigger group</param>
         /// <param name="oldState">the old state the triggers must be in</param>
         /// <returns>int the number of rows updated</returns>
-        public virtual int UpdateTriggerGroupStateFromOtherState(ConnectionAndTransactionHolder conn, string groupName,
-                                                                 string newState,
-                                                                 string oldState)
+        public virtual int UpdateTriggerGroupStateFromOtherState(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, string newState, string oldState)
         {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlTriggerGroupStateFromState)))
+            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerGroupStateFromState)))
             {
                 AddCommandParameter(cmd, "newState", newState);
-                AddCommandParameter(cmd, "triggerGroup", groupName);
+                AddCommandParameter(cmd, "triggerGroup", ToSqlLikeClause(matcher));
                 AddCommandParameter(cmd, "oldState", oldState);
 
                 return cmd.ExecuteNonQuery();
@@ -1743,28 +1767,46 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
+        public IList<String> SelectTriggerGroups(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        {
+            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerGroupsFiltered)))
+            {
+                AddCommandParameter(cmd, "triggerGroup", ToSqlLikeClause(matcher));
+                using (IDataReader rs = cmd.ExecuteReader())
+                {
+                    List<string> list = new List<string>();
+                    while (rs.Read())
+                    {
+                        list.Add((string) rs[0]);
+                    }
+
+                    return list;
+                }
+            }
+        }
+
         /// <summary>
         /// Select all of the triggers contained in a given group.
         /// </summary>
         /// <param name="conn">the DB Connection</param>
-        /// <param name="groupName">the group containing the triggers</param>
+        /// <param name="matcher"></param>
         /// <returns>
         /// an array of <see cref="String" /> trigger names
         /// </returns>
-        public virtual IList<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, string groupName)
+        public virtual Collection.ISet<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersInGroup)))
             {
-                AddCommandParameter(cmd, "triggerGroup", groupName);
+                AddCommandParameter(cmd, "triggerGroup", ToSqlLikeClause(matcher));
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    List<TriggerKey> list = new List<TriggerKey>();
+                    Collection.HashSet<TriggerKey> keys = new Collection.HashSet<TriggerKey>();
                     while (rs.Read())
                     {
-                        list.Add(new TriggerKey((string) rs[0], groupName));
+                        keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
                     }
 
-                    return list.ToArray();
+                    return keys;
                 }
             }
         }
@@ -1805,7 +1847,16 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
+        public virtual int DeletePausedTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        {
+            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroup)))
+            {
+                AddCommandParameter(cmd, "triggerGroup", ToSqlLikeClause(matcher));
+                int rows = cmd.ExecuteNonQuery();
 
+                return rows;
+            }
+        }
         /// <summary>
         /// Deletes all paused trigger groups.
         /// </summary>

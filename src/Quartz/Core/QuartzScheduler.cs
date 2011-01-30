@@ -29,6 +29,7 @@ using System.Threading;
 using Common.Logging;
 
 using Quartz.Impl;
+using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Listener;
 using Quartz.Simpl;
@@ -1049,18 +1050,21 @@ namespace Quartz.Core
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
-        public virtual void PauseTriggerGroup(string groupName)
+        public virtual void PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
             ValidateState();
 
-            if (groupName == null)
+            if (matcher == null)
             {
-                groupName = SchedulerConstants.DefaultGroup;
+                matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            resources.JobStore.PauseTriggerGroup(groupName);
+            ICollection<string> pausedGroups = resources.JobStore.PauseTriggers(matcher);
             NotifySchedulerThread(null);
-            NotifySchedulerListenersPausedTriggers(groupName);
+            foreach (string pausedGroup in pausedGroups)
+            {
+                NotifySchedulerListenersPausedTriggers(pausedGroup);
+            }
         }
 
         /// <summary> 
@@ -1080,18 +1084,21 @@ namespace Quartz.Core
         /// Pause all of the <see cref="IJobDetail" />s in the
         /// given group - by pausing all of their <see cref="ITrigger" />s.
         /// </summary>
-        public virtual void PauseJobGroup(string groupName)
+        public virtual void PauseJobs(GroupMatcher<JobKey> groupMatcher)
         {
             ValidateState();
 
-            if (groupName == null)
+            if (groupMatcher == null)
             {
-                groupName = SchedulerConstants.DefaultGroup;
+                groupMatcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            resources.JobStore.PauseJobGroup(groupName);
+            ICollection<string> pausedGroups = resources.JobStore.PauseJobs(groupMatcher);
             NotifySchedulerThread(null);
-            NotifySchedulerListenersPausedJobs(groupName);
+            foreach (string pausedGroup in pausedGroups)
+            {
+                NotifySchedulerListenersPausedJobs(pausedGroup);
+            }
         }
 
         /// <summary>
@@ -1113,24 +1120,27 @@ namespace Quartz.Core
 
         /// <summary>
         /// Resume (un-pause) all of the <see cref="ITrigger" />s in the
-        /// given group.
+        /// matching groups.
         /// <p>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
-        public virtual void ResumeTriggerGroup(string groupName)
+        public virtual void ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
             ValidateState();
 
-            if (groupName == null)
+            if (matcher == null)
             {
-                groupName = SchedulerConstants.DefaultGroup;
+                matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            resources.JobStore.ResumeTriggerGroup(groupName);
+            ICollection<string> pausedGroups = resources.JobStore.ResumeTriggers(matcher);
             NotifySchedulerThread(null);
-            NotifySchedulerListenersResumedTriggers(groupName);
+            foreach (string pausedGroup in pausedGroups)
+            {
+                NotifySchedulerListenersResumedTriggers(pausedGroup);
+            }
         }
 
         /// <summary>
@@ -1162,30 +1172,33 @@ namespace Quartz.Core
 
         /// <summary>
         /// Resume (un-pause) all of the <see cref="IJobDetail" />s
-        /// in the given group.
+        /// in the matching groups.
         /// <p>
         /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
         /// missed one or more fire-times, then the <see cref="ITrigger" />'s
         /// misfire instruction will be applied.
         /// </p>
         /// </summary>
-        public virtual void ResumeJobGroup(string groupName)
+        public virtual void ResumeJobs(GroupMatcher<JobKey> matcher)
         {
             ValidateState();
 
-            if (groupName == null)
+            if (matcher == null)
             {
-                groupName = SchedulerConstants.DefaultGroup;
+                matcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            resources.JobStore.ResumeJobGroup(groupName);
+            ICollection<string> resumedGroups = resources.JobStore.ResumeJobs(matcher);
             NotifySchedulerThread(null);
-            NotifySchedulerListenersResumedJobs(groupName);
+            foreach (string pausedGroup in resumedGroups)
+            {
+                NotifySchedulerListenersResumedJobs(pausedGroup);
+            }
         }
 
         /// <summary>
-        /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup(string)" />
-        /// on every group.
+        /// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
+        /// with a matcher matching all known groups.
         /// <p>
         /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
         /// instructions WILL be applied.
@@ -1203,7 +1216,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(string)" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
         /// on every group.
         /// <p>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -1234,16 +1247,16 @@ namespace Quartz.Core
         /// Get the names of all the <see cref="IJob" />s in the
         /// given group.
         /// </summary>
-        public virtual IList<JobKey> GetJobKeys(string groupName)
+        public virtual Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
             ValidateState();
 
-            if (groupName == null)
+            if (matcher == null)
             {
-                groupName = SchedulerConstants.DefaultGroup;
+                matcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            return resources.JobStore.GetJobKeys(groupName);
+            return resources.JobStore.GetJobKeys(matcher);
         }
 
         /// <summary> 
@@ -1276,18 +1289,18 @@ namespace Quartz.Core
 
         /// <summary>
         /// Get the names of all the <see cref="ITrigger" />s in
-        /// the given group.
+        /// the matching groups.
         /// </summary>
-        public virtual IList<TriggerKey> GetTriggerKeys(string groupName)
+        public virtual Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             ValidateState();
-
-            if (groupName == null)
+            
+            if (matcher == null)
             {
-                groupName = SchedulerConstants.DefaultGroup;
+                matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            return resources.JobStore.GetTriggerKeys(groupName);
+            return resources.JobStore.GetTriggerKeys(matcher);
         }
 
         /// <summary> 

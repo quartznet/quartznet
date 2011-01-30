@@ -399,7 +399,7 @@
     <Compile Include="Impl\Matchers\NotMatcher.cs" />
     <Compile Include="Impl\Matchers\OrMatcher.cs" />
     <Compile Include="Impl\Matchers\StringMatcher.cs" />
-    <Compile Include="Impl\Matchers\StringOperatorName.cs" />
+    <Compile Include="Impl\Matchers\StringOperator.cs" />
     <Compile Include="Impl\SchedulerDetailsSetter.cs" />
     <Compile Include="Impl\Triggers\AbstractTrigger.cs" />
     <Compile Include="Impl\Triggers\CalendarIntervalTriggerImpl.cs" />

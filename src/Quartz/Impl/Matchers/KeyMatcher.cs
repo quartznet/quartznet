@@ -31,11 +31,11 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class KeyMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
+    public class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        private readonly TTarget compareTo;
+        private readonly TKey compareTo;
 
-        protected KeyMatcher(TTarget compareTo)
+        protected KeyMatcher(TKey compareTo)
         {
             this.compareTo = compareTo;
         }
@@ -51,12 +51,12 @@ namespace Quartz.Impl.Matchers
             return new KeyMatcher<T>(compareTo);
         }
 
-        public bool IsMatch(TTarget key)
+        public bool IsMatch(TKey key)
         {
             return compareTo.Equals(key);
         }
 
-        public TTarget CompareToValue
+        public TKey CompareToValue
         {
             get { return compareTo; }
         }
@@ -83,7 +83,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            KeyMatcher<TTarget> other = (KeyMatcher<TTarget>) obj;
+            KeyMatcher<TKey> other = (KeyMatcher<TKey>) obj;
             if (compareTo == null)
             {
                 if (other.compareTo != null)

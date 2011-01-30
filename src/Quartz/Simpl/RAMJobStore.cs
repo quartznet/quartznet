@@ -27,6 +27,7 @@ using Common.Logging;
 
 using Quartz.Collection;
 using Quartz.Impl;
+using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -153,7 +154,7 @@ namespace Quartz.Simpl
                 IList<string> lst = GetTriggerGroupNames();
                 foreach (string group in lst)
                 {
-                    IList<TriggerKey> keys = GetTriggerKeys(group);
+                    Collection.ISet<TriggerKey> keys = GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group));
                     foreach (TriggerKey key in keys)
                     {
                         RemoveTrigger(key);
@@ -163,7 +164,7 @@ namespace Quartz.Simpl
                 lst = GetJobGroupNames();
                 foreach (string group in lst)
                 {
-                    IList<JobKey> keys = GetJobKeys(group);
+                    Collection.ISet<JobKey> keys = GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group));
                     foreach (JobKey key in keys)
                     {
                         RemoveJob(key);
@@ -835,32 +836,56 @@ namespace Quartz.Simpl
 
 		/// <summary>
 		/// Get the names of all of the <see cref="IJob" /> s that
-		/// have the given group name.
+		/// match the given group matcher.
 		/// </summary>
-		public virtual IList<JobKey> GetJobKeys(string groupName)
+        public virtual Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
 		{
-            List<JobKey> outList;
-			lock (lockObject)
-			{
-                IDictionary<JobKey, JobWrapper> grpMap = jobsByGroup[groupName];
-			    if (grpMap != null)
-			    {
-				    outList = new List<JobKey>(grpMap.Count);
-				    foreach (KeyValuePair<JobKey, JobWrapper> pair in grpMap)
-				    {
-						if (pair.Value != null)
-						{
-							outList.Add(pair.Value.jobDetail.Key);
-						}
-					}
-				}
-                else
-                {
-                    outList = new List<JobKey>(0);
-                }
-			}
+		    Collection.ISet<JobKey> outList = null;
+		    lock (lockObject)
+		    {
+		        StringOperator op = matcher.CompareWithOperator;
+		        String compareToValue = matcher.CompareToValue;
 
-			return outList;
+		       if (op == StringOperator.Equality)
+		       {
+		           IDictionary<JobKey, JobWrapper> grpMap;
+		           jobsByGroup.TryGetValue(compareToValue, out grpMap);
+		           if (grpMap != null)
+		           {
+		               outList = new Collection.HashSet<JobKey>();
+
+		               foreach (JobWrapper jw in grpMap.Values)
+		               {
+		                   if (jw != null)
+		                   {
+		                       outList.Add(jw.jobDetail.Key);
+		                   }
+		               }
+		           }
+		       }
+		       else
+		       {
+		           foreach (KeyValuePair<string, IDictionary<JobKey, JobWrapper>> entry in jobsByGroup)
+		           {
+		               if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
+		               {
+		                   if (outList == null)
+		                   {
+		                       outList = new Collection.HashSet<JobKey>();
+		                   }
+		                   foreach (JobWrapper jobWrapper in entry.Value.Values)
+		                   {
+		                       if (jobWrapper != null)
+		                       {
+		                           outList.Add(jobWrapper.jobDetail.Key);
+		                       }
+		                   }
+		               }
+		           }
+		       }
+		    }
+
+		    return outList ?? new Collection.HashSet<JobKey>();
 		}
 
 		/// <summary>
@@ -879,37 +904,59 @@ namespace Quartz.Simpl
             }
 		}
 
-		/// <summary>
-		/// Get the names of all of the <see cref="ITrigger" /> s
-		/// that have the given group name.
-		/// </summary>
-        public virtual IList<TriggerKey> GetTriggerKeys(string groupName)
-		{
-            List<TriggerKey> outList;
-            lock (lockObject)
+	    /// <summary>
+	    /// Get the names of all of the <see cref="ITrigger" /> s
+	    /// that have the given group name.
+	    /// </summary>
+	    public virtual Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+	    {
+	        Collection.ISet<TriggerKey> outList = null;
+	        lock (lockObject)
 	        {
-                IDictionary<TriggerKey, TriggerWrapper> grpMap;
-	            triggersByGroup.TryGetValue(groupName, out grpMap);
+	            StringOperator op = matcher.CompareWithOperator;
+	            string compareToValue = matcher.CompareToValue;
 
-                if (grpMap != null)
-			    {
-					    outList = new List<TriggerKey>(grpMap.Count);
-				        foreach (KeyValuePair<TriggerKey, TriggerWrapper> pair in grpMap)
-				        {
-						    if (pair.Value != null)
-						    {
-							    outList.Add(pair.Value.trigger.Key);
-						    }
-					    }
-				    }
-			    else
-			    {
-				    outList = new List<TriggerKey>(0);
-			    }
-            }
+	            if (op == StringOperator.Equality)
+	            {
+	                IDictionary<TriggerKey, TriggerWrapper> grpMap;
+	                triggersByGroup.TryGetValue(compareToValue, out grpMap);
+	                if (grpMap != null)
+	                {
+	                    outList = new Collection.HashSet<TriggerKey>();
 
-			return outList;
-		}
+	                    foreach (TriggerWrapper tw in grpMap.Values)
+	                    {
+	                        if (tw != null)
+	                        {
+	                            outList.Add(tw.trigger.Key);
+	                        }
+	                    }
+	                }
+	            }
+	            else
+	            {
+	                foreach (KeyValuePair<string, IDictionary<TriggerKey, TriggerWrapper>> entry in triggersByGroup)
+	                {
+	                    if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
+	                    {
+	                        if (outList == null)
+	                        {
+	                            outList = new Collection.HashSet<TriggerKey>();
+	                        }
+	                        foreach (TriggerWrapper triggerWrapper in entry.Value.Values)
+	                        {
+	                            if (triggerWrapper != null)
+	                            {
+	                                outList.Add(triggerWrapper.trigger.Key);
+	                            }
+	                        }
+	                    }
+	                }
+	            }
+	        }
+
+	        return outList ?? new Collection.HashSet<TriggerKey>();
+	    }
 
 		/// <summary>
 		/// Get the names of all of the <see cref="IJob" />
@@ -1047,22 +1094,47 @@ namespace Quartz.Simpl
 		/// paused.
 		/// </p>
 		/// </summary>
-		public virtual void PauseTriggerGroup(string groupName)
+		public virtual IList<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
 		{
-            lock (lockObject)
-			{
-				if (pausedTriggerGroups.Contains(groupName))
-				{
-					return;
-				}
-				pausedTriggerGroups.Add(groupName);
-				IList<TriggerKey> keys = GetTriggerKeys(groupName);
+		    IList<string> pausedGroups;
 
-				foreach (TriggerKey key in keys)
-				{
-				    PauseTrigger(key);
-				}
-			}
+		    lock (lockObject)
+		    {
+		        pausedGroups = new List<string>();
+
+		        StringOperator op = matcher.CompareWithOperator;
+		        if (op == StringOperator.Equality)
+		        {
+		            if (pausedTriggerGroups.Add(matcher.CompareToValue))
+		            {
+		                pausedGroups.Add(matcher.CompareToValue);
+		            }
+		        }
+		        else
+		        {
+		            foreach (string group in triggersByGroup.Keys)
+		            {
+		                if (op.Evaluate(group, matcher.CompareToValue))
+		                {
+		                    if (pausedTriggerGroups.Add(matcher.CompareToValue))
+		                    {
+		                        pausedGroups.Add(group);
+		                    }
+		                }
+		            }
+		        }
+
+		        foreach (string pausedGroup in pausedGroups)
+		        {
+		            Collection.ISet<TriggerKey> keys = GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(pausedGroup));
+
+		            foreach (TriggerKey key in keys)
+		            {
+		                PauseTrigger(key);
+		            }
+		        }
+		    }
+		    return pausedGroups;
 		}
 
 		/// <summary> 
@@ -1090,25 +1162,46 @@ namespace Quartz.Simpl
 		/// paused.
 		/// </p>
 		/// </summary>
-		public virtual void PauseJobGroup(string groupName)
+		public virtual IList<string> PauseJobs(GroupMatcher<JobKey> matcher)
 		{
-            lock (lockObject)
-			{
-                if (!pausedJobGroups.Contains(groupName))
-                {
-                    pausedJobGroups.Add(groupName);
-                }
-				IList<JobKey> keys = GetJobKeys(groupName);
+            List<string> pausedGroups = new List<String>();
+		    lock (lockObject)
+		    {
+		        StringOperator op = matcher.CompareWithOperator;
+		        if (op == StringOperator.Equality)
+		        {
+		            if (pausedJobGroups.Add(matcher.CompareToValue))
+		            {
+		                pausedGroups.Add(matcher.CompareToValue);
+		            }
+		        }
+		        else
+		        {
+		                foreach (String group in jobsByGroup.Keys)
+		                {
+		                    if (op.Evaluate(group, matcher.CompareToValue))
+		                    {
+		                        if (pausedJobGroups.Add(group))
+		                        {
+		                            pausedGroups.Add(group);
+		                        }
+		                    }
+		                }
+		        }
 
-				foreach (JobKey key in keys)
-				{
-				    IList<IOperableTrigger> triggersForJob = GetTriggersForJob(key);
-                    foreach (IOperableTrigger trigger in triggersForJob)
-				    {
-				        PauseTrigger(trigger.Key);
-				    }
-				}
-			}
+		        foreach (string groupName in  pausedGroups)
+		        {
+		            foreach (JobKey jobKey in GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName)))
+		            {
+		                IList<IOperableTrigger> triggers = GetTriggersForJob(jobKey);
+		                foreach (IOperableTrigger trigger in triggers)
+		                {
+		                    PauseTrigger(trigger.Key);
+		                }
+		            }
+		        }
+		    }
+		    return pausedGroups;
 		}
 
 		/// <summary>
@@ -1166,26 +1259,34 @@ namespace Quartz.Simpl
 		/// <see cref="ITrigger" />'s misfire instruction will be applied.
 		/// </p>
 		/// </summary>
-		public virtual void ResumeTriggerGroup(string groupName)
+		public virtual IList<string> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
 		{
-            lock (lockObject)
-			{
-				IList<TriggerKey> keys = GetTriggerKeys(groupName);
-                
-				foreach (TriggerKey key in keys)
-				{
-				    if ((triggersByKey[key] != null))
-				    {
-				        string jobGroup = triggersByKey[key].jobKey.Group;
-				        if (pausedJobGroups.Contains(jobGroup))
-				        {
-				            continue;
-				        }
-				    }
-				    ResumeTrigger(key);
-				}
-				pausedTriggerGroups.Remove(groupName);
-			}
+            Collection.ISet<string> groups = new Collection.HashSet<string>();
+		    lock (lockObject)
+		    {
+		        Collection.ISet<TriggerKey> keys = GetTriggerKeys(matcher);
+
+		        foreach (TriggerKey triggerKey in keys)
+		        {
+		            groups.Add(triggerKey.Group);
+		            TriggerWrapper tw;
+		            if (triggersByKey.TryGetValue(triggerKey, out tw))
+		            {
+		                String jobGroup = tw.jobKey.Group;
+		                if (pausedJobGroups.Contains(jobGroup))
+		                {
+		                    continue;
+		                }
+		            }
+		            ResumeTrigger(triggerKey);
+		        }
+		        foreach (String group in groups)
+		        {
+		            pausedTriggerGroups.Remove(group);
+		        }
+		    }
+
+            return new List<string>(groups);
 		}
 
 		/// <summary>
@@ -1218,29 +1319,41 @@ namespace Quartz.Simpl
 		/// misfire instruction will be applied.
 		/// </p>
 		/// </summary>
-		public virtual void ResumeJobGroup(string groupName)
+		public virtual Collection.ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher)
 		{
-            lock (lockObject)
-			{
-			    if (pausedJobGroups.Contains(groupName))
-			    {
-			        pausedJobGroups.Remove(groupName);
-			    }
-				IList<JobKey> keys = GetJobKeys(groupName);
+		    Collection.ISet<string> resumedGroups = new Collection.HashSet<string>();
+		    lock (lockObject)
+		    {
+		        Collection.ISet<JobKey> keys = GetJobKeys(matcher);
 
-				foreach (JobKey key in keys)
-				{
-				    IList<IOperableTrigger> triggersForJob = GetTriggersForJob(key);
-                    foreach (IOperableTrigger trigger in triggersForJob)
-				    {
-				        ResumeTrigger(trigger.Key);
-				    }
-				}
-			}
+		        foreach (string pausedJobGroup in pausedJobGroups)
+		        {
+		            if (matcher.CompareWithOperator.Evaluate(pausedJobGroup, matcher.CompareToValue))
+		            {
+		                resumedGroups.Add(pausedJobGroup);
+		            }
+		        }
+
+		        foreach (String resumedGroup in resumedGroups)
+		        {
+		            pausedJobGroups.Remove(resumedGroup);
+		        }
+
+		        foreach (JobKey key in keys)
+		        {
+		            IList<IOperableTrigger> triggers = GetTriggersForJob(key);
+		            foreach (IOperableTrigger trigger in triggers)
+		            {
+		                ResumeTrigger(trigger.Key);
+		            }
+		        }
+		    }
+
+		    return resumedGroups;
 		}
 
 		/// <summary>
-		/// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup(string)" />
+		/// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
 		/// on every group.
 		/// <p>
 		/// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
@@ -1256,13 +1369,13 @@ namespace Quartz.Simpl
 
                 foreach (string groupName in triggerGroupNames)
                 {
-                    PauseTriggerGroup(groupName);
+                    PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(groupName));
                 }
             }
 		}
 
 		/// <summary>
-		/// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(string)" />
+		/// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
         /// on every trigger group and setting all job groups unpaused />.
 		/// <p>
 		/// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -1274,12 +1387,13 @@ namespace Quartz.Simpl
 		{
             lock (lockObject)
 			{
+                // TODO need a match all here!
 			    pausedJobGroups.Clear();
 				IList<string> triggerGroupNames = GetTriggerGroupNames();
 
 				foreach (string groupName in triggerGroupNames)
 				{
-				    ResumeTriggerGroup(groupName);
+                    ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(groupName));
 				}
 			}
 		}

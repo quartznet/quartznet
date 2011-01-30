@@ -29,7 +29,7 @@ namespace Quartz.Impl.Matchers
     /// <remarks>
     /// </remarks>
     /// <author>jhouse</author>
-    public class EverythingMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
+    public class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         protected EverythingMatcher()
         {
@@ -53,7 +53,7 @@ namespace Quartz.Impl.Matchers
             return new EverythingMatcher<TriggerKey>();
         }
 
-        public bool IsMatch(TTarget key)
+        public bool IsMatch(TKey key)
         {
             return true;
         }

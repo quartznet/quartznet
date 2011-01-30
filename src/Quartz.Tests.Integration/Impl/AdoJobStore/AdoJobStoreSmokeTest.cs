@@ -8,6 +8,7 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
@@ -340,21 +341,21 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                     sched.ResumeJob(new JobKey("job_1", schedId));
 
-                    sched.PauseJobGroup(schedId);
+                    sched.PauseJobs(GroupMatcher<JobKey>.GroupEquals(schedId));
                     
                     Thread.Sleep(1000);
 
-                    sched.ResumeJobGroup(schedId);
+                    sched.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(schedId));
 
                     sched.PauseTrigger(new TriggerKey("trig_2", schedId));
                     sched.ResumeTrigger(new TriggerKey("trig_2", schedId));
 
-                    sched.PauseTriggerGroup(schedId);
+                    sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(schedId));
                     
                     Assert.AreEqual(1, sched.GetPausedTriggerGroups().Count);
 
                     Thread.Sleep(1000);
-                    sched.ResumeTriggerGroup(schedId);
+                    sched.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(schedId));
 
 
                     Thread.Sleep(TimeSpan.FromSeconds(20));
@@ -362,7 +363,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.Standby();
 
                     CollectionAssert.IsNotEmpty(sched.GetCalendarNames());
-                    CollectionAssert.IsNotEmpty(sched.GetJobKeys(schedId));
+                    CollectionAssert.IsNotEmpty(sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(schedId)));
 
                     CollectionAssert.IsNotEmpty(sched.GetTriggersOfJob(new JobKey("job_2", schedId)));
                     Assert.IsNotNull(sched.GetJobDetail(new JobKey("job_2", schedId)));
@@ -449,10 +450,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             IList<string> groups = inScheduler.GetTriggerGroupNames();
             foreach (string group in groups)
             {
-                IList<TriggerKey> names = inScheduler.GetTriggerKeys(group);
-                for (int j = 0; j < names.Count; j++)
+                Collection.ISet<TriggerKey> keys = inScheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group));
+                foreach (TriggerKey key in keys)
                 {
-                    inScheduler.UnscheduleJob(names[j]);
+                    inScheduler.UnscheduleJob(key);
                 }
             }
 
@@ -460,7 +461,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             groups = inScheduler.GetJobGroupNames();
             foreach (string group in groups)
             {
-                IList<JobKey> jobNames = inScheduler.GetJobKeys(group);
+                Collection.ISet<JobKey> jobNames = inScheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group));
                 foreach (JobKey jobKey in jobNames)
                 {
                     inScheduler.DeleteJob(jobKey);

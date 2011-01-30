@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Impl.Matchers;
 
 namespace Quartz.Tests.Unit
 {
@@ -130,14 +131,14 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(2, jobGroups.Count, "Job group list size expected to be = 2 ");
             Assert.AreEqual(2,triggerGroups.Count, "Trigger group list size expected to be = 2 ");
 
-            IList<JobKey> jobKeys = sched.GetJobKeys(JobKey.DefaultGroup);
-            IList<TriggerKey> triggerKeys = sched.GetTriggerKeys(TriggerKey.DefaultGroup);
+            Collection.ISet<JobKey> jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
+            Collection.ISet<TriggerKey> triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
 
             Assert.AreEqual(1, jobKeys.Count, "Number of jobs expected in default group was 1 ");
             Assert.AreEqual(1, triggerKeys.Count, "Number of triggers expected in default group was 1 ");
 
-            jobKeys = sched.GetJobKeys("g1");
-            triggerKeys = sched.GetTriggerKeys("g1");
+            jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
+            triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
             Assert.AreEqual(2, jobKeys.Count, "Number of jobs expected in 'g1' group was 2 ");
             Assert.AreEqual(2, triggerKeys.Count, "Number of triggers expected in 'g1' group was 2 ");
@@ -157,7 +158,7 @@ namespace Quartz.Tests.Unit
             Collection.ISet<string> pausedGroups = sched.GetPausedTriggerGroups();
             Assert.AreEqual(0, pausedGroups.Count, "Size of paused trigger groups list expected to be 0 ");
 
-            sched.PauseTriggerGroup("g1");
+            sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
             // test that adding a trigger to a paused group causes the new trigger to be paused also... 
             job = JobBuilder.NewJob()
@@ -185,7 +186,7 @@ namespace Quartz.Tests.Unit
             s = sched.GetTriggerState(new TriggerKey("t4", "g1"));
             Assert.AreEqual(TriggerState.Paused, s, "State of trigger t4 expected to be PAUSED");
 
-            sched.ResumeTriggerGroup("g1");
+            sched.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
             
             s = sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.AreEqual(TriggerState.Normal, s, "State of trigger t2 expected to be NORMAL ");
@@ -201,16 +202,16 @@ namespace Quartz.Tests.Unit
 
             Assert.IsTrue(sched.UnscheduleJob(new TriggerKey("t3", "g1")), "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
 
-            jobKeys = sched.GetJobKeys("g1");
-            triggerKeys = sched.GetTriggerKeys("g1");
+            jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
+            triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
             Assert.AreEqual(2, jobKeys.Count, "Number of jobs expected in 'g1' group was 1 "); // job should have been deleted also, because it is non-durable
             Assert.AreEqual(2, triggerKeys.Count, "Number of triggers expected in 'g1' group was 1 ");
 
             Assert.IsTrue(sched.UnscheduleJob(new TriggerKey("t1")), "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
 
-            jobKeys = sched.GetJobKeys(JobKey.DefaultGroup);
-            triggerKeys = sched.GetTriggerKeys(TriggerKey.DefaultGroup);
+            jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
+            triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
 
             Assert.AreEqual(1, jobKeys.Count, "Number of jobs expected in default group was 1 "); // job should have been left in place, because it is non-durable
             Assert.AreEqual(0, triggerKeys.Count, "Number of triggers expected in default group was 0 ");

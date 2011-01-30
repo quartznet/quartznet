@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 
 using Quartz.Core;
+using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
 namespace Quartz.Impl
@@ -369,9 +370,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseTriggerGroup(string groupName)
+        public virtual void PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            sched.PauseTriggerGroup(groupName);
+            sched.PauseTriggers(matcher);
         }
 
         /// <summary>
@@ -385,9 +386,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseJobGroup(string groupName)
+        public virtual void PauseJobs(GroupMatcher<JobKey> matcher)
         {
-            sched.PauseJobGroup(groupName);
+            sched.PauseJobs(matcher);
         }
 
         /// <summary>
@@ -401,9 +402,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeTriggerGroup(string groupName)
+        public virtual void ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            sched.ResumeTriggerGroup(groupName);
+            sched.ResumeTriggers(matcher);
         }
 
         /// <summary>
@@ -417,9 +418,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeJobGroup(string groupName)
+        public virtual void ResumeJobs(GroupMatcher<JobKey> matcher)
         {
-            sched.ResumeJobGroup(groupName);
+            sched.ResumeJobs(matcher);
         }
 
         /// <summary>
@@ -449,17 +450,17 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<JobKey> GetJobKeys(string groupName)
+        public virtual Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
-            return sched.GetJobKeys(groupName);
+            return sched.GetJobKeys(matcher);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<TriggerKey> GetTriggerKeys(string groupName)
+        public virtual Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
-            return sched.GetTriggerKeys(groupName);
+            return sched.GetTriggerKeys(matcher);
         }
 
         /// <summary>

@@ -31,12 +31,12 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class OrMatcher<TTarget> : IMatcher<TTarget> where TTarget : Key<TTarget>
+    public class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        private readonly IMatcher<TTarget> leftOperand;
-        private readonly IMatcher<TTarget> rightOperand;
+        private readonly IMatcher<TKey> leftOperand;
+        private readonly IMatcher<TKey> rightOperand;
 
-        protected OrMatcher(IMatcher<TTarget> leftOperand, IMatcher<TTarget> rightOperand)
+        protected OrMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
         {
             if (leftOperand == null || rightOperand == null)
             {
@@ -59,17 +59,17 @@ namespace Quartz.Impl.Matchers
             return new OrMatcher<T>(leftOperand, rightOperand);
         }
 
-        public bool IsMatch(TTarget key)
+        public bool IsMatch(TKey key)
         {
             return leftOperand.IsMatch(key) || rightOperand.IsMatch(key);
         }
 
-        public IMatcher<TTarget> LeftOperand
+        public IMatcher<TKey> LeftOperand
         {
             get { return leftOperand; }
         }
 
-        public IMatcher<TTarget> RightOperand
+        public IMatcher<TKey> RightOperand
         {
             get { return rightOperand; }
         }
@@ -99,7 +99,7 @@ namespace Quartz.Impl.Matchers
             {
                 return false;
             }
-            OrMatcher<TTarget> other = (OrMatcher<TTarget>) obj;
+            OrMatcher<TKey> other = (OrMatcher<TKey>) obj;
             if (leftOperand == null)
             {
                 if (other.leftOperand != null)

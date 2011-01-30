@@ -26,7 +26,7 @@ using System.Xml.Serialization;
 
 using Common.Logging;
 
-using Quartz.Impl.Triggers;
+using Quartz.Impl.Matchers;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
@@ -892,7 +892,7 @@ namespace Quartz.Xml
                     {
                         if (!jobGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (JobKey key in scheduler.GetJobKeys(groupName))
+                            foreach (JobKey key in scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName)))
                             {
                                 scheduler.DeleteJob(key);
                             }
@@ -904,7 +904,7 @@ namespace Quartz.Xml
                     if (!jobGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all jobs in group: {}", group);
-                        foreach (JobKey key in scheduler.GetJobKeys(group))
+                        foreach (JobKey key in scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group)))
                         {
                             scheduler.DeleteJob(key);
                         }
@@ -921,7 +921,7 @@ namespace Quartz.Xml
                     {
                         if (!triggerGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (TriggerKey key in scheduler.GetTriggerKeys(groupName))
+                            foreach (TriggerKey key in scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(groupName)))
                             {
                                 scheduler.UnscheduleJob(key);
                             }
@@ -933,7 +933,7 @@ namespace Quartz.Xml
                     if (!triggerGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all triggers in group: {0}", group);
-                        foreach (TriggerKey key in scheduler.GetTriggerKeys(group))
+                        foreach (TriggerKey key in scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group)))
                         {
                             scheduler.UnscheduleJob(key);
                         }

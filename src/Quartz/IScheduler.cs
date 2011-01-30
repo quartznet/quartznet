@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
 namespace Quartz
@@ -426,15 +427,14 @@ namespace Quartz
 
         /// <summary>
         /// Pause all of the <see cref="IJobDetail" />s in the
-        /// given group - by pausing all of their <see cref="ITrigger" />s.
+        /// matching groups - by pausing all of their <see cref="ITrigger" />s.
         /// </summary>
         /// <remarks>
-        /// The Scheduler will "remember" that the group is paused, and impose the
-        /// pause on any new jobs that are added to the group while the group is
-        /// paused.
+        /// The Scheduler will "remember" that the groups are paused, and impose the
+        /// pause on any new jobs that are added to any of those groups until it is resumed.
         /// </remarks>
-        /// <seealso cref="ResumeJobGroup(string)" />
-        void PauseJobGroup(string groupName);
+        /// <seealso cref="ResumeJobs" />
+        void PauseJobs(GroupMatcher<JobKey> matcher);
 
         /// <summary> 
         /// Pause the <see cref="ITrigger" /> with the given key.
@@ -442,15 +442,14 @@ namespace Quartz
         void PauseTrigger(TriggerKey triggerKey);
 
         /// <summary>
-        /// Pause all of the <see cref="ITrigger" />s in the given group.
+        /// Pause all of the <see cref="ITrigger" />s in the groups matching.
         /// </summary>
         /// <remarks>
-        /// The Scheduler will "remember" that the group is paused, and impose the
-        /// pause on any new triggers that are added to the group while the group is
-        /// paused.
+        /// The Scheduler will "remember" all the groups paused, and impose the
+        /// pause on any new triggers that are added to any of those groups until it is resumed.
         /// </remarks>
-        /// <seealso cref="ResumeTriggerGroup(string)" />
-        void PauseTriggerGroup(string groupName);
+        /// <seealso cref="ResumeTriggers" />
+        void PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Resume (un-pause) the <see cref="IJobDetail" /> with
@@ -465,15 +464,15 @@ namespace Quartz
 
         /// <summary>
         /// Resume (un-pause) all of the <see cref="IJobDetail" />s
-        /// in the given group.
+        /// in matching groups.
         /// </summary>
         /// <remarks>
         /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
         /// missed one or more fire-times, then the <see cref="ITrigger" />'s
         /// misfire instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseJobGroup(string)" />
-        void ResumeJobGroup(string groupName);
+        /// <seealso cref="PauseJobs" />
+        void ResumeJobs(GroupMatcher<JobKey> matcher);
 
         /// <summary>
         /// Resume (un-pause) the <see cref="ITrigger" /> with the given
@@ -486,18 +485,17 @@ namespace Quartz
         void ResumeTrigger(TriggerKey triggerKey);
 
         /// <summary>
-        /// Resume (un-pause) all of the <see cref="ITrigger" />s in the
-        /// given group.
+        /// Resume (un-pause) all of the <see cref="ITrigger" />s in matching groups.
         /// </summary>
         /// <remarks>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseTriggerGroup(string)" />
-        void ResumeTriggerGroup(string groupName);
+        /// <seealso cref="PauseTriggers" />
+        void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
-        /// Pause all triggers - similar to calling <see cref="PauseTriggerGroup(string)" />
+        /// Pause all triggers - similar to calling <see cref="PauseTriggers" />
         /// on every group, however, after using this method <see cref="ResumeAll()" /> 
         /// must be called to clear the scheduler's state of 'remembering' that all 
         /// new triggers will be paused as they are added. 
@@ -507,13 +505,13 @@ namespace Quartz
         /// instructions WILL be applied.
         /// </remarks>
         /// <seealso cref="ResumeAll()" />
-        /// <seealso cref="PauseTriggerGroup(string)" />
+        /// <seealso cref="PauseTriggers" />
         /// <seealso cref="Standby()" />
         void PauseAll();
 
         /// <summary> 
         /// Resume (un-pause) all triggers - similar to calling 
-        /// <see cref="ResumeTriggerGroup(string)" /> on every group.
+        /// <see cref="ResumeTriggers" /> on every group.
         /// </summary>
         /// <remarks>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -523,9 +521,9 @@ namespace Quartz
         void ResumeAll();
 
         /// <summary>
-        /// Get the keys of all the <see cref="IJobDetail" />s in the given group.
+        /// Get the keys of all the <see cref="IJobDetail" />s in the matching groups.
         /// </summary>
-        IList<JobKey> GetJobKeys(string groupName);
+        Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
         /// <summary>
         /// Get all <see cref="ITrigger" /> s that are associated with the
@@ -540,9 +538,9 @@ namespace Quartz
 
         /// <summary>
         /// Get the names of all the <see cref="ITrigger" />s in the given
-        /// group.
+        /// groups.
         /// </summary>
-        IList<TriggerKey> GetTriggerKeys(string groupName);
+        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Get the <see cref="IJobDetail" /> for the <see cref="IJob" />

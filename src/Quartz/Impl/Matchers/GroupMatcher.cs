@@ -31,9 +31,9 @@ namespace Quartz.Impl.Matchers
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class GroupMatcher<TTarget> : StringMatcher<TTarget> where TTarget : Key<TTarget>
+    public class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
     {
-        protected GroupMatcher(string compareTo, StringOperatorName compareWith) : base(compareTo, compareWith)
+        protected GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
         {
         }
 
@@ -42,9 +42,9 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="compareTo"></param>
         /// <returns></returns>
-        public static GroupMatcher<TTarget> GroupEquals(string compareTo)
+        public static GroupMatcher<TKey> GroupEquals(string compareTo)
         {
-            return new GroupMatcher<TTarget>(compareTo, StringOperatorName.Equality);
+            return new GroupMatcher<TKey>(compareTo, StringOperator.Equality);
         }
 
         /// <summary>
@@ -52,9 +52,9 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="compareTo"></param>
         /// <returns></returns>
-        public static GroupMatcher<TTarget> GroupStartsWith(string compareTo)
+        public static GroupMatcher<TKey> GroupStartsWith(string compareTo)
         {
-            return new GroupMatcher<TTarget>(compareTo, StringOperatorName.StartsWith);
+            return new GroupMatcher<TKey>(compareTo, StringOperator.StartsWith);
         }
 
         /// <summary>
@@ -62,9 +62,9 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="compareTo"></param>
         /// <returns></returns>
-        public static GroupMatcher<TTarget> GroupEndsWith(string compareTo)
+        public static GroupMatcher<TKey> GroupEndsWith(string compareTo)
         {
-            return new GroupMatcher<TTarget>(compareTo, StringOperatorName.EndsWith);
+            return new GroupMatcher<TKey>(compareTo, StringOperator.EndsWith);
         }
 
         /// <summary>
@@ -72,12 +72,12 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="compareTo"></param>
         /// <returns></returns>
-        public static GroupMatcher<TTarget> GroupContains(string compareTo)
+        public static GroupMatcher<TKey> GroupContains(string compareTo)
         {
-            return new GroupMatcher<TTarget>(compareTo, StringOperatorName.Contains);
+            return new GroupMatcher<TKey>(compareTo, StringOperator.Contains);
         }
 
-        protected override string GetValue(TTarget key)
+        protected override string GetValue(TKey key)
         {
             return key.Group;
         }

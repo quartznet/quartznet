@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
@@ -202,13 +203,13 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns> an array of <see cref="String" /> group names</returns>
         IList<string> SelectJobGroups(ConnectionAndTransactionHolder conn);
 
-		/// <summary>
-		/// Select all of the jobs contained in a given group.
-		/// </summary>
-		/// <param name="conn">The DB Connection </param>
-        /// <param name="groupName">The group containing the jobs</param>
-		/// <returns> an array of <see cref="String" /> job names</returns>
-        IList<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, string groupName);
+        /// <summary>
+        /// Select all of the jobs contained in a given group.
+        /// </summary>
+        /// <param name="conn">The DB Connection </param>
+        /// <param name="matcher"></param>
+        /// <returns> an array of <see cref="String" /> job names</returns>
+        Collection.ISet<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher);
 
 		//---------------------------------------------------------------------------
 		// triggers
@@ -297,30 +298,29 @@ namespace Quartz.Impl.AdoJobStore
 		int UpdateTriggerStateFromOtherStates(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, string newState,
 		                                      string oldState1, string oldState2, string oldState3);
 
-		/// <summary>
-		/// Update all triggers in the given group to the given new state, if they
-		/// are in one of the given old states.
-		/// </summary>
-		/// <param name="conn">The DB connection</param>
-        /// <param name="groupName">The group containing the trigger</param>
+        /// <summary>
+        /// Update all triggers in the given group to the given new state, if they
+        /// are in one of the given old states.
+        /// </summary>
+        /// <param name="conn">The DB connection</param>
+        /// <param name="matcher"></param>
         /// <param name="newState">The new state for the trigger</param>
         /// <param name="oldState1">One of the old state the trigger must be in</param>
         /// <param name="oldState2">One of the old state the trigger must be in</param>
         /// <param name="oldState3">One of the old state the trigger must be in</param>
-		/// <returns>The number of rows updated</returns>
-		int UpdateTriggerGroupStateFromOtherStates(ConnectionAndTransactionHolder conn, string groupName, string newState, string oldState1,
-		                                           string oldState2, string oldState3);
+        /// <returns>The number of rows updated</returns>
+        int UpdateTriggerGroupStateFromOtherStates(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, string newState, string oldState1, string oldState2, string oldState3);
 
-		/// <summary>
-		/// Update all of the triggers of the given group to the given new state, if
-		/// they are in the given old state.
-		/// </summary>
-		/// <param name="conn">The DB connection</param>
-        /// <param name="groupName">The group containing the triggers</param>
+        /// <summary>
+        /// Update all of the triggers of the given group to the given new state, if
+        /// they are in the given old state.
+        /// </summary>
+        /// <param name="conn">The DB connection</param>
+        /// <param name="matcher"></param>
         /// <param name="newState">The new state for the trigger group</param>
         /// <param name="oldState">The old state the triggers must be in.</param>
-		/// <returns> int the number of rows updated</returns>
-		int UpdateTriggerGroupStateFromOtherState(ConnectionAndTransactionHolder conn, string groupName, string newState, string oldState);
+        /// <returns> int the number of rows updated</returns>
+        int UpdateTriggerGroupStateFromOtherState(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, string newState, string oldState);
 
 		/// <summary>
 		/// Update the states of all triggers associated with the given job.
@@ -443,13 +443,15 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns>An array of <see cref="String" /> group names.</returns>
 		IList<string> SelectTriggerGroups(ConnectionAndTransactionHolder conn);
 
-		/// <summary>
-		/// Select all of the triggers contained in a given group. 
-		/// </summary>
-		/// <param name="conn">The DB Connection.</param>
-		/// <param name="groupName">The group containing the triggers.</param>
-		/// <returns>An array of <see cref="String" /> trigger names.</returns>
-        IList<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, string groupName);
+        IList<string> SelectTriggerGroups(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher);
+
+        /// <summary>
+        /// Select all of the triggers contained in a given group. 
+        /// </summary>
+        /// <param name="conn">The DB Connection.</param>
+        /// <param name="matcher"></param>
+        /// <returns>An array of <see cref="String" /> trigger names.</returns>
+        Collection.ISet<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher);
 
 		/// <summary>
 		/// Select all of the triggers in a given state.
@@ -477,6 +479,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
 		int DeletePausedTriggerGroup(ConnectionAndTransactionHolder conn, string groupName);
 
+        int DeletePausedTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Deletes all paused trigger groups.

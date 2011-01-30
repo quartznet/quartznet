@@ -214,7 +214,7 @@
     <Compile Include="Impl\DirectSchedulerFactory.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Impl\Matchers\StringOperatorName.cs" />
+    <Compile Include="Impl\Matchers\StringOperator.cs" />
     <Compile Include="Impl\RemoteScheduler.cs">
       <SubType>Code</SubType>
     </Compile>

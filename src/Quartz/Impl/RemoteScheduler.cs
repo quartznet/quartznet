@@ -25,6 +25,7 @@ using System.Globalization;
 using System.Runtime.Remoting;
 
 using Quartz.Core;
+using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -598,11 +599,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseTriggerGroup(string groupName)
+        public virtual void PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
             try
             {
-                GetRemoteScheduler().PauseTriggerGroup(groupName);
+                GetRemoteScheduler().PauseTriggers(matcher);
             }
             catch (RemotingException re)
             {
@@ -629,11 +630,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseJobGroup(string groupName)
+        public virtual void PauseJobs(GroupMatcher<JobKey> matcher)
         {
             try
             {
-                GetRemoteScheduler().PauseJobGroup(groupName);
+                GetRemoteScheduler().PauseJobs(matcher);
             }
             catch (RemotingException re)
             {
@@ -659,11 +660,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeTriggerGroup(string groupName)
+        public virtual void ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
             try
             {
-                GetRemoteScheduler().ResumeTriggerGroup(groupName);
+                GetRemoteScheduler().ResumeTriggers(matcher);
             }
             catch (RemotingException re)
             {
@@ -691,11 +692,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeJobGroup(string groupName)
+        public virtual void ResumeJobs(GroupMatcher<JobKey> matcher)
         {
             try
             {
-                GetRemoteScheduler().ResumeJobGroup(groupName);
+                GetRemoteScheduler().ResumeJobs(matcher);
             }
             catch (RemotingException re)
             {
@@ -737,11 +738,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<JobKey> GetJobKeys(string groupName)
+        public virtual Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
             try
             {
-                return GetRemoteScheduler().GetJobKeys(groupName);
+                return GetRemoteScheduler().GetJobKeys(matcher);
             }
             catch (RemotingException re)
             {
@@ -768,11 +769,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<TriggerKey> GetTriggerKeys(string groupName)
+        public virtual Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             try
             {
-                return GetRemoteScheduler().GetTriggerKeys(groupName);
+                return GetRemoteScheduler().GetTriggerKeys(matcher);
             }
             catch (RemotingException re)
             {

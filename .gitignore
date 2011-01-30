@@ -45,3 +45,4 @@ _ReSharper*/
 # Office Temp Files
 ~$*
 /src/Quartz/Quartz.xml
+*.ReSharper

@@ -30,6 +30,7 @@ using System.Threading;
 using Common.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
 using Quartz.Util;
@@ -1643,19 +1644,19 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no jobs in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public IList<JobKey> GetJobKeys(string groupName)
+        public Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
             // no locks necessary for read...
-            return (IList<JobKey>)ExecuteWithoutLock(conn => GetJobNames(conn, groupName));
+            return (Collection.ISet<JobKey>) ExecuteWithoutLock(conn => GetJobNames(conn, matcher));
         }
 
-        protected virtual IList<JobKey> GetJobNames(ConnectionAndTransactionHolder conn, string groupName)
+        protected virtual Collection.ISet<JobKey> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
         {
-            IList<JobKey> jobNames;
+            Collection.ISet<JobKey> jobNames;
 
             try
             {
-                jobNames = Delegate.SelectJobsInGroup(conn, groupName);
+                jobNames = Delegate.SelectJobsInGroup(conn, matcher);
             }
             catch (Exception e)
             {
@@ -1749,19 +1750,19 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no triggers in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public IList<TriggerKey> GetTriggerKeys(string groupName)
+        public Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             // no locks necessary for read...
-            return (IList<TriggerKey>)ExecuteWithoutLock(conn => GetTriggerNames(conn, groupName));
+            return (Collection.ISet<TriggerKey>)ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher));
         }
 
-        protected virtual IList<TriggerKey> GetTriggerNames(ConnectionAndTransactionHolder conn, string groupName)
+        protected virtual Collection.ISet<TriggerKey> GetTriggerNames(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
-            IList<TriggerKey> triggerNames;
+            Collection.ISet<TriggerKey> triggerNames;
 
             try
             {
-                triggerNames = Delegate.SelectTriggersInGroup(conn, groupName);
+                triggerNames = Delegate.SelectTriggersInGroup(conn, matcher);
             }
             catch (Exception e)
             {
@@ -1946,22 +1947,26 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause all of the <see cref="IJob" />s in the given
         /// group - by pausing all of their <see cref="ITrigger" />s.
         /// </summary>
-        /// <seealso cref="ResumeJobGroup(string)" />
-        public virtual void PauseJobGroup(string groupName)
+        /// <seealso cref="ResumeJobs" />
+        public virtual IList<string> PauseJobs(GroupMatcher<JobKey> matcher)
         {
-            ExecuteInLock(LockTriggerAccess, conn =>
-                                                 {
-                                                     IList<JobKey> jobNames = GetJobNames(conn, groupName);
+            return (IList<string>)ExecuteInLock(LockTriggerAccess, conn =>
+                {
+                    Collection.ISet<string> groupNames = new Collection.HashSet<string>();
+                    Collection.ISet<JobKey> jobNames = GetJobNames(conn, matcher);
 
-                                                     foreach (JobKey jobKey in jobNames)
-                                                     {
-                                                         IList<IOperableTrigger> triggers = GetTriggersForJob(conn, jobKey);
-                                                         foreach (IOperableTrigger trigger in triggers)
-                                                         {
-                                                             PauseTrigger(conn, trigger.Key);
-                                                         }
-                                                     }
-                                                 });
+                    foreach (JobKey jobKey in jobNames)
+                    {
+                        IList<IOperableTrigger> triggers = GetTriggersForJob(conn, jobKey);
+                        foreach (IOperableTrigger trigger in triggers)
+                        {
+                            PauseTrigger(conn, trigger.Key);
+                        }
+                        groupNames.Add(jobKey.Group);
+                    }
+
+                    return new List<string>(groupNames);
+                });
         }
 
         /// <summary>
@@ -2090,55 +2095,65 @@ namespace Quartz.Impl.AdoJobStore
         /// missed one or more fire-times, then the <see cref="ITrigger" />'s
         /// misfire instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseJobGroup(string)" />
-        public virtual void ResumeJobGroup(string groupName)
+        /// <seealso cref="PauseJobs" />
+        public virtual Collection.ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher)
         {
-            ExecuteInLock(LockTriggerAccess, conn =>
-                                                 {
-                                                     IList<JobKey> jobNames = GetJobNames(conn, groupName);
+            return (Collection.ISet<string>) ExecuteInLock(LockTriggerAccess, conn =>
+                {
+                    Collection.ISet<JobKey> jobKeys = GetJobNames(conn, matcher);
+                    Collection.ISet<String> groupNames = new Collection.HashSet<string>();
 
-                                                     foreach (JobKey jobKey in jobNames)
-                                                     {
-                                                         IList<IOperableTrigger> triggers = GetTriggersForJob(conn, jobKey);
-                                                         foreach (IOperableTrigger trigger in triggers)
-                                                         {
-                                                             ResumeTrigger(conn, trigger.Key);
-                                                         }
-                                                     }
-                                                 });
+                    foreach (JobKey jobKey in jobKeys)
+                    {
+                        IList<IOperableTrigger> triggers = GetTriggersForJob(conn, jobKey);
+                        foreach (IOperableTrigger trigger in triggers)
+                        {
+                            ResumeTrigger(conn, trigger.Key);
+                        }
+                        groupNames.Add(jobKey.Group);
+                    }
+                    return groupNames;
+                });
         }
 
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
-        /// <seealso cref="ResumeTriggerGroup(string)" />
-        public virtual void PauseTriggerGroup(string groupName)
+        /// <seealso cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
+        public virtual IList<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            ExecuteInLock(LockTriggerAccess, conn => PauseTriggerGroup(conn, groupName));
+            return (IList<string>)ExecuteInLock(LockTriggerAccess, conn => PauseTriggers(conn, matcher));
         }
 
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
-        public virtual void PauseTriggerGroup(ConnectionAndTransactionHolder conn, string groupName)
+        public virtual IList<string> PauseTriggers(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             try
             {
-                Delegate.UpdateTriggerGroupStateFromOtherStates(conn, groupName, StatePaused,
+                Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, StatePaused,
                                                                 StateAcquired, StateWaiting,
                                                                 StateWaiting);
 
-                Delegate.UpdateTriggerGroupStateFromOtherState(conn, groupName, StatePausedBlocked,
+                Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, StatePausedBlocked,
                                                                StateBlocked);
 
-                if (!Delegate.IsTriggerGroupPaused(conn, groupName))
+                IList<String> groups = Delegate.SelectTriggerGroups(conn, matcher);
+
+                foreach (string group in groups)
                 {
-                    Delegate.InsertPausedTriggerGroup(conn, groupName);
+                    if (!Delegate.IsTriggerGroupPaused(conn, group))
+                    {
+                        Delegate.InsertPausedTriggerGroup(conn, group);
+                    }
                 }
+
+                return groups;
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't pause trigger group '" + groupName + "': " + e.Message, e);
+                throw new JobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
             }
         }
 
@@ -2166,9 +2181,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        public virtual void ResumeTriggerGroup(string groupName)
+        public virtual IList<string> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            ExecuteInLock(LockTriggerAccess, conn => ResumeTriggerGroup(conn, groupName));
+            return (IList<string>)ExecuteInLock(LockTriggerAccess, conn => ResumeTriggers(conn, matcher));
         }
 
         /// <summary>
@@ -2179,19 +2194,22 @@ namespace Quartz.Impl.AdoJobStore
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </p>
         /// </summary>
-        public virtual void ResumeTriggerGroup(ConnectionAndTransactionHolder conn,
-                                               string groupName)
+        public virtual IList<string> ResumeTriggers(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             try
             {
-                Delegate.DeletePausedTriggerGroup(conn, groupName);
+                Delegate.DeletePausedTriggerGroup(conn, matcher);
+                Collection.HashSet<string> groups = new Collection.HashSet<string>();
 
-                IList<TriggerKey> triggerNames = Delegate.SelectTriggersInGroup(conn, groupName);
+                Collection.ISet<TriggerKey> keys = Delegate.SelectTriggersInGroup(conn, matcher);
 
-                foreach (TriggerKey triggerKey in triggerNames)
+                foreach (TriggerKey key in keys)
                 {
-                    ResumeTrigger(conn, triggerKey);
+                    ResumeTrigger(conn, key);
+                    groups.Add(key.Group);
                 }
+
+                return new List<string>(groups);
 
                 // TODO: find an efficient way to resume triggers (better than the
                 // above)... logic below is broken because of
@@ -2228,7 +2246,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't pause trigger group '" + groupName + "': " + e.Message, e);
+                throw new JobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
             }
         }
 
@@ -2238,7 +2256,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroup(string)" />
+        /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey})" />
         /// on every group.
         /// <p>
         /// When <see cref="ResumeAll()" /> is called (to un-pause), trigger misfire
@@ -2253,7 +2271,7 @@ namespace Quartz.Impl.AdoJobStore
 
             foreach (string groupName in groupNames)
             {
-                PauseTriggerGroup(conn, groupName);
+                PauseTriggers(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName));
             }
 
             try
@@ -2271,7 +2289,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(string)" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
         /// on every group.
         /// </summary>
         /// <remarks>
@@ -2285,7 +2303,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroup(string)" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
         /// on every group.
         /// <p>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -2299,7 +2317,7 @@ namespace Quartz.Impl.AdoJobStore
 
             foreach (string groupName in triggerGroupNames)
             {
-                ResumeTriggerGroup(conn, groupName);
+                ResumeTriggers(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName));
             }
 
             try
