@@ -310,6 +310,7 @@
     <Compile Include="Impl\Triggers\SimpleTriggerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Simpl\SystemPropertyInstanceIdGenerator.cs" />
     <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
       <SubType>Code</SubType>
     </Compile>

@@ -420,6 +420,7 @@
     <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPlugin.cs" />
     <Compile Include="ScheduleBuilder.cs" />
     <Compile Include="SimpleScheduleBuilder.cs" />
+    <Compile Include="Simpl\SystemPropertyInstanceIdGenerator.cs" />
     <Compile Include="SPI\IMutableTrigger.cs" />
     <Compile Include="SPI\IOperableTrigger.cs" />
     <Compile Include="SPI\TriggerFiredResult.cs" />
