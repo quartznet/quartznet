@@ -20,61 +20,66 @@
 #endregion
 
 using Quartz.Util;
+using System;
 
 namespace Quartz
 {
-    /// <summary>
-    /// Uniquely identifies a <see cref="IJobDetail" />.
-    /// </summary>
-    /// <remarks>
-    /// <p>Keys are composed of both a name and group, and the name must be unique
-    /// within the group.  If only a group is specified then the default group
-    /// name will be used.</p> 
-    /// 
-    /// <p>Quartz provides a builder-style API for constructing scheduling-related
-    /// entities via a Domain-Specific Language (DSL).  The DSL can best be
-    /// utilized through the usage of static imports of the methods on the classes
-    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />, 
-    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" /> 
-    /// and the various <see cref="IScheduleBuilder" /> implementations.</p>
-    /// 
-    /// <p>Client code can then use the DSL to write code such as this:</p>
-    /// <pre>
-    ///         JobDetail job = NewJob(typepof(MyJob))
-    ///             .WithIdentity("myJob")
-    ///             .Build();
-    ///             
-    ///         Trigger trigger = NewTrigger() 
-    ///             .WithIdentity(TriggerKey("myTrigger", "myTriggerGroup"))
-    ///             .WithSchedule(SimpleSchedule()
-    ///                 .WithIntervalInHours(1)
-    ///                 .RepeatForever())
-    ///             .StartAt(FutureDate(10, MINUTES))
-    ///             .Build();
-    ///         
-    ///         scheduler.ScheduleJob(job, trigger);
-    /// </pre>
-    /// </remarks>
-    /// <seealso cref="IJob"/>
-    /// <seealso cref="Key{T}.DefaultGroup" />
-    public sealed class JobKey : Key<JobKey>
-    {
-        public JobKey(string name) : base(name, null)
-        {
-        }
+	/// <summary>
+	/// Uniquely identifies a <see cref="IJobDetail" />.
+	/// </summary>
+	/// <remarks>
+	/// <p>Keys are composed of both a name and group, and the name must be unique
+	/// within the group.  If only a group is specified then the default group
+	/// name will be used.</p> 
+	/// 
+	/// <p>Quartz provides a builder-style API for constructing scheduling-related
+	/// entities via a Domain-Specific Language (DSL).  The DSL can best be
+	/// utilized through the usage of static imports of the methods on the classes
+	/// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />, 
+	/// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" /> 
+	/// and the various <see cref="IScheduleBuilder" /> implementations.</p>
+	/// 
+	/// <p>Client code can then use the DSL to write code such as this:</p>
+	/// <pre>
+	///         JobDetail job = NewJob(typepof(MyJob))
+	///             .WithIdentity("myJob")
+	///             .Build();
+	///             
+	///         Trigger trigger = NewTrigger() 
+	///             .WithIdentity(TriggerKey("myTrigger", "myTriggerGroup"))
+	///             .WithSchedule(SimpleSchedule()
+	///                 .WithIntervalInHours(1)
+	///                 .RepeatForever())
+	///             .StartAt(FutureDate(10, MINUTES))
+	///             .Build();
+	///         
+	///         scheduler.ScheduleJob(job, trigger);
+	/// </pre>
+	/// </remarks>
+	/// <seealso cref="IJob"/>
+	/// <seealso cref="Key{T}.DefaultGroup" />
 
-        public JobKey(string name, string group) : base(name, group)
-        {
-        }
+	[Serializable]
+	public sealed class JobKey : Key<JobKey>
+	{
+		public JobKey(string name)
+			: base(name, null)
+		{
+		}
 
-        public static JobKey CreateJobKey(string name)
-        {
-            return new JobKey(name, null);
-        }
+		public JobKey(string name, string group)
+			: base(name, group)
+		{
+		}
 
-        public static JobKey CreateJobKey(string name, string group)
-        {
-            return new JobKey(name, group);
-        }
-    }
+		public static JobKey CreateJobKey(string name)
+		{
+			return new JobKey(name, null);
+		}
+
+		public static JobKey CreateJobKey(string name, string group)
+		{
+			return new JobKey(name, group);
+		}
+	}
 }

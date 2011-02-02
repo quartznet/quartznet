@@ -19,43 +19,50 @@
 
 #endregion
 
+using System;
 namespace Quartz.Impl.Matchers
 {
-    public abstract class StringOperator
-    {
-        public static readonly StringOperator Equality = new EqualityOperator();
-        public static readonly StringOperator StartsWith = new StartsWithOperator();
-        public static readonly StringOperator EndsWith = new EndsWithOperator();
-        public static readonly StringOperator Contains = new ContainsOperator();
+	[Serializable]
+	public abstract class StringOperator
+	{
+		public static readonly StringOperator Equality = new EqualityOperator();
+		public static readonly StringOperator StartsWith = new StartsWithOperator();
+		public static readonly StringOperator EndsWith = new EndsWithOperator();
+		public static readonly StringOperator Contains = new ContainsOperator();
 
-        public abstract bool Evaluate(string value, string compareTo);
+		public abstract bool Evaluate(string value, string compareTo);
 
-        private class EqualityOperator : StringOperator
-        {
-            public override bool Evaluate(string value, string compareTo) {
-                return value.Equals(compareTo);
-            }
-        }
+		private class EqualityOperator : StringOperator
+		{
+			public override bool Evaluate(string value, string compareTo)
+			{
+				return value.Equals(compareTo);
+			}
+		}
 
-        private class StartsWithOperator : StringOperator
-        {
-            public override bool Evaluate(string value, string compareTo) {
-                return value.StartsWith(compareTo);
-            }
-        }
+		private class StartsWithOperator : StringOperator
+		{
+			public override bool Evaluate(string value, string compareTo)
+			{
+				return value.StartsWith(compareTo);
+			}
+		}
 
-        private class EndsWithOperator : StringOperator
-        {
-             public override bool Evaluate(string value, string compareTo) {
-                return value.EndsWith(compareTo);
-            }
-        }
-        
-        private class ContainsOperator : StringOperator
-        {
-            public override bool Evaluate(string value, string compareTo) {
-                return value.Contains(compareTo);
-            }
-        }
-    }
+		private class EndsWithOperator : StringOperator
+		{
+			public override bool Evaluate(string value, string compareTo)
+			{
+				return value.EndsWith(compareTo);
+			}
+		}
+
+		[Serializable]
+		private class ContainsOperator : StringOperator
+		{
+			public override bool Evaluate(string value, string compareTo)
+			{
+				return value.Contains(compareTo);
+			}
+		}
+	}
 }
