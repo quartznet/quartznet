@@ -32,6 +32,7 @@ namespace Quartz.Impl.Matchers
 
 		public abstract bool Evaluate(string value, string compareTo);
 
+		[Serializable]
 		private class EqualityOperator : StringOperator
 		{
 			public override bool Evaluate(string value, string compareTo)
@@ -40,6 +41,7 @@ namespace Quartz.Impl.Matchers
 			}
 		}
 
+		[Serializable]
 		private class StartsWithOperator : StringOperator
 		{
 			public override bool Evaluate(string value, string compareTo)
@@ -48,6 +50,7 @@ namespace Quartz.Impl.Matchers
 			}
 		}
 
+		[Serializable]
 		private class EndsWithOperator : StringOperator
 		{
 			public override bool Evaluate(string value, string compareTo)
