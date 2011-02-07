@@ -19,8 +19,11 @@
 
 #endregion
 
+using System;
+
 namespace Quartz.Impl.Matchers
 {
+    [Serializable]
     public abstract class StringOperator
     {
         public static readonly StringOperator Equality = new EqualityOperator();
@@ -30,6 +33,7 @@ namespace Quartz.Impl.Matchers
 
         public abstract bool Evaluate(string value, string compareTo);
 
+        [Serializable]
         private class EqualityOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {
@@ -37,6 +41,7 @@ namespace Quartz.Impl.Matchers
             }
         }
 
+        [Serializable]
         private class StartsWithOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {
@@ -44,13 +49,15 @@ namespace Quartz.Impl.Matchers
             }
         }
 
+        [Serializable]
         private class EndsWithOperator : StringOperator
         {
              public override bool Evaluate(string value, string compareTo) {
                 return value.EndsWith(compareTo);
             }
         }
-        
+
+        [Serializable]
         private class ContainsOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {

@@ -28,6 +28,7 @@ namespace Quartz.Util
     /// </summary>
     /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>Marko Lahma (.NET)</author>
+    [Serializable]
     public class Key<T> : IComparable<Key<T>>
     {
         // The default group for scheduling entities, with the value "DEFAULT".
