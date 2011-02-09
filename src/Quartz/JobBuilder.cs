@@ -256,7 +256,7 @@ namespace Quartz
 
         /// <summary>
         /// Whether or not the <code>Job</code> should remain stored after it is
-        /// orphaned (no <code>{@link Trigger}s</code> point to it).
+        /// orphaned (no <code><see cref="ITrigger" />s</code> point to it).
         /// </summary>
         /// <remarks>
         /// If not explicitly set, the default value is <code>false</code>.
@@ -271,7 +271,7 @@ namespace Quartz
 
         /// <summary>
         /// Whether or not the <code>Job</code> should remain stored after it is
-        /// orphaned (no <code>{@link Trigger}s</code> point to it).
+        /// orphaned (no <code><see cref="ITrigger" />s</code> point to it).
         /// </summary>
         /// <remarks>
         /// If not explicitly set, the default value is <code>false</code>.
@@ -286,7 +286,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
@@ -297,7 +297,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
@@ -308,7 +308,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
@@ -319,7 +319,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
@@ -330,7 +330,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
@@ -341,7 +341,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the JobDetail's {@link JobDataMap}.
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
@@ -352,7 +352,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the JobDetail's {@link JobDataMap}, adding any values to it
+        /// Set the JobDetail's <see cref="JobDataMap" />, adding any values to it
         /// that were already set on this JobBuilder using any of the
         /// other 'usingJobData' methods. 
         /// </summary>

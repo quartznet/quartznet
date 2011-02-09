@@ -27,7 +27,7 @@ using Quartz.Spi;
 namespace Quartz
 {
     /// <summary>
-    /// <code>SimpleScheduleBuilder</code> is a {@link ScheduleBuilder}
+    /// <code>SimpleScheduleBuilder</code> is a <see cref="IScheduleBuilder" />
     /// that defines strict/literal interval-based schedules for
     /// <code>Trigger</code>s.
     /// </summary>

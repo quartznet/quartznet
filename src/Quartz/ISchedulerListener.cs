@@ -161,7 +161,7 @@ namespace Quartz
 
 
         /// <summary>
-        /// Called by the <code>{@link Scheduler}</code> to inform the listener
+        /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that all jobs, triggers and calendars were deleted.
         /// </summary>
         void SchedulingDataCleared();

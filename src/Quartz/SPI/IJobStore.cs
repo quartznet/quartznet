@@ -220,8 +220,8 @@ namespace Quartz.Spi
         bool CheckExists(TriggerKey triggerKey);
 
         /// <summary>
-        /// Clear (delete!) all scheduling data - all {@link Job}s, {@link Trigger}s
-        /// {@link Calendar}s.
+        /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
+        /// <see cref="ICalendar" />s.
         /// </summary>
         /// <remarks>
         /// </remarks>

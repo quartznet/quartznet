@@ -1667,7 +1667,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Determine whether a {@link Job} with the given identifier already
+        /// Determine whether a <see cref="IJob"/> with the given identifier already
         /// exists within the scheduler.
         /// </summary>
         /// <remarks>
@@ -1693,7 +1693,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Determine whether a {@link Trigger} with the given identifier already
+        /// Determine whether a <see cref="ITrigger" /> with the given identifier already
         /// exists within the scheduler.
         /// </summary>
         /// <remarks>
@@ -1719,8 +1719,8 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Clear (delete!) all scheduling data - all {@link Job}s, {@link Trigger}s
-        /// {@link Calendar}s.
+        /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
+        /// <see cref="ICalendar" />s.
         /// </summary>
         /// <remarks>
         /// </remarks>

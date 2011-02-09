@@ -31,7 +31,7 @@ namespace Quartz.Impl.AdoJobStore
     /// A base implementation of {@link TriggerPersistenceDelegate} that persists
     /// trigger fields in the "QRTZ_SIMPROP_TRIGGERS" table.  This allows extending
     /// concrete classes to simply implement a couple methods that do the work of
-    /// getting/setting the trigger's fields, and creating the {@link ScheduleBuilder}
+    /// getting/setting the trigger's fields, and creating the <see cref="IScheduleBuilder" />
     /// for the particular type of trigger.
     /// </summary>
     /// <remarks>

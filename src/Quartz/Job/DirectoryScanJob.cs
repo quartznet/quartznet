@@ -6,47 +6,37 @@ using Common.Logging;
 
 namespace Quartz.Job
 {
-/**
- * Inspects a directory and compares whether any files' "last modified dates" 
- * have changed since the last time it was inspected.  If one or more files 
- * have been updated (or created), the job invokes a "call-back" method on an 
- * identified <code>DirectoryScanListener</code> that can be found in the 
- * <code>SchedulerContext</code>.
- * 
- * @author pl47ypus
- * @author jhouse
- * @see org.quartz.jobs.DirectoryScanListener
- * @see org.quartz.SchedulerContext
- */
-
+    ///<summary>
+    /// Inspects a directory and compares whether any files' "last modified dates" 
+    /// have changed since the last time it was inspected.  If one or more files 
+    /// have been updated (or created), the job invokes a "call-back" method on an 
+    /// identified <see cref="IDirectoryScanListener"/> that can be found in the
+    /// <see cref="SchedulerContext"/>.
+    /// </summary>
+    /// <author>pl47ypus</author>
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+    /// 
     [DisallowConcurrentExecution]
     [PersistJobDataAfterExecution]
     public class DirectoryScanJob : IJob
     {
-        /**
-     * <code>JobDataMap</code> key with which to specify the directory to be 
-     * monitored - an absolute path is recommended. 
-     */
+        ///<see cref="JobDataMap"/> key with which to specify the directory to be 
+        /// monitored - an absolute path is recommended. 
         public const string DIRECTORY_NAME = "DIRECTORY_NAME";
 
-        /**
-     * <code>JobDataMap</code> key with which to specify the 
-     * {@link org.quartz.jobs.DirectoryScanListener} to be 
-     * notified when the directory contents change.  
-     */
+        /// <see cref="JobDataMap"/> key with which to specify the 
+        /// <see cref="IDirectoryScanListener"/> to be 
+        /// notified when the directory contents change.  
         public const string DIRECTORY_SCAN_LISTENER_NAME = "DIRECTORY_SCAN_LISTENER_NAME";
 
-        /**
-     * <code>JobDataMap</code> key with which to specify a <code>long</code>
-     * value that represents the minimum number of milliseconds that must have
-     * past since the file's last modified time in order to consider the file
-     * new/altered.  This is necessary because another process may still be
-     * in the middle of writing to the file when the scan occurs, and the
-     * file may therefore not yet be ready for processing.
-     * 
-     * <p>If this parameter is not specified, a default value of 
-     * <code>5000</code> (five seconds) will be used.</p>
-     */
+       /// <see cref="JobDataMap"/> key with which to specify a <see cref="long"/>
+       /// value that represents the minimum number of milliseconds that must have
+       /// passed since the file's last modified time in order to consider the file
+       /// new/altered.  This is necessary because another process may still be
+       /// in the middle of writing to the file when the scan occurs, and the
+       ///  file may therefore not yet be ready for processing.
+       /// <p>If this parameter is not specified, a default value of <pre>5000</pre> (five seconds) will be used.</p>
         public const string MINIMUM_UPDATE_AGE = "MINIMUM_UPDATE_AGE";
 
         private const string LAST_MODIFIED_TIME = "LAST_MODIFIED_TIME";
@@ -58,10 +48,12 @@ namespace Quartz.Job
             log = LogManager.GetLogger(GetType());
         }
 
-        /** 
-     * @see org.quartz.Job#execute(org.quartz.JobExecutionContext)
-     */
-
+       /// <summary>
+       /// This is the main entry point for job execution. The scheduler will call this method on the 
+       /// job once it is triggered.
+       /// </summary>
+        /// <param name="context">The <see cref="IJobExecutionContext"/> that 
+        /// the job will use during execution.</param>
         public void Execute(IJobExecutionContext context)
         {
             JobDataMap mergedJobDataMap = context.MergedJobDataMap;

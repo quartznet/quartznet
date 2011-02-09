@@ -28,7 +28,7 @@ namespace Quartz
 {
 
     /// <summary>
-    /// <code>CronScheduleBuilder</code> is a {@link ScheduleBuilder} that defines
+    /// <code>CronScheduleBuilder</code> is a <see cref="IScheduleBuilder" /> that defines
     /// {@link CronExpression}-based schedules for <code>Trigger</code>s.
     /// </summary>
     /// <remarks>

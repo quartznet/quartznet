@@ -38,7 +38,7 @@ namespace Quartz
         public const int SmartPolicy = 0;
 
         /// <summary>
-        /// Instructs the <code>{@link Scheduler}</code> that the
+        /// Instructs the <see cref="IScheduler" /> that the
         /// <code>Trigger</code> will never be evaluated for a misfire situation,
         /// and that the scheduler will simply try to fire it as soon as it can,
         /// and then update the Trigger as if it had fired at the proper time.

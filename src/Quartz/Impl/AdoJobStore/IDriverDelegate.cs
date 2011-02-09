@@ -743,8 +743,8 @@ namespace Quartz.Impl.AdoJobStore
 
     
         /// <summary>
-        /// Clear (delete!) all scheduling data - all {@link Job}s, {@link Trigger}s
-        /// {@link Calendar}s.
+        /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
+        /// <see cref="ICalendar" />s.
         /// </summary>
         /// <param name="conn"></param>
         void ClearData(ConnectionAndTransactionHolder conn);

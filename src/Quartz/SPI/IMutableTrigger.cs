@@ -17,7 +17,7 @@ namespace Quartz.Spi
 
         /// <summary>
         /// <p>
-        /// Associate the <code>{@link Calendar}</code> with the given name with
+        /// Associate the <code><see cref="ICalendar" /></code> with the given name with
         /// this Trigger.
         /// </p>
         /// </summary>

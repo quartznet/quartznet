@@ -749,7 +749,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get a {@link ScheduleBuilder} that is configured to produce a
+        /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a
         /// schedule identical to this trigger's schedule.
         /// </summary>
         /// <remarks>

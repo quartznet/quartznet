@@ -6,7 +6,7 @@ using Quartz.Spi;
 namespace Quartz
 {
     /// <summary>
-    /// <code>CalendarIntervalScheduleBuilder</code> is a {@link ScheduleBuilder}
+    /// <code>CalendarIntervalScheduleBuilder</code> is a <see cref="IScheduleBuilder" />
     /// that defines calendar time (day, week, month, year) interval-based
     /// schedules for <code>Trigger</code>s.
     /// </summary>

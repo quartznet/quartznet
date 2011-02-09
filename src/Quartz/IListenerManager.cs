@@ -27,10 +27,10 @@ namespace Quartz
 {
     /// <summary>
     /// Client programs may be interested in the 'listener' interfaces that are
-    /// available from Quartz. The <code>{@link JobListener}</code> interface
+    /// available from Quartz. The <see cref="IJobListener" /> interface
     /// provides notifications of <code>Job</code> executions. The
-    /// <code>{@link TriggerListener}</code> interface provides notifications of
-    /// <code>Trigger</code> firings. The <code>{@link SchedulerListener}</code>
+    /// <see cref="ITriggerListener" /> interface provides notifications of
+    /// <code>Trigger</code> firings. The <see cref="ISchedulerListener" />
     /// interface provides notifications of <code>Scheduler</code> events and
     /// errors.  Listeners can be associated with local schedulers through the
     /// {@link ListenerManager} interface.
@@ -42,7 +42,7 @@ namespace Quartz
     public interface IListenerManager
     {
         /// <summary>
-        /// Add the given <code>{@link JobListener}</code> to the <code>Scheduler</code>,
+        /// Add the given <see cref="IJobListener" /> to the <code>Scheduler</code>,
         /// and register it to receive events for Jobs that are matched by ANY of the
         /// given Matchers.
         /// </summary>
@@ -54,7 +54,7 @@ namespace Quartz
         void AddJobListener(IJobListener jobListener, params IMatcher<JobKey>[] matchers);
 
         /// <summary>
-        /// Add the given <code>{@link JobListener}</code> to the <code>Scheduler</code>,
+        /// Add the given <see cref="IJobListener" /> to the <code>Scheduler</code>,
         /// and register it to receive events for Jobs that are matched by ANY of the
         /// given Matchers.
         /// </summary>
@@ -110,7 +110,7 @@ namespace Quartz
         IList<IMatcher<JobKey>> GetJobListenerMatchers(string listenerName);
 
         /// <summary>
-        /// Remove the identified <code>{@link JobListener}</code> from the <code>Scheduler</code>.
+        /// Remove the identified <see cref="IJobListener" /> from the <code>Scheduler</code>.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -118,18 +118,18 @@ namespace Quartz
         bool RemoveJobListener(string name);
 
         /// <summary>
-        /// Get a List containing all of the <code>{@link JobListener}</code>s in
+        /// Get a List containing all of the <see cref="IJobListener" />s in
         /// the <code>Scheduler</code>.
         /// </summary>
         IList<IJobListener> GetJobListeners();
 
         /// <summary>
-        /// Get the <code>{@link JobListener}</code> that has the given name.
+        /// Get the <see cref="IJobListener" /> that has the given name.
         /// </summary>
         IJobListener GetJobListener(string name);
 
         /// <summary>
-        /// Add the given <code>{@link TriggerListener}</code> to the <code>Scheduler</code>,
+        /// Add the given <see cref="ITriggerListener" /> to the <code>Scheduler</code>,
         /// and register it to receive events for Triggers that are matched by ANY of the
         /// given Matchers.
         /// </summary>
@@ -141,7 +141,7 @@ namespace Quartz
         void AddTriggerListener(ITriggerListener triggerListener, params IMatcher<TriggerKey>[] matchers);
 
         /// <summary>
-        /// Add the given <code>{@link TriggerListener}</code> to the <code>Scheduler</code>,
+        /// Add the given <see cref="ITriggerListener" /> to the <code>Scheduler</code>,
         /// and register it to receive events for Triggers that are matched by ANY of the
         /// given Matchers.
         /// </summary>
@@ -197,7 +197,7 @@ namespace Quartz
         IList<IMatcher<TriggerKey>> GetTriggerListenerMatchers(string listenerName);
 
         /// <summary>
-        /// Remove the identified <code>{@link TriggerListener}</code> from the <code>Scheduler</code>.
+        /// Remove the identified <see cref="ITriggerListener" /> from the <code>Scheduler</code>.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -206,24 +206,24 @@ namespace Quartz
         bool RemoveTriggerListener(string name);
 
         /// <summary>
-        /// Get a List containing all of the <code>{@link TriggerListener}</code>s
+        /// Get a List containing all of the <see cref="ITriggerListener" />s
         /// in the <code>Scheduler</code>.
         /// </summary>
         IList<ITriggerListener> GetTriggerListeners();
 
         /// <summary>
-        /// Get the <code>{@link TriggerListener}</code> that has the given name.
+        /// Get the <see cref="ITriggerListener" /> that has the given name.
         /// </summary>
         ITriggerListener GetTriggerListener(string name);
 
         /// <summary>
-        /// Register the given <code>{@link SchedulerListener}</code> with the
+        /// Register the given <see cref="ISchedulerListener" /> with the
         /// <code>Scheduler</code>.
         /// </summary>
         void AddSchedulerListener(ISchedulerListener schedulerListener);
 
         /// <summary>
-        /// Remove the given <code>{@link SchedulerListener}</code> from the
+        /// Remove the given <see cref="ISchedulerListener" /> from the
         /// <code>Scheduler</code>.
         /// </summary>
         /// <remarks>
@@ -232,7 +232,7 @@ namespace Quartz
         bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
 
         /// <summary>
-        /// Get a List containing all of the <code>{@link SchedulerListener}</code>s
+        /// Get a List containing all of the <see cref="ISchedulerListener" />s
         /// registered with the <code>Scheduler</code>.
         /// </summary>
         IList<ISchedulerListener> GetSchedulerListeners();

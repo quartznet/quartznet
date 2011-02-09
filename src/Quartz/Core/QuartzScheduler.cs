@@ -1008,7 +1008,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Store and schedule the identified <code>{@link org.quartz.spi.OperableTrigger}</code>
+        /// Store and schedule the identified <see cref="IOperableTrigger"/>
         /// </summary>
         /// <param name="trig"></param>
         public void TriggerJob(IOperableTrigger trig)
@@ -1326,7 +1326,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Determine whether a {@link Job} with the given identifier already
+        /// Determine whether a <see cref="IJob"/> with the given identifier already
         /// exists within the scheduler.
         /// </summary>
         /// <remarks>
@@ -1341,7 +1341,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Determine whether a {@link Trigger} with the given identifier already
+        /// Determine whether a <see cref="ITrigger" /> with the given identifier already
         /// exists within the scheduler.
         /// </summary>
         /// <remarks>
@@ -1356,8 +1356,8 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Clears (deletes!) all scheduling data - all {@link Job}s, {@link Trigger}s
-        /// {@link Calendar}s.
+        /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
+        /// <see cref="ICalendar" />s.
         /// </summary>
         public void Clear()
         {
@@ -1454,7 +1454,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Get a List containing all of the <code>{@link org.quartz.JobListener}</code>s
+        /// Get a List containing all of the <see cref="IJobListener" />s
         /// in the <code>Scheduler</code>'s <i>internal</i> list.
         /// </summary>
         /// <returns></returns>
@@ -1533,7 +1533,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Get the <i>internal</i> <code>{@link TriggerListener}</code> that
+        /// Get the <i>internal</i> <see cref="ITriggerListener" /> that
         /// has the given name.
         /// </summary>
         /// <param name="name"></param>

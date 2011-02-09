@@ -3,7 +3,7 @@ using Quartz.Util;
 namespace Quartz
 {
     ///<summary>
-    /// Uniquely identifies a {@link Trigger}.
+    /// Uniquely identifies a <see cref="ITrigger" />.
     /// </summary>
     /// <remarks>
     /// <p>Keys are composed of both a name and group, and the name must be unique

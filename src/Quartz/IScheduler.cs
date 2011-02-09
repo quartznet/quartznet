@@ -338,7 +338,7 @@ namespace Quartz
         bool UnscheduleJob(TriggerKey triggerKey);
 
         /// <summary>
-        /// Remove all of the indicated <code>{@link Trigger}</code>s from the scheduler.
+        /// Remove all of the indicated <code><see cref="ITrigger" /></code>s from the scheduler.
         /// </summary>
         /// <remarks>
         /// <p>If the related job does not have any other triggers, and the job is

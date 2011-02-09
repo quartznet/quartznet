@@ -612,7 +612,7 @@ namespace Quartz.Simpl
 		}
 
 	    /**
-         * Determine whether a {@link Job} with the given identifier already 
+         * Determine whether a <see cref="IJob"/> with the given identifier already 
          * exists within the scheduler.
          * 
          * @param jobKey the identifier to check for
@@ -628,7 +628,7 @@ namespace Quartz.Simpl
 	    }
 
 	    /**
-         * Determine whether a {@link Trigger} with the given identifier already 
+         * Determine whether a <see cref="ITrigger" /> with the given identifier already 
          * exists within the scheduler.
          * 
          * @param triggerKey the identifier to check for

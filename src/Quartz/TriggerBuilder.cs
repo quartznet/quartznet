@@ -25,7 +25,7 @@ using Quartz.Util;
 namespace Quartz
 {
     /// <summary>
-    /// <code>TriggerBuilder</code> is used to instantiate {@link Trigger}s.
+    /// <code>TriggerBuilder</code> is used to instantiate <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
     /// <p>Quartz provides a builder-style API for constructing scheduling-related
@@ -205,7 +205,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the name of the {@link Calendar} that should be applied to this
+        /// Set the name of the <see cref="ICalendar" /> that should be applied to this
         /// Trigger's schedule.
         /// </summary>
         /// <remarks>
@@ -270,7 +270,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the {@link ScheduleBuilder} that will be used to define the
+        /// Set the <see cref="IScheduleBuilder" /> that will be used to define the
         /// Trigger's schedule.
         /// </summary>
         /// <remarks>
@@ -358,7 +358,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -371,7 +371,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -384,7 +384,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -398,7 +398,7 @@ namespace Quartz
 
 
         /// <summary>
-        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -412,7 +412,7 @@ namespace Quartz
 
 
         /// <summary>
-        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -426,7 +426,7 @@ namespace Quartz
 
 
         /// <summary>
-        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -439,7 +439,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -453,7 +453,7 @@ namespace Quartz
 
 
         /// <summary>
-        /// Add the given key-value pair to the Trigger's {@link JobDataMap}.
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
