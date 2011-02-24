@@ -22,6 +22,7 @@ using System.Collections.Specialized;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using System;
 
 namespace Quartz.Tests.Unit.Impl
 {
@@ -46,7 +47,7 @@ namespace Quartz.Tests.Unit.Impl
             StdSchedulerFactory factory = new StdSchedulerFactory(new NameValueCollection());
             factory.GetScheduler();
         }
-        
+
         [Test]
         [ExpectedException(
             ExpectedException = typeof(SchedulerConfigException),
@@ -84,6 +85,21 @@ namespace Quartz.Tests.Unit.Impl
             NameValueCollection properties = new NameValueCollection();
             properties["my.unknown.property"] = "1";
             new StdSchedulerFactory(properties);
+        }
+        [Test]
+        public void TestFactoryShouldOverrideConfigurationWithSysProperties()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            var factory = new StdSchedulerFactory();
+            factory.Initialize();
+            var scheduler=factory.GetScheduler();
+            Assert.AreEqual("DefaultQuartzScheduler",scheduler.SchedulerName);
+
+            Environment.SetEnvironmentVariable("quartz.scheduler.instanceName", "fromSystemProperties");
+            factory = new StdSchedulerFactory();
+            scheduler = factory.GetScheduler();
+            Assert.AreEqual("fromSystemProperties", scheduler.SchedulerName);
+            
         }
     }
 }

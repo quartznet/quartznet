@@ -262,11 +262,11 @@ Please add configuration to your application config file to correctly initialize
         private static NameValueCollection OverrideWithSysProps(NameValueCollection props)
         {
             NameValueCollection retValue = new NameValueCollection(props);
-            ICollection keys = Environment.GetEnvironmentVariables().Keys;
+            IDictionary vars = Environment.GetEnvironmentVariables();
 
-            foreach (string key in keys)
+            foreach (string key in vars.Keys)
             {
-                retValue.Set(key, props[key]);
+                retValue.Set(key, vars[key] as string);
             }
             return retValue;
         }
