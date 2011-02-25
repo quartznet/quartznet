@@ -13,25 +13,25 @@ namespace Quartz.Util
             {
                 return null;
             }
-            return (string) columnValue;
+            return (string)columnValue;
         }
 
         public static int GetInt32(this IDataReader reader, string columnName)
         {
             object columnValue = reader[columnName];
-            return (int) columnValue;
+            return Convert.ToInt32(columnValue, CultureInfo.InvariantCulture);
         }
 
         public static long GetInt64(this IDataReader reader, string columnName)
         {
             object columnValue = reader[columnName];
-            return (long) columnValue;
+            return Convert.ToInt64(columnValue, CultureInfo.InvariantCulture);
         }
 
         public static decimal GetDecimal(this IDataReader reader, string columnName)
         {
             object columnValue = reader[columnName];
-            return (decimal) columnValue;
+            return Convert.ToDecimal(columnValue,CultureInfo.InvariantCulture);
         }
 
         public static bool GetBoolean(this IDataReader reader, string columnName)
@@ -43,7 +43,7 @@ namespace Quartz.Util
             {
                 return Convert.ToInt32(columnValue, CultureInfo.InvariantCulture) == 1;
             }
-            
+
             throw new ArgumentException("Value must be non-null.");
         }
     }
