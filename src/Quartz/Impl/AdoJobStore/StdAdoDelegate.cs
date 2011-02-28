@@ -1033,7 +1033,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 type = tDel.GetHandledTriggerTypeDiscriminator();
             }
-            AddCommandParameter(cmd, "triggerType", TriggerTypeSimple);
+            AddCommandParameter(cmd, "triggerType", type);
 
             AddCommandParameter(cmd, "triggerStartTime", Convert.ToDecimal(trigger.StartTimeUtc.Ticks));
             long endTime = 0;
