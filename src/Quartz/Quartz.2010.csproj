@@ -133,6 +133,7 @@
     <Compile Include="Impl\AdoJobStore\ITriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerPersistenceDelegateSupport.cs" />
     <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerProperties.cs" />
+    <Compile Include="Impl\AdoJobStore\SQLiteDelegate.cs" />
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
     <Compile Include="ICalendarIntervalTrigger.cs" />
     <Compile Include="IScheduleBuilder.cs" />
