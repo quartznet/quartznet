@@ -63,6 +63,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
         /// <param name="expandedSQL"></param>
+        /// <param name="expandedInsertSQL"></param>
         protected override void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL)
         {
             try

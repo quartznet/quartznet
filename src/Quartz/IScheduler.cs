@@ -357,6 +357,7 @@ namespace Quartz
         /// with the same job (the new trigger must have the job name &amp; group specified) 
         /// - however, the new trigger need not have the same name as the old trigger.
         /// </summary>
+        /// <param name="triggerKey">The <see cref="ITrigger" /> to be replaced.</param>
         /// <param name="newTrigger">
         /// The new <see cref="ITrigger" /> to be stored.
         /// </param>
@@ -416,6 +417,9 @@ namespace Quartz
         /// <param name="data">
         /// the (possibly <see langword="null" />) JobDataMap to be
         /// associated with the trigger that fires the job immediately.
+        /// </param>
+        /// <param name="jobKey">
+        /// The <see cref="JobKey"/> of the <see cref="IJob" /> to be executed.
         /// </param>
         void TriggerJob(JobKey jobKey, JobDataMap data);
 

@@ -64,6 +64,7 @@ namespace Quartz
 		/// <param name="numberOfJobsExec">The number of jobs executed.</param>
 		/// <param name="jsType">The job store type.</param>
 		/// <param name="jsPersistent">if set to <c>true</c>, job store is persistent.</param>
+		/// <param name="jsClustered">if set to <c>true</c>, the job store is clustered</param>
 		/// <param name="tpType">The thread pool type.</param>
 		/// <param name="tpSize">Size of the thread pool.</param>
 		/// <param name="version">The version string.</param>

@@ -48,6 +48,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
         /// </summary>
         /// <param name="tablePrefix">The table prefix.</param>
+        /// <param name="schedName">the scheduler name</param>
         /// <param name="selectWithLockSQL">The select with lock SQL.</param>
         /// <param name="dbProvider"></param>
         public StdRowLockSemaphore(string tablePrefix, string schedName, string selectWithLockSQL, IDbProvider dbProvider)

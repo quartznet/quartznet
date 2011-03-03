@@ -33,7 +33,7 @@ namespace Quartz.Util
     public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ICloneable
     {
         private bool dirty;
-        [NonSerialized] private bool locked;
+        [NonSerialized] private bool locked = false;
         private Dictionary<TKey, TValue> map;
         private readonly object syncRoot = new object();
 

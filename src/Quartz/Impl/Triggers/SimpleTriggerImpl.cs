@@ -47,7 +47,7 @@ namespace Quartz.Impl.Triggers
         private int repeatCount;
         private TimeSpan repeatInterval = TimeSpan.Zero;
         private int timesTriggered;
-        private bool complete;
+        private bool complete = false;
 
         /// <summary>
         /// Create a <see cref="SimpleTriggerImpl" /> with no settings.

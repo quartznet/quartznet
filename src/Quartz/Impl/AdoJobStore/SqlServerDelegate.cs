@@ -36,8 +36,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="logger">the logger to use during execution</param>
         /// <param name="tablePrefix">the prefix of all table names</param>
+        /// <param name="schedName">the scheduler name</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
+        /// <param name="typeLoadHelper">the type loader helper</param>
         public SqlServerDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
             : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper)
         {
@@ -49,8 +51,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="logger">The logger.</param>
         /// <param name="tablePrefix">The table prefix.</param>
+        /// <param name="schedName">the scheduler name</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
+        /// <param name="typeLoadHelper">the type loader helper</param>
         /// <param name="useProperties">if set to <c>true</c> [use properties].</param>
         public SqlServerDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper, bool useProperties)
             : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper, useProperties)

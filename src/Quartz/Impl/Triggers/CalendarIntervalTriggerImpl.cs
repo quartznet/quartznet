@@ -63,7 +63,7 @@ namespace Quartz.Impl.Triggers
         private int repeatInterval;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
         private int timesTriggered;
-        private bool complete;
+        private bool complete = false;
 
         /// <summary>
         /// Create a <code>DateIntervalTrigger</code> with no settings.

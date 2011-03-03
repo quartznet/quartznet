@@ -57,7 +57,7 @@ namespace Quartz.Simpl
         private bool makeThreadsDaemons;
         private ThreadPriority prio = ThreadPriority.Normal;
         private string threadNamePrefix;
-        private string schedulerInstanceName;
+        private string schedulerInstanceName = null;
 
         private List<WorkerThread> workers;
 

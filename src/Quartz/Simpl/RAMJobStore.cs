@@ -454,12 +454,14 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Remove (delete) the <see cref="ITrigger" /> with the
 		/// given name.
+        /// 
 		/// </summary>
 		/// <returns>
 		/// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
 		/// name and group was found and removed from the store.
 		/// </returns>
-		/// <param name="removeOrphanedJob">Whether to delete orpahaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
+        /// <param name="key">The <see cref="ITrigger" /> to be removed.</param>
+        /// <param name="removeOrphanedJob">Whether to delete orpahaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
         public virtual bool RemoveTrigger(TriggerKey key, bool removeOrphanedJob)
 		{
 		    bool found;
@@ -515,8 +517,9 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Replaces the trigger.
 		/// </summary>
-		/// <param name="newTrigger">The new trigger.</param>
-		/// <returns></returns>
+        /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
+        /// <param name="newTrigger">The new trigger.</param>
+        /// <returns></returns>
         public virtual bool ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger)
 		{
 			bool found;
