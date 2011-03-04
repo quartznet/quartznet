@@ -57,7 +57,7 @@ namespace Quartz.Impl
         private bool durability;
         private bool shouldRecover;
 
-        [NonSerialized] private JobKey key;
+        private JobKey key;
 
         /// <summary>
         /// Create a <see cref="IJobDetail" /> with no specified name or group, and
