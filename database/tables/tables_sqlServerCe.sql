@@ -1,3 +1,9 @@
+/* 
+
+These statements are here for your convenience. Uncomment them if you want to
+clear and recreate the database from scratch. If you are creating the database
+for the first time, there is no need to uncomment this section.
+
 ALTER TABLE [QRTZ_TRIGGERS] DROP CONSTRAINT FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS
 GO
 
@@ -42,6 +48,7 @@ GO
 
 DROP TABLE [QRTZ_TRIGGERS]
 GO
+*/
 
 CREATE TABLE [QRTZ_CALENDARS] (
   [SCHED_NAME] [NVARCHAR] (100)  NOT NULL ,
