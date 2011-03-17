@@ -382,6 +382,7 @@
     <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerProperties.cs" />
     <Compile Include="Impl\AdoJobStore\SimpleSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\SimpleTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\SQLiteDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\SqlServerDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\StdAdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\StdAdoDelegate.cs" />
