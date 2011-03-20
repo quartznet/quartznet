@@ -292,7 +292,7 @@ Please add configuration to your application config file to correctly initialize
 
             // determine currently supported configuration keys via reflection
             List<string> supportedKeys = new List<string>();
-            List<FieldInfo> fields = new List<FieldInfo>(GetType().GetFields(BindingFlags.Static | BindingFlags.Public));
+            List<FieldInfo> fields = new List<FieldInfo>(GetType().GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy));
             // choose constant string fields
             fields = fields.FindAll(field => field.FieldType == typeof (string));
 
