@@ -55,6 +55,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
         /// </summary>
         /// <param name="tablePrefix">The table prefix.</param>
+        /// <param name="schedName">the scheduler name</param>
         /// <param name="defaultInsertSQL">The SQL.</param>
         /// <param name="defaultSQL">The default SQL.</param>
         /// <param name="dbProvider">The db provider.</param>
@@ -106,6 +107,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
         /// <param name="expandedSQL"></param>
+        /// <param name="expandedInsertSQL"></param>
         protected abstract void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL);
 
 

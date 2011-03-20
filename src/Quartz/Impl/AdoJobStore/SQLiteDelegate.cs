@@ -39,7 +39,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="schedName">the scheduler name</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider</param>
-        /// <param name="typeLoadHelper">the type loader hgelper</param>
+        /// <param name="typeLoadHelper">the type loader helper</param>
         public SQLiteDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
             : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper)
         {
@@ -54,7 +54,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="schedName">the scheduler name</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider</param>
-        /// <param name="typeLoadHelper">the type loader hgelper</param>
+        /// <param name="typeLoadHelper">the type loader helper</param>
         /// <param name="useProperties">if set to <c>true</c>, use properties</param>
         public SQLiteDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider,
                               ITypeLoadHelper typeLoadHelper, bool useProperties)

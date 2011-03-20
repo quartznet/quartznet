@@ -62,8 +62,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="logger">the logger to use during execution</param>
         /// <param name="tablePrefix">the prefix of all table names</param>
+        /// <param name="schedName">the scheduler name</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
+        /// <param name="typeLoadHelper">the type loader helper</param>
         public StdAdoDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
         {
             this.logger = logger;
@@ -81,8 +83,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="logger">the logger to use during execution</param>
         /// <param name="tablePrefix">the prefix of all table names</param>
+        /// <param name="schedName">the scheduler name</param>
         /// <param name="instanceId">The instance id.</param>
         /// <param name="dbProvider">The db provider.</param>
+        /// <param name="typeLoadHelper">the type loader helper</param>
         /// <param name="useProperties">if set to <c>true</c> [use properties].</param>
         public StdAdoDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider,
                               ITypeLoadHelper typeLoadHelper, bool useProperties)
@@ -2236,6 +2240,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="trigger"></param>
         /// the trigger
         /// <param name="state"></param>
+        /// <param name="job"></param>
         /// the state that the trigger should be stored in
         /// <returns>the number of rows inserted</returns>
         public int UpdateFiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail job)

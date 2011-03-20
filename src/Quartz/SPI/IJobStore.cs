@@ -182,6 +182,7 @@ namespace Quartz.Spi
         /// given name, and store the new given one - which must be associated
         /// with the same job.
         /// </summary>
+        /// <param name="triggerKey">The <see cref="ITrigger"/> to be replaced.</param>
         /// <param name="newTrigger">The new <see cref="ITrigger" /> to be stored.</param>
         /// <returns>
         /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
@@ -479,6 +480,8 @@ namespace Quartz.Spi
         /// <param name="noLaterThan">If &gt; 0, the JobStore should only return a Trigger
         /// that will fire no later than the time represented in this value as
         /// milliseconds.</param>
+        /// <param name="maxCount"></param>
+        /// <param name="timeWindow"></param>
         /// <returns></returns>
         /// <seealso cref="ITrigger">
         /// </seealso>

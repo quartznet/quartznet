@@ -1402,6 +1402,7 @@ namespace Quartz.Impl.AdoJobStore
         /// in the <see cref="IJobStore" /> with the same name &amp; group
         /// should be over-written.
         /// </param>
+        /// <param name="updateTriggers"></param>
         /// <exception cref="ObjectAlreadyExistsException">
         ///           if a <see cref="ICalendar" /> with the same name already
         ///           exists, and replaceExisting is set to false.
@@ -2911,6 +2912,7 @@ namespace Quartz.Impl.AdoJobStore
         /// that have no scheduler state record.  Checkin timestamp and interval are
         /// left as zero on these dummy <see cref="SchedulerStateRecord" /> objects.
         /// </summary>
+        /// <param name="conn"></param>
         /// <param name="schedulerStateRecords">List of all current <see cref="SchedulerStateRecord" />s</param>
         private IList<SchedulerStateRecord> FindOrphanedFailedInstances(ConnectionAndTransactionHolder conn, IList<SchedulerStateRecord> schedulerStateRecords)
         {
@@ -3257,6 +3259,9 @@ namespace Quartz.Impl.AdoJobStore
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a transaction. 
         /// </param>
+        /// <param name="txCallback">
+        /// The callback to excute after having acquired the given lock.
+        /// </param>
         /// <seealso cref="ExecuteInLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
         protected void ExecuteInLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
         {
@@ -3273,6 +3278,9 @@ namespace Quartz.Impl.AdoJobStore
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a transaction. 
         /// </param>
+        /// <param name="txCallback">
+        /// The callback to excute after having acquired the given lock.
+        /// </param>
         protected abstract object ExecuteInLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback);
 
         /// <summary>
@@ -3287,6 +3295,9 @@ namespace Quartz.Impl.AdoJobStore
         /// lockCallback is still executed in a non-managed transaction. 
         /// </param>
         /// <seealso cref="ExecuteInNonManagedTXLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
+        /// <param name="txCallback">
+        /// The callback to excute after having acquired the given lock.
+        /// </param>
         protected void ExecuteInNonManagedTXLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
         {
             ExecuteInNonManagedTXLock(lockName, conn => { txCallback(conn); return null; });
@@ -3300,6 +3311,9 @@ namespace Quartz.Impl.AdoJobStore
         /// The name of the lock to acquire, for example 
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// lockCallback is still executed in a non-managed transaction. 
+        /// </param>
+        /// <param name="txCallback">
+        /// The callback to excute after having acquired the given lock.
         /// </param>
         protected object ExecuteInNonManagedTXLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback)
         {

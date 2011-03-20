@@ -39,6 +39,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <param name="query">The unsubstitued query</param>
 		/// <param name="tablePrefix">The table prefix</param>
+		/// <param name="schedNameLiteral">the scheduler name</param>
 		/// <returns>The query, with proper table prefix substituted</returns>
 		public static string ReplaceTablePrefix(string query, string tablePrefix, string schedNameLiteral)
 		{
