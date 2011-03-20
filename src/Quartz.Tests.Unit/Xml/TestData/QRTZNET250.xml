@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- This file contains job definitions in schema version 2.0 format -->
+
+<job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0">
+
+  <processing-directives>
+    <overwrite-existing-data>true</overwrite-existing-data>
+  </processing-directives>
+
+  <schedule>
+
+    <job>
+      <name>PerformanceReturnTimelinessJob</name>
+      <group>PerformanceTimeliness</group>
+      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <durable>true</durable>
+      <recover>false</recover>
+    </job>
+
+    <trigger>
+      <cron>
+        <name>PerformanceReturnTimelinessJobTrigger</name>
+        <group>PerformanceTimeliness</group>
+        <description>Simple trigger to simply fire sample job</description>
+        <job-name>PerformanceReturnTimelinessJob</job-name>
+        <job-group>PerformanceTimeliness</job-group>
+        <misfire-instruction>SmartPolicy</misfire-instruction>
+        <cron-expression>0 0/1 * * * ?</cron-expression>
+      </cron>
+    </trigger>
+
+    <job>
+      <name>ExposureEntryAcceptableVarianceJob</name>
+      <group>DataValidation</group>
+      <description>Sample job for Quartz Server</description>
+      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <durable>true</durable>
+      <recover>false</recover>
+    </job>
+
+    <trigger>
+      <cron>
+        <name>ExposureEntryAcceptableVarianceJobTrigger</name>
+        <group>DataValidation</group>
+        <description>Simple trigger to simply fire sample job</description>
+        <job-name>ExposureEntryAcceptableVarianceJob</job-name>
+        <job-group>DataValidation</job-group>
+        <misfire-instruction>SmartPolicy</misfire-instruction>
+        <cron-expression>0 0/1 * * * ?</cron-expression>
+      </cron>
+    </trigger>
+
+  </schedule>
+</job-scheduling-data>

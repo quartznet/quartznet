@@ -70,6 +70,16 @@ namespace Quartz.Tests.Unit.Xml
             processor.ScheduleJobs(mockScheduler);
         }
 
+        [Test]
+        public void TestScheduling_QuartzNet250()
+        {
+            Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
+            processor.ProcessStream(s, null);
+            processor.ScheduleJobs(mockScheduler);
+            mockScheduler.AssertWasCalled(x => x.AddJob(Arg<IJobDetail>.Is.NotNull, Arg<bool>.Is.Anything), constraints => constraints.Repeat.Twice());
+            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Is.NotNull), constraints => constraints.Repeat.Twice());
+        }
+
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)
         {
             string fullName = "Quartz.Tests.Unit.Xml.TestData." + resourceName;
