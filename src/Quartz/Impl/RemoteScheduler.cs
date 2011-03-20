@@ -244,24 +244,6 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual IList<string> CalendarNames
-        {
-            get
-            {
-                try
-                {
-                    return GetRemoteScheduler().GetCalendarNames();
-                }
-                catch (RemotingException re)
-                {
-                    throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
-                }
-            }
-        }
-
-        /// <summary>
         /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
         /// <value></value>

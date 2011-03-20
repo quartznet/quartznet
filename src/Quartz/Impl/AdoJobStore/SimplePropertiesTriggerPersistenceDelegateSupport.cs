@@ -54,37 +54,37 @@ namespace Quartz.Impl.AdoJobStore
         protected const string ColumnBoolProp1 = "BOOL_PROP_1";
         protected const string ColumnBoolProp2 = "BOOL_PROP_2";
 
-        protected static readonly string SelectSimplePropsTrigger = "SELECT *" + " FROM "
-                                                                    + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
-                                                                    + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
-                                                                    + " AND " + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
+        protected const string SelectSimplePropsTrigger = "SELECT *" + " FROM "
+                                                            + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
+                                                            + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+                                                            + " AND " + AdoConstants.ColumnTriggerName + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
 
-        protected static readonly string DeleteSimplePropsTrigger = "DELETE FROM "
-                                                                    + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
-                                                                    + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
-                                                                    + " AND " + AdoConstants.ColumnTriggerName + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
+        protected const string DeleteSimplePropsTrigger = "DELETE FROM "
+                                                            + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
+                                                            + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+                                                            + " AND " + AdoConstants.ColumnTriggerName + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
 
-        protected static readonly string InsertSimplePropsTrigger = "INSERT INTO "
-                                                                    + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " ("
-                                                                    + AdoConstants.ColumnSchedulerName + ", "
-                                                                    + AdoConstants.ColumnTriggerName + ", " + AdoConstants.ColumnTriggerGroup + ", "
-                                                                    + ColumnStrProp1 + ", " + ColumnStrProp2 + ", " + ColumnStrProp3 + ", "
-                                                                    + ColumnIntProp1 + ", " + ColumnIntProp2 + ", "
-                                                                    + ColumnLongProp1 + ", " + ColumnLongProp2 + ", "
-                                                                    + ColumnDecProp1 + ", " + ColumnDecProp2 + ", "
-                                                                    + ColumnBoolProp1 + ", " + ColumnBoolProp2
-                                                                    + ") " + " VALUES(" + StdAdoConstants.SchedulerNameSubst + ", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        protected const string InsertSimplePropsTrigger = "INSERT INTO "
+                                                            + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " ("
+                                                            + AdoConstants.ColumnSchedulerName + ", "
+                                                            + AdoConstants.ColumnTriggerName + ", " + AdoConstants.ColumnTriggerGroup + ", "
+                                                            + ColumnStrProp1 + ", " + ColumnStrProp2 + ", " + ColumnStrProp3 + ", "
+                                                            + ColumnIntProp1 + ", " + ColumnIntProp2 + ", "
+                                                            + ColumnLongProp1 + ", " + ColumnLongProp2 + ", "
+                                                            + ColumnDecProp1 + ", " + ColumnDecProp2 + ", "
+                                                            + ColumnBoolProp1 + ", " + ColumnBoolProp2
+                                                            + ") " + " VALUES(" + StdAdoConstants.SchedulerNameSubst + ", @triggerName, @triggerGroup, @string1, @string2, @string3, @int1, @int2, @long1, @long2, @decimal1, @decimal2, @boolean1, @boolean2)";
 
-        protected static readonly string UpdateSimplePropsTrigger = "UPDATE "
-                                                                    + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
-                                                                    + ColumnStrProp1 + " = ?, " + ColumnStrProp2 + " = ?, " + ColumnStrProp3 + " = ?, "
-                                                                    + ColumnIntProp1 + " = ?, " + ColumnIntProp2 + " = ?, "
-                                                                    + ColumnLongProp1 + " = ?, " + ColumnLongProp2 + " = ?, "
-                                                                    + ColumnDecProp1 + " = ?, " + ColumnDecProp2 + " = ?, "
-                                                                    + ColumnBoolProp1 + " = ?, " + ColumnBoolProp2
-                                                                    + " = ? WHERE " + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
-                                                                    + " AND " + AdoConstants.ColumnTriggerName
-                                                                    + " = ? AND " + AdoConstants.ColumnTriggerGroup + " = ?";
+        protected const string UpdateSimplePropsTrigger = "UPDATE "
+                                                            + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
+                                                            + ColumnStrProp1 + " = @string1, " + ColumnStrProp2 + " = @string2, " + ColumnStrProp3 + " = @string3, "
+                                                            + ColumnIntProp1 + " = @int1, " + ColumnIntProp2 + " = @int2, "
+                                                            + ColumnLongProp1 + " = @long1, " + ColumnLongProp2 + " = @long2, "
+                                                            + ColumnDecProp1 + " = @decimal1, " + ColumnDecProp2 + " = @decimal2, "
+                                                            + ColumnBoolProp1 + " = @boolean1, " + ColumnBoolProp2
+                                                            + " = @boolean2 WHERE " + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+                                                            + " AND " + AdoConstants.ColumnTriggerName
+                                                            + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup"; 
 
         protected string tablePrefix;
         protected string schedNameLiteral;
@@ -125,7 +125,7 @@ namespace Quartz.Impl.AdoJobStore
                 adoUtil.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
                 adoUtil.AddCommandParameter(cmd, "string1", properties.String1);
-                adoUtil.AddCommandParameter(cmd, "string1", properties.String2);
+                adoUtil.AddCommandParameter(cmd, "string2", properties.String2);
                 adoUtil.AddCommandParameter(cmd, "string3", properties.String3);
                 adoUtil.AddCommandParameter(cmd, "int1", properties.Int1);
                 adoUtil.AddCommandParameter(cmd, "int2", properties.Int2);
@@ -144,8 +144,8 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "@", triggerKey.Name);
-                adoUtil.AddCommandParameter(cmd, "@", triggerKey.Group);
+                adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -180,7 +180,7 @@ namespace Quartz.Impl.AdoJobStore
             using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(UpdateSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
                 adoUtil.AddCommandParameter(cmd, "string1", properties.String1);
-                adoUtil.AddCommandParameter(cmd, "string1", properties.String2);
+                adoUtil.AddCommandParameter(cmd, "string2", properties.String2);
                 adoUtil.AddCommandParameter(cmd, "string3", properties.String3);
                 adoUtil.AddCommandParameter(cmd, "int1", properties.Int1);
                 adoUtil.AddCommandParameter(cmd, "int2", properties.Int2);

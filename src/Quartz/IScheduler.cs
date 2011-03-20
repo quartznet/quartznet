@@ -213,11 +213,6 @@ namespace Quartz
         Collection.ISet<string> GetPausedTriggerGroups();
 
         /// <summary>
-        /// Get the names of all registered <see cref="ICalendar" />s.
-        /// </summary>
-        IList<string> CalendarNames { get; }
-
-        /// <summary>
         /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s.
         /// When a scheduler is first created it is in "stand-by" mode, and will not
         /// fire triggers.  The scheduler can also be put into stand-by mode by
@@ -606,7 +601,6 @@ namespace Quartz
         /// <summary>
         /// Get the names of all registered <see cref="ICalendar" />.
         /// </summary>
-        /// <returns>An array of calendar names.</returns>
         IList<string> GetCalendarNames();
 
         /// <summary>

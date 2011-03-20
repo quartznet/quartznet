@@ -28,6 +28,16 @@ namespace Quartz.Util
             return Convert.ToInt64(columnValue, CultureInfo.InvariantCulture);
         }
 
+        public static long? GetNullableInt64(this IDataReader reader, string columnName)
+        {
+            object columnValue = reader[columnName];
+            if (columnValue == DBNull.Value)
+            {
+                return null;
+            }
+            return Convert.ToInt64(columnValue, CultureInfo.InvariantCulture);
+        }
+
         public static decimal GetDecimal(this IDataReader reader, string columnName)
         {
             object columnValue = reader[columnName];
