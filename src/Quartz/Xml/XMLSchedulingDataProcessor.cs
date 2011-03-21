@@ -663,10 +663,10 @@ namespace Quartz.Xml
             IDictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFQJobNameMap(triggers);
 
             // add each job, and it's associated triggers
-            for (int i = 0; i < jobs.Count; i++)
+            while (jobs.Count > 0)
             {
-                IJobDetail detail = jobs[i];
                 // remove jobs as we handle them...
+                IJobDetail detail = jobs[0];
                 jobs.Remove(detail);
 
                 IJobDetail dupeJ = sched.GetJobDetail(detail.Key);
@@ -724,11 +724,11 @@ namespace Quartz.Xml
                     bool addJobWithFirstSchedule = true;
 
                     // Add triggers related to the job...
-                    for (int j = 0; j < triggersOfJob.Count; j++)
+                    while (triggersOfJob.Count > 0)
                     {
-                        IMutableTrigger trigger = triggersOfJob[j];
+                        IMutableTrigger trigger = triggersOfJob[0];
                         // remove triggers as we handle them...
-                        triggers.Remove(trigger);
+                        triggersOfJob.Remove(trigger);
 
                         bool addedTrigger = false;
                         while (addedTrigger == false)
@@ -805,7 +805,7 @@ namespace Quartz.Xml
             foreach (IMutableTrigger trigger in triggers)
             {
                 bool addedTrigger = false;
-                while (addedTrigger == false)
+                while (!addedTrigger)
                 {
                     ITrigger dupeT = sched.GetTrigger(trigger.Key);
                     if (dupeT != null)

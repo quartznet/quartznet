@@ -198,22 +198,12 @@ namespace Quartz.Impl
             return sched.GetTriggerGroupNames();
         }
 
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual IList<string> CalendarNames
-        {
-            get { return sched.GetCalendarNames(); }
-        }
-
-
         /// <seealso cref="IScheduler.JobFactory">
         /// </seealso>
         public virtual IJobFactory JobFactory
         {
             set { sched.JobFactory = value; }
         }
-
 
         /// <summary>
         /// Construct a <see cref="StdScheduler" /> instance to proxy the given

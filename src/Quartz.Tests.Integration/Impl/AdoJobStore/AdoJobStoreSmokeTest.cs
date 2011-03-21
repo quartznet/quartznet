@@ -179,6 +179,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
             properties["quartz.jobStore.clustered"] = clustered.ToString();
+            properties["quartz.jobStore.clusterCheckinInterval"] = 1000.ToString();
 
             if (extraProperties != null)
             {
@@ -211,7 +212,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                 if (clearJobs)
                 {
-                    CleanUp(sched);
+                    sched.Clear();
                 }
 
                 if (scheduleJobs)
@@ -263,6 +264,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // the scheduler went down...
                     job.RequestsRecovery = true;
                     IOperableTrigger trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
+                    trigger.JobDataMap.Add("key", "value");
+                    trigger.EndTimeUtc = DateTime.UtcNow.AddYears(10);
 
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                     sched.ScheduleJob(job, trigger);
@@ -316,6 +319,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
                     IOperableTrigger ct = new CronTriggerImpl("cron_trig_" + count, schedId, "0/10 * * * * ?");
+                    ct.JobDataMap.Add("key", "value");
                     ct.StartTimeUtc = DateTime.Now.AddMilliseconds(1000);
 
                     sched.ScheduleJob(job, ct);
@@ -325,13 +329,40 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
-                    NthIncludedDayTrigger nt = new NthIncludedDayTrigger("cron_trig_" + count, schedId);
+                    NthIncludedDayTrigger nt = new NthIncludedDayTrigger("nth_trig_" + count, schedId);
                     nt.StartTimeUtc = DateTime.Now.Date.AddMilliseconds(1000);
                     nt.N = 1;
 
                     sched.ScheduleJob(job, nt);
 
+                    job.RequestsRecovery = (true);
+                    CalendarIntervalTriggerImpl intervalTrigger = new CalendarIntervalTriggerImpl(
+                        "calint_trig_" + count, 
+                        schedId, 
+                        DateTime.UtcNow.AddMilliseconds(300), 
+                        DateTime.UtcNow.AddMinutes(1), 
+                        IntervalUnit.Second, 
+                        8);
+                    intervalTrigger.JobKey = job.Key;
+
+                    sched.ScheduleJob(intervalTrigger);
+
+                    // bulk operations
+                    IDictionary<IJobDetail, IList<ITrigger>> info = new Dictionary<IJobDetail, IList<ITrigger>>();
+                    IJobDetail detail = new JobDetailImpl("job_" + count, schedId, typeof(SimpleRecoveryJob));
+                    ITrigger simple = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
+                    List<ITrigger> triggers = new List<ITrigger>();
+                    triggers.Add(simple);
+                    info[detail] = triggers;
+                    
+                    sched.ScheduleJobs(info, true);
+
+                    Assert.IsTrue(sched.CheckExists(detail.Key));
+                    Assert.IsTrue(sched.CheckExists(simple.Key));
+                    
                     sched.Start();
+
+                    Thread.Sleep(TimeSpan.FromSeconds(3));
 
                     sched.PauseAll();
 
@@ -342,8 +373,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.ResumeJob(new JobKey("job_1", schedId));
 
                     sched.PauseJobs(GroupMatcher<JobKey>.GroupEquals(schedId));
-                    
-                    Thread.Sleep(1000);
+
+                    Thread.Sleep(TimeSpan.FromSeconds(1));
 
                     sched.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(schedId));
 
@@ -354,7 +385,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     
                     Assert.AreEqual(1, sched.GetPausedTriggerGroups().Count);
 
-                    Thread.Sleep(1000);
+                    Thread.Sleep(TimeSpan.FromSeconds(3));
                     sched.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(schedId));
 
 
@@ -371,7 +402,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     sched.DeleteCalendar("cronCalendar");
                     sched.DeleteCalendar("holidayCalendar");
                     sched.DeleteJob(new JobKey("lonelyJob", "lonelyGroup"));
-                    
+                    sched.DeleteJob(job.Key);
+
+                    sched.GetJobGroupNames();
+                    sched.GetCalendarNames();
+                    sched.GetTriggerGroupNames();
+
                 }
             }
             finally
@@ -418,9 +454,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             try
             {
-
-                    CleanUp(sched);
-
+                sched.Clear();
 
                 if (scheduleJobs)
                 {
@@ -442,39 +476,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 sched.Shutdown(false);
             }
 
-        }
-
-        private static void CleanUp(IScheduler inScheduler)
-        {
-            // unschedule jobs
-            IList<string> groups = inScheduler.GetTriggerGroupNames();
-            foreach (string group in groups)
-            {
-                Collection.ISet<TriggerKey> keys = inScheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group));
-                foreach (TriggerKey key in keys)
-                {
-                    inScheduler.UnscheduleJob(key);
-                }
-            }
-
-            // delete jobs
-            groups = inScheduler.GetJobGroupNames();
-            foreach (string group in groups)
-            {
-                Collection.ISet<JobKey> jobNames = inScheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group));
-                foreach (JobKey jobKey in jobNames)
-                {
-                    inScheduler.DeleteJob(jobKey);
-                }
-            }
-
-            inScheduler.DeleteCalendar("annualCalendar");
-            inScheduler.DeleteCalendar("baseCalendar");
-            inScheduler.DeleteCalendar("cronCalendar");
-            inScheduler.DeleteCalendar("dailyCalendar");
-            inScheduler.DeleteCalendar("holidayCalendar");
-            inScheduler.DeleteCalendar("monthlyCalendar");
-            inScheduler.DeleteCalendar("weeklyCalendar");
         }
 
         [Test]
@@ -508,7 +509,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             try
             {
-                    CleanUp(sched);
+                    sched.Clear();
 
                     JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
                     lonelyJob.Durable = true;

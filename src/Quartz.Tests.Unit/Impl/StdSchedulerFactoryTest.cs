@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System.Collections.Specialized;
@@ -22,6 +24,7 @@ using System.Collections.Specialized;
 using NUnit.Framework;
 
 using Quartz.Impl;
+
 using System;
 
 namespace Quartz.Tests.Unit.Impl
@@ -33,7 +36,6 @@ namespace Quartz.Tests.Unit.Impl
     [TestFixture]
     public class StdSchedulerFactoryTest
     {
-
         [Test]
         public void TestFactoryCanBeUsedWithNoProperties()
         {
@@ -50,7 +52,7 @@ namespace Quartz.Tests.Unit.Impl
 
         [Test]
         [ExpectedException(
-            ExpectedException = typeof(SchedulerConfigException),
+            ExpectedException = typeof (SchedulerConfigException),
             ExpectedMessage = "Unknown configuration property 'quartz.unknown.property'")]
         public void TestFactoryShouldThrowConfigurationErrorIfUnknownQuartzSetting()
         {
@@ -61,7 +63,7 @@ namespace Quartz.Tests.Unit.Impl
 
         [Test]
         [ExpectedException(
-            ExpectedException = typeof(SchedulerConfigException),
+            ExpectedException = typeof (SchedulerConfigException),
             ExpectedMessage = "Unknown configuration property 'quartz.jobstore.type'")]
         public void TestFactoryShouldThrowConfigurationErrorIfCaseErrorInQuartzSetting()
         {
@@ -86,20 +88,39 @@ namespace Quartz.Tests.Unit.Impl
             properties["my.unknown.property"] = "1";
             new StdSchedulerFactory(properties);
         }
+
         [Test]
         public void TestFactoryShouldOverrideConfigurationWithSysProperties()
         {
             NameValueCollection properties = new NameValueCollection();
             var factory = new StdSchedulerFactory();
             factory.Initialize();
-            var scheduler=factory.GetScheduler();
-            Assert.AreEqual("DefaultQuartzScheduler",scheduler.SchedulerName);
+            var scheduler = factory.GetScheduler();
+            Assert.AreEqual("DefaultQuartzScheduler", scheduler.SchedulerName);
 
             Environment.SetEnvironmentVariable("quartz.scheduler.instanceName", "fromSystemProperties");
             factory = new StdSchedulerFactory();
             scheduler = factory.GetScheduler();
             Assert.AreEqual("fromSystemProperties", scheduler.SchedulerName);
-            
+        }
+
+        [Test]
+        public void ShouldAllowInheritingStdSchedulerFactory()
+        {
+            // check that property names are validated through inheritance hierarchy
+            NameValueCollection collection = new NameValueCollection();
+            collection["quartz.scheduler.idleWaitTime"] = "123";
+            collection["quartz.scheduler.test"] = "foo";
+            StdSchedulerFactory factory = new TestStdSchedulerFactory(collection);
+        }
+
+        private class TestStdSchedulerFactory : StdSchedulerFactory
+        {
+            public const string PropertyTest = "quartz.scheduler.test";
+
+            public TestStdSchedulerFactory(NameValueCollection nameValueCollection) : base(nameValueCollection)
+            {
+            }
         }
     }
 }
