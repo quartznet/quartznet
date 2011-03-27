@@ -69,7 +69,6 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? endTimeUtc;
         private DateTimeOffset startTimeUtc;
 		private int priority = TriggerConstants.DefaultPriority;
-		[NonSerialized] 
 		private TriggerKey key;
 
 		/// <summary>
