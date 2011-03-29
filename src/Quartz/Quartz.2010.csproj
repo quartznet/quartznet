@@ -384,6 +384,7 @@
     <Compile Include="Util\Key.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\ObjectExtensions.cs" />
     <Compile Include="Util\ObjectUtils.cs">
       <SubType>Code</SubType>
     </Compile>

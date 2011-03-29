@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,40 +16,52 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Job;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
     /// <author>Marko Lahma (.NET)</author>
-	[TestFixture]
-	public class JobDetailTest
-	{
-       
+    [TestFixture]
+    public class JobDetailTest
+    {
         [Test]
         public void TestEquals()
         {
-            JobDetailImpl jd1 = new JobDetailImpl("name", "group", typeof(NoOpJob));
-            JobDetailImpl jd2 = new JobDetailImpl("name", "group", typeof(NoOpJob));
-            JobDetailImpl jd3 = new JobDetailImpl("namediff", "groupdiff", typeof(NoOpJob));
+            JobDetailImpl jd1 = new JobDetailImpl("name", "group", typeof (NoOpJob));
+            JobDetailImpl jd2 = new JobDetailImpl("name", "group", typeof (NoOpJob));
+            JobDetailImpl jd3 = new JobDetailImpl("namediff", "groupdiff", typeof (NoOpJob));
             Assert.AreEqual(jd1, jd2);
             Assert.AreNotEqual(jd1, jd3);
             Assert.AreNotEqual(jd2, jd3);
             Assert.AreNotEqual(jd1, null);
         }
-   
 
-		[Test]
-		public void TestClone() 
-		{
-			JobDetailImpl jobDetail = new JobDetailImpl();
-			JobDetailImpl clonedJobDetail = (JobDetailImpl)jobDetail.Clone();
+        [Test]
+        public void TestClone()
+        {
+            JobDetailImpl jobDetail = new JobDetailImpl();
+            JobDetailImpl clonedJobDetail = (JobDetailImpl) jobDetail.Clone();
 
             Assert.AreEqual(jobDetail, clonedJobDetail);
-		}
-	}
+        }
+
+        [Test]
+        public void JobDetailsShouldBeSerializable()
+        {
+            JobDetailImpl original = new JobDetailImpl("name", "group", typeof (NoOpJob));
+
+            JobDetailImpl cloned = original.DeepClone();
+
+            Assert.That(cloned.Name, Is.EqualTo(original.Name));
+            Assert.That(cloned.Group, Is.EqualTo(original.Group));
+            Assert.That(cloned.Key, Is.EqualTo(original.Key));
+        }
+    }
 }
