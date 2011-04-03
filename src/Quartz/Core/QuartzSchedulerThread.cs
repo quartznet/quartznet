@@ -132,7 +132,6 @@ namespace Quartz.Core
             // so processing doesn't start yet...
             paused = true;
             halted = false;
-            Start();
         }
 
         /// <summary>
@@ -317,7 +316,10 @@ namespace Quartz.Core
                                 }
                                 lock (sigLock)
                                 {
-
+                                    if (halted)
+                                    {
+                                        break;
+                                    }
                                     if (!IsCandidateNewTimeEarlierWithinReason(triggerTime, false))
                                     {
                                         try
@@ -363,7 +365,11 @@ namespace Quartz.Core
                             {
                                 try
                                 {
-                                    bndles = qsRsrcs.JobStore.TriggersFired(triggers);
+                                    IList<TriggerFiredResult> res = qsRsrcs.JobStore.TriggersFired(triggers);
+                                    if (res != null)
+                                    {
+                                        bndles = res;
+                                    }
                                 }
                                 catch (SchedulerException se)
                                 {

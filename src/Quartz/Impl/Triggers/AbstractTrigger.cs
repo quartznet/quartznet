@@ -53,7 +53,7 @@ namespace Quartz.Impl.Triggers
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public abstract class AbstractTrigger : IOperableTrigger
+    public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 	{
         private string name;
         private string group = SchedulerConstants.DefaultGroup;
@@ -678,46 +678,29 @@ namespace Quartz.Impl.Triggers
 					FullName, GetType().FullName, CalendarName, MisfireInstruction, GetNextFireTimeUtc());
 		}
 
-		/// <summary>
-		/// Compare the next fire time of this <see cref="ITrigger" /> to that of
-		/// another.
-		/// </summary>
-		public virtual int CompareTo(object obj)
-		{
-		    return CompareTo((ITrigger) obj);
-		}
-
+	    /// <summary>
+	    /// Compare the next fire time of this <see cref="ITrigger" /> to that of
+	    /// another by comparing their keys, or in other words, sorts them
+	    /// according to the natural (i.e. alphabetical) order of their keys.
+	    /// </summary>
+	    /// <param name="other"></param>
+	    /// <returns></returns>
         public virtual int CompareTo(ITrigger other)
         {
-            DateTimeOffset? myTime = GetNextFireTimeUtc();
-            DateTimeOffset? otherTime = other.GetNextFireTimeUtc();
+	        if (other.Key == null && Key == null)
+	        {
+	            return 0;
+	        }
+	        if (other.Key == null)
+	        {
+	            return -1;
+	        }
+	        if (Key == null)
+	        {
+	            return 1;
+	        }
 
-            if (!myTime.HasValue && !otherTime.HasValue)
-            {
-                return 0;
-            }
-
-            if (!myTime.HasValue)
-            {
-                return 1;
-            }
-
-            if (!otherTime.HasValue)
-            {
-                return -1;
-            }
-
-            if ((myTime.Value < otherTime.Value))
-            {
-                return -1;
-            }
-
-            if ((myTime.Value > otherTime.Value))
-            {
-                return 1;
-            }
-
-            return 0;
+	        return Key.CompareTo(other.Key);
         }
 
         /// <summary>
@@ -732,6 +715,11 @@ namespace Quartz.Impl.Triggers
             return Equals(obj as AbstractTrigger);
 		}
 
+        /// <summary>
+        /// Trigger equality is based upon the equality of the TriggerKey.
+        /// </summary>
+        /// <param name="trigger"></param>
+        /// <returns>true if the key of this Trigger equals that of the given Trigger</returns>
         public virtual bool Equals(AbstractTrigger trigger)
         {
             if (trigger == null)
@@ -739,7 +727,12 @@ namespace Quartz.Impl.Triggers
                 return false;
             }
 
-            return (trigger.Name == Name) && (trigger.Group == Group);
+            if (trigger.Key == null || Key == null)
+            {
+                return false;
+            }
+
+            return Key.Equals(trigger.Key);
         }
 
         /// <summary>
@@ -750,7 +743,12 @@ namespace Quartz.Impl.Triggers
         /// </returns>
 		public override int GetHashCode()
 		{
-			return FullName.GetHashCode();
+            if (Key == null)
+            {
+                return base.GetHashCode();
+            }
+
+            return Key.GetHashCode();
 		}
 
         /// <summary>

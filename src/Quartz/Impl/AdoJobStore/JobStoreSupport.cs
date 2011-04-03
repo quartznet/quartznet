@@ -299,7 +299,13 @@ namespace Quartz.Impl.AdoJobStore
         public virtual string DriverDelegateType
         {
             get { return delegateTypeName; }
-            set { delegateTypeName = value; }
+            set
+            {
+                lock (this)
+                {
+                    delegateTypeName = value;
+                }
+            }
         }
 
         /// <summary>
@@ -435,9 +441,9 @@ namespace Quartz.Impl.AdoJobStore
         {
             get
             {
-                if (driverDelegate == null)
+                lock (this)
                 {
-                    lock (this)
+                    if (driverDelegate == null)
                     {
                         try
                         {
@@ -445,7 +451,7 @@ namespace Quartz.Impl.AdoJobStore
                             {
                                 delegateType = TypeLoadHelper.LoadType(delegateTypeName);
                             }
-                            
+
                             // TODO: the current method of instantiating and initializing delegates is really sucky
                             // probably all constructor args should be moved to the initialize method and/or use
                             // the TablePrefixAware interface to set some things (and rename that interface to
@@ -456,21 +462,21 @@ namespace Quartz.Impl.AdoJobStore
                             IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(DataSource);
                             if (CanUseProperties)
                             {
-                                Type[] ctorParamTypes = new Type[] 
-                                                            { 
-                                                                typeof (ILog), typeof (String), typeof (String), typeof (String), typeof (IDbProvider), typeof(ITypeLoadHelper), typeof (Boolean)
+                                Type[] ctorParamTypes = new Type[]
+                                                            {
+                                                                typeof (ILog), typeof (String), typeof (String), typeof (String), typeof (IDbProvider), typeof (ITypeLoadHelper), typeof (Boolean)
                                                             };
                                 ctor = delegateType.GetConstructor(ctorParamTypes);
-                                ctorParams = new Object[] { Log, tablePrefix, instanceName, instanceId, dbProvider, typeLoadHelper, CanUseProperties };
+                                ctorParams = new Object[] {Log, tablePrefix, instanceName, instanceId, dbProvider, typeLoadHelper, CanUseProperties};
                             }
                             else
                             {
                                 Type[] ctorParamTypes = new Type[]
                                                             {
-                                                                typeof(ILog), typeof(String), typeof(String), typeof(String), typeof(IDbProvider), typeof(ITypeLoadHelper)
+                                                                typeof (ILog), typeof (String), typeof (String), typeof (String), typeof (IDbProvider), typeof (ITypeLoadHelper)
                                                             };
                                 ctor = delegateType.GetConstructor(ctorParamTypes);
-                                ctorParams = new Object[] { Log, tablePrefix, instanceName, instanceId, dbProvider, typeLoadHelper };
+                                ctorParams = new Object[] {Log, tablePrefix, instanceName, instanceId, dbProvider, typeLoadHelper};
                             }
 
                             driverDelegate = (IDriverDelegate) ctor.Invoke(ctorParams);
@@ -2748,7 +2754,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             else
             {
-                if (candidateNewNextFireTime < sigTime)
+                if (sigTime == null || candidateNewNextFireTime < sigTime)
                 {
                     LogicalThreadContext.SetData(KeySignalChangeForTxCompletion, candidateNewNextFireTime);
                 }

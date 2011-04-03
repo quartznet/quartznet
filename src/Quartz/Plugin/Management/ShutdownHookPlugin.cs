@@ -35,8 +35,6 @@ namespace Quartz.Plugin.Management
     /// <author>Marko Lahma (.NET)</author>
     public class ShutdownHookPlugin : ISchedulerPlugin
     {
-        private string name;
-        private IScheduler scheduler;
         private bool cleanShutdown = true;
 
         private static readonly ILog Log = LogManager.GetLogger(typeof (ShutdownHookPlugin));
@@ -59,27 +57,22 @@ namespace Quartz.Plugin.Management
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual void Initialize(string pluginName, IScheduler sched)
+        public virtual void Initialize(string pluginName, IScheduler scheduler)
         {
-            name = pluginName;
-            scheduler = sched;
+            Log.InfoFormat(CultureInfo.InvariantCulture, "Registering Quartz Shutdown hook '{0}.", pluginName);
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering Quartz Shutdown hook '{0}.", name));
-
-            AppDomain.CurrentDomain.ProcessExit += new EventHandler(CurrentDomain_OnProcessExit);
-        }
-
-        private void CurrentDomain_OnProcessExit(object sender, EventArgs ea)
-        {
-            Log.Info("Shutting down Quartz...");
-            try
-            {
-                scheduler.Shutdown(CleanShutdown);
-            }
-            catch (SchedulerException e)
-            {
-                Log.Info("Error shutting down Quartz: " + e.Message, e);
-            }
+            AppDomain.CurrentDomain.ProcessExit += (sender, ea) =>
+                                            {
+                                                Log.Info("Shutting down Quartz...");
+                                                try
+                                                {
+                                                    scheduler.Shutdown(CleanShutdown);
+                                                }
+                                                catch (SchedulerException e)
+                                                {
+                                                    Log.Info("Error shutting down Quartz: " + e.Message, e);
+                                                }
+                                            };
         }
 
         /// <summary>

@@ -68,7 +68,6 @@ namespace Quartz
         {
         }
 
-
         /// <summary>
         /// Create a SimpleScheduleBuilder.
         /// </summary>
@@ -316,8 +315,9 @@ namespace Quartz
         public override IMutableTrigger Build()
         {
             SimpleTriggerImpl st = new SimpleTriggerImpl();
-            st.RepeatInterval = (interval);
-            st.RepeatCount = (repeatCount);
+            st.RepeatInterval = interval;
+            st.RepeatCount = repeatCount;
+            st.MisfireInstruction = misfireInstruction;
 
             return st;
         }

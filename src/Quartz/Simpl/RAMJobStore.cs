@@ -51,7 +51,7 @@ namespace Quartz.Simpl
         private readonly Dictionary<TriggerKey, TriggerWrapper> triggersByKey = new Dictionary<TriggerKey, TriggerWrapper>(1000);
         private readonly Dictionary<string, IDictionary<JobKey, JobWrapper>> jobsByGroup = new Dictionary<string, IDictionary<JobKey, JobWrapper>>(25);
         private readonly Dictionary<string, IDictionary<TriggerKey, TriggerWrapper>> triggersByGroup = new Dictionary<string, IDictionary<TriggerKey, TriggerWrapper>>(25);
-		private readonly TreeSet<TriggerWrapper> timeTriggers = new TreeSet<TriggerWrapper>(new TriggerComparator());
+        private readonly TreeSet<TriggerWrapper> timeTriggers = new TreeSet<TriggerWrapper>(new TriggerWrapperComparator());
 		private readonly Dictionary<string, ICalendar> calendarsByName = new Dictionary<string, ICalendar>(5);
 		private readonly List<TriggerWrapper> triggers = new List<TriggerWrapper>(1000);
 		private readonly object lockObject = new object();
@@ -1539,12 +1539,12 @@ namespace Quartz.Simpl
 		            // was the trigger deleted since being acquired?
 		            if (tw == null || tw.trigger == null)
 		            {
-		                return null;
+		                continue;
 		            }
 		            // was the trigger completed, paused, blocked, etc. since being acquired?
                     if (tw.state != InternalTriggerState.Acquired)
 		            {
-		                return null;
+                        continue;
 		            }
 
 		            ICalendar cal = null;
@@ -1553,7 +1553,7 @@ namespace Quartz.Simpl
 		                cal = RetrieveCalendar(tw.trigger.CalendarName);
 		                if (cal == null)
 		                {
-		                    return null;
+		                    continue;
                         }
 		            }
                     DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
@@ -1806,37 +1806,44 @@ namespace Quartz.Simpl
 	}
 
 	/// <summary>
-	/// Comparer for triggers.
+	/// Comparer for trigger wrappers.
 	/// </summary>
-	internal class TriggerComparator : IComparer<TriggerWrapper>
+    internal class TriggerWrapperComparator : IComparer<TriggerWrapper>, IEquatable<TriggerWrapperComparator>
 	{
-		public virtual int Compare(TriggerWrapper trig1, TriggerWrapper trig2)
-		{
-            int comp = trig1.trigger.CompareTo(trig2.trigger);
-            if (comp != 0)
-            {
-                return comp;
-            }
+	    private readonly TriggerTimeComparator ttc = new TriggerTimeComparator();
 
-            comp = trig2.trigger.Priority - trig1.trigger.Priority;
-            if (comp != 0)
-            {
-                return comp;
-            }
-
-            return trig1.trigger.Key.CompareTo(trig2.trigger.Key);
-		}
-
+	    public int Compare(TriggerWrapper trig1, TriggerWrapper trig2)
+	    {
+	        return ttc.Compare(trig1.trigger, trig2.trigger);
+	    }
 
 	    public override bool Equals(object obj)
 	    {
-	        return (obj is TriggerComparator);
+	        return (obj is TriggerWrapperComparator);
 	    }
 
+	    /// <summary>
+	    /// Indicates whether the current object is equal to another object of the same type.
+	    /// </summary>
+	    /// <returns>
+	    /// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false.
+	    /// </returns>
+	    /// <param name="other">An object to compare with this object.</param>
+	    public bool Equals(TriggerWrapperComparator other)
+	    {
+	        return true;
+	    }
 
+	    /// <summary>
+	    /// Serves as a hash function for a particular type. 
+	    /// </summary>
+	    /// <returns>
+	    /// A hash code for the current <see cref="T:System.Object"/>.
+	    /// </returns>
+	    /// <filterpriority>2</filterpriority>
 	    public override int GetHashCode()
 	    {
-	        return base.GetHashCode();
+	        return (ttc != null ? ttc.GetHashCode() : 0);
 	    }
 	}
 

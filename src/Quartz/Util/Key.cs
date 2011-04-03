@@ -147,6 +147,15 @@ namespace Quartz.Util
 
         public int CompareTo(Key<T> o)
         {
+            if (group.Equals(DefaultGroup) && !o.group.Equals(DefaultGroup))
+            {
+                return -1;
+            }
+            if (!group.Equals(DefaultGroup) && o.group.Equals(DefaultGroup))
+            {
+                return 1;
+            }
+
             int r = group.CompareTo(o.Group);
             if (r != 0)
             {

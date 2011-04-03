@@ -66,24 +66,205 @@ namespace Quartz
         } ;
 
         public const int Sunday = 1;
-
         public const int Monday = 2;
-
         public const int Tuesday = 3;
-
         public const int Wednesday = 4;
-
         public const int Thursday = 5;
-
         public const int Friday = 6;
-
         public const int Saturday = 7;
-
         public const long SecondsInMostDays = 24L*60L*60L;
 
+        private int month;
+        private int day;
+        private int year;
+        private int hour;
+        private int minute;
+        private int second;
+        private TimeZoneInfo tz;
 
+        /// <summary>
+        /// Create a DateBuilder, with initial settings for the current date 
+        /// and time in the system default timezone.
+        /// </summary>
         private DateBuilder()
         {
+            DateTime now = DateTime.Now;
+
+            month = now.Month;
+            day = now.Day;
+            year = now.Year;
+            hour = now.Hour;
+            minute = now.Minute;
+            second = now.Second;
+        }
+
+
+        /// <summary>
+        /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
+        /// </summary>
+        /// <param name="tz"></param>
+        private DateBuilder(TimeZoneInfo tz)
+        {
+            DateTime now = DateTime.Now;
+
+            month = now.Month;
+            day = now.Day;
+            year = now.Year;
+            hour = now.Hour;
+            minute = now.Minute;
+            second = now.Second;
+
+            this.tz = tz;
+        }
+
+        /**
+         * Create a DateBuilder, with initial settings for the current date and time in the system default timezone.
+         */
+
+        public static DateBuilder NewDate()
+        {
+            return new DateBuilder();
+        }
+
+        /**
+         * Create a DateBuilder, with initial settings for the current date and time in the given timezone.
+         */
+
+        public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz)
+        {
+            return new DateBuilder(tz);
+        }
+
+
+        /**
+         * Build the Date defined by this builder instance. 
+         */
+
+        public DateTimeOffset Build()
+        {
+            DateTimeOffset cal;
+
+            if (tz != null)
+            {
+                cal = new DateTimeOffset(year, month, day, hour, minute, second, 0, tz.BaseUtcOffset);
+            }
+            else
+            {
+                cal = new DateTimeOffset(year, month, day, hour, minute, second, TimeSpan.Zero);
+            }
+
+            return cal;
+        }
+
+        /// <summary>
+        /// Set the hour (0-23) for the Date that will be built by this builder.
+        /// </summary>
+        /// <param name="hour"></param>
+        /// <returns></returns>
+        public DateBuilder AtHourOfDay(int hour)
+        {
+            ValidateHour(hour);
+
+            this.hour = hour;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the minute (0-59) for the Date that will be built by this builder.
+        /// </summary>
+        /// <param name="minute"></param>
+        /// <returns></returns>
+        public DateBuilder AtMinute(int minute)
+        {
+            ValidateMinute(minute);
+
+            this.minute = minute;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the second (0-59) for the Date that will be built by this builder, and truncate the milliseconds to 000.
+        /// </summary>
+        /// <param name="second"></param>
+        /// <returns></returns>
+        public DateBuilder AtSecond(int second)
+        {
+            ValidateSecond(second);
+
+            this.second = second;
+            return this;
+        }
+
+        public DateBuilder AtHourMinuteAndSecond(int hour, int minute, int second)
+        {
+            ValidateHour(hour);
+            ValidateMinute(minute);
+            ValidateSecond(second);
+
+            this.hour = hour;
+            this.second = second;
+            this.minute = minute;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the day of month (1-31) for the Date that will be built by this builder.
+        /// </summary>
+        /// <param name="day"></param>
+        /// <returns></returns>
+        public DateBuilder OnDay(int day)
+        {
+            ValidateDayOfMonth(day);
+
+            this.day = day;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the month (1-12) for the Date that will be built by this builder.
+        /// </summary>
+        /// <param name="month"></param>
+        /// <returns></returns>
+        public DateBuilder InMonth(int month)
+        {
+            ValidateMonth(month);
+
+            this.month = month;
+            return this;
+        }
+
+        public DateBuilder InMonthOnDay(int month, int day)
+        {
+            ValidateMonth(month);
+            ValidateDayOfMonth(day);
+
+            this.month = month;
+            this.day = day;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the year for the Date that will be built by this builder.
+        /// </summary>
+        /// <param name="year"></param>
+        /// <returns></returns>
+        public DateBuilder InYear(int year)
+        {
+            ValidateYear(year);
+
+            this.year = year;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the TimeZoneInfo for the Date that will be built by this builder (if "null", system default will be used)
+        /// </summary>
+        /// <param name="tz"></param>
+        /// <returns></returns>
+        public DateBuilder InTimeZone(TimeZoneInfo tz)
+        {
+            this.tz = tz;
+            return this;
         }
 
         public static DateTimeOffset FutureDate(int interval, IntervalUnit unit)
@@ -91,6 +272,49 @@ namespace Quartz
             return TranslatedAdd(SystemTime.UtcNow(), unit, interval);
         }
 
+
+        /// <summary>
+        /// Get a <code>Date</code> object that represents the given time, on
+        /// tomorrow's date.
+        /// </summary>
+        /// <param name="hour"></param>
+        /// <param name="minute"></param>
+        /// <param name="second"></param>
+        /// <returns></returns>
+        public static DateTimeOffset TomorrowAt(int hour, int minute, int second)
+        {
+            ValidateSecond(second);
+            ValidateMinute(minute);
+            ValidateHour(hour);
+
+            DateTimeOffset c = new DateTimeOffset(
+                DateTimeOffset.Now.Year,
+                DateTimeOffset.Now.Month,
+                DateTimeOffset.Now.Day,
+                hour,
+                minute,
+                second,
+                0,
+                TimeSpan.Zero);
+
+            // advance one day
+            c = c.AddDays(1);
+
+            return c;
+        }
+
+        /// <summary>
+        /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on
+        /// today's date (equivalent to <see cref="DateOf(int,int,int)" />.
+        /// </summary>
+        /// <param name="hour"></param>
+        /// <param name="minute"></param>
+        /// <param name="second"></param>
+        /// <returns></returns>
+        public static DateTimeOffset TodayAt(int hour, int minute, int second)
+        {
+            return DateOf(hour, minute, second);
+        }
 
         private static DateTimeOffset TranslatedAdd(DateTimeOffset date, IntervalUnit unit, int amountToAdd)
         {
@@ -109,7 +333,7 @@ namespace Quartz
                 case IntervalUnit.Millisecond:
                     return date.AddMilliseconds(amountToAdd);
                 case IntervalUnit.Week:
-                    return date.AddDays(amountToAdd * 7);
+                    return date.AddDays(amountToAdd*7);
                 case IntervalUnit.Year:
                     return date.AddYears(amountToAdd);
                 default:
@@ -504,6 +728,7 @@ namespace Quartz
                 return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour + 1, 0, 0, 0, TimeSpan.Zero);
             }
         }
+
         /// <summary>
         /// <p>
         /// Returns a date that is rounded to the next even multiple of the given
@@ -564,7 +789,7 @@ namespace Quartz
             DateTimeOffset newDate = SystemTime.UtcNow();
             double offset = (GetOffset(date, dest) - GetOffset(date, src));
 
-            newDate = newDate.AddMilliseconds(-1 * offset);
+            newDate = newDate.AddMilliseconds(-1*offset);
 
             return newDate;
         }
@@ -578,7 +803,6 @@ namespace Quartz
         /// <returns>the offset</returns>
         private static double GetOffset(DateTimeOffset date, TimeZoneInfo tz)
         {
-
             if (tz.IsDaylightSavingTime(date))
             {
                 // TODO

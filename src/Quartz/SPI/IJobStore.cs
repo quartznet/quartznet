@@ -499,9 +499,11 @@ namespace Quartz.Spi
 		/// given <see cref="ITrigger" /> (executing its associated <see cref="IJob" />),
 		/// that it had previously acquired (reserved).
 		/// </summary>
-		/// <returns> null if the trigger or it's job or calendar no longer exist, or
+		/// <returns>
+		/// May return null if all the triggers or their calendars no longer exist, or
 		/// if the trigger was not successfully put into the 'executing'
-		/// state.
+		/// state.  Preference is to return an empty list if none of the triggers
+		/// could be fired.
 		/// </returns>
         IList<TriggerFiredResult> TriggersFired(IList<IOperableTrigger> triggers);
 

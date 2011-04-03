@@ -264,16 +264,18 @@ namespace Quartz.Impl
 
 			IScheduler scheduler = new StdScheduler(qs);
 
+			jrsf.Initialize(scheduler);
+
+            qs.Initialize();
+
             // Initialize plugins now that we have a Scheduler instance.
             if (schedulerPluginMap != null)
             {
-                foreach (KeyValuePair<string, ISchedulerPlugin> pluginEntry in schedulerPluginMap)
+                foreach (var pluginEntry in schedulerPluginMap)
                 {
                     pluginEntry.Value.Initialize(pluginEntry.Key, scheduler);
                 }
             }
-
-			jrsf.Initialize(scheduler);
 
 			Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}", scheduler.SchedulerName));
 
