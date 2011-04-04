@@ -137,9 +137,10 @@ namespace Quartz
     /// day-of-week field by itself, it simply means &quot;7&quot; or 
     /// &quot;SAT&quot;. But if used in the day-of-week field after another value, it
     /// means &quot;the last xxx day of the month&quot; - for example &quot;6L&quot;
-    /// means &quot;the last friday of the month&quot;. When using the 'L' option, it
-    /// is important not to specify lists, or ranges of values, as you'll get 
-    /// confusing results.
+    /// means &quot;the last friday of the month&quot;. You can also specify an offset 
+    /// from the last day of the month, such as "L-3" which would mean the third-to-last 
+    /// day of the calendar month. <i>When using the 'L' option, it is important not to 
+    /// specify lists, or ranges of values, as you'll get confusing/unexpected results.</i>
     /// </p>
     /// <p>
     /// The 'W' character is allowed for the day-of-month field.  This character 
@@ -346,7 +347,7 @@ namespace Quartz
         [NonSerialized]
         protected bool expressionParsed;
 
-        public const int MaxYear = 2299;
+        public static readonly int MaxYear = DateTime.Now.Year + 100;
 
         static CronExpression()
         {
@@ -957,6 +958,11 @@ namespace Quartz
                 {
                     throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'W' option is not valid here. (pos={0})", i));
                 }
+                if (val > 31)
+                {
+                    throw new FormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
+                } 
+
                 ISortedSet<int> data = GetSet(type);
                 data.Add(val);
                 i++;
@@ -1444,10 +1450,10 @@ namespace Quartz
         protected virtual ValueSet GetValue(int v, string s, int i)
         {
             char c = s[i];
-            string s1 = v.ToString(CultureInfo.InvariantCulture);
+            StringBuilder s1 = new StringBuilder(v.ToString(CultureInfo.InvariantCulture));
             while (c >= '0' && c <= '9')
             {
-                s1 += c;
+                s1.Append(c);
                 i++;
                 if (i >= s.Length)
                 {
@@ -1464,7 +1470,7 @@ namespace Quartz
             {
                 val.pos = i + 1;
             }
-            val.theValue = Convert.ToInt32(s1, CultureInfo.InvariantCulture);
+            val.theValue = Convert.ToInt32(s1.ToString(), CultureInfo.InvariantCulture);
             return val;
         }
 

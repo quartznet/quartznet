@@ -35,15 +35,18 @@ namespace Quartz.Core
             lock (globalJobListeners)
             {
                 globalJobListeners[jobListener.Name] = jobListener;
-                if (matchers == null)
+
+                List<IMatcher<JobKey>> matchersL = new List<IMatcher<JobKey>>();
+                if (matchers != null && matchers.Count > 0)
                 {
-                    matchers = new List<IMatcher<JobKey>>();
+                    matchersL.AddRange(matchers);
                 }
-                if (matchers.Count == 0)
+                else
                 {
-                    matchers.Add(EverythingMatcher<JobKey>.AllJobs());
+                    matchersL.Add(EverythingMatcher<JobKey>.AllJobs());
                 }
-                globalJobListenersMatchers[jobListener.Name] = new List<IMatcher<JobKey>>(matchers);
+
+                globalJobListenersMatchers[jobListener.Name] = matchersL;
             }
         }
 
@@ -157,15 +160,18 @@ namespace Quartz.Core
             lock (globalTriggerListeners)
             {
                 globalTriggerListeners[triggerListener.Name] = triggerListener;
-                if (matchers == null)
+
+                List<IMatcher<TriggerKey>> matchersL = new List<IMatcher<TriggerKey>>();
+                if (matchers != null && matchers.Count > 0)
                 {
-                    matchers = new List<IMatcher<TriggerKey>>();
+                    matchersL.AddRange(matchers);
                 }
-                if (matchers.Count == 0)
+                else
                 {
-                    matchers.Add(EverythingMatcher<TriggerKey>.AllTriggers());
+                    matchersL.Add(EverythingMatcher<TriggerKey>.AllTriggers());
                 }
-                globalTriggerListenersMatchers[triggerListener.Name] = new List<IMatcher<TriggerKey>>(matchers);
+
+                globalTriggerListenersMatchers[triggerListener.Name] = matchersL;
             }
         }
 

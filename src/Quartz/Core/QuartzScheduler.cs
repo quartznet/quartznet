@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -60,7 +62,7 @@ namespace Quartz.Core
         private readonly SchedulerContext context = new SchedulerContext();
 
         private IListenerManager listenerManager = new ListenerManagerImpl();
-        
+
         private IDictionary<string, IJobListener> internalJobListeners = new Dictionary<string, IJobListener>(10);
         private IDictionary<string, ITriggerListener> internalTriggerListeners = new Dictionary<string, ITriggerListener>(10);
         private IList<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
@@ -82,7 +84,7 @@ namespace Quartz.Core
         /// </summary>
         static QuartzScheduler()
         {
-            Assembly asm = Assembly.GetAssembly(typeof(QuartzScheduler));
+            Assembly asm = Assembly.GetAssembly(typeof (QuartzScheduler));
             if (asm != null)
             {
                 versionInfo = FileVersionInfo.GetVersionInfo(asm.Location);
@@ -307,7 +309,6 @@ namespace Quartz.Core
         }
 
 
-
         /// <summary>
         /// Create a <see cref="QuartzScheduler" /> with the given configuration
         /// properties.
@@ -317,8 +318,8 @@ namespace Quartz.Core
         {
             log = LogManager.GetLogger(GetType());
             this.resources = resources;
-            
-            if (resources.JobStore is IJobListener) 
+
+            if (resources.JobStore is IJobListener)
             {
                 AddInternalJobListener((IJobListener) resources.JobStore);
             }
@@ -353,12 +354,34 @@ namespace Quartz.Core
 
 
             log.Info("Scheduler meta-data: " +
-                    (new SchedulerMetaData(SchedulerName,
-                                           SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,
-                                           InStandbyMode, IsShutdown, RunningSince,
-                                           NumJobsExecuted, JobStoreClass, 
-                                           SupportsPersistence, Clustered, ThreadPoolClass,
-                                           ThreadPoolSize, Version)));
+                     (new SchedulerMetaData(SchedulerName,
+                                            SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,
+                                            InStandbyMode, IsShutdown, RunningSince,
+                                            NumJobsExecuted, JobStoreClass,
+                                            SupportsPersistence, Clustered, ThreadPoolClass,
+                                            ThreadPoolSize, Version)));
+        }
+
+        public void Initialize()
+        {
+            try
+            {
+                Bind();
+            }
+            catch (Exception re)
+            {
+                throw new SchedulerException(
+                    "Unable to bind scheduler to remoting.", re);
+            }
+
+            this.schedThread.Start();
+
+            log.Info("Scheduler meta-data: " +
+                     (new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,
+                                            InStandbyMode, IsShutdown, RunningSince,
+                                            NumJobsExecuted, JobStoreClass,
+                                            SupportsPersistence, Clustered, ThreadPoolClass,
+                                            ThreadPoolSize, Version)).ToString());
         }
 
         /// <summary>
@@ -434,10 +457,10 @@ namespace Quartz.Core
 
         public void StartDelayed(TimeSpan delay)
         {
-            if (shuttingDown || closed) 
+            if (shuttingDown || closed)
             {
                 throw new SchedulerException(
-                        "The Scheduler cannot be restarted after Shutdown() has been called.");
+                    "The Scheduler cannot be restarted after Shutdown() has been called.");
             }
 
             DelayedSchedulerStarter starter = new DelayedSchedulerStarter(this, delay, log);
@@ -467,7 +490,9 @@ namespace Quartz.Core
                 {
                     Thread.Sleep(delay);
                 }
-                catch (ThreadInterruptedException) { }
+                catch (ThreadInterruptedException)
+                {
+                }
                 try
                 {
                     scheduler.Start();
@@ -489,7 +514,7 @@ namespace Quartz.Core
         {
             schedThread.TogglePause(true);
             log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} paused.", resources.GetUniqueIdentifier()));
-            NotifySchedulerListenersInStandbyMode();        
+            NotifySchedulerListenersInStandbyMode();
         }
 
         /// <summary>
@@ -565,18 +590,18 @@ namespace Quartz.Core
 
             NotifySchedulerListenersShuttingdown();
 
-            if((resources.InterruptJobsOnShutdown && !waitForJobsToComplete) || (resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete))
+            if ((resources.InterruptJobsOnShutdown && !waitForJobsToComplete) || (resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete))
             {
                 IList<IJobExecutionContext> jobs = CurrentlyExecutingJobs;
-                foreach (IJobExecutionContext job in jobs) 
+                foreach (IJobExecutionContext job in jobs)
                 {
-                    if(job.JobInstance is IInterruptableJob)
+                    if (job.JobInstance is IInterruptableJob)
                     {
-                        try 
+                        try
                         {
                             ((IInterruptableJob) job.JobInstance).Interrupt();
-                        } 
-                        catch (Exception ex) 
+                        }
+                        catch (Exception ex)
                         {
                             // do nothing, this was just a courtesy effort
                             log.WarnFormat("Encountered error when interrupting job {0} during shutdown: {1}", job.JobDetail.Key, ex);
@@ -584,7 +609,7 @@ namespace Quartz.Core
                     }
                 }
             }
-        
+
             resources.ThreadPool.Shutdown(waitForJobsToComplete);
 
             if (waitForJobsToComplete)
@@ -614,23 +639,26 @@ namespace Quartz.Core
 
             closed = true;
 
+            if (boundRemotely)
+            {
+                try
+                {
+                    UnBind();
+                }
+                catch (RemotingException)
+                {
+                }
+            }
+
+            ShutdownPlugins();
+
             resources.JobStore.Shutdown();
 
             NotifySchedulerListenersShutdown();
 
-            ShutdownPlugins();
-
             SchedulerRepository.Instance.Remove(resources.Name);
 
             holdToPreventGC.Clear();
-
-            try
-            {
-                UnBind();
-            }
-            catch (RemotingException)
-            {
-            }
 
             log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} Shutdown complete.", resources.GetUniqueIdentifier()));
         }
@@ -732,7 +760,7 @@ namespace Quartz.Core
                 throw new SchedulerException("Trigger cannot be null");
             }
 
-            IOperableTrigger trig = (IOperableTrigger)trigger;
+            IOperableTrigger trig = (IOperableTrigger) trigger;
             trig.Validate();
 
             ICalendar cal = null;
@@ -847,9 +875,29 @@ namespace Quartz.Core
                 {
                     continue;
                 }
-                foreach (ITrigger trigger in triggers)
+                foreach (IOperableTrigger trigger in triggers)
                 {
-                    ((IOperableTrigger) trigger).JobKey = job.Key;
+                    trigger.JobKey = job.Key;
+
+                    trigger.Validate();
+
+                    ICalendar cal = null;
+                    if (trigger.CalendarName != null)
+                    {
+                        cal = resources.JobStore.RetrieveCalendar(trigger.CalendarName);
+                        if (cal == null)
+                        {
+                            throw new SchedulerException(
+                                "Calendar '" + trigger.CalendarName + "' not found for trigger: " + trigger.Key);
+                        }
+                    }
+
+                    DateTimeOffset? ft = trigger.ComputeFirstFireTimeUtc(cal);
+
+                    if (ft == null)
+                    {
+                        throw new SchedulerException("Based on configured schedule, the given trigger will never fire.");
+                    }
                 }
             }
 
@@ -914,7 +962,25 @@ namespace Quartz.Core
         {
             ValidateState();
 
+            if (triggerKey == null)
+            {
+                throw new ArgumentException("triggerKey cannot be null");
+            }
+            if (newTrigger == null)
+            {
+                throw new ArgumentException("newTrigger cannot be null");
+            }
+
             IOperableTrigger trig = (IOperableTrigger) newTrigger;
+            ITrigger oldTrigger = GetTrigger(triggerKey);
+            if (oldTrigger == null)
+            {
+                return null;
+            }
+            else
+            {
+                trig.JobKey = oldTrigger.JobKey;
+            }
             trig.Validate();
 
             ICalendar cal = null;
@@ -968,7 +1034,7 @@ namespace Quartz.Core
             {
                 return -temporaryLong;
             }
-            
+
             return temporaryLong;
         }
 
@@ -1294,7 +1360,7 @@ namespace Quartz.Core
         public virtual Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             ValidateState();
-            
+
             if (matcher == null)
             {
                 matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
@@ -1484,7 +1550,7 @@ namespace Quartz.Core
                 return listener;
             }
         }
-    
+
         /// <summary>
         /// Add the given <code>{@link org.quartz.TriggerListener}</code> to the
         /// <code>Scheduler</code>'s <i>internal</i> list.
@@ -1551,7 +1617,6 @@ namespace Quartz.Core
 
         protected internal void NotifyJobStoreJobVetoed(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
         {
-
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
         }
 
@@ -1891,9 +1956,9 @@ namespace Quartz.Core
                 catch (Exception e)
                 {
                     log.ErrorFormat(
-                        CultureInfo.InvariantCulture, 
-                        "Error while notifying SchedulerListener of unscheduled job. Trigger={0}", 
-                        e, 
+                        CultureInfo.InvariantCulture,
+                        "Error while notifying SchedulerListener of unscheduled job. Trigger={0}",
+                        e,
                         (triggerKey == null ? "ALL DATA" : triggerKey.ToString()));
                 }
             }
@@ -2175,7 +2240,7 @@ namespace Quartz.Core
                 }
             }
         }
-    
+
 
         public virtual void NotifySchedulerListenersJobAdded(IJobDetail jobDetail)
         {
@@ -2228,12 +2293,12 @@ namespace Quartz.Core
                     IJob job = jec.JobInstance;
                     if (job is IInterruptableJob)
                     {
-                        ((IInterruptableJob)job).Interrupt();
+                        ((IInterruptableJob) job).Interrupt();
                         interrupted = true;
                     }
                     else
                     {
-                        throw new UnableToInterruptJobException(string.Format(CultureInfo.InvariantCulture, "Job '{0}' of group '{1}' can not be interrupted, since it does not implement {2}", jobKey.Name, jobKey.Group, typeof(IInterruptableJob).FullName));
+                        throw new UnableToInterruptJobException(string.Format(CultureInfo.InvariantCulture, "Job '{0}' of group '{1}' can not be interrupted, since it does not implement {2}", jobKey.Name, jobKey.Group, typeof (IInterruptableJob).FullName));
                     }
                 }
             }

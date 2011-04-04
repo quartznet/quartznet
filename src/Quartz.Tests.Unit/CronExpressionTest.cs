@@ -457,6 +457,19 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneInfo.Local.GetUtcOffset(d)), d);
         }
 
+        [Test]
+        public void ShouldThrowExceptionIfWParameterMakesNoSense()
+        {
+            try
+            {
+                new CronExpression("0/5 * * 32W 1 ?");
+                Assert.Fail("Expected ParseException did not fire for W with value larger than 31");
+            }
+            catch (FormatException pe)
+            {
+                Assert.IsTrue(pe.Message.StartsWith("The 'W' option does not make sense with values larger than"), "Incorrect ParseException thrown");
+            }
+        }
     }
 
 

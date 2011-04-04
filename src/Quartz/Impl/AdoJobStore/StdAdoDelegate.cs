@@ -118,9 +118,9 @@ namespace Quartz.Impl.AdoJobStore
 
             foreach (string setting in settings)
             {
-                String[] parts = setting.Split('=');
-                String name = parts[0];
-                if (parts.Length == 1 || parts[1].Equals(null) || parts[1].Equals(""))
+                string[] parts = setting.Split('=');
+                string name = parts[0];
+                if (parts.Length == 1 || parts[1] == null || parts[1].Equals(""))
                 {
                     continue;
                 }

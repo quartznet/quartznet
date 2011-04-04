@@ -112,6 +112,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="CalendarIntervalTriggerTest.cs" />
+    <Compile Include="Core\ListenerManagerTest .cs" />
     <Compile Include="CronTriggerTest.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
     <Compile Include="Impl\AdoJobStore\StubConnection.cs" />
@@ -120,6 +121,7 @@
     </Compile>
     <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
+    <Compile Include="Impl\Triggers\AbstractTriggerTest.cs" />
     <Compile Include="JobBuilderTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
     <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPluginTest.cs" />
@@ -169,6 +171,8 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TriggerBuilderTest.cs" />
+    <Compile Include="TriggerComparatorTest.cs" />
+    <Compile Include="TriggerKeyTest.cs" />
     <Compile Include="Utils\DirtyFlagMapTest.cs" />
     <Compile Include="Utils\ObjectUtilsTest.cs" />
     <Compile Include="Utils\PropertiesParserTest.cs">

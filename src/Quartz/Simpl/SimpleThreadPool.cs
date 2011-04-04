@@ -468,12 +468,12 @@ namespace Quartz.Simpl
                             {
                                 Monitor.Wait(this, 500);
                             }
-                        }
+                            if (runnable != null)
+                            {
+                                ran = true;
+                                runnable.Run();
+                            }
 
-                        if (runnable != null)
-                        {
-                            ran = true;
-                            runnable.Run();
                         }
                     }
                     catch (Exception exceptionInRunnable)

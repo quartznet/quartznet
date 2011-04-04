@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
@@ -50,7 +49,6 @@ namespace Quartz.Util
 				{
 					return newValue;
 				}
-
 				
 				// try to convert using type converter
 			    TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);

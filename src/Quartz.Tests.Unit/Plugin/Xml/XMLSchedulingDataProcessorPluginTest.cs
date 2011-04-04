@@ -17,9 +17,9 @@ namespace Quartz.Tests.Unit.Plugin.Xml
         public void WhenFullPathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
         {
             string fp1 = Path.GetTempFileName();
-            File.Create(fp1);
+            File.Create(fp1).Close();
             string fp2 = Path.GetTempFileName();
-            File.Create(fp2);
+            File.Create(fp2).Close();
 
             var dataProcessor = new XMLSchedulingDataProcessorPlugin();
             dataProcessor.FileNames = fp1 + ", " + fp2;

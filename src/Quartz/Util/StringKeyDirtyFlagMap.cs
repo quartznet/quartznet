@@ -48,6 +48,31 @@ namespace Quartz.Util
         }
 
         /// <summary>
+        /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
+        /// </summary>
+        /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
+        /// <returns>
+        /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
+        /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
+        /// </returns>
+        public override bool Equals(Object obj)
+        {
+            return base.Equals(obj);
+        }
+
+        /// <summary>
+        /// Serves as a hash function for a particular type, suitable
+        /// for use in hashing algorithms and data structures like a hash table.
+        /// </summary>
+        /// <returns>
+        /// A hash code for the current <see cref="T:System.Object"/>.
+        /// </returns>
+        public override int GetHashCode()
+        {
+            return WrappedMap.GetHashCode();
+        }
+
+        /// <summary>
         /// Gets the keys.
         /// </summary>
         /// <returns></returns>

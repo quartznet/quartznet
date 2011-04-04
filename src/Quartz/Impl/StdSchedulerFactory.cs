@@ -120,6 +120,8 @@ namespace Quartz.Impl
         public const string DefaultInstanceId = "NON_CLUSTERED";
         public const string PropertyCheckConfiguration = "quartz.checkConfiguration";
         public const string AutoGenerateInstanceId = "AUTO";
+        public const string SystemPropertyAsInstanceId = "SYS_PROP";
+
         private SchedulerException initException;
 
         private PropertiesParser cfg;
@@ -373,7 +375,11 @@ Please add configuration to your application config file to correctly initialize
                 autoId = true;
                 instanceIdGeneratorType = cfg.GetStringProperty(PropertySchedulerInstanceIdGeneratorType, "Quartz.Simpl.SimpleInstanceIdGenerator, Quartz");
             }
-
+            else if (schedInstId.Equals(SystemPropertyAsInstanceId))
+            {
+                autoId = true;
+                instanceIdGeneratorType = "Quartz.Simpl.SystemPropertyInstanceIdGenerator, Quartz";
+            }
 
             typeLoadHelperType =
                 cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType, "Quartz.Simpl.SimpleTypeLoadHelper, Quartz");
@@ -383,7 +389,7 @@ Please add configuration to your application config file to correctly initialize
             dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
             long batchTimeWindow = cfg.GetLongProperty(PropertySchedulerBatchTimeWindow, 0L);
-            int maxBatchSize = cfg.GetIntProperty(PropertySchedulerMaxBatchSize, 10);
+            int maxBatchSize = cfg.GetIntProperty(PropertySchedulerMaxBatchSize, 1);
 
             bool interruptJobsOnShutdown = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdown, false);
             bool interruptJobsOnShutdownWithWait = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdownWithWait, false);
@@ -988,10 +994,11 @@ Please add configuration to your application config file to correctly initialize
 
                 js.InstanceId = schedInstId;
                 js.InstanceName = schedName;
-                js.ThreadPoolSize = tp.PoolSize;
                 js.Initialize(loadHelper, qs.SchedulerSignaler);
+                js.ThreadPoolSize = tp.PoolSize;
 
                 jrsf.Initialize(sched);
+                qs.Initialize();
 
                 Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}' initialized", sched.SchedulerName));
 

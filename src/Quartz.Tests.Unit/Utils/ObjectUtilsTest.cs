@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -49,7 +51,7 @@ namespace Quartz.Tests.Unit.Utils
         {
             try
             {
-                ObjectUtils.ConvertValueIfNecessary(typeof(int), new DirtyFlagMap<int, string>());
+                ObjectUtils.ConvertValueIfNecessary(typeof (int), new DirtyFlagMap<int, string>());
                 Assert.Fail("Accepted null");
             }
             catch
@@ -63,7 +65,6 @@ namespace Quartz.Tests.Unit.Utils
         {
             TimeSpan ts = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof (TimeSpan), "1");
             Assert.AreEqual(1, ts.TotalDays);
-            
         }
 
         [Test]
@@ -75,7 +76,7 @@ namespace Quartz.Tests.Unit.Utils
             props["TimeMinutes"] = "1";
             props["TimeSeconds"] = "1";
             props["TimeMilliseconds"] = "1";
-            props["TimeDefault"] = "1"; 
+            props["TimeDefault"] = "1";
             ObjectUtils.SetObjectProperties(o, props);
 
             Assert.AreEqual(1, o.TimeHours.TotalHours);
@@ -83,6 +84,35 @@ namespace Quartz.Tests.Unit.Utils
             Assert.AreEqual(1, o.TimeMinutes.TotalMinutes);
             Assert.AreEqual(1, o.TimeSeconds.TotalSeconds);
             Assert.AreEqual(1, o.TimeDefault.TotalDays);
+        }
+
+        [Test]
+        public void TestIsAnnotationPresentOnSuperClass()
+        {
+            Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof (BaseJob), typeof (DisallowConcurrentExecutionAttribute)));
+            Assert.IsFalse(ObjectUtils.IsAttributePresent(typeof (BaseJob), typeof (PersistJobDataAfterExecutionAttribute)));
+            Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof (ExtendedJob), typeof (DisallowConcurrentExecutionAttribute)));
+            Assert.IsFalse(ObjectUtils.IsAttributePresent(typeof (ExtendedJob), typeof (PersistJobDataAfterExecutionAttribute)));
+            Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof (ReallyExtendedJob), typeof (DisallowConcurrentExecutionAttribute)));
+            Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof (ReallyExtendedJob), typeof (PersistJobDataAfterExecutionAttribute)));
+        }
+
+        [DisallowConcurrentExecution]
+        private class BaseJob : IJob
+        {
+            public void Execute(IJobExecutionContext context)
+            {
+                Console.WriteLine(GetType().Name);
+            }
+        }
+
+        private class ExtendedJob : BaseJob
+        {
+        }
+
+        [PersistJobDataAfterExecution]
+        private class ReallyExtendedJob : ExtendedJob
+        {
         }
 
         public class TimeSpanPropertyTest

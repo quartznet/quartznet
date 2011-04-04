@@ -68,6 +68,7 @@ namespace Quartz
             CalendarIntervalTriggerImpl st = new CalendarIntervalTriggerImpl();
             st.RepeatInterval = interval;
             st.RepeatIntervalUnit = intervalUnit;
+            st.MisfireInstruction = misfireInstruction;
 
             return st;
         }

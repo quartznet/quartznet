@@ -40,12 +40,6 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestTriggerBuilder()
         {
-            IJobDetail job = JobBuilder.NewJob()
-                .OfType<TestJob>()
-                .WithIdentity("j1")
-                .StoreDurably()
-                .Build();
-
             ITrigger trigger = TriggerBuilder.Create()
                 .Build();
 

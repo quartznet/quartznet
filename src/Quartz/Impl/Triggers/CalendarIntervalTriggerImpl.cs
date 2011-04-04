@@ -54,7 +54,7 @@ namespace Quartz.Impl.Triggers
     [Serializable]
     public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
     {
-        private const int YearToGiveupSchedulingAt = 2299;
+        private static readonly int YearToGiveupSchedulingAt = DateTime.Now.Year + 100;
 
         private DateTimeOffset startTime;
         private DateTimeOffset? endTime;
