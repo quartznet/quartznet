@@ -1,14 +1,14 @@
-DROP TABLE qrtz_fired_triggers;
-DROP TABLE qrtz_paused_trigger_grps;
-DROP TABLE qrtz_scheduler_state;
-DROP TABLE qrtz_locks;
-DROP TABLE qrtz_simprop_triggers;
-DROP TABLE qrtz_simple_triggers;
-DROP TABLE qrtz_cron_triggers;
-DROP TABLE qrtz_blob_triggers;
-DROP TABLE qrtz_triggers;
-DROP TABLE qrtz_job_details;
-DROP TABLE qrtz_calendars;
+DROP TABLE IF EXISTS qrtz_fired_triggers;
+DROP TABLE IF EXISTS qrtz_paused_trigger_grps;
+DROP TABLE IF EXISTS qrtz_scheduler_state;
+DROP TABLE IF EXISTS qrtz_locks;
+DROP TABLE IF EXISTS qrtz_simprop_triggers;
+DROP TABLE IF EXISTS qrtz_simple_triggers;
+DROP TABLE IF EXISTS qrtz_cron_triggers;
+DROP TABLE IF EXISTS qrtz_blob_triggers;
+DROP TABLE IF EXISTS qrtz_triggers;
+DROP TABLE IF EXISTS qrtz_job_details;
+DROP TABLE IF EXISTS qrtz_calendars;
 
 
 CREATE TABLE qrtz_job_details
@@ -165,5 +165,3 @@ create index idx_qrtz_ft_trig_inst_name on qrtz_fired_triggers(instance_name);
 create index idx_qrtz_ft_job_name on qrtz_fired_triggers(job_name);
 create index idx_qrtz_ft_job_group on qrtz_fired_triggers(job_group);
 create index idx_qrtz_ft_job_req_recovery on qrtz_fired_triggers(requests_recovery);
-
-commit;
