@@ -165,9 +165,6 @@
     <property name="target.framework" value="3.5" />
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
 
-    <property name="server.project" value="Console" />
-    <call target="build-server-internal" />
-    <property name="server.project" value="Service" />
     <call target="build-server-internal" />
   </target>
 
@@ -178,19 +175,16 @@
     <property name="target.framework" value="4.0" />
     <property name="nant.settings.currentframework" value="net-${target.framework}" />
 
-    <property name="server.project" value="Console" />
-    <call target="build-server-internal" />
-    <property name="server.project" value="Service" />
     <call target="build-server-internal" />
   </target>  
 
   <target name="build-server-internal" depends="build-quartz">
 
-    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}\" />
+    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Server\" />
 
     <csc
       target="exe"
-      output="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe"
+      output="build\${target.framework}\${build.configuration}\Quartz.Server\Quartz.Server.exe"
       debug="${build.debug}" 
       optimize="${build.optimize}" 
       define="${build.defines}">
@@ -198,31 +192,33 @@
       </nowarn>
       <sources>
         <include name="${dir.server.src}/AssemblyInfo.cs" />
-        <include name="${dir.server.src}/Quartz.Server.${server.project}/**/*.cs" />
+        <include name="${dir.server.src}/Quartz.Server/**/*.cs" />
         <include name="${dir.server.src}/Quartz.Server.Core/**/*.cs" />
       </sources>
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\other\TopShelf.dll" />
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
-    <copy todir="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}\" flatten="true" >
+    <copy todir="build\${target.framework}\${build.configuration}\Quartz.Server\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.pdb" />
         <include name="lib\2.0\Common.Logging.dll" />
         <include name="lib\2.0\Common.Logging.Log4Net.dll" />
         <include name="lib\other\log4net.dll" />
+        <include name="lib\other\TopShelf.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
-    <copy file="${dir.server.src}\Quartz.Server.${server.project}\App.config" tofile="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}\Quartz.Server.${server.project}.exe.config" />
-    <copy file="${dir.server.src}\Quartz.Server.Core\quartz_jobs.xml" todir="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}" />
-    <copy file="${dir.server.src}\Quartz.Server.Core\quartz.config" todir="build\${target.framework}\${build.configuration}\Quartz.Server.${server.project}" />
-
+    
+    <copy file="${dir.server.src}\Quartz.Server\App.config" tofile="build\${target.framework}\${build.configuration}\Quartz.Server\Quartz.Server.exe.config" />
+    <copy file="${dir.server.src}\Quartz.Server\quartz_jobs.xml" todir="build\${target.framework}\${build.configuration}\Quartz.Server" />
+    <copy file="${dir.server.src}\Quartz.Server\quartz.config" todir="build\${target.framework}\${build.configuration}\Quartz.Server" />
 
   </target>
 
@@ -414,31 +410,19 @@
         <exclude name="**/_svn/**" />
         <exclude name="**/*.suo" />
         <exclude name="**/*.user" />
+        <exclude name="**/obj/**" />
       </fileset>
     </copy>
 
-    <copy todir="package\server\bin\4.0\console" flatten="true">
+    <copy todir="package\server\bin\4.0" flatten="true">
       <fileset>
-        <include name="build\4.0\${build.configuration}\Quartz.Server.Console\**" />
+        <include name="build\4.0\${build.configuration}\Quartz.Server\**" />
       </fileset>
     </copy>
 
-    <copy todir="package\server\bin\3.5\console" flatten="true">
+    <copy todir="package\server\bin\3.5" flatten="true">
       <fileset>
-        <include name="build\3.5\${build.configuration}\Quartz.Server.Console\**" />
-      </fileset>
-    </copy>
-
-
-    <copy todir="package\server\bin\4.0\service" flatten="true">
-      <fileset>
-        <include name="build\4.0\${build.configuration}\Quartz.Server.Service\**" />
-      </fileset>
-    </copy>
-
-    <copy todir="package\server\bin\3.5\service" flatten="true">
-      <fileset>
-        <include name="build\3.5\${build.configuration}\Quartz.Server.Service\**" />
+        <include name="build\3.5\${build.configuration}\Quartz.Server\**" />
       </fileset>
     </copy>
 

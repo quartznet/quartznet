@@ -39,7 +39,7 @@ namespace Quartz.Core
             jobsCompletedCount = CreateSampledCounter(CounterNameJobsCompleted);
 
             scheduler.ListenerManager.AddSchedulerListener(this);
-            scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.MatchAllJobs());
+            scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
         }
 
         private void EnsureCounters()

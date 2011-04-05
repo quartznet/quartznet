@@ -47,3 +47,6 @@ _ReSharper*/
 /src/Quartz/Quartz.xml
 *.ReSharper
 *.dotCover
+/package
+*.snk
+*.zip

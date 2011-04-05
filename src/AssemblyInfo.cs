@@ -29,7 +29,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCulture("")]
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
-[assembly: InternalsVisibleTo("Quartz.Tests.Unit")]
 
 [assembly: AssemblyVersion("2.0.0.*")]
 
