@@ -1,6 +1,4 @@
 ﻿using Topshelf;
-using Topshelf.Configuration;
-using Topshelf.Configuration.Dsl;
 
 namespace Quartz.Server
 {
@@ -15,12 +13,12 @@ namespace Quartz.Server
         /// <param name="args"></param>
         public static void Main(string[] args)
         {
-            RunConfiguration cfg = RunnerConfigurator.New(x =>   
+            Host host = HostFactory.New(x =>   
             {
-                x.ConfigureService<QuartzServer>(s =>               
+                x.Service<QuartzServer>(s =>               
                 {
-                    s.Named("quartz.server");                                
-                    s.HowToBuildService(builder =>
+                    s.SetServiceName("quartz.server");                                
+                    s.ConstructUsing(builder =>
                                             {
                                                 QuartzServer server = new QuartzServer();
                                                 server.Initialize();
@@ -38,7 +36,7 @@ namespace Quartz.Server
                 x.SetServiceName(Configuration.ServiceName);                       
             });
 
-            Runner.Host(cfg, args);    
+            host.Run();
         }
 
     }
