@@ -85,6 +85,40 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
         }
 
+        [Test]
+        public void TestSqlServerCe352()
+        {
+            bool previousClustered = clustered;
+            clustered = false;
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+            try
+            {
+                RunAdoJobStoreTest("SqlServerCe-352", "SQLServerCe", properties);
+            }
+            finally
+            {
+                clustered = previousClustered;
+            }
+        }
+
+        [Test]
+        public void TestSqlServerCe400()
+        {
+            bool previousClustered = clustered;
+            clustered = false;
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+            try
+            {
+                RunAdoJobStoreTest("SqlServerCe-400", "SQLServerCe", properties);
+            }
+            finally
+            {
+                clustered = previousClustered;
+            }
+        }
+
 
         [Test]
         public void TestOracleClient20()

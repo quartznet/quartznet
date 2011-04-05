@@ -27,12 +27,10 @@ namespace Quartz.Impl.AdoJobStore
     /// An interface which provides an implementation for storing a particular
     /// type of <code>Trigger</code>'s extended properties.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <author>jhouse</author>
     public interface ITriggerPersistenceDelegate
     {
-        void Initialize(string tablePrefix, string schedulerName, AdoUtil adoUtil);
+        void Initialize(string tablePrefix, string schedulerName, ICommandAccessor commandAccessor);
 
         bool CanHandleTriggerType(IOperableTrigger trigger);
 
@@ -45,34 +43,5 @@ namespace Quartz.Impl.AdoJobStore
         int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
 
         TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
-    }
-
-    public class TriggerPropertyBundle
-    {
-        private IScheduleBuilder sb;
-        private readonly string[] statePropertyNames;
-        private readonly object[] statePropertyValues;
-
-        public TriggerPropertyBundle(IScheduleBuilder sb, string[] statePropertyNames, object[] statePropertyValues)
-        {
-            this.sb = sb;
-            this.statePropertyNames = statePropertyNames;
-            this.statePropertyValues = statePropertyValues;
-        }
-
-        public IScheduleBuilder ScheduleBuilder
-        {
-            get { return sb; }
-        }
-
-        public string[] StatePropertyNames
-        {
-            get { return statePropertyNames; }
-        }
-
-        public object[] StatePropertyValues
-        {
-            get { return statePropertyValues; }
-        }
     }
 }

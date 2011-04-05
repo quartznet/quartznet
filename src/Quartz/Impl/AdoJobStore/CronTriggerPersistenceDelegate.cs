@@ -31,14 +31,14 @@ namespace Quartz.Impl.AdoJobStore
     public class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     {
         protected string tablePrefix;
-        private AdoUtil adoUtil;
+        private ICommandAccessor commandAccessor;
         private string schedNameLiteral;
 
-        public void Initialize(string tablePrefix, string schedName, AdoUtil adoUtil)
+        public void Initialize(string tablePrefix, string schedName, ICommandAccessor commandAccessor)
         {
             this.tablePrefix = tablePrefix;
-            this.schedNameLiteral = "'" + schedName + "'";
-            this.adoUtil = adoUtil;
+            schedNameLiteral = "'" + schedName + "'";
+            this.commandAccessor = commandAccessor;
         }
 
         public string GetHandledTriggerTypeDiscriminator()
@@ -53,10 +53,10 @@ namespace Quartz.Impl.AdoJobStore
 
         public int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+                commandAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                commandAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
                 return cmd.ExecuteNonQuery();
             }
@@ -66,12 +66,12 @@ namespace Quartz.Impl.AdoJobStore
         {
             ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                adoUtil.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-                adoUtil.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
-                adoUtil.AddCommandParameter(cmd, "triggerTimeZone", cronTrigger.TimeZone.Id);
+                commandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+                commandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+                commandAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
+                commandAccessor.AddCommandParameter(cmd, "triggerTimeZone", cronTrigger.TimeZone.Id);
 
                 return cmd.ExecuteNonQuery();
             }
@@ -79,10 +79,10 @@ namespace Quartz.Impl.AdoJobStore
 
         public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+                commandAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                commandAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -110,12 +110,12 @@ namespace Quartz.Impl.AdoJobStore
         {
             ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
-                adoUtil.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);
-                adoUtil.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                adoUtil.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+                commandAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
+                commandAccessor.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);
+                commandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+                commandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
                 return cmd.ExecuteNonQuery();
             }

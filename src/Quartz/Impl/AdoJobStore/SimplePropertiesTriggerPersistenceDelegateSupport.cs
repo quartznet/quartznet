@@ -88,13 +88,13 @@ namespace Quartz.Impl.AdoJobStore
 
         protected string tablePrefix;
         protected string schedNameLiteral;
-        private AdoUtil adoUtil;
+        protected ICommandAccessor commandAccessor;
 
-        public void Initialize(string tablePrefix, string schedName, AdoUtil adoUtil)
+        public void Initialize(string tablePrefix, string schedName, ICommandAccessor commandAccessor)
         {
             this.tablePrefix = tablePrefix;
+            this.commandAccessor = commandAccessor;
             schedNameLiteral = "'" + schedName + "'";
-            this.adoUtil = adoUtil;
         }
 
         public abstract bool CanHandleTriggerType(IOperableTrigger trigger);
@@ -106,10 +106,10 @@ namespace Quartz.Impl.AdoJobStore
 
         public int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(DeleteSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(DeleteSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+                commandAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                commandAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
                 return cmd.ExecuteNonQuery();
             }
@@ -119,22 +119,22 @@ namespace Quartz.Impl.AdoJobStore
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(InsertSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(InsertSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                adoUtil.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+                commandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+                commandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
-                adoUtil.AddCommandParameter(cmd, "string1", properties.String1);
-                adoUtil.AddCommandParameter(cmd, "string2", properties.String2);
-                adoUtil.AddCommandParameter(cmd, "string3", properties.String3);
-                adoUtil.AddCommandParameter(cmd, "int1", properties.Int1);
-                adoUtil.AddCommandParameter(cmd, "int2", properties.Int2);
-                adoUtil.AddCommandParameter(cmd, "long1", properties.Long1);
-                adoUtil.AddCommandParameter(cmd, "long2", properties.Long2);
-                adoUtil.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
-                adoUtil.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
-                adoUtil.AddCommandParameter(cmd, "boolean1", properties.Boolean1);
-                adoUtil.AddCommandParameter(cmd, "boolean2", properties.Boolean2);
+                commandAccessor.AddCommandParameter(cmd, "string1", properties.String1);
+                commandAccessor.AddCommandParameter(cmd, "string2", properties.String2);
+                commandAccessor.AddCommandParameter(cmd, "string3", properties.String3);
+                commandAccessor.AddCommandParameter(cmd, "int1", properties.Int1);
+                commandAccessor.AddCommandParameter(cmd, "int2", properties.Int2);
+                commandAccessor.AddCommandParameter(cmd, "long1", properties.Long1);
+                commandAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
+                commandAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
+                commandAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
+                commandAccessor.AddCommandParameter(cmd, "boolean1", properties.Boolean1);
+                commandAccessor.AddCommandParameter(cmd, "boolean2", properties.Boolean2);
 
                 return cmd.ExecuteNonQuery();
             }
@@ -142,10 +142,10 @@ namespace Quartz.Impl.AdoJobStore
 
         public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                adoUtil.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+                commandAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                commandAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -177,21 +177,21 @@ namespace Quartz.Impl.AdoJobStore
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
-            using (IDbCommand cmd = adoUtil.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(UpdateSimplePropsTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(UpdateSimplePropsTrigger, tablePrefix, schedNameLiteral)))
             {
-                adoUtil.AddCommandParameter(cmd, "string1", properties.String1);
-                adoUtil.AddCommandParameter(cmd, "string2", properties.String2);
-                adoUtil.AddCommandParameter(cmd, "string3", properties.String3);
-                adoUtil.AddCommandParameter(cmd, "int1", properties.Int1);
-                adoUtil.AddCommandParameter(cmd, "int2", properties.Int2);
-                adoUtil.AddCommandParameter(cmd, "long1", properties.Long1);
-                adoUtil.AddCommandParameter(cmd, "long2", properties.Long2);
-                adoUtil.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
-                adoUtil.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
-                adoUtil.AddCommandParameter(cmd, "boolean1", properties.Boolean1);
-                adoUtil.AddCommandParameter(cmd, "boolean2", properties.Boolean2);
-                adoUtil.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                adoUtil.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+                commandAccessor.AddCommandParameter(cmd, "string1", properties.String1);
+                commandAccessor.AddCommandParameter(cmd, "string2", properties.String2);
+                commandAccessor.AddCommandParameter(cmd, "string3", properties.String3);
+                commandAccessor.AddCommandParameter(cmd, "int1", properties.Int1);
+                commandAccessor.AddCommandParameter(cmd, "int2", properties.Int2);
+                commandAccessor.AddCommandParameter(cmd, "long1", properties.Long1);
+                commandAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
+                commandAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
+                commandAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
+                commandAccessor.AddCommandParameter(cmd, "boolean1", properties.Boolean1);
+                commandAccessor.AddCommandParameter(cmd, "boolean2", properties.Boolean2);
+                commandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+                commandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
                 return cmd.ExecuteNonQuery();
             }

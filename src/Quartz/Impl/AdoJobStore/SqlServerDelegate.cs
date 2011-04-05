@@ -17,6 +17,9 @@
  */
 #endregion
 
+using System;
+using System.Data;
+
 using Common.Logging;
 
 using Quartz.Spi;
@@ -81,6 +84,17 @@ namespace Quartz.Impl.AdoJobStore
         protected override string GetSelectNextTriggerToAcquireSql()
         {
             return sqlSelectNextTriggerToAcquire;
+        }
+
+        public override void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType)
+        {
+            // deeded for SQL Server CE
+            if (paramValue is bool && dataType == default(Enum))
+            {
+                paramValue = (bool) paramValue ? 1 : 0;
+            }
+
+            base.AddCommandParameter(cmd, paramName, paramValue, dataType);
         }
     }
 }

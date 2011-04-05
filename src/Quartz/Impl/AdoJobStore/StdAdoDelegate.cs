@@ -44,7 +44,7 @@ namespace Quartz.Impl.AdoJobStore
     /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class StdAdoDelegate : StdAdoConstants, IDriverDelegate
+    public class StdAdoDelegate : StdAdoConstants, IDriverDelegate, ICommandAccessor
     {
         protected const int DefaultTriggersToAcquireLimit = 5;
         protected ILog logger;
@@ -164,7 +164,7 @@ namespace Quartz.Impl.AdoJobStore
         public void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate del)
         {
             logger.Debug("Adding TriggerPersistenceDelegate of type: " + del.GetType());
-            del.Initialize(tablePrefix, schedName, adoUtil);
+            del.Initialize(tablePrefix, schedName, this);
             this.triggerPersistenceDelegates.Add(del);
         }
 
@@ -2838,20 +2838,27 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
+        public virtual IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
         {
             return adoUtil.PrepareCommand(cth, commandText);
         }
 
 
-        protected virtual void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue)
+        public virtual void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue)
         {
             AddCommandParameter(cmd, paramName, paramValue, null);
         }
 
-        protected virtual void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType)
+        public virtual void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType)
         {
             adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType);
         }
+    }
+
+    public interface ICommandAccessor
+    {
+        IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
+        void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue);
+        void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType);
     }
 }
