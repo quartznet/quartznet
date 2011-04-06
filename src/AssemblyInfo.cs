@@ -34,6 +34,5 @@ using System.Runtime.InteropServices;
 
 #if STRONG
 [assembly: AssemblyDelaySign(false)]
-[assembly: AssemblyKeyFile("Quartz.Net.snk")]
 [assembly: System.Security.AllowPartiallyTrustedCallers]
 #endif

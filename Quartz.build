@@ -4,6 +4,7 @@
   <property name="build.configuration" value="debug" overwrite="false" />
   <property name="build.optimize" value="false" overwrite="false" />
   <property name="build.debug" value="Full" overwrite="false" />
+  <property name="build.keyfile" value="" overwrite="false" />
 
   <!-- whether to use C5 collection library -->
   <property name="c5-collections" value="true" overwrite="false" />
@@ -79,7 +80,8 @@
 		doc="build\${target.framework}\${build.configuration}\Quartz\Quartz.xml"
 		debug="${build.debug}"
 		define="${build.defines}"
-    optimize="${build.optimize}" >
+		optimize="${build.optimize}"
+		keyfile="${build.keyfile}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -243,7 +245,6 @@
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
         <warning number="0168" />
-        <!--<warning number="0246" />-->
         <warning number="0618" />
       </nowarn>
       <sources>
@@ -378,6 +379,8 @@
     <property name="build.optimize" value="true" />
     <property name="build.debug" value="PdbOnly" />
     <property name="build.defines" value="TRACE,STRONG" />
+	<property name="build.keyfile" value="Quartz.Net.snk" />
+
     <if test="${c5-collections}" >
       <property name="build.defines" value="${build.defines},C5" />
     </if>

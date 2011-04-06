@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Quartz.Util
 {
     /// <summary>
@@ -45,6 +47,11 @@ namespace Quartz.Util
         public static bool IsNullOrWhiteSpace(this string s)
         {
             return s == null || s.Trim().Length == 0;
+        }
+
+        public static string FormatInvariant(this string s, params object[] args)
+        {
+            return string.Format(CultureInfo.InvariantCulture, s, args);
         }
     }
 }
