@@ -324,15 +324,6 @@ namespace Quartz.Core
                 AddInternalJobListener((IJobListener) resources.JobStore);
             }
 
-            try
-            {
-                Bind();
-            }
-            catch (Exception re)
-            {
-                throw new SchedulerException("Unable to bind scheduler to remoting context.", re);
-            }
-
             schedThread = new QuartzSchedulerThread(this, resources);
             if (idleWaitTime > TimeSpan.Zero)
             {
