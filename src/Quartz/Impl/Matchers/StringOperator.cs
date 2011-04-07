@@ -24,7 +24,7 @@ using System;
 namespace Quartz.Impl.Matchers
 {
     [Serializable]
-    public abstract class StringOperator
+    public abstract class StringOperator : IEquatable<StringOperator>
     {
         public static readonly StringOperator Equality = new EqualityOperator();
         public static readonly StringOperator StartsWith = new StartsWithOperator();
@@ -63,6 +63,27 @@ namespace Quartz.Impl.Matchers
             public override bool Evaluate(string value, string compareTo) {
                 return value.Contains(compareTo);
             }
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as StringOperator);
+        }
+
+        public bool Equals(StringOperator other)
+        {
+            if (other == null)
+            {
+                return false;
+            }
+
+            // just check by type, equality based on behavior
+            return GetType().Equals(other.GetType());
+        }
+
+        public override int GetHashCode()
+        {
+            return GetType().GetHashCode();
         }
     }
 }

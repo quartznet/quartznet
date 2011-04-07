@@ -846,19 +846,19 @@ namespace Quartz.Impl.AdoJobStore
         protected static string ToSqlLikeClause<T>(GroupMatcher<T> matcher) where T : Key<T>
         {
             string groupName;
-            if (matcher.CompareWithOperator == StringOperator.Equality)
+            if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
             {
                 groupName = matcher.CompareToValue;
             }
-            else if (matcher.CompareWithOperator == StringOperator.Contains)
+            else if (StringOperator.Contains.Equals(matcher.CompareWithOperator))
             {
                 groupName = "%" + matcher.CompareToValue + "%";
             }
-            else if (matcher.CompareWithOperator == StringOperator.EndsWith)
+            else if (StringOperator.EndsWith.Equals(matcher.CompareWithOperator))
             {
                 groupName = "%" + matcher.CompareToValue;
             }
-            else if (matcher.CompareWithOperator == StringOperator.StartsWith)
+            else if (StringOperator.StartsWith.Equals(matcher.CompareWithOperator))
             {
                  groupName = matcher.CompareToValue + "%";
             }

@@ -11,6 +11,7 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
+using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl
 {
@@ -170,6 +171,17 @@ namespace Quartz.Tests.Integration.Impl
                    Assert.IsTrue(scheduler.CheckExists(detail.Key));
                    Assert.IsTrue(scheduler.CheckExists(simple.Key));
 
+                   // QRTZNET-243
+                   scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupContains("a").DeepClone());
+                   scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEndsWith("a").DeepClone());
+                   scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("a").DeepClone());
+                   scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("a").DeepClone());
+
+                   scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupContains("a").DeepClone());
+                   scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEndsWith("a").DeepClone());
+                   scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("a").DeepClone());
+                   scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("a").DeepClone());
+
                    scheduler.Start();
 
                    Thread.Sleep(TimeSpan.FromSeconds(3));
@@ -221,7 +233,6 @@ namespace Quartz.Tests.Integration.Impl
                    scheduler.GetJobGroupNames();
                    scheduler.GetCalendarNames();
                    scheduler.GetTriggerGroupNames();
-
                }
            }
            finally
