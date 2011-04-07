@@ -53,7 +53,7 @@ namespace Quartz.Examples.Example12
 
             // set remoting expoter
             properties["quartz.scheduler.proxy"] = "true";
-            properties["quartz.scheduler.proxy.address"] = "tcp://localhost:555/QuartzScheduler";
+            properties["quartz.scheduler.proxy.address"] = "tcp://127.0.0.1:555/QuartzScheduler";
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);

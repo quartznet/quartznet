@@ -30,7 +30,7 @@ using System.Runtime.InteropServices;
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
-[assembly: AssemblyVersion("2.0.0.*")]
+[assembly: AssemblyVersion("2.0.0.100")]
 
 #if STRONG
 [assembly: AssemblyDelaySign(false)]

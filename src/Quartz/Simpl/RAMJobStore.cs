@@ -473,8 +473,8 @@ namespace Quartz.Simpl
                 {
                     TriggerWrapper tw = null;
                     // remove from triggers by group
-                    IDictionary<TriggerKey, TriggerWrapper> grpMap = triggersByGroup[key.Group];
-                    if (grpMap != null)
+                    IDictionary<TriggerKey, TriggerWrapper> grpMap;
+                    if (triggersByGroup.TryGetValue(key.Group, out grpMap))
                     {
                         grpMap.Remove(key);
                         if (grpMap.Count == 0)
@@ -497,7 +497,7 @@ namespace Quartz.Simpl
 
                     if (removeOrphanedJob)
                     {
-                        JobWrapper jw = (JobWrapper)jobsByKey[tw.jobKey];
+                        JobWrapper jw = jobsByKey[tw.jobKey];
                         IList<IOperableTrigger> trigs = GetTriggersForJob(tw.jobKey);
                         if ((trigs == null || trigs.Count == 0) && !jw.jobDetail.Durable)
                         {
@@ -1064,10 +1064,9 @@ namespace Quartz.Simpl
 		{
             lock (lockObject)
             {
-                TriggerWrapper tw = triggersByKey[triggerKey];
-
+                TriggerWrapper tw;
 			    // does the trigger exist?
-			    if (tw == null || tw.trigger == null)
+                if (!triggersByKey.TryGetValue(triggerKey, out tw) || tw.trigger == null)
 			    {
 				    return;
 			    }
@@ -1218,10 +1217,10 @@ namespace Quartz.Simpl
 		{
             lock (lockObject)
             {
-                TriggerWrapper tw = triggersByKey[triggerKey];
+                TriggerWrapper tw;
 
                 // does the trigger exist?
-                if (tw == null || tw.trigger == null)
+                if (!triggersByKey.TryGetValue(triggerKey, out tw) || tw.trigger == null)
                 {
                     return;
                 }
@@ -1513,8 +1512,8 @@ namespace Quartz.Simpl
 		{
 			lock (lockObject)
 			{
-				TriggerWrapper tw = triggersByKey[trigger.Key];
-                if (tw != null && tw.state == InternalTriggerState.Acquired)
+				TriggerWrapper tw;
+                if (triggersByKey.TryGetValue(trigger.Key, out tw) && tw.state == InternalTriggerState.Acquired)
 				{
                     tw.state = InternalTriggerState.Waiting;
 					timeTriggers.Add(tw);
@@ -1535,9 +1534,9 @@ namespace Quartz.Simpl
 
                 foreach (IOperableTrigger trigger in triggers)
 		        {
-		            TriggerWrapper tw = triggersByKey[trigger.Key];
+		            TriggerWrapper tw;
 		            // was the trigger deleted since being acquired?
-		            if (tw == null || tw.trigger == null)
+                    if (!triggersByKey.TryGetValue(trigger.Key, out tw) || tw.trigger == null)
 		            {
 		                continue;
 		            }
@@ -1617,14 +1616,16 @@ namespace Quartz.Simpl
 		{
 			lock (lockObject)
 			{
-				JobWrapper jw = jobsByKey[jobDetail.Key];
-				TriggerWrapper tw = triggersByKey[trigger.Key];
+			    TriggerWrapper tw;
+                triggersByKey.TryGetValue(trigger.Key, out tw);
 
 				// It's possible that the job is null if:
 				//   1- it was deleted during execution
 				//   2- RAMJobStore is being used only for volatile jobs / triggers
 				//      from the JDBC job store
-				if (jw != null)
+
+                JobWrapper jw;
+                if (jobsByKey.TryGetValue(jobDetail.Key, out jw))
 				{
 					IJobDetail jd = jw.jobDetail;
 

@@ -57,6 +57,7 @@ namespace Quartz.Impl
         private bool durability;
         private bool shouldRecover;
 
+        [NonSerialized] // we have the key in string fields
         private JobKey key;
 
         /// <summary>

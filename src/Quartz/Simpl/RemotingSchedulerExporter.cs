@@ -152,7 +152,7 @@ namespace Quartz.Simpl
             try
             {
                 RemotingServices.Disconnect((MarshalByRefObject) scheduler);
-                Log.Info("Successfully disconnected remotable sceduler");
+                Log.Info("Successfully disconnected remotable scheduler");
             }
             catch (ArgumentException ex)
             {

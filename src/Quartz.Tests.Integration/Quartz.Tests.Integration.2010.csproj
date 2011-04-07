@@ -114,6 +114,8 @@
     <Compile Include="Impl\Calendar\AnnualCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Impl\RemoteSchedulerSmokeTest.cs" />
+    <Compile Include="Impl\SmokeTestPerformer.cs" />
     <Compile Include="IntegrationTest.cs" />
     <Compile Include="TestJob.cs" />
   </ItemGroup>

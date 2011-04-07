@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 namespace Quartz.Collection
 {
@@ -15,6 +16,10 @@ namespace Quartz.Collection
         }
 
         public HashSet(IEnumerable<T> collection) : base(collection)
+        {
+        }
+
+        protected HashSet(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }
