@@ -539,6 +539,16 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (UseDBLocks)
                 {
+                    if (Delegate is SqlServerDelegate || Delegate is SQLiteDelegate)
+                    {
+                        if (SelectWithLockSQL == null)
+                        {
+                            string defaultLockSql = "SELECT * FROM {0}LOCKS UPDLOCK WHERE LOCK_NAME = @lockName";
+                            Log.Info("Detected usage of MSSQLDelegate/SQLiteDeletegate class - defaulting 'selectWithLockSQL' to '" + defaultLockSql + "'.");
+                            SelectWithLockSQL = defaultLockSql;
+                        }
+                    }
+
                     Log.Info("Using db table-based data access locking (synchronization).");
                     LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
                 }
