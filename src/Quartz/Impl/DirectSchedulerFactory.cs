@@ -135,7 +135,6 @@ namespace Quartz.Impl
 		public virtual void CreateRemoteScheduler(string proxyAddress)
 		{
 			CreateRemoteScheduler(DefaultSchedulerName, DefaultInstanceId, proxyAddress);
-			initialized = true;
 		}
 
 		/// <summary>
@@ -156,6 +155,7 @@ namespace Quartz.Impl
 
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 			schedRep.Bind(remoteScheduler);
+		    initialized = true;
 		}
 
 		/// <summary> 
@@ -287,6 +287,8 @@ namespace Quartz.Impl
 			// garbage collected
 
 			schedRep.Bind(scheduler);
+
+	        initialized = true;
 		}
 
 		/// <summary>
