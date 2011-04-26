@@ -32,9 +32,14 @@ namespace Quartz.Impl.AdoJobStore
     /// a db row update.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <b>Note:</b> This Semaphore implementation is useful for databases that do
-    /// not support row locking via "SELECT FOR UPDATE" type syntax, for example
-    /// Microsoft SQLServer (MSSQL).
+    /// not support row locking via "SELECT FOR UPDATE" or SQL Server's type syntax.
+    /// </para>
+    /// <para>
+    /// As of Quartz.NET 2.0 version there is no need to use this implementation for 
+    /// SQL Server databases.
+    /// </para>
     /// </remarks>
     /// <author>Marko Lahma (.NET)</author>
     public class UpdateLockRowSemaphore : DBSemaphore

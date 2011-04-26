@@ -1352,6 +1352,8 @@ namespace Quartz.Impl.AdoJobStore
                     return; // as soon as one affects a row, we're done.
                 }
             }
+
+            DeleteBlobTrigger(conn, triggerKey);
         }
 
         /// <summary>

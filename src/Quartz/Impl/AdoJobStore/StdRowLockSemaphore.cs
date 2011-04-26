@@ -39,10 +39,9 @@ namespace Quartz.Impl.AdoJobStore
                           TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName);
 
         
-    public static readonly string InsertLock = string.Format(
-        CultureInfo.InstalledUICulture,
-        "INSERT INTO {0}{1}({2}, {3}) VALUES ({4}, ?)", 
-        TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName, SchedulerNameSubst); 
+        public static readonly string InsertLock = 
+            string.Format(CultureInfo.InstalledUICulture, "INSERT INTO {0}{1}({2}, {3}) VALUES ({4}, ?)", 
+                          TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName, SchedulerNameSubst); 
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.

@@ -1565,7 +1565,7 @@ namespace Quartz
 		/// <returns></returns>
         public virtual DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
         {
-            // move ahead one second, since we're computing the time *after/// the
+            // move ahead one second, since we're computing the time *after* the
             // given time
             afterTimeUtc = afterTimeUtc.AddSeconds(1);
 

@@ -8,7 +8,6 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
@@ -223,11 +222,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 }
             }
 
-            if (connectionStringId == "SQLServer" || connectionStringId == "SQLite")
+            if (connectionStringId == "SQLite")
             {
-                // if running MS SQL Server we need this
-                properties["quartz.jobStore.lockHandler.type"] =
-                    "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
+                // if running SQLite we need this, SQL Server is sniffed automatically
+                properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
             }
 
             string connectionString;
@@ -267,7 +265,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
-            properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
 
             string connectionString;
             if (!dbConnectionStrings.TryGetValue("SQLServer", out connectionString))
@@ -326,7 +323,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
             properties["quartz.jobStore.clustered"] = "false";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
 
             string connectionString = "Server=(local);Database=quartz;Trusted_Connection=True;";
             properties["quartz.dataSource.default.connectionString"] = connectionString;

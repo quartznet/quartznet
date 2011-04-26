@@ -358,7 +358,8 @@ namespace Quartz
         /// </param>
         /// <returns> 
         /// <see langword="null" /> if a <see cref="ITrigger" /> with the given
-        /// name and group was not found and removed from the store, otherwise
+        /// name and group was not found and removed from the store (and the 
+        /// new trigger is therefore not stored),  otherwise
         /// the first fire time of the newly scheduled trigger.
         /// </returns>
         DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
