@@ -30,12 +30,14 @@ namespace Quartz.Simpl
 {
 	/// <summary> 
 	/// A JobFactory that instantiates the Job instance (using the default no-arg
-	/// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType" />), and
-	/// then attempts to set all values in the <see cref="IJobExecutionContext" />'s
-	/// <see cref="JobDataMap" /> onto bean properties of the <see cref="IJob" />.
+	/// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType{T}" />), and
+	/// then attempts to set all values from the <see cref="IJobExecutionContext" /> and
+	/// the <see cref="IJobExecutionContext" />'s merged <see cref="JobDataMap" /> onto 
+	/// properties of the <code>Job</code>.
 	/// </summary>
 	/// <seealso cref="IJobFactory" />
 	/// <seealso cref="SimpleJobFactory" />
+	/// <seealso cref="SchedulerContext"/>
 	/// <seealso cref="IJobExecutionContext.MergedJobDataMap" />
 	/// <seealso cref="WarnIfPropertyNotFound" />
 	/// <seealso cref="ThrowIfPropertyNotFound" />
@@ -95,6 +97,7 @@ namespace Quartz.Simpl
 			IJob job = base.NewJob(bundle, scheduler);
 
 			JobDataMap jobDataMap = new JobDataMap();
+            jobDataMap.PutAll(scheduler.Context);
 			jobDataMap.PutAll(bundle.JobDetail.JobDataMap);
 			jobDataMap.PutAll(bundle.Trigger.JobDataMap);
 
