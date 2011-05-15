@@ -100,6 +100,13 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <param name="connectionString">The connection string.</param>
         public DbProvider(string dbProviderName, string connectionString)
         {
+            List<string> deprecatedProviders = new List<string> { "Npgsql-10", "SqlServer-11" };
+
+            if (deprecatedProviders.Contains(dbProviderName))
+            {
+                throw new InvalidConfigurationException(dbProviderName + " provider is no longer supported.");
+            }
+
             this.connectionString = connectionString;
             dbMetadata = GetDbMetadata(dbProviderName);
 

@@ -51,7 +51,7 @@ namespace Quartz.Util
             // default to treat values as ints
             if (columnValue != null)
             {
-                return Convert.ToInt32(columnValue, CultureInfo.InvariantCulture) == 1;
+                return (bool) columnValue;
             }
 
             throw new ArgumentException("Value must be non-null.");

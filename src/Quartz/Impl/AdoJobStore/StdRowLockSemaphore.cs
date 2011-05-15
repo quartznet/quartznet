@@ -35,12 +35,12 @@ namespace Quartz.Impl.AdoJobStore
     public class StdRowLockSemaphore : DBSemaphore
     {
         public static readonly string SelectForLock =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = @schedName AND {3} = @lockName FOR UPDATE",
-                          TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName);
+            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} = @lockName FOR UPDATE",
+                          TablePrefixSubst, TableLocks, ColumnSchedulerName, SchedulerNameSubst, ColumnLockName);
 
         
         public static readonly string InsertLock = 
-            string.Format(CultureInfo.InstalledUICulture, "INSERT INTO {0}{1}({2}, {3}) VALUES ({4}, ?)", 
+            string.Format(CultureInfo.InstalledUICulture, "INSERT INTO {0}{1}({2}, {3}) VALUES ({4}, @lockName)", 
                           TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName, SchedulerNameSubst); 
 
         /// <summary>

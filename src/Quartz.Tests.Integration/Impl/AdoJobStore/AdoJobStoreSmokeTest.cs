@@ -30,8 +30,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             dbConnectionStrings["SQLServer"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
             dbConnectionStrings["SQLServerCe"] = @"Data Source=C:\quartznet.sdf;Persist Security Info=False;";
             dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartz; Uid = quartznet; Pwd = quartznet";
-            dbConnectionStrings["PostgreSQL"] =
-                "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Protocol=3;SSL=false; Pooling=true;MinPoolSize=1;MaxPoolSize=20;Encoding=UTF8;Timeout=15;SslMode=Disable;";
+            dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Protocol=3;SSL=false;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Encoding=UTF8;Timeout=15;SslMode=Disable;Database=quartznet";
             dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
             dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=c:\\quartznet;DataSource=localhost;Port=3050;Dialect=3; Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
         }
@@ -43,19 +42,47 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestPostgreSQL()
+        public void TestPostgreSQL10()
         {
+            // we don't support Npgsql-10 anymore
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
-            RunAdoJobStoreTest("Npgsql-10", "PostgreSQL", properties);
+            try
+            {
+                RunAdoJobStoreTest("Npgsql-10", "PostgreSQL", properties);
+                Assert.Fail("No error from using Npgsql-10");
+            }
+            catch (SchedulerException ex)
+            {
+                Assert.IsNotNull(ex.InnerException);
+                Assert.AreEqual("Npgsql-10 provider is no longer supported.", ex.InnerException.Message);
+            }
+        }
+
+        [Test]
+        public void TestPostgreSQL20()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            RunAdoJobStoreTest("Npgsql-20", "PostgreSQL", properties);
         }
 
         [Test]
         public void TestSqlServer11()
         {
+            // we don't support SQL Server 1.1
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            RunAdoJobStoreTest("SqlServer-11", "SQLServer", properties);
+            try
+            {
+                RunAdoJobStoreTest("SqlServer-11", "SQLServer", properties);
+                Assert.Fail("No error from using SqlServer-11");
+            }
+            catch (SchedulerException ex)
+            {
+                Assert.IsNotNull(ex.InnerException);
+                Assert.AreEqual("SqlServer-11 provider is no longer supported.", ex.InnerException.Message);
+            }
+
         }
 
         [Test]

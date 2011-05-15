@@ -10,10 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "database", "database", "{A4
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tables", "tables", "{E1A1F944-609E-400B-A7CC-EC5CE0F3BADC}"
 	ProjectSection(SolutionItems) = preProject
-		database\tables\tables_firebird.sql = database\tables\tables_firebird.sql
-		database\tables\tables_mysql.sql = database\tables\tables_mysql.sql
 		database\tables\tables_mysql_innodb.sql = database\tables\tables_mysql_innodb.sql
-		database\tables\tables_oracle.sql = database\tables\tables_oracle.sql
 		database\tables\tables_postgres.sql = database\tables\tables_postgres.sql
 		database\tables\tables_sqlite.sql = database\tables\tables_sqlite.sql
 		database\tables\tables_sqlServer.sql = database\tables\tables_sqlServer.sql

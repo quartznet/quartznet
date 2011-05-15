@@ -563,7 +563,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual object GetDbBooleanValue(bool booleanValue)
         {
             // works nicely for databases we have currently supported
-            return booleanValue ? 1 : 0;
+            return booleanValue;
         }
 
         protected virtual string GetStorableJobTypeName(Type jobType)
@@ -2763,7 +2763,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="rs">The data reader, already queued to the correct row.</param>
         /// <param name="colIndex">The column index for the BLOB.</param>
         /// <returns>The deserialized object from the DataReader BLOB.</returns>
-        protected internal virtual object GetObjectFromBlob(IDataReader rs, int colIndex)
+        protected virtual object GetObjectFromBlob(IDataReader rs, int colIndex)
         {
             object obj = null;
 
