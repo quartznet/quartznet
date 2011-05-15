@@ -265,7 +265,7 @@ namespace Quartz.Impl.Triggers
         /// <returns></returns>
         protected override bool ValidateMisfireInstruction(int misfireInstruction)
         {
-            if (misfireInstruction < Quartz.MisfireInstruction.SmartPolicy)
+            if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)
             {
                 return false;
             }

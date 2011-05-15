@@ -314,12 +314,17 @@ namespace Quartz.Impl.Triggers
 		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-            return (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.FireNow) 
-                || (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount) 
-                || (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
-                || (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
-                || (misfireInstruction == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
-                || (misfireInstruction == Quartz.MisfireInstruction.SmartPolicy);
+            if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)
+            {
+                return false;
+            }
+
+            if (misfireInstruction > Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
+            {
+                return false;
+            }
+
+            return true;
 		           
 		}
 

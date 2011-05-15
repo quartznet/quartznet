@@ -674,10 +674,17 @@ namespace Quartz.Impl.Triggers
 		/// <returns></returns>
 		protected override bool ValidateMisfireInstruction(int misfireInstruction)
 		{
-            return (misfireInstruction == Quartz.MisfireInstruction.CronTrigger.DoNothing) 
-                || (misfireInstruction == Quartz.MisfireInstruction.CronTrigger.FireOnceNow)
-                || (misfireInstruction == Quartz.MisfireInstruction.SmartPolicy);
-			
+            if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)
+            {
+                return false;
+            }
+
+            if (misfireInstruction > Quartz.MisfireInstruction.CronTrigger.DoNothing)
+            {
+                return false;
+            }
+
+            return true;
 		}
 
 
