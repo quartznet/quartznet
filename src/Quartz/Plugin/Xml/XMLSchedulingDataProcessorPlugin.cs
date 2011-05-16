@@ -437,9 +437,9 @@ namespace Quartz.Plugin.Xml
                     else
                     {
                         fileFound = true;
-                        filePath = furl ?? file.FullName;
-                        fileBasename = file.Name;
                     }
+                    filePath = furl ?? file.FullName;
+                    fileBasename = file.Name;
                 }
                 finally
                 {
