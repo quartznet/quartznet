@@ -591,14 +591,28 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public virtual void Shutdown()
         {
-            if (clusterManagementThread != null)
-            {
-                clusterManagementThread.Shutdown();
-            }
-
             if (misfireHandler != null)
             {
                 misfireHandler.Shutdown();
+                try
+                {
+                    misfireHandler.Join();
+                }
+                catch (ThreadInterruptedException)
+                {
+                }
+            }
+
+            if (clusterManagementThread != null)
+            {
+                clusterManagementThread.Shutdown();
+                try
+                {
+                    clusterManagementThread.Join();
+                }
+                catch (ThreadInterruptedException)
+                {
+                }
             }
 
             try
@@ -3397,7 +3411,7 @@ namespace Quartz.Impl.AdoJobStore
         internal class ClusterManager : QuartzThread
         {
             private readonly JobStoreSupport jobStoreSupport;
-            private bool shutdown;
+            private volatile bool shutdown;
             private int numFails;
 
             internal ClusterManager(JobStoreSupport jobStoreSupport)
@@ -3487,7 +3501,7 @@ namespace Quartz.Impl.AdoJobStore
         internal class MisfireHandler : QuartzThread
         {
             private readonly JobStoreSupport jobStoreSupport;
-            private bool shutdown;
+            private volatile bool shutdown;
             private int numFails;
 
             internal MisfireHandler(JobStoreSupport jobStoreSupport)
