@@ -192,5 +192,41 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(trigger.HasMillisecondPrecision);
             Assert.AreEqual(233, trigger.StartTimeUtc.Millisecond);
         }
+
+        [Test]
+        public void TestMisfireInstructionValidity()
+        {
+            SimpleTriggerImpl trigger = new SimpleTriggerImpl();
+
+            try
+            {
+                trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+                trigger.MisfireInstruction = MisfireInstruction.SmartPolicy;
+                trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+                trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
+                trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
+                trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
+                trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;
+            }
+            catch (Exception)
+            {
+                Assert.Fail("Unexpected exception while setting misfire instruction.");
+            }
+
+            try
+            {
+                trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount + 1;
+
+                Assert.Fail("Expected exception while setting invalid misfire instruction but did not get it.");
+            }
+            catch (Exception ex)
+            {
+                if (ex is AssertionException)
+                {
+                    throw;
+                }
+            }
+        }
+
 	}
 }

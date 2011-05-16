@@ -102,5 +102,38 @@ namespace Quartz.Tests.Unit
 
             Assert.AreEqual(trigger, trigger2, "Cloning failed");
         }
+
+        [Test]
+        public void TestMisfireInstructionValidity()
+        {
+            CronTriggerImpl trigger = new CronTriggerImpl();
+
+            try
+            {
+                trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+                trigger.MisfireInstruction = MisfireInstruction.SmartPolicy;
+                trigger.MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing;
+                trigger.MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
+            }
+            catch (Exception)
+            {
+                Assert.Fail("Unexpected exception while setting misfire instruction.");
+            }
+
+            try
+            {
+                trigger.MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing + 1;
+
+                Assert.Fail("Expected exception while setting invalid misfire instruction but did not get it.");
+            }
+            catch (Exception ex)
+            {
+                if (ex is AssertionException)
+                {
+                    throw;
+                }
+            }
+        }
+
     }
 }

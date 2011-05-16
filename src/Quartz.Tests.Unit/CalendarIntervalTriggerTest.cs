@@ -238,6 +238,38 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue((endCalendar.Equals(testTime)), "Final fire time not computed correctly for minutely interval.");
         }
 
+        [Test]
+        public void TestMisfireInstructionValidity()
+        {
+            CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
+
+            try
+            {
+                trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+                trigger.MisfireInstruction = MisfireInstruction.SmartPolicy;
+                trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.DoNothing;
+                trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
+            }
+            catch (Exception)
+            {
+                Assert.Fail("Unexpected exception while setting misfire instruction.");
+            }
+
+            try
+            {
+                trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.DoNothing + 1;
+
+                Assert.Fail("Expected exception while setting invalid misfire instruction but did not get it.");
+            }
+            catch (Exception ex)
+            {
+                if (ex is AssertionException)
+                {
+                    throw;
+                }
+            }
+        }
+
         protected override object GetTargetObject()
         {
             JobDataMap jobDataMap = new JobDataMap();
