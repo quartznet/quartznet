@@ -29,12 +29,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
     public class DbMetadataTest
     {
         [Test]
-        public void TestDbMetadataSqlServer11()
-        {
-            TestDbMetadata("SqlServer-11");
-        }
-
-        [Test]
         public void TestDbMetadataSqlServer20()
         {
             TestDbMetadata("SqlServer-20");

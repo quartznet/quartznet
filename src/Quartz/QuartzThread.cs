@@ -41,48 +41,28 @@ namespace Quartz
     /// Support class used to handle threads
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
-    public class QuartzThread : IThreadRunnable
+    public abstract class QuartzThread : IThreadRunnable
     {
         /// <summary>
         /// The instance of System.Threading.Thread
         /// </summary>
-        private Thread thread;
+        private readonly Thread thread;
 
         /// <summary>
         /// Initializes a new instance of the QuartzThread class
         /// </summary>
-        public QuartzThread()
+        protected QuartzThread()
         {
-            thread = new Thread(new ThreadStart(Run));
+            thread = new Thread(Run);
         }
 
         /// <summary>
         /// Initializes a new instance of the Thread class.
         /// </summary>
         /// <param name="name">The name of the thread</param>
-        public QuartzThread(string name)
+        protected QuartzThread(string name)
         {
-            thread = new Thread(new ThreadStart(Run));
-            Name = name;
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the Thread class.
-        /// </summary>
-        /// <param name="Start">A ThreadStart delegate that references the methods to be invoked when this thread begins executing</param>
-        public QuartzThread(ThreadStart Start)
-        {
-            thread = new Thread(Start);
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the Thread class.
-        /// </summary>
-        /// <param name="Start">A ThreadStart delegate that references the methods to be invoked when this thread begins executing</param>
-        /// <param name="name">The name of the thread</param>
-        public QuartzThread(ThreadStart Start, string name)
-        {
-            thread = new Thread(Start);
+            thread = new Thread(Run);
             Name = name;
         }
 
@@ -104,18 +84,9 @@ namespace Quartz
         /// <summary>
         /// Interrupts a thread that is in the WaitSleepJoin thread state
         /// </summary>
-        public void Interrupt()
+        protected void Interrupt()
         {
             thread.Interrupt();
-        }
-
-        /// <summary>
-        /// Gets the current thread instance
-        /// </summary>
-        public Thread Instance
-        {
-            get { return thread; }
-            set { thread = value; }
         }
 
         /// <summary>
@@ -124,38 +95,26 @@ namespace Quartz
         public string Name
         {
             get { return thread.Name; }
-            set
+            protected set
             {
-                if (thread.Name == null)
-                {
-                    thread.Name = value;
-                }
+                thread.Name = value;
             }
         }
 
         /// <summary>
         /// Gets or sets a value indicating the scheduling priority of a thread
         /// </summary>
-        public ThreadPriority Priority
+        protected ThreadPriority Priority
         {
             get { return thread.Priority; }
             set { thread.Priority = value; }
         }
 
         /// <summary>
-        /// Gets a value indicating the execution status of the current thread
-        /// </summary>
-        public bool IsAlive
-        {
-            get { return thread.IsAlive; }
-        }
-
-        /// <summary>
         /// Gets or sets a value indicating whether or not a thread is a background thread.
         /// </summary>
-        public bool IsBackground
+        protected bool IsBackground
         {
-            get { return thread.IsBackground; }
             set { thread.IsBackground = value; }
         }
 
@@ -168,91 +127,12 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Blocks the calling thread until a thread terminates or the specified time elapses
-        /// </summary>
-        /// <param name="miliSeconds">Time of wait in milliseconds</param>
-        public void Join(long miliSeconds)
-        {
-            lock (this)
-            {
-                thread.Join(new TimeSpan(miliSeconds * 10000));
-            }
-        }
-
-        /// <summary>
-        /// Blocks the calling thread until a thread terminates or the specified time elapses
-        /// </summary>
-        /// <param name="miliSeconds">Time of wait in milliseconds</param>
-        /// <param name="nanoSeconds">Time of wait in nanoseconds</param>
-        public void Join(long miliSeconds, int nanoSeconds)
-        {
-            lock (this)
-            {
-                thread.Join(new TimeSpan(miliSeconds * 10000 + nanoSeconds * 100));
-            }
-        }
-
-        /// <summary>
-        /// Resumes a thread that has been suspended
-        /// </summary>
-        public void Resume()
-        {
-            // TODO, FIX THIS
-            thread.Resume();
-        }
-
-        /// <summary>
-        /// Raises a ThreadAbortException in the thread on which it is invoked, 
-        /// to begin the process of terminating the thread. Calling this method 
-        /// usually terminates the thread
-        /// </summary>
-        public void Abort()
-        {
-            thread.Abort();
-        }
-
-        /// <summary>
-        /// Raises a ThreadAbortException in the thread on which it is invoked, 
-        /// to begin the process of terminating the thread while also providing
-        /// exception information about the thread termination. 
-        /// Calling this method usually terminates the thread.
-        /// </summary>
-        /// <param name="stateInfo">An object that contains application-specific information, such as state, which can be used by the thread being aborted</param>
-        public void Abort(object stateInfo)
-        {
-            lock (this)
-            {
-                thread.Abort(stateInfo);
-            }
-        }
-
-        /// <summary>
-        /// Suspends the thread, if the thread is already suspended it has no effect
-        /// </summary>
-        public void Suspend()
-        {
-            // TODO, FIX THIS!
-			thread.Suspend();
-        }
-
-        /// <summary>
         /// Obtain a string that represents the current object
         /// </summary>
         /// <returns>A string that represents the current object</returns>
         public override string ToString()
         {
             return string.Format(CultureInfo.InvariantCulture, "Thread[{0},{1},]", Name, Priority);
-        }
-
-        /// <summary>
-        /// Gets the currently running thread
-        /// </summary>
-        /// <returns>The currently running thread</returns>
-        public static QuartzThread Current()
-        {
-            QuartzThread CurrentThread = new QuartzThread();
-            CurrentThread.Instance = Thread.CurrentThread;
-            return CurrentThread;
         }
     }
 }

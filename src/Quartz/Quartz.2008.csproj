@@ -366,7 +366,6 @@
     <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
     <Compile Include="Impl\AdoJobStore\MySQLDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\OracleDelegate.cs" />
-    <Compile Include="Impl\AdoJobStore\PostgreSQLDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\DBSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\FiredTriggerRecord.cs" />
     <Compile Include="Impl\AdoJobStore\IDriverDelegate.cs" />
@@ -391,6 +390,7 @@
     <Compile Include="Impl\AdoJobStore\TriggerStatus.cs" />
     <Compile Include="Impl\AdoJobStore\UpdateRowLockSemaphore.cs" />
     <Compile Include="Impl\AdoJobStore\AdoJobStoreUtil.cs" />
+    <Compile Include="Impl\DefaultThreadExecutor.cs" />
     <Compile Include="Impl\JobDetailImpl.cs" />
     <Compile Include="Impl\JobExecutionContextImpl.cs" />
     <Compile Include="Impl\Matchers\AndMatcher.cs" />
@@ -425,6 +425,7 @@
     <Compile Include="Simpl\SystemPropertyInstanceIdGenerator.cs" />
     <Compile Include="SPI\IMutableTrigger.cs" />
     <Compile Include="SPI\IOperableTrigger.cs" />
+    <Compile Include="SPI\IThreadExecutor.cs" />
     <Compile Include="SPI\TriggerFiredResult.cs" />
     <Compile Include="SystemTime.cs" />
     <Compile Include="TimeSpanParseRuleAttribute.cs" />

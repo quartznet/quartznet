@@ -43,6 +43,7 @@ namespace Quartz.Core
         private readonly IList<ISchedulerPlugin> schedulerPlugins = new List<ISchedulerPlugin>(10);
         private bool makeSchedulerThreadDaemon;
 	    private ISchedulerExporter exporter;
+        private IThreadExecutor threadExecutor;
         private TimeSpan batchTimeWindow;
         private int maxBatchSize;
         private bool interruptJobsOnShutdown;
@@ -251,6 +252,15 @@ namespace Quartz.Core
 	    }
 
         /// <summary>
+        /// The ThreadExecutor which runs the QuartzSchedulerThread.
+        /// </summary>
+	    public IThreadExecutor ThreadExecutor
+	    {
+	        get { return threadExecutor; }
+	        set { threadExecutor = value; }
+	    }
+
+	    /// <summary>
         /// Gets or sets the batch time window.
         /// </summary>
 	    public TimeSpan BatchTimeWindow

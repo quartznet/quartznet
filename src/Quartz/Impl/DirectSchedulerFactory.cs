@@ -74,6 +74,7 @@ namespace Quartz.Impl
 		private readonly ILog log;
         public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";
         public const string DefaultSchedulerName = "SimpleQuartzScheduler";
+        private static readonly DefaultThreadExecutor DefaultThreadExecutor = new DefaultThreadExecutor();
 
         private bool initialized;
         private static readonly DirectSchedulerFactory instance = new DirectSchedulerFactory();
@@ -226,23 +227,46 @@ namespace Quartz.Impl
                                             IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
 		                                    TimeSpan dbFailureRetryInterval)
 		{
-			// Currently only one run-shell factory is available...
-			IJobRunShellFactory jrsf = new StdJobRunShellFactory();
+			CreateScheduler(
+                schedulerName, schedulerInstanceId, threadPool, DefaultThreadExecutor, 
+                jobStore, schedulerPluginMap, idleWaitTime, dbFailureRetryInterval);
+		}
 
-			// Fire everything up
-			// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            threadPool.Initialize();        
+        /// <summary>
+        /// Creates a scheduler using the specified thread pool and job store and
+        /// binds it for remote access.
+        /// </summary>
+        /// <param name="schedulerName">The name for the scheduler.</param>
+        /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+        /// <param name="threadPool">The thread pool for executing jobs</param>
+        /// <param name="threadExecutor">Thread executor.</param>
+        /// <param name="jobStore">The type of job store</param>
+        /// <param name="schedulerPluginMap"></param>
+        /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
+        /// the default value, which is currently 30000 ms.</param>
+        /// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
+        public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IThreadExecutor threadExecutor,
+                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
+                                            TimeSpan dbFailureRetryInterval)
+        {
+            // Currently only one run-shell factory is available...
+            IJobRunShellFactory jrsf = new StdJobRunShellFactory();
 
-			QuartzSchedulerResources qrs = new QuartzSchedulerResources();
+            // Fire everything up
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            threadPool.Initialize();
 
-			qrs.Name = schedulerName;
-			qrs.InstanceId = schedulerInstanceId;
+            QuartzSchedulerResources qrs = new QuartzSchedulerResources();
+
+            qrs.Name = schedulerName;
+            qrs.InstanceId = schedulerInstanceId;
 
             SchedulerDetailsSetter.SetDetails(threadPool, schedulerName, schedulerInstanceId);
 
-			qrs.JobRunShellFactory = jrsf;
-			qrs.ThreadPool = threadPool;
-			qrs.JobStore = jobStore;
+            qrs.JobRunShellFactory = jrsf;
+            qrs.ThreadPool = threadPool;
+            qrs.ThreadExecutor= threadExecutor;
+            qrs.JobStore = jobStore;
 
 
             // add plugins
@@ -254,17 +278,17 @@ namespace Quartz.Impl
                 }
             }
 
-			QuartzScheduler qs = new QuartzScheduler(qrs, idleWaitTime, dbFailureRetryInterval);
+            QuartzScheduler qs = new QuartzScheduler(qrs, idleWaitTime, dbFailureRetryInterval);
 
             ITypeLoadHelper cch = new SimpleTypeLoadHelper();
-			cch.Initialize();
+            cch.Initialize();
 
             SchedulerDetailsSetter.SetDetails(jobStore, schedulerName, schedulerInstanceId);
             jobStore.Initialize(cch, qs.SchedulerSignaler);
 
-			IScheduler scheduler = new StdScheduler(qs);
+            IScheduler scheduler = new StdScheduler(qs);
 
-			jrsf.Initialize(scheduler);
+            jrsf.Initialize(scheduler);
 
             qs.Initialize();
 
@@ -277,19 +301,19 @@ namespace Quartz.Impl
                 }
             }
 
-			Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}", scheduler.SchedulerName));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}", scheduler.SchedulerName));
 
-			Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler version: {0}", qs.Version));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler version: {0}", qs.Version));
 
-			SchedulerRepository schedRep = SchedulerRepository.Instance;
+            SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-			qs.AddNoGCObject(schedRep); // prevents the repository from being
-			// garbage collected
+            qs.AddNoGCObject(schedRep); // prevents the repository from being
+            // garbage collected
 
-			schedRep.Bind(scheduler);
+            schedRep.Bind(scheduler);
 
-	        initialized = true;
-		}
+            initialized = true;
+        }
 
 		/// <summary>
 		/// Returns a handle to the Scheduler produced by this factory.

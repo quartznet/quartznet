@@ -119,6 +119,9 @@ namespace Quartz.Impl
         public const string DefaultInstanceId = "NON_CLUSTERED";
         public const string PropertyCheckConfiguration = "quartz.checkConfiguration";
         public const string AutoGenerateInstanceId = "AUTO";
+        public const string PropertyThreadExecutor = "quartz.threadExecutor";
+        public const string PropertyThreadExecutorType= "quartz.threadExecutor.type";
+
         public const string SystemPropertyAsInstanceId = "SYS_PROP";
 
         private SchedulerException initException;
@@ -350,6 +353,7 @@ Please add configuration to your application config file to correctly initialize
             bool autoId = false;
             TimeSpan idleWaitTime = TimeSpan.Zero;
             TimeSpan dbFailureRetry = TimeSpan.Zero;
+            IThreadExecutor threadExecutor;
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 
@@ -813,6 +817,34 @@ Please add configuration to your application config file to correctly initialize
             bool tpInited = false;
             bool qsInited = false;
 
+
+            // Get ThreadExecutor Properties
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            string threadExecutorClass = cfg.GetStringProperty(PropertyThreadExecutorType);
+            if (threadExecutorClass != null)
+            {
+                tProps = cfg.GetPropertyGroup(PropertyThreadExecutor, true);
+                try
+                {
+                    threadExecutor = ObjectUtils.InstantiateType<IThreadExecutor>(loadHelper.LoadType(threadExecutorClass));
+                    log.Info("Using custom implementation for ThreadExecutor: " + threadExecutorClass);
+
+                    ObjectUtils.SetObjectProperties(threadExecutor, tProps);
+                }
+                catch (Exception e)
+                {
+                    initException = new SchedulerException(
+                            "ThreadExecutor class '" + threadExecutorClass + "' could not be instantiated.", e);
+                    throw initException;
+                }
+            }
+            else
+            {
+                log.Info("Using default implementation for ThreadExecutor");
+                threadExecutor = new DefaultThreadExecutor();
+            }
+
             // Fire everything up
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -858,6 +890,9 @@ Please add configuration to your application config file to correctly initialize
                 rsrcs.SchedulerExporter = exporter;
 
                 SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId);
+
+                rsrcs.ThreadExecutor = threadExecutor;
+                threadExecutor.Initialize();
 
                 rsrcs.ThreadPool = tp;
 

@@ -325,6 +325,9 @@ namespace Quartz.Core
             }
 
             schedThread = new QuartzSchedulerThread(this, resources);
+            IThreadExecutor schedThreadExecutor = resources.ThreadExecutor;
+            schedThreadExecutor.Execute(schedThread);
+
             if (idleWaitTime > TimeSpan.Zero)
             {
                 schedThread.IdleWaitTime = idleWaitTime;
@@ -364,8 +367,6 @@ namespace Quartz.Core
                 throw new SchedulerException(
                     "Unable to bind scheduler to remoting.", re);
             }
-
-            this.schedThread.Start();
 
             log.Info("Scheduler meta-data: " +
                      (new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,

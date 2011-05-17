@@ -44,9 +44,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
         }
 
         [Test]
-        public void TestValidProviderSqlServer11()
+        public void TestValidProviderSqlServer20()
         {
-            DbProvider provider = new DbProvider("SqlServer-11", "foo");
+            DbProvider provider = new DbProvider("SqlServer-20", "foo");
             Assert.IsNotNull(provider.ConnectionString);
             Assert.IsNotNull(provider.Metadata);
         }
