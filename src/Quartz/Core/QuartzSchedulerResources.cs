@@ -44,8 +44,8 @@ namespace Quartz.Core
         private bool makeSchedulerThreadDaemon;
 	    private ISchedulerExporter exporter;
         private IThreadExecutor threadExecutor;
-        private TimeSpan batchTimeWindow;
-        private int maxBatchSize;
+        private TimeSpan batchTimeWindow = TimeSpan.Zero;
+        private int maxBatchSize = 1;
         private bool interruptJobsOnShutdown;
         private bool interruptJobsOnShutdownWithWait;
 
