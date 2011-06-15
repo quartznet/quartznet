@@ -42,7 +42,7 @@ namespace Quartz
 	/// <seealso cref="IScheduler" /> 
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
-    [Obsolete("Use DisallowConcurrentExecutionAttribute and/or PersistJobDataAfterExecutionAttribute annotations instead.")]
+    [Obsolete("Use DisallowConcurrentExecutionAttribute and/or PersistJobDataAfterExecutionAttribute annotations instead.", true)]
 	public interface IStatefulJob : IJob
 	{
 	}
