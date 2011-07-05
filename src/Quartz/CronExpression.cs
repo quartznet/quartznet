@@ -1204,7 +1204,6 @@ namespace Quartz
         {
             for (; i < s.Length && (s[i] == ' ' || s[i] == '\t'); i++)
             {
-                ;
             }
 
             return i;
@@ -1220,7 +1219,6 @@ namespace Quartz
         {
             for (; i < s.Length && (s[i] != ' ' || s[i] != '\t'); i++)
             {
-                ;
             }
 
             return i;

@@ -15,13 +15,8 @@
 * 
 */
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using Common.Logging;
 using Quartz.Spi;
-using System.Data;
 
 namespace Quartz.Impl.AdoJobStore
 {
