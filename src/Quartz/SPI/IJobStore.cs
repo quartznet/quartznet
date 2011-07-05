@@ -158,16 +158,16 @@ namespace Quartz.Spi
         /// Remove (delete) the <see cref="ITrigger" /> with the given key.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// If removal of the <see cref="ITrigger" /> results in an empty group, the
         /// group should be removed from the <see cref="IJobStore" />'s list of
         /// known group names.
-        /// </p>
-        /// <p>
+        /// </para>
+        /// <para>
         /// If removal of the <see cref="ITrigger" /> results in an 'orphaned' <see cref="IJob" />
         /// that is not 'durable', then the <see cref="IJob" /> should be deleted
         /// also.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <returns>
         /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
@@ -294,10 +294,10 @@ namespace Quartz.Spi
 	    /// <summary>
 	    /// Get the names of all of the <see cref="IJob" /> s that
 	    /// have the given group name.
-	    /// <p>
+	    /// <para>
 	    /// If there are no jobs in the given group name, the result should be a
 	    /// zero-length array (not <see langword="null" />).
-	    /// </p>
+	    /// </para>
 	    /// </summary>
 	    /// <param name="matcher"></param>
 	    /// <returns></returns>
@@ -306,30 +306,30 @@ namespace Quartz.Spi
 		/// <summary>
 		/// Get the names of all of the <see cref="ITrigger" />s
 		/// that have the given group name.
-		/// <p>
+		/// <para>
 		/// If there are no triggers in the given group name, the result should be a
 		/// zero-length array (not <see langword="null" />).
-		/// </p>
+		/// </para>
 		/// </summary>
         Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="IJob" />
 		/// groups.
-		/// <p>
+		/// <para>
 		/// If there are no known group names, the result should be a zero-length
 		/// array (not <see langword="null" />).
-		/// </p>
+		/// </para>
 		/// </summary>
 		IList<string> GetJobGroupNames();
 
 		/// <summary>
 		/// Get the names of all of the <see cref="ITrigger" />
 		/// groups.
-		/// <p>
+		/// <para>
 		/// If there are no known group names, the result should be a zero-length
 		/// array (not <see langword="null" />).
-		/// </p>
+		/// </para>
 		/// </summary>
 		IList<string> GetTriggerGroupNames();
 
@@ -337,10 +337,10 @@ namespace Quartz.Spi
 		/// Get the names of all of the <see cref="ICalendar" /> s
 		/// in the <see cref="IJobStore" />.
     	/// 
-		/// <p>
+		/// <para>
 		/// If there are no Calendars in the given group name, the result should be
 		/// a zero-length array (not <see langword="null" />).
-		/// </p>
+		/// </para>
 		/// </summary>
 		IList<string> GetCalendarNames();
 
@@ -389,11 +389,11 @@ namespace Quartz.Spi
 		/// <summary>
 		/// Pause all of the <see cref="IJob" />s in the given
 		/// group - by pausing all of their <see cref="ITrigger" />s.
-		/// <p>
+		/// <para>
 		/// The JobStore should "remember" that the group is paused, and impose the
 		/// pause on any new jobs that are added to the group while the group is
 		/// paused.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <seealso cref="string">
 		/// </seealso>
@@ -403,10 +403,10 @@ namespace Quartz.Spi
 		/// Resume (un-pause) the <see cref="ITrigger" /> with the
 		/// given key.
 		/// 
-		/// <p>
+		/// <para>
 		/// If the <see cref="ITrigger" /> missed one or more fire-times, then the
 		/// <see cref="ITrigger" />'s misfire instruction will be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <seealso cref="string">
 		/// </seealso>
@@ -415,10 +415,10 @@ namespace Quartz.Spi
 		/// <summary>
 		/// Resume (un-pause) all of the <see cref="ITrigger" />s
 		/// in the given group.
-		/// <p>
+		/// <para>
 		/// If any <see cref="ITrigger" /> missed one or more fire-times, then the
 		/// <see cref="ITrigger" />'s misfire instruction will be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
 		IList<string> ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
@@ -431,32 +431,32 @@ namespace Quartz.Spi
 		/// <summary> 
 		/// Resume (un-pause) the <see cref="IJob" /> with the
 		/// given key.
-		/// <p>
+		/// <para>
 		/// If any of the <see cref="IJob" />'s<see cref="ITrigger" /> s missed one
 		/// or more fire-times, then the <see cref="ITrigger" />'s misfire
 		/// instruction will be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
 		void ResumeJob(JobKey jobKey);
 
 		/// <summary>
 		/// Resume (un-pause) all of the <see cref="IJob" />s in
 		/// the given group.
-		/// <p>
+		/// <para>
 		/// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
 		/// missed one or more fire-times, then the <see cref="ITrigger" />'s
 		/// misfire instruction will be applied.
-		/// </p> 
+		/// </para> 
 		/// </summary>
 		Collection.ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher);
 
 		/// <summary>
 		/// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
 		/// on every group.
-		/// <p>
+		/// <para>
 		/// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <seealso cref="ResumeAll" />
 		void PauseAll();
@@ -464,10 +464,10 @@ namespace Quartz.Spi
 		/// <summary>
 		/// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
 		/// on every group.
-		/// <p>
+		/// <para>
 		/// If any <see cref="ITrigger" /> missed one or more fire-times, then the
 		/// <see cref="ITrigger" />'s misfire instruction will be applied.
-		/// </p>
+		/// </para>
 		/// 
 		/// </summary>
 		/// <seealso cref="PauseAll" />

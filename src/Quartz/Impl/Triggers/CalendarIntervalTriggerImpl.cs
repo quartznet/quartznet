@@ -33,7 +33,7 @@ namespace Quartz.Impl.Triggers
     /// This trigger can achieve schedules that are not possible with <see cref="ISimpleTrigger" /> (e.g 
     /// because months are not a fixed number of seconds) or <see cref="ICronTrigger" /> (e.g. because
     /// "every 5 months" is not an even divisor of 12).
-    /// <p>
+    /// <para>
     /// If you use an interval unit of <see cref="IntervalUnit.Month" /> then care should be taken when setting
     /// a <code>startTime</code> value that is on a day near the end of the month.  For example,
     /// if you choose a start time that occurs on January 31st, and have a trigger with unit
@@ -42,7 +42,7 @@ namespace Quartz.Impl.Triggers
     /// occur on the 28th of the month, even if a 31st day exists.  If you want a trigger that always
     /// fires on the last day of the month - regardless of the number of days in the month, 
     /// you should use <see cref="ICronTrigger" />.
-    /// </p> 
+    /// </para> 
     /// </remarks>
     /// <see cref="ITrigger" />
     /// <see cref="ICronTrigger" />
@@ -326,12 +326,12 @@ namespace Quartz.Impl.Triggers
 
         /// <summary>
         /// This method should not be used by the Quartz client.
-        /// <p>
+        /// <para>
         /// Called when the <see cref="IScheduler" /> has decided to 'fire'
         /// the trigger (Execute the associated <see cref="IJob" />), in order to
         /// give the <see cref="ITrigger" /> a chance to update itself for its next
         /// triggering (if any).
-        /// </p>
+        /// </para>
         /// </summary>
         /// <seealso cref="JobExecutionException" />
         public override void Triggered(ICalendar calendar)
@@ -358,12 +358,12 @@ namespace Quartz.Impl.Triggers
 
         /// <summary> 
         /// This method should not be used by the Quartz client.
-        /// <p>
+        /// <para>
         /// The implementation should update the <see cref="ITrigger" />'s state
         /// based on the given new version of the associated <see cref="ICalendar" />
         /// (the state should be updated so that it's next fire time is appropriate
         /// given the Calendar's new settings). 
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="calendar"> </param>
         /// <param name="misfireThreshold"></param>
@@ -405,16 +405,16 @@ namespace Quartz.Impl.Triggers
         /// This method should not be used by the Quartz client.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// Called by the scheduler at the time a <see cref="ITrigger" /> is first
         /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
-        /// </p>
+        /// </para>
         /// 
-        /// <p>
+        /// <para>
         /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
         /// should return a valid answer.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <returns> 
         /// The first time at which the <see cref="ITrigger" /> will be fired

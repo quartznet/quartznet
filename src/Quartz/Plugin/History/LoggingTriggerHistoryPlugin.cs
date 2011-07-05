@@ -32,12 +32,12 @@ namespace Quartz.Plugin.History
     /// framework.
     /// </summary>
     /// <remarks>
-    /// <p>
+    /// <para>
     /// The logged message is customizable by setting one of the following message
     /// properties to a string that conforms to the syntax of <see cref="String.Format(string, object[])" />.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// TriggerFiredMessage - available message data are: <table>
     /// <tr>
     /// <th>Element</th>
@@ -88,9 +88,9 @@ namespace Quartz.Plugin.History
     /// 
     /// The default message text is <i>"Trigger {1}.{0} fired job {6}.{5} at: {4,
     /// date, HH:mm:ss MM/dd/yyyy"</i>
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// TriggerMisfiredMessage - available message data are: <table>
     /// <tr>
     /// <th>Element</th>
@@ -137,9 +137,9 @@ namespace Quartz.Plugin.History
     /// The default message text is <i>"Trigger {1}.{0} misfired job {6}.{5} at:
     /// {4, date, HH:mm:ss MM/dd/yyyy}. Should have fired at: {3, date, HH:mm:ss
     /// MM/dd/yyyy"</i>
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// TriggerCompleteMessage - available message data are: <table>
     /// <tr>
     /// <th>Element</th>
@@ -202,7 +202,7 @@ namespace Quartz.Plugin.History
     /// The default message text is <i>"Trigger {1}.{0} completed firing job
     /// {6}.{5} at {4, date, HH:mm:ss MM/dd/yyyy} with resulting trigger instruction
     /// code: {9"</i>
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
@@ -295,10 +295,10 @@ namespace Quartz.Plugin.History
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// has fired, and it's associated <see cref="IJobDetail" />
         /// is about to be executed.
-        /// <p>
+        /// <para>
         /// It is called before the <see cref="VetoJobExecution" /> method of this
         /// interface.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has fired.</param>
         /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
@@ -322,12 +322,12 @@ namespace Quartz.Plugin.History
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// has misfired.
-        /// <p>
+        /// <para>
         /// Consideration should be given to how much time is spent in this method,
         /// as it will affect all triggers that are misfiring.  If you have lots
         /// of triggers misfiring at once, it could be an issue it this method
         /// does a lot.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
         public virtual void TriggerMisfired(ITrigger trigger)
@@ -400,10 +400,10 @@ namespace Quartz.Plugin.History
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// has fired, and it's associated <see cref="IJobDetail" />
         /// is about to be executed.
-        /// <p>
+        /// <para>
         /// It is called after the <see cref="TriggerFired" /> method of this
         /// interface.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has fired.</param>
         /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to

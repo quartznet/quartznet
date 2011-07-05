@@ -28,21 +28,21 @@ namespace Quartz
     /// use <see cref="TriggerBuilder" /> to instantiate an actual Trigger.
     /// </summary>
     /// <remarks>
-    /// <p>
+    /// <para>
     /// <see cref="ITrigger" />s have a <see cref="TriggerKey" /> associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// <see cref="ITrigger" />s are the 'mechanism' by which <see cref="IJob" /> s
     /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
     /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// Triggers can 'send' parameters/data to <see cref="IJob" />s by placing contents
     /// into the <see cref="JobDataMap" /> on the <see cref="ITrigger" />.
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <seealso cref="TriggerBuilder" />
     /// <seealso cref="ICalendarIntervalTrigger" />
@@ -82,19 +82,19 @@ namespace Quartz
         /// <summary>
         /// Get or set the <see cref="JobDataMap" /> that is associated with the 
         /// <see cref="ITrigger" />.
-        /// <p>
+        /// <para>
         /// Changes made to this map during job execution are not re-persisted, and
         /// in fact typically result in an illegal state.
-        /// </p>
+        /// </para>
         /// </summary>
         JobDataMap JobDataMap { get; }
 
         /// <summary>
         /// Returns the last UTC time at which the <see cref="ITrigger" /> will fire, if
         /// the Trigger will repeat indefinitely, null will be returned.
-        /// <p>
+        /// <para>
         /// Note that the return time *may* be in the past.
-        /// </p>
+        /// </para>
         /// </summary>
         DateTimeOffset? FinalFireTimeUtc { get; }
 
@@ -104,9 +104,9 @@ namespace Quartz
         /// concrete <see cref="ITrigger" /> type that you are using will have
         /// defined a set of additional MISFIRE_INSTRUCTION_XXX
         /// constants that may be set to this property.
-        /// <p>
+        /// <para>
         /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.InstructionNotSet" />.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <seealso cref="Quartz.MisfireInstruction.InstructionNotSet" />
         /// <seealso cref="ISimpleTrigger" />
@@ -150,10 +150,10 @@ namespace Quartz
         /// <summary> 
         /// Used by the <see cref="IScheduler" /> to determine whether or not
         /// it is possible for this <see cref="ITrigger" /> to fire again.
-        /// <p>
+        /// <para>
         /// If the returned value is <see langword="false" /> then the <see cref="IScheduler" />
         /// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
-        /// </p>
+        /// </para>
         /// </summary>
         bool GetMayFireAgain();
 

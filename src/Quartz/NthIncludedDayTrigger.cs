@@ -40,7 +40,7 @@ namespace Quartz
 	/// every month). Each <see cref="NthIncludedDayTrigger" /> also has an associated
 	/// <see cref="FireAtTime" /> which indicates at what time of day the trigger is
 	/// to fire.
-	/// <p>
+	/// <para>
 	/// All <see cref="NthIncludedDayTrigger" />s default to a monthly interval type
 	/// (fires on the N<SUP>th</SUP> day of every month) with N = 1 (first 
 	/// non-excluded day) and <see cref="FireAtTime" /> set to 12:00 PM (noon). These
@@ -48,10 +48,10 @@ namespace Quartz
     /// <see cref="FireAtTime" /> methods. Users may also want to note the 
     /// <see cref="NextFireCutoffInterval" /> and <see cref="NextFireCutoffInterval" />
 	/// methods.
-	/// </p>
-	/// <p>
+	/// </para>
+	/// <para>
 	/// Take, for example, the following calendar:
-	/// </p>
+	/// </para>
 	/// <code>
 	/// July                  August                September
 	/// Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
@@ -141,11 +141,11 @@ namespace Quartz
         /// every month at 12:00 PM (<see cref="n" />=1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
         /// fireAtTime=12:00").
-        /// <p>
+        /// <para>
         /// Note that <see cref="ITrigger.JobKey" /> must
         /// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
         /// into a <see cref="IScheduler" />.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="name"> the name for the <see cref="NthIncludedDayTrigger" />
         /// </param>
@@ -160,11 +160,11 @@ namespace Quartz
         /// every month at 12:00 PM (<see cref="n" />=1, 
         /// intervalType=<see cref="IntervalTypeMonthly" />, 
         /// fireAtTime=12:00").
-        /// <p>
+        /// <para>
         /// Note that <see cref="ITrigger.JobKey" /> must
         /// be called before the <see cref="NthIncludedDayTrigger" /> can be placed 
         /// into a <see cref="IScheduler" />.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="name"> the name for the <see cref="NthIncludedDayTrigger" />
         /// </param>
@@ -327,35 +327,35 @@ namespace Quartz
 		/// <see cref="NthIncludedDayTrigger" />.
 		/// </summary>
 		/// <remarks>
-		/// <p>
+		/// <para>
 		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <I>never</I> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
         /// <see cref="NextFireCutoffInterval" /> property. The default cutoff is 12
 		/// of the intervals specified by <see cref="IntervalType"/> intervalType" />.
-		/// </p>
-		/// <p>
+		/// </para>
+		/// <para>
 		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <I>never</I> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
 		/// <see cref="NextFireCutoffInterval" /> method. The default cutoff is 12
 		/// of the intervals specified by <see cref="IntervalType" /> intervalType".
-		/// </p>
-		/// <p>
+		/// </para>
+		/// <para>
 		/// In most cases, the default value of this setting (12) is sufficient (it
 		/// is highly unlikely, for example, that you will need to look at more than
 		/// 12 months of dates to ensure that your trigger will never fire again).  
 		/// However, this setting is included to allow for the rare exceptions where
 		/// this might not be true.
-		/// </p>
-		/// <p>
+		/// </para>
+		/// <para>
 		/// For example, if your trigger is associated with a calendar that excludes
 		/// a great many dates in the next 12 months, and hardly any following that,
 		/// it is possible (if <see cref="N" /> is large enough) that you could run 
 		/// into this situation.  
-		/// </p>
+		/// </para>
 		/// </remarks>
 		public virtual int NextFireCutoffInterval
 		{
@@ -408,18 +408,18 @@ namespace Quartz
 		/// returned. 
 		/// </summary>
 		/// <remarks>
-		/// <p>
+		/// <para>
 		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <i>never</i> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
 		/// <see cref="NextFireCutoffInterval" /> property. The default cutoff is 12
 		/// of the intervals specified by <see cref="IntervalType" /> intervalType.
-		/// </p>
-		/// <p>
+		/// </para>
+		/// <para>
 		/// The returned value is not guaranteed to be valid until after
 		/// the trigger has been added to the scheduler.
-		/// </p>
+		/// </para>
         /// </remarks>
 		/// <returns> the next fire time for the trigger</returns>
 		/// <seealso cref="NextFireCutoffInterval" /> 
@@ -465,15 +465,15 @@ namespace Quartz
 		/// after the specified date.
 		/// </summary>
 		/// <remarks>
-		/// <p> 
+		/// <para> 
 		/// Because of the conceptual design of <see cref="NthIncludedDayTrigger" />,
 		/// it is not always possible to decide with certainty that the trigger
 		/// will <i>never</i> fire again. Therefore, it will search for the next 
 		/// fire time up to a given cutoff. These cutoffs can be changed by using the
 		/// <see cref="NextFireCutoffInterval" /> property. The default cutoff is 12
 		/// of the intervals specified by <see cref="IntervalType" /> intervalType.
-		/// </p>
-		/// <p>
+		/// </para>
+		/// <para>
 		/// Therefore, for triggers with intervalType = 
         /// <see cref="IntervalTypeWeekly" />, if the trigger 
         /// will not fire within 12
@@ -488,7 +488,7 @@ namespace Quartz
 		/// years after the given date/time, <see langword="null" /> will be returned.  In 
 		/// all cases, if the trigger will not fire before <see field="endTime" />, 
 		/// <see langword="null" /> will be returned.
-		/// </p>
+		/// </para>
         /// </remarks> 
 		/// <param name="afterTimeUtc">The time after which to find the nearest fire time.
 		/// This argument is treated as exclusive &#x8212; that is,
@@ -545,10 +545,10 @@ namespace Quartz
 		/// Called by the scheduler at the time a <see cref="ITrigger" /> is first
 		/// added to the scheduler, in order to have the <see cref="ITrigger" />
 		/// compute its first fire time, based on any associated calendar.
-		/// <p>
+		/// <para>
 		/// After this method has been called, <see cref="GetNextFireTimeUtc" />
 		/// should return a valid answer.
-		/// </p>
+		/// </para>
 		/// 
 		/// </summary>
 		/// <returns> the first time at which the <see cref="ITrigger" /> will be fired
@@ -610,11 +610,11 @@ namespace Quartz
 		/// possible for this <see cref="ITrigger" /> to fire again.
 		/// </summary>'
 		/// <remarks>
-		/// <p>
+		/// <para>
 		/// If the returned value is <see langword="false" /> then the 
 		/// <see cref="IScheduler" /> may remove the <see cref="ITrigger" /> from the
 		/// <see cref="IJobStore" />
-		/// </p>
+		/// </para>
 		/// </remarks>
 		/// <returns>
 		/// A boolean indicator of whether the trigger could potentially fire

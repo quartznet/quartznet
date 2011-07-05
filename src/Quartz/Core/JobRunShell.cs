@@ -33,12 +33,12 @@ namespace Quartz.Core
 	/// executing the <see cref="IJob" />, catching ANY thrown exceptions, updating
 	/// the <see cref="ITrigger" /> with the <see cref="IJob" />'s completion code,
 	/// etc.
-	/// <p>
+	/// <para>
 	/// A <see cref="JobRunShell" /> instance is created by a <see cref="IJobRunShellFactory" />
 	/// on behalf of the <see cref="QuartzSchedulerThread" /> which then runs the
 	/// shell in a thread from the configured <see cref="ThreadPool" /> when the
 	/// scheduler determines that a <see cref="IJob" /> has been triggered.
-	/// </p>
+	/// </para>
 	/// </summary>
 	/// <seealso cref="IJobRunShellFactory" /> 
 	/// <seealso cref="QuartzSchedulerThread" />

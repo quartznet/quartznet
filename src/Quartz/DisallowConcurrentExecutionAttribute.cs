@@ -27,8 +27,8 @@ namespace Quartz
     /// definition - or in other words based upon a <see cref="JobKey" />. 
     /// </summary>
     /// <remarks>
-    /// <p>This can be used in lieu of implementing the StatefulJob marker interface that 
-    /// was used prior to Quartz 2.0</p>
+    /// <para>This can be used in lieu of implementing the StatefulJob marker interface that 
+    /// was used prior to Quartz 2.0</para>
     /// </remarks>
     /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
     /// <author>James House</author>

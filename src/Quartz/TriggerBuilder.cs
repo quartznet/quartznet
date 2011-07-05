@@ -28,13 +28,13 @@ namespace Quartz
     /// <code>TriggerBuilder</code> is used to instantiate <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
-    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
     /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
     /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</p>
-    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// and the various <code>ScheduleBuilder</code> implementations.</para>
+    /// <para>Client code can then use the DSL to write code such as this:</para>
     /// <pre>
     /// JobDetail job = newJob(MyJob.class)
     /// .withIdentity("myJob")
@@ -124,8 +124,8 @@ namespace Quartz
         /// identify the Trigger.
         /// </summary>
         /// <remarks>
-        /// <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
-        /// then a random, unique TriggerKey will be generated.</p>
+        /// <para>If none of the 'withIdentity' methods are set on the TriggerBuilder,
+        /// then a random, unique TriggerKey will be generated.</para>
         /// </remarks>
         /// <param name="name">the name element for the Trigger's TriggerKey</param>
         /// <returns>the updated TriggerBuilder</returns>
@@ -142,8 +142,8 @@ namespace Quartz
         /// identify the Trigger.
         /// </summary>
         /// <remarks>
-        /// <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
-        /// then a random, unique TriggerKey will be generated.</p>
+        /// <para>If none of the 'withIdentity' methods are set on the TriggerBuilder,
+        /// then a random, unique TriggerKey will be generated.</para>
         /// </remarks>
         /// <param name="name">the name element for the Trigger's TriggerKey</param>
         /// <param name="group">the group element for the Trigger's TriggerKey</param>
@@ -160,8 +160,8 @@ namespace Quartz
         /// Use the given TriggerKey to identify the Trigger.
         /// </summary>
         /// <remarks>
-        /// <p>If none of the 'withIdentity' methods are set on the TriggerBuilder,
-        /// then a random, unique TriggerKey will be generated.</p>
+        /// <para>If none of the 'withIdentity' methods are set on the TriggerBuilder,
+        /// then a random, unique TriggerKey will be generated.</para>
         /// </remarks>
         /// <param name="key">the TriggerKey for the Trigger to be built</param>
         /// <returns>the updated TriggerBuilder</returns>
@@ -274,8 +274,8 @@ namespace Quartz
         /// Trigger's schedule.
         /// </summary>
         /// <remarks>
-        /// <p>The particular <code>SchedulerBuilder</code> used will dictate
-        /// the concrete type of Trigger that is produced by the TriggerBuilder.</p>
+        /// <para>The particular <code>SchedulerBuilder</code> used will dictate
+        /// the concrete type of Trigger that is produced by the TriggerBuilder.</para>
         /// </remarks>
         /// <param name="scheduleBuilder">the SchedulerBuilder to use.</param>
         /// <returns>the updated TriggerBuilder</returns>

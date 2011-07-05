@@ -58,8 +58,8 @@ namespace Quartz.Job
 	    /// in the middle of writing to the file when the scan occurs, and the
 	    /// file may therefore not yet be ready for processing.
 	    /// 
-	    /// <p>If this parameter is not specified, a default value of 
-	    /// <code>5000</code> (five seconds) will be used.</p>
+	    /// <para>If this parameter is not specified, a default value of 
+	    /// <code>5000</code> (five seconds) will be used.</para>
 	    /// </summary>
 	    public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE"; 
 	    
@@ -87,14 +87,14 @@ namespace Quartz.Job
 	    /// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
-		/// <p>
+		/// <para>
 		/// The implementation may wish to set a  result object on the
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to
 		/// <see cref="IJobListener" />s or
 		/// <see cref="ITriggerListener" />s that are watching the job's
 		/// execution.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="context">The execution context.</param>
 		/// <seealso cref="IJob">

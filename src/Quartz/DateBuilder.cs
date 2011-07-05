@@ -28,13 +28,13 @@ namespace Quartz
     /// <code>java.util.Date</code> instances that meet particular criteria.
     /// </summary>
     /// <remarks>
-    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
     /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
     /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</p>
-    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// and the various <code>ScheduleBuilder</code> implementations.</para>
+    /// <para>Client code can then use the DSL to write code such as this:</para>
     /// <pre>
     /// JobDetail job = newJob(MyJob.class)
     /// .withIdentity("myJob")
@@ -342,10 +342,10 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Get a <code>Date</code> object that represents the given time, on
         /// today's date.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -397,10 +397,10 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Get a <code>Date</code> object that represents the given time, on the
         /// given date.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -433,16 +433,16 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Returns a date that is rounded to the next even hour after the current time.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// For example a current time of 08:13:54 would result in a date
         /// with the time of 09:00:00. If the date's time is in the 23rd hour, the
         /// date's 'day' will be promoted, and the time will be set to 00:00:00.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenHourDateAfterNow()
@@ -453,11 +453,11 @@ namespace Quartz
         /// <summary>
         /// Returns a date that is rounded to the next even hour above the given
         /// date.
-        /// <p>
+        /// <para>
         /// For example an input date with a time of 08:13:54 would result in a date
         /// with the time of 09:00:00. If the date's time is in the 23rd hour, the
         /// date's 'day' will be promoted, and the time will be set to 00:00:00.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
         /// be used</param>
@@ -475,10 +475,10 @@ namespace Quartz
         /// <summary>
         /// Returns a date that is rounded to the previous even hour below the given
         /// date.
-        /// <p>
+        /// <para>
         /// For example an input date with a time of 08:13:54 would result in a date
         /// with the time of 08:00:00.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
         /// be used</param>
@@ -493,16 +493,16 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Returns a date that is rounded to the next even minute after the current time.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// For example a current time of 08:13:54 would result in a date
         /// with the time of 08:14:00. If the date's time is in the 59th minute,
         /// then the hour (and possibly the day) will be promoted.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenMinuteDateAfterNow()
@@ -513,11 +513,11 @@ namespace Quartz
         /// <summary>
         /// Returns a date that is rounded to the next even minute above the given
         /// date.
-        /// <p>
+        /// <para>
         /// For example an input date with a time of 08:13:54 would result in a date
         /// with the time of 08:14:00. If the date's time is in the 59th minute,
         /// then the hour (and possibly the day) will be promoted.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="dateUtc">The Date to round, if <see langword="null" /> the current time will  be used</param>
         /// <returns>The new rounded date</returns>
@@ -536,10 +536,10 @@ namespace Quartz
         /// <summary>
         /// Returns a date that is rounded to the previous even minute below the
         /// given date.
-        /// <p>
+        /// <para>
         /// For example an input date with a time of 08:13:54 would result in a date
         /// with the time of 08:13:00.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
         /// be used</param>
@@ -556,9 +556,9 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Returns a date that is rounded to the next even second after the current time.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -569,10 +569,10 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Returns a date that is rounded to the next even second above the given
         /// date.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -587,16 +587,16 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Returns a date that is rounded to the previous even second below the
         /// given date.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// For example an input date with a time of 08:13:54.341 would result in a
         /// date with the time of 08:13:00.000.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <param name="date"></param>
         /// the Date to round, if <code>null</code> the current time will
@@ -608,21 +608,21 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Returns a date that is rounded to the next even multiple of the given
         /// minute.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// For example an input date with a time of 08:13:54, and an input
         /// minute-base of 5 would result in a date with the time of 08:15:00. The
         /// same input date with an input minute-base of 10 would result in a date
         /// with the time of 08:20:00. But a date with the time 08:53:31 and an
         /// input minute-base of 45 would result in 09:00:00, because the even-hour
         /// is the next 'base' for 45-minute intervals.
-        /// </p>
-        /// <p>
+        /// </para>
+        /// <para>
         /// More examples: <table>
         /// <tr>
         /// <th>Input Time</th>
@@ -690,7 +690,7 @@ namespace Quartz
         /// <td>11:08:00</td>
         /// </tr>
         /// </table>
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <param name="date"></param>
         /// the Date to round, if <code>null</code> the current time will
@@ -730,10 +730,10 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Returns a date that is rounded to the next even multiple of the given
         /// minute.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
         /// The rules for calculating the second are the same as those for

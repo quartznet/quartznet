@@ -8,18 +8,18 @@ namespace Quartz
     /// at given moments in time, defined with Unix 'cron-like' schedule definitions.
     /// </summary>
     /// <remarks>
-    /// <p>
+    /// <para>
     /// For those unfamiliar with "cron", this means being able to create a firing
     /// schedule such as: "At 8:00am every Monday through Friday" or "At 1:30am
     /// every last Friday of the month".
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// The format of a "Cron-Expression" string is documented on the 
     /// <see cref="CronExpression" /> class.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// Here are some full examples: <br />
     /// <table cellspacing="8">
     /// <tr>
@@ -126,14 +126,14 @@ namespace Quartz
     /// </td>
     /// </tr>
     /// </table>
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// Pay attention to the effects of '?' and '*' in the day-of-week and
     /// day-of-month fields!
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// <b>NOTES:</b>
     /// <ul>
     /// <li>Support for specifying both a day-of-week and a day-of-month value is
@@ -143,7 +143,7 @@ namespace Quartz
     /// "daylight savings" can cause a skip or a repeat depending on whether the
     /// time moves back or jumps forward.</li>
     /// </ul>
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <seealso cref="ITrigger"/>
     /// <seealso cref="ISimpleTrigger"/>

@@ -29,12 +29,14 @@ using Quartz.Impl;
 namespace Quartz.Examples.Example7
 {
     /// <summary>
-    /// Demonstrates the behavior of <see cref="IStatefulJob" />s, as well as how
-    /// misfire instructions affect the firings of triggers of <see cref="IStatefulJob" />
-    /// s - when the jobs take longer to execute that the frequency of the trigger's
+    /// Demonstrates the behavior of <see cref="PersistJobDataAfterExecutionAttribute" />, 
+    /// as well as how misfire instructions affect the firings of triggers of
+    /// that have <see cref="DisallowConcurrentExecutionAttribute" /> present - 
+    /// when the jobs take longer to execute that the frequency of the trigger's
     /// repitition.
-    /// 
-    /// <p>
+    /// </summary>
+    /// <remarks>
+    /// <para>
     /// While the example is running, you should note that there are two triggers
     /// with identical schedules, firing identical jobs. The triggers "want" to fire
     /// every 3 seconds, but the jobs take 10 seconds to execute. Therefore, by the
@@ -47,8 +49,8 @@ namespace Quartz.Examples.Example7
     /// the trigger to advance to its next fire time (skipping those that it has
     /// missed) - so that it does not refire immediately, but rather at the next
     /// scheduled time.
-    /// </p>
-    /// </summary>
+    /// </para>
+    /// </remarks>
     /// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
     /// <author>Marko Lahma (.NET)</author>
     public class InterruptExample : IExample

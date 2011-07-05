@@ -27,15 +27,15 @@ namespace Quartz.Listener
     /// A helpful abstract base class for implementors of <see cref="IJobListener" />.
     /// </summary>
     /// <remarks>
-    /// <p>
+    /// <para>
     /// The methods in this class are empty so you only need to override the  
     /// subset for the <see cref="IJobListener" /> events you care about.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// You are required to implement <see cref="IJobListener.Name" /> 
     /// to return the unique name of your <see cref="IJobListener" />.  
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="IJobListener" />
@@ -70,10 +70,10 @@ namespace Quartz.Listener
         /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
         /// is about to be executed (an associated <see cref="ITrigger"/>
         /// has occured).
-        /// <p>
+        /// <para>
         /// This method will not be invoked if the execution of the Job was vetoed
         /// by a <see cref="ITriggerListener"/>.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="context"></param>
         /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>

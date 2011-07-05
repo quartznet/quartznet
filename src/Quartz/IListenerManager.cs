@@ -92,7 +92,7 @@ namespace Quartz
         /// will receive events if ANY of the matchers match.
         /// </summary>
         /// <remarks>
-        /// <p>Removes any existing matchers for the identified listener!</p>
+        /// <para>Removes any existing matchers for the identified listener!</para>
         /// </remarks>
         /// <param name="listenerName">the name of the listener to add the matcher to</param>
         /// <param name="matchers">the matchers to apply for selecting events</param>
@@ -179,7 +179,7 @@ namespace Quartz
         /// will receive events if ANY of the matchers match.
         /// </summary>
         /// <remarks>
-        /// <p>Removes any existing matchers for the identified listener!</p>
+        /// <para>Removes any existing matchers for the identified listener!</para>
         /// </remarks>
         /// <param name="listenerName">the name of the listener to add the matcher to</param>
         /// <param name="matchers">the matchers to apply for selecting events</param>

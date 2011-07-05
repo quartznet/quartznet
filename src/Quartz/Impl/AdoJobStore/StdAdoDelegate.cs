@@ -2251,9 +2251,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Update a fired trigger.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -2562,10 +2562,10 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// A List of all current <see cref="SchedulerStateRecord" />s.
-        /// <p>
+        /// <para>
         /// If instanceId is not null, then only the record for the identified
         /// instance will be returned.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="conn">The DB Connection</param>
         /// <param name="instanceName">The instance id.</param>

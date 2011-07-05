@@ -21,8 +21,6 @@
 
 using System;
 
-using Quartz.Impl;
-
 namespace Quartz
 {
     /// <summary>
@@ -32,18 +30,19 @@ namespace Quartz
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
     /// instead allows you to define an instance of one, through the use of a <see cref="IJobDetail" />.
-    /// <p>
+    /// <para>
     /// <see cref="IJob" />s have a name and group associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
-    /// </p>
-    /// <p>
+    /// </para>
+    /// <para>
     /// <see cref="ITrigger" /> s are the 'mechanism' by which <see cref="IJob" /> s
     /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
     /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <seealso cref="IJob" />
-    /// <seealso cref="IStatefulJob"/>
+    /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
+    /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
     /// <seealso cref="Quartz.JobDataMap"/>
     /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
@@ -84,13 +83,13 @@ namespace Quartz
         bool Durable { get; }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecutionAttribute" /> TODO annotation.
+        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecutionAttribute" />.
         /// </summary>
         /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
         bool PersistJobDataAfterExecution { get; }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> TODO annotation.
+        /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" />.
         /// </summary>
         /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
         bool ConcurrentExectionDisallowed { get; }

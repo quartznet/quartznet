@@ -29,17 +29,17 @@ namespace Quartz.Spi
     /// will obviously interact with the scheduler in some way - either actively: by
     /// invoking actions on the scheduler, or passively: by being a <see cref="IJobListener" />,
     /// <see cref="ITriggerListener" />, and/or <see cref="ISchedulerListener" />.
-    /// <p>
+    /// <para>
     /// If you use <see cref="StdSchedulerFactory" /> to
     /// Initialize your Scheduler, it can also create and Initialize your plugins -
     /// look at the configuration docs for details.
-    /// </p>
-    /// <p>
+    /// </para>
+    /// <para>
     /// If you need direct access your plugin, you can have it explicitly put a 
     /// reference to itself in the <see cref="IScheduler" />'s 
     /// <see cref="SchedulerContext" /> as part of its
     /// <see cref="Initialize(string, IScheduler)" /> method.
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
@@ -51,12 +51,12 @@ namespace Quartz.Spi
         /// </summary>
         /// <remarks>
         /// At this point, the Scheduler's <see cref="IJobStore" /> is not yet
-        /// <p>
+        /// <para>
         /// If you need direct access your plugin, you can have it explicitly put a 
         /// reference to itself in the <see cref="IScheduler" />'s 
         /// <see cref="SchedulerContext" /> as part of its
         /// <see cref="Initialize(string, IScheduler)" /> method.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <param name="pluginName">
         /// The name by which the plugin is identified.

@@ -905,9 +905,9 @@ namespace Quartz.Impl.AdoJobStore
                 conn => StoreJob(conn, newJob, replaceExisting));
         }
 
-        /// <summary> <p>
+        /// <summary> <para>
         /// Insert or update a job.
-        /// </p>
+        /// </para>
         /// </summary>
         protected virtual void StoreJob(ConnectionAndTransactionHolder conn,
                                         IJobDetail newJob,
@@ -1215,17 +1215,17 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// 
         /// <remarks>
-        /// <p>
+        /// <para>
         /// If removal of the <see cref="ITrigger" /> results in an empty group, the
         /// group should be removed from the <see cref="IJobStore" />'s list of
         /// known group names.
-        /// </p>
+        /// </para>
         /// 
-        /// <p>
+        /// <para>
         /// If removal of the <see cref="ITrigger" /> results in an 'orphaned' <see cref="IJob" />
         /// that is not 'durable', then the <see cref="IJob" /> should be deleted
         /// also.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <returns>
@@ -2220,10 +2220,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Resume (un-pause) all of the <see cref="ITrigger" />s
         /// in the given group.
-        /// <p>
+        /// <para>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual IList<string> ResumeTriggers(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
@@ -2289,10 +2289,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey})" />
         /// on every group.
-        /// <p>
+        /// <para>
         /// When <see cref="ResumeAll()" /> is called (to un-pause), trigger misfire
         /// instructions WILL be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <seealso cref="ResumeAll()" />
         /// <seealso cref="String" />
@@ -2336,10 +2336,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
         /// on every group.
-        /// <p>
+        /// <para>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <seealso cref="PauseAll()" />
         public virtual void ResumeAll(ConnectionAndTransactionHolder conn)

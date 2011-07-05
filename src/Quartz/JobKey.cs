@@ -28,18 +28,18 @@ namespace Quartz
     /// Uniquely identifies a <see cref="IJobDetail" />.
     /// </summary>
     /// <remarks>
-    /// <p>Keys are composed of both a name and group, and the name must be unique
+    /// <para>Keys are composed of both a name and group, and the name must be unique
     /// within the group.  If only a group is specified then the default group
-    /// name will be used.</p> 
+    /// name will be used.</para> 
     /// 
-    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
     /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />, 
     /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" /> 
-    /// and the various <see cref="IScheduleBuilder" /> implementations.</p>
+    /// and the various <see cref="IScheduleBuilder" /> implementations.</para>
     /// 
-    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// <para>Client code can then use the DSL to write code such as this:</para>
     /// <pre>
     ///         JobDetail job = NewJob(typepof(MyJob))
     ///             .WithIdentity("myJob")

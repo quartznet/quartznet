@@ -28,7 +28,7 @@ namespace Quartz
 	/// their jobs will.
 	/// </summary>
 	/// <remarks>
-	/// <p>
+	/// <para>
 	/// The means of actually interrupting the Job must be implemented within the
 	/// <see cref="IJob" /> itself (the <see cref="Interrupt" /> method of this 
 	/// interface is simply a means for the scheduler to inform the <see cref="IJob" />
@@ -44,9 +44,9 @@ namespace Quartz
 	/// synchronization within <see cref="Thread.Interrupt" /> and <see cref="IJob.Execute" />
 	/// in order to have the <see cref="Thread.Interrupt" /> method block until the
 	/// <see cref="IJob.Execute" /> signals that it has noticed the set flag.
-	/// </p>
+	/// </para>
 	/// 
-	/// <p>
+	/// <para>
 	/// If the Job performs some form of blocking I/O or similar functions, you may
 	/// want to consider having the <see cref="IJob.Execute" /> method store a
 	/// reference to the calling <see cref="Thread" /> as a member variable.  Then the
@@ -56,10 +56,9 @@ namespace Quartz
 	/// does and doesn't do.  Also make sure that you clear the Job's member 
 	/// reference to the Thread when the Execute(..) method exits (preferably in a
 	/// <see langword="finally" /> block.
-	/// </p>
+	/// </para>
     /// </remarks>
 	/// <seealso cref="IJob" />
-	/// <seealso cref="IStatefulJob" />
 	/// <seealso cref="IScheduler.Interrupt"/>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>

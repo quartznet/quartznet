@@ -42,9 +42,9 @@ namespace Quartz.Plugin.Management
         /// <summary> 
         /// Determine whether or not the plug-in is configured to cause a clean
         /// Shutdown of the scheduler.
-        /// <p>
+        /// <para>
         /// The default value is <see langword="true" />.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <seealso cref="IScheduler.Shutdown(bool)" />
         public virtual bool CleanShutdown

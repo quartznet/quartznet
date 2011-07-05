@@ -29,7 +29,7 @@ namespace Quartz.Impl.Calendar
 	/// <remarks>
 	/// For example, you could use this calendar to exclude all but business hours (8AM - 5PM) every 
 	/// day using the expression &quot;* * 0-7,18-23 ? * *&quot;. 
-	/// <p>
+	/// <para>
 	/// It is important to remember that the cron expression here describes a set of
 	/// times to be <i>excluded</i> from firing. Whereas the cron expression in 
 	/// CronTrigger describes a set of times that can
@@ -37,7 +37,7 @@ namespace Quartz.Impl.Calendar
 	/// given cron expression and is associated with a <see cref="CronCalendar" /> with
 	/// the <i>same</i> expression, the calendar will exclude all the times the 
 	/// trigger includes, and they will cancel each other out.
-	/// </p>
+	/// </para>
 	/// </remarks>
 	/// <author>Aaron Craven</author>
 	/// <author>Marko Lahma (.NET)</author>

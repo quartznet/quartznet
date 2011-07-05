@@ -33,25 +33,25 @@ namespace Quartz.Impl
 	/// </summary>
 	/// <remarks>
 	/// Here are some examples of using this class:
-	/// <p>
+	/// <para>
 	/// To create a scheduler that does not write anything to the database (is not
 	/// persistent), you can call <see cref="CreateVolatileScheduler" />:
-	/// </p>
+	/// </para>
 	/// <pre>
 	/// DirectSchedulerFactory.Instance.CreateVolatileScheduler(10); // 10 threads 
 	/// // don't forget to start the scheduler: 
 	/// DirectSchedulerFactory.Instance.GetScheduler().Start();
 	/// </pre>
-	/// <p>
+	/// <para>
 	/// Several create methods are provided for convenience. All create methods
 	/// eventually end up calling the create method with all the parameters:
-	/// </p>
+	/// </para>
 	/// <pre>
     /// public void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IJobStore jobStore)
 	/// </pre>
-	/// <p>
+	/// <para>
 	/// Here is an example of using this method:
-	/// </p>
+	/// </para>
 	/// <pre>
 	/// // create the thread pool 
     /// SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, ThreadPriority.Normal); 
@@ -99,10 +99,10 @@ namespace Quartz.Impl
 			get { return instance; }
 		}
 
-		/// <summary> <p>
+		/// <summary> <para>
 		/// Returns a handle to all known Schedulers (made by any
 		/// StdSchedulerFactory instance.).
-		/// </p>
+		/// </para>
 		/// </summary>
 		public virtual ICollection<IScheduler> AllSchedulers
 		{
@@ -344,10 +344,10 @@ namespace Quartz.Impl
 
 		/// <summary>
 		/// Returns a handle to the Scheduler produced by this factory.
-		/// <p>
+		/// <para>
 		/// you must call createRemoteScheduler or createScheduler methods before
 		/// calling getScheduler()
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <returns></returns>
 		/// <throws>  SchedulerException </throws>

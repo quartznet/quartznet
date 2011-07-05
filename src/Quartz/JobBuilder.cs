@@ -31,14 +31,14 @@ namespace Quartz
     /// <code>JobBuilder</code> is used to instantiate {@link JobDetail}s.
     /// </summary>
     /// <remarks>
-    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
     /// <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
     /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
-    /// and the various <code>ScheduleBuilder</code> implementations.</p>
+    /// and the various <code>ScheduleBuilder</code> implementations.</para>
     /// 
-    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// <para>Client code can then use the DSL to write code such as this:</para>
     /// <pre>
     ///         JobDetail job = newJob(MyJob.class)
     ///             .withIdentity("myJob")
@@ -138,8 +138,8 @@ namespace Quartz
         /// identify the JobDetail.
         /// </summary>
         /// <remarks>
-        /// <p>If none of the 'withIdentity' methods are set on the JobBuilder,
-        /// then a random, unique JobKey will be generated.</p>
+        /// <para>If none of the 'withIdentity' methods are set on the JobBuilder,
+        /// then a random, unique JobKey will be generated.</para>
         /// </remarks>
         /// <param name="name">the name element for the Job's JobKey</param>
         /// <returns>the updated JobBuilder</returns>
@@ -156,8 +156,8 @@ namespace Quartz
         /// identify the JobDetail.
         /// </summary>
         /// <remarks>
-        /// <p>If none of the 'withIdentity' methods are set on the JobBuilder,
-        /// then a random, unique JobKey will be generated.</p>
+        /// <para>If none of the 'withIdentity' methods are set on the JobBuilder,
+        /// then a random, unique JobKey will be generated.</para>
         /// </remarks>
         /// <param name="name">the name element for the Job's JobKey</param>
         /// <param name="group"> the group element for the Job's JobKey</param>
@@ -174,8 +174,8 @@ namespace Quartz
         /// Use a <code>JobKey</code> to identify the JobDetail.
         /// </summary>
         /// <remarks>
-        /// <p>If none of the 'withIdentity' methods are set on the JobBuilder,
-        /// then a random, unique JobKey will be generated.</p>
+        /// <para>If none of the 'withIdentity' methods are set on the JobBuilder,
+        /// then a random, unique JobKey will be generated.</para>
         /// </remarks>
         /// <param name="key">the Job's JobKey</param>
         /// <returns>the updated JobBuilder</returns>

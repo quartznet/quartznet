@@ -32,19 +32,22 @@ namespace Quartz
 	/// execution completes.
 	/// </summary>
 	/// <remarks>
-	/// <p>
+	/// <para>
 	/// The <see cref="JobDataMap" /> found on this object (via the 
 	/// <see cref="MergedJobDataMap" /> method) serves as a convenience -
 	/// it is a merge of the <see cref="JobDataMap" /> found on the 
 	/// <see cref="JobDetail" /> and the one found on the <see cref="ITrigger" />, with 
 	/// the value in the latter overriding any same-named values in the former.
 	/// <i>It is thus considered a 'best practice' that the Execute code of a Job
-	/// retrieve data from the JobDataMap found on this object</i>  NOTE: Do not
+	/// retrieve data from the JobDataMap found on this object</i> 
+	/// </para>
+	/// <para>
+	/// NOTE: Do not
 	/// expect value 'set' into this JobDataMap to somehow be set back onto a
-	/// <see cref="IStatefulJob" />'s own JobDataMap.
-	/// </p>
+	/// job's own JobDataMap.
+	/// </para>
 	/// 
-	/// <p>
+	/// <para>
 	/// <see cref="IJobExecutionContext" /> s are also returned from the 
 	/// <see cref="IScheduler.GetCurrentlyExecutingJobs()" />
 	/// method. These are the same instances as those past into the jobs that are
@@ -54,7 +57,7 @@ namespace Quartz
 	/// the <see cref="IScheduler" /> and <see cref="IJob" /> instances have been lost (a
 	/// clone of the <see cref="JobDetail" /> is still available - just not a handle
 	/// to the job instance that is running).
-	/// </p>
+	/// </para>
     /// </remarks>
 	/// <seealso cref="JobDetail" /> 
 	/// <seealso cref="IScheduler" />
@@ -156,24 +159,22 @@ namespace Quartz
 		/// Get the convenience <see cref="JobDataMap" /> of this execution context.
 		/// </summary>
 		/// <remarks>
-		/// <p>
+		/// <para>
 		/// The <see cref="JobDataMap" /> found on this object serves as a convenience -
 		/// it is a merge of the <see cref="JobDataMap" /> found on the 
 		/// <see cref="JobDetail" /> and the one found on the <see cref="ITrigger" />, with 
 		/// the value in the latter overriding any same-named values in the former.
 		/// <i>It is thus considered a 'best practice' that the Execute code of a Job
 		/// retrieve data from the JobDataMap found on this object.</i>
-		/// </p>
-		/// 
-		/// <p>NOTE: Do not expect value 'set' into this JobDataMap to somehow be 
-		/// set back onto a <see cref="IStatefulJob" />'s own JobDataMap.
-		/// </p>
-		/// 
-		/// <p>
+		/// </para>
+		/// <para>
+		/// NOTE: Do not expect value 'set' into this JobDataMap to somehow be 
+		/// set back onto a job's own JobDataMap.
+		/// </para>
+		/// <para>
 		/// Attempts to change the contents of this map typically result in an 
 		/// illegal state.
-		/// </p>
-		/// 
+		/// </para>
         /// </remarks>
 		public virtual JobDataMap MergedJobDataMap
 		{
@@ -191,10 +192,10 @@ namespace Quartz
 		/// <summary>
 		/// Get the instance of the <see cref="IJob" /> that was created for this
 		/// execution.
-		/// <p>
+		/// <para>
 		/// Note: The Job instance is not available through remote scheduler
 		/// interfaces.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public virtual IJob JobInstance
 		{
@@ -249,22 +250,22 @@ namespace Quartz
 		/// to the particular job).
 		/// </summary>
 		/// <remarks>
-		/// <p>
+		/// <para>
 		/// The result itself is meaningless to Quartz, but may be informative
 		/// to <see cref="IJobListener" />s or 
 		/// <see cref="ITriggerListener" />s that are watching the job's 
 		/// execution.
-		/// </p> 
+		/// </para> 
 		/// 
 		/// Set the result (if any) of the <see cref="IJob" />'s execution (the type of 
 		/// object set as the result is entirely up to the particular job).
 		/// 
-		/// <p>
+		/// <para>
 		/// The result itself is meaningless to Quartz, but may be informative
 		/// to <see cref="IJobListener" />s or 
 		/// <see cref="ITriggerListener" />s that are watching the job's 
 		/// execution.
-		/// </p> 
+		/// </para> 
         /// </remarks>
 		public virtual object Result
 		{
@@ -316,11 +317,11 @@ namespace Quartz
 	    /// <summary> 
 		/// Put the specified value into the context's data map with the given key.
 		/// Possibly useful for sharing data between listeners and jobs.
-		/// <p>
+		/// <para>
 		/// NOTE: this data is volatile - it is lost after the job execution
 		/// completes, and all TriggerListeners and JobListeners have been 
 		/// notified.
-		/// </p> 
+		/// </para> 
 		/// </summary>
 		/// <param name="key">
 		/// </param>

@@ -20,16 +20,16 @@ namespace Quartz.Spi
         /// This method should not be used by the Quartz client.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// Called by the scheduler at the time a <see cref="ITrigger" /> is first
         /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
-        /// </p>
+        /// </para>
         /// 
-        /// <p>
+        /// <para>
         /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
         /// should return a valid answer.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <returns> 
         /// The first time at which the <see cref="ITrigger" /> will be fired
@@ -64,25 +64,25 @@ namespace Quartz.Spi
 
         /// <summary> 
         /// This method should not be used by the Quartz client.
-        /// <p>
+        /// <para>
         /// To be implemented by the concrete classes that extend this class.
-        /// </p>
-        /// <p>
+        /// </para>
+        /// <para>
         /// The implementation should update the <see cref="ITrigger" />'s state
         /// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="ITrigger" />
         /// was created.
-        /// </p>
+        /// </para>
         /// </summary>
         void UpdateAfterMisfire(ICalendar cal);
 
         /// <summary> 
         /// This method should not be used by the Quartz client.
-        /// <p>
+        /// <para>
         /// The implementation should update the <see cref="ITrigger" />'s state
         /// based on the given new version of the associated <see cref="ICalendar" />
         /// (the state should be updated so that it's next fire time is appropriate
         /// given the Calendar's new settings). 
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="cal"> </param>
         /// <param name="misfireThreshold"></param>

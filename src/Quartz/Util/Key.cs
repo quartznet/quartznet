@@ -69,9 +69,9 @@ namespace Quartz.Util
             get { return name; }
         }
 
-        /// <summary> <p>
+        /// <summary> <para>
         /// Get the group portion of the key.
-        /// </p>
+        /// </para>
         /// 
         /// </summary>
         /// <returns> the group
@@ -82,10 +82,10 @@ namespace Quartz.Util
         }
 
 
-        /// <summary> <p>
+        /// <summary> <para>
         /// Return the string representation of the key. The format will be:
         /// &lt;group&gt;.&lt;name&gt;.
-        /// </p>
+        /// </para>
         /// 
         /// </summary>
         /// <returns> the string representation of the key

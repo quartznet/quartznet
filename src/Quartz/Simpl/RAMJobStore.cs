@@ -35,12 +35,12 @@ namespace Quartz.Simpl
 	/// <summary>
 	/// This class implements a <see cref="IJobStore" /> that
 	/// utilizes RAM as its storage device.
-	/// <p>
+	/// <para>
 	/// As you should know, the ramification of this is that access is extrememly
 	/// fast, but the data is completely volatile - therefore this <see cref="IJobStore" />
 	/// should not be used if true persistence between program shutdowns is
 	/// required.
-	/// </p>
+	/// </para>
 	/// </summary>
 	/// <author>James House</author>
 	/// <author>Sharada Jambula</author>
@@ -746,10 +746,10 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Remove (delete) the <see cref="ICalendar" /> with the
 		/// given name.
-		/// <p>
+		/// <para>
 		/// If removal of the <see cref="ICalendar" /> would result in
 		/// <see cref="ITrigger" />s pointing to non-existent calendars, then a
-		/// <see cref="JobPersistenceException" /> will be thrown.</p>
+		/// <see cref="JobPersistenceException" /> will be thrown.</para>
 		/// </summary>
 		/// <param name="calName">The name of the <see cref="ICalendar" /> to be removed.</param>
 		/// <returns>
@@ -894,10 +894,10 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Get the names of all of the <see cref="ICalendar" /> s
 		/// in the <see cref="IJobStore" />.
-		/// <p>
+		/// <para>
 		/// If there are no ICalendars in the given group name, the result should be
 		/// a zero-length array (not <see langword="null" />).
-		/// </p>
+		/// </para>
 		/// </summary>
 		public virtual IList<string> GetCalendarNames()
 		{
@@ -986,9 +986,9 @@ namespace Quartz.Simpl
 
 		/// <summary>
 		/// Get all of the Triggers that are associated to the given Job.
-		/// <p>
+		/// <para>
 		/// If there are no matches, a zero-length array should be returned.
-		/// </p>
+		/// </para>
 		/// </summary>
         public virtual IList<IOperableTrigger> GetTriggersForJob(JobKey jobKey)
 		{
@@ -1090,11 +1090,11 @@ namespace Quartz.Simpl
 
 		/// <summary>
 		/// Pause all of the <see cref="ITrigger" />s in the given group.
-		/// <p>
+		/// <para>
 		/// The JobStore should "remember" that the group is paused, and impose the
 		/// pause on any new triggers that are added to the group while the group is
 		/// paused.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public virtual IList<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
 		{
@@ -1158,11 +1158,11 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Pause all of the <see cref="IJobDetail" />s in the
 		/// given group - by pausing all of their <see cref="ITrigger" />s.
-		/// <p>
+		/// <para>
 		/// The JobStore should "remember" that the group is paused, and impose the
 		/// pause on any new jobs that are added to the group while the group is
 		/// paused.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public virtual IList<string> PauseJobs(GroupMatcher<JobKey> matcher)
 		{
@@ -1256,10 +1256,10 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Resume (un-pause) all of the <see cref="ITrigger" />s in the
 		/// given group.
-		/// <p>
+		/// <para>
 		/// If any <see cref="ITrigger" /> missed one or more fire-times, then the
 		/// <see cref="ITrigger" />'s misfire instruction will be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public virtual IList<string> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
 		{
@@ -1294,11 +1294,11 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Resume (un-pause) the <see cref="IJobDetail" /> with
 		/// the given name.
-		/// <p>
+		/// <para>
 		/// If any of the <see cref="IJob" />'s<see cref="ITrigger" /> s missed one
 		/// or more fire-times, then the <see cref="ITrigger" />'s misfire
 		/// instruction will be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
         public virtual void ResumeJob(JobKey jobKey)
 		{
@@ -1315,11 +1315,11 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Resume (un-pause) all of the <see cref="IJobDetail" />s
 		/// in the given group.
-		/// <p>
+		/// <para>
 		/// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
 		/// missed one or more fire-times, then the <see cref="ITrigger" />'s
 		/// misfire instruction will be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public virtual Collection.ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher)
 		{
@@ -1357,10 +1357,10 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
 		/// on every group.
-		/// <p>
+		/// <para>
 		/// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
 		/// instructions WILL be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <seealso cref="ResumeAll()" /> 
 		public virtual void PauseAll()
@@ -1379,10 +1379,10 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
         /// on every trigger group and setting all job groups unpaused />.
-		/// <p>
+		/// <para>
 		/// If any <see cref="ITrigger" /> missed one or more fire-times, then the
 		/// <see cref="ITrigger" />'s misfire instruction will be applied.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <seealso cref="PauseAll()" />
 		public virtual void ResumeAll()

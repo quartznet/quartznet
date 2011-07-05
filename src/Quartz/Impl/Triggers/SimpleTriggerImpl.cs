@@ -256,9 +256,9 @@ namespace Quartz.Impl.Triggers
 	    /// <summary> 
         /// Returns the final UTC time at which the <see cref="ISimpleTrigger" /> will
         /// fire, if repeatCount is RepeatIndefinitely, null will be returned.
-        /// <p>
+        /// <para>
         /// Note that the return time may be in the past.
-        /// </p>
+        /// </para>
         /// </summary>
         public override DateTimeOffset? FinalFireTimeUtc
         {
@@ -551,10 +551,10 @@ namespace Quartz.Impl.Triggers
 		/// Called by the scheduler at the time a <see cref="ITrigger" /> is first
 		/// added to the scheduler, in order to have the <see cref="ITrigger" />
 		/// compute its first fire time, based on any associated calendar.
-		/// <p>
+		/// <para>
 		/// After this method has been called, <see cref="GetNextFireTimeUtc" />
 		/// should return a valid answer.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <returns> 
 		/// The first time at which the <see cref="ITrigger" /> will be fired

@@ -37,12 +37,12 @@ namespace Quartz.Impl.Calendar
     /// * fire. If <see cref="invertTimeRange" /> is <see langword="true" />, the time range
     /// is inverted: that is, all times <i>outside</i> the defined time range
     /// are excluded.
-    /// <p>
+    /// <para>
     /// Note when using <see cref="DailyCalendar" />, it behaves on the same principals
     /// as, for example, WeeklyCalendar defines a set of days that are
     /// excluded <i>every week</i>. Likewise, <see cref="DailyCalendar" /> defines a
     /// set of times that are excluded <i>every day</i>.
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <author>Mike Funk</author>
     /// <author>Aaron Craven</author>

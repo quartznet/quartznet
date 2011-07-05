@@ -133,11 +133,11 @@ namespace Quartz
         /// that fall within the given date range. The input trigger will be cloned
         /// before any work is done, so you need not worry about its state being
         /// altered by this method.
-        /// <p>
+        /// <para>
         /// NOTE: if this is a trigger that has previously fired within the given
         /// date range, then firings which have already occurred will not be listed
         /// in the output List.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="trigg">The trigger upon which to do the work</param>
         /// <param name="cal">The calendar to apply to the trigger's schedule</param>

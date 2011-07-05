@@ -159,17 +159,17 @@ namespace Quartz
         /// represent all currently executing Jobs in this Scheduler instance.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// This method is not cluster aware.  That is, it will only return Jobs
         /// currently executing in this Scheduler instance, not across the entire
         /// cluster.
-        /// </p>
-        /// <p>
+        /// </para>
+        /// <para>
         /// Note that the list returned is an 'instantaneous' snap-shot, and that as
         /// soon as it's returned, the true list of executing jobs may be different.
         /// Also please read the doc associated with <see cref="IJobExecutionContext" />-
         /// especially if you're using remoting.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <seealso cref="IJobExecutionContext" />
         IList<IJobExecutionContext> GetCurrentlyExecutingJobs();
@@ -256,16 +256,16 @@ namespace Quartz
         /// Temporarily halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// When <see cref="Start" /> is called (to bring the scheduler out of 
         /// stand-by mode), trigger misfire instructions will NOT be applied
         /// during the execution of the <see cref="Start" /> method - any misfires 
         /// will be detected immediately afterward (by the <see cref="IJobStore" />'s 
         /// normal process).
-        /// </p>
-        /// <p>
+        /// </para>
+        /// <para>
         /// The scheduler is not destroyed, and can be re-started at any time.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <seealso cref="Start()"/>
         /// <seealso cref="PauseAll()"/>
@@ -318,17 +318,17 @@ namespace Quartz
         /// Schedule all of the given jobs with the related set of triggers.
         /// </summary>
         /// <remarks>
-        /// <p>If any of the given jobs or triggers already exist (or more
+        /// <para>If any of the given jobs or triggers already exist (or more
         /// specifically, if the keys are not unique) and the replace
-        /// parameter is not set to true then an exception will be thrown.</p>
+        /// parameter is not set to true then an exception will be thrown.</para>
         /// </remarks>
         void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace);
 
 
         /// <summary>
         /// Remove the indicated <see cref="ITrigger" /> from the scheduler.
-        /// <p>If the related job does not have any other triggers, and the job is
-        /// not durable, then the job will also be deleted.</p>
+        /// <para>If the related job does not have any other triggers, and the job is
+        /// not durable, then the job will also be deleted.</para>
         /// </summary>
         bool UnscheduleJob(TriggerKey triggerKey);
 
@@ -336,8 +336,8 @@ namespace Quartz
         /// Remove all of the indicated <code><see cref="ITrigger" /></code>s from the scheduler.
         /// </summary>
         /// <remarks>
-        /// <p>If the related job does not have any other triggers, and the job is
-        /// not durable, then the job will also be deleted.</p>
+        /// <para>If the related job does not have any other triggers, and the job is
+        /// not durable, then the job will also be deleted.</para>
         /// Note that while this bulk operation is likely more efficient than
         /// invoking <code>unscheduleJob(TriggerKey triggerKey)</code> several
         /// times, it may have the adverse affect of holding data locks for a
@@ -389,11 +389,11 @@ namespace Quartz
         /// associated <code>Trigger</code>s.
         /// </summary>
         /// <remarks>
-        /// <p>Note that while this bulk operation is likely more efficient than
+        /// <para>Note that while this bulk operation is likely more efficient than
         /// invoking <code>deleteJob(JobKey jobKey)</code> several
         /// times, it may have the adverse affect of holding data locks for a
         /// single long duration of time (rather than lots of small durations
-        /// of time).</p>
+        /// of time).</para>
         /// </remarks>
         /// <returns>
         /// true if all of the Jobs were found and deleted, false if
@@ -610,27 +610,27 @@ namespace Quartz
         /// must be an implementor of the <see cref="IInterruptableJob" /> interface.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// If more than one instance of the identified job is currently executing,
         /// the <see cref="IInterruptableJob.Interrupt" /> method will be called on
         /// each instance.  However, there is a limitation that in the case that  
         /// <see cref="Interrupt" /> on one instances throws an exception, all 
         /// remaining  instances (that have not yet been interrupted) will not have 
         /// their <see cref="Interrupt" /> method called.
-        /// </p>
+        /// </para>
         /// 
-        /// <p>
+        /// <para>
         /// If you wish to interrupt a specific instance of a job (when more than
         /// one is executing) you can do so by calling 
         /// <see cref="GetCurrentlyExecutingJobs" /> to obtain a handle 
         /// to the job instance, and then invoke <see cref="Interrupt" /> on it
         /// yourself.
-        /// </p>
-        /// <p>
+        /// </para>
+        /// <para>
         /// This method is not cluster aware.  That is, it will only interrupt 
         /// instances of the identified InterruptableJob currently executing in this 
         /// Scheduler instance, not across the entire cluster.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <returns> 
         /// true is at least one instance of the identified job was found and interrupted.

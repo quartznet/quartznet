@@ -58,12 +58,12 @@ namespace Quartz
             /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
             /// situation, the <see cref="ISimpleTrigger" /> wants to be fired
             /// now by <see cref="IScheduler" />.
-            /// <p>
+            /// <para>
             /// <i>NOTE:</i> This instruction should typically only be used for
             /// 'one-shot' (non-repeating) Triggers. If it is used on a trigger with a
             /// repeat count > 0 then it is equivalent to the instruction 
             /// <see cref="RescheduleNowWithRemainingRepeatCount " />.
-            /// </p>
+            /// </para>
             /// </summary>		
             public const int FireNow = 1;
 
@@ -76,12 +76,12 @@ namespace Quartz
             /// end-time the <see cref="ITrigger" /> will not fire again.
             /// </summary>
             /// <remarks>
-            /// <p>
+            /// <para>
             /// <i>NOTE:</i> Use of this instruction causes the trigger to 'forget'
             /// the start-time and repeat-count that it was originally setup with (this
             /// is only an issue if you for some reason wanted to be able to tell what
             /// the original values were at some later time).
-            /// </p>
+            /// </para>
             /// </remarks>
             public const int RescheduleNowWithExistingRepeatCount = 2;
 
@@ -94,20 +94,20 @@ namespace Quartz
             /// however, so if 'now' is after the end-time the <see cref="ITrigger" /> will 
             /// not fire again.
             /// 
-            /// <p>
+            /// <para>
             /// <i>NOTE:</i> Use of this instruction causes the trigger to 'forget'
             /// the start-time and repeat-count that it was originally setup with.
             /// Instead, the repeat count on the trigger will be changed to whatever
             /// the remaining repeat count is (this is only an issue if you for some
             /// reason wanted to be able to tell what the original values were at some
             /// later time).
-            /// </p>
+            /// </para>
             /// 
-            /// <p>
+            /// <para>
             /// <i>NOTE:</i> This instruction could cause the <see cref="ITrigger" />
             /// to go to the 'COMPLETE' state after firing 'now', if all the
             /// repeat-fire-times where missed.
-            /// </p>
+            /// </para>
             /// </summary>
             public const int RescheduleNowWithRemainingRepeatCount = 3;
 
@@ -132,11 +132,11 @@ namespace Quartz
             /// repeat count left unchanged.
             /// </summary>
             /// <remarks>
-            /// <p>
+            /// <para>
             /// <i>NOTE/WARNING:</i> This instruction could cause the <see cref="ITrigger" />
             /// to go directly to the 'COMPLETE' state if all the end-time of the trigger 
             /// has arrived.
-            /// </p>
+            /// </para>
             /// </remarks>
             public const int RescheduleNextWithExistingCount = 5;
         }

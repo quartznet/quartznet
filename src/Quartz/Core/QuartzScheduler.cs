@@ -230,15 +230,15 @@ namespace Quartz.Core
         /// <summary>
         /// Return a list of <see cref="IJobExecutionContext" /> objects that
         /// represent all currently executing Jobs in this Scheduler instance.
-        /// <p>
+        /// <para>
         /// This method is not cluster aware.  That is, it will only return Jobs
         /// currently executing in this Scheduler instance, not across the entire
         /// cluster.
-        /// </p>
-        /// <p>
+        /// </para>
+        /// <para>
         /// Note that the list returned is an 'instantaneous' snap-shot, and that as
         /// soon as it's returned, the true list of executing jobs may be different.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual IList<IJobExecutionContext> CurrentlyExecutingJobs
         {
@@ -421,10 +421,10 @@ namespace Quartz.Core
 
         /// <summary>
         /// Starts the <see cref="QuartzScheduler" />'s threads that fire <see cref="ITrigger" />s.
-        /// <p>
+        /// <para>
         /// All <see cref="ITrigger" />s that have misfired will
         /// be passed to the appropriate TriggerListener(s).
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual void Start()
         {
@@ -498,9 +498,9 @@ namespace Quartz.Core
 
         /// <summary>
         /// Temporarily halts the <see cref="QuartzScheduler" />'s firing of <see cref="ITrigger" />s.
-        /// <p>
+        /// <para>
         /// The scheduler is not destroyed, and can be re-started at any time.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual void Standby()
         {
@@ -545,9 +545,9 @@ namespace Quartz.Core
         /// Halts the <see cref="QuartzScheduler" />'s firing of <see cref="ITrigger" />s,
         /// and cleans up all resources associated with the QuartzScheduler.
         /// Equivalent to <see cref="Shutdown(bool)" />.
-        /// <p>
+        /// <para>
         /// The scheduler cannot be re-started.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual void Shutdown()
         {
@@ -557,9 +557,9 @@ namespace Quartz.Core
         /// <summary>
         /// Halts the <see cref="QuartzScheduler" />'s firing of <see cref="ITrigger" />s,
         /// and cleans up all resources associated with the QuartzScheduler.
-        /// <p>
+        /// <para>
         /// The scheduler cannot be re-started.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="waitForJobsToComplete">
         /// if <see langword="true" /> the scheduler will not allow this method
@@ -672,10 +672,10 @@ namespace Quartz.Core
         /// Add the <see cref="IJob" /> identified by the given
         /// <see cref="IJobDetail" /> to the Scheduler, and
         /// associate the given <see cref="ITrigger" /> with it.
-        /// <p>
+        /// <para>
         /// If the given Trigger does not reference any <see cref="IJob" />, then it
         /// will be set to reference the Job passed with it into this method.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
         {
@@ -784,10 +784,10 @@ namespace Quartz.Core
         /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
         /// it is scheduled with a <see cref="ITrigger" />, or <see cref="IScheduler.TriggerJob(Quartz.JobKey)" />
         /// is called for it.
-        /// <p>
+        /// <para>
         /// The <see cref="IJob" /> must by definition be 'durable', if it is not,
         /// SchedulerException will be thrown.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual void AddJob(IJobDetail jobDetail, bool replace)
         {
@@ -1162,10 +1162,10 @@ namespace Quartz.Core
         /// <summary>
         /// Resume (un-pause) the <see cref="ITrigger" /> with the given
         /// name.
-        /// <p>
+        /// <para>
         /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual void ResumeTrigger(TriggerKey triggerKey)
         {
@@ -1179,10 +1179,10 @@ namespace Quartz.Core
         /// <summary>
         /// Resume (un-pause) all of the <see cref="ITrigger" />s in the
         /// matching groups.
-        /// <p>
+        /// <para>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual void ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
@@ -1213,11 +1213,11 @@ namespace Quartz.Core
         /// <summary>
         /// Resume (un-pause) the <see cref="IJobDetail" /> with
         /// the given name.
-        /// <p>
+        /// <para>
         /// If any of the <see cref="IJob" />'s<see cref="ITrigger" /> s missed one
         /// or more fire-times, then the <see cref="ITrigger" />'s misfire
         /// instruction will be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual void ResumeJob(JobKey jobKey)
         {
@@ -1231,11 +1231,11 @@ namespace Quartz.Core
         /// <summary>
         /// Resume (un-pause) all of the <see cref="IJobDetail" />s
         /// in the matching groups.
-        /// <p>
+        /// <para>
         /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
         /// missed one or more fire-times, then the <see cref="ITrigger" />'s
         /// misfire instruction will be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual void ResumeJobs(GroupMatcher<JobKey> matcher)
         {
@@ -1257,10 +1257,10 @@ namespace Quartz.Core
         /// <summary>
         /// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
         /// with a matcher matching all known groups.
-        /// <p>
+        /// <para>
         /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
         /// instructions WILL be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <seealso cref="ResumeAll()" />
         /// <seealso cref="PauseJob" />
@@ -1276,10 +1276,10 @@ namespace Quartz.Core
         /// <summary>
         /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
         /// on every group.
-        /// <p>
+        /// <para>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <seealso cref="PauseAll()" />
         public virtual void ResumeAll()

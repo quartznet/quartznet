@@ -83,9 +83,9 @@ namespace Quartz.Util
 
         /// <summary>
         /// Adds the name-value pairs in the given <see cref="IDictionary" /> to the <see cref="JobDataMap" />.
-        /// <p>
+        /// <para>
         /// All keys must be <see cref="String" />s, and all values must be serializable.
-        /// </p>
+        /// </para>
         /// </summary>
         public override void PutAll(IDictionary<string, object> map)
         {

@@ -32,11 +32,11 @@ namespace Quartz.Plugin.History
     /// logging.
     /// </summary>
     /// <remarks>
-    /// 	<p>
+    /// 	<para>
     /// The logged message is customizable by setting one of the following message
     /// properties to a string that conforms to the syntax of <see cref="string.Format(string,object)"/>.
-    /// </p>
-    /// 	<p>
+    /// </para>
+    /// 	<para>
     /// JobToBeFiredMessage - available message data are: <table>
     /// 			<tr>
     /// 				<th>Element</th>
@@ -86,8 +86,8 @@ namespace Quartz.Plugin.History
     /// 		</table>
     /// The default message text is <i>"Job {1}.{0} fired (by trigger {4}.{3}) at:
     /// {2, date, HH:mm:ss MM/dd/yyyy"</i>
-    /// 	</p>
-    /// 	<p>
+    /// 	</para>
+    /// 	<para>
     /// JobSuccessMessage - available message data are: <table>
     /// 			<tr>
     /// 				<th>Element</th>
@@ -144,8 +144,8 @@ namespace Quartz.Plugin.History
     /// 		</table>
     /// The default message text is <i>"Job {1}.{0} execution complete at {2, date,
     /// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
-    /// 	</p>
-    /// 	<p>
+    /// 	</para>
+    /// 	<para>
     /// JobFailedMessage - available message data are: <table>
     /// 			<tr>
     /// 				<th>Element</th>
@@ -201,8 +201,8 @@ namespace Quartz.Plugin.History
     /// 		</table>
     /// The default message text is <i>"Job {1}.{0} execution failed at {2, date,
     /// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
-    /// 	</p>
-    /// 	<p>
+    /// 	</para>
+    /// 	<para>
     /// JobWasVetoedMessage - available message data are: <table>
     /// 			<tr>
     /// 				<th>Element</th>
@@ -252,7 +252,7 @@ namespace Quartz.Plugin.History
     /// 		</table>
     /// The default message text is <i>"Job {1}.{0} was vetoed.  It was to be fired 
     /// (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy"</i>
-    /// 	</p>
+    /// 	</para>
     /// </remarks>
     /// <author>Marko Lahma (.NET)</author>
     public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener

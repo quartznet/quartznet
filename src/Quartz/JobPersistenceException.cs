@@ -31,9 +31,9 @@ namespace Quartz
     [Serializable]
 	public class JobPersistenceException : SchedulerException
 	{
-		/// <summary> <p>
+		/// <summary> <para>
 		/// Create a <see cref="JobPersistenceException" /> with the given message.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public JobPersistenceException(string msg) : base(msg)
 		{
@@ -50,10 +50,10 @@ namespace Quartz
         {
         }
 
-		/// <summary> <p>
+		/// <summary> <para>
 		/// Create a <see cref="JobPersistenceException" /> with the given message
 		/// and cause.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public JobPersistenceException(string msg, Exception cause) : base(msg, cause)
 		{

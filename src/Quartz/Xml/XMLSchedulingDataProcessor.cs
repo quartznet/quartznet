@@ -37,24 +37,24 @@ namespace Quartz.Xml
     /// Parses an XML file that declares Jobs and their schedules (Triggers).
     /// </summary>
     /// <remarks>
-    /// <p>
+    /// <para>
     /// The xml document must conform to the format defined in "job_scheduling_data_2_0.xsd"
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// After creating an instance of this class, you should call one of the <see cref="ProcessFile()" />
     /// functions, after which you may call the ScheduledJobs()
     /// function to get a handle to the defined Jobs and Triggers, which can then be
     /// scheduled with the <see cref="IScheduler" />. Alternatively, you could call
     /// the <see cref="ProcessFileAndScheduleJobs(Quartz.IScheduler)" /> function to do all of this
     /// in one step.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// The same instance can be used again and again, with the list of defined Jobs
     /// being cleared each time you call a <see cref="ProcessFile()" /> method,
     /// however a single instance is not thread-safe.
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
     /// <author>James House</author>

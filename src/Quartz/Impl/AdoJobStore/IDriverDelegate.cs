@@ -29,16 +29,16 @@ namespace Quartz.Impl.AdoJobStore
     /// This is the base interface for all driver delegate classes.
     /// </summary>
     /// <remarks>
-    /// <p>
+    /// <para>
     /// This interface is very similar to the <see cref="IJobStore" />
     /// interface except each method has an additional <see cref="ConnectionAndTransactionHolder" />
     /// parameter.
-    /// </p>
-    /// <p>
+    /// </para>
+    /// <para>
     /// Unless a database driver has some <strong>extremely-DB-specific</strong>
     /// requirements, any IDriverDelegate implementation classes should extend the
     /// <see cref="StdAdoDelegate" /> class.
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>James House</author>
@@ -139,9 +139,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>Number of rows updated.</returns>
         int UpdateJobDetail(ConnectionAndTransactionHolder conn, IJobDetail job);
 
-		/// <summary> <p>
+		/// <summary> <para>
 		/// Get the names of all of the triggers associated with the given job.
-		/// </p>
+		/// </para>
 		/// 
 		/// </summary>
 		/// <param name="conn">The DB Connection</param>
@@ -688,10 +688,10 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// A List of all current <see cref="SchedulerStateRecord" />s.
-        /// <p>
+        /// <para>
         /// If instanceId is not null, then only the record for the identified
         /// instance will be returned.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="conn">The DB Connection</param>
         /// <param name="instanceName">The instance id.</param>

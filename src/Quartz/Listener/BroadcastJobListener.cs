@@ -29,10 +29,10 @@ namespace Quartz.Listener
     /// events to them (in order).
     /// </summary>
     /// <remarks>
-    /// <p>The broadcasting behavior of this listener to delegate listeners may be
+    /// <para>The broadcasting behavior of this listener to delegate listeners may be
     /// more convenient than registering all of the listeners directly with the
     /// Scheduler, and provides the flexibility of easily changing which listeners
-    /// get notified.</p>
+    /// get notified.</para>
     /// </remarks>
     /// <seealso cref="AddListener(IJobListener)" />
     /// <seealso cref="RemoveListener(IJobListener)" />

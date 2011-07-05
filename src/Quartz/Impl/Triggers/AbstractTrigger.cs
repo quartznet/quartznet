@@ -28,21 +28,21 @@ namespace Quartz.Impl.Triggers
 	/// The base abstract class to be extended by all triggers.
 	/// </summary>
 	/// <remarks>
-	/// <p>
+	/// <para>
     /// <see cref="ITrigger" />s have a name and group associated with them, which
 	/// should uniquely identify them within a single <see cref="IScheduler" />.
-	/// </p>
+	/// </para>
 	/// 
-	/// <p>
+	/// <para>
 	/// <see cref="ITrigger" />s are the 'mechanism' by which <see cref="IJob" /> s
     /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
     /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
-	/// </p>
+	/// </para>
 	/// 
-	/// <p>
+	/// <para>
 	/// Triggers can 'send' parameters/data to <see cref="IJob" />s by placing contents
     /// into the <see cref="JobDataMap" /> on the <see cref="ITrigger" />.
-	/// </p>
+	/// </para>
     /// </remarks>
 	/// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="ICronTrigger" />
@@ -252,10 +252,10 @@ namespace Quartz.Impl.Triggers
 		/// <summary>
 		/// Get or set the <see cref="JobDataMap" /> that is associated with the 
 		/// <see cref="ITrigger" />.
-		/// <p>
+		/// <para>
 		/// Changes made to this map during job execution are not re-persisted, and
 		/// in fact typically result in an illegal state.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public virtual JobDataMap JobDataMap
 		{
@@ -274,9 +274,9 @@ namespace Quartz.Impl.Triggers
 		/// <summary>
 		/// Returns the last UTC time at which the <see cref="ITrigger" /> will fire, if
 		/// the Trigger will repeat indefinitely, null will be returned.
-		/// <p>
+		/// <para>
 		/// Note that the return time *may* be in the past.
-		/// </p>
+		/// </para>
 		/// </summary>
         public abstract DateTimeOffset? FinalFireTimeUtc { get; }
 
@@ -286,9 +286,9 @@ namespace Quartz.Impl.Triggers
 		/// concrete <see cref="ITrigger" /> type that you are using will have
 		/// defined a set of additional MISFIRE_INSTRUCTION_XXX
 		/// constants that may be passed to this method.
-		/// <p>
+		/// <para>
         /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.InstructionNotSet" />.
-		/// </p>
+		/// </para>
 		/// </summary>
         /// <seealso cref="Quartz.MisfireInstruction.InstructionNotSet" />
 		/// <seealso cref="UpdateAfterMisfire" />
@@ -493,16 +493,16 @@ namespace Quartz.Impl.Triggers
         /// This method should not be used by the Quartz client.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// Called by the scheduler at the time a <see cref="ITrigger" /> is first
         /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
-        /// </p>
+        /// </para>
         /// 
-        /// <p>
+        /// <para>
         /// After this method has been called, <see cref="GetNextFireTimeUtc" />
         /// should return a valid answer.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <returns> 
         /// The first time at which the <see cref="ITrigger" /> will be fired
@@ -561,10 +561,10 @@ namespace Quartz.Impl.Triggers
 		/// <summary> 
 		/// Used by the <see cref="IScheduler" /> to determine whether or not
 		/// it is possible for this <see cref="ITrigger" /> to fire again.
-		/// <p>
+		/// <para>
 		/// If the returned value is <see langword="false" /> then the <see cref="IScheduler" />
 		/// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public abstract bool GetMayFireAgain();
 
@@ -599,25 +599,25 @@ namespace Quartz.Impl.Triggers
 
 		/// <summary> 
 		/// This method should not be used by the Quartz client.
-		/// <p>
+		/// <para>
 		/// To be implemented by the concrete classes that extend this class.
-		/// </p>
-		/// <p>
+		/// </para>
+		/// <para>
 		/// The implementation should update the <see cref="ITrigger" />'s state
 		/// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="ITrigger" />
 		/// was created.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public abstract void UpdateAfterMisfire(ICalendar cal);
 
 		/// <summary> 
 		/// This method should not be used by the Quartz client.
-		/// <p>
+		/// <para>
 		/// The implementation should update the <see cref="ITrigger" />'s state
 		/// based on the given new version of the associated <see cref="ICalendar" />
 		/// (the state should be updated so that it's next fire time is appropriate
 		/// given the Calendar's new settings). 
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="cal"> </param>
 		/// <param name="misfireThreshold"></param>

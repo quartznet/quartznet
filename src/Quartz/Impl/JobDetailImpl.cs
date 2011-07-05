@@ -30,18 +30,19 @@ namespace Quartz.Impl
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
     /// instead allows you to define an instance of one, through the use of a <see cref="IJobDetail" />.
-    /// <p>
+    /// <para>
     /// <see cref="IJob" />s have a name and group associated with them, which
     /// should uniquely identify them within a single <see cref="IScheduler" />.
-    /// </p>
-    /// <p>
+    /// </para>
+    /// <para>
     /// <see cref="ITrigger" /> s are the 'mechanism' by which <see cref="IJob" /> s
     /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
     /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <seealso cref="IJob" />
-    /// <seealso cref="IStatefulJob"/>
+    /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
+    /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
     /// <seealso cref="JobDataMap"/>
     /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
@@ -63,11 +64,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Create a <see cref="IJobDetail" /> with no specified name or group, and
         /// the default settings of all the other properties.
-        /// <p>
+        /// <para>
         /// Note that the <see cref="Name" />,<see cref="Group" /> and
         /// <see cref="JobType" /> properties must be set before the job can be
         /// placed into a <see cref="IScheduler" />.
-        /// </p>
+        /// </para>
         /// </summary>
         public JobDetailImpl()
         {
@@ -263,9 +264,9 @@ namespace Quartz.Impl
         /// Set whether or not the the <see cref="IScheduler" /> should re-Execute
         /// the <see cref="IJob" /> if a 'recovery' or 'fail-over' situation is
         /// encountered.
-        /// <p>
+        /// <para>
         /// If not explicitly set, the default value is <see langword="false" />.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <seealso cref="IJobExecutionContext.Recovering" />
         public virtual bool RequestsRecovery
@@ -277,9 +278,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
         /// orphaned (no <see cref="ITrigger" />s point to it).
-        /// <p>
+        /// <para>
         /// If not explicitly set, the default value is <see langword="false" />.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <returns> 
         /// <see langword="true" /> if the Job should remain persisted after

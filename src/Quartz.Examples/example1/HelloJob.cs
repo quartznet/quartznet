@@ -34,10 +34,10 @@ namespace Quartz.Examples.Example1
 		
 		/// <summary> 
 		/// Empty constructor for job initilization
-		/// <p>
+		/// <para>
 		/// Quartz requires a public empty constructor so that the
 		/// scheduler can instantiate the class whenever it needs.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public HelloJob()
 		{

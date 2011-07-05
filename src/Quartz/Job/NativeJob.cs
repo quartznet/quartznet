@@ -65,7 +65,7 @@ namespace Quartz.Job
 		/// whether the job should wait for the execution of the native process to 
 		/// complete before it completes.
 		/// 
-		/// <p>Defaults to <see langword="true" />.</p>  
+		/// <para>Defaults to <see langword="true" />.</para>  
 		/// </summary>
 		public const string PropertyWaitForProcess = "waitForProcess";
 
@@ -75,7 +75,7 @@ namespace Quartz.Job
 		/// consumed.  If the process creates output, it is possible that it might
 		/// 'hang' if the streams are not consumed.
 		/// 
-		/// <p>Defaults to <see langword="false" />.</p>  
+		/// <para>Defaults to <see langword="false" />.</para>  
 		/// </summary>
 		public const string PropertyConsumeStreams = "consumeStreams";
 
@@ -109,14 +109,14 @@ namespace Quartz.Job
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// fires that is associated with the <see cref="IJob" />.
-		/// <p>
+		/// <para>
 		/// The implementation may wish to set a  result object on the
 		/// JobExecutionContext before this method exits.  The result itself
 		/// is meaningless to Quartz, but may be informative to
 		/// <see cref="IJobListener" />s or
 		/// <see cref="ITriggerListener" />s that are watching the job's
 		/// execution.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="context"></param>
 		public virtual void Execute(IJobExecutionContext context)

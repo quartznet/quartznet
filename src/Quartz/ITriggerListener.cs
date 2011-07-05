@@ -44,10 +44,10 @@ namespace Quartz
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// has fired, and it's associated <see cref="IJobDetail" />
 		/// is about to be executed.
-		/// <p>
+		/// <para>
 		/// It is called before the <see cref="VetoJobExecution" /> method of this
 		/// interface.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="trigger">The <see cref="ITrigger" /> that has fired.</param>
 		/// <param name="context">
@@ -59,11 +59,11 @@ namespace Quartz
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// has fired, and it's associated <see cref="IJobDetail"/>
         /// is about to be executed.
-        /// <p>
+        /// <para>
         /// It is called after the <see cref="TriggerFired"/> method of this
         /// interface.  If the implementation vetos the execution (via
         /// returning <see langword="true" />), the job's execute method will not be called.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger"/> that has fired.</param>
         /// <param name="context">The <see cref="IJobExecutionContext"/> that will be passed to
@@ -75,12 +75,12 @@ namespace Quartz
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
 		/// has misfired.
-		/// <p>
+		/// <para>
 		/// Consideration should be given to how much time is spent in this method,
 		/// as it will affect all triggers that are misfiring.  If you have lots
 		/// of triggers misfiring at once, it could be an issue it this method
 		/// does a lot.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
         void TriggerMisfired(ITrigger trigger);

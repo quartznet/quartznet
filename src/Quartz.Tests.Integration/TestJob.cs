@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 namespace Quartz.Tests.Integration
@@ -22,26 +24,25 @@ namespace Quartz.Tests.Integration
     /// <author>Marko Lahma (.NET)</author>
     public class TestJob : IJob
     {
-       private static bool jobFired;
+        private static bool jobFired;
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
-        /// <p>
+        /// </summary>
+        /// <remarks>
         /// The implementation may wish to set a  result object on the 
         /// JobExecutionContext before this method exits.  The result itself
         /// is meaningless to Quartz, but may be informative to 
         /// <see cref="IJobListener" />s or 
         /// <see cref="ITriggerListener" />s that are watching the job's 
         /// execution.
-        /// </p>
+        /// </remarks>
         /// <param name="context">The execution context.</param>
-        /// </summary>
         public void Execute(IJobExecutionContext context)
         {
             JobHasFired = true;
         }
-
 
         /// <summary>
         /// Gets or sets a value indicating whether job has fired.

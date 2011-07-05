@@ -35,38 +35,38 @@ namespace Quartz.Examples.Example13
     /// </summary>
     /// <remarks>
     /// 
-    /// <p>
+    /// <para>
     /// All instances MUST use a different properties file, because their instance
     /// Ids must be different, however all other properties should be the same.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// If you want it to clear out existing jobs & triggers, pass a command-line
     /// argument called "clearJobs".
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// You should probably start with a "fresh" set of tables (assuming you may
     /// have some data lingering in it from other tests), since mixing data from a
     /// non-clustered setup with a clustered one can be bad.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// Try killing one of the cluster instances while they are running, and see
     /// that the remaining instance(s) recover the in-progress jobs. Note that
     /// detection of the failure may take up to 15 or so seconds with the default
     /// settings.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// Also try running it with/without the shutdown-hook plugin registered with
     /// the scheduler. (quartz.plugins.management.ShutdownHookPlugin).
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// <i>Note:</i> Never run clustering on separate machines, unless their
     /// clocks are synchronized using some form of time-sync service (daemon).
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>

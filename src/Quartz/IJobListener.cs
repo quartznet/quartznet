@@ -45,10 +45,10 @@ namespace Quartz
 		/// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
 		/// is about to be executed (an associated <see cref="ITrigger" />
 		/// has occurred).
-		/// <p>
+		/// <para>
 		/// This method will not be invoked if the execution of the Job was vetoed
 		/// by a <see cref="ITriggerListener" />.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <seealso cref="JobExecutionVetoed(IJobExecutionContext)" />
 		void JobToBeExecuted(IJobExecutionContext context);

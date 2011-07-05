@@ -28,18 +28,18 @@ namespace Quartz.Impl.Triggers
 	/// at given moments in time, defined with Unix 'cron-like' definitions.
 	/// </summary>
 	/// <remarks>
-	/// <p>
+	/// <para>
 	/// For those unfamiliar with "cron", this means being able to create a firing
 	/// schedule such as: "At 8:00am every Monday through Friday" or "At 1:30am
 	/// every last Friday of the month".
-	/// </p>
+	/// </para>
 	/// 
-	/// <p>
+	/// <para>
 	/// The format of a "Cron-Expression" string is documented on the 
 	/// <see cref="CronExpression" /> class.
-	/// </p>
+	/// </para>
 	/// 
-	/// <p>
+	/// <para>
 	/// Here are some full examples: <br />
 	/// <table cellspacing="8">
 	/// <tr>
@@ -146,14 +146,14 @@ namespace Quartz.Impl.Triggers
 	/// </td>
 	/// </tr>
 	/// </table>
-	/// </p>
+	/// </para>
 	/// 
-	/// <p>
+	/// <para>
 	/// Pay attention to the effects of '?' and '*' in the day-of-week and
 	/// day-of-month fields!
-	/// </p>
+	/// </para>
 	/// 
-	/// <p>
+	/// <para>
 	/// <b>NOTES:</b>
 	/// <ul>
 	/// <li>Support for specifying both a day-of-week and a day-of-month value is
@@ -163,7 +163,7 @@ namespace Quartz.Impl.Triggers
 	/// "daylight savings" can cause a skip or a repeat depending on whether the
 	/// time moves back or jumps forward.</li>
 	/// </ul>
-	/// </p>
+	/// </para>
 	/// </remarks>
 	/// <seealso cref="ITrigger"/>
 	/// <seealso cref="ISimpleTrigger"/>
@@ -306,10 +306,10 @@ namespace Quartz.Impl.Triggers
 		/// <summary>
 		/// Create a <see cref="ICronTrigger" /> that will occur at the given time,
 		/// until the given end time.
-		/// <p>
+		/// <para>
 		/// If null, the start-time will also be set to the current time, the time
 		/// zone will be set the the system's default.
-		/// </p>
+		/// </para>
 		/// </summary>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
@@ -496,9 +496,9 @@ namespace Quartz.Impl.Triggers
 
 	    /// <summary>
 		/// Sets the next fire time.
-		/// <p>
+		/// <para>
 		/// <b>This method should not be invoked by client code.</b>
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="fireTime">The fire time.</param>
         public override void SetNextFireTimeUtc(DateTimeOffset? fireTime)
@@ -509,9 +509,9 @@ namespace Quartz.Impl.Triggers
 
 		/// <summary>
 		/// Sets the previous fire time.
-		/// <p>
+		/// <para>
 		/// <b>This method should not be invoked by client code.</b>
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="fireTime">The fire time.</param>
         public override void SetPreviousFireTimeUtc(DateTimeOffset? fireTime)
@@ -616,9 +616,9 @@ namespace Quartz.Impl.Triggers
 	    /// <summary>
 		/// Returns the last UTC time at which the <see cref="ITrigger" /> will fire, if
 		/// the Trigger will repeat indefinitely, null will be returned.
-		/// <p>
+		/// <para>
 		/// Note that the return time *may* be in the past.
-		/// </p>
+		/// </para>
         /// </summary>
         public override DateTimeOffset? FinalFireTimeUtc
 		{
@@ -656,10 +656,10 @@ namespace Quartz.Impl.Triggers
 		/// <summary>
 		/// Used by the <see cref="IScheduler" /> to determine whether or not
 		/// it is possible for this <see cref="ITrigger" /> to fire again.
-		/// <p>
+		/// <para>
 		/// If the returned value is <see langword="false" /> then the <see cref="IScheduler" />
 		/// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <returns></returns>
 		public override bool GetMayFireAgain()
@@ -690,14 +690,14 @@ namespace Quartz.Impl.Triggers
 
 		/// <summary>
 		/// This method should not be used by the Quartz client.
-		/// <p>
+		/// <para>
 		/// To be implemented by the concrete classes that extend this class.
-		/// </p>
-		/// <p>
+		/// </para>
+		/// <para>
 		/// The implementation should update the <see cref="ITrigger" />'s state
 		/// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="ITrigger" />
 		/// was created.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="cal"></param>
 		public override void UpdateAfterMisfire(ICalendar cal)
@@ -728,14 +728,14 @@ namespace Quartz.Impl.Triggers
 
 
 		/// <summary>
-		/// <p>
+		/// <para>
 		/// Determines whether the date and (optionally) time of the given Calendar 
 		/// instance falls on a scheduled fire-time of this trigger.
-		/// </p>
+		/// </para>
 		/// 
-		/// <p>
+		/// <para>
 		/// Equivalent to calling <see cref="WillFireOn(DateTimeOffset, bool)" />.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="test">The date to compare.</param>
 		/// <returns></returns>
@@ -748,10 +748,10 @@ namespace Quartz.Impl.Triggers
 		/// <summary>
 		/// Determines whether the date and (optionally) time of the given Calendar 
 		/// instance falls on a scheduled fire-time of this trigger.
-		/// <p>
+		/// <para>
 		/// Note that the value returned is NOT validated against the related
 		/// ICalendar (if any).
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="test">The date to compare</param>
 		/// <param name="dayOnly">If set to true, the method will only determine if the
@@ -864,10 +864,10 @@ namespace Quartz.Impl.Triggers
 		/// Called by the scheduler at the time a <see cref="ITrigger" /> is first
 		/// added to the scheduler, in order to have the <see cref="ITrigger" />
 		/// compute its first fire time, based on any associated calendar.
-		/// <p>
+		/// <para>
 		/// After this method has been called, <see cref="GetNextFireTimeUtc" />
 		/// should return a valid answer.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="cal"></param>
 		/// <returns>

@@ -16,10 +16,10 @@ namespace Quartz.Spi
         new string Description { get; set; }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Associate the <code><see cref="ICalendar" /></code> with the given name with
         /// this Trigger.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -38,53 +38,53 @@ namespace Quartz.Spi
         /// to a worker thread.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// If not explicitly set, the default value is <code>5</code>.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <seealso cref="TriggerConstants.DefaultPriority" />
         new int Priority { get; set; }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// The time at which the trigger's scheduling should start.  May or may not
         /// be the first actual fire time of the trigger, depending upon the type of
         /// trigger and the settings of the other properties of the trigger.  However
         /// the first actual first time will not be before this date.
-        /// </p>
-        /// <p>
+        /// </para>
+        /// <para>
         /// Setting a value in the past may cause a new trigger to compute a first
         /// fire time that is in the past, which may cause an immediate misfire
         /// of the trigger.
-        /// </p>
+        /// </para>
         /// ew DateTimeOffset StartTimeUtc {  get; set; }
         /// </summary>
         new DateTimeOffset StartTimeUtc { get; set; }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Set the time at which the <code>Trigger</code> should quit repeating -
         /// regardless of any remaining repeats (based on the trigger's particular
         /// repeat settings).
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
         /// </remarks>
         new DateTimeOffset? EndTimeUtc { get; set; }
 
         /// <summary>
-        /// <p>
+        /// <para>
         /// Set the instruction the <code>Scheduler</code> should be given for
         /// handling misfire situations for this <code>Trigger</code>- the
         /// concrete <code>Trigger</code> type that you are using will have
         /// defined a set of additional <code>MISFIRE_INSTRUCTION_XXX</code>
         /// constants that may be passed to this method.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// If not explicitly set, the default value is <code>MISFIRE_INSTRUCTION_SMART_POLICY</code>.
-        /// </p>
+        /// </para>
         /// </remarks>
         /// <seealso cref="Quartz.MisfireInstruction.SmartPolicy" />
         /// <seealso cref="ISimpleTrigger" />

@@ -28,16 +28,16 @@ namespace Quartz.Listener
     /// <see cref="ITriggerListener" />.
     ///  </summary>
     /// <remarks>
-    /// <p>
+    /// <para>
     /// The methods in this class are empty so you only need to override the  
     /// subset for the <see cref="ITriggerListener" /> events
     /// you care about.
-    /// </p>
+    /// </para>
     /// 
-    /// <p>
+    /// <para>
     /// You are required to implement <see cref="ITriggerListener.Name" /> 
     /// to return the unique name of your <see cref="ITriggerListener" />.  
-    /// </p>
+    /// </para>
     ///</remarks>
     /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="ITriggerListener" />

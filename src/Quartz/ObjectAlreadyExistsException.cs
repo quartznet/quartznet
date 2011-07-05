@@ -34,10 +34,10 @@ namespace Quartz
     [Serializable]
 	public class ObjectAlreadyExistsException : JobPersistenceException
 	{
-		/// <summary> <p>
+		/// <summary> <para>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> with the given
 		/// message.
-		/// </p>
+		/// </para>
 		/// </summary>
 		public ObjectAlreadyExistsException(string msg) : base(msg)
 		{
@@ -55,15 +55,15 @@ namespace Quartz
         {
         }
 
-		/// <summary> <p>
+		/// <summary> <para>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
 		/// message using the name/group from the given <see cref="IJobDetail" />.
-		/// </p>
+		/// </para>
 		/// 
-		/// <p>
+		/// <para>
 		/// The message will read: <br />"Unable to store Job with name: '__' and
 		/// group: '__', because one already exists with this identification."
-		/// </p>
+		/// </para>
 		/// </summary>
         public ObjectAlreadyExistsException(IJobDetail offendingJob)
 			: base(
@@ -71,15 +71,15 @@ namespace Quartz
 		{
 		}
 
-		/// <summary> <p>
+		/// <summary> <para>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
 		/// message using the name/group from the given <see cref="ITrigger" />.
-		/// </p>
+		/// </para>
 		/// 
-		/// <p>
+		/// <para>
 		/// The message will read: <br />"Unable to store Trigger with name: '__' and
 		/// group: '__', because one already exists with this identification."
-		/// </p>
+		/// </para>
 		/// </summary>
 		public ObjectAlreadyExistsException(ITrigger offendingTrigger)
 			: base(

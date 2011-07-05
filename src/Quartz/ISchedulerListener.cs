@@ -106,10 +106,10 @@ namespace Quartz
 		/// <summary>
 		/// Called by the <see cref="IScheduler"/> when a
 		/// group of <see cref="IJobDetail"/>s has been  paused.
-		/// <p>
+		/// <para>
 		/// If all groups were paused, then the <see param="jobName"/> parameter will be
 		/// null. If all jobs were paused, then both parameters will be null.
-		/// </p>
+		/// </para>
 		/// </summary>
 		/// <param name="jobGroup">The job group.</param>
 		void JobsPaused(string jobGroup);

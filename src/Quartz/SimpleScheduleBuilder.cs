@@ -32,13 +32,13 @@ namespace Quartz
     /// <code>Trigger</code>s.
     /// </summary>
     /// <remarks>
-    /// <p>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
     /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
     /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</p>
-    /// <p>Client code can then use the DSL to write code such as this:</p>
+    /// and the various <code>ScheduleBuilder</code> implementations.</para>
+    /// <para>Client code can then use the DSL to write code such as this:</para>
     /// <pre>
     /// JobDetail job = newJob(MyJob.class)
     /// .withIdentity("myJob")
@@ -177,7 +177,7 @@ namespace Quartz
         /// of times - 1  with a 1 minute interval.
         /// </summary>
         /// <remarks>
-        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// <para>Note: Total count = 1 (at start time) + repeat count</para>
         /// </remarks>
         /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatMinutelyForTotalCount(int count)
@@ -199,7 +199,7 @@ namespace Quartz
         /// of times - 1  with an interval of the given number of minutes.
         /// </summary>
         /// <remarks>
-        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// <para>Note: Total count = 1 (at start time) + repeat count</para>
         /// </remarks>
         /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatMinutelyForTotalCount(int count, int minutes)
@@ -221,7 +221,7 @@ namespace Quartz
         /// of times - 1  with a 1 second interval.
         /// </summary>
         /// <remarks>
-        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// <para>Note: Total count = 1 (at start time) + repeat count</para>
         /// </remarks>
         /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatSecondlyForTotalCount(int count)
@@ -243,7 +243,7 @@ namespace Quartz
         /// of times - 1  with an interval of the given number of seconds.
         /// </summary>
         /// <remarks>
-        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// <para>Note: Total count = 1 (at start time) + repeat count</para>
         /// </remarks>
         /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatSecondlyForTotalCount(int count, int seconds)
@@ -265,7 +265,7 @@ namespace Quartz
         /// of times - 1  with a 1 hour interval.
         /// </summary>
         /// <remarks>
-        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// <para>Note: Total count = 1 (at start time) + repeat count</para>
         /// </remarks>
         /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatHourlyForTotalCount(int count)
@@ -287,7 +287,7 @@ namespace Quartz
         /// of times - 1  with an interval of the given number of hours.
         /// </summary>
         /// <remarks>
-        /// <p>Note: Total count = 1 (at start time) + repeat count</p>
+        /// <para>Note: Total count = 1 (at start time) + repeat count</para>
         /// </remarks>
         /// <returns>the new SimpleScheduleBuilder</returns>
         public static SimpleScheduleBuilder RepeatHourlyForTotalCount(int count, int hours)

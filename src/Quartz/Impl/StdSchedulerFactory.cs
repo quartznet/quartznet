@@ -43,22 +43,22 @@ namespace Quartz.Impl
     /// based on the contents of a properties file.
     /// </summary>
     /// <remarks>
-    /// <p>
+    /// <para>
     /// By default a properties are loaded from App.config's quartz section. 
     /// If that fails, then the file is loaded "quartz.properties". If file does not exist,
     /// default configration located (as a embedded resource) in Quartz.dll is loaded. If you
     /// wish to use a file other than these defaults, you must define the system
     /// property 'quartz.properties' to point to the file you want.
-    /// </p>
-    /// <p>
+    /// </para>
+    /// <para>
     /// See the sample properties that are distributed with Quartz for
     /// information about the various settings available within the file.
-    /// </p>
-    /// <p>
+    /// </para>
+    /// <para>
     /// Alternativly, you can explicitly Initialize the factory by calling one of
     /// the <see cref="Initialize()" /> methods before calling <see cref="GetScheduler()" />.
-    /// </p>
-    /// <p>
+    /// </para>
+    /// <para>
     /// Instances of the specified <see cref="IJobStore" />,
     /// <see cref="IThreadPool" />, classes will be created
     /// by name, and then any additional properties specified for them in the config
@@ -68,7 +68,7 @@ namespace Quartz.Impl
     /// 'MyProp' will be set with the value. Type conversion to primitive CLR types
     /// (int, long, float, double, boolean, enum and string) are performed before calling
     /// the property's setter method.
-    /// </p>
+    /// </para>
     /// </remarks>
     /// <author>James House</author>
     /// <author>Anthony Eden</author>
@@ -156,10 +156,10 @@ namespace Quartz.Impl
             }
         }
 
-        /// <summary> <p>
+        /// <summary> <para>
         /// Returns a handle to all known Schedulers (made by any
         /// StdSchedulerFactory instance.).
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual ICollection<IScheduler> AllSchedulers
         {
@@ -1054,10 +1054,10 @@ Please add configuration to your application config file to correctly initialize
             return sched;
         }
 
-        /// <summary> <p>
+        /// <summary> <para>
         /// Returns a handle to the Scheduler with the given name, if it exists (if
         /// it has already been instantiated).
-        /// </p>
+        /// </para>
         /// </summary>
         public virtual IScheduler GetScheduler(string schedName)
         {

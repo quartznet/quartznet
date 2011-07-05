@@ -48,17 +48,17 @@ namespace Quartz
         /// Indicates that the <see cref="ITrigger" /> is in the "error" state.
         /// </summary>
         /// <remarks>
-        /// <p>
+        /// <para>
         /// A <see cref="ITrigger" /> arrives at the error state when the scheduler
         /// attempts to fire it, but cannot due to an error creating and executing
         /// its related job. Often this is due to the <see cref="IJob" />'s
         /// class not existing in the classpath.
-        /// </p>
+        /// </para>
         /// 
-        /// <p>
+        /// <para>
         /// When the trigger is in the error state, the scheduler will make no
         /// attempts to fire it.
-        /// </p>
+        /// </para>
         /// </remarks>
         Error,
 
@@ -67,10 +67,10 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// A <see cref="ITrigger" /> arrives at the blocked state when the job that
-        /// it is associated with is a <see cref="IStatefulJob" /> and it is 
+        /// it is associated with has a <see cref="DisallowConcurrentExecutionAttribute" /> and it is 
         /// currently executing.
         /// </remarks>
-        /// <seealso cref="IStatefulJob" />
+        /// <seealso cref="DisallowConcurrentExecutionAttribute" />
         Blocked,
 
 		/// <summary>

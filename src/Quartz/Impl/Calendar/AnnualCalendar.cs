@@ -158,9 +158,9 @@ namespace Quartz.Impl.Calendar
         /// <summary>
         /// Determine whether the given UTC time (in milliseconds) is 'included' by the
         /// Calendar.
-        /// <p>
+        /// <para>
         /// Note that this Calendar is only has full-day precision.
-        /// </p>
+        /// </para>
         /// </summary>
         public override bool IsTimeIncluded(DateTimeOffset dateUtc)
         {
@@ -178,9 +178,9 @@ namespace Quartz.Impl.Calendar
         /// Determine the next UTC time (in milliseconds) that is 'included' by the
         /// Calendar after the given time. Return the original value if timeStampUtc is
         /// included. Return 0 if all days are excluded.
-        /// <p>
+        /// <para>
         /// Note that this Calendar is only has full-day precision.
-        /// </p>
+        /// </para>
         /// </summary>
         public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeStampUtc)
         {

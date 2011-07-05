@@ -121,10 +121,10 @@ namespace Quartz.Impl
         /// <summary>
         /// Get a <see cref="SchedulerMetaData"/> object describiing the settings
         /// and capabilities of the scheduler instance.
-        /// <p>
+        /// <para>
         /// Note that the data returned is an 'instantaneous' snap-shot, and that as
         /// soon as it's returned, the meta data values may be different.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <returns></returns>
         public virtual SchedulerMetaData GetMetaData()
@@ -262,11 +262,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Set the <see cref="JobFactory" /> that will be responsible for producing
         /// instances of <see cref="IJob" /> classes.
-        /// <p>
+        /// <para>
         /// JobFactories may be of use to those wishing to have their application
         /// produce <see cref="IJob" /> instances via some special mechanism, such as to
         /// give the opertunity for dependency injection.
-        /// </p>
+        /// </para>
         /// </summary>
         /// <value></value>
         /// <seealso cref="IJobFactory"/>
