@@ -699,8 +699,6 @@ Please add configuration to your application config file to correctly initialize
 
             // Set up any JobListeners
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-            Type[] strArg = new Type[] {typeof (string)};
             string[] jobListenerNames = cfg.GetPropertyGroups(PropertyJobListenerPrefix);
             IJobListener[] jobListeners = new IJobListener[jobListenerNames.Length];
             for (int i = 0; i < jobListenerNames.Length; i++)
@@ -726,10 +724,10 @@ Please add configuration to your application config file to correctly initialize
                 }
                 try
                 {
-                    MethodInfo nameSetter = listener.GetType().GetMethod("setName", strArg);
-                    if (nameSetter != null)
+                    PropertyInfo nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
+                    if (nameProperty != null && nameProperty.CanWrite)
                     {
-                        nameSetter.Invoke(listener, new object[] {jobListenerNames[i]});
+                        nameProperty.GetSetMethod().Invoke(listener, new object[] {jobListenerNames[i]});
                     }
                     ObjectUtils.SetObjectProperties(listener, lp);
                 }
@@ -769,10 +767,10 @@ Please add configuration to your application config file to correctly initialize
                 }
                 try
                 {
-                    MethodInfo nameSetter = listener.GetType().GetMethod("setName", strArg);
-                    if (nameSetter != null)
+                    PropertyInfo nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
+                    if (nameProperty != null && nameProperty.CanWrite)
                     {
-                        nameSetter.Invoke(listener, (new object[] {triggerListenerNames[i]}));
+                        nameProperty.GetSetMethod().Invoke(listener, new object[] {triggerListenerNames[i]});
                     }
                     ObjectUtils.SetObjectProperties(listener, lp);
                 }
