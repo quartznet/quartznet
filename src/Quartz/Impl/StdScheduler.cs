@@ -520,15 +520,15 @@ namespace Quartz.Impl
         /// If more than one instance of the identified job is currently executing,
         /// the <see cref="IInterruptableJob.Interrupt"/> method will be called on
         /// each instance.  However, there is a limitation that in the case that
-        /// <see cref="Interrupt"/> on one instances throws an exception, all
+        /// <see cref="Interrupt(JobKey)"/> on one instances throws an exception, all
         /// remaining  instances (that have not yet been interrupted) will not have
-        /// their <see cref="Interrupt"/> method called.
+        /// their <see cref="Interrupt(JobKey)"/> method called.
         /// </para>
         /// <para>
         /// If you wish to interrupt a specific instance of a job (when more than
         /// one is executing) you can do so by calling
         /// <see cref="GetCurrentlyExecutingJobs"/> to obtain a handle
-        /// to the job instance, and then invoke <see cref="Interrupt"/> on it
+        /// to the job instance, and then invoke <see cref="Interrupt(JobKey)"/> on it
         /// yourself.
         /// </para>
         /// <para>
@@ -544,6 +544,11 @@ namespace Quartz.Impl
         public virtual bool Interrupt(JobKey jobKey)
         {
             return sched.Interrupt(jobKey);
+        }
+
+        public bool Interrupt(string fireInstanceId)
+        {
+            return sched.Interrupt(fireInstanceId);
         }
     }
 }

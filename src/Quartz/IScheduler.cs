@@ -614,16 +614,16 @@ namespace Quartz
         /// If more than one instance of the identified job is currently executing,
         /// the <see cref="IInterruptableJob.Interrupt" /> method will be called on
         /// each instance.  However, there is a limitation that in the case that  
-        /// <see cref="Interrupt" /> on one instances throws an exception, all 
+        /// <see cref="Interrupt(JobKey)" /> on one instances throws an exception, all 
         /// remaining  instances (that have not yet been interrupted) will not have 
-        /// their <see cref="Interrupt" /> method called.
+        /// their <see cref="Interrupt(JobKey)" /> method called.
         /// </para>
         /// 
         /// <para>
         /// If you wish to interrupt a specific instance of a job (when more than
         /// one is executing) you can do so by calling 
         /// <see cref="GetCurrentlyExecutingJobs" /> to obtain a handle 
-        /// to the job instance, and then invoke <see cref="Interrupt" /> on it
+        /// to the job instance, and then invoke <see cref="Interrupt(JobKey)" /> on it
         /// yourself.
         /// </para>
         /// <para>
@@ -638,6 +638,26 @@ namespace Quartz
         /// <seealso cref="IInterruptableJob" />
         /// <seealso cref="GetCurrentlyExecutingJobs" />
         bool Interrupt(JobKey jobKey);
+
+        /// <summary>
+        /// Request the interruption, within this Scheduler instance, of the 
+        /// identified executing <code>Job</code> instance, which 
+        /// must be an implementor of the <code>InterruptableJob</code> interface.
+        /// </summary>
+        /// <remarks>
+        /// This method is not cluster aware.  That is, it will only interrupt 
+        /// instances of the identified InterruptableJob currently executing in this 
+        /// Scheduler instance, not across the entire cluster.
+        /// </remarks>
+        /// <seealso cref="IInterruptableJob.Interrupt()" />
+        /// <seealso cref="GetCurrentlyExecutingJobs()" />
+        /// <seealso cref="IJobExecutionContext.FireInstanceId" />
+        /// <seealso cref="Interrupt(JobKey)" />
+        /// <param nane="fireInstanceId">
+        /// the unique identifier of the job instance to  be interrupted (see <see cref="IJobExecutionContext.FireInstanceId" />
+        /// </param>
+        /// <returns>true if the identified job instance was found and interrupted.</returns>
+        bool Interrupt(string fireInstanceId);
 
         /// <summary>
         /// Determine whether a <see cref="IJob" /> with the given identifier already 

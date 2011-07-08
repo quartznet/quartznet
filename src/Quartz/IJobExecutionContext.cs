@@ -103,6 +103,15 @@ namespace Quartz
         DateTimeOffset? NextFireTimeUtc { get; }
 
         /// <summary>
+        /// Get the unique Id that identifies this particular firing instance of the
+        /// trigger that triggered this job execution.  It is unique to this 
+        /// JobExecutionContext instance as well.
+        /// </summary>
+        ///  <returns>the unique fire instance id</returns>
+        /// <seealso cref="IScheduler.Interrupt(string)" />
+        string FireInstanceId { get; }
+
+        /// <summary>
         /// Returns the result (if any) that the <see cref="IJob" /> set before its 
         /// execution completed (the type of object set as the result is entirely up 
         /// to the particular job).

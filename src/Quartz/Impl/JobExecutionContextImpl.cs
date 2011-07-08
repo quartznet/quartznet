@@ -343,5 +343,13 @@ namespace Quartz
 		    data.TryGetValue(key, out retValue);
             return retValue;
 		}
+
+        /// <summary>
+        /// Returns the fire instace id.
+        /// </summary>
+        public string FireInstanceId
+        {
+            get { return ((IOperableTrigger) trigger).FireInstanceId; }
+        }
 	}
 }

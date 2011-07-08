@@ -151,6 +151,8 @@ namespace Quartz.Simpl
 
         bool Interrupt(JobKey jobKey);
 
+        bool Interrupt(string fireInstanceId);
+
         bool CheckExists(JobKey jobKey); 
    
         bool CheckExists(TriggerKey triggerKey);

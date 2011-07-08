@@ -45,6 +45,8 @@ namespace Quartz.Tests.Unit
         public void TestBasicStorageFunctions()
         {
             NameValueCollection config = new NameValueCollection();
+            config["quartz.scheduler.instanceName"] = "SchedulerTest_Scheduler";
+            config["quartz.scheduler.instanceId"] = "AUTO";
             config["quartz.threadPool.threadCount"] = "2";
             config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             IScheduler sched = new StdSchedulerFactory(config).GetScheduler();
@@ -215,6 +217,8 @@ namespace Quartz.Tests.Unit
 
             Assert.AreEqual(1, jobKeys.Count, "Number of jobs expected in default group was 1 "); // job should have been left in place, because it is non-durable
             Assert.AreEqual(0, triggerKeys.Count, "Number of triggers expected in default group was 0 ");
+
+            sched.Shutdown();
         }
     }
 }

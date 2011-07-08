@@ -59,8 +59,9 @@ namespace Quartz
 	/// </para>
     /// </remarks>
 	/// <seealso cref="IJob" />
-	/// <seealso cref="IScheduler.Interrupt"/>
-	/// <author>James House</author>
+	/// <seealso cref="IScheduler.Interrupt(JobKey)"/>
+    /// <seealso cref="IScheduler.Interrupt(string)"/>
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface IInterruptableJob : IJob
 	{

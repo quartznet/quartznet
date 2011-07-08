@@ -943,5 +943,21 @@ namespace Quartz.Impl
                 throw new UnableToInterruptJobException(se);
             }
         }
+
+        public bool Interrupt(string fireInstanceId)
+        {
+            try
+            {
+                return GetRemoteScheduler().Interrupt(fireInstanceId);
+            }
+            catch (RemotingException re)
+            {
+                throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
+            }
+            catch (SchedulerException se)
+            {
+                throw new UnableToInterruptJobException(se);
+            }
+        }
     }
 }

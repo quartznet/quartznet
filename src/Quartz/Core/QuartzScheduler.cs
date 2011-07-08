@@ -2290,12 +2290,47 @@ namespace Quartz.Core
                     }
                     else
                     {
-                        throw new UnableToInterruptJobException(string.Format(CultureInfo.InvariantCulture, "Job '{0}' of group '{1}' can not be interrupted, since it does not implement {2}", jobKey.Name, jobKey.Group, typeof (IInterruptableJob).FullName));
+                        throw new UnableToInterruptJobException(string.Format(CultureInfo.InvariantCulture, "Job '{0}' can not be interrupted, since it does not implement {1}", jobDetail.Key, typeof(IInterruptableJob).FullName));
                     }
                 }
             }
 
             return interrupted;
+        }
+
+        /// <summary>
+        /// Interrupt all instances of the identified InterruptableJob executing in this Scheduler instance.
+        /// </summary>
+        /// <remarks>
+        /// This method is not cluster aware.  That is, it will only interrupt 
+        /// instances of the identified InterruptableJob currently executing in this 
+        /// Scheduler instance, not across the entire cluster.
+        /// </remarks>
+        /// <seealso cref="IRemotableQuartzScheduler.Interrupt(JobKey)" />
+        /// <param name="fireInstanceId"></param>
+        /// <returns></returns>
+        public bool Interrupt(string fireInstanceId)
+        {
+            IList<IJobExecutionContext> jobs = CurrentlyExecutingJobs;
+
+            foreach (IJobExecutionContext jec in jobs)
+            {
+                if (jec.FireInstanceId.Equals(fireInstanceId))
+                {
+                    IJob job = jec.JobInstance;
+                    if (job is IInterruptableJob)
+                    {
+                        ((IInterruptableJob) job).Interrupt();
+                        return true;
+                    }
+                    else
+                    {
+                        throw new UnableToInterruptJobException("Job " + jec.JobDetail.Key + " can not be interrupted, since it does not implement " + typeof (IInterruptableJob).Name);
+                    }
+                }
+            }
+
+            return false;
         }
 
         private void ShutdownPlugins()
