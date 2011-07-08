@@ -126,8 +126,10 @@
     <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
     <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
+    <Compile Include="InterrubtableJobTest.cs" />
     <Compile Include="JobBuilderTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
+    <Compile Include="SchedulerTest.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
     <Compile Include="CronExpressionTest.cs">
@@ -172,6 +174,9 @@
     <Compile Include="Simpl\RAMJobStoreTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TriggerBuilderTest.cs" />
+    <Compile Include="TriggerComparatorTest.cs" />
+    <Compile Include="TriggerKeyTest.cs" />
     <Compile Include="Utils\DirtyFlagMapTest.cs" />
     <Compile Include="Utils\ObjectUtilsTest.cs" />
     <Compile Include="Utils\PropertiesParserTest.cs">
