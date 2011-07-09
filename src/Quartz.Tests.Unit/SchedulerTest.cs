@@ -53,7 +53,7 @@ namespace Quartz.Tests.Unit
 
             // test basic storage functions of scheduler...
 
-            IJobDetail job = JobBuilder.NewJob()
+            IJobDetail job = JobBuilder.Create()
                 .OfType<TestJob>()
                 .WithIdentity("j1")
                 .StoreDurably()
@@ -75,9 +75,7 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t1")
                 .ForJob(job)
                 .StartNow()
-                .WithSchedule(SimpleScheduleBuilder.Create()
-                                  .RepeatForever()
-                                  .WithIntervalInSeconds(5))
+                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
                 .Build();
 
             Assert.IsFalse(sched.CheckExists(new TriggerKey("t1")), "Unexpected existence of trigger named '11'.");
@@ -94,7 +92,7 @@ namespace Quartz.Tests.Unit
 
             Assert.IsNotNull(trigger, "Stored trigger not found!");
 
-            job = JobBuilder.NewJob()
+            job = JobBuilder.Create()
                 .OfType<TestJob>()
                 .WithIdentity("j2", "g1")
                 .Build();
@@ -103,14 +101,12 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t2", "g1")
                 .ForJob(job)
                 .StartNow()
-                .WithSchedule(SimpleScheduleBuilder.Create()
-                                  .RepeatForever()
-                                  .WithIntervalInSeconds(5))
+                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
                 .Build();
 
             sched.ScheduleJob(job, trigger);
 
-            job = JobBuilder.NewJob()
+            job = JobBuilder.Create()
                 .OfType<TestJob>()
                 .WithIdentity("j3", "g1")
                 .Build();
@@ -119,9 +115,7 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t3", "g1")
                 .ForJob(job)
                 .StartNow()
-                .WithSchedule(SimpleScheduleBuilder.Create()
-                                  .RepeatForever()
-                                  .WithIntervalInSeconds(5))
+                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
                 .Build();
 
             sched.ScheduleJob(job, trigger);
@@ -163,7 +157,7 @@ namespace Quartz.Tests.Unit
             sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
             // test that adding a trigger to a paused group causes the new trigger to be paused also... 
-            job = JobBuilder.NewJob()
+            job = JobBuilder.Create()
                 .OfType<TestJob>()
                 .WithIdentity("j4", "g1")
                 .Build();
@@ -172,9 +166,7 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t4", "g1")
                 .ForJob(job)
                 .StartNow()
-                .WithSchedule(SimpleScheduleBuilder.Create()
-                                  .RepeatForever()
-                                  .WithIntervalInSeconds(5))
+                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
                 .Build();
 
             sched.ScheduleJob(job, trigger);

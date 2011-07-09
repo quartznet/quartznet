@@ -98,7 +98,7 @@ namespace Quartz.Tests.Unit
 
             // add a job with a trigger that will fire immediately
 
-            IJobDetail job = JobBuilder.NewJob<TestInterruptableJob>()
+            IJobDetail job = JobBuilder.Create<TestInterruptableJob>()
                 .WithIdentity("j1")
                 .Build();
 

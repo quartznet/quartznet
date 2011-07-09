@@ -59,16 +59,14 @@ namespace Quartz.Examples.Example4
             DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 10);
 
             // job1 will only run 5 times (at start time, plus 4 repeats), every 10 seconds
-            IJobDetail job1 = JobBuilder.NewJob<ColorJob>()
+            IJobDetail job1 = JobBuilder.Create<ColorJob>()
                 .WithIdentity("job1", "group1")
                 .Build();
 
             ISimpleTrigger trigger1 = (ISimpleTrigger) TriggerBuilder.Create()
                                                            .WithIdentity("trigger1", "group1")
                                                            .StartAt(startTime)
-                                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                                             .WithIntervalInSeconds(10)
-                                                                             .WithRepeatCount(4))
+                                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(4))
                                                            .Build();
 
             // pass initialization parameters into the job
@@ -81,16 +79,14 @@ namespace Quartz.Examples.Example4
 
             // job2 will also run 5 times, every 10 seconds
 
-            IJobDetail job2 = JobBuilder.NewJob<ColorJob>()
+            IJobDetail job2 = JobBuilder.Create<ColorJob>()
                 .WithIdentity("job2", "group1")
                 .Build();
 
             ISimpleTrigger trigger2 = (ISimpleTrigger) TriggerBuilder.Create()
                                                            .WithIdentity("trigger2", "group1")
                                                            .StartAt(startTime)
-                                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                                             .WithIntervalInSeconds(10)
-                                                                             .WithRepeatCount(4))
+                                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(4))
                                                            .Build();
 
             // pass initialization parameters into the job

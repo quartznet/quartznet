@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example2
             DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
 
             // job1 will only fire once at date/time "ts"
-            IJobDetail job = JobBuilder.NewJob<SimpleJob>()
+            IJobDetail job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("job1", "group1")
                 .Build();
 
@@ -78,7 +78,7 @@ namespace Quartz.Examples.Example2
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
 
             // job2 will only fire once at date/time "ts"
-            job = JobBuilder.NewJob<SimpleJob>()
+            job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("job2", "group1")
                 .Build();
 
@@ -95,16 +95,14 @@ namespace Quartz.Examples.Example2
 
             // job3 will run 11 times (run once and repeat 10 more times)
             // job3 will repeat every 10 seconds
-            job = JobBuilder.NewJob<SimpleJob>()
+            job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("job3", "group1")
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger3", "group1")
                                            .StartAt(startTime)
-                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                             .WithIntervalInSeconds(10)
-                                                             .WithRepeatCount(10))
+                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(10))
                                            .Build();
 
             ft = sched.ScheduleJob(job, trigger);
@@ -119,9 +117,7 @@ namespace Quartz.Examples.Example2
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger3", "group2")
                                            .StartAt(startTime)
-                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                             .WithIntervalInSeconds(10)
-                                                             .WithRepeatCount(2))
+                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(2))
                                            .ForJob(job)
                                            .Build();
 
@@ -133,16 +129,14 @@ namespace Quartz.Examples.Example2
 
             // job4 will run 6 times (run once and repeat 5 more times)
             // job4 will repeat every 10 seconds
-            job = JobBuilder.NewJob<SimpleJob>()
+            job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("job4", "group1")
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger4", "group1")
                                            .StartAt(startTime)
-                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                             .WithIntervalInSeconds(10)
-                                                             .WithRepeatCount(5))
+                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(5))
                                            .Build();
 
             ft = sched.ScheduleJob(job, trigger);
@@ -152,7 +146,7 @@ namespace Quartz.Examples.Example2
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
 
             // job5 will run once, five minutes in the future
-            job = JobBuilder.NewJob<SimpleJob>()
+            job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("job5", "group1")
                 .Build();
 
@@ -168,16 +162,14 @@ namespace Quartz.Examples.Example2
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
 
             // job6 will run indefinitely, every 40 seconds
-            job = JobBuilder.NewJob<SimpleJob>()
+            job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("job6", "group1")
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger6", "group1")
                                            .StartAt(startTime)
-                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                             .WithIntervalInSeconds(40)
-                                                             .RepeatForever())
+                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(40).RepeatForever())
                                            .Build();
 
             ft = sched.ScheduleJob(job, trigger);
@@ -196,16 +188,14 @@ namespace Quartz.Examples.Example2
 
             // jobs can also be scheduled after start() has been called...
             // job7 will repeat 20 times, repeat every five minutes
-            job = JobBuilder.NewJob<SimpleJob>()
+            job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("job7", "group1")
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger7", "group1")
                                            .StartAt(startTime)
-                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                             .WithIntervalInMinutes(5)
-                                                             .WithRepeatCount(20))
+                                           .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
                                            .Build();
 
             ft = sched.ScheduleJob(job, trigger);
@@ -215,7 +205,7 @@ namespace Quartz.Examples.Example2
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
 
             // jobs can be fired directly... (rather than waiting for a trigger)
-            job = JobBuilder.NewJob<SimpleJob>()
+            job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("job8", "group1")
                 .StoreDurably()
                 .Build();
@@ -243,9 +233,7 @@ namespace Quartz.Examples.Example2
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger7", "group1")
                                            .StartAt(startTime)
-                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                             .WithIntervalInMinutes(5)
-                                                             .WithRepeatCount(20))
+                                           .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
                                            .Build();
 
             ft = sched.RescheduleJob(trigger.Key, trigger);

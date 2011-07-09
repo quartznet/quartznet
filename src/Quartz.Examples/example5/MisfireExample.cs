@@ -82,7 +82,7 @@ namespace Quartz.Examples.Example5
 
             // statefulJob1 will run every three seconds
             // (but it will delay for ten seconds)
-            IJobDetail job = JobBuilder.NewJob<StatefulDumbJob>()
+            IJobDetail job = JobBuilder.Create<StatefulDumbJob>()
                 .WithIdentity("statefulJob1", "group1")
                 .UsingJobData(StatefulDumbJob.ExecutionDelay, 10000L)
                 .Build();
@@ -90,9 +90,7 @@ namespace Quartz.Examples.Example5
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                           .WithIdentity("trigger1", "group1")
                                                           .StartAt(startTime)
-                                                          .WithSchedule(SimpleScheduleBuilder.Create()
-                                                                            .WithIntervalInSeconds(3)
-                                                                            .RepeatForever())
+                                                          .WithSimpleSchedule(x  => x.WithIntervalInSeconds(3).RepeatForever())
                                                           .Build();
 
             DateTimeOffset ft = sched.ScheduleJob(job, trigger);
@@ -100,7 +98,7 @@ namespace Quartz.Examples.Example5
 
             // statefulJob2 will run every three seconds
             // (but it will delay for ten seconds - and therefore purposely misfire after a few iterations)
-            job = JobBuilder.NewJob<StatefulDumbJob>()
+            job = JobBuilder.Create<StatefulDumbJob>()
                 .WithIdentity("statefulJob2", "group1")
                 .UsingJobData(StatefulDumbJob.ExecutionDelay, 10000L)
                 .Build();
@@ -108,10 +106,10 @@ namespace Quartz.Examples.Example5
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger2", "group1")
                                            .StartAt(startTime)
-                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                             .WithIntervalInSeconds(3)
-                                                             .RepeatForever()
-                                                             .WithMisfireHandlingInstructionNowWithExistingCount()) // set misfire instructions
+                                           .WithSimpleSchedule(x => x
+                                                                 .WithIntervalInSeconds(3)
+                                                                 .RepeatForever()
+                                                                 .WithMisfireHandlingInstructionNowWithExistingCount()) // set misfire instructions
                                            .Build();
             ft = sched.ScheduleJob(job, trigger);
 

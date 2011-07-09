@@ -40,16 +40,14 @@ namespace Quartz
     /// and the various <code>ScheduleBuilder</code> implementations.</para>
     /// <para>Client code can then use the DSL to write code such as this:</para>
     /// <pre>
-    /// JobDetail job = newJob(MyJob.class)
-    /// .withIdentity("myJob")
-    /// .build();
-    /// Trigger trigger = newTrigger()
-    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-    /// .withSchedule(simpleSchedule()
-    /// .withIntervalInHours(1)
-    /// .repeatForever())
-    /// .startAt(futureDate(10, MINUTES))
-    /// .build();
+    /// IJobDetail job = JobBuilder.Create&lt;MyJob&gt;()
+    ///   .WithIdentity("myJob")
+    ///   .Build();
+    /// ITrigger trigger = newTrigger()
+    ///  .WithIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    ///  .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+    ///  .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+    ///  .Build();
     /// scheduler.scheduleJob(job, trigger);
     /// </pre>
     /// </remarks>
@@ -75,8 +73,6 @@ namespace Quartz
         /// but will rather be invoked by a TriggerBuilder which this
         /// ScheduleBuilder is given to.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
         /// <seealso cref="TriggerBuilder.WithSchedule" />
         public override IMutableTrigger Build()
         {
@@ -202,7 +198,7 @@ namespace Quartz
 
         /// <summary>
         /// If the Trigger misfires, use the
-        /// {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
+        /// <see cref="MisfireInstruction.IgnoreMisfirePolicy" /> instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -215,8 +211,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// If the Trigger misfires, use the
-        /// {@link CronTrigger#MISFIRE_INSTRUCTION_DO_NOTHING} instruction.
+        /// If the Trigger misfires, use the <see cref="MisfireInstruction.CronTrigger.DoNothing" />
+        /// instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -229,8 +225,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// If the Trigger misfires, use the
-        /// {@link CronTrigger#MISFIRE_INSTRUCTION_FIRE_ONCE_NOW} instruction.
+        /// If the Trigger misfires, use the <see cref="MisfireInstruction.CronTrigger.FireOnceNow" />
+        /// instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -246,6 +242,22 @@ namespace Quartz
         {
             misfireInstruction = readMisfireInstructionFromString;
             return this;
+        }
+    }
+
+    public static class CronScheduleTriggerBuilderExtensions
+    {
+        public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression)
+        {
+            CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
+            return triggerBuilder.WithSchedule(builder);
+        }
+
+        public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression, Action<CronScheduleBuilder> action)
+        {
+            CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
+            action(builder);
+            return triggerBuilder.WithSchedule(builder);
         }
     }
 }

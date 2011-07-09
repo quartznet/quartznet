@@ -78,16 +78,14 @@ namespace Quartz.Examples.Example7
 
             DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
 
-            IJobDetail job = JobBuilder.NewJob<DumbInterruptableJob>()
+            IJobDetail job = JobBuilder.Create<DumbInterruptableJob>()
                 .WithIdentity("interruptableJob1", "group1")
                 .Build();
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                           .WithIdentity("trigger1", "group1")
                                                           .StartAt(startTime)
-                                                          .WithSchedule(SimpleScheduleBuilder.Create()
-                                                                            .WithIntervalInSeconds(5)
-                                                                            .RepeatForever())
+                                                          .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
                                                           .Build();
 
             DateTimeOffset ft = sched.ScheduleJob(job, trigger);

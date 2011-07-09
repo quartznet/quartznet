@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example12
 
             // define the job and ask it to run
 
-            IJobDetail job = JobBuilder.NewJob<SimpleJob>()
+            IJobDetail job = JobBuilder.Create<SimpleJob>()
                 .WithIdentity("remotelyAddedJob", "default")
                 .Build();
 
@@ -71,7 +71,7 @@ namespace Quartz.Examples.Example12
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("remotelyAddedTrigger", "default")
                 .ForJob(job.Key)
-                .WithSchedule(CronScheduleBuilder.CronSchedule("/5 * * ? * *"))
+                .WithCronSchedule("/5 * * ? * *")
                 .Build();
 
             // schedule the job

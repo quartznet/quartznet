@@ -67,7 +67,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         {
             sched.Start();
             JobKey jobKey = new JobKey("ExceptionPolicyRestartJob", "ExceptionPolicyRestartGroup");
-            IJobDetail exceptionJob = JobBuilder.NewJob<ExceptionJob>()
+            IJobDetail exceptionJob = JobBuilder.Create<ExceptionJob>()
                 .WithIdentity(jobKey)
                 .StoreDurably()
                 .Build();

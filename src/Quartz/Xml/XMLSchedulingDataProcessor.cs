@@ -344,7 +344,7 @@ namespace Quartz.Xml
                 Type jobType = typeLoadHelper.LoadType(jobTypeName);
 
 
-                IJobDetail jobDetail = JobBuilder.NewJob(jobType)
+                IJobDetail jobDetail = JobBuilder.Create(jobType)
                     .WithIdentity(jobName, jobGroup)
                     .WithDescription(jobDescription)
                     .StoreDurably(jobDurability)
@@ -386,7 +386,6 @@ namespace Quartz.Xml
                 string triggerName = triggerNode.Item.name.TrimEmptyToNull();
                 string triggerGroup = triggerNode.Item.group.TrimEmptyToNull();
                 string triggerDescription = triggerNode.Item.description.TrimEmptyToNull();
-                string triggerMisfireInstructionConst;
                 string triggerCalendarRef = triggerNode.Item.calendarname.TrimEmptyToNull();
                 string triggerJobName = triggerNode.Item.jobname.TrimEmptyToNull();
                 string triggerJobGroup = triggerNode.Item.jobgroup.TrimEmptyToNull();
@@ -411,14 +410,11 @@ namespace Quartz.Xml
                 }
                 DateTime? triggerEndTime = triggerNode.Item.endtimeSpecified ? triggerNode.Item.endtime : (DateTime?) null;
 
-                TriggerKey triggerKey = new TriggerKey(triggerName, triggerGroup);
-
-                IScheduleBuilder sched = null;
+                IScheduleBuilder sched;
 
                 if (triggerNode.Item is simpleTriggerType)
                 {
                     simpleTriggerType simpleTrigger = (simpleTriggerType) triggerNode.Item;
-                    triggerMisfireInstructionConst = simpleTrigger.misfireinstruction;
                     string repeatCountString = simpleTrigger.repeatcount.TrimEmptyToNull();
                     string repeatIntervalString = simpleTrigger.repeatinterval.TrimEmptyToNull();
 
@@ -438,7 +434,6 @@ namespace Quartz.Xml
                 else if (triggerNode.Item is cronTriggerType)
                 {
                     cronTriggerType cronTrigger = (cronTriggerType) triggerNode.Item;
-                    triggerMisfireInstructionConst = cronTrigger.misfireinstruction;
                     string cronExpression = cronTrigger.cronexpression.TrimEmptyToNull();
                     string timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
@@ -456,7 +451,6 @@ namespace Quartz.Xml
                     calendarIntervalTriggerType calendarIntervalTrigger = (calendarIntervalTriggerType)triggerNode.Item;
                     string repeatIntervalString = calendarIntervalTrigger.repeatinterval.TrimEmptyToNull();
 
-                    triggerMisfireInstructionConst = calendarIntervalTrigger.misfireinstruction;
                     IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
                     int repeatInterval = repeatIntervalString == null ? 0 : Convert.ToInt32(repeatIntervalString);
 

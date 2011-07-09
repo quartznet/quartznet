@@ -51,7 +51,7 @@ namespace Quartz.Examples.Example9
             log.Info("Job1Listener says: Job was executed.");
 
             // Simple job #2
-            IJobDetail job2 = JobBuilder.NewJob<SimpleJob2>()
+            IJobDetail job2 = JobBuilder.Create<SimpleJob2>()
                 .WithIdentity("job2")
                 .Build();
 

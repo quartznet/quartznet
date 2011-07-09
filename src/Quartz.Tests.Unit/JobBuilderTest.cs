@@ -38,7 +38,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestJobBuilder()
         {
-            IJobDetail job = JobBuilder.NewJob()
+            IJobDetail job = JobBuilder.Create()
                 .OfType<TestJob>()
                 .WithIdentity("j1")
                 .StoreDurably()
@@ -55,7 +55,7 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(job.JobType.Equals(typeof(TestJob)), "Unexpected job class: " + job.JobType)
             ;
 
-            job = JobBuilder.NewJob()
+            job = JobBuilder.Create()
                 .OfType<TestAnnotatedJob>()
                 .WithIdentity("j1")
                 .WithDescription("my description")
@@ -69,7 +69,7 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(job.ConcurrentExectionDisallowed, "Expected isConcurrentExectionDisallowed == true ");
             Assert.IsTrue(job.PersistJobDataAfterExecution, "Expected isPersistJobDataAfterExecution == true ");
 
-            job = JobBuilder.NewJob()
+            job = JobBuilder.Create()
                 .OfType<TestStatefulJob>()
                     .
             WithIdentity("j1", "g1")

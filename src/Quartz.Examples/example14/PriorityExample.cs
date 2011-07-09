@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example14
 
             log.Info("------- Scheduling Jobs -------------------");
 
-            IJobDetail job = JobBuilder.NewJob<TriggerEchoJob>()
+            IJobDetail job = JobBuilder.Create<TriggerEchoJob>()
                 .WithIdentity("TriggerEchoJob")
                 .Build();
 
@@ -84,7 +84,7 @@ namespace Quartz.Examples.Example14
             ITrigger trigger1 = TriggerBuilder.Create()
                 .WithIdentity("PriorityNeg5Trigger5SecondRepeat")
                 .StartAt(startTime)
-                .WithSchedule(SimpleScheduleBuilder.Create().WithRepeatCount(1).WithIntervalInSeconds(5))
+                .WithSimpleSchedule(x => x.WithRepeatCount(1).WithIntervalInSeconds(5))
                 .WithPriority(1)
                 .ForJob(job)
                 .Build();
@@ -93,7 +93,7 @@ namespace Quartz.Examples.Example14
             ITrigger trigger2 = TriggerBuilder.Create()
                 .WithIdentity("Priority5Trigger10SecondRepeat")
                 .StartAt(startTime)
-                .WithSchedule(SimpleScheduleBuilder.Create().WithRepeatCount(1).WithIntervalInSeconds(10))
+                .WithSimpleSchedule(x => x.WithRepeatCount(1).WithIntervalInSeconds(10))
                 .ForJob(job)
                 .Build();
 
@@ -101,7 +101,7 @@ namespace Quartz.Examples.Example14
             ITrigger trigger3 = TriggerBuilder.Create()
                 .WithIdentity("Priority10Trigger15SecondRepeat")
                 .StartAt(startTime)
-                .WithSchedule(SimpleScheduleBuilder.Create().WithRepeatCount(1).WithIntervalInSeconds(15))
+                .WithSimpleSchedule(x => x.WithRepeatCount(1).WithIntervalInSeconds(15))
                 .WithPriority(10)
                 .ForJob(job)
                 .Build();

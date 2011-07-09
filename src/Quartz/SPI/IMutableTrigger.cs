@@ -2,6 +2,9 @@ using System;
 
 namespace Quartz.Spi
 {
+    /// <summary>
+    /// Should not be used by end users.
+    /// </summary>
     public interface IMutableTrigger : ITrigger
     {
         new TriggerKey Key { set; get; }

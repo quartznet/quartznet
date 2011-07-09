@@ -28,7 +28,7 @@ using Quartz.Util;
 namespace Quartz
 {
     /// <summary>
-    /// <code>JobBuilder</code> is used to instantiate {@link JobDetail}s.
+    /// <code>JobBuilder</code> is used to instantiate <see cref="IJobDetail" />s.
     /// </summary>
     /// <remarks>
     /// <para>Quartz provides a builder-style API for constructing scheduling-related
@@ -40,17 +40,15 @@ namespace Quartz
     /// 
     /// <para>Client code can then use the DSL to write code such as this:</para>
     /// <pre>
-    ///         JobDetail job = newJob(MyJob.class)
-    ///             .withIdentity("myJob")
-    ///             .build();
+    ///         IJobDetail job = JobBuilder.Create&lt;MyJob&gt;()
+    ///             .WithIdentity("myJob")
+    ///             .Build();
     ///             
-    ///         Trigger trigger = newTrigger() 
-    ///             .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-    ///             .withSchedule(simpleSchedule()
-    ///                 .withIntervalInHours(1)
-    ///                 .repeatForever())
-    ///             .startAt(futureDate(10, MINUTES))
-    ///             .build();
+    ///         ITrigger trigger = TriggerBuilder.Create() 
+    ///             .WithIdentity("myTrigger", "myTriggerGroup")
+    ///             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+    ///             .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+    ///             .Build();
     ///         
     ///         scheduler.scheduleJob(job, trigger);
     /// </pre>
@@ -76,7 +74,7 @@ namespace Quartz
         /// Create a JobBuilder with which to define a <code>JobDetail</code>.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
-        public static JobBuilder NewJob()
+        public static JobBuilder Create()
         {
             return new JobBuilder();
         }
@@ -86,7 +84,7 @@ namespace Quartz
         /// and set the class name of the <code>Job</code> to be executed.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
-        public static JobBuilder NewJob(Type jobType)
+        public static JobBuilder Create(Type jobType)
         {
             JobBuilder b = new JobBuilder();
             b.OfType(jobType);
@@ -98,7 +96,7 @@ namespace Quartz
         /// and set the class name of the <code>Job</code> to be executed.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
-        public static JobBuilder NewJob<T>() where T : IJob
+        public static JobBuilder Create<T>() where T : IJob
         {
             JobBuilder b = new JobBuilder();
             b.OfType(typeof(T));

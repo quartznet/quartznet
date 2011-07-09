@@ -592,15 +592,7 @@ namespace Quartz.Impl.Triggers
 
 	    public override IScheduleBuilder GetScheduleBuilder()
 	    {
-            CronScheduleBuilder cb = null;
-            try
-            {
-                cb = CronScheduleBuilder.CronSchedule(CronExpressionString).InTimeZone(TimeZone);
-            }
-            catch (FormatException)
-            {
-                // can't happen (because the expression was validated to get here in the first place)
-            }
+            CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(CronExpressionString).InTimeZone(TimeZone);
 
             switch (MisfireInstruction)
             {

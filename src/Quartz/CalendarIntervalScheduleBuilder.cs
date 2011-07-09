@@ -19,16 +19,14 @@ namespace Quartz
     /// and the various <code>ScheduleBuilder</code> implementations.</para>
     /// <para>Client code can then use the DSL to write code such as this:</para>
     /// <pre>
-    /// JobDetail job = newJob(MyJob.class)
-    /// .withIdentity("myJob")
-    /// .build();
-    /// Trigger trigger = newTrigger()
-    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-    /// .withSchedule(simpleSchedule()
-    /// .withIntervalInHours(1)
-    /// .repeatForever())
-    /// .startAt(futureDate(10, MINUTES))
-    /// .build();
+    /// JobDetail job = JobBuilder.Create&lt;MyJob&gt;()
+    ///  .WithIdentity("myJob")
+    ///  .Build();
+    /// Trigger trigger = TriggerBuilder.Create()
+    ///  .WithIdentity("myTrigger", "myTriggerGroup")
+    ///  .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+    ///  .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+    ///  .Build();
     /// scheduler.scheduleJob(job, trigger);
     /// </pre>
     /// </remarks>
@@ -272,6 +270,22 @@ namespace Quartz
         {
             misfireInstruction = readMisfireInstructionFromString;
             return this;
+        }
+    }
+
+    public static class CalendarScheduleTriggerBuilderExtensions
+    {
+        public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder)
+        {
+            CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
+            return triggerBuilder.WithSchedule(builder);
+        }
+
+        public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder, Action<CalendarIntervalScheduleBuilder> action)
+        {
+            CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
+            action(builder);
+            return triggerBuilder.WithSchedule(builder);
         }
     }
 }

@@ -426,7 +426,7 @@ namespace Quartz.Impl
 
         public JobBuilder GetJobBuilder()
         {
-            JobBuilder b = JobBuilder.NewJob()
+            JobBuilder b = JobBuilder.Create()
                 .OfType(JobType)
                 .RequestRecovery(RequestsRecovery)
                 .StoreDurably(Durable)

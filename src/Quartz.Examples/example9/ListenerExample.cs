@@ -57,7 +57,7 @@ namespace Quartz.Examples.Example9
             log.Info("------- Scheduling Jobs -------------------");
 
             // schedule a job to run immediately
-            IJobDetail job = JobBuilder.NewJob<SimpleJob1>()
+            IJobDetail job = JobBuilder.Create<SimpleJob1>()
                 .WithIdentity("job1")
                 .Build();
 

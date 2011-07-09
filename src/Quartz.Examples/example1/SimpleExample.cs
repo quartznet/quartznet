@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example1
             log.Info("------- Scheduling Job  -------------------");
 
             // define the job and tie it to our HelloJob class
-            IJobDetail job = JobBuilder.NewJob<HelloJob>()
+            IJobDetail job = JobBuilder.Create<HelloJob>()
                 .WithIdentity("job1", "group1")
                 .Build();
 

@@ -60,7 +60,7 @@ namespace Quartz.Examples.Example11
 			for (int count = 1; count <= numberOfJobs; count++)
 			{
 				IJobDetail job = JobBuilder
-                    .NewJob<SimpleJob>()
+                    .Create<SimpleJob>()
                     .WithIdentity("job" + count, "group_1")
                     .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
                     .Build();

@@ -58,16 +58,14 @@ namespace Quartz.Examples.Example6
             // badJob1 will run every three seconds
             // this job will throw an exception and refire
             // immediately
-            IJobDetail job = JobBuilder.NewJob<BadJob1>()
+            IJobDetail job = JobBuilder.Create<BadJob1>()
                 .WithIdentity("badJob1", "group1")
                 .Build();
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                           .WithIdentity("trigger1", "group1")
                                                           .StartAt(startTime)
-                                                          .WithSchedule(SimpleScheduleBuilder.Create()
-                                                                            .WithIntervalInSeconds(3)
-                                                                            .RepeatForever())
+                                                          .WithSimpleSchedule(x => x.WithIntervalInSeconds(3).RepeatForever())
                                                           .Build();
 
             DateTimeOffset ft = sched.ScheduleJob(job, trigger);
@@ -78,16 +76,14 @@ namespace Quartz.Examples.Example6
             // badJob2 will run every three seconds
             // this job will throw an exception and never
             // refire
-            job = JobBuilder.NewJob<BadJob2>()
+            job = JobBuilder.Create<BadJob2>()
                 .WithIdentity("badJob2", "group1")
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger2", "group1")
                                            .StartAt(startTime)
-                                           .WithSchedule(SimpleScheduleBuilder.Create()
-                                                             .WithIntervalInSeconds(3)
-                                                             .RepeatForever())
+                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(3).RepeatForever())
                                            .Build();
             ft = sched.ScheduleJob(job, trigger);
             log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
