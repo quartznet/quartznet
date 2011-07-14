@@ -63,5 +63,15 @@ namespace Quartz.Tests.Unit
             Assert.That(cloned.Group, Is.EqualTo(original.Group));
             Assert.That(cloned.Key, Is.EqualTo(original.Key));
         }
+
+        [Test]
+        public void SettingKeyShouldAlsoSetNameAndGroup()
+        {
+            JobDetailImpl detail = new JobDetailImpl();
+            detail.Key = new JobKey("name", "group");
+
+            Assert.That(detail.Name, Is.EqualTo("name"));
+            Assert.That(detail.Group, Is.EqualTo("group"));
+        }
     }
 }

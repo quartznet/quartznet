@@ -200,7 +200,12 @@ namespace Quartz.Impl
 
                 return key;
             }
-            set { key = value; }
+            set
+            {
+                Name = value != null ? value.Name : null;
+                Group = value != null ? value.Group : null;
+                key = value;
+            }
         }
 
         /// <summary>
