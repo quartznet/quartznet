@@ -43,10 +43,12 @@ namespace Quartz.Simpl
         public const string ChannelTypeTcp = "tcp";
         public const string ChannelTypeHttp = "http";
         private const string DefaultBindName = "QuartzScheduler";
+        private const string DefaultChannelName = "http";
 
         private readonly ILog log;
         private int port = -1;
         private string bindName = DefaultBindName;
+        private string channelName = DefaultChannelName;
         private string channelType = ChannelTypeTcp;
         private TypeFilterLevel typeFilgerLevel = TypeFilterLevel.Full;
         private static readonly Dictionary<string, object> registeredChannels = new Dictionary<string, object>();
@@ -100,7 +102,8 @@ namespace Quartz.Simpl
 
                 IDictionary props = new Hashtable();
                 props["port"] = port;
-                
+                props["name"] = "";
+
                 // use binary formatter
                 BinaryServerFormatterSinkProvider formatprovider = new BinaryServerFormatterSinkProvider(props, null);
                 formatprovider.TypeFilterLevel = typeFilgerLevel;
@@ -124,8 +127,8 @@ namespace Quartz.Simpl
                 {
                     throw new ArgumentException("Unknown remoting channel type '" + channelType + "'");
                 }
-               
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1})", chan.GetType(), port));
+
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1}) with name ({2})", chan.GetType(), port, channelName));
 
                 ChannelServices.RegisterChannel(chan, false);
 
@@ -190,6 +193,16 @@ namespace Quartz.Simpl
         {
             get { return bindName; }
             set { bindName = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the name to use when binding to 
+        /// tcp channel.
+        /// </summary>
+        public virtual string ChannelName
+        {
+            get { return channelName; }
+            set { channelName = value; }
         }
 
         /// <summary>

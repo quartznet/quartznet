@@ -58,7 +58,8 @@ namespace Quartz.Examples.Example12
             properties["quartz.scheduler.exporter.port"] = "555";
             properties["quartz.scheduler.exporter.bindName"] = "QuartzScheduler";
             properties["quartz.scheduler.exporter.channelType"] = "tcp";
-            
+            properties["quartz.scheduler.exporter.channelName"] = "httpQuartz";
+
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = sf.GetScheduler();
 			
