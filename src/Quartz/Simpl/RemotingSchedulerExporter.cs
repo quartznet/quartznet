@@ -73,7 +73,7 @@ namespace Quartz.Simpl
 
             try
             {
-                RemotingServices.Marshal((MarshalByRefObject) scheduler, bindName);
+                RemotingServices.Marshal((MarshalByRefObject)scheduler, bindName);
                 Log.Info(string.Format(CultureInfo.InvariantCulture, "Successfully marhalled remotable scheduler under name '{0}'", bindName));
             }
             catch (RemotingException ex)
@@ -87,7 +87,7 @@ namespace Quartz.Simpl
             catch (Exception ex)
             {
                 Log.Error("Exception during Bind", ex);
-            } 
+            }
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Quartz.Simpl
 
                 IDictionary props = new Hashtable();
                 props["port"] = port;
-                props["name"] = "";
+                props["name"] = channelName;
 
                 // use binary formatter
                 BinaryServerFormatterSinkProvider formatprovider = new BinaryServerFormatterSinkProvider(props, null);
@@ -128,7 +128,7 @@ namespace Quartz.Simpl
                     throw new ArgumentException("Unknown remoting channel type '" + channelType + "'");
                 }
 
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1}) with name ({2})", chan.GetType(), port, channelName));
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1}) with name ({2})", chan.GetType(), port, chan.ChannelName));
 
                 ChannelServices.RegisterChannel(chan, false);
 
@@ -150,11 +150,11 @@ namespace Quartz.Simpl
             if (!typeof(MarshalByRefObject).IsAssignableFrom(scheduler.GetType()))
             {
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
-            } 
-            
+            }
+
             try
             {
-                RemotingServices.Disconnect((MarshalByRefObject) scheduler);
+                RemotingServices.Disconnect((MarshalByRefObject)scheduler);
                 Log.Info("Successfully disconnected remotable scheduler");
             }
             catch (ArgumentException ex)
@@ -168,7 +168,7 @@ namespace Quartz.Simpl
             catch (Exception ex)
             {
                 Log.Error("Exception during Unbind", ex);
-            } 
+            }
         }
 
         protected virtual ILog Log
