@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System;
+
 using Common.Logging;
 
 using Quartz.Spi;
@@ -87,5 +89,25 @@ namespace Quartz.Impl.AdoJobStore
             return sqlSelectNextTriggerToAcquire;
         }
 
+        /// <summary>
+        /// Gets the db presentation for boolean value. For Oracle we use true/false of "1"/"0".
+        /// </summary>
+        /// <param name="booleanValue">Value to map to database.</param>
+        /// <returns></returns>
+        public override object GetDbBooleanValue(bool booleanValue)
+        {
+            return booleanValue ? "1" : "0";
+        }
+
+        public override bool GetBooleanFromDbValue(object columnValue)
+        {
+            // we store things as string in oracle with 1/0 as value
+            if (columnValue != null)
+            {
+                return Convert.ToInt32(columnValue) == 1 ? true : false;
+            }
+
+            throw new ArgumentException("Value must be non-null.");
+        }
     }
 }

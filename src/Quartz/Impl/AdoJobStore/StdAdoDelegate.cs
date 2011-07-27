@@ -560,10 +560,25 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="booleanValue">Value to map to database.</param>
         /// <returns></returns>
-        protected virtual object GetDbBooleanValue(bool booleanValue)
+        public virtual object GetDbBooleanValue(bool booleanValue)
         {
             // works nicely for databases we have currently supported
             return booleanValue;
+        }
+
+        /// <summary>
+        /// Gets the boolean value from db presentation. Subclasses can overwrite this behaviour.
+        /// </summary>
+        /// <param name="columnValue">Value to map from database.</param>
+        /// <returns></returns>
+        public virtual bool GetBooleanFromDbValue(object columnValue)
+        {
+            if (columnValue != null)
+            {
+                return (bool) columnValue;
+            }
+
+            throw new ArgumentException("Value must be non-null.");
         }
 
         protected virtual string GetStorableJobTypeName(Type jobType)
@@ -745,8 +760,8 @@ namespace Quartz.Impl.AdoJobStore
                         job.Group = rs.GetString(ColumnJobGroup);
                         job.Description = rs.GetString(ColumnDescription);
                         job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass));
-                        job.Durable = rs.GetBoolean(ColumnIsDurable);
-                        job.RequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
+                        job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
+                        job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
 
                         IDictionary map;
                         if (CanUseProperties)
@@ -1403,9 +1418,9 @@ namespace Quartz.Impl.AdoJobStore
                         JobDetailImpl job = new JobDetailImpl();
                         job.Name = rs.GetString(ColumnJobName);
                         job.Group = rs.GetString(ColumnJobGroup);
-                        job.Durable = rs.GetBoolean(ColumnIsDurable);
+                        job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
                         job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass));
-                        job.RequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
+                        job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
 
                         return job;
                     }
@@ -2333,8 +2348,8 @@ namespace Quartz.Impl.AdoJobStore
                     rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                     if (!rec.FireInstanceState.Equals(StateAcquired))
                     {
-                        rec.JobDisallowsConcurrentExecution = rs.GetBoolean(ColumnIsNonConcurrent);
-                        rec.JobRequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
+                        rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
+                        rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
                         rec.JobKey = new JobKey(rs.GetString(ColumnJobName), rs.GetString(ColumnJobGroup));
                     }
                     lst.Add(rec);
@@ -2383,8 +2398,8 @@ namespace Quartz.Impl.AdoJobStore
                     rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                     if (!rec.FireInstanceState.Equals(StateAcquired))
                     {
-                        rec.JobDisallowsConcurrentExecution = rs.GetBoolean(ColumnIsNonConcurrent);
-                        rec.JobRequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
+                        rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
+                        rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
                         rec.JobKey = new JobKey(rs.GetString(ColumnJobName), rs.GetString(ColumnJobGroup));
                     }
                     lst.Add(rec);
@@ -2421,8 +2436,8 @@ namespace Quartz.Impl.AdoJobStore
                         rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                         if (!rec.FireInstanceState.Equals(StateAcquired))
                         {
-                            rec.JobDisallowsConcurrentExecution = rs.GetBoolean(ColumnIsNonConcurrent);
-                            rec.JobRequestsRecovery = rs.GetBoolean(ColumnRequestsRecovery);
+                            rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
+                            rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
                             rec.JobKey = new JobKey(rs.GetString(ColumnJobName), rs.GetString(ColumnJobGroup));
                         }
                         lst.Add(rec);
@@ -2862,5 +2877,19 @@ namespace Quartz.Impl.AdoJobStore
         IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
         void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue);
         void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType);
+
+        /// <summary>
+        /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.
+        /// </summary>
+        /// <param name="booleanValue">Value to map to database.</param>
+        /// <returns></returns>
+        object GetDbBooleanValue(bool booleanValue);
+
+        /// <summary>
+        /// Gets the boolean value from db presentation. Subclasses can overwrite this behaviour.
+        /// </summary>
+        /// <param name="columnValue">Value to map from database.</param>
+        /// <returns></returns>
+        bool GetBooleanFromDbValue(object columnValue);
     }
 }

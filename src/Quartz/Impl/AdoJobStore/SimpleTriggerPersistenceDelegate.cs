@@ -30,19 +30,17 @@ namespace Quartz.Impl.AdoJobStore
 {
     public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     {
-        private ICommandAccessor commandAccessor;
-        protected string tablePrefix;
-        private string schedNameLiteral;
+        protected ICommandAccessor CommandAccessor { get; private set; }
 
-        public SimpleTriggerPersistenceDelegate()
-        {
-        }
+        protected string TablePrefix { get; private set; }
+
+        protected string SchedNameLiteral { get; private set; }
 
         public void Initialize(string tablePrefix, string schedName, ICommandAccessor commandAccessor)
         {
-            this.tablePrefix = tablePrefix;
-            schedNameLiteral = "'" + schedName + "'";
-            this.commandAccessor = commandAccessor;
+            TablePrefix = tablePrefix;
+            SchedNameLiteral = "'" + schedName + "'";
+            CommandAccessor = commandAccessor;
         }
 
         public string GetHandledTriggerTypeDiscriminator()
@@ -57,10 +55,10 @@ namespace Quartz.Impl.AdoJobStore
 
         public int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = CommandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
-                commandAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                commandAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+                CommandAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                CommandAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
                 return cmd.ExecuteNonQuery();
             }
@@ -70,13 +68,13 @@ namespace Quartz.Impl.AdoJobStore
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
-            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimpleTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = CommandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
-                commandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                commandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-                commandAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
-                commandAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", simpleTrigger.RepeatInterval.TotalMilliseconds);
-                commandAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
+                CommandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+                CommandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+                CommandAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
+                CommandAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", simpleTrigger.RepeatInterval.TotalMilliseconds);
+                CommandAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
 
                 return cmd.ExecuteNonQuery();
             }
@@ -84,10 +82,10 @@ namespace Quartz.Impl.AdoJobStore
 
         public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = CommandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
-                commandAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                commandAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+                CommandAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                CommandAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -107,7 +105,7 @@ namespace Quartz.Impl.AdoJobStore
                         return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
                     }
                 }
-                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, tablePrefix, schedNameLiteral));
+                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral));
             }
         }
 
@@ -115,13 +113,13 @@ namespace Quartz.Impl.AdoJobStore
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
-            using (IDbCommand cmd = commandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, tablePrefix, schedNameLiteral)))
+            using (IDbCommand cmd = CommandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
-                commandAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
-                commandAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", simpleTrigger.RepeatInterval.TotalMilliseconds);
-                commandAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
-                commandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                commandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+                CommandAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
+                CommandAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", simpleTrigger.RepeatInterval.TotalMilliseconds);
+                CommandAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
+                CommandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+                CommandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
                 return cmd.ExecuteNonQuery();
             }

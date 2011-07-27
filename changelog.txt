@@ -19,6 +19,7 @@ BREAKING CHANGES
 * string triggerName, string triggerGroup are now encapsulated in TriggerKey (has the same fields) 
 * string jobName, string jobGroup are now encapsulated in JobKey (has the same fields)
 * JobInitializationPlugin is now deprecated in favor of XMLSchedulingDataProcessorPlugin, JobInitializationPlugin no longer included
+* Microsoft's Oracle drivers are no longer supported, use 10g or 11g ODP.NET drivers
 
 OTHER NOTABLE CHANGES
 

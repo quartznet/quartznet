@@ -145,15 +145,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
         }
 
-
-        [Test]
-        public void TestOracleClient20()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            RunAdoJobStoreTest("OracleClient-20", "Oracle", properties);
-        }
-
         [Test]
         public void TestOracleODP20()
         {

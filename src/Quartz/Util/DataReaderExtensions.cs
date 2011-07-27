@@ -43,18 +43,5 @@ namespace Quartz.Util
             object columnValue = reader[columnName];
             return Convert.ToDecimal(columnValue,CultureInfo.InvariantCulture);
         }
-
-        public static bool GetBoolean(this IDataReader reader, string columnName)
-        {
-            object columnValue = reader[columnName];
-
-            // default to treat values as ints
-            if (columnValue != null)
-            {
-                return (bool) columnValue;
-            }
-
-            throw new ArgumentException("Value must be non-null.");
-        }
     }
 }
