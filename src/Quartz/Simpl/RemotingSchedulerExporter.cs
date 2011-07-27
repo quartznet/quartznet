@@ -43,10 +43,12 @@ namespace Quartz.Simpl
         public const string ChannelTypeTcp = "tcp";
         public const string ChannelTypeHttp = "http";
         private const string DefaultBindName = "QuartzScheduler";
+        private const string DefaultChannelName = "http";
 
         private readonly ILog log;
         private int port = -1;
         private string bindName = DefaultBindName;
+        private string channelName = DefaultChannelName;
         private string channelType = ChannelTypeTcp;
         private TypeFilterLevel typeFilgerLevel = TypeFilterLevel.Full;
         private static readonly Dictionary<string, object> registeredChannels = new Dictionary<string, object>();
@@ -71,7 +73,7 @@ namespace Quartz.Simpl
 
             try
             {
-                RemotingServices.Marshal((MarshalByRefObject) scheduler, bindName);
+                RemotingServices.Marshal((MarshalByRefObject)scheduler, bindName);
                 Log.Info(string.Format(CultureInfo.InvariantCulture, "Successfully marhalled remotable scheduler under name '{0}'", bindName));
             }
             catch (RemotingException ex)
@@ -85,7 +87,7 @@ namespace Quartz.Simpl
             catch (Exception ex)
             {
                 Log.Error("Exception during Bind", ex);
-            } 
+            }
         }
 
         /// <summary>
@@ -100,7 +102,8 @@ namespace Quartz.Simpl
 
                 IDictionary props = new Hashtable();
                 props["port"] = port;
-                
+                props["name"] = channelName;
+
                 // use binary formatter
                 BinaryServerFormatterSinkProvider formatprovider = new BinaryServerFormatterSinkProvider(props, null);
                 formatprovider.TypeFilterLevel = typeFilgerLevel;
@@ -124,8 +127,8 @@ namespace Quartz.Simpl
                 {
                     throw new ArgumentException("Unknown remoting channel type '" + channelType + "'");
                 }
-               
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1})", chan.GetType(), port));
+
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1}) with name ({2})", chan.GetType(), port, chan.ChannelName));
 
                 ChannelServices.RegisterChannel(chan, false);
 
@@ -147,11 +150,11 @@ namespace Quartz.Simpl
             if (!typeof(MarshalByRefObject).IsAssignableFrom(scheduler.GetType()))
             {
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
-            } 
-            
+            }
+
             try
             {
-                RemotingServices.Disconnect((MarshalByRefObject) scheduler);
+                RemotingServices.Disconnect((MarshalByRefObject)scheduler);
                 Log.Info("Successfully disconnected remotable scheduler");
             }
             catch (ArgumentException ex)
@@ -165,7 +168,7 @@ namespace Quartz.Simpl
             catch (Exception ex)
             {
                 Log.Error("Exception during Unbind", ex);
-            } 
+            }
         }
 
         protected virtual ILog Log
@@ -190,6 +193,16 @@ namespace Quartz.Simpl
         {
             get { return bindName; }
             set { bindName = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the name to use when binding to 
+        /// tcp channel.
+        /// </summary>
+        public virtual string ChannelName
+        {
+            get { return channelName; }
+            set { channelName = value; }
         }
 
         /// <summary>
