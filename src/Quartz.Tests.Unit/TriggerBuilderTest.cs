@@ -69,5 +69,17 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(trigger.StartTimeUtc.Equals(stime), "Unexpected start-time: " + trigger.StartTimeUtc);
             Assert.IsTrue(trigger.EndTimeUtc != null, "Unexpected end-time: " + trigger.EndTimeUtc);
         }
+
+        [Test]
+        public void TestTriggerBuilderWithEndTimePriorCurrrentTime()
+        {
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("some trigger name", "some trigger group")
+                .ForJob("some job name", "some job group")
+                .StartAt(DateTime.Now - TimeSpan.FromMilliseconds(200000000))
+                .EndAt(DateTime.Now - TimeSpan.FromMilliseconds(100000000))
+                .WithCronSchedule("0 0 0 * * ?")
+                .Build();
+        }
     }
 }

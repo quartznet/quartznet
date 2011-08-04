@@ -98,6 +98,7 @@ namespace Quartz
 
             trig.CalendarName = calendarName;
             trig.Description = description;
+            trig.StartTimeUtc = startTime;
             trig.EndTimeUtc = endTime;
             if (key == null)
             {
@@ -109,7 +110,6 @@ namespace Quartz
                 trig.JobKey = jobKey;
             }
             trig.Priority = priority;
-            trig.StartTimeUtc = startTime;
 
             if (!jobDataMap.IsEmpty)
             {
