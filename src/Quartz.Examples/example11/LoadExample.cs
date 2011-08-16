@@ -33,11 +33,6 @@ namespace Quartz.Examples.Example11
 	{
 		private readonly int numberOfJobs = 500;
 
-		public LoadExample(int inNumberOfJobs)
-		{
-			numberOfJobs = inNumberOfJobs;
-		}
-
 		public string Name
 		{
 			get { throw new NotImplementedException(); }
