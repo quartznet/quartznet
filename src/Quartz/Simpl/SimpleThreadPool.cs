@@ -197,6 +197,8 @@ namespace Quartz.Simpl
             // current job.
             lock (nextRunnableLock)
             {
+                log.Debug("Shutting down threadpool...");
+                
                 isShutdown = true;
 
                 if (workers == null) // case where the pool wasn't even initialize()ed
@@ -246,8 +248,24 @@ namespace Quartz.Simpl
                         }
                     }
 
-                    log.Debug("shutdown complete");
+                    while(workers.Count > 0)
+                    {
+                        int index = workers.Count - 1;
+                        WorkerThread wt = workers[index];
+                        try
+                        {
+                            wt.Join();
+                            workers.RemoveAt(index);
+                        }
+                        catch (ThreadStateException)
+                        {
+                        }
+                    }
+                    
+                    log.Debug("No executing jobs remaining, all threads stopped.");
                 }
+                
+                log.Debug("Shutdown of threadpool complete.");
             }
         }
 
