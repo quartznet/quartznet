@@ -153,6 +153,7 @@ namespace Quartz.Impl.AdoJobStore
             AddTriggerPersistenceDelegate(new SimpleTriggerPersistenceDelegate());
             AddTriggerPersistenceDelegate(new CronTriggerPersistenceDelegate());
             AddTriggerPersistenceDelegate(new CalendarIntervalTriggerPersistenceDelegate());
+            AddTriggerPersistenceDelegate(new DailyTimeIntervalTriggerPersistenceDelegate());
         }
 
         protected virtual bool CanUseProperties

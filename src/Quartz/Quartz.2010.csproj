@@ -123,18 +123,22 @@
     <Compile Include="CalendarIntervalScheduleBuilder.cs" />
     <Compile Include="Core\ListenerManagerImpl.cs" />
     <Compile Include="CronScheduleBuilder.cs" />
+    <Compile Include="DailyTimeIntervalScheduleBuilder.cs" />
+    <Compile Include="IDailyTimeIntervalTrigger.cs" />
     <Compile Include="DateBuilder.cs" />
     <Compile Include="ICronTrigger.cs" />
     <Compile Include="IJobExecutionContext.cs" />
     <Compile Include="IListenerManager.cs" />
     <Compile Include="Impl\AdoJobStore\CalendarIntervalTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\CronTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\DailyTimeIntervalTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\SimpleTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\ITriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerPersistenceDelegateSupport.cs" />
     <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerProperties.cs" />
     <Compile Include="Impl\AdoJobStore\SQLiteDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\TriggerPropertyBundle.cs" />
+    <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImpl.cs" />
     <Compile Include="Impl\DefaultThreadExecutor.cs" />
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
     <Compile Include="ICalendarIntervalTrigger.cs" />
@@ -369,6 +373,7 @@
     <Compile Include="Impl\Triggers\AbstractTrigger.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TimeOfDay.cs" />
     <Compile Include="TriggerBuilder.cs" />
     <Compile Include="TriggerConstants.cs" />
     <Compile Include="TriggerKey.cs" />
