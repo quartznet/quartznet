@@ -54,14 +54,6 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 		    trigger.RepeatInterval = 72;
 		
 		    Generic::IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
-
-            int i = 0;
-            foreach(DateTimeOffset t in fireTimes)
-            {
-                Console.WriteLine("#"+(i++)+ " " + t);
-            }
-            
-            
             Assert.AreEqual(48, fireTimes.Count);
 		    Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
 		    Assert.AreEqual(DateBuilder.DateOf(10, 24, 0, 16, 1, 2011), fireTimes[47]);
