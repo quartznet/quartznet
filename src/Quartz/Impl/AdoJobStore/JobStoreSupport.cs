@@ -543,7 +543,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         if (SelectWithLockSQL == null)
                         {
-                            const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE LOCK_NAME = @lockName";
+                            const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = {1}  LOCK_NAME = @lockName";
                             Log.Info("Detected usage of MSSQLDelegate - defaulting 'selectWithLockSQL' to '" + DefaultLockSql + "'.");
                             SelectWithLockSQL = DefaultLockSql;
                         }
