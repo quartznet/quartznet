@@ -237,7 +237,7 @@ namespace Quartz.Simpl
                         LinkedListNode<WorkerThread> wt = busyWorkers.First;
                         try
                         {
-                            log.Debug(string.Format(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Value.Name));
+                            log.DebugFormat(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Value.Name);
 
                             // note: with waiting infinite time the
                             // application may appear to 'hang'.
