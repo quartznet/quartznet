@@ -66,6 +66,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
+                    bool found = false;
                     using (IDataReader rs = cmd.ExecuteReader())
                     {
                         if (Log.IsDebugEnabled)
@@ -73,23 +74,25 @@ namespace Quartz.Impl.AdoJobStore
                             Log.Debug("Lock '" + lockName + "' is being obtained: " + Thread.CurrentThread.Name);
                         }
 
-                        if (!rs.Read())
+                        found = rs.Read();
+                    }
+                    
+                    if (!found)
+                    {
+                        Log.Debug(
+                            "Inserting new lock row for lock: '" + lockName + "' being obtained by thread: " +
+                            Thread.CurrentThread.Name);
+
+                        using (IDbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSQL))
                         {
-                            Log.Debug(
-                                "Inserting new lock row for lock: '" + lockName + "' being obtained by thread: " +
-                                Thread.CurrentThread.Name);
+                            AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
+                            int res = cmd2.ExecuteNonQuery();
 
-                            using (IDbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSQL))
+                            if (res != 1)
                             {
-                                AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
-                                int res = cmd2.ExecuteNonQuery();
-
-                                if (res != 1)
-                                {
-                                    throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix(
-                                        "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
-                                        " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
-                                }
+                                throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix(
+                                    "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
+                                    " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
                             }
                         }
                     }
