@@ -19,10 +19,7 @@
 
 using System;
 
-using Quartz;
 using Quartz.Collection;
-
-
 
 namespace Quartz.Impl.Triggers
 {

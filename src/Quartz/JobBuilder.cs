@@ -116,7 +116,7 @@ namespace Quartz
             job.Description = description;
             if (key == null)
             {
-                key = new JobKey(Key<string>.CreateUniqueName(null), null);
+                key = new JobKey(Guid.NewGuid().ToString(), null);
             }
             job.Key = key;
             job.Durable = durability;

@@ -31,7 +31,6 @@ namespace Quartz
     /// <summary>
     /// A <see cref="IScheduleBuilder"/> implementation that build schedule for DailyTimeIntervalTrigger.
     /// </summary>
-    /// <since>2.0.3</since>
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
@@ -347,6 +346,9 @@ namespace Quartz
         }
     }
 
+    /// <summary>
+    /// Extension methods to aid fluent trigger syntax.
+    /// </summary>
     public static class DailyTimeIntervalScheduleBuilderExtensions
     {
         public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder)

@@ -345,10 +345,12 @@
     <Compile Include="Collection\HashSet.cs" />
     <Compile Include="Core\ListenerManagerImpl.cs" />
     <Compile Include="CronScheduleBuilder.cs" />
+    <Compile Include="DailyTimeIntervalScheduleBuilder.cs" />
     <Compile Include="DateBuilder.cs" />
     <Compile Include="DisallowConcurrentExecutionAttribute.cs" />
     <Compile Include="ICalendarIntervalTrigger.cs" />
     <Compile Include="ICronTrigger.cs" />
+    <Compile Include="IDailyTimeIntervalTrigger.cs" />
     <Compile Include="IJobDetail.cs" />
     <Compile Include="IJobExecutionContext.cs" />
     <Compile Include="IListenerManager.cs" />
@@ -362,6 +364,7 @@
     <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\ConnectionAndTransactionHolder.cs" />
     <Compile Include="Impl\AdoJobStore\CronTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\DailyTimeIntervalTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\ITriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
     <Compile Include="Impl\AdoJobStore\MySQLDelegate.cs" />
@@ -407,6 +410,7 @@
     <Compile Include="Impl\Triggers\CalendarIntervalTriggerImpl.cs" />
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
     <Compile Include="Impl\Triggers\CronTriggerImpl.cs" />
+    <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImpl.cs" />
     <Compile Include="Impl\Triggers\SimpleTriggerImpl.cs" />
     <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
@@ -428,6 +432,7 @@
     <Compile Include="SPI\IThreadExecutor.cs" />
     <Compile Include="SPI\TriggerFiredResult.cs" />
     <Compile Include="SystemTime.cs" />
+    <Compile Include="TimeOfDay.cs" />
     <Compile Include="TimeSpanParseRuleAttribute.cs" />
     <Compile Include="SchedulerConstants.cs" />
     <Compile Include="SchedulerInstruction.cs" />

@@ -102,7 +102,7 @@ namespace Quartz
             trig.EndTimeUtc = endTime;
             if (key == null)
             {
-                key = new TriggerKey(Key<string>.CreateUniqueName(null), null);
+                key = new TriggerKey(Guid.NewGuid().ToString(), null);
             }
             trig.Key = key;
             if (jobKey != null)

@@ -200,6 +200,10 @@
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\QRTZNET250.xml" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Xml\TestData\DirectivesNoOverwriteIgnoreDups.xml" />
+    <EmbeddedResource Include="Xml\TestData\SimpleJobTrigger.xml" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

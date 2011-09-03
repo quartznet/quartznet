@@ -92,8 +92,14 @@ namespace Quartz.Impl.AdoJobStore
             SchedNameLiteral = "'" + schedName + "'";
         }
 
+        /// <summary>
+        /// Returns whether the trigger type can be handled by delegate.
+        /// </summary>
         public abstract bool CanHandleTriggerType(IOperableTrigger trigger);
 
+        /// <summary>
+        /// Returns database discriminator value for trigger type.
+        /// </summary>
         public abstract string GetHandledTriggerTypeDiscriminator();
 
         protected abstract SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger);

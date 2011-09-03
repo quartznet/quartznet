@@ -32,7 +32,6 @@ namespace Quartz.Impl.AdoJobStore
     /// </summary>
     /// <see cref="DailyTimeIntervalScheduleBuilder"/>
     /// <see cref="IDailyTimeIntervalTrigger"/>
-    /// <since>2.0.3</since>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
     public class DailyTimeIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
@@ -44,6 +43,10 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         public override string GetHandledTriggerTypeDiscriminator()
         {
             return AdoConstants.TriggerTypeDailyTimeInterval;

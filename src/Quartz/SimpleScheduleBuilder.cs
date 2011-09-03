@@ -337,6 +337,15 @@ namespace Quartz
             return this;
         }
 
+        /// <summary>
+        /// Specify a repeat interval in seconds.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="seconds">the time span at which the trigger should repeat.</param>
+        /// <returns>the updated SimpleScheduleBuilder</returns>
+        /// <seealso cref="ISimpleTrigger.RepeatInterval" />
+        /// <seealso cref="WithRepeatCount(int)" />
         public SimpleScheduleBuilder WithIntervalInSeconds(int seconds)
         {
             return WithInterval(TimeSpan.FromSeconds(seconds));

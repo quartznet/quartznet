@@ -30,7 +30,6 @@ namespace Quartz
     /// </remarks>
     /// </summary>
     /// <seealso cref="IDailyTimeIntervalTrigger"/>
-    /// <since>2.0.3</since>    
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
