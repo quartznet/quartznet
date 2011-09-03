@@ -111,9 +111,29 @@ namespace Quartz.Impl.AdoJobStore
 		public const string AllGroupsPaused = "_$_ALL_GROUPS_PAUSED_$_";
 		
 		// TRIGGER TYPES
-		public const string TriggerTypeSimple = "SIMPLE";
-		public const string TriggerTypeCron = "CRON";
+		/// <summary>
+        /// Simple Trigger type.
+		/// </summary>
+        public const string TriggerTypeSimple = "SIMPLE";
+		
+        /// <summary>
+        /// Cron Trigger type.
+        /// </summary>
+        public const string TriggerTypeCron = "CRON";
+        
+        /// <summary>
+        /// Calendar Interval Trigger type.
+        /// </summary>
         public const string TriggerTypeCalendarInterval = "CAL_INT";
-		public const string TriggerTypeBlob = "BLOB";
+
+        /// <summary>
+        /// Daily Time Interval Trigger type.
+        /// </summary>
+        public const string TriggerTypeDailyTimeInterval = "DAILY_I";
+		
+        /// <summary>
+        /// A general blob Trigger type.
+        /// </summary>
+        public const string TriggerTypeBlob = "BLOB";
 	}
 }
