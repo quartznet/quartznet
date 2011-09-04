@@ -375,6 +375,11 @@ Please add configuration to your application config file to correctly initialize
             Type jobFactoryType = LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType, null));
 
             idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
+            if (idleWaitTime.TotalMilliseconds > -1 && idleWaitTime < TimeSpan.FromMilliseconds(1000))
+            {
+                throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
+            }
+
             dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
             long batchTimeWindow = cfg.GetLongProperty(PropertySchedulerBatchTimeWindow, 0L);
