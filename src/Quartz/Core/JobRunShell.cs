@@ -164,6 +164,12 @@ namespace Quartz.Core
                             {
                                 VetoedJobRetryLoop(trigger, jobDetail, instCode);
                             }
+
+                            // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
+                            if (jec.Trigger.GetNextFireTimeUtc() == null)
+                            {
+                                qs.NotifySchedulerListenersFinalized(jec.Trigger);
+                            }
                             Complete(true);
                         }
                         catch (SchedulerException se)

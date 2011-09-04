@@ -113,7 +113,7 @@ namespace Quartz.Tests.Unit.Xml
             try
             {
                 StdSchedulerFactory factory = new StdSchedulerFactory();
-                scheduler = StdSchedulerFactory.DefaultScheduler;
+                scheduler = StdSchedulerFactory.GetDefaultScheduler();
 
                 // Let's setup a fixture job data that we know test is not going modify it.
                 IJobDetail job = JobBuilder.Create<NoOpJob>()
@@ -177,7 +177,7 @@ namespace Quartz.Tests.Unit.Xml
             try
             {
                 StdSchedulerFactory factory = new StdSchedulerFactory();
-                scheduler = StdSchedulerFactory.DefaultScheduler;
+                scheduler = StdSchedulerFactory.GetDefaultScheduler();
 
                 // Setup existing job with same names as in xml data.
                 IJobDetail job = JobBuilder.Create<NoOpJob>()

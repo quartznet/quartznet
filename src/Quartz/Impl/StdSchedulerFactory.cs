@@ -146,14 +146,10 @@ namespace Quartz.Impl
         /// </summary>
         /// <seealso cref="Initialize()">
         /// </seealso>
-        public static IScheduler DefaultScheduler
+        public static IScheduler GetDefaultScheduler()
         {
-            get
-            {
-                StdSchedulerFactory fact = new StdSchedulerFactory();
-
-                return fact.GetScheduler();
-            }
+            StdSchedulerFactory fact = new StdSchedulerFactory();
+            return fact.GetScheduler();
         }
 
         /// <summary> <para>

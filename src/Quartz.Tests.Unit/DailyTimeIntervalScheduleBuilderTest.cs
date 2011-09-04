@@ -42,7 +42,7 @@ namespace Quartz.Tests.Unit
 	    [Test]
         public void TestScheduleActualTrigger()  
         {
-		    IScheduler scheduler = StdSchedulerFactory.DefaultScheduler;
+		    IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
 		    IJobDetail job = JobBuilder.Create(typeof (NoOpJob)).Build(); 
                 
 		    ITrigger trigger = TriggerBuilder.Create()
