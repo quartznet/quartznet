@@ -37,24 +37,22 @@ namespace Quartz.Tests.Unit.Job
         public void ShouldSendMailWithMandatoryProperties()
         {
             //Given
-            ExpectedMail expectedMail =
-                new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
+            var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
+            var job = new TestSendMailJob();
 
-            TestSendMailJob job = new TestSendMailJob();
-
-            IJobExecutionContext context = TestUtil.NewJobExecutionContextFor(job);
+            var context = TestUtil.NewJobExecutionContextFor(job);
             context.JobDetail.JobDataMap.Put("smtp_host", "someserver");
-            context.JobDetail.JobDataMap.Put("recipient", expectedMail.Recipient);
-            context.JobDetail.JobDataMap.Put("sender", expectedMail.Sender);
-            context.JobDetail.JobDataMap.Put("subject", expectedMail.Subject);
-            context.JobDetail.JobDataMap.Put("message", expectedMail.Message);
+            context.JobDetail.JobDataMap.Put("recipient", expectedMail.recipient);
+            context.JobDetail.JobDataMap.Put("sender", expectedMail.sender);
+            context.JobDetail.JobDataMap.Put("subject", expectedMail.subject);
+            context.JobDetail.JobDataMap.Put("message", expectedMail.message);
 
             //When
             job.Execute(context);
 
             //Then
-            expectedMail.IsEqualTo(job.ActualMailSent);
-            Assert.AreEqual("someserver", job.ActualSmtpHost);
+            expectedMail.IsEqualTo(job.actualMailSent);
+            Assert.AreEqual("someserver", job.actualSmtpHost);
         }
 
 
@@ -62,77 +60,80 @@ namespace Quartz.Tests.Unit.Job
         public void ShouldSendMailWithOptionalProperties()
         {
             //Given
-            ExpectedMail expectedMail =
-                new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
+            var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
+
             //optional properties
-            expectedMail.CcRecipient = "anthony@acca.co.uk";
-            expectedMail.ReplyTo = "therese@acca.co.uk";
+            expectedMail.ccRecipient = "anthony@acca.co.uk";
+            expectedMail.replyTo = "therese@acca.co.uk";
 
-            TestSendMailJob job = new TestSendMailJob();
+            var job = new TestSendMailJob();
 
-            IJobExecutionContext context = TestUtil.NewJobExecutionContextFor(job);
+            var context = TestUtil.NewJobExecutionContextFor(job);
             context.JobDetail.JobDataMap.Put("smtp_host", "someserver");
-            context.JobDetail.JobDataMap.Put("recipient", expectedMail.Recipient);
-            context.JobDetail.JobDataMap.Put("cc_recipient", expectedMail.CcRecipient);
-            context.JobDetail.JobDataMap.Put("sender", expectedMail.Sender);
-            context.JobDetail.JobDataMap.Put("reply_to", expectedMail.ReplyTo);
-            context.JobDetail.JobDataMap.Put("subject", expectedMail.Subject);
-            context.JobDetail.JobDataMap.Put("message", expectedMail.Message);
+            context.JobDetail.JobDataMap.Put("recipient", expectedMail.recipient);
+            context.JobDetail.JobDataMap.Put("cc_recipient", expectedMail.ccRecipient);
+            context.JobDetail.JobDataMap.Put("sender", expectedMail.sender);
+            context.JobDetail.JobDataMap.Put("reply_to", expectedMail.replyTo);
+            context.JobDetail.JobDataMap.Put("subject", expectedMail.subject);
+            context.JobDetail.JobDataMap.Put("message", expectedMail.message);
 
             //When
             job.Execute(context);
 
             //Then
-            expectedMail.IsEqualTo(job.ActualMailSent);
-            Assert.AreEqual("someserver", job.ActualSmtpHost);
+            expectedMail.IsEqualTo(job.actualMailSent);
+            Assert.AreEqual("someserver", job.actualSmtpHost);
         }
     }
 
     internal class ExpectedMail
     {
-        public string Recipient;
-        public string Sender;
-        public string Subject;
-        public string Message;
-        public string CcRecipient;
-        public string ReplyTo;
+        public readonly string recipient;
+        public readonly string sender;
+        public readonly string subject;
+        public readonly string message;
+        public string ccRecipient;
+        public string replyTo;
 
         public ExpectedMail(string recipient, string sender, string subject, string message)
         {
-            Recipient = recipient;
-            Sender = sender;
-            Subject = subject;
-            Message = message;
+            this.recipient = recipient;
+            this.sender = sender;
+            this.subject = subject;
+            this.message = message;
         }
 
         public void IsEqualTo(MailMessage actualMail)
         {
-            Assert.Contains(new MailAddress(Recipient), actualMail.To, "Recipient equals");
-            Assert.AreEqual(new MailAddress(Sender), actualMail.From, "Sender equals");
-            Assert.AreEqual(Subject, actualMail.Subject, "Subject equals");
-            Assert.AreEqual(Message, actualMail.Body, "Message equals");
-            if (!string.IsNullOrEmpty(CcRecipient))
+            Assert.Contains(new MailAddress(recipient), actualMail.To, "Recipient equals");
+            Assert.AreEqual(new MailAddress(sender), actualMail.From, "Sender equals");
+            Assert.AreEqual(subject, actualMail.Subject, "Subject equals");
+            Assert.AreEqual(message, actualMail.Body, "Message equals");
+            if (!string.IsNullOrEmpty(ccRecipient))
             {
-                Assert.Contains(new MailAddress(CcRecipient), actualMail.CC, "CC equals");
+                Assert.Contains(new MailAddress(ccRecipient), actualMail.CC, "CC equals");
             }
-            if (!string.IsNullOrEmpty(ReplyTo))
+            if (!string.IsNullOrEmpty(replyTo))
             {
-#pragma warning disable 0618
+#if NET_40
+                Assert.AreEqual(1, actualMail.ReplyToList.Count);
+                Assert.AreEqual(new MailAddress(replyTo), actualMail.ReplyToList[0]);
+#else
                 Assert.AreEqual(new MailAddress(ReplyTo), actualMail.ReplyTo);
-#pragma warning restore 0618
+#endif
             }
         }
     }
 
     internal class TestSendMailJob : SendMailJob
     {
-        public MailMessage ActualMailSent = new MailMessage();
-        public string ActualSmtpHost = "ad";
+        public MailMessage actualMailSent = new MailMessage();
+        public string actualSmtpHost = "ad";
         
         protected override void Send(MailMessage mimeMessage, string smtpHost)
         {
-            ActualMailSent = mimeMessage;
-            ActualSmtpHost = smtpHost;
+            actualMailSent = mimeMessage;
+            actualSmtpHost = smtpHost;
         }
         
     }
