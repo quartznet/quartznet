@@ -47,109 +47,75 @@ namespace Quartz.Impl.AdoJobStore
     public class StdAdoDelegate : StdAdoConstants, IDriverDelegate, ICommandAccessor
     {
         protected const int DefaultTriggersToAcquireLimit = 5;
-        protected ILog logger;
-        protected string tablePrefix = DefaultTablePrefix;
-        protected string instanceId;
-        protected string schedName;
-        protected bool useProperties;
-        protected IDbProvider dbProvider;
-        protected readonly ITypeLoadHelper typeLoadHelper;
-        protected AdoUtil adoUtil;
-        protected IList<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
+        private ILog logger;
+        private string tablePrefix = DefaultTablePrefix;
+        private string instanceId;
+        private string schedName;
+        private bool useProperties;
+        private IDbProvider dbProvider;
+        private ITypeLoadHelper typeLoadHelper;
+        private AdoUtil adoUtil;
+        private readonly IList<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
+        private string schedNameLiteral;
+        private IObjectSerializer objectSerializer;
 
         /// <summary>
-        /// Create new StdAdoDelegate instance.
+        /// Initializes the driver delegate.
         /// </summary>
-        /// <param name="logger">the logger to use during execution</param>
-        /// <param name="tablePrefix">the prefix of all table names</param>
-        /// <param name="schedName">the scheduler name</param>
-        /// <param name="instanceId">The instance id.</param>
-        /// <param name="dbProvider">The db provider.</param>
-        /// <param name="typeLoadHelper">the type loader helper</param>
-        public StdAdoDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
+        public virtual void Initialize(DelegateInitializationArgs args)
         {
-            this.logger = logger;
-            this.tablePrefix = tablePrefix;
-            this.schedName = schedName;
-            this.instanceId = instanceId;
-            this.dbProvider = dbProvider;
-            this.typeLoadHelper = typeLoadHelper;
-            adoUtil = new AdoUtil(dbProvider);
+            logger = args.Logger;
+            tablePrefix = args.TablePrefix;
+            schedName = args.InstanceName;
+            instanceId = args.InstanceId;
+            dbProvider = args.DbProvider;
+            typeLoadHelper = args.TypeLoadHelper;
+            useProperties = args.UseProperties;
+            adoUtil = new AdoUtil(args.DbProvider);
+            objectSerializer = args.ObjectSerializer;
+
             AddDefaultTriggerPersistenceDelegates();
-        }
 
-        /// <summary>
-        /// Create new StdAdoDelegate instance.
-        /// </summary>
-        /// <param name="logger">the logger to use during execution</param>
-        /// <param name="tablePrefix">the prefix of all table names</param>
-        /// <param name="schedName">the scheduler name</param>
-        /// <param name="instanceId">The instance id.</param>
-        /// <param name="dbProvider">The db provider.</param>
-        /// <param name="typeLoadHelper">the type loader helper</param>
-        /// <param name="useProperties">if set to <c>true</c> [use properties].</param>
-        public StdAdoDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider,
-                              ITypeLoadHelper typeLoadHelper, bool useProperties)
-        {
-            this.logger = logger;
-            this.tablePrefix = tablePrefix;
-            this.schedName = schedName;
-            this.instanceId = instanceId;
-            this.dbProvider = dbProvider;
-            this.typeLoadHelper = typeLoadHelper;
-            adoUtil = new AdoUtil(dbProvider);
-            this.useProperties = useProperties;
-            AddDefaultTriggerPersistenceDelegates();
-        }
-
-
-        /// <summary>
-        /// initStrings are of the format:
-        /// settingName=settingValue|otherSettingName=otherSettingValue|...
-        /// </summary>
-        public void Initialize(string initString)
-        {
-            if (initString == null)
+            if (!String.IsNullOrEmpty(args.InitString))
             {
-                return;
-            }
+                string[] settings = args.InitString.Split('\\', '|');
 
-            string[] settings = initString.Split('\\', '|');
-
-            foreach (string setting in settings)
-            {
-                string[] parts = setting.Split('=');
-                string name = parts[0];
-                if (parts.Length == 1 || parts[1] == null || parts[1].Equals(""))
+                foreach (string setting in settings)
                 {
-                    continue;
-                }
-
-                if (name.Equals("triggerPersistenceDelegateClasses"))
-                {
-                    string[] trigDelegates = parts[1].Split(',');
-
-                    foreach (string triggerTypeName in trigDelegates)
+                    string[] parts = setting.Split('=');
+                    string name = parts[0];
+                    if (parts.Length == 1 || parts[1] == null || parts[1].Equals(""))
                     {
-                        try
+                        continue;
+                    }
+
+                    if (name.Equals("triggerPersistenceDelegateClasses"))
+                    {
+                        string[] trigDelegates = parts[1].Split(',');
+
+                        foreach (string triggerTypeName in trigDelegates)
                         {
-                            Type trigDelClass = typeLoadHelper.LoadType(triggerTypeName);
-                            AddTriggerPersistenceDelegate((ITriggerPersistenceDelegate) Activator.CreateInstance(trigDelClass));
-                        }
-                        catch (Exception e)
-                        {
-                            throw new NoSuchDelegateException("Error instantiating TriggerPersistenceDelegate of type: " + triggerTypeName, e);
+                            try
+                            {
+                                Type trigDelClass = typeLoadHelper.LoadType(triggerTypeName);
+                                AddTriggerPersistenceDelegate((ITriggerPersistenceDelegate) Activator.CreateInstance(trigDelClass));
+                            }
+                            catch (Exception e)
+                            {
+                                throw new NoSuchDelegateException("Error instantiating TriggerPersistenceDelegate of type: " + triggerTypeName, e);
+                            }
                         }
                     }
-                }
-                else
-                {
-                    throw new NoSuchDelegateException("Unknown setting: '" + name + "'");
+                    else
+                    {
+                        throw new NoSuchDelegateException("Unknown setting: '" + name + "'");
+                    }
                 }
             }
+
         }
 
-        protected void AddDefaultTriggerPersistenceDelegates() {
+        protected virtual void AddDefaultTriggerPersistenceDelegates() {
             AddTriggerPersistenceDelegate(new SimpleTriggerPersistenceDelegate());
             AddTriggerPersistenceDelegate(new CronTriggerPersistenceDelegate());
             AddTriggerPersistenceDelegate(new CalendarIntervalTriggerPersistenceDelegate());
@@ -161,15 +127,14 @@ namespace Quartz.Impl.AdoJobStore
             get { return useProperties; }
         }
 
-
-        public void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate del)
+        public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate del)
         {
             logger.Debug("Adding TriggerPersistenceDelegate of type: " + del.GetType());
             del.Initialize(tablePrefix, schedName, this);
-            this.triggerPersistenceDelegates.Add(del);
+            triggerPersistenceDelegates.Add(del);
         }
 
-        public ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(IOperableTrigger trigger)
+        public virtual ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(IOperableTrigger trigger)
         {
             foreach (ITriggerPersistenceDelegate del in triggerPersistenceDelegates)
             {
@@ -182,7 +147,7 @@ namespace Quartz.Impl.AdoJobStore
             return null;
         }
 
-        public ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(string discriminator)
+        public virtual ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(string discriminator)
         {
             foreach (ITriggerPersistenceDelegate del in triggerPersistenceDelegates)
             {
@@ -771,7 +736,7 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         else
                         {
-                            map = (IDictionary) GetObjectFromBlob(rs, 9);
+                            map = GetObjectFromBlob<IDictionary>(rs, 9);
                         }
 
                         if (null != map)
@@ -789,7 +754,7 @@ namespace Quartz.Impl.AdoJobStore
         private IDictionary GetMapFromProperties(IDataReader rs, int idx)
         {
             IDictionary map;
-            NameValueCollection properties = (NameValueCollection)GetJobDataFromBlob(rs, idx);
+            NameValueCollection properties = GetJobDataFromBlob<NameValueCollection>(rs, idx);
             if (properties == null)
             {
                 return null;
@@ -1561,7 +1526,7 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         else
                         {
-                            map = (IDictionary)GetObjectFromBlob(rs, 15);
+                            map = GetObjectFromBlob<IDictionary>(rs, 15);
                         }
 
 
@@ -1595,7 +1560,7 @@ namespace Quartz.Impl.AdoJobStore
                                 {
                                     if (rs2.Read())
                                     {
-                                        trigger = (IOperableTrigger) GetObjectFromBlob(rs2, 3);
+                                        trigger = GetObjectFromBlob<IOperableTrigger>(rs2, 3);
                                     }
                                 }
                             }
@@ -1677,7 +1642,7 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         else
                         {
-                            map = (IDictionary) GetObjectFromBlob(rs, 0);
+                            map = GetObjectFromBlob<IDictionary>(rs, 0);
                         }
 
                         if (null != map)
@@ -2049,7 +2014,7 @@ namespace Quartz.Impl.AdoJobStore
                     ICalendar cal = null;
                     if (rs.Read())
                     {
-                        cal = (ICalendar) GetObjectFromBlob(rs, 2);
+                        cal = GetObjectFromBlob<ICalendar>(rs, 2);
                     }
                     if (null == cal)
                     {
@@ -2630,9 +2595,6 @@ namespace Quartz.Impl.AdoJobStore
             return AdoJobStoreUtil.ReplaceTablePrefix(query, tablePrefix, SchedulerNameLiteral);
         }
 
-
-        private string schedNameLiteral;
-
         protected string SchedulerNameLiteral
         {
             get
@@ -2654,12 +2616,9 @@ namespace Quartz.Impl.AdoJobStore
         protected internal virtual byte[] SerializeObject(object obj)
         {
             byte[] retValue = null;
-            if (null != obj)
+            if (obj != null)
             {
-                MemoryStream ms = new MemoryStream();
-                BinaryFormatter bf = new BinaryFormatter();
-                bf.Serialize(ms, obj);
-                retValue = ms.ToArray();
+                retValue = objectSerializer.Serialize(obj);
             }
             return retValue;
         }
@@ -2779,16 +2738,14 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="rs">The data reader, already queued to the correct row.</param>
         /// <param name="colIndex">The column index for the BLOB.</param>
         /// <returns>The deserialized object from the DataReader BLOB.</returns>
-        protected virtual object GetObjectFromBlob(IDataReader rs, int colIndex)
+        protected virtual T GetObjectFromBlob<T>(IDataReader rs, int colIndex) where T : class
         {
-            object obj = null;
+            T obj = null;
 
             byte[] data = ReadBytesFromBlob(rs, colIndex);
             if (data != null && data.Length > 0)
             {
-                MemoryStream ms = new MemoryStream(data);
-                BinaryFormatter bf = new BinaryFormatter();
-                obj = bf.Deserialize(ms);
+                obj = objectSerializer.DeSerialize<T>(data);
             }
             return obj;
         }
@@ -2816,20 +2773,20 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="rs">The result set, already queued to the correct row.</param>
         /// <param name="colIndex">The column index for the BLOB.</param>
         /// <returns>The deserialized Object from the ResultSet BLOB.</returns>
-        protected virtual object GetJobDataFromBlob(IDataReader rs, int colIndex)
+        protected virtual T GetJobDataFromBlob<T>(IDataReader rs, int colIndex) where T : class 
         {
             if (CanUseProperties)
             {
                 if (!rs.IsDBNull(colIndex))
                 {
                     // should be NameValueCollection
-                    return GetObjectFromBlob(rs, colIndex);
+                    return GetObjectFromBlob<T>(rs, colIndex);
                 }
                 
                 return null;
             }
 
-            return GetObjectFromBlob(rs, colIndex);
+            return GetObjectFromBlob<T>(rs, colIndex);
         }
 
 
@@ -2872,6 +2829,7 @@ namespace Quartz.Impl.AdoJobStore
             adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType);
         }
     }
+
 
     public interface ICommandAccessor
     {

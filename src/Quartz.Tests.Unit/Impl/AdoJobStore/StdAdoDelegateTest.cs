@@ -34,7 +34,16 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 		[Test]
 		public void TestSerializeJobData()
 		{
-			StdAdoDelegate del = new StdAdoDelegate(LogManager.GetLogger(GetType()), "QRTZ_", "TESTSCHED", "INSTANCE", new DbProvider("SqlServer-20", ""), new SimpleTypeLoadHelper());
+            DelegateInitializationArgs args = new DelegateInitializationArgs();
+		    args.Logger = LogManager.GetLogger(GetType());
+		    args.TablePrefix = "QRTZ_";
+		    args.InstanceName = "TESTSCHED";
+		    args.InstanceId = "INSTANCE";
+		    args.DbProvider = new DbProvider("SqlServer-20", "");
+		    args.TypeLoadHelper = new SimpleTypeLoadHelper();
+ 
+			StdAdoDelegate del = new StdAdoDelegate();
+            del.Initialize(args);
 
 			JobDataMap jdm = new JobDataMap();
 			del.SerializeJobData(jdm);

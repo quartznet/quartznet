@@ -45,7 +45,11 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
 	public interface IDriverDelegate
 	{
-        void Initialize(string initString);
+        /// <summary>
+        /// Initializes the driver delegate with configuration data.
+        /// </summary>
+        /// <param name="args"></param>
+        void Initialize(DelegateInitializationArgs args);
 
 		/// <summary>
 		/// Update all triggers having one of the two given states, to the given new

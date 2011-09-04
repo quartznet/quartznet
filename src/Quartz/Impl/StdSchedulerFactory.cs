@@ -121,6 +121,8 @@ namespace Quartz.Impl
         public const string AutoGenerateInstanceId = "AUTO";
         public const string PropertyThreadExecutor = "quartz.threadExecutor";
         public const string PropertyThreadExecutorType= "quartz.threadExecutor.type";
+        public const string PropertyObjectSerializer = "quartz.serializer";
+        public const string PropertyObjectSerializerType = "quartz.serializer.type";
 
         public const string SystemPropertyAsInstanceId = "SYS_PROP";
 
@@ -578,6 +580,33 @@ Please add configuration to your application config file to correctly initialize
                     }
                 }
             }
+            
+            // Get object serializer properties
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            IObjectSerializer objectSerializer;
+            string objectSerializerType = cfg.GetStringProperty(PropertyObjectSerializerType);
+            if (objectSerializerType != null)
+            {
+                tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, true);
+                try
+                {
+                    objectSerializer = ObjectUtils.InstantiateType<IObjectSerializer>(loadHelper.LoadType(objectSerializerType));
+                    log.Info("Using custom implementation for object serializer: " + objectSerializerType);
+
+                    ObjectUtils.SetObjectProperties(objectSerializer, tProps);
+                }
+                catch (Exception e)
+                {
+                    initException = new SchedulerException("Object serializer type '" + objectSerializerType + "' could not be instantiated.", e);
+                    throw initException;
+                }
+            }
+            else
+            {
+                log.Info("Using default implementation for object serializer");
+                objectSerializer = new DefaultObjectSerializer();
+            }
 
             // Get JobStore Properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -658,6 +687,9 @@ Please add configuration to your application config file to correctly initialize
                         throw initException;
                     }
                 }
+
+                // object serializer
+                ((JobStoreSupport) js).ObjectSerializer = objectSerializer; 
             }
 
             // Set up any SchedulerPlugins

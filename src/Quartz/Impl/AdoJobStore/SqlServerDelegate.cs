@@ -35,33 +35,11 @@ namespace Quartz.Impl.AdoJobStore
         private string sqlSelectNextTriggerToAcquire;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SqlServerDelegate"/> class.
+        /// Initializes the driver delegate.
         /// </summary>
-        /// <param name="logger">the logger to use during execution</param>
-        /// <param name="tablePrefix">the prefix of all table names</param>
-        /// <param name="schedName">the scheduler name</param>
-        /// <param name="instanceId">The instance id.</param>
-        /// <param name="dbProvider">The db provider.</param>
-        /// <param name="typeLoadHelper">the type loader helper</param>
-        public SqlServerDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper)
-            : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper)
+        public override void Initialize(DelegateInitializationArgs args)
         {
-            CreateSqlForSelectNextTriggerToAcquire();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SqlServerDelegate"/> class.
-        /// </summary>
-        /// <param name="logger">The logger.</param>
-        /// <param name="tablePrefix">The table prefix.</param>
-        /// <param name="schedName">the scheduler name</param>
-        /// <param name="instanceId">The instance id.</param>
-        /// <param name="dbProvider">The db provider.</param>
-        /// <param name="typeLoadHelper">the type loader helper</param>
-        /// <param name="useProperties">if set to <c>true</c> [use properties].</param>
-        public SqlServerDelegate(ILog logger, string tablePrefix, string schedName, string instanceId, IDbProvider dbProvider, ITypeLoadHelper typeLoadHelper, bool useProperties)
-            : base(logger, tablePrefix, schedName, instanceId, dbProvider, typeLoadHelper, useProperties)
-        {
+            base.Initialize(args);
             CreateSqlForSelectNextTriggerToAcquire();
         }
 

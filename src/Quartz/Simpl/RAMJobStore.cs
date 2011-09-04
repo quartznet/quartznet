@@ -63,7 +63,6 @@ namespace Quartz.Simpl
 		
 		private readonly ILog log;
 
-
         /// <summary>
         /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
         /// </summary>

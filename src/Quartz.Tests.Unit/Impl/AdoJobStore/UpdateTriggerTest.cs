@@ -131,7 +131,17 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             Func<string, string> paramFunc = x => x;
             metaData.Stub(m => m.GetParameterName(Arg<string>.Is.Anything)).Do(paramFunc);
 
-            var adoDelegate = new StdAdoDelegate(LogManager.GetLogger(GetType()), "QRTZ_", "TESTSCHED", "INSTANCE", dbProvider, new SimpleTypeLoadHelper());
+            DelegateInitializationArgs args = new DelegateInitializationArgs();
+            args.Logger = LogManager.GetLogger(GetType());
+            args.TablePrefix = "QRTZ_";
+            args.InstanceName = "TESTSCHED";
+            args.InstanceId = "INSTANCE";
+            args.DbProvider = dbProvider;
+            args.TypeLoadHelper = new SimpleTypeLoadHelper();
+
+            var adoDelegate = new StdAdoDelegate();
+            adoDelegate.Initialize(args);
+
             var dbConnection = new StubConnection();
             var conn = new ConnectionAndTransactionHolder(dbConnection, null);
             var jobDetail = MockRepository.GenerateMock<IJobDetail>();

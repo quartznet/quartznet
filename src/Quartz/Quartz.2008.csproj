@@ -365,6 +365,7 @@
     <Compile Include="Impl\AdoJobStore\ConnectionAndTransactionHolder.cs" />
     <Compile Include="Impl\AdoJobStore\CronTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\DailyTimeIntervalTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\DelegateInitializationArgs.cs" />
     <Compile Include="Impl\AdoJobStore\ITriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
     <Compile Include="Impl\AdoJobStore\MySQLDelegate.cs" />
@@ -426,8 +427,10 @@
     <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPlugin.cs" />
     <Compile Include="ScheduleBuilder.cs" />
     <Compile Include="SimpleScheduleBuilder.cs" />
+    <Compile Include="Simpl\DefaultObjectSerializer.cs" />
     <Compile Include="Simpl\SystemPropertyInstanceIdGenerator.cs" />
     <Compile Include="SPI\IMutableTrigger.cs" />
+    <Compile Include="SPI\IObjectSerializer.cs" />
     <Compile Include="SPI\IOperableTrigger.cs" />
     <Compile Include="SPI\IThreadExecutor.cs" />
     <Compile Include="SPI\TriggerFiredResult.cs" />

@@ -81,6 +81,7 @@ namespace Quartz.Impl.AdoJobStore
         private bool makeThreadsDaemons;
         private bool doubleCheckLockMisfireHandler = true;
         private readonly ILog log;
+        private IObjectSerializer objectSerializer;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
@@ -164,6 +165,11 @@ namespace Quartz.Impl.AdoJobStore
         public int ThreadPoolSize
         {
             set { }
+        }
+
+        public IObjectSerializer ObjectSerializer
+        {
+            set { objectSerializer = value; }
         }
 
         public virtual long EstimatedTimeToReleaseAndAcquireTrigger
@@ -452,35 +458,26 @@ namespace Quartz.Impl.AdoJobStore
                                 delegateType = TypeLoadHelper.LoadType(delegateTypeName);
                             }
 
-                            // TODO: the current method of instantiating and initializing delegates is really sucky
-                            // probably all constructor args should be moved to the initialize method and/or use
-                            // the TablePrefixAware interface to set some things (and rename that interface to
-                            // something more apt), etc. etc.
-
-                            ConstructorInfo ctor;
-                            Object[] ctorParams;
                             IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(DataSource);
-                            if (CanUseProperties)
+                            var args = new DelegateInitializationArgs();
+                            args.UseProperties = CanUseProperties;
+                            args.Logger = log;
+                            args.TablePrefix = tablePrefix;
+                            args.InstanceName = instanceName;
+                            args.InstanceId = instanceId;
+                            args.DbProvider = dbProvider;
+                            args.TypeLoadHelper = typeLoadHelper;
+                            args.ObjectSerializer = objectSerializer;
+                            args.InitString = DriverDelegateInitString;
+
+                            ConstructorInfo ctor = delegateType.GetConstructor(new Type[0]);
+                            if (ctor == null)
                             {
-                                Type[] ctorParamTypes = new Type[]
-                                                            {
-                                                                typeof (ILog), typeof (String), typeof (String), typeof (String), typeof (IDbProvider), typeof (ITypeLoadHelper), typeof (Boolean)
-                                                            };
-                                ctor = delegateType.GetConstructor(ctorParamTypes);
-                                ctorParams = new Object[] {Log, tablePrefix, instanceName, instanceId, dbProvider, typeLoadHelper, CanUseProperties};
-                            }
-                            else
-                            {
-                                Type[] ctorParamTypes = new Type[]
-                                                            {
-                                                                typeof (ILog), typeof (String), typeof (String), typeof (String), typeof (IDbProvider), typeof (ITypeLoadHelper)
-                                                            };
-                                ctor = delegateType.GetConstructor(ctorParamTypes);
-                                ctorParams = new Object[] {Log, tablePrefix, instanceName, instanceId, dbProvider, typeLoadHelper};
+                                throw new InvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
                             }
 
-                            driverDelegate = (IDriverDelegate) ctor.Invoke(ctorParams);
-                            driverDelegate.Initialize(DriverDelegateInitString);
+                            driverDelegate = (IDriverDelegate) ctor.Invoke(null);
+                            driverDelegate.Initialize(args);
                         }
                         catch (Exception e)
                         {
@@ -543,7 +540,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         if (SelectWithLockSQL == null)
                         {
-                            const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = {1}  LOCK_NAME = @lockName";
+                            const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = {1} AND LOCK_NAME = @lockName";
                             Log.Info("Detected usage of MSSQLDelegate - defaulting 'selectWithLockSQL' to '" + DefaultLockSql + "'.");
                             SelectWithLockSQL = DefaultLockSql;
                         }

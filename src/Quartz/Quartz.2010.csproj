@@ -111,6 +111,7 @@
       <Name>System.Data</Name>
     </Reference>
     <Reference Include="System.Runtime.Remoting" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Web" />
     <Reference Include="System.Xml">
       <Name>System.Xml</Name>
@@ -132,6 +133,7 @@
     <Compile Include="Impl\AdoJobStore\CalendarIntervalTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\CronTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\DailyTimeIntervalTriggerPersistenceDelegate.cs" />
+    <Compile Include="Impl\AdoJobStore\DelegateInitializationArgs.cs" />
     <Compile Include="Impl\AdoJobStore\SimpleTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\ITriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerPersistenceDelegateSupport.cs" />
@@ -317,6 +319,7 @@
     <Compile Include="Impl\Triggers\SimpleTriggerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Simpl\DefaultObjectSerializer.cs" />
     <Compile Include="Simpl\SystemPropertyInstanceIdGenerator.cs" />
     <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
       <SubType>Code</SubType>
@@ -343,6 +346,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SPI\IMutableTrigger.cs" />
+    <Compile Include="SPI\IObjectSerializer.cs" />
     <Compile Include="SPI\IOperableTrigger.cs" />
     <Compile Include="SPI\IThreadExecutor.cs" />
     <Compile Include="SPI\ITypeLoadHelper.cs">
