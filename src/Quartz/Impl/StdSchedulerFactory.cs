@@ -375,7 +375,7 @@ Please add configuration to your application config file to correctly initialize
             Type jobFactoryType = LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType, null));
 
             idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
-            if (idleWaitTime.TotalMilliseconds > -1 && idleWaitTime < TimeSpan.FromMilliseconds(1000))
+            if (idleWaitTime > TimeSpan.Zero && idleWaitTime < TimeSpan.FromMilliseconds(1000))
             {
                 throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
             }

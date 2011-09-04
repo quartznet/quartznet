@@ -361,30 +361,28 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestAmbiguous()
         {
-            Console.Error.WriteLine(AssertParsesForField("0 0 14-6 ? * FRI-MON", 2));
-            Console.Error.WriteLine(AssertParsesForField("0 0 14-6 ? * FRI-MON", 5));
+            AssertParsesForField("0 0 14-6 ? * FRI-MON", 2);
+            AssertParsesForField("0 0 14-6 ? * FRI-MON", 5);
 
-            Console.Error.WriteLine(AssertParsesForField("55-3 56-2 6 ? * FRI", 0));
-            Console.Error.WriteLine(AssertParsesForField("55-3 56-2 6 ? * FRI", 1));
+            AssertParsesForField("55-3 56-2 6 ? * FRI", 0);
+            AssertParsesForField("55-3 56-2 6 ? * FRI", 1);
         }
 
-        private static Collection.ISet<int> AssertParsesForField(string expression, int constant)
+        private static void AssertParsesForField(string expression, int constant)
         {
             try
             {
-                TestCronExpression cronExpression = new TestCronExpression(expression);
+                SimpleCronExpression cronExpression = new SimpleCronExpression(expression);
                 Collection.ISet<int> set = cronExpression.GetSetPublic(constant);
                 if (set.Count == 0)
                 {
                     Assert.Fail("Empty field [" + constant + "] returned for " + expression);
                 }
-                return set;
             }
             catch (FormatException pe)
             {
                 Assert.Fail("Exception thrown during parsing: " + pe);
             }
-            return null;  // not reachable
         }
 
         [Test]
@@ -470,19 +468,18 @@ namespace Quartz.Tests.Unit
                 Assert.IsTrue(pe.Message.StartsWith("The 'W' option does not make sense with values larger than"), "Incorrect ParseException thrown");
             }
         }
-    }
 
-
-    class TestCronExpression : CronExpression
-    {
-        public TestCronExpression(string cronExpression)
-            : base(cronExpression)
+        private class SimpleCronExpression : CronExpression
         {
-        }
+            public SimpleCronExpression(string cronExpression)
+                : base(cronExpression)
+            {
+            }
 
-        public ISortedSet<int> GetSetPublic(int constant)
-        {
-            return base.GetSet(constant);
+            public ISortedSet<int> GetSetPublic(int constant)
+            {
+                return base.GetSet(constant);
+            }
         }
     }
 }
