@@ -41,6 +41,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 		    args.InstanceId = "INSTANCE";
 		    args.DbProvider = new DbProvider("SqlServer-20", "");
 		    args.TypeLoadHelper = new SimpleTypeLoadHelper();
+			args.ObjectSerializer = new DefaultObjectSerializer(); 
  
 			StdAdoDelegate del = new StdAdoDelegate();
             del.Initialize(args);

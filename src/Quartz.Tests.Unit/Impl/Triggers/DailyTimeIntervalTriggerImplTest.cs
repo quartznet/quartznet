@@ -101,29 +101,22 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             trigger.RepeatIntervalUnit = IntervalUnit.Hour;
             trigger.RepeatInterval = 25;
-
-            trigger.Validate();
-            Assert.Throws<SchedulerException>(trigger.Validate, "Trigger should be invalidate when interval is greater than 24 hours.");
+            Assert.Throws<SchedulerException>(trigger.Validate, "repeatInterval can not exceed 24 hours. Given 25 hours.");
 
             trigger.RepeatIntervalUnit = IntervalUnit.Minute;
             trigger.RepeatInterval = 60*25;
-
-            Assert.Throws<SchedulerException>(trigger.Validate, "Trigger should be invalidate when interval is greater than 24 hours.");
+            Assert.Throws<SchedulerException>(trigger.Validate, "repeatInterval can not exceed 24 hours (86400 seconds). Given 90000");
 
             trigger.RepeatIntervalUnit = IntervalUnit.Second;
             trigger.RepeatInterval = 60*60*25;
 
-            trigger.Validate();
-            Assert.Throws<SchedulerException>(trigger.Validate, "Trigger should be invalidate when interval is greater than 24 hours.");
+            Assert.Throws<SchedulerException>(trigger.Validate, "epeatInterval can not exceed 24 hours (86400 seconds). Given 90000");
 
-
-            trigger.RepeatIntervalUnit = IntervalUnit.Day;
-
-            Assert.Throws<ArgumentException>(trigger.Validate, "Trigger should be invalidate when interval unit > HOUR.");
+            Assert.Throws<ArgumentException>(delegate { trigger.RepeatIntervalUnit = IntervalUnit.Day;}, "Invalid repeat IntervalUnit (must be Second, Minute or Hour");
 
             trigger.RepeatIntervalUnit = IntervalUnit.Second;
             trigger.RepeatInterval = 0;
-            Assert.Throws<ArgumentException>(trigger.Validate, "Trigger should be invalidate when interval is zero.");
+            Assert.Throws<SchedulerException>(trigger.Validate, "Repeat Interval cannot be zero.");
         }
 
 
