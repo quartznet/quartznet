@@ -69,12 +69,12 @@ namespace Quartz
         {
         }
 
-        public static JobKey CreateJobKey(string name)
+        public static JobKey Create(string name)
         {
             return new JobKey(name, null);
         }
 
-        public static JobKey CreateJobKey(string name, string group)
+        public static JobKey Create(string name, string group)
         {
             return new JobKey(name, group);
         }

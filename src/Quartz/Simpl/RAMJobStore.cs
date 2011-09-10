@@ -1451,55 +1451,89 @@ namespace Quartz.Simpl
 		/// by the calling scheduler.
 		/// </summary>
 		/// <seealso cref="ITrigger" />
-        public virtual IList<IOperableTrigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+		public virtual IList<IOperableTrigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
 		{
-			lock (lockObject)
-			{
-                List<IOperableTrigger> result = new List<IOperableTrigger>();
+		    lock (lockObject)
+		    {
+		        List<IOperableTrigger> result = new List<IOperableTrigger>();
+		        Collection.ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new Collection.HashSet<JobKey>();
+		        Collection.ISet<TriggerWrapper> excludedTriggers = new Collection.HashSet<TriggerWrapper>();
 
-                while (true)
-                {
-                    TriggerWrapper tw;
+		        // return empty list if store has no triggers.
+		        if (timeTriggers.Count == 0)
+		        {
+		            return result;
+		        }
 
-                    tw = timeTriggers.First();
-                    if (tw == null) return result;
-                    if (!timeTriggers.Remove(tw))
-                    {
-                        return result;
-                    }
+		        while (true)
+		        {
+		            TriggerWrapper tw;
 
-                    if (tw.trigger.GetNextFireTimeUtc() == null)
-                    {
-                        continue;
-                    }
+		            tw = timeTriggers.First();
+		            if (tw == null)
+		            {
+		                break;
+		            }
+		            if (!timeTriggers.Remove(tw))
+		            {
+		                break;
+		            }
 
-                    if (ApplyMisfire(tw))
-                    {
-                        if (tw.trigger.GetNextFireTimeUtc() != null)
-                        {
-                            timeTriggers.Add(tw);
-                        }
-                        continue;
-                    }
+		            if (tw.trigger.GetNextFireTimeUtc() == null)
+		            {
+		                continue;
+		            }
 
-                    if (tw.trigger.GetNextFireTimeUtc() > noLaterThan + timeWindow)
-                    {
-                        timeTriggers.Add(tw);
-                        return result;
-                    }
+		            if (ApplyMisfire(tw))
+		            {
+		                if (tw.trigger.GetNextFireTimeUtc() != null)
+		                {
+		                    timeTriggers.Add(tw);
+		                }
+		                continue;
+		            }
 
-                    tw.state = InternalTriggerState.Acquired;
+		            if (tw.trigger.GetNextFireTimeUtc() > noLaterThan + timeWindow)
+		            {
+		                timeTriggers.Add(tw);
+		                break;
+		            }
 
-                    tw.trigger.FireInstanceId = GetFiredTriggerRecordId();
-                    IOperableTrigger trig = (IOperableTrigger)tw.trigger.Clone();
-                    result.Add(trig);
+		            // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
+		            // put it back into the timeTriggers set and continue to search for next trigger.
+		            JobKey jobKey = tw.trigger.JobKey;
+		            IJobDetail job = jobsByKey[tw.trigger.JobKey].jobDetail;
+		            if (job.ConcurrentExectionDisallowed)
+		            {
+		                if (acquiredJobKeysForNoConcurrentExec.Contains(jobKey))
+		                {
+		                    excludedTriggers.Add(tw);
+		                    continue; // go to next trigger in store.
+		                }
+		                else
+		                {
+		                    acquiredJobKeysForNoConcurrentExec.Add(jobKey);
+		                }
+		            }
 
-                    if (result.Count == maxCount)
-                    {
-                        return result;
-                    }
-                }
-            }
+		            tw.state = InternalTriggerState.Acquired;
+		            tw.trigger.FireInstanceId = GetFiredTriggerRecordId();
+		            IOperableTrigger trig = (IOperableTrigger) tw.trigger.Clone();
+		            result.Add(trig);
+
+		            if (result.Count == maxCount)
+		            {
+		                break;
+		            }
+		        }
+
+		        // If we did excluded triggers to prevent ACQUIRE state due to DisallowConcurrentExecution, we need to add them back to store.
+		        if (excludedTriggers.Count > 0)
+		        {
+		            timeTriggers.AddAll(excludedTriggers);
+		        }
+		        return result;
+		    }
 		}
 
 		/// <summary>

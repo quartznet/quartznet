@@ -122,7 +122,6 @@ namespace Quartz.Impl
         public const string PropertyThreadExecutor = "quartz.threadExecutor";
         public const string PropertyThreadExecutorType= "quartz.threadExecutor.type";
         public const string PropertyObjectSerializer = "quartz.serializer";
-        public const string PropertyObjectSerializerType = "quartz.serializer.type";
 
         public const string SystemPropertyAsInstanceId = "SYS_PROP";
 
@@ -585,7 +584,7 @@ Please add configuration to your application config file to correctly initialize
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             IObjectSerializer objectSerializer;
-            string objectSerializerType = cfg.GetStringProperty(PropertyObjectSerializerType);
+            string objectSerializerType = cfg.GetStringProperty("quartz.serializer.type");
             if (objectSerializerType != null)
             {
                 tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, true);

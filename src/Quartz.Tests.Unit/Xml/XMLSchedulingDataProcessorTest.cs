@@ -136,7 +136,7 @@ namespace Quartz.Tests.Unit.Xml
                 Assert.AreEqual(1, scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT")).Count);
                 Assert.AreEqual(1, scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT")).Count);
 
-                job = scheduler.GetJobDetail(JobKey.CreateJobKey("job1"));
+                job = scheduler.GetJobDetail(JobKey.Create("job1"));
                 String fooValue = job.JobDataMap.GetString("foo");
                 Assert.AreEqual("dont_chg_me", fooValue);
             }

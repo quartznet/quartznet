@@ -97,7 +97,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
             trigger.Name = "test";
             trigger.Group = "test";
-            trigger.JobKey = JobKey.CreateJobKey("test");
+            trigger.JobKey = JobKey.Create("test");
 
             trigger.RepeatIntervalUnit = IntervalUnit.Hour;
             trigger.RepeatInterval = 25;

@@ -492,5 +492,11 @@ namespace Quartz
             action(builder);
             return triggerBuilder.WithSchedule(builder);
         }
+
+        public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder)
+        {
+            SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
+            return triggerBuilder.WithSchedule(builder);
+        }
     }
 }

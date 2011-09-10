@@ -28,9 +28,9 @@ namespace Quartz.Impl.AdoJobStore
         /// SQLite version with LIMIT support.
         /// </summary>
         /// <returns></returns>
-        protected override string GetSelectNextTriggerToAcquireSql()
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
         {
-            return SqlSelectNextTriggerToAcquire + " LIMIT " + TriggersToAcquireLimit;
+            return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
         }
     }
 }

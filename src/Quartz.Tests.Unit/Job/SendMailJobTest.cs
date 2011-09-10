@@ -119,7 +119,7 @@ namespace Quartz.Tests.Unit.Job
                 Assert.AreEqual(1, actualMail.ReplyToList.Count);
                 Assert.AreEqual(new MailAddress(replyTo), actualMail.ReplyToList[0]);
 #else
-                Assert.AreEqual(new MailAddress(ReplyTo), actualMail.ReplyTo);
+                Assert.AreEqual(new MailAddress(replyTo), actualMail.ReplyTo);
 #endif
             }
         }

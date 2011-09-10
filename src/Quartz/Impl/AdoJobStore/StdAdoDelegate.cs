@@ -46,7 +46,6 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public class StdAdoDelegate : StdAdoConstants, IDriverDelegate, ICommandAccessor
     {
-        protected const int DefaultTriggersToAcquireLimit = 5;
         private ILog logger;
         private string tablePrefix = DefaultTablePrefix;
         private string instanceId;
@@ -2143,26 +2142,32 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Select the next trigger which will fire to fire between the two given timestamps
+        /// Select the next trigger which will fire to fire between the two given timestamps 
         /// in ascending order of fire time, and then descending by priority.
         /// </summary>
         /// <param name="conn">The conn.</param>
-        /// <param name="noLaterThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc"/> of the triggers (exclusive)</param>
-        /// <param name="noEarlierThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc"/> of the triggers (inclusive)</param>
-        /// <returns></returns>
-        public virtual IList<TriggerKey> SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, DateTimeOffset noEarlierThan)
+        /// <param name="noLaterThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
+        /// <param name="noEarlierThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
+        /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
+        /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
+        public virtual IList<TriggerKey> SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, DateTimeOffset noEarlierThan, int maxCount)
         {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNextTriggerToAcquire)))
+            if (maxCount < 1)
+            {
+                maxCount = 1; // we want at least one trigger back.
+            }
+
+            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextTriggerToAcquireSql(maxCount))))
             {
                 List<TriggerKey> nextTriggers = new List<TriggerKey>();
 
                 AddCommandParameter(cmd, "state", StateWaiting);
                 AddCommandParameter(cmd, "noLaterThan", Convert.ToDecimal(noLaterThan.Ticks));
                 AddCommandParameter(cmd, "noEarlierThan", Convert.ToDecimal(noEarlierThan.Ticks));
+
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    int limit = TriggersToAcquireLimit;
-                    while (rs.Read() && nextTriggers.Count < limit)
+                    while (rs.Read() && nextTriggers.Count < maxCount)
                     {
                         nextTriggers.Add(new TriggerKey((string)rs[ColumnTriggerName], (string)rs[ColumnTriggerGroup]));
                     }
@@ -2171,25 +2176,12 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary>
-        /// Gets the triggers to acquire limit.
-        /// </summary>
-        /// <value>The triggers to acquire limit.</value>
-        protected virtual int TriggersToAcquireLimit
+        protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount)
         {
-            get { return DefaultTriggersToAcquireLimit; }
-            }
-
-        /// <summary>
-        /// Gets the select next trigger to acquire SQL clause.
-        /// This can be overriden for a more performant, result limiting 
-        /// SQL. For Example SQL Server, MySQL and SQLite support limiting returned rows. 
-        /// </summary>
-        /// <returns></returns>
-        protected virtual string GetSelectNextTriggerToAcquireSql()
-        {
+            // by default we don't support limits, this is db sepecivef
             return SqlSelectNextTriggerToAcquire;
         }
+
 
         /// <summary>
         /// Insert a fired trigger.

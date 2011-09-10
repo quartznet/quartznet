@@ -29,6 +29,7 @@ using System.Threading;
 
 using Common.Logging;
 
+using Quartz.Collection;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
@@ -431,13 +432,10 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual string FiredTriggerRecordId
+        protected virtual string GetFiredTriggerRecordId()
         {
-            get
-            {
-                Interlocked.Increment(ref ftrCtr);
-                return InstanceId + ftrCtr;
-            }
+            Interlocked.Increment(ref ftrCtr);
+            return InstanceId + ftrCtr;
         }
 
         /// <summary>
@@ -2387,63 +2385,91 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual IList<IOperableTrigger> AcquireNextTrigger(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
+            List<IOperableTrigger> acquiredTriggers = new List<IOperableTrigger>();
+            ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new Collection.HashSet<JobKey>();
+            const int MaxDoLoopRetry = 3;
+            int currentLoopCount = 0;
+
             do
             {
+                currentLoopCount ++;
                 try
                 {
-                    IOperableTrigger nextTrigger = null;
+                    IList<TriggerKey> keys;
 
-                    IList<TriggerKey> keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan, MisfireTime);
+                    // If timeWindow is specified, then we need to select trigger fire time with wider range!
+                    if (timeWindow > TimeSpan.Zero)
+                    {
+                        keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount);
+                    }
+                    else
+                    {
+                        keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan, MisfireTime, maxCount);
+                    }
 
                     // No trigger is ready to fire yet.
                     if (keys == null || keys.Count == 0)
                     {
-                        return null;
+                        return acquiredTriggers;
                     }
 
                     foreach (TriggerKey triggerKey in keys)
                     {
-                        int rowsUpdated = Delegate.UpdateTriggerStateFromOtherState(
-                            conn,
-                            triggerKey,
-                            StateAcquired, StateWaiting);
-
-                        // If our trigger was no longer in the expected state, try a new one.
-                        if (rowsUpdated <= 0)
-                        {
-                            continue;
-                        }
-
-                        nextTrigger = RetrieveTrigger(conn, triggerKey);
-
                         // If our trigger is no longer available, try a new one.
+                        IOperableTrigger nextTrigger = RetrieveTrigger(conn, triggerKey);
                         if (nextTrigger == null)
                         {
-                            continue;
+                            continue; // next trigger
                         }
-                        break;
+
+                        // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
+                        // put it back into the timeTriggers set and continue to search for next trigger.
+                        JobKey jobKey = nextTrigger.JobKey;
+                        IJobDetail job = Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper);
+                        if (job.ConcurrentExectionDisallowed)
+                        {
+                            if (acquiredJobKeysForNoConcurrentExec.Contains(jobKey))
+                            {
+                                continue; // next trigger
+                            }
+                            else
+                            {
+                                acquiredJobKeysForNoConcurrentExec.Add(jobKey);
+                            }
+                        }
+
+                        // We now have a acquired trigger, let's add to return list.
+                        // If our trigger was no longer in the expected state, try a new one.
+                        int rowsUpdated = Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StateAcquired, StateWaiting);
+                        if (rowsUpdated <= 0)
+                        {
+                            // TODO: Hum... shouldn't we log a warning here?
+                            continue; // next trigger
+                        }
+                        nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
+                        Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null);
+
+                        acquiredTriggers.Add(nextTrigger);
                     }
 
-                    // if we didn't end up with a trigger to fire from that first
-                    // batch, try again for another batch
-                    if (nextTrigger == null)
+                    // if we didn't end up with any trigger to fire from that first
+                    // batch, try again for another batch. We allow with a max retry count.
+                    if (acquiredTriggers.Count == 0 && currentLoopCount < MaxDoLoopRetry)
                     {
                         continue;
                     }
 
-                    nextTrigger.FireInstanceId = FiredTriggerRecordId;
-                    Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null);
-
-                    List<IOperableTrigger> acquiredList = new List<IOperableTrigger>();
-                    acquiredList.Add(nextTrigger);
-
-                    return acquiredList;
+                    // We are done with the while loop.
+                    break;
                 }
                 catch (Exception e)
                 {
                     throw new JobPersistenceException("Couldn't acquire next trigger: " + e.Message, e);
                 }
             } while (true);
+
+            // Return the acquired trigger list
+            return acquiredTriggers;
         }
 
 

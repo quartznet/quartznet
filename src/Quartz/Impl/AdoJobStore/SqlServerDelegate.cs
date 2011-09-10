@@ -20,10 +20,6 @@
 using System;
 using System.Data;
 
-using Common.Logging;
-
-using Quartz.Spi;
-
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
@@ -32,35 +28,18 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma</author>
     public class SqlServerDelegate : StdAdoDelegate
     {
-        private string sqlSelectNextTriggerToAcquire;
-
-        /// <summary>
-        /// Initializes the driver delegate.
-        /// </summary>
-        public override void Initialize(DelegateInitializationArgs args)
-        {
-            base.Initialize(args);
-            CreateSqlForSelectNextTriggerToAcquire();
-        }
-
-        /// <summary>
-        /// Creates the SQL for select next trigger to acquire.
-        /// </summary>
-        private void CreateSqlForSelectNextTriggerToAcquire()
-        {
-            sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
-
-            // add limit clause to correct place
-            sqlSelectNextTriggerToAcquire = "SELECT TOP " + TriggersToAcquireLimit + " " + sqlSelectNextTriggerToAcquire.Substring(6);
-        }
-
         /// <summary>
         /// Gets the select next trigger to acquire SQL clause.
         /// SQL Server specific version with TOP functionality
         /// </summary>
         /// <returns></returns>
-        protected override string GetSelectNextTriggerToAcquireSql()
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
         {
+            string sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
+
+            // add limit clause to correct place
+            sqlSelectNextTriggerToAcquire = "SELECT TOP " + maxCount + " " + sqlSelectNextTriggerToAcquire.Substring(6);
+
             return sqlSelectNextTriggerToAcquire;
         }
 

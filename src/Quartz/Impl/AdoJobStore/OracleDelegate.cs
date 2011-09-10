@@ -27,40 +27,19 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma</author>
     public class OracleDelegate : StdAdoDelegate
     {
-        private string sqlSelectNextTriggerToAcquire;
-
-        /// <summary>
-        /// Initializes the driver delegate.
-        /// </summary>
-        public override void Initialize(DelegateInitializationArgs args)
-        {
-            base.Initialize(args);
-            CreateSqlForSelectNextTriggerToAcquire();
-        }
-
         /// <summary>
         /// Creates the SQL for select next trigger to acquire.
         /// </summary>
-        private void CreateSqlForSelectNextTriggerToAcquire()
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
         {
-            sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
+            string sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
 
             int whereEndIdx = sqlSelectNextTriggerToAcquire.IndexOf("WHERE") + 6;
             string beginningAndWhere = sqlSelectNextTriggerToAcquire.Substring(0, whereEndIdx);
             string theRest = sqlSelectNextTriggerToAcquire.Substring(whereEndIdx);
 
             // add limit clause to correct place
-            sqlSelectNextTriggerToAcquire = beginningAndWhere + " rownum <= " + TriggersToAcquireLimit + " AND " + theRest;
-        }
-
-        /// <summary>
-        /// Gets the select next trigger to acquire SQL clause.
-        /// Oracle version with rownum support.
-        /// </summary>
-        /// <returns></returns>
-        protected override string GetSelectNextTriggerToAcquireSql()
-        {
-            return sqlSelectNextTriggerToAcquire;
+            return beginningAndWhere + " rownum <= " + maxCount + " AND " + theRest;
         }
 
         /// <summary>
