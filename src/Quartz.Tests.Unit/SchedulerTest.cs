@@ -1,7 +1,10 @@
+using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Threading;
+using System.Runtime.Serialization.Formatters.Binary;
 
 using NUnit.Framework;
 
@@ -232,5 +235,41 @@ namespace Quartz.Tests.Unit
 
             Assert.True(Process.GetCurrentProcess().Threads.Count <= activeThreads);
         }
-    }
+		
+		[Test]	
+        public void SerializationExceptionTest()
+        {
+            SchedulerException before;
+            SchedulerException after;
+
+            try
+            {
+                try
+                {
+                    throw new Exception("INNER");
+                }
+                catch (Exception ex)
+                {
+                    throw new SchedulerException("OUTER", ex);
+                }
+            }
+            catch (SchedulerException ex)
+            {
+                before = ex;
+            }
+
+            using (var stream = new MemoryStream())
+            {
+                var formatter = new BinaryFormatter();
+                formatter.Serialize(stream, before);
+                stream.Seek(0, SeekOrigin.Begin);
+                after = (SchedulerException)formatter.Deserialize(stream);
+            }
+
+
+            Assert.NotNull(before.InnerException);
+            Assert.NotNull(after.InnerException);
+            Assert.AreEqual(before.ToString(), after.ToString());
+        }		
+	}		
 }
