@@ -1,7 +1,10 @@
+using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Threading;
+using System.Runtime.Serialization.Formatters.Binary;
 
 using NUnit.Framework;
 
@@ -269,5 +272,4 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(before.ToString(), after.ToString());
         }		
 	}		
-    }
 }
