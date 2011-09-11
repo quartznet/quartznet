@@ -390,7 +390,7 @@ namespace Quartz.Spi
 		/// pause on any new triggers that are added to the group while the group is
 		/// paused.
 		/// </remarks>
-		IList<string> PauseTriggers(GroupMatcher<TriggerKey> matcher);
+        Collection.ISet<string> PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
 		/// <summary>
 		/// Pause the <see cref="IJob" /> with the given key - by

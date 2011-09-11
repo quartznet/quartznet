@@ -1113,7 +1113,7 @@ namespace Quartz.Simpl
 		/// paused.
 		/// </para>
 		/// </summary>
-		public virtual IList<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
+		public virtual Collection.ISet<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
 		{
 		    IList<string> pausedGroups;
 
@@ -1153,7 +1153,7 @@ namespace Quartz.Simpl
 		            }
 		        }
 		    }
-		    return pausedGroups;
+		    return new Collection.HashSet<string>(pausedGroups);
 		}
 
 		/// <summary> 

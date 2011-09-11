@@ -2173,15 +2173,15 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
         /// <seealso cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
-        public virtual IList<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Collection.ISet<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            return (IList<string>)ExecuteInLock(LockTriggerAccess, conn => PauseTriggers(conn, matcher));
+            return (Collection.ISet<string>)ExecuteInLock(LockTriggerAccess, conn => PauseTriggerGroup(conn, matcher));
         }
 
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
-        public virtual IList<string> PauseTriggers(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        public virtual Collection.ISet<string> PauseTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             try
             {
@@ -2194,6 +2194,13 @@ namespace Quartz.Impl.AdoJobStore
 
                 IList<String> groups = Delegate.SelectTriggerGroups(conn, matcher);
 
+                // make sure to account for an exact group match for a group that doesn't yet exist
+                StringOperator op = matcher.CompareWithOperator;
+                if (op.Equals(StringOperator.Equality) && !groups.Contains(matcher.CompareToValue))
+                {
+                    groups.Add(matcher.CompareToValue);
+                }
+
                 foreach (string group in groups)
                 {
                     if (!Delegate.IsTriggerGroupPaused(conn, group))
@@ -2202,7 +2209,7 @@ namespace Quartz.Impl.AdoJobStore
                     }
                 }
 
-                return groups;
+                return new Collection.HashSet<string>(groups);
             }
             catch (Exception e)
             {
@@ -2324,7 +2331,7 @@ namespace Quartz.Impl.AdoJobStore
 
             foreach (string groupName in groupNames)
             {
-                PauseTriggers(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName));
+                PauseTriggerGroup(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName));
             }
 
             try
