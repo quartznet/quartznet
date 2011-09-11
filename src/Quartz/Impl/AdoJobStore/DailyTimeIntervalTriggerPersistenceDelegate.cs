@@ -1,4 +1,5 @@
 ﻿#region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -36,12 +38,10 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Nuno Maia (.NET)</author>
     public class DailyTimeIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
     {
-    
-        public override bool CanHandleTriggerType(IOperableTrigger trigger) 
+        public override bool CanHandleTriggerType(IOperableTrigger trigger)
         {
-            return ((trigger is DailyTimeIntervalTriggerImpl) && !((DailyTimeIntervalTriggerImpl)trigger).HasAdditionalProperties);
+            return ((trigger is DailyTimeIntervalTriggerImpl) && !((DailyTimeIntervalTriggerImpl) trigger).HasAdditionalProperties);
         }
-
 
         /// <summary>
         /// 
@@ -54,8 +54,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
         {
-
-            DailyTimeIntervalTriggerImpl dailyTrigger = (DailyTimeIntervalTriggerImpl)trigger;
+            DailyTimeIntervalTriggerImpl dailyTrigger = (DailyTimeIntervalTriggerImpl) trigger;
             SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
 
             props.Int1 = dailyTrigger.RepeatInterval;
@@ -63,85 +62,128 @@ namespace Quartz.Impl.AdoJobStore
             props.Int2 = dailyTrigger.TimesTriggered;
 
             ISet<DayOfWeek> days = dailyTrigger.DaysOfWeek;
-            String daysStr = join(days, ",");
+            string daysStr = Join(days, ",");
             props.String2 = daysStr;
 
-            TimeOfDay startTimeOfDay = dailyTrigger.StartTimeOfDayUtc;
-            TimeOfDay endTimeOfDay = dailyTrigger.EndTimeOfDayUtc;
             StringBuilder timeOfDayBuffer = new StringBuilder();
-            timeOfDayBuffer.Append(startTimeOfDay.Hour).Append(",");
-            timeOfDayBuffer.Append(startTimeOfDay.Minute).Append(",");
-            timeOfDayBuffer.Append(startTimeOfDay.Second).Append(",");
-            timeOfDayBuffer.Append(endTimeOfDay.Hour).Append(",");
-            timeOfDayBuffer.Append(endTimeOfDay.Minute).Append(",");
-            timeOfDayBuffer.Append(endTimeOfDay.Second);
-            props.String3 = timeOfDayBuffer.ToString();
+            TimeOfDay startTimeOfDay = dailyTrigger.StartTimeOfDayUtc;
+            if (startTimeOfDay != null)
+            {
+                timeOfDayBuffer.Append(startTimeOfDay.Minute).Append(",");
+                timeOfDayBuffer.Append(startTimeOfDay.Second).Append(",");
+                timeOfDayBuffer.Append(startTimeOfDay.Hour).Append(",");
+            }
+            else
+            {
+                timeOfDayBuffer.Append(",,,");
+            }
 
+            TimeOfDay endTimeOfDay = dailyTrigger.EndTimeOfDayUtc;
+            if (endTimeOfDay != null)
+            {
+                timeOfDayBuffer.Append(endTimeOfDay.Hour).Append(",");
+                timeOfDayBuffer.Append(endTimeOfDay.Minute).Append(",");
+                timeOfDayBuffer.Append(endTimeOfDay.Second);
+            }
+            else
+            {
+                timeOfDayBuffer.Append(",,,");
+            }
+            props.String3 = timeOfDayBuffer.ToString();
+            props.Long1 = dailyTrigger.RepeatCount;
             return props;
         }
 
-        private String join(ISet<DayOfWeek> days, String sep)
+        private static string Join(ISet<DayOfWeek> days, string sep)
         {
             StringBuilder sb = new StringBuilder();
             if (days == null || days.Count <= 0)
+            {
                 return "";
+            }
 
             foreach (DayOfWeek itr in days)
             {
                 sb.Append(sep).Append(itr);
             }
-            
+
             return sb.ToString();
         }
 
-        protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props) {
-		    int interval = props.Int1;
-		    String intervalUnitStr = props.String1;
-		    String daysOfWeekStr = props.String2;
-		    String timeOfDayStr = props.String3;
+        protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
+        {
+            int repeatCount = (int)props.Long1;
+            int interval = props.Int1;
+            string intervalUnitStr = props.String1;
+            string daysOfWeekStr = props.String2;
+            string timeOfDayStr = props.String3;
 
-            IntervalUnit intervalUnit = (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1, true);
-		    DailyTimeIntervalScheduleBuilder scheduleBuilder = DailyTimeIntervalScheduleBuilder.Create()
-        		    .WithInterval(interval, intervalUnit);
-        		
-		    if (daysOfWeekStr != null) 
+            IntervalUnit intervalUnit = (IntervalUnit) Enum.Parse(typeof(IntervalUnit), intervalUnitStr, true);
+            DailyTimeIntervalScheduleBuilder scheduleBuilder = DailyTimeIntervalScheduleBuilder.Create()
+                .WithInterval(interval, intervalUnit)
+                .WithRepeatCount(repeatCount);
+
+            if (daysOfWeekStr != null)
             {
-	            ISet<DayOfWeek> daysOfWeek = new HashSet<DayOfWeek>();
-	            String[] nums = daysOfWeekStr.Split(',');
-	            if (nums.Length > 0) 
+                ISet<DayOfWeek> daysOfWeek = new HashSet<DayOfWeek>();
+                String[] nums = daysOfWeekStr.Split(',');
+                if (nums.Length > 0)
                 {
-		            foreach (String num in nums) 
+                    foreach (String num in nums)
                     {
                         daysOfWeek.Add((DayOfWeek) Int32.Parse(num));
-		            }
+                    }
                     scheduleBuilder.OnDaysOfTheWeek(daysOfWeek);
-	            }
-		    }
-		    if (timeOfDayStr != null) 
+                }
+            }
+            else
             {
-	            String[] nums = timeOfDayStr.Split(',');
-	            if (nums.Length >= 6) 
+                scheduleBuilder.OnDaysOfTheWeek(DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek);
+            }
+
+            if (timeOfDayStr != null)
+            {
+                string[] nums = timeOfDayStr.Split(',');
+                TimeOfDay startTimeOfDay = null;
+                if (nums.Length >= 3)
                 {
-	        	    int hour = Int32.Parse(nums[0]);
-	        	    int min = Int32.Parse(nums[1]);
-	        	    int sec = Int32.Parse(nums[2]);
-				    TimeOfDay startTimeOfDay = new TimeOfDay(hour, min, sec);
-	        	    scheduleBuilder.StartingDailyAt(startTimeOfDay);
-	        	
-	        	    hour = Int32.Parse(nums[3]);
-	        	    min = Int32.Parse(nums[4]);
-                    sec = Int32.Parse(nums[5]);
-				    TimeOfDay endTimeOfDay = new TimeOfDay(hour, min, sec);
-	        	    scheduleBuilder.EndingDailyAt(endTimeOfDay);
-	            }
-		}
-        
-        int timesTriggered = props.Int2;
-        String[] statePropertyNames = { "timesTriggered" };
-        Object[] statePropertyValues = { timesTriggered };
+                    int hour = Int32.Parse(nums[0]);
+                    int min = Int32.Parse(nums[1]);
+                    int sec = Int32.Parse(nums[2]);
+                    startTimeOfDay = new TimeOfDay(hour, min, sec);
+                }
+                else
+                {
+                    startTimeOfDay = TimeOfDay.HourMinuteAndSecondOfDay(0, 0, 0);
+                }
+                scheduleBuilder.StartingDailyAt(startTimeOfDay);
 
-        return new TriggerPropertyBundle(scheduleBuilder, statePropertyNames, statePropertyValues);
-    }
+                TimeOfDay endTimeOfDay;
+                if (nums.Length >= 6)
+                {
+                    int hour = Int32.Parse(nums[3]);
+                    int min = Int32.Parse(nums[4]);
+                    int sec = Int32.Parse(nums[5]);
+                    endTimeOfDay = new TimeOfDay(hour, min, sec);
+                }
+                else
+                {
+                    endTimeOfDay = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59);
+                }
+                scheduleBuilder.EndingDailyAt(endTimeOfDay);
+            }
+            else
+            {
+                scheduleBuilder.StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(0, 0, 0));
+                scheduleBuilder.EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59));
+            }
+            
 
+            int timesTriggered = props.Int2;
+            String[] statePropertyNames = {"timesTriggered"};
+            Object[] statePropertyValues = {timesTriggered};
+
+            return new TriggerPropertyBundle(scheduleBuilder, statePropertyNames, statePropertyValues);
+        }
     }
 }
