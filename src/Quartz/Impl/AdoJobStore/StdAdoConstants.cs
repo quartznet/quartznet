@@ -280,7 +280,7 @@ namespace Quartz.Impl.AdoJobStore
                           TableTriggers, ColumnSchedulerName, SchedulerNameSubst,  ColumnTriggerState, ColumnNextFireTime);
 
         public static readonly string SqlSelectNextTriggerToAcquire =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2}, {3} FROM {4}{5} WHERE {6} = {7} AND {8} = @state AND {9} < @noLaterThan AND {10} >= @noEarlierThan ORDER BY {11} ASC, {12} DESC", 
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2}, {3} FROM {4}{5} WHERE {6} = {7} AND {8} = @state AND {9} <= @noLaterThan AND {10} >= @noEarlierThan ORDER BY {11} ASC, {12} DESC", 
             ColumnTriggerName, ColumnTriggerGroup, ColumnNextFireTime, ColumnPriority,
             TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst,
             ColumnTriggerState, ColumnNextFireTime, 
