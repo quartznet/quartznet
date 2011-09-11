@@ -839,8 +839,6 @@ namespace Quartz.Impl.AdoJobStore
 
                 DoUpdateOfMisfiredTrigger(conn, trig, forceState, newStateIfNotComplete, false);
 
-                schedSignaler.NotifySchedulerListenersFinalized(trig);
-
                 return true;
             }
             catch (Exception e)
@@ -867,6 +865,7 @@ namespace Quartz.Impl.AdoJobStore
             if (!trig.GetNextFireTimeUtc().HasValue)
             {
                 StoreTrigger(conn, trig, null, true, StateComplete, forceState, recovering);
+                schedSignaler.NotifySchedulerListenersFinalized(trig);
             }
             else
             {
