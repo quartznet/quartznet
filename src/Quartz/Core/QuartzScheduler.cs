@@ -67,7 +67,7 @@ namespace Quartz.Core
         private IDictionary<string, ITriggerListener> internalTriggerListeners = new Dictionary<string, ITriggerListener>(10);
         private IList<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
 
-        private IJobFactory jobFactory = new SimpleJobFactory();
+        private IJobFactory jobFactory = new PropertySettingJobFactory();
         private readonly ExecutingJobsManager jobMgr;
         private readonly ErrorLogger errLogger;
         private readonly ISchedulerSignaler signaler;
