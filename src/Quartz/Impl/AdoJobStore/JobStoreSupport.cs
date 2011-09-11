@@ -83,6 +83,7 @@ namespace Quartz.Impl.AdoJobStore
         private bool doubleCheckLockMisfireHandler = true;
         private readonly ILog log;
         private IObjectSerializer objectSerializer;
+        private IThreadExecutor threadExecutor = new DefaultThreadExecutor();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
@@ -166,6 +167,12 @@ namespace Quartz.Impl.AdoJobStore
         public int ThreadPoolSize
         {
             set { }
+        }
+
+        public IThreadExecutor ThreadExecutor
+        {
+            get { return threadExecutor; }
+            set { threadExecutor = value; }
         }
 
         public IObjectSerializer ObjectSerializer
@@ -2386,7 +2393,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual IList<IOperableTrigger> AcquireNextTrigger(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             List<IOperableTrigger> acquiredTriggers = new List<IOperableTrigger>();
-            ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new Collection.HashSet<JobKey>();
+            Collection.ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new Collection.HashSet<JobKey>();
             const int MaxDoLoopRetry = 3;
             int currentLoopCount = 0;
 
@@ -3441,15 +3448,16 @@ namespace Quartz.Impl.AdoJobStore
             {
                 this.jobStoreSupport = jobStoreSupport;
                 Priority = ThreadPriority.AboveNormal;
-                Name = "QuartzScheduler_" + jobStoreSupport.instanceName + "-" + jobStoreSupport.instanceId +
-                       "_ClusterManager";
+                Name = string.Format("QuartzScheduler_{0}-{1}_ClusterManager", jobStoreSupport.instanceName, jobStoreSupport.instanceId);
                 IsBackground = jobStoreSupport.MakeThreadsDaemons;
             }
 
             public virtual void Initialize()
             {
                 Manage();
-                Start();
+
+                IThreadExecutor executor = jobStoreSupport.ThreadExecutor;
+                executor.Execute(this);
             }
 
             public virtual void Shutdown()
@@ -3530,16 +3538,14 @@ namespace Quartz.Impl.AdoJobStore
             internal MisfireHandler(JobStoreSupport jobStoreSupport)
             {
                 this.jobStoreSupport = jobStoreSupport;
-                Name =
-                    string.Format(CultureInfo.InvariantCulture, "QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName,
-                                  jobStoreSupport.instanceId);
+                Name = string.Format(CultureInfo.InvariantCulture, "QuartzScheduler_{0}-{1}_MisfireHandler", jobStoreSupport.instanceName, jobStoreSupport.instanceId);
                 IsBackground = jobStoreSupport.MakeThreadsDaemons;
             }
 
             public virtual void Initialize()
             {
-                //this.Manage();
-                Start();
+                IThreadExecutor executor = jobStoreSupport.ThreadExecutor;
+                executor.Execute(this);
             }
 
             public virtual void Shutdown()

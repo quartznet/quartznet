@@ -686,9 +686,6 @@ Please add configuration to your application config file to correctly initialize
                         throw initException;
                     }
                 }
-
-                // object serializer
-                ((JobStoreSupport) js).ObjectSerializer = objectSerializer; 
             }
 
             // Set up any SchedulerPlugins
@@ -905,6 +902,9 @@ Please add configuration to your application config file to correctly initialize
                 {
                     JobStoreSupport jjs = (JobStoreSupport) js;
                     jjs.DbRetryInterval = dbFailureRetry;
+                    jjs.ThreadExecutor = threadExecutor;
+                    // object serializer
+                    jjs.ObjectSerializer = objectSerializer; 
                 }
 
                 QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
