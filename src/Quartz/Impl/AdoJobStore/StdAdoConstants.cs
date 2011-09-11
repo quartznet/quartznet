@@ -163,13 +163,13 @@ namespace Quartz.Impl.AdoJobStore
         // SELECT
 
         public static readonly string SqlSelectBlobTrigger =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup", TablePrefixSubst,
-                          TableBlobTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName,
-                          ColumnTriggerGroup);
+            string.Format(CultureInfo.InvariantCulture, "SELECT {6} FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup", TablePrefixSubst,
+                          TableBlobTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName, ColumnTriggerGroup,
+                          ColumnBlob);
 
         public static readonly string SqlSelectCalendar =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} = @calendarName", TablePrefixSubst, TableCalendars,
-                          ColumnSchedulerName, SchedulerNameSubst, ColumnCalendarName);
+            string.Format(CultureInfo.InvariantCulture, "SELECT {5} FROM {0}{1} WHERE {2} = {3} AND {4} = @calendarName", TablePrefixSubst, TableCalendars,
+                          ColumnSchedulerName, SchedulerNameSubst, ColumnCalendarName, ColumnCalendar);
 
         public static readonly string SqlSelectCalendarExistence =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} = @calendarName",
@@ -217,8 +217,9 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlSelectJobDetail =
             string.Format(CultureInfo.InvariantCulture,
-                "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} = @jobName AND {5} = @jobGroup",
-                TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobName, ColumnJobGroup);
+                "SELECT {6},{7},{8},{9},{10},{11},{12} FROM {0}{1} WHERE {2} = {3} AND {4} = @jobName AND {5} = @jobGroup",
+                TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobName, ColumnJobGroup,
+                ColumnJobName, ColumnJobGroup, ColumnDescription, ColumnJobClass, ColumnIsDurable, ColumnRequestsRecovery, ColumnJobDataMap);
 
         public static readonly string SqlSelectJobExecutionCount =
             string.Format(CultureInfo.InvariantCulture, "SELECT COUNT({0}) FROM {1}{2} WHERE {3} = {4} AND {5} = @jobName AND {6} = @jobGroup",
@@ -331,8 +332,9 @@ namespace Quartz.Impl.AdoJobStore
                 TablePrefixSubst, TableSimpleTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName, ColumnTriggerGroup);
 
         public static readonly string SqlSelectTrigger =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup",
-                TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName, ColumnTriggerGroup);
+            string.Format(CultureInfo.InvariantCulture, "SELECT {6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17} FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup",
+                TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName, ColumnTriggerGroup,
+                ColumnJobName, ColumnJobGroup, ColumnDescription, ColumnNextFireTime, ColumnPreviousFireTime, ColumnTriggerType, ColumnStartTime, ColumnEndTime, ColumnCalendarName, ColumnMifireInstruction, ColumnPriority, ColumnJobDataMap);
 
         public static readonly string SqlSelectTriggerData =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} = @triggerName AND {6} = @triggerGroup",

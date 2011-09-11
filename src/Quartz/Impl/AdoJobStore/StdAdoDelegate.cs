@@ -731,11 +731,11 @@ namespace Quartz.Impl.AdoJobStore
                         IDictionary map;
                         if (CanUseProperties)
                         {
-                            map = GetMapFromProperties(rs, 9);
+                            map = GetMapFromProperties(rs, 6);
                         }
                         else
                         {
-                            map = GetObjectFromBlob<IDictionary>(rs, 9);
+                            map = GetObjectFromBlob<IDictionary>(rs, 6);
                         }
 
                         if (null != map)
@@ -1521,11 +1521,11 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (CanUseProperties)
                         {
-                            map = GetMapFromProperties(rs, 15);
+                            map = GetMapFromProperties(rs, 11);
                         }
                         else
                         {
-                            map = GetObjectFromBlob<IDictionary>(rs, 15);
+                            map = GetObjectFromBlob<IDictionary>(rs, 11);
                         }
 
 
@@ -1559,7 +1559,7 @@ namespace Quartz.Impl.AdoJobStore
                                 {
                                     if (rs2.Read())
                                     {
-                                        trigger = GetObjectFromBlob<IOperableTrigger>(rs2, 3);
+                                        trigger = GetObjectFromBlob<IOperableTrigger>(rs2, 0);
                                     }
                                 }
                             }
@@ -2013,7 +2013,7 @@ namespace Quartz.Impl.AdoJobStore
                     ICalendar cal = null;
                     if (rs.Read())
                     {
-                        cal = GetObjectFromBlob<ICalendar>(rs, 2);
+                        cal = GetObjectFromBlob<ICalendar>(rs, 0);
                     }
                     if (null == cal)
                     {
