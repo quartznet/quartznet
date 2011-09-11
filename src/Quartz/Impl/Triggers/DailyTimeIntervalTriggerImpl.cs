@@ -30,27 +30,55 @@ namespace Quartz.Impl.Triggers
     /// based upon daily repeating time intervals.
     /// </summary>
     /// <remarks>
-    /// <para>The trigger will fire every N (<see cref="IDailyTimeIntervalTrigger.RepeatInterval"/> ) seconds, minutes or hours
-    /// (see <see cref="IDailyTimeIntervalTrigger.RepeatInterval"/>) during a given time window on specified days of the week.</para>
-    /// <para>For example#1, a trigger can be set to fire every 72 minutes between 8:00 and 11:00 everyday. It's fire times would
-    /// be 8:00, 9:12, 10:24, then next day would repeat: 8:00, 9:12, 10:24 again.</para>
-    /// <para>For example#2, a trigger can be set to fire every 23 minutes between 9:20 and 16:47 Monday through Friday.</para>
-    /// <para>On each day, the starting fire time is reset to startTimeOfDay value, and then it will add repeatInterval value to it until
-    /// the endTimeOfDay is reached. If you set daysOfWeek values, then fire time will only occur during those week days period.</para>
-    /// <para>The default values for fields if not set are: startTimeOfDay defaults to 00:00:00, the endTimeOfDay default to 23:59:59,
-    /// and daysOfWeek is default to every day. The startTime default to current time-stamp now, while endTime has not value.</para>
-    /// <para>If startTime is before startTimeOfDay, then it has no affect. Else if startTime after startTimeOfDay, then the first fire time
-    /// for that day will be normal startTimeOfDay incremental values after startTime value. Same reversal logic is applied to endTime
-    /// with endTimeOfDay.</para>
+    /// <para>
+    /// The trigger will fire every N (<see cref="IDailyTimeIntervalTrigger.RepeatInterval"/> ) seconds, minutes or hours
+    /// (see <see cref="IDailyTimeIntervalTrigger.RepeatInterval"/>) during a given time window on specified days of the week.
+    /// </para>
+    /// <para>
+    /// For example#1, a trigger can be set to fire every 72 minutes between 8:00 and 11:00 everyday. It's fire times would
+    /// be 8:00, 9:12, 10:24, then next day would repeat: 8:00, 9:12, 10:24 again.
+    /// </para>
+    /// <para>
+    /// For example#2, a trigger can be set to fire every 23 minutes between 9:20 and 16:47 Monday through Friday.
+    /// </para>
+    /// <para>
+    /// On each day, the starting fire time is reset to startTimeOfDay value, and then it will add repeatInterval value to it until
+    /// the endTimeOfDay is reached. If you set daysOfWeek values, then fire time will only occur during those week days period. Again,
+    /// remember this trigger will reset fire time each day with startTimeOfDay, regardless of your interval or endTimeOfDay!
+    /// </para>
+    /// <para>
+    /// The default values for fields if not set are: startTimeOfDay defaults to 00:00:00, the endTimeOfDay default to 23:59:59,
+    /// and daysOfWeek is default to every day. The startTime default to current time-stamp now, while endTime has not value.
+    /// </para>
+    /// <para>
+    /// If startTime is before startTimeOfDay, then startTimeOfDay will be used and startTime has no affect. Else if startTime is 
+    /// after startTimeOfDay, then the first fire time for that day will be the next interval after the startTime. For example, if
+    /// you set startingTimeOfDay=9am, endingTimeOfDay=11am, interval=15 mins, and startTime=9:33am, then the next fire time will
+    /// be 9:45pm. Note also that if you do not set startTime value, the trigger builder will default to current time, and current time 
+    /// maybe before or after the startTimeOfDay! So be aware how you set your startTime.
+    /// </para>
+    /// <para>
+    /// This trigger also supports "repeatCount" feature to end the trigger fire time after
+    /// a certain number of count is reached. Just as the SimpleTrigger, setting repeatCount=0 
+    /// means trigger will fire once only! Setting any positive count then the trigger will repeat 
+    /// count + 1 times. Unlike SimpleTrigger, the default value of repeatCount of this trigger
+    /// is set to REPEAT_INDEFINITELY instead of 0 though.
+    /// </para>
     /// </remarks>
     /// <see cref="IDailyTimeIntervalTrigger"/>
     /// <see cref="DailyTimeIntervalScheduleBuilder"/>
-    /// <since>2.0.3</since>
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
     public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger, ICoreTrigger
     {
+        /// <summary>
+        /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in
+        /// other words, the trigger should repeat continually until the trigger's
+        /// ending timestamp.
+        /// </summary>
+        public const int RepeatIndefinitely = -1;
+
         private static readonly int YearToGiveupSchedulingAt = DateTime.Now.Year + 100;
 
         private DateTimeOffset startTimeUtc;
@@ -64,6 +92,7 @@ namespace Quartz.Impl.Triggers
         private TimeOfDay endTimeOfDayUtc;
         private int timesTriggered = 0;
         private bool complete = false;
+        private int repeatCount = RepeatIndefinitely;
 
         /// <summary>
         /// Create a  <see cref="IDailyTimeIntervalTrigger"/> with no settings.
@@ -228,6 +257,23 @@ namespace Quartz.Impl.Triggers
             }
         }
 
+        /// <summary>
+        /// Get the the number of times for interval this trigger should repeat, 
+        /// after which it will be automatically deleted.
+        /// </summary>
+        public int RepeatCount
+        {
+            get { return repeatCount; }
+            set
+            {
+                if (value < 0 && value != RepeatIndefinitely)
+                {
+                    throw new ArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
+                }
+
+                repeatCount = value;
+            }
+        }
 
         /// <summary>
         /// the interval unit - the time unit on with the interval applies.
@@ -370,6 +416,12 @@ namespace Quartz.Impl.Triggers
                 {
                     nextFireTimeUtc = null;
                 }
+            }
+
+
+            if (nextFireTimeUtc == null)
+            {
+                complete = true;
             }
         }
 
@@ -549,6 +601,18 @@ namespace Quartz.Impl.Triggers
         /// <returns></returns>
         public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
         {
+            // Check if trigger has completed or not.
+            if (complete)
+            {
+                return null;
+            }
+
+            // Check repeatCount limit
+            if (repeatCount != RepeatIndefinitely && timesTriggered > repeatCount)
+            {
+                return null;
+            }
+
             // a. Increment afterTime by a second, so that we are comparing against a time after it!
             if (afterTime == null)
             {

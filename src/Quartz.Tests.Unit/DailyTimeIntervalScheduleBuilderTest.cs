@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz;
 using Quartz.Spi;
 using Quartz.Job;
 using Quartz.Impl;
@@ -47,9 +46,8 @@ namespace Quartz.Tests.Unit
                 
 		    ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("test")
-                .WithSchedule(DailyTimeIntervalScheduleBuilder.Create()
-						        .WithIntervalInSeconds(3))
-						        .Build();
+                .WithDailyTimeIntervalSchedule(x => x.WithIntervalInSeconds(3))
+                .Build();
 		    
             scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
 		    scheduler.Shutdown();
@@ -61,10 +59,8 @@ namespace Quartz.Tests.Unit
         {
 		    IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
                                                             .WithIdentity("test")
-                                                            .WithSchedule(
-                                                                DailyTimeIntervalScheduleBuilder.Create()
-						                                        .WithIntervalInHours(3))
-						                                    .Build();
+                                                            .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(3))
+                                                            .Build();
 		    Assert.AreEqual("test", trigger.Key.Name);
 		    Assert.AreEqual("DEFAULT", trigger.Key.Group);
 		    Assert.AreEqual(IntervalUnit.Hour, trigger.RepeatIntervalUnit);
@@ -78,8 +74,8 @@ namespace Quartz.Tests.Unit
         {
 		    IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
                 .WithIdentity("test", "group")
-				.WithSchedule(DailyTimeIntervalScheduleBuilder.Create()
-						        .WithIntervalInMinutes(72)
+                .WithDailyTimeIntervalSchedule(x =>
+						        x.WithIntervalInMinutes(72)
 						        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
 						        .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(17, 0))
 						        .OnMondayThroughFriday())
@@ -104,8 +100,8 @@ namespace Quartz.Tests.Unit
             DateTimeOffset endTime = DateBuilder.DateOf(0, 0, 0, 2, 1, 2011);
             IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger)TriggerBuilder.Create()
                 .WithIdentity("test", "test")
-                .WithSchedule(DailyTimeIntervalScheduleBuilder.Create()
-						    .WithIntervalInSeconds(121)
+                .WithDailyTimeIntervalSchedule(x =>
+						    x.WithIntervalInSeconds(121)
 						    .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(10, 0, 0))
                             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
 						    .OnSaturdayAndSunday())
@@ -122,7 +118,22 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(new TimeOfDay(23, 59, 59), trigger.EndTimeOfDayUtc);
 		    IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
-	    } 
-    
+	    }
+
+        [Test]
+        public void TestRepeatCountTrigger()
+        {
+            IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
+                                                                                .WithIdentity("test")
+                                                                                .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(1).WithRepeatCount(9))
+                                                                                .Build();
+
+            Assert.AreEqual("test", trigger.Key.Name);
+            Assert.AreEqual("DEFAULT", trigger.Key.Group);
+            Assert.AreEqual(IntervalUnit.Hour, trigger.RepeatIntervalUnit);
+            Assert.AreEqual(1, trigger.RepeatInterval);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 48);
+            Assert.AreEqual(10, fireTimes.Count);
+        }
     }
 }

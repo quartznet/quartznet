@@ -112,13 +112,12 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             Assert.Throws<SchedulerException>(trigger.Validate, "epeatInterval can not exceed 24 hours (86400 seconds). Given 90000");
 
-            Assert.Throws<ArgumentException>(delegate { trigger.RepeatIntervalUnit = IntervalUnit.Day;}, "Invalid repeat IntervalUnit (must be Second, Minute or Hour");
+            Assert.Throws<ArgumentException>(delegate { trigger.RepeatIntervalUnit = IntervalUnit.Day; }, "Invalid repeat IntervalUnit (must be Second, Minute or Hour");
 
             trigger.RepeatIntervalUnit = IntervalUnit.Second;
             trigger.RepeatInterval = 0;
             Assert.Throws<SchedulerException>(trigger.Validate, "Repeat Interval cannot be zero.");
         }
-
 
         [Test]
         public void TestStartTimeWithoutStartTimeOfDay()
@@ -385,7 +384,6 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.AreEqual(DayOfWeek.Monday, fireTimes[47].DayOfWeek);
         }
 
-
         [Test]
         public void TestTimeOfDayWithEndTimeOddInterval()
         {
@@ -446,6 +444,67 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual((DateBuilder.DateOf(8, 0, 2, 1, 1, 2011)), fireTimes[0]);
             Assert.AreEqual((DateBuilder.DateOf(8, 56, 26, 1, 1, 2011)), fireTimes[47]);
+        }
+
+        [Test]
+        public void TestRepeatCountInf()
+        {
+            DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+            TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+            TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
+            DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
+            trigger.StartTimeUtc = startTime;
+            trigger.StartTimeOfDayUtc = startTimeOfDay;
+            trigger.EndTimeOfDayUtc = endTimeOfDay;
+            trigger.RepeatIntervalUnit = IntervalUnit.Minute;
+            trigger.RepeatInterval = (72);
+
+            // Setting this (which is default) should make the trigger just as normal one.
+            trigger.RepeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
+
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+            Assert.AreEqual(48, fireTimes.Count);
+            Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
+            Assert.AreEqual(DateBuilder.DateOf(10, 24, 0, 16, 1, 2011), fireTimes[47]);
+        }
+
+        [Test]
+        public void TestRepeatCount()
+        {
+            DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+            TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+            TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
+            DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
+            trigger.StartTimeUtc = startTime;
+            trigger.StartTimeOfDayUtc = startTimeOfDay;
+            trigger.EndTimeOfDayUtc = endTimeOfDay;
+            trigger.RepeatIntervalUnit = IntervalUnit.Minute;
+            trigger.RepeatInterval = 72;
+            trigger.RepeatCount = 7;
+
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+            Assert.AreEqual(8, fireTimes.Count);
+            Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
+            Assert.AreEqual(DateBuilder.DateOf(9, 12, 0, 3, 1, 2011), fireTimes[7]);
+        }
+
+        [Test]
+        public void TestRepeatCount0()
+        {
+            DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+            TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+            TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
+            DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl();
+            trigger.StartTimeUtc = startTime;
+            trigger.StartTimeOfDayUtc = startTimeOfDay;
+            trigger.EndTimeOfDayUtc = endTimeOfDay;
+            trigger.RepeatIntervalUnit = IntervalUnit.Minute;
+            trigger.RepeatInterval = 72;
+            trigger.RepeatCount = 0;
+
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+            Assert.AreEqual(1, fireTimes.Count);
+            Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
         }
     }
 }

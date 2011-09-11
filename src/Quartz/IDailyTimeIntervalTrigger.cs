@@ -49,13 +49,16 @@ namespace Quartz
     /// </remarks>
     /// <see cref="DailyTimeIntervalTriggerImpl" />
     /// <see cref="DailyTimeIntervalScheduleBuilder"/>
-    /// <since>2.0.3</since>
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
-    
     public interface IDailyTimeIntervalTrigger : ITrigger
     {
+        /// <summary>
+        /// Get the the number of times for interval this trigger should repeat, 
+        /// after which it will be automatically deleted.
+        /// </summary>
+        int RepeatCount { get; }
 
         /// <summary>
         /// Get the interval unit - the time unit on with the interval applies.

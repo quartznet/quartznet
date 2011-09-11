@@ -41,6 +41,7 @@ namespace Quartz
         private ISet<DayOfWeek> daysOfWeek;
         private TimeOfDay startTimeOfDayUtc;
         private TimeOfDay endTimeOfDayUtc;
+        private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
 
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
@@ -115,6 +116,7 @@ namespace Quartz
             st.RepeatInterval = interval;
             st.RepeatIntervalUnit = intervalUnit;
             st.MisfireInstruction = misfireInstruction;
+            st.RepeatCount = repeatCount;
 
             if (daysOfWeek != null)
             {
@@ -337,6 +339,20 @@ namespace Quartz
             return this;
         }
 
+        /// <summary>
+        /// Set number of times for interval to repeat.
+        /// </summary>
+        /// <remarks>
+        /// Note: if you want total count = 1 (at start time) + repeatCount
+        /// </remarks>
+        /// <param name="repeatCount"></param>
+        /// <returns></returns>
+        public DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount)
+        {
+            this.repeatCount = repeatCount;
+            return this;
+        }
+
         private void ValidateInterval(int interval)
         {
             if (interval <= 0)
@@ -351,15 +367,15 @@ namespace Quartz
     /// </summary>
     public static class DailyTimeIntervalScheduleBuilderExtensions
     {
-        public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder)
+        public static TriggerBuilder WithDailyTimeIntervalSchedule(this TriggerBuilder triggerBuilder)
         {
             DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
             return triggerBuilder.WithSchedule(builder);
         }
 
-        public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder, Action<CalendarIntervalScheduleBuilder> action)
+        public static TriggerBuilder WithDailyTimeIntervalSchedule(this TriggerBuilder triggerBuilder, Action<DailyTimeIntervalScheduleBuilder> action)
         {
-            CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
+            DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
             action(builder);
             return triggerBuilder.WithSchedule(builder);
         }
