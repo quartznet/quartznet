@@ -56,6 +56,18 @@ namespace Quartz.Spi
 		/// </summary>
 		void SchedulerStarted();
 
+        /// <summary>
+        /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+        /// the scheduler has been paused.
+        /// </summary>
+        void SchedulerPaused();
+
+        /// <summary>
+        /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+        /// the scheduler has resumed after being paused.
+        /// </summary>
+        void SchedulerResumed();
+
 		/// <summary>
 		/// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
 		/// it should free up all of it's resources because the scheduler is

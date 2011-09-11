@@ -121,6 +121,24 @@ namespace Quartz.Simpl
 			// nothing to do
 		}
 
+	    /// <summary>
+	    /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+	    /// the scheduler has been paused.
+	    /// </summary>
+	    public void SchedulerPaused()
+        {
+            // nothing to do
+        }
+
+	    /// <summary>
+	    /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+	    /// the scheduler has resumed after being paused.
+	    /// </summary>
+	    public void SchedulerResumed()
+        {
+            // nothing to do
+        }
+
 		/// <summary>
 		/// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
 		/// it should free up all of it's resources because the scheduler is

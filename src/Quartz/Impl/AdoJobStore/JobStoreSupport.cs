@@ -84,6 +84,7 @@ namespace Quartz.Impl.AdoJobStore
         private readonly ILog log;
         private IObjectSerializer objectSerializer;
         private IThreadExecutor threadExecutor = new DefaultThreadExecutor();
+        private bool schedulerRunning = false;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
@@ -584,6 +585,25 @@ namespace Quartz.Impl.AdoJobStore
 
             misfireHandler = new MisfireHandler(this);
             misfireHandler.Initialize();
+            schedulerRunning = true;
+        }
+
+        /// <summary>
+        /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+        /// the scheduler has been paused.
+        /// </summary>
+        public void SchedulerPaused()
+        {
+            schedulerRunning = false;
+        }
+
+        /// <summary>
+        /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+        /// the scheduler has resumed after being paused.
+        /// </summary>
+        public void SchedulerResumed()
+        {
+            schedulerRunning = true;
         }
 
         /// <summary>
@@ -2073,7 +2093,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 bool misfired = false;
 
-                if ((status.NextFireTimeUtc.Value < SystemTime.UtcNow()))
+                if (schedulerRunning && status.NextFireTimeUtc.Value < SystemTime.UtcNow())
                 {
                     misfired = UpdateMisfiredTrigger(conn, triggerKey, newState, true);
                 }

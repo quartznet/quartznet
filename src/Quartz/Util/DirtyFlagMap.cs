@@ -33,7 +33,6 @@ namespace Quartz.Util
     public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ICloneable
     {
         private bool dirty;
-        [NonSerialized] private bool locked = false;
         private Dictionary<TKey, TValue> map;
         private readonly object syncRoot = new object();
 
@@ -311,14 +310,10 @@ namespace Quartz.Util
         {
             TKey[] keys = new TKey[Count];
             TValue[] values = new TValue[Count];
-            if (Keys != null)
-            {
-                Keys.CopyTo(keys, index);
-            }
-            if (Values != null)
-            {
-                Values.CopyTo(values, index);
-            }
+            
+            Keys.CopyTo(keys, index);
+            Values.CopyTo(values, index);
+            
             for (int i = index; i < Count; i++)
             {
                 if (!Equals(keys[i], default(TKey)) || !Equals(values[i], default(TValue)))
@@ -344,7 +339,7 @@ namespace Quartz.Util
         /// <value></value>
         public virtual bool IsReadOnly
         {
-            get { return locked; }
+            get { return false; }
         }
 
         /// <summary>
@@ -462,7 +457,7 @@ namespace Quartz.Util
         /// </returns>
         public override int GetHashCode()
         {
-            return map.GetHashCode() ^ locked.GetHashCode() ^ dirty.GetHashCode();
+            return map.GetHashCode() ^ dirty.GetHashCode();
         }
 
         IEnumerator IEnumerable.GetEnumerator()

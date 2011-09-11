@@ -439,6 +439,10 @@ namespace Quartz.Core
                 resources.JobStore.SchedulerStarted();
                 StartPlugins();
             }
+            else
+            {
+                resources.JobStore.SchedulerResumed();
+            }
 
             schedThread.TogglePause(false);
 
@@ -504,6 +508,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual void Standby()
         {
+            resources.JobStore.SchedulerPaused();
             schedThread.TogglePause(true);
             log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} paused.", resources.GetUniqueIdentifier()));
             NotifySchedulerListenersInStandbyMode();
