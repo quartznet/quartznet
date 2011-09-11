@@ -54,7 +54,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE;DEBUG;NET_40,C5</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;NET_40</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
