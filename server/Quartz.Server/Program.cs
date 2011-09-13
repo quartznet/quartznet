@@ -15,7 +15,7 @@ namespace Quartz.Server
         {
             Host host = HostFactory.New(x =>   
             {
-                x.Service<QuartzServer>(s =>               
+                x.Service<IQuartzServer>(s =>               
                 {
                     s.SetServiceName("quartz.server");                                
                     s.ConstructUsing(builder =>
@@ -29,6 +29,7 @@ namespace Quartz.Server
                     s.WhenContinued(server => server.Resume());
                     s.WhenStopped(server => server.Stop());             
                 });
+
                 x.RunAsLocalSystem();                            
 
                 x.SetDescription(Configuration.ServiceDescription);        

@@ -22,5 +22,15 @@ namespace Quartz.Server
         /// Stops this instance.
         /// </summary>
         void Stop();
+
+        /// <summary>
+        /// Pauses all activity in scheudler.
+        /// </summary>
+        void Pause();
+
+        /// <summary>
+        /// Resumes all acitivity in server.
+        /// </summary>
+        void Resume();
     }
 }
