@@ -48,6 +48,5 @@ _ReSharper*/
 *.ReSharper
 *.dotCover
 /package
-*.snk
 *.zip
 website
