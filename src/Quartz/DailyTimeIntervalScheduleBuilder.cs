@@ -288,18 +288,79 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the trigger to end firing each day at the given time.
+        /// Set the startTimeOfDay for this trigger to end firing each day at the given time.
         /// </summary>
         /// <param name="timeOfDayUtc"></param>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder EndingDailyAt(TimeOfDay timeOfDayUtc)
         {
-            if (timeOfDayUtc == null)
+            this.endTimeOfDayUtc = timeOfDayUtc;
+            return this;
+        }
+
+            
+        /// <summary>
+        /// Calculate and set the EndTimeOfDay using count, interval and StarTimeOfDay. This means
+        /// that these must be set before this method is call.
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
+        public DailyTimeIntervalScheduleBuilder EndingDailyAfterCount(int count)
+        {
+            if (count <= 0)
             {
-                throw new ArgumentException("Start time of day cannot be null!");
+                throw new ArgumentException("Ending daily after count must be a positive number!");
             }
 
-            this.endTimeOfDayUtc = timeOfDayUtc;
+            if (startTimeOfDayUtc == null)
+            {
+                throw new ArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
+            }
+
+            DateTimeOffset today = DateTime.UtcNow;
+            DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today).Value;
+            DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today).Value;
+            TimeSpan remainingMillisInDay = maxEndTimeOfDayDate - startTimeOfDayDate;
+            TimeSpan intervalInMillis = TimeSpan.Zero;
+            if (intervalUnit == IntervalUnit.Second)
+            {
+                intervalInMillis = TimeSpan.FromSeconds(interval);
+            }
+            else if (intervalUnit == IntervalUnit.Minute)
+            {
+                intervalInMillis = TimeSpan.FromSeconds(interval * 60);
+            }
+            else if (intervalUnit == IntervalUnit.Hour)
+            {
+                intervalInMillis = TimeSpan.FromSeconds(interval * 60 * 24);
+            }
+            else
+            {
+                throw new ArgumentException("The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
+            }
+
+            if (remainingMillisInDay < intervalInMillis)
+            {
+                throw new ArgumentException("The startTimeOfDay is too late with given Interval and IntervalUnit values.");
+            }
+
+            long maxNumOfCount = (remainingMillisInDay.Ticks / intervalInMillis.Ticks);
+            if (count > maxNumOfCount)
+            {
+                throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
+            }
+
+            TimeSpan incrementInMillis = TimeSpan.FromTicks((count - 1) * intervalInMillis.Ticks) ;
+            DateTimeOffset endTimeOfDayDate = startTimeOfDayDate.Add(incrementInMillis);
+
+            if (endTimeOfDayDate > maxEndTimeOfDayDate)
+            {
+                throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
+            }
+
+            DateTime cal = DateTime.UtcNow.Date;
+            cal = cal.Add(endTimeOfDayDate.TimeOfDay);
+            endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(cal.Hour, cal.Minute, cal.Second);
             return this;
         }
 

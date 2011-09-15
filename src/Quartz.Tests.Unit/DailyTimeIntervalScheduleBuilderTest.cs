@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using Quartz.Spi;
 using Quartz.Job;
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
 
 using NUnit.Framework;
 
@@ -134,6 +135,88 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(1, trigger.RepeatInterval);
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 48);
             Assert.AreEqual(10, fireTimes.Count);
+        }
+
+        [Test]
+        public void TestEndingAtAfterCount()
+        {
+            DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+            IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger)TriggerBuilder.Create()
+                    .WithIdentity("test")
+                    .WithDailyTimeIntervalSchedule(x => 
+                        x.WithIntervalInMinutes(15)
+                        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+                        .EndingDailyAfterCount(12))
+                        .StartAt(startTime)
+                        .Build();
+            Assert.AreEqual("test", trigger.Key.Name);
+            Assert.AreEqual("DEFAULT", trigger.Key.Group);
+            Assert.AreEqual(IntervalUnit.Minute, trigger.RepeatIntervalUnit);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 48);
+            Assert.AreEqual(48, fireTimes.Count);
+            Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
+            Assert.AreEqual(DateBuilder.DateOf(10, 45, 0, 4, 1, 2011), fireTimes[47]);
+            Assert.AreEqual(new TimeOfDay(10, 45), trigger.EndTimeOfDayUtc);
+        }
+
+        [Test]
+        public void TestEndingAtAfterCountOf1()
+        {
+            DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+            IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger)TriggerBuilder.Create()
+                    .WithIdentity("test")
+                    .WithDailyTimeIntervalSchedule(x => x.WithIntervalInMinutes(15)
+                         .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+                        .EndingDailyAfterCount(1))
+                        .StartAt(startTime)
+                        .Build();
+            Assert.AreEqual("test", trigger.Key.Name);
+            Assert.AreEqual("DEFAULT", trigger.Key.Group);
+            Assert.AreEqual(IntervalUnit.Minute, trigger.RepeatIntervalUnit);
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 48);
+            Assert.AreEqual(48, fireTimes.Count);
+            Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
+            Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 17, 2, 2011), fireTimes[47]);
+            Assert.AreEqual(new TimeOfDay(8, 0), trigger.EndTimeOfDayUtc);
+        }
+
+        [Test]
+        public void TestEndingAtAfterCountOf0()
+        {
+            try
+            {
+                DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+                TriggerBuilder.Create()
+                        .WithIdentity("test")
+                        .WithDailyTimeIntervalSchedule(x => 
+                            x.WithIntervalInMinutes(15)
+                            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+                            .EndingDailyAfterCount(0))
+                            .StartAt(startTime)
+                        .Build();
+               Assert.Fail("We should not accept endingDailyAfterCount(0)");
+            }
+            catch (ArgumentException)
+            {
+                // Expected.
+            }
+
+            try
+            {
+                DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+                TriggerBuilder.Create()
+                        .WithIdentity("test")
+                        .WithDailyTimeIntervalSchedule(x => 
+                                x.WithIntervalInMinutes(15)
+                                .EndingDailyAfterCount(1))
+                        .StartAt(startTime)
+                        .Build();
+                Assert.Fail("We should not accept endingDailyAfterCount(x) without first setting startingDailyAt.");
+            }
+            catch (ArgumentException)
+            {
+                // Expected.
+            }
         }
     }
 }

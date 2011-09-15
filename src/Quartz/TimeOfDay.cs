@@ -203,5 +203,10 @@ namespace Quartz
         
         }
 
+        public override string ToString()
+        {
+            return "TimeOfDay[" + hour + ":" + minute + ":" + second + "]";
+        }
+    
     }
 }
