@@ -17,6 +17,7 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class DisallowConcurrentExecutionJobTest
     {
+        private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);
         private static readonly List<DateTime> jobExecDates = new List<DateTime>();
 
         [DisallowConcurrentExecution]
@@ -24,10 +25,10 @@ namespace Quartz.Tests.Unit
         {
             public void Execute(IJobExecutionContext context)
             {
-                jobExecDates.Add(DateTime.Now);
+                jobExecDates.Add(DateTime.UtcNow);
                 try
                 {
-                    Thread.Sleep(150);
+                    Thread.Sleep(jobBlockTime);
                 }
                 catch (ThreadInterruptedException)
                 {
@@ -45,23 +46,26 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestNoConcurrentExecOnSameJob()
         {
-            DateTime startTime = DateTime.Now.AddMilliseconds(300).ToUniversalTime(); // make the triggers fire at the same time.
+            DateTime startTime = DateTime.Now.AddMilliseconds(100).ToUniversalTime(); // make the triggers fire at the same time.
 
             IJobDetail job1 = JobBuilder.Create<TestJob>().WithIdentity("job1").Build();
             ITrigger trigger1 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).Build();
 
             ITrigger trigger2 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).ForJob(job1).Build();
 
-            IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
+            NameValueCollection props = new NameValueCollection();
+            props["quartz.scheduler.idleWaitTime"] = "1500";
+            props["quartz.threadPool.threadCount"] = "2";
+            IScheduler scheduler = new StdSchedulerFactory(props).GetScheduler();
             scheduler.ScheduleJob(job1, trigger1);
             scheduler.ScheduleJob(trigger2);
 
             scheduler.Start();
-            Thread.Sleep(1000);
+            Thread.Sleep(5000);
             scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
-            Assert.AreEqual(true, jobExecDates[0] < jobExecDates[1]);
+            Assert.Greater(jobExecDates[1] - jobExecDates[0], jobBlockTime);
         }
 
         /** QTZ-202 */
@@ -77,6 +81,7 @@ namespace Quartz.Tests.Unit
             ITrigger trigger2 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).ForJob(job1).Build();
 
             NameValueCollection props = new NameValueCollection();
+            props["quartz.scheduler.idleWaitTime"] = "1500";
             props["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "2";
             props["quartz.threadPool.threadCount"] = "2";
             IScheduler scheduler = new StdSchedulerFactory(props).GetScheduler();
@@ -84,11 +89,11 @@ namespace Quartz.Tests.Unit
             scheduler.ScheduleJob(trigger2);
 
             scheduler.Start();
-            Thread.Sleep(1000);
+            Thread.Sleep(5000);
             scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
-            Assert.AreEqual(true, jobExecDates[0] < jobExecDates[1]);
+            Assert.Greater(jobExecDates[1] - jobExecDates[0], jobBlockTime);
         }
     }
 }
