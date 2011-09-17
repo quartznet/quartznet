@@ -31,6 +31,19 @@ namespace Quartz
     /// <summary>
     /// A <see cref="IScheduleBuilder"/> implementation that build schedule for DailyTimeIntervalTrigger.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This builder provide an extra convenient method for you to set the trigger's EndTimeOfDay. You may
+    /// use either endingDailyAt() or EndingDailyAfterCount() to set the value. The later will auto calculate
+    /// your EndTimeOfDay by using the interval, IntervalUnit and StartTimeOfDay to perform the calculation.
+    /// </para>
+    /// <para>
+    /// When using EndingDailyAfterCount(), you should note that it is used to calculating EndTimeOfDay. So
+    /// if your startTime on the first day is already pass by a time that would not add up to the count you
+    /// expected, until the next day comes. Remember that DailyTimeIntervalTrigger will use StartTimeOfDay
+    /// and endTimeOfDay as fresh per each day!
+    /// </para>
+    /// </remarks>
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
