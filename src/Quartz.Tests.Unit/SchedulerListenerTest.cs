@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Collections.Specialized;
+using System.Threading;
 
 using Common.Logging;
 
@@ -161,7 +162,10 @@ namespace Quartz.Tests.Unit
         {
             Qtz205TriggerListener triggerListener = new Qtz205TriggerListener();
             Qtz205ScheListener schedulerListener = new Qtz205ScheListener();
-            IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
+            NameValueCollection props = new NameValueCollection();
+            props["quartz.scheduler.idleWaitTime"] = "1500";
+            props["quartz.threadPool.threadCount"] = "2";
+            IScheduler scheduler = new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddSchedulerListener(schedulerListener);
             scheduler.ListenerManager.AddTriggerListener(triggerListener);
 
@@ -173,7 +177,7 @@ namespace Quartz.Tests.Unit
 
             scheduler.ScheduleJob(job, trigger);
             scheduler.Start();
-            Thread.Sleep(4000);
+            Thread.Sleep(5000);
 
             scheduler.Shutdown(true);
 
