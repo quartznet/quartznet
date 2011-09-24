@@ -115,7 +115,7 @@
       <Name>System.XML</Name>
     </Reference>
     <Reference Include="Topshelf">
-      <HintPath>..\..\lib\other\Topshelf.dll</HintPath>
+      <HintPath>..\..\lib\other\4.0\Topshelf.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

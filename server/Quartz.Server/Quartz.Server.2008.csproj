@@ -100,9 +100,9 @@
     <Reference Include="System.Xml">
       <Name>System.XML</Name>
     </Reference>
-    <Reference Include="Topshelf, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Topshelf, Version=2.2.2.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\other\Topshelf.dll</HintPath>
+      <HintPath>..\..\lib\other\3.5\Topshelf.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

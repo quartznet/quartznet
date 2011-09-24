@@ -74,14 +74,37 @@
 
     <mkdir dir="build\${target.framework}\${build.configuration}\Quartz\" />
 
+    <property name="target.dir" value="build\${target.framework}\${build.configuration}\Quartz" />
+    <property name="client-profile" value="false" />
+    <call target="compile-quartz" />
+
+    <!-- client profile -->
+    <property name="original.build.defines" value="${build.defines}" />
+    <property name="build.defines" value="${build.defines},ClientProfile" />
+    <property name="target.dir" value="build\${target.framework}\${build.configuration}\Quartz\ClientProfile" />
+    <property name="client-profile" value="true" />
+    <call target="compile-quartz" />
+    <property name="build.defines" value="${original.build.defines}" />
+
+    <copy todir="build\${target.framework}\${build.configuration}\Quartz\" flatten="true" >
+      <fileset>
+        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
+      </fileset>
+    </copy>
+
+
+  </target>
+
+  <target name="compile-quartz">
     <csc
-		target="library"
-		output="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll"
-		doc="build\${target.framework}\${build.configuration}\Quartz\Quartz.xml"
-		debug="${build.debug}"
-		define="${build.defines}"
-		optimize="${build.optimize}"
-		keyfile="${build.keyfile}">
+      target="library"
+      output="${target.dir}\Quartz.dll"
+      doc="${target.dir}\Quartz.xml"
+      debug="${build.debug}"
+      define="${build.defines}"
+      optimize="${build.optimize}"
+      keyfile="${build.keyfile}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -104,21 +127,13 @@
         <include name="System.Configuration.dll" />
         <include name="System.Data.dll" />
         <include name="System.Runtime.Remoting.dll" />
-        <include name="System.Web.dll" />
         <include name="lib\2.0\Common.Logging.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
 
-    <copy todir="build\${target.framework}\${build.configuration}\Quartz\" flatten="true" >
-      <fileset>
-        <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
-      </fileset>
-    </copy>
-
-
   </target>
+
 
   <target name="build-examples" depends="build-quartz">
 
@@ -201,7 +216,7 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\other\TopShelf.dll" />
+        <include name="lib\other\${target.framework}\TopShelf.dll" />
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
@@ -213,7 +228,7 @@
         <include name="lib\2.0\Common.Logging.dll" />
         <include name="lib\2.0\Common.Logging.Log4Net.dll" />
         <include name="lib\other\log4net.dll" />
-        <include name="lib\other\TopShelf.dll" />
+        <include name="lib\other\${target.framework}\TopShelf.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
@@ -379,7 +394,7 @@
     <property name="build.optimize" value="true" />
     <property name="build.debug" value="PdbOnly" />
     <property name="build.defines" value="TRACE,STRONG" />
-	<property name="build.keyfile" value="Quartz.Net.snk" />
+	  <property name="build.keyfile" value="Quartz.Net.snk" />
 
     <if test="${c5-collections}" >
       <property name="build.defines" value="${build.defines},C5" />
@@ -481,5 +496,4 @@
       </source>
     </anakia>
   </target>
-
 </project>
