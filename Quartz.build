@@ -104,6 +104,7 @@
       debug="${build.debug}"
       define="${build.defines}"
       optimize="${build.optimize}"
+      noconfig="true"
       keyfile="${build.keyfile}">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
@@ -124,9 +125,12 @@
       </resources>
       <references>
         <include name="System.dll" />
+        <include name="System.Core.dll" />
         <include name="System.Configuration.dll" />
         <include name="System.Data.dll" />
         <include name="System.Runtime.Remoting.dll" />
+        <include name="System.Web.dll" unless="${client-profile}" />
+        <include name="System.Xml.dll" />
         <include name="lib\2.0\Common.Logging.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
