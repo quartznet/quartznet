@@ -321,7 +321,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\DefaultObjectSerializer.cs" />
-    <Compile Include="Simpl\IWcfQuartzScheduler.cs" />
     <Compile Include="Simpl\SystemPropertyInstanceIdGenerator.cs" />
     <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
       <SubType>Code</SubType>
@@ -347,7 +346,6 @@
     <Compile Include="Simpl\SimpleThreadPool.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Simpl\WcfSchedulerExporter.cs" />
     <Compile Include="SPI\IMutableTrigger.cs" />
     <Compile Include="SPI\IObjectSerializer.cs" />
     <Compile Include="SPI\IOperableTrigger.cs" />
