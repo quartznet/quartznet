@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
@@ -21,7 +22,11 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestAnnualCalendarSerialization()
         {
-            Serialize(new AnnualCalendar());
+            AnnualCalendar annualCalendar = new AnnualCalendar();
+            DateTimeOffset day = new DateTimeOffset(2011, 12, 20, 0, 0, 0, TimeSpan.Zero);
+            annualCalendar.SetDayExcluded(day, true);
+            AnnualCalendar clone = annualCalendar.DeepClone();
+            Assert.IsTrue(clone.IsDayExcluded(day));
         }
 
         [Test]
@@ -33,7 +38,11 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestBaseCalendarSerialization()
         {
-            Serialize(new BaseCalendar());
+            BaseCalendar baseCalendar = new BaseCalendar();
+            TimeZoneInfo timeZone = TimeZoneInfo.GetSystemTimeZones()[3];
+            baseCalendar.TimeZone = timeZone;
+            BaseCalendar clone = baseCalendar.DeepClone();
+            Assert.AreEqual(timeZone.Id, clone.TimeZone.Id);
         }
 
         [Test]
@@ -45,7 +54,9 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestCronCalendarSerialization()
         {
-            Serialize(new CronCalendar("* * 8-17 ? * *"));
+            CronCalendar cronCalendar = new CronCalendar("* * 8-17 ? * *");
+            CronCalendar clone = cronCalendar.DeepClone();
+            Assert.AreEqual("* * 8-17 ? * *", clone.CronExpression.CronExpressionString);
         }
 
         [Test]
@@ -57,7 +68,22 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestDailyCalendarSerialization()
         {
-            Serialize(new DailyCalendar("12:00:00:000", "13:14"));
+            DailyCalendar dailyCalendar = new DailyCalendar("12:13:14:150", "13:14");
+            DailyCalendar clone = dailyCalendar.DeepClone();
+
+            DateTimeOffset timeRangeStartTimeUtc = clone.GetTimeRangeStartingTimeUtc(DateTimeOffset.UtcNow);
+            Assert.AreEqual(12, timeRangeStartTimeUtc.Hour);
+            Assert.AreEqual(13, timeRangeStartTimeUtc.Minute);
+            Assert.AreEqual(14, timeRangeStartTimeUtc.Second);
+            Assert.AreEqual(150, timeRangeStartTimeUtc.Millisecond);
+
+            
+            DateTimeOffset timeRangeEndingTimeUtc = clone.GetTimeRangeEndingTimeUtc(DateTimeOffset.UtcNow);
+            
+            Assert.AreEqual(13, timeRangeEndingTimeUtc.Hour);
+            Assert.AreEqual(14, timeRangeEndingTimeUtc.Minute);
+            Assert.AreEqual(0, timeRangeEndingTimeUtc.Second);
+            Assert.AreEqual(0, timeRangeEndingTimeUtc.Millisecond);
         }
 
         [Test]
@@ -69,7 +95,10 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestHolidayCalendarSerialization()
         {
-            Serialize(new HolidayCalendar());
+            HolidayCalendar holidayCalendar = new HolidayCalendar();
+            holidayCalendar.AddExcludedDate(new DateTime(2010, 1, 20));
+            HolidayCalendar clone = holidayCalendar.DeepClone();
+            Assert.AreEqual(1, clone.ExcludedDates.Count);
         }
 
         [Test]
@@ -81,7 +110,10 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestMonthlyCalendarSerialization()
         {
-            Serialize(new MonthlyCalendar());
+            MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
+            monthlyCalendar.SetDayExcluded(20, true);
+            MonthlyCalendar clone = monthlyCalendar.DeepClone();
+            Assert.IsTrue(clone.IsDayExcluded(20));
         }
 
         [Test]
@@ -93,7 +125,10 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestWeeklyCalendarSerialization()
         {
-            Serialize(new WeeklyCalendar());
+            WeeklyCalendar weeklyCalendar = new WeeklyCalendar();
+            weeklyCalendar.SetDayExcluded(DayOfWeek.Monday, true);
+            WeeklyCalendar clone = weeklyCalendar.DeepClone();
+            Assert.IsTrue(clone.IsDayExcluded(DayOfWeek.Monday));
         }
 
         [Test]
@@ -105,15 +140,14 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestTreeSetSerialization()
         {
-            Serialize(new TreeSet<string>());
+            new TreeSet<string>().DeepClone();
         }
 
         [Test]
         public void TestHashSetSerialization()
         {
-            Serialize(new HashSet<string>());
+            new HashSet<string>().DeepClone();
         }
-
 
         [Test]
         public void TestJobDataMapDeserialization()
@@ -129,7 +163,9 @@ namespace Quartz.Tests.Unit
             JobDataMap map = new JobDataMap();
             map["foo"] = "bar";
             map["num"] = 123;
-            Serialize(map);
+            JobDataMap clone = map.DeepClone();
+            Assert.AreEqual("bar", clone["foo"]);
+            Assert.AreEqual(123, clone["num"]);
         }
 
         [Test]
@@ -138,7 +174,10 @@ namespace Quartz.Tests.Unit
             StringKeyDirtyFlagMap map = new StringKeyDirtyFlagMap();
             map["foo"] = "bar";
             map["num"] = 123;
-            Serialize(map);
+
+            StringKeyDirtyFlagMap clone = map.DeepClone();
+            Assert.AreEqual("bar", clone["foo"]);
+            Assert.AreEqual(123, clone["num"]);
         }
 
         [Test]
@@ -147,13 +186,10 @@ namespace Quartz.Tests.Unit
             SchedulerContext map = new SchedulerContext();
             map["foo"] = "bar";
             map["num"] = 123;
-            Serialize(map);
-        }
 
-        private static void Serialize<T>(T item) where T : class
-        {
-            BinaryFormatter formatter = new BinaryFormatter();
-            formatter.Serialize(new MemoryStream(), item);
+            SchedulerContext clone = map.DeepClone();
+            Assert.AreEqual("bar", clone["foo"]);
+            Assert.AreEqual(123, clone["num"]);
         }
 
         private static T Deserialize<T>() where T : class 
