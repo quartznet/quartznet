@@ -42,46 +42,39 @@ namespace Quartz.Util
 		/// <returns>The new value, possibly the result of type conversion.</returns>
 		public static object ConvertValueIfNecessary(Type requiredType, object newValue)
 		{
-			if (newValue != null)
-			{
-				// if it is assignable, return the value right away
-				if (IsAssignableFrom(newValue, requiredType))
-				{
-					return newValue;
-				}
-				
-				// try to convert using type converter
-			    TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
-			    if (typeConverter.CanConvertFrom(newValue.GetType()))
-			    {
-				    newValue = typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
-			    }
-			    if (requiredType == typeof(int) && newValue.GetType() == typeof(long))
-			    {
-				    // automatically doesn't work, try with converter
-                    newValue = Convert.ToInt32(newValue, CultureInfo.InvariantCulture);
-			    }
-			    else if (requiredType == typeof(short) && (newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
-			    {
-				    // automatically doesn't work, try with converter
-                    newValue = Convert.ToInt16(newValue, CultureInfo.InvariantCulture);
-			    }
-			    else if (requiredType == typeof(byte) && (newValue.GetType() == typeof(short) || newValue.GetType() == typeof(int) || newValue.GetType() == typeof(long)))
-			    {
-				    // automatically doesn't work, try with converter
-                    newValue = Convert.ToByte(newValue, CultureInfo.InvariantCulture);
-			    }
-                else if (newValue != null && requiredType == typeof(Type))
+            if (newValue != null)
+            {
+                // if it is assignable, return the value right away
+                if (IsAssignableFrom(newValue, requiredType))
                 {
-                    Type t = Type.GetType(newValue.ToString());
-                    if (t == null)
-                    {
-                        throw new ArgumentException("Unable to load type '" + newValue + "', incorrect type or missing assembly reference");
-                    }
-                    newValue = t;
+                    return newValue;
                 }
-			}
-			return newValue;
+
+                // try to convert using type converter
+                TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
+                if (typeConverter != null && typeConverter.CanConvertFrom(newValue.GetType()))
+                {
+                    return typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
+                }
+                typeConverter = TypeDescriptor.GetConverter(newValue);
+                if (typeConverter != null && typeConverter.CanConvertTo(requiredType))
+                {
+                    return typeConverter.ConvertTo(null, CultureInfo.InvariantCulture, newValue, requiredType);
+                }
+                if (requiredType == typeof(Type))
+                {
+                    return Type.GetType(newValue.ToString(), true);
+                }
+
+                throw new NotSupportedException(newValue + " is no a supported value for a target of type " + requiredType);
+            }
+	        if (requiredType.IsValueType)
+	        {
+	            return Activator.CreateInstance(requiredType);
+	        }
+
+            // return default
+	        return newValue;
 		}
 
 

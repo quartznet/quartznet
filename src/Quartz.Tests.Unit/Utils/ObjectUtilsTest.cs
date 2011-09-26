@@ -33,35 +33,20 @@ namespace Quartz.Tests.Unit.Utils
     public class ObjectUtilsTest
     {
         [Test]
-        public void TestNullObjectForValueType()
+        public void NullObjectForValueTypeShouldReturnDefaultforValueType()
         {
-            try
-            {
-                ObjectUtils.ConvertValueIfNecessary(typeof (int), null);
-                Assert.Fail("Accepted null");
-            }
-            catch
-            {
-                // ok
-            }
+            object value = ObjectUtils.ConvertValueIfNecessary(typeof(int), null);
+            Assert.AreEqual(0, value);
         }
 
         [Test]
-        public void TestNotConvertableData()
+        public void NotConvertableDataShouldTrhowNotSupportedException()
         {
-            try
-            {
-                ObjectUtils.ConvertValueIfNecessary(typeof (int), new DirtyFlagMap<int, string>());
-                Assert.Fail("Accepted null");
-            }
-            catch
-            {
-                // ok
-            }
+            Assert.Throws<NotSupportedException>(() => ObjectUtils.ConvertValueIfNecessary(typeof(int), new DirtyFlagMap<int, string>()));
         }
 
         [Test]
-        public void TestTimeSpanConversion()
+        public void TimeSpanConversionShouldWork()
         {
             TimeSpan ts = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof (TimeSpan), "1");
             Assert.AreEqual(1, ts.TotalDays);
