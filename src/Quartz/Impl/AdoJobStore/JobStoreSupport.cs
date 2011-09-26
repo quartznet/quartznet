@@ -301,6 +301,10 @@ namespace Quartz.Impl.AdoJobStore
         /// is considered unnecessary for most databases (due to the nature of
         ///  the SQL update that is performed), and therefore a superfluous performance hit.
         /// </summary>
+        /// <remarks>
+        /// However, if batch acquisition is used, it is important for this behavior 
+        /// to be used for all dbs.
+        /// </remarks>
         public bool AcquireTriggersWithinLock
         {
             get { return acquireTriggersWithinLock; }
@@ -2398,15 +2402,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger)" />
         public virtual IList<IOperableTrigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
-            if (AcquireTriggersWithinLock)
+            if (AcquireTriggersWithinLock || maxCount > 1)
             {
-                return
-                    (IList<IOperableTrigger>)ExecuteInNonManagedTXLock(LockTriggerAccess, conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow));
+                return (IList<IOperableTrigger>) ExecuteInNonManagedTXLock(LockTriggerAccess, conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow));
             }
             else
             {
-                // default behavior since Quartz 1.0.1 release
-                return (IList<IOperableTrigger>)ExecuteInNonManagedTXLock(
+                return (IList<IOperableTrigger>) ExecuteInNonManagedTXLock(
                     null, /* passing null as lock name causes no lock to be made */
                     conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow));
             }
