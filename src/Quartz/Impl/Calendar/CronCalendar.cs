@@ -18,6 +18,8 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
+using System.Security;
 using System.Text;
 
 namespace Quartz.Impl.Calendar
@@ -65,8 +67,7 @@ namespace Quartz.Impl.Calendar
 		/// calendar functionality
 		/// </param>
 		/// <param name="expression">a string representation of the desired cron expression</param>
-		public CronCalendar( ICalendar baseCalendar,
-		                    string expression) : base(baseCalendar)
+		public CronCalendar(ICalendar baseCalendar, string expression) : base(baseCalendar)
 		{
             cronExpression = new CronExpression(expression);
 		}
@@ -82,14 +83,47 @@ namespace Quartz.Impl.Calendar
         /// </param>
         /// <param name="expression">a string representation of the desired cron expression</param>
         /// <param name="timeZone"></param>
-        public CronCalendar(ICalendar baseCalendar,
-                            string expression,
-                            TimeZoneInfo timeZone)
-            : base(baseCalendar, timeZone)
+        public CronCalendar(ICalendar baseCalendar, string expression, TimeZoneInfo timeZone) : base(baseCalendar, timeZone)
         {
             cronExpression = new CronExpression(expression);
         }
 
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected CronCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            int version;
+            try
+            {
+                version = info.GetInt32("version");
+            }
+            catch
+            {
+                version = 0;
+            }
+
+            switch (version)
+            {
+                case 0:
+                case 1:
+                    cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression));
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown serialization version");
+            }
+
+        }
+
+        [SecurityCritical]
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue("version", 1);
+            info.AddValue("cronExpression", cronExpression);
+        }
 
 	    public override TimeZoneInfo TimeZone
 	    {

@@ -18,6 +18,8 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
+using System.Security;
 
 namespace Quartz.Impl.Calendar
 {
@@ -38,7 +40,7 @@ namespace Quartz.Impl.Calendar
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	[Serializable]
-	public class BaseCalendar : ICalendar
+	public class BaseCalendar : ICalendar, ISerializable
 	{
         // A optional base calendar.
         private ICalendar baseCalendar;
@@ -81,6 +83,37 @@ namespace Quartz.Impl.Calendar
 	        this.baseCalendar = baseCalendar;
 	        this.timeZone = timeZone;
 	    }
+
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected BaseCalendar(SerializationInfo info, StreamingContext context)
+        {
+            string prefix = "";
+            try
+            {
+                info.GetValue("description", typeof(string));
+            }
+            catch
+            {
+                // base class for other
+                prefix = "BaseCalendar+";
+            } 
+
+            baseCalendar = (ICalendar) info.GetValue(prefix + "baseCalendar", typeof(ICalendar));
+            description = (string)info.GetValue(prefix + "description", typeof(string));
+            timeZone = (TimeZoneInfo)info.GetValue(prefix + "timeZone", typeof(TimeZoneInfo));
+        }
+
+        [SecurityCritical]
+        public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
+	    {
+            info.AddValue("baseCalendar", baseCalendar);
+            info.AddValue("description", description);
+            info.AddValue("timeZone", timeZone);
+        }
 
         /// <summary>
         /// Gets or sets the time zone.

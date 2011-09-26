@@ -25,6 +25,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Remoting;
+using System.Security;
 using System.Text;
 using System.Threading;
 
@@ -2367,6 +2368,7 @@ namespace Quartz.Core
         ///<summary>
         ///Obtains a lifetime service object to control the lifetime policy for this instance.
         ///</summary>
+        [SecurityCritical]
         public override object InitializeLifetimeService()
         {
             // overriden to initialize null life time service,

@@ -19,6 +19,8 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.Serialization;
+using System.Security;
 
 namespace Quartz.Impl.Calendar
 {
@@ -32,30 +34,9 @@ namespace Quartz.Impl.Calendar
 	/// <author>Juergen Donnerstag</author>
 	/// <author>Marko Lahma (.NET)</author>
 	[Serializable]
-	public class MonthlyCalendar : BaseCalendar, ICalendar
+	public class MonthlyCalendar : BaseCalendar
 	{
         private const int MaxDaysInMonth = 31;
-
-		/// <summary>
-		/// Get or set the array which defines the exclude-value of each day of month
-		/// Setting will redefine the array of days excluded. The array must of size greater or
-		/// equal 31.
-		/// </summary>
-		public virtual bool[] DaysExcluded
-		{
-			get { return excludeDays; }
-
-			set
-			{
-				if (value == null)
-				{
-					return;
-				}
-
-				excludeDays = value;
-				excludeAll = AreAllDaysExcluded();
-			}
-		}
 
 		// An array to store a months days which are to be excluded.
 		// Day as index.
@@ -81,6 +62,45 @@ namespace Quartz.Impl.Calendar
 		{
 			Init();
 		}
+                
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected MonthlyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            int version;
+            try
+            {
+                version = info.GetInt32("version");
+            }
+            catch
+            {
+                version = 0;
+            }
+
+            switch (version)
+            {
+                case 0:
+                case 1:
+                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]));
+                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool));
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown serialization version");
+            }
+
+        }
+
+        [SecurityCritical]
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue("version", 1);
+            info.AddValue("excludeDays", excludeDays);
+            info.AddValue("excludeAll", excludeAll);
+        }
 
 		/// <summary> 
 		/// Initialize internal variables
@@ -90,6 +110,27 @@ namespace Quartz.Impl.Calendar
 			// all days are included by default
 			excludeAll = AreAllDaysExcluded();
 		}
+
+        /// <summary>
+        /// Get or set the array which defines the exclude-value of each day of month
+        /// Setting will redefine the array of days excluded. The array must of size greater or
+        /// equal 31.
+        /// </summary>
+        public virtual bool[] DaysExcluded
+        {
+            get { return excludeDays; }
+
+            set
+            {
+                if (value == null)
+                {
+                    return;
+                }
+
+                excludeDays = value;
+                excludeAll = AreAllDaysExcluded();
+            }
+        }
 
 		/// <summary>
 		/// Return true, if mday is defined to be exluded.

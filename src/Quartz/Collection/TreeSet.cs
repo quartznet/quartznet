@@ -89,4 +89,12 @@ namespace Quartz.Collection
             get { return base[index]; }
         }
     }
+
+    /// <summary>
+    /// Only for backwards compatibility with serialization!
+    /// </summary>
+    [Serializable]
+    public class TreeSet : System.Collections.ArrayList
+    {
+    }
 }

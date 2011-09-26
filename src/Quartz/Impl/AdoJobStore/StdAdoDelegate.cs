@@ -2605,7 +2605,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="obj">the object to serialize</param>
         /// <returns>Serialized object as byte array.</returns>
-        protected internal virtual byte[] SerializeObject(object obj)
+        protected virtual byte[] SerializeObject(object obj)
         {
             byte[] retValue = null;
             if (obj != null)

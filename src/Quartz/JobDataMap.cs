@@ -21,6 +21,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -80,6 +81,15 @@ namespace Quartz
             {
                 Put((string) entry.Key, entry.Value);
             }
+        }
+
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected JobDataMap(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
         }
 
         /// <summary>

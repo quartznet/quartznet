@@ -137,8 +137,7 @@ namespace Quartz
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        public JobExecutionException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
+        protected JobExecutionException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
 

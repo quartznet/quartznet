@@ -18,6 +18,8 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
+using System.Security;
 
 namespace Quartz.Impl.Calendar
 {
@@ -31,8 +33,81 @@ namespace Quartz.Impl.Calendar
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class WeeklyCalendar : BaseCalendar, ICalendar
+    public class WeeklyCalendar : BaseCalendar
     {
+        // An array to store the week days which are to be excluded.
+        // DayOfWeek enumeration values are used as index.
+        private bool[] excludeDays = new bool[7];
+
+        // Will be set to true, if all week days are excluded
+        private bool excludeAll = false;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
+        /// </summary>
+        public WeeklyCalendar()
+        {
+            Init();
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
+        /// </summary>
+        /// <param name="baseCalendar">The base calendar.</param>
+        public WeeklyCalendar(ICalendar baseCalendar) : base(baseCalendar)
+        {
+            Init();
+        }
+
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected WeeklyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            int version;
+            try
+            {
+                version = info.GetInt32("version");
+            }
+            catch
+            {
+                version = 0;
+            }
+
+            switch (version)
+            {
+                case 0:
+                case 1:
+                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]));
+                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool));
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown serialization version");
+            }
+
+        }
+
+        [SecurityCritical]
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue("version", 1);
+            info.AddValue("excludeDays", excludeDays);
+            info.AddValue("excludeAll", excludeAll);
+        }
+
+        /// <summary>
+        /// Initialize internal variables
+        /// </summary>
+        private void Init()
+        {
+            excludeDays[(int)DayOfWeek.Sunday] = true;
+            excludeDays[(int)DayOfWeek.Saturday] = true;
+            excludeAll = AreAllDaysExcluded();
+        }
+
         /// <summary> 
         /// Get the array with the week days.
         /// Setting will redefine the array of days excluded. The array must of size greater or
@@ -53,41 +128,6 @@ namespace Quartz.Impl.Calendar
                 excludeDays = value;
                 excludeAll = AreAllDaysExcluded();
             }
-        }
-
-        // An array to store the week days which are to be excluded.
-        // DayOfWeek enumeration values are used as index.
-        private bool[] excludeDays = new bool[7];
-
-        // Will be set to true, if all week days are excluded
-        private bool excludeAll = false;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
-        /// </summary>
-        public WeeklyCalendar()
-        {
-            Init();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
-        /// </summary>
-        /// <param name="baseCalendar">The base calendar.</param>
-        public WeeklyCalendar(ICalendar baseCalendar)
-            : base(baseCalendar)
-        {
-            Init();
-        }
-
-        /// <summary>
-        /// Initialize internal variables
-        /// </summary>
-        private void Init()
-        {
-            excludeDays[(int)DayOfWeek.Sunday] = true;
-            excludeDays[(int)DayOfWeek.Saturday] = true;
-            excludeAll = AreAllDaysExcluded();
         }
 
         /// <summary> 

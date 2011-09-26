@@ -19,6 +19,8 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.Serialization;
+using System.Security;
 using System.Text;
 
 namespace Quartz.Impl.Calendar
@@ -357,6 +359,55 @@ namespace Quartz.Impl.Calendar
         {
             SetTimeRange(rangeStartingTimeInMillis,
                          rangeEndingTimeInMillis);
+        }
+
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected DailyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            int version;
+            try
+            {
+                version = info.GetInt32("version");
+            }
+            catch
+            {
+                version = 0;
+            }
+
+            switch (version)
+            {
+                case 0:
+                case 1:
+                    /* TODO
+                     * 
+                     * rangeStartingHourOfDay;
+                     * rangeStartingMinute;
+                     * rangeStartingSecond;
+                     * rangeStartingMillis;
+                     * rangeEndingHourOfDay;
+                     * rangeEndingMinute;
+                     * rangeEndingSecond;
+                     * rangeEndingMillis;
+                     * 
+                     *  invertTimeRange = false
+                     */
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown serialization version");
+            }
+
+        }
+
+        [SecurityCritical]
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue("version", 1);
+            // TODO info.AddValue("cronExpression", cronExpression);
         }
 
         /// <summary>

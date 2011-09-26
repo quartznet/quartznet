@@ -50,8 +50,7 @@ namespace Quartz
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        public ObjectAlreadyExistsException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
+        protected ObjectAlreadyExistsException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
 
@@ -66,8 +65,7 @@ namespace Quartz
 		/// </para>
 		/// </summary>
         public ObjectAlreadyExistsException(IJobDetail offendingJob)
-			: base(
-				string.Format(CultureInfo.InvariantCulture, "Unable to store Job: '{0}', because one already exists with this identification.", offendingJob.Key))
+			: base(string.Format(CultureInfo.InvariantCulture, "Unable to store Job: '{0}', because one already exists with this identification.", offendingJob.Key))
 		{
 		}
 
@@ -82,8 +80,7 @@ namespace Quartz
 		/// </para>
 		/// </summary>
 		public ObjectAlreadyExistsException(ITrigger offendingTrigger)
-			: base(
-				string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger: '{0}', because one already exists with this identification.", offendingTrigger.Key))
+			: base(string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger: '{0}', because one already exists with this identification.", offendingTrigger.Key))
 		{
 		}
 	}

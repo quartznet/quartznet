@@ -18,7 +18,11 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
+using System.Security;
+using System.Security.Permissions;
 
 namespace Quartz.Impl.Calendar
 {
@@ -52,9 +56,61 @@ namespace Quartz.Impl.Calendar
         /// Constructor
         /// </summary>
         /// <param name="baseCalendar">The base calendar.</param>
-        public AnnualCalendar(ICalendar baseCalendar)
-            : base(baseCalendar)
+        public AnnualCalendar(ICalendar baseCalendar) : base(baseCalendar)
         {
+        }
+
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected AnnualCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            int version;
+            try
+            {
+                version = info.GetInt32("version");
+            }
+            catch
+            {
+                version = 0;
+            }
+
+            switch (version)
+            {
+                case 0:
+                    // 1.x
+                    object o = info.GetValue("excludeDays", typeof(object));
+                    ArrayList oldFormat = o as ArrayList;
+                    if (oldFormat != null)
+                    {
+                        foreach (DateTime dateTime in oldFormat)
+                        {
+                            excludeDays.Add(dateTime);
+                        }
+                    }
+                    else
+                    {
+                        // must be new..
+                        excludeDays = (List<DateTimeOffset>) o;
+                    }
+                    break;
+                case 1:
+                    excludeDays = (List<DateTimeOffset>)info.GetValue("excludeDays", typeof(List<DateTimeOffset>));
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown serialization version");
+            }
+
+        }
+
+        [SecurityCritical]
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue("version", 1);
+            info.AddValue("excludeDays", excludeDays);
         }
 
         /// <summary> 
@@ -219,6 +275,8 @@ namespace Quartz.Impl.Calendar
 
             return excludeDays.GetHashCode() + 5 * baseHash;
         }
+
+
 
         public bool Equals(AnnualCalendar obj)
         {

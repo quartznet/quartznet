@@ -18,6 +18,8 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
+using System.Security;
 
 using Quartz.Collection;
 
@@ -66,6 +68,58 @@ namespace Quartz.Impl.Calendar
 		{
 			CalendarBase = baseCalendar;
 		}
+        
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected HolidayCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            int version;
+            try
+            {
+                version = info.GetInt32("version");
+            }
+            catch
+            {
+                version = 0;
+            }
+
+            switch (version)
+            {
+                case 0:
+                    object o = info.GetValue("dates", typeof(object));
+                    TreeSet oldTreeset = o as TreeSet;
+                    if (oldTreeset != null)
+                    {
+                        foreach (DateTime dateTime in oldTreeset)
+                        {
+                            dates.Add(dateTime);
+                        }
+                    }
+                    else
+                    {
+                        // must be generic treeset 
+                        dates = (TreeSet<DateTime>) o;
+                    }
+                    break;
+                case 1:
+                    dates = (TreeSet<DateTime>) info.GetValue("dates", typeof(TreeSet<DateTime>));
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown serialization version");
+            }
+
+        }
+
+        [SecurityCritical]
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info.AddValue("version", 1);
+            info.AddValue("dates", dates);
+        }
 
 		/// <summary>
 		/// Determine whether the given time (in milliseconds) is 'included' by the

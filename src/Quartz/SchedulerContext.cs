@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -55,5 +56,13 @@ namespace Quartz
 			PutAll(map);
 		}
 
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected SchedulerContext(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+        }
 	}
 }

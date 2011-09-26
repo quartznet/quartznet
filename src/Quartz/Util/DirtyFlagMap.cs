@@ -20,6 +20,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
+using System.Security;
 
 namespace Quartz.Util
 {
@@ -30,7 +32,7 @@ namespace Quartz.Util
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ICloneable
+    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ICloneable, ISerializable
     {
         private bool dirty;
         private Dictionary<TKey, TValue> map;
@@ -51,6 +53,79 @@ namespace Quartz.Util
         public DirtyFlagMap(int initialCapacity)
         {
             map = new Dictionary<TKey, TValue>(initialCapacity);
+        }
+
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected DirtyFlagMap(SerializationInfo info, StreamingContext context)
+        {
+            int version;
+            try
+            {
+                version = info.GetInt32("version");
+            }
+            catch
+            {
+                version = 0;
+            }
+
+
+            string prefix = "";
+            if (version < 1)
+            {
+                try
+                {
+                    info.GetValue("dirty", typeof(bool));
+                }
+                catch
+                {
+                    // base class qualified format
+                    prefix = "DirtyFlagMap+";
+                }
+            }
+
+            switch (version)
+            {
+                case 0:
+                    object o = info.GetValue(prefix + "map", typeof (object));
+                    Hashtable oldMap = o as Hashtable;
+                    if (oldMap != null)
+                    {
+                        // need to call ondeserialization to get hashtable
+                        // initialized correctly
+                        oldMap.OnDeserialization(this);
+
+                        map = new Dictionary<TKey, TValue>();
+                        foreach (DictionaryEntry entry in oldMap)
+                        {
+                            map.Add((TKey) entry.Key, (TValue) entry.Value);
+                        }
+                    }
+                    else
+                    {
+                        // new version
+                        map = (Dictionary<TKey, TValue>) o;
+                    }
+                    break;
+                case 1:
+                    dirty = (bool) info.GetValue("dirty", typeof (bool));
+                    map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof (Dictionary<TKey, TValue>));
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown serialization version");
+            }
+
+        }
+
+        [SecurityCritical]
+        public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            info.AddValue("version", 1);
+            info.AddValue("dirty", dirty);
+            info.AddValue("map", map);
         }
 
         /// <summary>
