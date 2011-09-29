@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.Remoting;
+using Quartz;
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Simpl;
@@ -58,6 +59,12 @@ namespace Quartz.Impl
         /// </summary>
         /// <value>The remote scheduler address.</value>
         public virtual string RemoteSchedulerAddress { get; set; }
+
+
+        /// <summary>
+        /// Gets or sets the remote proxy class
+        /// </summary>
+        public virtual ISchedulerRemotableProxy Proxy { get; set; }
 
         /// <summary>
         /// returns true if the given JobGroup
@@ -591,7 +598,9 @@ namespace Quartz.Impl
 
             try
             {
-                rsched = (IRemotableQuartzScheduler) Activator.GetObject(typeof(IRemotableQuartzScheduler), RemoteSchedulerAddress);
+                ISchedulerRemotableProxy p = Proxy;
+                p.RemoteSchedulerAddress = RemoteSchedulerAddress;
+                rsched = p.BuildProxy();
             }
             catch (Exception e)
             {

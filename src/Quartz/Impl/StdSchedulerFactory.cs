@@ -88,6 +88,7 @@ namespace Quartz.Impl
         public const string PropertySchedulerExporterPrefix = "quartz.scheduler.exporter";
         public const string PropertySchedulerExporterType = PropertySchedulerExporterPrefix + ".type";
         public const string PropertySchedulerProxy = "quartz.scheduler.proxy";
+        public const string PropertySchedulerProxyType = "quartz.scheduler.proxy.type";
         public const string PropertySchedulerProxyAddress = "quartz.scheduler.proxy.address";
         public const string PropertySchedulerIdleWaitTime = "quartz.scheduler.idleWaitTime";
         public const string PropertySchedulerDbFailureRetryInterval = "quartz.scheduler.dbFailureRetryInterval";
@@ -392,24 +393,7 @@ Please add configuration to your application config file to correctly initialize
             NameValueCollection schedCtxtProps = cfg.GetPropertyGroup(PropertySchedulerContextPrefix, true);
 
             bool proxyScheduler = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
-            // If Proxying to remote scheduler, short-circuit here...
-            // ~~~~~~~~~~~~~~~~~~
-            if (proxyScheduler)
-            {
-                if (autoId)
-                {
-                    schedInstId = DefaultInstanceId;
-                }
 
-                string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
-
-                RemoteScheduler remoteScheduler = new RemoteScheduler(uid);
-                string remoteSchedulerAddress = cfg.GetStringProperty(PropertySchedulerProxyAddress);
-                remoteScheduler.RemoteSchedulerAddress = remoteSchedulerAddress;
-                schedRep.Bind(remoteScheduler);
-
-                return remoteScheduler;
-            }
 
             // Create type load helper
             ITypeLoadHelper loadHelper;
@@ -422,6 +406,42 @@ Please add configuration to your application config file to correctly initialize
                 throw new SchedulerConfigException("Unable to instantiate type load helper: {0}".FormatInvariant(e.Message), e);
             }
             loadHelper.Initialize();
+            
+            
+            // If Proxying to remote scheduler, short-circuit here...
+            // ~~~~~~~~~~~~~~~~~~
+            if (proxyScheduler)
+            {
+                if (autoId)
+                {
+                    schedInstId = DefaultInstanceId;
+                }
+
+                Type proxyType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerProxyType)) ?? typeof(SchedulerRemotableProxyImpl);
+                ISchedulerRemotableProxy p;
+                try
+                {
+                    p = ObjectUtils.InstantiateType<ISchedulerRemotableProxy>(proxyType);
+                }
+                catch (Exception e)
+                {
+                    initException = new SchedulerException("Remotable proxy type '{0}' could not be instantiated.".FormatInvariant(proxyType), e);
+                    throw initException;
+                }
+
+
+                string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
+
+                RemoteScheduler remoteScheduler = new RemoteScheduler(uid);
+                string remoteSchedulerAddress = cfg.GetStringProperty(PropertySchedulerProxyAddress);
+                remoteScheduler.RemoteSchedulerAddress = remoteSchedulerAddress;
+                remoteScheduler.Proxy = p;
+                
+                schedRep.Bind(remoteScheduler);
+
+                return remoteScheduler;
+            }
+
 
             IJobFactory jobFactory = null;
             if (jobFactoryType != null)
