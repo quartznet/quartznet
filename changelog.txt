@@ -1,16 +1,14 @@
 QUARTZ.NET CHANGELOG
 ==============================
-http://quartznet.sourceforge.net
+http://www.quartz-scheduler.net
 
 
-Release 2.0, xx.2011
+Release 2.0 beta 1, October 2, 2011
 -------------------------------
-
-* A separate migration guide must be written *
 
 BREAKING CHANGES
 
-* .NET 1.1 support is dropped
+* .NET 1.1 and 2.0 support is dropped
 * Quartz.NET now needs .NET version 3.5 SP1 or later to run due to use of new language features and classes
 * Many public interface methods have changed from returning arrays to generic IList or ISet interfaces
 * TriggerBuilder implementations and JobBuilder should now be used to create different job and trigger definitions
@@ -20,10 +18,14 @@ BREAKING CHANGES
 * string jobName, string jobGroup are now encapsulated in JobKey (has the same fields)
 * JobInitializationPlugin is now deprecated in favor of XMLSchedulingDataProcessorPlugin, JobInitializationPlugin no longer included
 * Microsoft's Oracle drivers are no longer supported, use 10g or 11g ODP.NET drivers
+* Database schema has changed, you need to convert your 1.x schema to new version, sample migration script available in database folder
 
 OTHER NOTABLE CHANGES
 
 * XMLSchedulingDataProcessorPlugin uses new XML format that allows more control over triggers but no support for calendars
+* There are extension methods for the new trigger builder that allow you to set trigger specifics
+* Client Profile is now supported and there are separate DLLs for client profile
+* PropertySettingJobFactory is now the default JobFactory
 
 
 
