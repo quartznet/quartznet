@@ -89,7 +89,6 @@ namespace Quartz.Impl
         public const string PropertySchedulerExporterType = PropertySchedulerExporterPrefix + ".type";
         public const string PropertySchedulerProxy = "quartz.scheduler.proxy";
         public const string PropertySchedulerProxyType = "quartz.scheduler.proxy.type";
-        public const string PropertySchedulerProxyAddress = "quartz.scheduler.proxy.address";
         public const string PropertySchedulerIdleWaitTime = "quartz.scheduler.idleWaitTime";
         public const string PropertySchedulerDbFailureRetryInterval = "quartz.scheduler.dbFailureRetryInterval";
         public const string PropertySchedulerMakeSchedulerThreadDaemon = "quartz.scheduler.makeSchedulerThreadDaemon";
@@ -417,25 +416,22 @@ Please add configuration to your application config file to correctly initialize
                     schedInstId = DefaultInstanceId;
                 }
 
-                Type proxyType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerProxyType)) ?? typeof(SchedulerRemotableProxyImpl);
-                ISchedulerRemotableProxy p;
+                Type proxyType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerProxyType)) ?? typeof(RemotingSchedulerProxyFactory);
+                IRemotableSchedulerProxyFactory factory;
                 try
                 {
-                    p = ObjectUtils.InstantiateType<ISchedulerRemotableProxy>(proxyType);
+                    factory = ObjectUtils.InstantiateType<IRemotableSchedulerProxyFactory>(proxyType);
+                    ObjectUtils.SetObjectProperties(factory, cfg.GetPropertyGroup(PropertySchedulerProxy, true));
                 }
                 catch (Exception e)
                 {
-                    initException = new SchedulerException("Remotable proxy type '{0}' could not be instantiated.".FormatInvariant(proxyType), e);
+                    initException = new SchedulerException("Remotable proxy factory '{0}' could not be instantiated.".FormatInvariant(proxyType), e);
                     throw initException;
                 }
 
-
                 string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
 
-                RemoteScheduler remoteScheduler = new RemoteScheduler(uid);
-                string remoteSchedulerAddress = cfg.GetStringProperty(PropertySchedulerProxyAddress);
-                remoteScheduler.RemoteSchedulerAddress = remoteSchedulerAddress;
-                remoteScheduler.Proxy = p;
+                RemoteScheduler remoteScheduler = new RemoteScheduler(uid, factory);
                 
                 schedRep.Bind(remoteScheduler);
 

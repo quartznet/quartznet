@@ -413,6 +413,8 @@
     <Compile Include="Impl\Triggers\CronTriggerImpl.cs" />
     <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImpl.cs" />
     <Compile Include="Impl\Triggers\SimpleTriggerImpl.cs" />
+    <Compile Include="Simpl\RemotingSchedulerProxyFactory.cs" />
+    <Compile Include="SPI\IRemotableSchedulerProxyFactory.cs" />
     <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />

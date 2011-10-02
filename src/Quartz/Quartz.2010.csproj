@@ -140,12 +140,11 @@
     <Compile Include="Impl\AdoJobStore\SimplePropertiesTriggerProperties.cs" />
     <Compile Include="Impl\AdoJobStore\SQLiteDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\TriggerPropertyBundle.cs" />
-    <Compile Include="Impl\SchedulerRemotableProxyImpl.cs" />
+    <Compile Include="Impl\RemotingSchedulerProxyFactory.cs" />
     <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImpl.cs" />
     <Compile Include="Impl\DefaultThreadExecutor.cs" />
     <Compile Include="Impl\Triggers\CoreTrigger.cs" />
     <Compile Include="ICalendarIntervalTrigger.cs" />
-    <Compile Include="ISchedulerRemotableProxy.cs" />
     <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />
@@ -350,6 +349,7 @@
     <Compile Include="SPI\IMutableTrigger.cs" />
     <Compile Include="SPI\IObjectSerializer.cs" />
     <Compile Include="SPI\IOperableTrigger.cs" />
+    <Compile Include="SPI\IRemotableSchedulerProxyFactory.cs" />
     <Compile Include="SPI\IThreadExecutor.cs" />
     <Compile Include="SPI\ITypeLoadHelper.cs">
       <SubType>Code</SubType>
