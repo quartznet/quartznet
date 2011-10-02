@@ -117,29 +117,29 @@ namespace Quartz
             this.tz = tz;
         }
 
-        /**
-         * Create a DateBuilder, with initial settings for the current date and time in the system default timezone.
-         */
-
+        /// <summary>
+        /// Create a DateBuilder, with initial settings for the current date and time in the system default timezone.
+        /// </summary>
+        /// <returns></returns>
         public static DateBuilder NewDate()
         {
             return new DateBuilder();
         }
 
-        /**
-         * Create a DateBuilder, with initial settings for the current date and time in the given timezone.
-         */
-
+        /// <summary>
+        /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
+        /// </summary>
+        /// <param name="tz">Time zone to use.</param>
+        /// <returns></returns>
         public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz)
         {
             return new DateBuilder(tz);
         }
 
-
-        /**
-         * Build the Date defined by this builder instance. 
-         */
-
+        /// <summary>
+        /// Build the <see cref="DateTimeOffset" /> defined by this builder instance. 
+        /// </summary>
+        /// <returns>New date time based on builder parameters.</returns>
         public DateTimeOffset Build()
         {
             DateTimeOffset cal;

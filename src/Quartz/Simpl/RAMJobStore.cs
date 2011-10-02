@@ -631,14 +631,12 @@ namespace Quartz.Simpl
             }
 		}
 
-	    /**
-         * Determine whether a <see cref="IJob"/> with the given identifier already 
-         * exists within the scheduler.
-         * 
-         * @param jobKey the identifier to check for
-         * @return true if a Job exists with the given identifier
-         * @throws SchedulerException 
-         */
+	    /// <summary>
+	    /// Determine whether a <see cref="IJob"/> with the given identifier already 
+	    /// exists within the scheduler.
+	    /// </summary>
+	    /// <param name="jobKey">the identifier to check for</param>
+	    /// <returns>true if a Job exists with the given identifier</returns>
 	    public bool CheckExists(JobKey jobKey)
 	    {
 	        lock (lockObject)
@@ -647,14 +645,12 @@ namespace Quartz.Simpl
 	        }
 	    }
 
-	    /**
-         * Determine whether a <see cref="ITrigger" /> with the given identifier already 
-         * exists within the scheduler.
-         * 
-         * @param triggerKey the identifier to check for
-         * @return true if a Trigger exists with the given identifier
-         * @throws SchedulerException 
-         */
+	    /// <summary>
+	    /// Determine whether a <see cref="ITrigger" /> with the given identifier already 
+        /// exists within the scheduler.
+	    /// </summary>
+        /// <param name="triggerKey">triggerKey the identifier to check for</param>
+        /// <returns>true if a Trigger exists with the given identifier</returns>
 	    public bool CheckExists(TriggerKey triggerKey)
 	    {
 	        lock (lockObject)
