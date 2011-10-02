@@ -22,6 +22,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using Common.Logging;
+using Quartz;
+using Quartz.Impl;
 using Quartz.Core;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -155,8 +157,9 @@ namespace Quartz.Impl
 
 			RemoteScheduler remoteScheduler = new RemoteScheduler(uid);
 		    remoteScheduler.RemoteSchedulerAddress = proxyAddress;
-
-			SchedulerRepository schedRep = SchedulerRepository.Instance;
+            remoteScheduler.Proxy = new SchedulerRemotableProxyImpl();
+			
+            SchedulerRepository schedRep = SchedulerRepository.Instance;
 			schedRep.Bind(remoteScheduler);
 		    initialized = true;
 		}
