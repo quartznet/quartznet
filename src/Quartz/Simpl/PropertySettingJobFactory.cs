@@ -143,8 +143,11 @@ namespace Quartz.Simpl
 						// handle special case
 						HandleError(string.Format(CultureInfo.InvariantCulture, "Cannot set empty string to char property on Job class {0} for property '{1}'", obj.GetType(), name));
 					}
-					
-					object goodValue = ObjectUtils.ConvertValueIfNecessary(paramType, o);
+
+                    object goodValue = paramType == typeof (TimeSpan)
+										   ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
+										   : ConvertValueIfNecessary(paramType, o);
+
 					prop.GetSetMethod().Invoke(obj, new object[] {goodValue});
 				}
 				catch (FormatException nfe)
@@ -182,6 +185,11 @@ namespace Quartz.Simpl
 				}
 			}
 		}
+
+	    protected virtual object ConvertValueIfNecessary(Type requiredType, object newValue)
+	    {
+	        return ObjectUtils.ConvertValueIfNecessary(requiredType, newValue);
+	    }
 
 		private void HandleError(string message)
 		{
