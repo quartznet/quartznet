@@ -293,7 +293,7 @@ namespace Quartz.Util
 
         public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
-            throw new NotImplementedException();
+            ((ICollection<KeyValuePair<TKey, TValue>>) map).CopyTo(array, arrayIndex);
         }
 
         /// <summary>
