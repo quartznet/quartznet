@@ -52,6 +52,56 @@ namespace Quartz.Tests.Unit.Utils
             Assert.AreEqual(1, ts.TotalDays);
         }
 
+                [Test]
+        public void TestConvertAssignable()
+        {
+            ICloneable val = (ICloneable) ObjectUtils.ConvertValueIfNecessary(typeof (ICloneable), "test");
+            Assert.AreEqual("test", val);
+        }
+
+        [Test]
+        public void TestConvertStringToEnum()
+        {
+            DayOfWeek val = (DayOfWeek) ObjectUtils.ConvertValueIfNecessary(typeof (DayOfWeek), "Wednesday");
+            Assert.AreEqual(DayOfWeek.Wednesday, val);
+        }
+
+        [Test]
+        public void TestConvertEnumToString()
+        {
+            string val = (string) ObjectUtils.ConvertValueIfNecessary(typeof (string), DayOfWeek.Wednesday);
+            Assert.AreEqual("Wednesday", val);
+        }
+
+        [Test]
+        public void TestConvertIntToDouble()
+        {
+            double val = (double) ObjectUtils.ConvertValueIfNecessary(typeof (double), 1234);
+            Assert.AreEqual(1234.0, val);
+        }
+
+        [Test]
+        public void TestConvertDoubleToInt()
+        {
+            int val = (int) ObjectUtils.ConvertValueIfNecessary(typeof (int), 1234.5);
+            Assert.AreEqual(1234, val);
+        }
+
+        [Test]
+        public void TestConvertStringToType()
+        {
+            Type val = (Type) ObjectUtils.ConvertValueIfNecessary(typeof (Type), "System.String");
+            Assert.AreEqual(typeof (string), val);
+        }
+
+        [Test]
+        public void TestConvertTypeToString()
+        {
+            string val = (string) ObjectUtils.ConvertValueIfNecessary(typeof (string), typeof (string));
+            Assert.AreEqual("System.String", val);
+        }
+
+
         [Test]
         public void TestSetObjectTimeSpanProperties()
         {
