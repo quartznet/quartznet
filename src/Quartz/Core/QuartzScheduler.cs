@@ -346,15 +346,6 @@ namespace Quartz.Core
             signaler = new SchedulerSignalerImpl(this, schedThread);
 
             log.InfoFormat(CultureInfo.InvariantCulture, "Quartz Scheduler v.{0} created.", Version);
-
-
-            log.Info("Scheduler meta-data: " +
-                     (new SchedulerMetaData(SchedulerName,
-                                            SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,
-                                            InStandbyMode, IsShutdown, RunningSince,
-                                            NumJobsExecuted, JobStoreClass,
-                                            SupportsPersistence, Clustered, ThreadPoolClass,
-                                            ThreadPoolSize, Version)));
         }
 
         public void Initialize()
