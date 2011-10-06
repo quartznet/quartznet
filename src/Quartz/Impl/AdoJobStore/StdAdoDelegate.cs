@@ -25,7 +25,6 @@ using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
 
 using Common.Logging;
 
@@ -738,9 +737,9 @@ namespace Quartz.Impl.AdoJobStore
                             map = GetObjectFromBlob<IDictionary>(rs, 6);
                         }
 
-                        if (null != map)
+                        if (map != null)
                         {
-                            job.JobDataMap = new JobDataMap(map);
+                            job.JobDataMap = map as JobDataMap ?? new JobDataMap(map);
                         }
                     }
 
@@ -1585,9 +1584,9 @@ namespace Quartz.Impl.AdoJobStore
                                 .WithSchedule(triggerProps.ScheduleBuilder)
                                 .ForJob(new JobKey(jobName, jobGroup));
 
-                            if (null != map)
+                            if (map != null)
                             {
-                                tb.UsingJobData(new JobDataMap(map));
+                                tb.UsingJobData(map as JobDataMap ?? new JobDataMap(map));
                             }
 
                             trigger = (IOperableTrigger) tb.Build();
@@ -1644,9 +1643,9 @@ namespace Quartz.Impl.AdoJobStore
                             map = GetObjectFromBlob<IDictionary>(rs, 0);
                         }
 
-                        if (null != map)
+                        if (map != null)
                         {
-                            return new JobDataMap(map);
+                            return map as JobDataMap ?? new JobDataMap(map);
                         }
                     }
                 }
