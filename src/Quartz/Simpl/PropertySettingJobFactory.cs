@@ -35,7 +35,16 @@ namespace Quartz.Simpl
 	/// the <see cref="IJobExecutionContext" />'s merged <see cref="JobDataMap" /> onto 
 	/// properties of the <code>Job</code>.
 	/// </summary>
-	/// <seealso cref="IJobFactory" />
+    /// <remarks>   
+    /// Set the WarnIfPropertyNotFound property to true if you'd like noisy logging in
+    /// the case of values in the <see cref="JobDataMap" /> not mapping to properties on your <code>Job</code>
+    /// class. This may be useful for troubleshooting typos of property names, etc.
+    /// but very noisy if you regularly (and purposely) have extra things in your
+    ///  <see cref="JobDataMap" />.
+    /// Also of possible interest is the ThrowIfPropertyNotFound property which
+    /// will throw exceptions on unmatched JobDataMap keys.
+    /// </remarks>
+ 	/// <seealso cref="IJobFactory" />
 	/// <seealso cref="SimpleJobFactory" />
 	/// <seealso cref="SchedulerContext"/>
 	/// <seealso cref="IJobExecutionContext.MergedJobDataMap" />
@@ -69,7 +78,7 @@ namespace Quartz.Simpl
 			set { warnIfNotFound = value; }
 		}
 
-		private bool warnIfNotFound = true;
+		private bool warnIfNotFound = false;
 		private bool throwIfNotFound = false;
 
 	    /// <summary>
