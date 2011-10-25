@@ -72,8 +72,8 @@ namespace Quartz.Examples.Example14
             // We should see the following firing order:
             // 1. Priority10Trigger15SecondRepeat
             // 2. Priority5Trigger10SecondRepeat
-            // 3. PriorityNeg5Trigger5SecondRepeat
-            // 4. PriorityNeg5Trigger5SecondRepeat
+            // 3. Priority1Trigger5SecondRepeat
+            // 4. Priority1Trigger5SecondRepeat
             // 5. Priority5Trigger10SecondRepeat
             // 6. Priority10Trigger15SecondRepeat
 
@@ -82,7 +82,7 @@ namespace Quartz.Examples.Example14
 
             // First trigger has priority of 1, and will repeat after 5 seconds
             ITrigger trigger1 = TriggerBuilder.Create()
-                .WithIdentity("PriorityNeg5Trigger5SecondRepeat")
+                .WithIdentity("Priority1Trigger5SecondRepeat")
                 .StartAt(startTime)
                 .WithSimpleSchedule(x => x.WithRepeatCount(1).WithIntervalInSeconds(5))
                 .WithPriority(1)
