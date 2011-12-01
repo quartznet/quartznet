@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Linq;
 using System.Text;
 
 using Quartz.Impl.Triggers;
@@ -62,7 +63,7 @@ namespace Quartz.Impl.AdoJobStore
             props.Int2 = dailyTrigger.TimesTriggered;
 
             ISet<DayOfWeek> days = dailyTrigger.DaysOfWeek;
-            string daysStr = Join(days, ",");
+            string daysStr = string.Join(",", days.Cast<int>());
             props.String2 = daysStr;
 
             StringBuilder timeOfDayBuffer = new StringBuilder();
@@ -92,22 +93,6 @@ namespace Quartz.Impl.AdoJobStore
             props.String3 = timeOfDayBuffer.ToString();
             props.Long1 = dailyTrigger.RepeatCount;
             return props;
-        }
-
-        private static string Join(ISet<DayOfWeek> days, string sep)
-        {
-            StringBuilder sb = new StringBuilder();
-            if (days == null || days.Count <= 0)
-            {
-                return "";
-            }
-
-            foreach (DayOfWeek itr in days)
-            {
-                sb.Append(sep).Append(itr);
-            }
-
-            return sb.ToString();
         }
 
         protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
