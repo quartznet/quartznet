@@ -2743,6 +2743,10 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (jobDetail.PersistJobDataAfterExecution)
                 {
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked);
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked);
+                    SignalSchedulingChangeOnTxCompletion(null);
+
                     try
                     {
                         if (jobDetail.JobDataMap.Dirty)
@@ -2758,13 +2762,6 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         throw new JobPersistenceException("Couldn't update job data: " + e.Message, e);
                     }
-                }
-
-                if (jobDetail.ConcurrentExectionDisallowed)
-                {
-                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked);
-                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked);
-                    SignalSchedulingChangeOnTxCompletion(null);
                 }
             }
             catch (Exception e)
