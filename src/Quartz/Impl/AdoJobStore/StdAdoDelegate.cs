@@ -282,7 +282,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectHasMisfiredTriggersInState)))
             {
-                AddCommandParameter(cmd, "nextFireTime", Convert.ToDecimal(ts.Ticks));
+                AddCommandParameter(cmd, "nextFireTime", Convert.ToDecimal(ts.UtcTicks));
                 AddCommandParameter(cmd, "state1", state1);
 
                 using (IDataReader rs = cmd.ExecuteReader())
@@ -318,7 +318,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountMisfiredTriggersInStates)))
             {
-                AddCommandParameter(cmd, "nextFireTime", Convert.ToDecimal(ts.Ticks));
+                AddCommandParameter(cmd, "nextFireTime", Convert.ToDecimal(ts.UtcTicks));
                 AddCommandParameter(cmd, "state1", state1);
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -389,7 +389,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    long dumId = SystemTime.UtcNow().Ticks;
+                    long dumId = SystemTime.UtcNow().UtcTicks;
 
                     while (rs.Read())
                     {
@@ -879,7 +879,7 @@ namespace Quartz.Impl.AdoJobStore
                 if (trigger.GetNextFireTimeUtc().HasValue)
                 {
                     AddCommandParameter(cmd, "triggerNextFireTime",
-                                    Convert.ToDecimal(trigger.GetNextFireTimeUtc().Value.Ticks));
+                                    Convert.ToDecimal(trigger.GetNextFireTimeUtc().Value.UtcTicks));
                 }
                 else
                 {
@@ -888,7 +888,7 @@ namespace Quartz.Impl.AdoJobStore
                 
                 if (trigger.GetPreviousFireTimeUtc().HasValue)
                 {
-                    AddCommandParameter(cmd, "triggerPreviousFireTime", Convert.ToDecimal(trigger.GetPreviousFireTimeUtc().Value.Ticks));
+                    AddCommandParameter(cmd, "triggerPreviousFireTime", Convert.ToDecimal(trigger.GetPreviousFireTimeUtc().Value.UtcTicks));
                 }
                 else
                 {
@@ -907,11 +907,11 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 AddCommandParameter(cmd, paramName, type);
                 
-                AddCommandParameter(cmd, "triggerStartTime", Convert.ToDecimal(trigger.StartTimeUtc.Ticks));
+                AddCommandParameter(cmd, "triggerStartTime", Convert.ToDecimal(trigger.StartTimeUtc.UtcTicks));
                 
                 if (trigger.EndTimeUtc.HasValue)
                 {
-                    AddCommandParameter(cmd, "triggerEndTime", Convert.ToDecimal(trigger.EndTimeUtc.Value.Ticks));
+                    AddCommandParameter(cmd, "triggerEndTime", Convert.ToDecimal(trigger.EndTimeUtc.Value.UtcTicks));
                 }
                 else
                 {
@@ -1004,7 +1004,7 @@ namespace Quartz.Impl.AdoJobStore
             
             if (trigger.GetNextFireTimeUtc().HasValue)
             {
-                AddCommandParameter(cmd, "triggerNextFireTime", Convert.ToDecimal(trigger.GetNextFireTimeUtc().Value.Ticks));
+                AddCommandParameter(cmd, "triggerNextFireTime", Convert.ToDecimal(trigger.GetNextFireTimeUtc().Value.UtcTicks));
             }
             else
             {
@@ -1013,7 +1013,7 @@ namespace Quartz.Impl.AdoJobStore
             
             if (trigger.GetPreviousFireTimeUtc().HasValue)
             {
-                AddCommandParameter(cmd, "triggerPreviousFireTime", Convert.ToDecimal(trigger.GetPreviousFireTimeUtc().Value.Ticks));
+                AddCommandParameter(cmd, "triggerPreviousFireTime", Convert.ToDecimal(trigger.GetPreviousFireTimeUtc().Value.UtcTicks));
             }
             else
             {
@@ -1031,11 +1031,11 @@ namespace Quartz.Impl.AdoJobStore
             }
             AddCommandParameter(cmd, "triggerType", type);
 
-            AddCommandParameter(cmd, "triggerStartTime", Convert.ToDecimal(trigger.StartTimeUtc.Ticks));
+            AddCommandParameter(cmd, "triggerStartTime", Convert.ToDecimal(trigger.StartTimeUtc.UtcTicks));
 
             if (trigger.EndTimeUtc.HasValue)
             {
-                AddCommandParameter(cmd, "triggerEndTime", Convert.ToDecimal(trigger.EndTimeUtc.Value.Ticks));
+                AddCommandParameter(cmd, "triggerEndTime", Convert.ToDecimal(trigger.EndTimeUtc.Value.UtcTicks));
             }
             else
             {
@@ -2126,7 +2126,7 @@ namespace Quartz.Impl.AdoJobStore
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerForFireTime)))
             {
                 AddCommandParameter(cmd, "state", StateWaiting);
-                AddCommandParameter(cmd, "fireTime", Convert.ToDecimal(fireTime.Ticks));
+                AddCommandParameter(cmd, "fireTime", Convert.ToDecimal(fireTime.UtcTicks));
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -2161,8 +2161,8 @@ namespace Quartz.Impl.AdoJobStore
                 List<TriggerKey> nextTriggers = new List<TriggerKey>();
 
                 AddCommandParameter(cmd, "state", StateWaiting);
-                AddCommandParameter(cmd, "noLaterThan", Convert.ToDecimal(noLaterThan.Ticks));
-                AddCommandParameter(cmd, "noEarlierThan", Convert.ToDecimal(noEarlierThan.Ticks));
+                AddCommandParameter(cmd, "noLaterThan", Convert.ToDecimal(noLaterThan.UtcTicks));
+                AddCommandParameter(cmd, "noEarlierThan", Convert.ToDecimal(noEarlierThan.UtcTicks));
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
@@ -2199,7 +2199,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
                 AddCommandParameter(cmd, "triggerInstanceName", instanceId);
-                AddCommandParameter(cmd, "triggerFireTime", Convert.ToDecimal(trigger.GetNextFireTimeUtc().Value.Ticks));
+                AddCommandParameter(cmd, "triggerFireTime", Convert.ToDecimal(trigger.GetNextFireTimeUtc().Value.UtcTicks));
                 AddCommandParameter(cmd, "triggerState", state);
                 if (job != null)
                 {
@@ -2241,7 +2241,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             IDbCommand ps = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateFiredTrigger));
             AddCommandParameter(ps, "instanceName", instanceId);
-            AddCommandParameter(ps, "firedTime", trigger.GetNextFireTimeUtc().Value.Ticks);
+            AddCommandParameter(ps, "firedTime", trigger.GetNextFireTimeUtc().Value.UtcTicks);
             AddCommandParameter(ps, "entryState", state);
 
             if (job != null)
@@ -2488,7 +2488,7 @@ namespace Quartz.Impl.AdoJobStore
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertSchedulerState)))
             {
                 AddCommandParameter(cmd, "instanceName", instanceName);
-                AddCommandParameter(cmd, "lastCheckinTime", checkInTime.Ticks);
+                AddCommandParameter(cmd, "lastCheckinTime", checkInTime.UtcTicks);
                 AddCommandParameter(cmd, "checkinInterval", interval.TotalMilliseconds);
 
                 return cmd.ExecuteNonQuery();
@@ -2524,7 +2524,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSchedulerState)))
             {
-                AddCommandParameter(cmd, "lastCheckinTime", checkInTime.Ticks);
+                AddCommandParameter(cmd, "lastCheckinTime", checkInTime.UtcTicks);
                 AddCommandParameter(cmd, "instanceName", instanceName);
 
                 return cmd.ExecuteNonQuery();

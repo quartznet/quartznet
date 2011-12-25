@@ -2392,7 +2392,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private static long ftrCtr = SystemTime.UtcNow().Ticks;
+        private static long ftrCtr = SystemTime.UtcNow().UtcTicks;
 
 
         /// <summary>
@@ -2743,10 +2743,6 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (jobDetail.PersistJobDataAfterExecution)
                 {
-                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked);
-                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked);
-                    SignalSchedulingChangeOnTxCompletion(null);
-
                     try
                     {
                         if (jobDetail.JobDataMap.Dirty)
@@ -2762,6 +2758,13 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         throw new JobPersistenceException("Couldn't update job data: " + e.Message, e);
                     }
+                }
+
+                if (jobDetail.ConcurrentExectionDisallowed)
+                {
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked);
+                    Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked);
+                    SignalSchedulingChangeOnTxCompletion(null);
                 }
             }
             catch (Exception e)
@@ -3076,7 +3079,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (failedInstances.Count > 0)
             {
-                long recoverIds = SystemTime.UtcNow().Ticks;
+                long recoverIds = SystemTime.UtcNow().UtcTicks;
 
                 LogWarnIfNonZero(failedInstances.Count,
                                  "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
