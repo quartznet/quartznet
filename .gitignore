@@ -30,6 +30,7 @@ obj/
 [Dd]ebug*/
 [Rr]elease*/
 Ankh.NoLoad
+*.docstates
 
 #Tooling
 _ReSharper*/
