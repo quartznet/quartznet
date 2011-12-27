@@ -6,6 +6,7 @@ using System.Threading;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Listener;
 
 namespace Quartz.Tests.Unit
 {
@@ -19,6 +20,7 @@ namespace Quartz.Tests.Unit
     {
         private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);
         private static readonly List<DateTime> jobExecDates = new List<DateTime>();
+        private static readonly AutoResetEvent barrier = new AutoResetEvent(false);
 
         [DisallowConcurrentExecution]
         public class TestJob : IJob
@@ -33,6 +35,38 @@ namespace Quartz.Tests.Unit
                 catch (ThreadInterruptedException)
                 {
                     throw new JobExecutionException("Failed to pause job for testing.");
+                }
+            }
+        }
+
+        public class TestJobListener : JobListenerSupport
+        {
+            private int jobExCount;
+            private readonly int jobExecutionCountToSyncAfter;
+
+            public TestJobListener(int jobExecutionCountToSyncAfter)
+            {
+                this.jobExecutionCountToSyncAfter = jobExecutionCountToSyncAfter;
+            }
+
+            public override string Name
+            {
+                get { return "TestJobListener"; }
+            }
+
+            public override void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+            {
+                if (Interlocked.Increment(ref jobExCount) == jobExecutionCountToSyncAfter)
+                {
+                    try
+                    {
+                        barrier.Set();
+                    }
+                    catch (Exception e)
+                    {
+                        Console.Error.WriteLine(e.ToString());
+                        throw new AssertionException("Await on barrier was interrupted: " + e);
+                    }
                 }
             }
         }
@@ -57,11 +91,13 @@ namespace Quartz.Tests.Unit
             props["quartz.scheduler.idleWaitTime"] = "1500";
             props["quartz.threadPool.threadCount"] = "2";
             IScheduler scheduler = new StdSchedulerFactory(props).GetScheduler();
+            scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
             scheduler.ScheduleJob(job1, trigger1);
             scheduler.ScheduleJob(trigger2);
 
             scheduler.Start();
-            Thread.Sleep(5000);
+            
+            barrier.WaitOne();
             scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
@@ -85,11 +121,12 @@ namespace Quartz.Tests.Unit
             props["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "2";
             props["quartz.threadPool.threadCount"] = "2";
             IScheduler scheduler = new StdSchedulerFactory(props).GetScheduler();
+            scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
             scheduler.ScheduleJob(job1, trigger1);
             scheduler.ScheduleJob(trigger2);
 
             scheduler.Start();
-            Thread.Sleep(5000);
+            barrier.WaitOne();
             scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
