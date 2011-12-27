@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Linq;
 using System.Text;
 
 using Quartz.Impl.Triggers;
@@ -62,7 +63,7 @@ namespace Quartz.Impl.AdoJobStore
             props.Int2 = dailyTrigger.TimesTriggered;
 
             ISet<DayOfWeek> days = dailyTrigger.DaysOfWeek;
-            string daysStr = Join(days, ",");
+            string daysStr = string.Join(",", days.Cast<int>());
             props.String2 = daysStr;
 
             StringBuilder timeOfDayBuffer = new StringBuilder();
@@ -94,22 +95,6 @@ namespace Quartz.Impl.AdoJobStore
             return props;
         }
 
-        private static string Join(ISet<DayOfWeek> days, string sep)
-        {
-            StringBuilder sb = new StringBuilder();
-            if (days == null || days.Count <= 0)
-            {
-                return "";
-            }
-
-            foreach (DayOfWeek itr in days)
-            {
-                sb.Append(sep).Append(itr);
-            }
-
-            return sb.ToString();
-        }
-
         protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
         {
             int repeatCount = (int)props.Long1;
@@ -126,7 +111,7 @@ namespace Quartz.Impl.AdoJobStore
             if (daysOfWeekStr != null)
             {
                 ISet<DayOfWeek> daysOfWeek = new HashSet<DayOfWeek>();
-                String[] nums = daysOfWeekStr.Split(',');
+                string[] nums = daysOfWeekStr.Split(',');
                 if (nums.Length > 0)
                 {
                     foreach (String num in nums)
@@ -180,8 +165,8 @@ namespace Quartz.Impl.AdoJobStore
             
 
             int timesTriggered = props.Int2;
-            String[] statePropertyNames = {"timesTriggered"};
-            Object[] statePropertyValues = {timesTriggered};
+            string[] statePropertyNames = {"timesTriggered"};
+            object[] statePropertyValues = {timesTriggered};
 
             return new TriggerPropertyBundle(scheduleBuilder, statePropertyNames, statePropertyValues);
         }
