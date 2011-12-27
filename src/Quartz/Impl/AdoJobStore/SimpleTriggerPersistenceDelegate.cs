@@ -73,7 +73,7 @@ namespace Quartz.Impl.AdoJobStore
                 CommandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 CommandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
                 CommandAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
-                CommandAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", simpleTrigger.RepeatInterval.TotalMilliseconds);
+                CommandAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", CommandAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
                 CommandAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
 
                 return cmd.ExecuteNonQuery();
@@ -92,12 +92,12 @@ namespace Quartz.Impl.AdoJobStore
                     if (rs.Read())
                     {
                         int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
-                        long repeatInterval = rs.GetInt64(AdoConstants.ColumnRepeatInterval);
+                        TimeSpan repeatInterval = CommandAccessor.GetTimeSpanFromDbValue(rs[AdoConstants.ColumnRepeatInterval]) ?? TimeSpan.Zero;
                         int timesTriggered = rs.GetInt32(AdoConstants.ColumnTimesTriggered);
 
                         SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
                             .WithRepeatCount(repeatCount)
-                            .WithInterval(TimeSpan.FromMilliseconds(repeatInterval));
+                            .WithInterval(repeatInterval);
 
                         string[] statePropertyNames = {"timesTriggered"};
                         object[] statePropertyValues = {timesTriggered};
@@ -116,7 +116,7 @@ namespace Quartz.Impl.AdoJobStore
             using (IDbCommand cmd = CommandAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
                 CommandAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
-                CommandAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", simpleTrigger.RepeatInterval.TotalMilliseconds);
+                CommandAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", CommandAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
                 CommandAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
                 CommandAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 CommandAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
