@@ -490,12 +490,15 @@ namespace Quartz.Core
                     TimeSpan timeUntilContinue = waitTime - utcNow;
                     lock (sigLock)
                     {
-                        try
+                        if (!halted)
                         {
-                            Monitor.Wait(sigLock, timeUntilContinue);
-                        }
-                        catch (ThreadInterruptedException)
-                        {
+                            try
+                            {
+                                Monitor.Wait(sigLock, timeUntilContinue);
+                            }
+                            catch (ThreadInterruptedException)
+                            {
+                            }
                         }
                     }
                 }
