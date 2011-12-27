@@ -251,34 +251,29 @@ namespace Quartz.Impl.AdoJobStore
                 ColumnJobName, ColumnJobGroup, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobGroup);
 
         public static readonly string SqlSelectMisfiredTriggers =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} <> {5} AND {6} < @nextFireTime ORDER BY {7} ASC", TablePrefixSubst,
-                          TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnNextFireTime);
+            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} <> {5} AND {6} < @nextFireTime ORDER BY {7} ASC, {8} DESC", TablePrefixSubst,
+                          TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnNextFireTime, ColumnPriority);
 
         public static readonly string SqlSelectMisfiredTriggersInGroupInState =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} <> {6} AND {7} < @nextFireTime AND {8} = @triggerGroup AND {9} = @state ORDER BY {10} ASC",
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} <> {6} AND {7} < @nextFireTime AND {8} = @triggerGroup AND {9} = @state ORDER BY {10} ASC, {11} DESC",
                           ColumnTriggerName, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst,
                           ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy,
                           ColumnNextFireTime, ColumnTriggerGroup,
-                          ColumnTriggerState, ColumnNextFireTime);
+                          ColumnTriggerState, ColumnNextFireTime, ColumnPriority);
 
         public static readonly string SqlSelectMisfiredTriggersInState =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} <> {7} AND {8} < @nextFireTime AND {9} = @state ORDER BY {10} ASC", ColumnTriggerName,
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} <> {7} AND {8} < @nextFireTime AND {9} = @state ORDER BY {10} ASC, {11} DESC", ColumnTriggerName,
                           ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy,
-                          ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime);
+                          ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime, ColumnPriority);
 
         public static readonly string SqlCountMisfiredTriggersInStates =
             string.Format("SELECT COUNT({0}) FROM {1}{2} WHERE {3} = {4} AND {5} <> {6} AND {7} < @nextFireTime AND {8} = @state1",
             ColumnTriggerName, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnTriggerState);
 
         public static readonly string SqlSelectHasMisfiredTriggersInState =
-            string.Format("SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} <> {7} AND {8} < @nextFireTime AND {9} = @state1 ORDER BY {10} ASC",
-            ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, 
-            ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime);
-
-        public static readonly string SqlSelectNextFireTime =
-            string.Format(CultureInfo.InvariantCulture, "SELECT MIN({0}) AS {1} FROM {2}{3} WHERE {4} = {5} AND {6} = @state AND {7} >= 0",
-                          ColumnNextFireTime, AliasColumnNextFireTime, TablePrefixSubst,
-                          TableTriggers, ColumnSchedulerName, SchedulerNameSubst,  ColumnTriggerState, ColumnNextFireTime);
+            string.Format("SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} <> {7} AND {8} < @nextFireTime AND {9} = @state1 ORDER BY {10} ASC, {11} DESC",
+            ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst,
+            ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime, ColumnPriority);
 
         public static readonly string SqlSelectNextTriggerToAcquire =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2}, {3} FROM {4}{5} WHERE {6} = {7} AND {8} = @state AND {9} <= @noLaterThan AND {10} >= @noEarlierThan ORDER BY {11} ASC, {12} DESC", 
