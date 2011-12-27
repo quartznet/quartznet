@@ -2741,12 +2741,14 @@ namespace Quartz.Impl.AdoJobStore
                     SignalSchedulingChangeOnTxCompletion(null);
                 }
 
-                if (jobDetail.PersistJobDataAfterExecution)
+                if (jobDetail.ConcurrentExectionDisallowed)
                 {
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked);
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked);
                     SignalSchedulingChangeOnTxCompletion(null);
-
+                }
+                if (jobDetail.PersistJobDataAfterExecution)
+                {
                     try
                     {
                         if (jobDetail.JobDataMap.Dirty)
