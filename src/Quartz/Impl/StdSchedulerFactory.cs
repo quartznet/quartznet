@@ -74,7 +74,7 @@ namespace Quartz.Impl
     /// <author>Anthony Eden</author>
     /// <author>Mohammad Rezaei</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class StdSchedulerFactory : ISchedulerFactory
+    public class    StdSchedulerFactory : ISchedulerFactory
     {
         private const string ConfigurationKeyPrefix = "quartz.";
         public const string PropertiesFile = "quartz.config";
@@ -1001,8 +1001,8 @@ Please add configuration to your application config file to correctly initialize
 
                 js.InstanceId = schedInstId;
                 js.InstanceName = schedName;
-                js.Initialize(loadHelper, qs.SchedulerSignaler);
                 js.ThreadPoolSize = tp.PoolSize;
+                js.Initialize(loadHelper, qs.SchedulerSignaler);
 
                 jrsf.Initialize(sched);
                 qs.Initialize();
