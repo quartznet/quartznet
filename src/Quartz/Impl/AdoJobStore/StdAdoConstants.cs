@@ -251,8 +251,8 @@ namespace Quartz.Impl.AdoJobStore
                 ColumnJobName, ColumnJobGroup, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobGroup);
 
         public static readonly string SqlSelectMisfiredTriggers =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} <> {5} AND {6} < @nextFireTime ORDER BY {7} ASC", TablePrefixSubst,
-                          TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnNextFireTime);
+            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} <> {5} AND {6} < @nextFireTime ORDER BY {7} ASC, {8} DESC", TablePrefixSubst,
+                          TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnNextFireTime, ColumnPriority);
 
         public static readonly string SqlSelectMisfiredTriggersInGroupInState =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} <> {6} AND {7} < @nextFireTime AND {8} = @triggerGroup AND {9} = @state ORDER BY {10} ASC",
