@@ -381,11 +381,10 @@ Please add configuration to your application config file to correctly initialize
                 throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
             }
 
-            TimeSpan dbFailureRetryVal = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
-            // Ensure not to accept any negative value, or else Thread.sleep() will throw exception in JobRunShell
-            if (dbFailureRetryVal >= TimeSpan.Zero)
+            dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
+            if (dbFailureRetry < TimeSpan.Zero)
             {
-                dbFailureRetry = dbFailureRetryVal;
+                throw new SchedulerException(PropertySchedulerDbFailureRetryInterval + " of less than 0 ms is not legal.");
             }
 
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
