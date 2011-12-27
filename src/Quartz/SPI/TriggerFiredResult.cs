@@ -5,6 +5,7 @@ namespace Quartz.Spi
     /// <summary>
     /// Result holder for trigger firing event.
     /// </summary>
+    [Serializable]
     public class TriggerFiredResult
     {
         private readonly TriggerFiredBundle triggerFiredBundle;
