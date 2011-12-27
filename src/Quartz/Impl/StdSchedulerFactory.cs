@@ -349,7 +349,7 @@ Please add configuration to your application config file to correctly initialize
             NameValueCollection tProps;
             bool autoId = false;
             TimeSpan idleWaitTime = TimeSpan.Zero;
-            TimeSpan dbFailureRetry = TimeSpan.Zero;
+            TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
             IThreadExecutor threadExecutor;
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
@@ -381,7 +381,13 @@ Please add configuration to your application config file to correctly initialize
                 throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
             }
 
-            dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
+            TimeSpan dbFailureRetryVal = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
+            // Ensure not to accept any negative value, or else Thread.sleep() will throw exception in JobRunShell
+            if (dbFailureRetryVal >= TimeSpan.Zero)
+            {
+                dbFailureRetry = dbFailureRetryVal;
+            }
+
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
             long batchTimeWindow = cfg.GetLongProperty(PropertySchedulerBatchTimeWindow, 0L);
             int maxBatchSize = cfg.GetIntProperty(PropertySchedulerMaxBatchSize, 1);
@@ -1044,7 +1050,7 @@ Please add configuration to your application config file to correctly initialize
             }
         }
 
-        protected internal virtual IScheduler Instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs)
+        protected virtual IScheduler Instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs)
         {
             IScheduler sched = new StdScheduler(qs);
             return sched;

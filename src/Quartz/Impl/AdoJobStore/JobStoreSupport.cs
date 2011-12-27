@@ -76,7 +76,7 @@ namespace Quartz.Impl.AdoJobStore
         private ISchedulerSignaler schedSignaler;
         protected int maxToRecoverAtATime = 20;
         private bool setTxIsolationLevelSequential;
-        private TimeSpan dbRetryInterval = TimeSpan.FromSeconds(10);
+        private TimeSpan dbRetryInterval = TimeSpan.FromSeconds(15);
         private bool acquireTriggersWithinLock;
         private bool makeThreadsDaemons;
         private bool doubleCheckLockMisfireHandler = true;

@@ -79,6 +79,7 @@ namespace Quartz.Core
         private volatile bool shuttingDown;
         private DateTimeOffset? initialStart;
         private bool boundRemotely;
+        private TimeSpan dbRetryInterval;
 
         /// <summary>
         /// Initializes the <see cref="QuartzScheduler"/> class.
@@ -345,7 +346,14 @@ namespace Quartz.Core
 
             signaler = new SchedulerSignalerImpl(this, schedThread);
 
+            this.dbRetryInterval = dbRetryInterval;
+
             log.InfoFormat(CultureInfo.InvariantCulture, "Quartz Scheduler v.{0} created.", Version);
+        }
+
+        public TimeSpan DbRetryInterval
+        {
+            get { return dbRetryInterval; }
         }
 
         public void Initialize()
