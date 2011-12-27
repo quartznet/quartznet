@@ -2618,7 +2618,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="query">The unsubstitued query</param>
         /// <returns>The query, with proper table prefix substituted</returns>
-        protected internal string ReplaceTablePrefix(string query)
+        protected string ReplaceTablePrefix(string query)
         {
             return AdoJobStoreUtil.ReplaceTablePrefix(query, tablePrefix, SchedulerNameLiteral);
         }
@@ -2733,7 +2733,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Convert the JobDataMap into a list of properties.
         /// </summary>
-        protected internal virtual NameValueCollection ConvertToProperty(IDictionary<string, object> data)
+        protected virtual NameValueCollection ConvertToProperty(IDictionary<string, object> data)
         {
             NameValueCollection properties = new NameValueCollection();
             foreach (KeyValuePair<string, object> entry in data)

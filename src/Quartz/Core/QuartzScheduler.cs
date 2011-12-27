@@ -1632,7 +1632,7 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler thread.
         /// </summary>
-        protected internal virtual void NotifySchedulerThread(DateTimeOffset? candidateNewNextFireTimeUtc)
+        protected virtual void NotifySchedulerThread(DateTimeOffset? candidateNewNextFireTimeUtc)
         {
             if (SignalOnSchedulingChange)
             {

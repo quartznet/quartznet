@@ -87,7 +87,7 @@ namespace Quartz.Xml
         private IList<Exception> validationExceptions = new List<Exception>();
 
 
-        protected internal ITypeLoadHelper typeLoadHelper;
+        protected ITypeLoadHelper typeLoadHelper;
         private readonly IList<String> jobGroupsToNeverDelete = new List<String>();
         private readonly IList<String> triggerGroupsToNeverDelete = new List<String>();
 
@@ -132,7 +132,7 @@ namespace Quartz.Xml
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected internal ILog Log
+        protected ILog Log
         {
             get { return log; }
         }

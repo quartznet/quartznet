@@ -113,7 +113,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
         /// </summary>
-		protected internal DirectSchedulerFactory()
+		protected DirectSchedulerFactory()
 		{
 		    log = LogManager.GetLogger(GetType());
 		}
@@ -150,7 +150,7 @@ namespace Quartz.Impl
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
 		/// <param name="proxyAddress"></param>
 		/// <throws>  SchedulerException </throws>
-		protected internal virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
+		protected virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
 		{
 			string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
 

@@ -174,7 +174,7 @@ namespace Quartz.Impl.Triggers
     [Serializable]
     public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 	{
-        protected internal const int YearToGiveupSchedulingAt = 2299;
+        protected const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx;
         private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
         private DateTimeOffset? endTimeUtc;

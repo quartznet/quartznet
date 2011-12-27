@@ -361,7 +361,7 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="threadCount">The thread count.</param>
         /// <returns></returns>
-        protected internal virtual IList<WorkerThread> CreateWorkerThreads(int threadCount)
+        protected virtual IList<WorkerThread> CreateWorkerThreads(int threadCount)
         {
             workers = new List<WorkerThread>();
             for (int i = 1; i <= threadCount; ++i)
@@ -400,7 +400,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// A Worker loops, waiting to Execute tasks.
         /// </summary>
-        protected internal class WorkerThread : QuartzThread
+        protected class WorkerThread : QuartzThread
         {
             // A flag that signals the WorkerThread to terminate.
             private bool run = true;

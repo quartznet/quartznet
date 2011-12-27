@@ -302,7 +302,7 @@ namespace Quartz.Core
 		/// <summary>
 		/// Runs begin procedures on this instance.
 		/// </summary>
-		protected internal virtual void Begin()
+		protected virtual void Begin()
 		{
 		}
 
@@ -310,7 +310,7 @@ namespace Quartz.Core
 		/// Completes the execution.
 		/// </summary>
 		/// <param name="successfulExecution">if set to <c>true</c> [successful execution].</param>
-		protected internal virtual void Complete(bool successfulExecution)
+        protected virtual void Complete(bool successfulExecution)
 		{
 		}
 

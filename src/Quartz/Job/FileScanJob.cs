@@ -172,7 +172,7 @@ namespace Quartz.Job
 		/// </summary>
 		/// <param name="fileName">Name of the file.</param>
 		/// <returns></returns>
-		protected internal virtual DateTime GetLastModifiedDate(string fileName)
+		protected virtual DateTime GetLastModifiedDate(string fileName)
 		{
 			FileInfo file = new FileInfo(fileName);
 
