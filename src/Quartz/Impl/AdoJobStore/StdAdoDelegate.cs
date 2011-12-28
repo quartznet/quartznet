@@ -536,7 +536,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         public virtual bool GetBooleanFromDbValue(object columnValue)
         {
-            if (columnValue != null)
+            if (columnValue != null && columnValue != DBNull.Value)
             {
                 return (bool) columnValue;
             }
@@ -561,7 +561,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         public virtual DateTimeOffset? GetDateTimeFromDbValue(object columnValue)
         {
-            if (columnValue != null)
+            if (columnValue != null && columnValue != DBNull.Value)
             {
                 var ticks = Convert.ToInt64(columnValue, CultureInfo.CurrentCulture);
                 if (ticks > 0)
@@ -589,7 +589,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         public virtual TimeSpan? GetTimeSpanFromDbValue(object columnValue)
         {
-            if (columnValue != null)
+            if (columnValue != null && columnValue != DBNull.Value)
             {
                 var millis = Convert.ToInt64(columnValue, CultureInfo.CurrentCulture);
                 if (millis > 0)

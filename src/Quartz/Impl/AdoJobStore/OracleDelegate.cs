@@ -55,7 +55,7 @@ namespace Quartz.Impl.AdoJobStore
         public override bool GetBooleanFromDbValue(object columnValue)
         {
             // we store things as string in oracle with 1/0 as value
-            if (columnValue != null)
+            if (columnValue != null && columnValue != DBNull.Value)
             {
                 return Convert.ToInt32(columnValue) == 1;
             }
