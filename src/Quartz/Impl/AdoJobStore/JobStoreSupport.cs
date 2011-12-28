@@ -3131,11 +3131,10 @@ namespace Quartz.Impl.AdoJobStore
                                 // executed..
                                 if (JobExists(conn, jKey))
                                 {
-                                    DateTimeOffset tempAux = new DateTimeOffset(ftRec.FireTimestamp, TimeSpan.Zero);
                                     SimpleTriggerImpl rcvryTrig =
                                         new SimpleTriggerImpl(
                                             "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++, CultureInfo.InvariantCulture),
-                                            SchedulerConstants.DefaultRecoveryGroup, tempAux);
+                                            SchedulerConstants.DefaultRecoveryGroup, ftRec.FireTimestamp);
                                     
                                     rcvryTrig.JobName = jKey.Name;
                                     rcvryTrig.JobGroup = jKey.Group;
@@ -3296,7 +3295,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected virtual void RollbackConnection(ConnectionAndTransactionHolder cth)
         {
-            if (cth != null && cth.Transaction != null)
+            CheckNotZombied(cth);
+
+            if (cth.Transaction != null)
             {
                 try
                 {
@@ -3317,6 +3318,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
         protected virtual void CommitConnection(ConnectionAndTransactionHolder cth, bool openNewTransaction)
         {
+            CheckNotZombied(cth);
+
             if (cth.Transaction != null)
             {
                 try
@@ -3475,6 +3478,18 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
+        private static void CheckNotZombied(ConnectionAndTransactionHolder cth)
+        {
+            if (cth == null)
+            {
+                throw new ArgumentNullException("cth", "Connnection-transaction pair cannot be null");
+            }
+
+            if (cth.Transaction != null && cth.Transaction.Connection == null)
+            {
+                throw new DataException("Transaction not connected, or was disconnected");
+            }
+        }
 
         /////////////////////////////////////////////////////////////////////////////
         //

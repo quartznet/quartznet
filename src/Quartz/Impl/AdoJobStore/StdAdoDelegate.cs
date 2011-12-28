@@ -2336,7 +2336,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     rec.FireInstanceId = rs.GetString(ColumnEntryId);
                     rec.FireInstanceState = rs.GetString(ColumnEntryState);
-                    rec.FireTimestamp = (GetTimeSpanFromDbValue(rs[ColumnFiredTime]) ?? TimeSpan.Zero).Ticks;
+                    rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
                     rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
                     rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
                     rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
@@ -2386,7 +2386,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     rec.FireInstanceId = rs.GetString(ColumnEntryId);
                     rec.FireInstanceState = rs.GetString(ColumnEntryState);
-                    rec.FireTimestamp = (GetTimeSpanFromDbValue(rs[ColumnFiredTime]) ?? TimeSpan.Zero).Ticks;
+                    rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
                     rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
                     rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
                     rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
@@ -2425,7 +2425,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         rec.FireInstanceId = rs.GetString(ColumnEntryId);
                         rec.FireInstanceState = rs.GetString(ColumnEntryState);
-                        rec.FireTimestamp = (GetTimeSpanFromDbValue(rs[ColumnFiredTime]) ?? TimeSpan.Zero).Ticks;
+                        rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
                         rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
                         rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                         if (!rec.FireInstanceState.Equals(StateAcquired))
