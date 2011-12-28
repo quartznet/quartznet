@@ -23,7 +23,6 @@ using System;
 
 using Quartz.Impl;
 using Quartz.Job;
-using Quartz.Util;
 
 namespace Quartz
 {
@@ -31,6 +30,12 @@ namespace Quartz
     /// <code>JobBuilder</code> is used to instantiate <see cref="IJobDetail" />s.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// The builder will always try to keep itself in a valid state, with 
+    /// reasonable defaults set for calling Build() at any point.  For instance
+    /// if you do not invoke <i>WithIdentity(..)</i> a job name will be generated
+    /// for you.
+    /// </para>
     /// <para>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes

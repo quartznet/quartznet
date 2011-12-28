@@ -20,7 +20,6 @@
 using System;
 
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz
 {
@@ -28,6 +27,14 @@ namespace Quartz
     /// <code>TriggerBuilder</code> is used to instantiate <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// The builder will always try to keep itself in a valid state, with 
+    /// reasonable defaults set for calling build() at any point.  For instance
+    /// if you do not invoke <i>WithSchedule(..)</i> method, a default schedule
+    /// of firing once immediately will be used.  As another example, if you
+    /// do not invoked <i>WithIdentity(..)</i> a trigger name will be generated
+    /// for you.
+    /// </para>
     /// <para>Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
@@ -35,19 +42,19 @@ namespace Quartz
     /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
     /// and the various <code>ScheduleBuilder</code> implementations.</para>
     /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
-    /// JobDetail job = newJob(MyJob.class)
-    /// .withIdentity("myJob")
-    /// .build();
-    /// Trigger trigger = newTrigger()
-    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-    /// .withSchedule(simpleSchedule()
-    /// .withIntervalInHours(1)
-    /// .repeatForever())
-    /// .startAt(futureDate(10, MINUTES))
-    /// .build();
+    /// <code>
+    /// IJobDetail job = JobBuilder.Create&lt;MyJob>()
+    ///     .WithIdentity("myJob")
+    ///     .Build();
+    /// Trigger trigger = TriggerBuilder.Create()
+    ///     .WithIdentity("myTrigger", "myTriggerGroup")
+    ///     .WithSimpleSchedule(x => x
+    ///         .WithIntervalInHours(1)
+    ///         .RepeatForever())
+    ///     .StartAt(DateTime.UtcNow.AddMinutes(10))
+    ///     .Build();
     /// scheduler.scheduleJob(job, trigger);
-    /// </pre>
+    /// </code>
     /// </remarks>
     /// <seealso cref="JobBuilder" />
     /// <seealso cref="IScheduleBuilder" />

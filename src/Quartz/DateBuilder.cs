@@ -65,13 +65,6 @@ namespace Quartz
             Year
         } ;
 
-        public const int Sunday = 1;
-        public const int Monday = 2;
-        public const int Tuesday = 3;
-        public const int Wednesday = 4;
-        public const int Thursday = 5;
-        public const int Friday = 6;
-        public const int Saturday = 7;
         public const long SecondsInMostDays = 24L*60L*60L;
 
         private int month;
@@ -810,16 +803,6 @@ namespace Quartz
             }
 
             return tz.BaseUtcOffset.TotalMilliseconds;
-        }
-
-        ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        public static void ValidateDayOfWeek(int dayOfWeek)
-        {
-            if (dayOfWeek < Sunday || dayOfWeek > Saturday)
-            {
-                throw new ArgumentException("Invalid day of week.");
-            }
         }
 
         public static void ValidateHour(int hour)

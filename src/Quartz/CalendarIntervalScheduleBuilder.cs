@@ -42,7 +42,7 @@ namespace Quartz
 
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
-        private CalendarIntervalScheduleBuilder()
+        protected CalendarIntervalScheduleBuilder()
         {
         }
 

@@ -64,7 +64,7 @@ namespace Quartz
         private int repeatCount = 0;
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
-        private SimpleScheduleBuilder()
+        protected SimpleScheduleBuilder()
         {
         }
 

@@ -43,6 +43,28 @@ namespace Quartz
     /// expected, until the next day comes. Remember that DailyTimeIntervalTrigger will use StartTimeOfDay
     /// and endTimeOfDay as fresh per each day!
     /// </para>
+    ///  <para>Quartz provides a builder-style API for constructing scheduling-related
+    ///  entities via a Domain-Specific Language (DSL).  The DSL can best be
+    ///  utilized through the usage of static imports of the methods on the classes
+    ///  <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
+    ///  <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
+    ///  and the various <code>ScheduleBuilder</code> implementations.</para>
+    ///  
+    /// <para>Client code can then use the DSL to write code such as this:</para>
+    /// <code>
+    ///         IJobDetail job = JobBuilder.Create&lt;MyJob>()
+    ///             .WithIdentity("myJob")
+    ///             .Build();
+    ///             
+    ///         ITrigger trigger = TriggerBuilder.Create() 
+    ///             .WithIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    ///             .WithDailyTimeIntervalSchedule(x => 
+    ///                        x.WithIntervalInMinutes(15)
+    ///                        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+    ///             .Build();
+    ///         
+    ///         scheduler.scheduleJob(job, trigger);
+    /// </code>
     /// </remarks>
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
@@ -101,10 +123,9 @@ namespace Quartz
             SaturdayAndSunday.Add(DayOfWeek.Saturday);
         }
 
-        private DailyTimeIntervalScheduleBuilder()
+        protected DailyTimeIntervalScheduleBuilder()
         {
         }
-        
         
         /// <summary>
         /// Create a DailyTimeIntervalScheduleBuilder
@@ -114,7 +135,6 @@ namespace Quartz
         {
             return new DailyTimeIntervalScheduleBuilder();
         }
-
 
         /// <summary>
         /// Build the actual Trigger -- NOT intended to be invoked by end users,
@@ -230,17 +250,17 @@ namespace Quartz
         /// <summary>
         /// Set the trigger to fire on the given days of the week.
         /// </summary>
-        /// <param name="daysOfWeek">a Set containing the integers representing the days of the week, defined by <see cref="DayOfWeek.Sunday"/> - <see cref="DayOfWeek.Saturday"/>. 
+        /// <param name="onDaysOfWeek">a Set containing the integers representing the days of the week, defined by <see cref="DayOfWeek.Sunday"/> - <see cref="DayOfWeek.Saturday"/>. 
         /// </param>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-        public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(ISet<DayOfWeek> daysOfWeek)
+        public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(ISet<DayOfWeek> onDaysOfWeek)
         {
-            if (daysOfWeek == null || daysOfWeek.Count == 0)
+            if (onDaysOfWeek == null || onDaysOfWeek.Count == 0)
             {
                 throw new ArgumentException("Days of week must be an non-empty set.");
             }
 
-            foreach (DayOfWeek day in daysOfWeek)
+            foreach (DayOfWeek day in onDaysOfWeek)
             {
                 if (!AllDaysOfTheWeek.Contains(day))
                 {
@@ -248,10 +268,24 @@ namespace Quartz
                 }
             }
 
-            this.daysOfWeek = daysOfWeek;
+            this.daysOfWeek = onDaysOfWeek;
             return this;
         }
 
+        /// <summary>
+        /// Set the trigger to fire on the given days of the week.
+        /// </summary>
+        /// <param name="onDaysOfWeek">a variable length list of Integers representing the days of the week, per the values 1-7 as defined by {@link java.util.Calendar#SUNDAY} - {@link java.util.Calendar#SATURDAY}.</param>
+        /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
+        public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(params DayOfWeek[] onDaysOfWeek)
+        {
+            ISet<DayOfWeek> daysAsSet = new HashSet<DayOfWeek>();
+            foreach (DayOfWeek day in onDaysOfWeek)
+            {
+                daysAsSet.Add(day);
+            }
+            return OnDaysOfTheWeek(daysAsSet);
+        }
 
         /// <summary>
         /// Set the trigger to fire on the days from Monday through Friday.
@@ -259,7 +293,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder OnMondayThroughFriday()
         {
-            this.daysOfWeek = MondayThroughFriday;
+            daysOfWeek = MondayThroughFriday;
             return this;
         }
 
@@ -269,7 +303,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder OnSaturdayAndSunday()
         {
-            this.daysOfWeek = SaturdayAndSunday;
+            daysOfWeek = SaturdayAndSunday;
             return this;
         }
 
@@ -279,7 +313,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder OnEveryDay()
         {
-            this.daysOfWeek = AllDaysOfTheWeek;
+            daysOfWeek = AllDaysOfTheWeek;
             return this;
         }
 
@@ -296,7 +330,7 @@ namespace Quartz
                 throw new ArgumentException("Start time of day cannot be null!");
             }
 
-            this.startTimeOfDayUtc = timeOfDayUtc;
+            startTimeOfDayUtc = timeOfDayUtc;
             return this;
         }
 
@@ -307,7 +341,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder EndingDailyAt(TimeOfDay timeOfDayUtc)
         {
-            this.endTimeOfDayUtc = timeOfDayUtc;
+            endTimeOfDayUtc = timeOfDayUtc;
             return this;
         }
 
