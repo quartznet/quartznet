@@ -6,11 +6,17 @@ http://www.quartz-scheduler.net
 Release 2.0 RC 1, Dec 27, 2011
 -------------------------------
 
+BREAKING CHANGES (since 2.0 beta 1)
+
+* DateBuilder.IntervalUnit enumeration was replaced by usage of generic IntervalUnit enumeration in root namespace
+* ICommandAccessor was renamed IDbAccessor, this interface should normally not be used from client code
+
+FIXES
+
 Bug
 
     * DailyTimeIntervalTriggerPersistenceDelegate does not store weekdays in correct format
     * DisallowConcurrentExecution decorated triggers not being updated after TriggerCompleted
-
 
 
 Release 2.0 beta 1, October 2, 2011

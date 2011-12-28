@@ -21,6 +21,10 @@ using Quartz.Spi;
 
 namespace Quartz
 {
+    /// <summary>
+    /// Base class for <see cref="IScheduleBuilder" /> implementors.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public abstract class ScheduleBuilder<T> : IScheduleBuilder where T : ITrigger
     {
         /// <summary>

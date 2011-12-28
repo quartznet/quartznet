@@ -124,7 +124,7 @@ namespace Quartz.Examples.Example13
 
                 ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                               .WithIdentity("triger_" + count, schedId)
-                                                              .StartAt(DateBuilder.FutureDate(1, DateBuilder.IntervalUnit.Second))
+                                                              .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
                                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                                                               .Build();
 
@@ -140,7 +140,7 @@ namespace Quartz.Examples.Example13
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(2, DateBuilder.IntervalUnit.Second))
+                                               .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Second))
                                                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                                                .Build();
 
@@ -157,7 +157,7 @@ namespace Quartz.Examples.Example13
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, DateBuilder.IntervalUnit.Second))
+                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
                                                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
                                                .Build();
 
@@ -173,7 +173,7 @@ namespace Quartz.Examples.Example13
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, DateBuilder.IntervalUnit.Second))
+                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
                                                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
                                                .Build();
 
@@ -190,7 +190,7 @@ namespace Quartz.Examples.Example13
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, DateBuilder.IntervalUnit.Second))
+                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
                                                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
                                                .Build();
 

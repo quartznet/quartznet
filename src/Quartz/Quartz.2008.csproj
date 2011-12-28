@@ -360,12 +360,12 @@
     <Compile Include="Impl\AdoJobStore\CalendarIntervalTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbMetadata.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProvider.cs" />
-    <Compile Include="Impl\AdoJobStore\Common\DbProviderFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\IDbProvider.cs" />
     <Compile Include="Impl\AdoJobStore\ConnectionAndTransactionHolder.cs" />
     <Compile Include="Impl\AdoJobStore\CronTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\DailyTimeIntervalTriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\DelegateInitializationArgs.cs" />
+    <Compile Include="Impl\AdoJobStore\IDbAccessor.cs" />
     <Compile Include="Impl\AdoJobStore\ITriggerPersistenceDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreCMT.cs" />
     <Compile Include="Impl\AdoJobStore\MySQLDelegate.cs" />
@@ -409,10 +409,10 @@
     <Compile Include="Impl\SchedulerDetailsSetter.cs" />
     <Compile Include="Impl\Triggers\AbstractTrigger.cs" />
     <Compile Include="Impl\Triggers\CalendarIntervalTriggerImpl.cs" />
-    <Compile Include="Impl\Triggers\CoreTrigger.cs" />
     <Compile Include="Impl\Triggers\CronTriggerImpl.cs" />
     <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImpl.cs" />
     <Compile Include="Impl\Triggers\SimpleTriggerImpl.cs" />
+    <Compile Include="IntervalUnit.cs" />
     <Compile Include="Simpl\RemotingSchedulerProxyFactory.cs" />
     <Compile Include="SPI\IRemotableSchedulerProxyFactory.cs" />
     <Compile Include="IScheduleBuilder.cs" />

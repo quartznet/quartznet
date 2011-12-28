@@ -23,7 +23,7 @@ using System.Globalization;
 
 using Quartz.Spi;
 
-namespace Quartz
+namespace Quartz.Impl
 {
 	/// <summary>
 	/// A context bundle containing handles to various environment information, that

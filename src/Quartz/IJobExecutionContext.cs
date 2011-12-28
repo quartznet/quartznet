@@ -2,6 +2,12 @@ using System;
 
 namespace Quartz
 {
+    /// <summary>
+    /// A context bundle containing handles to various environment information, that
+    /// is given to a <see cref="JobDetail" /> instance as it is
+    /// executed, and to a <see cref="ITrigger" /> instance after the
+    /// execution completes.
+    /// </summary>
     public interface IJobExecutionContext
     {
         /// <summary>

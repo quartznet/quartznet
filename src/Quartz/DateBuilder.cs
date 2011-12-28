@@ -55,18 +55,6 @@ namespace Quartz
     /// <seealso cref="JobBuilder" />
     public class DateBuilder
     {
-        public enum IntervalUnit
-        {
-            Millisecond,
-            Second,
-            Minute,
-            Hour,
-            Day,
-            Week,
-            Month,
-            Year
-        } ;
-
         public const long SecondsInMostDays = 24L*60L*60L;
 
         private int month;

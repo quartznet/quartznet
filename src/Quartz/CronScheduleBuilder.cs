@@ -300,6 +300,9 @@ namespace Quartz
         }
     }
 
+    /// <summary>
+    /// Extension methods that attach <see cref="CronScheduleBuilder" /> to <see cref="TriggerBuilder" />.
+    /// </summary>
     public static class CronScheduleTriggerBuilderExtensions
     {
         public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression)

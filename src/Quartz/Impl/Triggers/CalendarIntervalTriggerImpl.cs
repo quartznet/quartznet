@@ -740,6 +740,11 @@ namespace Quartz.Impl.Triggers
         {
             base.Validate();
 
+            if (repeatIntervalUnit == IntervalUnit.Millisecond)
+            {
+                throw new SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute, Hour, Day, Month, Week or Year).");
+            }
+
             if (repeatInterval < 1)
             {
                 throw new SchedulerException("Repeat Interval cannot be zero.");

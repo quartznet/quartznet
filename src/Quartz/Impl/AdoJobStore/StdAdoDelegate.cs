@@ -28,6 +28,7 @@ using System.Runtime.Serialization;
 
 using Common.Logging;
 
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
@@ -43,7 +44,7 @@ namespace Quartz.Impl.AdoJobStore
     /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class StdAdoDelegate : StdAdoConstants, IDriverDelegate, ICommandAccessor
+    public class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAccessor
     {
         private ILog logger;
         private string tablePrefix = DefaultTablePrefix;
@@ -2856,55 +2857,5 @@ namespace Quartz.Impl.AdoJobStore
         {
             adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType);
         }
-    }
-
-
-    public interface ICommandAccessor
-    {
-        IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
-        void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue);
-        void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType);
-
-        /// <summary>
-        /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.
-        /// </summary>
-        /// <param name="booleanValue">Value to map to database.</param>
-        /// <returns></returns>
-        object GetDbBooleanValue(bool booleanValue);
-
-        /// <summary>
-        /// Gets the boolean value from db presentation. Subclasses can overwrite this behaviour.
-        /// </summary>
-        /// <param name="columnValue">Value to map from database.</param>
-        /// <returns></returns>
-        bool GetBooleanFromDbValue(object columnValue);
-
-        /// <summary>
-        /// Gets the db presentation for date/time value. Subclasses can overwrite this behaviour.
-        /// </summary>
-        /// <param name="dateTimeValue">Value to map to database.</param>
-        /// <returns></returns>
-        object GetDbDateTimeValue(DateTimeOffset? dateTimeValue);
-
-        /// <summary>
-        /// Gets the date/time value from db presentation. Subclasses can overwrite this behaviour.
-        /// </summary>
-        /// <param name="columnValue">Value to map from database.</param>
-        /// <returns></returns>
-        DateTimeOffset? GetDateTimeFromDbValue(object columnValue);
-
-        /// <summary>
-        /// Gets the db presentation for time span value. Subclasses can overwrite this behaviour.
-        /// </summary>
-        /// <param name="timeSpanValue">Value to map to database.</param>
-        /// <returns></returns>
-        object GetDbTimeSpanValue(TimeSpan? timeSpanValue);
-
-        /// <summary>
-        /// Gets the time span value from db presentation. Subclasses can overwrite this behaviour.
-        /// </summary>
-        /// <param name="columnValue">Value to map from database.</param>
-        /// <returns></returns>
-        TimeSpan? GetTimeSpanFromDbValue(object columnValue);
     }
 }

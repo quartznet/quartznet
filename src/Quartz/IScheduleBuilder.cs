@@ -2,6 +2,13 @@ using Quartz.Spi;
 
 namespace Quartz
 {
+    /// <summary>
+    /// Schedule builders offer fluent interface and are responsible for creating schedules.
+    /// </summary>
+    /// <seealso cref="SimpleScheduleBuilder"/>
+    /// <seealso cref="CalendarIntervalScheduleBuilder"/>
+    /// <seealso cref="CronScheduleBuilder"/>
+    /// <seealso cref="DailyTimeIntervalScheduleBuilder"/>
     public interface IScheduleBuilder
     {
         /// <summary>

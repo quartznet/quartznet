@@ -70,7 +70,7 @@ namespace Quartz.Impl.Triggers
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
-    public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger, ICoreTrigger
+    public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
     {
         /// <summary>
         /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in
@@ -827,8 +827,7 @@ namespace Quartz.Impl.Triggers
         {
             base.Validate();
 
-            if (!((repeatIntervalUnit == IntervalUnit.Second) ||
-                  (repeatIntervalUnit == IntervalUnit.Minute) || (repeatIntervalUnit == IntervalUnit.Hour)))
+            if (repeatIntervalUnit != IntervalUnit.Second && repeatIntervalUnit != IntervalUnit.Minute && repeatIntervalUnit == IntervalUnit.Hour)
             {
                 throw new SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
             }
@@ -838,14 +837,14 @@ namespace Quartz.Impl.Triggers
             }
 
             // Ensure interval does not exceed 24 hours
-            long secondsInHour = 24*60*60L;
-            if (repeatIntervalUnit == IntervalUnit.Second && repeatInterval > secondsInHour)
+            const long SecondsInHour = 24*60*60L;
+            if (repeatIntervalUnit == IntervalUnit.Second && repeatInterval > SecondsInHour)
             {
-                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + secondsInHour + " seconds). Given " + repeatInterval);
+                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour + " seconds). Given " + repeatInterval);
             }
-            if (repeatIntervalUnit == IntervalUnit.Minute && repeatInterval > secondsInHour/60L)
+            if (repeatIntervalUnit == IntervalUnit.Minute && repeatInterval > SecondsInHour/60L)
             {
-                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + secondsInHour/60L + " minutes). Given " + repeatInterval);
+                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour/60L + " minutes). Given " + repeatInterval);
             }
             if (repeatIntervalUnit == IntervalUnit.Hour && repeatInterval > 24)
             {

@@ -57,7 +57,7 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("t1")
                 .WithDescription("my description")
                 .WithPriority(2)
-                .EndAt(DateBuilder.FutureDate(10, DateBuilder.IntervalUnit.Week))
+                .EndAt(DateBuilder.FutureDate(10, IntervalUnit.Week))
                 .StartAt(stime)
                 .Build();
 

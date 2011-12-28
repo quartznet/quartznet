@@ -24,6 +24,8 @@ using System.Data;
 using System.Globalization;
 using System.Threading;
 
+using Quartz.Impl.AdoJobStore.Common;
+
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary> 

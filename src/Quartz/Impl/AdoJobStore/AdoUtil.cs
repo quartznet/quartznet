@@ -20,6 +20,8 @@
 using System;
 using System.Data;
 
+using Quartz.Impl.AdoJobStore.Common;
+
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>

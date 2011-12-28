@@ -472,9 +472,9 @@ namespace Quartz
     }
 
     /// <summary>
-    /// Extension methods to aid fluent trigger syntax.
+    /// Extension methods that attach <see cref="DailyTimeIntervalScheduleBuilder" /> to <see cref="TriggerBuilder" />.
     /// </summary>
-    public static class DailyTimeIntervalScheduleBuilderExtensions
+    public static class DailyTimeIntervalTriggerBuilderExtensions
     {
         public static TriggerBuilder WithDailyTimeIntervalSchedule(this TriggerBuilder triggerBuilder)
         {

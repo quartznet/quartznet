@@ -33,7 +33,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Initializes the persistence delegate.
         /// </summary>
-        void Initialize(string tablePrefix, string schedulerName, ICommandAccessor commandAccessor);
+        void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor);
 
         /// <summary>
         /// Returns whether the trigger type can be handled by delegate.

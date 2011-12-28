@@ -277,7 +277,10 @@ namespace Quartz
         }
     }
 
-    public static class CalendarScheduleTriggerBuilderExtensions
+    /// <summary>
+    /// Extension methods that attach <see cref="CalendarIntervalScheduleBuilder" /> to <see cref="TriggerBuilder" />.
+    /// </summary>
+    public static class CalendarIntervalTriggerBuilderExtensions
     {
         public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder)
         {

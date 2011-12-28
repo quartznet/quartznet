@@ -24,6 +24,12 @@ using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
 {
+    /// <summary>
+    /// Persist a CalendarIntervalTriggerImpl by converting internal fields to and from
+    /// SimplePropertiesTriggerProperties.
+    /// </summary>
+    /// <see cref="CalendarIntervalScheduleBuilder"/>
+    /// <see cref="ICalendarIntervalTrigger"/>
     public class CalendarIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
     {
         public override bool CanHandleTriggerType(IOperableTrigger trigger)

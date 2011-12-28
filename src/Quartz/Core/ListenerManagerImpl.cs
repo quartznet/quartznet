@@ -8,6 +8,9 @@ using Quartz.Util;
 
 namespace Quartz.Core
 {
+    /// <summary>
+    /// Default concrete implementation of <see cref="IListenerManager" />.
+    /// </summary>
     public class ListenerManagerImpl : IListenerManager
     {
         private readonly OrderedDictionary globalJobListeners = new OrderedDictionary(10);

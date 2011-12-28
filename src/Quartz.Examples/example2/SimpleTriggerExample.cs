@@ -152,7 +152,7 @@ namespace Quartz.Examples.Example2
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger5", "group1")
-                                           .StartAt(DateBuilder.FutureDate(5, DateBuilder.IntervalUnit.Minute))
+                                           .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute))
                                            .Build();
 
             ft = sched.ScheduleJob(job, trigger);

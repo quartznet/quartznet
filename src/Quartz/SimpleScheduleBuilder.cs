@@ -486,6 +486,9 @@ namespace Quartz
         }
     }
 
+    /// <summary>
+    /// Extension methods that attach <see cref="SimpleScheduleBuilder" /> to <see cref="TriggerBuilder" />.
+    /// </summary>
     public static class SimpleScheduleTriggerBuilderExtensions
     {
         public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder, Action<SimpleScheduleBuilder> action)

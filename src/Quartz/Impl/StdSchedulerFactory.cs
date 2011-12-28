@@ -74,7 +74,7 @@ namespace Quartz.Impl
     /// <author>Anthony Eden</author>
     /// <author>Mohammad Rezaei</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class    StdSchedulerFactory : ISchedulerFactory
+    public class StdSchedulerFactory : ISchedulerFactory
     {
         private const string ConfigurationKeyPrefix = "quartz.";
         public const string PropertiesFile = "quartz.config";
