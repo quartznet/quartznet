@@ -197,10 +197,9 @@ namespace Quartz
             if (dateTime == null)
                 return null;
 
-            DateTimeOffset cal = dateTime.Value.Date;
+            DateTimeOffset cal = new DateTimeOffset(dateTime.Value.Date, dateTime.Value.Offset);
             TimeSpan t = new TimeSpan(0, hour, minute, second);
             return cal.Add(t);
-        
         }
 
         public override string ToString()
