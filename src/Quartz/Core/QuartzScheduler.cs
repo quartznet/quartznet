@@ -1518,7 +1518,7 @@ namespace Quartz.Core
 
         /// <summary>
         /// Get a List containing all of the <see cref="IJobListener" />s
-        /// in the <code>Scheduler</code>'s <i>internal</i> list.
+        /// in the <see cref="IScheduler" />'s <i>internal</i> list.
         /// </summary>
         /// <returns></returns>
         public IList<IJobListener> InternalJobListeners
@@ -1549,8 +1549,8 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Add the given <code>{@link org.quartz.TriggerListener}</code> to the
-        /// <code>Scheduler</code>'s <i>internal</i> list.
+        /// Add the given <see cref="ITriggerListener" /> to the
+        /// <see cref="IScheduler" />'s <i>internal</i> list.
         /// </summary>
         /// <param name="triggerListener"></param>
         public void AddInternalTriggerListener(ITriggerListener triggerListener)

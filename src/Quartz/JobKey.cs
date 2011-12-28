@@ -40,21 +40,19 @@ namespace Quartz
     /// and the various <see cref="IScheduleBuilder" /> implementations.</para>
     /// 
     /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
-    ///         JobDetail job = NewJob(typepof(MyJob))
-    ///             .WithIdentity("myJob")
-    ///             .Build();
-    ///             
-    ///         Trigger trigger = NewTrigger() 
-    ///             .WithIdentity(TriggerKey("myTrigger", "myTriggerGroup"))
-    ///             .WithSchedule(SimpleSchedule()
-    ///                 .WithIntervalInHours(1)
-    ///                 .RepeatForever())
-    ///             .StartAt(FutureDate(10, MINUTES))
-    ///             .Build();
-    ///         
-    ///         scheduler.ScheduleJob(job, trigger);
-    /// </pre>
+    /// <code>
+    /// IJobDetail job = JobBuilder.Create&lt;MyJob>()
+    ///     .WithIdentity("myJob")
+    ///     .Build();
+    /// ITrigger trigger = TriggerBuilder.Create()
+    ///     .WithIdentity("myTrigger", "myTriggerGroup")
+    ///     .WithSimpleSchedule(x => x
+    ///         .WithIntervalInHours(1)
+    ///         .RepeatForever())
+    ///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+    ///     .Build();
+    /// scheduler.scheduleJob(job, trigger);
+    /// </code>
     /// </remarks>
     /// <seealso cref="IJob"/>
     /// <seealso cref="Key{T}.DefaultGroup" />

@@ -27,7 +27,7 @@ using Quartz.Job;
 namespace Quartz
 {
     /// <summary>
-    /// <code>JobBuilder</code> is used to instantiate <see cref="IJobDetail" />s.
+    /// JobBuilder is used to instantiate <see cref="IJobDetail" />s.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -36,15 +36,18 @@ namespace Quartz
     /// if you do not invoke <i>WithIdentity(..)</i> a job name will be generated
     /// for you.
     /// </para>
-    /// <para>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>
+    /// Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>, 
-    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code> 
-    /// and the various <code>ScheduleBuilder</code> implementations.</para>
-    /// 
-    /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
+    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
+    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
+    /// and the various <see cref="IScheduleBuilder" /> implementations.
+    /// </para>
+    /// <para>
+    /// Client code can then use the DSL to write code such as this:
+    /// </para>
+    /// <code>
     ///         IJobDetail job = JobBuilder.Create&lt;MyJob&gt;()
     ///             .WithIdentity("myJob")
     ///             .Build();
@@ -56,7 +59,7 @@ namespace Quartz
     ///             .Build();
     ///         
     ///         scheduler.scheduleJob(job, trigger);
-    /// </pre>
+    /// </code>
     /// </remarks>
     /// <seealso cref="TriggerBuilder" />
     /// <seealso cref="DateBuilder" />
@@ -76,7 +79,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Create a JobBuilder with which to define a <code>JobDetail</code>.
+        /// Create a JobBuilder with which to define a <see cref="IJobDetail" />.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
         public static JobBuilder Create()
@@ -85,8 +88,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Create a JobBuilder with which to define a <code>JobDetail</code>,
-        /// and set the class name of the <code>Job</code> to be executed.
+        /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
+        /// and set the class name of the job to be executed.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
         public static JobBuilder Create(Type jobType)
@@ -97,8 +100,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Create a JobBuilder with which to define a <code>JobDetail</code>,
-        /// and set the class name of the <code>Job</code> to be executed.
+        /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
+        /// and set the class name of the job to be executed.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
         public static JobBuilder Create<T>() where T : IJob
@@ -109,8 +112,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Produce the <code>JobDetail</code> instance defined by this 
-        /// <code>JobBuilder</code>.
+        /// Produce the <see cref="IJobDetail" /> instance defined by this JobBuilder.
         /// </summary>
         /// <returns>the defined JobDetail.</returns>
         public IJobDetail Build()
@@ -137,7 +139,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Use a <code>JobKey</code> with the given name and default group to
+        /// Use a <see cref="JobKey" /> with the given name and default group to
         /// identify the JobDetail.
         /// </summary>
         /// <remarks>
@@ -155,7 +157,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Use a <code>JobKey</code> with the given name and group to
+        /// Use a <see cref="JobKey" /> with the given name and group to
         /// identify the JobDetail.
         /// </summary>
         /// <remarks>
@@ -174,7 +176,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Use a <code>JobKey</code> to identify the JobDetail.
+        /// Use a <see cref="JobKey" /> to identify the JobDetail.
         /// </summary>
         /// <remarks>
         /// <para>If none of the 'withIdentity' methods are set on the JobBuilder,
@@ -226,12 +228,12 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
+        /// Instructs the <see cref="IScheduler" /> whether or not the job
         /// should be re-executed if a 'recovery' or 'fail-over' situation is
         /// encountered.
         /// </summary>
         /// <remarks>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </remarks>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.RequestsRecovery" />
@@ -242,12 +244,12 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Instructs the <code>Scheduler</code> whether or not the <code>Job</code>
+        /// Instructs the <see cref="IScheduler" /> whether or not the job
         /// should be re-executed if a 'recovery' or 'fail-over' situation is
         /// encountered.
         /// </summary>
         /// <remarks>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </remarks>
         /// <param name="shouldRecover"></param>
         /// <returns>the updated JobBuilder</returns>
@@ -258,11 +260,11 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Whether or not the <code>Job</code> should remain stored after it is
-        /// orphaned (no <code><see cref="ITrigger" />s</code> point to it).
+        /// Whether or not the job should remain stored after it is
+        /// orphaned (no <see cref="ITrigger" />s point to it).
         /// </summary>
         /// <remarks>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </remarks>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.Durable" />
@@ -273,11 +275,11 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Whether or not the <code>Job</code> should remain stored after it is
-        /// orphaned (no <code><see cref="ITrigger" />s</code> point to it).
+        /// Whether or not the job should remain stored after it is
+        /// orphaned (no <see cref="ITrigger" />s point to it).
         /// </summary>
         /// <remarks>
-        /// If not explicitly set, the default value is <code>false</code>.
+        /// If not explicitly set, the default value is <see langword="false" />.
         /// </remarks>
         /// <param name="durability">the value to set for the durability property.</param>
         ///<returns>the updated JobBuilder</returns>

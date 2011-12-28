@@ -12,38 +12,31 @@ namespace Quartz.Spi
         new JobKey JobKey { set; get; }
 
         /// <summary>
-        /// Set a description for the <code>Trigger</code> instance - may be
+        /// Set a description for the <see cref="ITrigger" /> instance - may be
         /// useful for remembering/displaying the purpose of the trigger, though the
         /// description has no meaning to Quartz.
         /// </summary>
         new string Description { get; set; }
 
         /// <summary>
-        /// <para>
-        /// Associate the <code><see cref="ICalendar" /></code> with the given name with
-        /// this Trigger.
-        /// </para>
+        /// Associate the <see cref="ICalendar" /> with the given name with this Trigger.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
         new string CalendarName { set; get; }
 
         /// <summary>
-        /// Set the <code>JobDataMap</code> to be associated with the
-        /// <code>Trigger</code>.
+        /// Set the <see cref="JobDataMap" /> to be associated with the
+        /// <see cref="ITrigger" />.
         /// </summary>
         new JobDataMap JobDataMap { get; set; }
 
         /// <summary>
-        /// The priority of a <code>Trigger</code> acts as a tie breaker such that if
-        /// two <code>Trigger</code>s have the same scheduled fire time, then Quartz
+        /// The priority of a <see cref="ITrigger" /> acts as a tie breaker such that if
+        /// two <see cref="ITrigger" />s have the same scheduled fire time, then Quartz
         /// will do its best to give the one with the higher priority first access
         /// to a worker thread.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// If not explicitly set, the default value is <code>5</code>.
-        /// </para>
+        /// If not explicitly set, the default value is 5.
         /// </remarks>
         /// <seealso cref="TriggerConstants.DefaultPriority" />
         new int Priority { get; set; }
@@ -66,7 +59,7 @@ namespace Quartz.Spi
 
         /// <summary>
         /// <para>
-        /// Set the time at which the <code>Trigger</code> should quit repeating -
+        /// Set the time at which the <see cref="ITrigger" /> should quit repeating -
         /// regardless of any remaining repeats (based on the trigger's particular
         /// repeat settings).
         /// </para>
@@ -76,18 +69,14 @@ namespace Quartz.Spi
         new DateTimeOffset? EndTimeUtc { get; set; }
 
         /// <summary>
-        /// <para>
-        /// Set the instruction the <code>Scheduler</code> should be given for
-        /// handling misfire situations for this <code>Trigger</code>- the
-        /// concrete <code>Trigger</code> type that you are using will have
-        /// defined a set of additional <code>MISFIRE_INSTRUCTION_XXX</code>
+        /// Set the instruction the <see cref="IScheduler" /> should be given for
+        /// handling misfire situations for this <see cref="ITrigger" />- the
+        /// concrete <see cref="ITrigger" /> type that you are using will have
+        /// defined a set of additional MisfireInstruction.XXX
         /// constants that may be passed to this method.
-        /// </para>
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// If not explicitly set, the default value is <code>MISFIRE_INSTRUCTION_SMART_POLICY</code>.
-        /// </para>
+        /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.SmartPolicy" />.
         /// </remarks>
         /// <seealso cref="Quartz.MisfireInstruction.SmartPolicy" />
         /// <seealso cref="ISimpleTrigger" />

@@ -25,7 +25,7 @@ namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
     /// An interface which provides an implementation for storing a particular
-    /// type of <code>Trigger</code>'s extended properties.
+    /// type of <see cref="ITrigger" />'s extended properties.
     /// </summary>
     /// <author>jhouse</author>
     public interface ITriggerPersistenceDelegate

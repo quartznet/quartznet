@@ -6,29 +6,33 @@ using Quartz.Spi;
 namespace Quartz
 {
     /// <summary>
-    /// <code>CalendarIntervalScheduleBuilder</code> is a <see cref="IScheduleBuilder" />
+    /// CalendarIntervalScheduleBuilder is a <see cref="IScheduleBuilder" />
     /// that defines calendar time (day, week, month, year) interval-based
-    /// schedules for <code>Trigger</code>s.
+    /// schedules for Triggers.
     /// </summary>
     /// <remarks>
-    /// <para>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>
+    /// Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
-    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</para>
+    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
+    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
+    /// and the various <see cref="IScheduleBuilder" /> implementations.
+    /// </para>
     /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
+    /// <code>
     /// JobDetail job = JobBuilder.Create&lt;MyJob&gt;()
-    ///  .WithIdentity("myJob")
-    ///  .Build();
+    ///     .WithIdentity("myJob")
+    ///     .Build();
     /// Trigger trigger = TriggerBuilder.Create()
-    ///  .WithIdentity("myTrigger", "myTriggerGroup")
-    ///  .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
-    ///  .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
-    ///  .Build();
+    ///     .WithIdentity("myTrigger", "myTriggerGroup")
+    ///     .WithSimpleSchedule(x => x
+    ///         .WithIntervalInHours(1)
+    ///         .RepeatForever())
+    ///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+    ///     .Build();
     /// scheduler.scheduleJob(job, trigger);
-    /// </pre>
+    /// </code>
     /// </remarks>
     /// <seealso cref="ICalendarIntervalTrigger" />
     /// <seealso cref="CronScheduleBuilder" />
@@ -217,7 +221,7 @@ namespace Quartz
 
         /// <summary>
         /// If the Trigger misfires, use the
-        /// {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
+        /// <see cref="MisfireInstruction.IgnoreMisfirePolicy" /> instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>

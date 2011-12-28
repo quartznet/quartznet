@@ -52,3 +52,4 @@ _ReSharper*/
 *.snk
 *.zip
 website
+/doc/apidoc

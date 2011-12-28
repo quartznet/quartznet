@@ -15,7 +15,7 @@ namespace Quartz
         int RepeatInterval { get; set; }
 
         /// <summary>
-        /// Get the number of times the <code>DateIntervalTrigger</code> has already fired.
+        /// Get the number of times the <see cref="ICalendarIntervalTrigger" /> has already fired.
         /// </summary>
         int TimesTriggered { get; set; }
 

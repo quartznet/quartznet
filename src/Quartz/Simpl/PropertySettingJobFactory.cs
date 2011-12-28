@@ -33,11 +33,11 @@ namespace Quartz.Simpl
 	/// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType{T}" />), and
 	/// then attempts to set all values from the <see cref="IJobExecutionContext" /> and
 	/// the <see cref="IJobExecutionContext" />'s merged <see cref="JobDataMap" /> onto 
-	/// properties of the <code>Job</code>.
+	/// properties of the job.
 	/// </summary>
     /// <remarks>   
     /// Set the WarnIfPropertyNotFound property to true if you'd like noisy logging in
-    /// the case of values in the <see cref="JobDataMap" /> not mapping to properties on your <code>Job</code>
+    /// the case of values in the <see cref="JobDataMap" /> not mapping to properties on your job
     /// class. This may be useful for troubleshooting typos of property names, etc.
     /// but very noisy if you regularly (and purposely) have extra things in your
     ///  <see cref="JobDataMap" />.

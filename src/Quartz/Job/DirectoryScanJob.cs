@@ -36,7 +36,7 @@ namespace Quartz.Job
        /// new/altered.  This is necessary because another process may still be
        /// in the middle of writing to the file when the scan occurs, and the
        ///  file may therefore not yet be ready for processing.
-       /// <para>If this parameter is not specified, a default value of <pre>5000</pre> (five seconds) will be used.</para>
+       /// <para>If this parameter is not specified, a default value of 5000 (five seconds) will be used.</para>
         public const string MINIMUM_UPDATE_AGE = "MINIMUM_UPDATE_AGE";
 
         private const string LAST_MODIFIED_TIME = "LAST_MODIFIED_TIME";

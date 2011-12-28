@@ -19,8 +19,6 @@
 
 using System;
 
-using Quartz.Spi;
-
 namespace Quartz.Impl.Triggers
 {
     /// <summary>
@@ -35,9 +33,9 @@ namespace Quartz.Impl.Triggers
     /// "every 5 months" is not an even divisor of 12).
     /// <para>
     /// If you use an interval unit of <see cref="IntervalUnit.Month" /> then care should be taken when setting
-    /// a <code>startTime</code> value that is on a day near the end of the month.  For example,
+    /// a <see cref="StartTimeUtc" /> value that is on a day near the end of the month.  For example,
     /// if you choose a start time that occurs on January 31st, and have a trigger with unit
-    /// <see cref="IntervalUnit.Month" /> and interval <code>1</code>, then the next fire time will be February 28th, 
+    /// <see cref="IntervalUnit.Month" /> and interval 1, then the next fire time will be February 28th, 
     /// and the next time after that will be March 28th - and essentially each subsequent firing will 
     /// occur on the 28th of the month, even if a 31st day exists.  If you want a trigger that always
     /// fires on the last day of the month - regardless of the number of days in the month, 
@@ -54,7 +52,7 @@ namespace Quartz.Impl.Triggers
     [Serializable]
     public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
     {
-        private static readonly int YearToGiveupSchedulingAt = DateTime.Now.Year + 100;
+        private static readonly int YearToGiveupSchedulingAt = DateTime.Now.AddYears(100).Year;
 
         private DateTimeOffset startTime;
         private DateTimeOffset? endTime;
@@ -63,10 +61,10 @@ namespace Quartz.Impl.Triggers
         private int repeatInterval;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
         private int timesTriggered;
-        private bool complete = false;
+        private bool complete;
 
         /// <summary>
-        /// Create a <code>DateIntervalTrigger</code> with no settings.
+        /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
         /// </summary>
         public CalendarIntervalTriggerImpl()
         {
@@ -103,8 +101,8 @@ namespace Quartz.Impl.Triggers
         /// and repeat at the the given interval until the given end time.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
-        /// <param name="startTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to fire.</param>
-        /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat firing.</param>
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
+        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, DateTimeOffset startTimeUtc,
@@ -119,8 +117,8 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
         /// <param name="group">Group for the trigger instance.</param>
-        /// <param name="startTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to fire.</param>
-        /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat firing.</param>
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
+        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
@@ -141,8 +139,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="group">Group for the trigger instance.</param>
         /// <param name="jobName">Name of the associated job.</param>
         /// <param name="jobGroup">Group of the associated job.</param>
-        /// <param name="startTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to fire.</param>
-        /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat firing.</param>
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
+        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, string group, string jobName,
@@ -244,7 +242,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get the number of times the <code>DateIntervalTrigger</code> has already fired.
+        /// Get the number of times the <see cref="ICalendarIntervalTrigger" /> has already fired.
         /// </summary>
         public int TimesTriggered
         {
@@ -280,14 +278,14 @@ namespace Quartz.Impl.Triggers
 
         /// <summary> 
         /// Updates the <see cref="ICalendarIntervalTrigger" />'s state based on the
-        /// MISFIRE_INSTRUCTION_XXX that was selected when the <code>DateIntervalTrigger</code>
+        /// MisfireInstruction.XXX that was selected when the <see cref="ICalendarIntervalTrigger" />
         /// was created.
         /// </summary>
         /// <remarks>
-        ///  If the misfire instruction is set to MISFIRE_INSTRUCTION_SMART_POLICY,
+        /// If the misfire instruction is set to <see cref="MisfireInstruction.SmartPolicy" />,
         /// then the following scheme will be used:
         /// <ul>
-        /// <li>The instruction will be interpreted as <code>MISFIRE_INSTRUCTION_FIRE_ONCE_NOW</code></li>
+        ///     <li>The instruction will be interpreted as <see cref="MisfireInstruction.CalendarIntervalTrigger.FireOnceNow" /></li>
         /// </ul>
         /// </remarks>
         public override void UpdateAfterMisfire(ICalendar cal)
@@ -662,7 +660,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Returns the final time at which the <code>DateIntervalTrigger</code> will
+        /// Returns the final time at which the <see cref="ICalendarIntervalTrigger" /> will
         /// fire, if there is no end time set, null will be returned.
         /// </summary>
         /// <value></value>
@@ -725,7 +723,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Determines whether or not the <code>DateIntervalTrigger</code> will occur
+        /// Determines whether or not the <see cref="ICalendarIntervalTrigger" /> will occur
         /// again.
         /// </summary>
         /// <returns></returns>

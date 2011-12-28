@@ -24,7 +24,7 @@ using System;
 namespace Quartz
 {
     /// <summary>
-    /// Conveys the detail properties of a given <code>Job</code> instance. 
+    /// Conveys the detail properties of a given job instance. 
     /// JobDetails are to be created/defined with <see cref="JobBuilder" />.
     /// </summary>
     /// <remarks>

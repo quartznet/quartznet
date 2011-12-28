@@ -45,13 +45,13 @@ namespace Quartz.Job
 		public const string FileName = "FILE_NAME";
 
         /// <summary>
-        /// JobDataMap key with which to specify the {@link org.quartz.jobs.FileScanListener} 
+        /// JobDataMap key with which to specify the <see cref="IFileScanListener" />
         /// to be notified when the file contents change. 
         /// </summary>
 		public const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
 
 	    /// <summary>
-	    /// <code>JobDataMap</code> key with which to specify a <code>long</code>
+	    /// <see cref="JobDataMap" /> key with which to specify a long
 	    /// value that represents the minimum number of milliseconds that must have
 	    /// past since the file's last modified time in order to consider the file
 	    /// new/altered.  This is necessary because another process may still be
@@ -59,7 +59,7 @@ namespace Quartz.Job
 	    /// file may therefore not yet be ready for processing.
 	    /// 
 	    /// <para>If this parameter is not specified, a default value of 
-	    /// <code>5000</code> (five seconds) will be used.</para>
+	    /// 5000 (five seconds) will be used.</para>
 	    /// </summary>
 	    public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE"; 
 	    

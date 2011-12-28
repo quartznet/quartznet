@@ -28,12 +28,12 @@ namespace Quartz
     /// <summary>
     /// Client programs may be interested in the 'listener' interfaces that are
     /// available from Quartz. The <see cref="IJobListener" /> interface
-    /// provides notifications of <code>Job</code> executions. The
+    /// provides notifications of Job executions. The
     /// <see cref="ITriggerListener" /> interface provides notifications of
-    /// <code>Trigger</code> firings. The <see cref="ISchedulerListener" />
-    /// interface provides notifications of <code>Scheduler</code> events and
+    /// <see cref="ITrigger" /> firings. The <see cref="ISchedulerListener" />
+    /// interface provides notifications of scheduler events and
     /// errors.  Listeners can be associated with local schedulers through the
-    /// {@link ListenerManager} interface.
+    /// <see cref="IListenerManager" /> interface.
     /// </summary>
     /// <remarks>
     /// </remarks>
@@ -42,24 +42,24 @@ namespace Quartz
     public interface IListenerManager
     {
         /// <summary>
-        /// Add the given <see cref="IJobListener" /> to the <code>Scheduler</code>,
+        /// Add the given <see cref="IJobListener" /> to the<see cref="IScheduler" />,
         /// and register it to receive events for Jobs that are matched by ANY of the
         /// given Matchers.
         /// </summary>
         /// <remarks>
-        /// If no matchers are provided, the <code>EverythingMatcher</code> will be used.
+        /// If no matchers are provided, the <see cref="EverythingMatcher{TKey}" /> will be used.
         /// </remarks>
         /// <seealso cref="IMatcher{T}" />
         /// <seealso cref="EverythingMatcher{T}" />
         void AddJobListener(IJobListener jobListener, params IMatcher<JobKey>[] matchers);
 
         /// <summary>
-        /// Add the given <see cref="IJobListener" /> to the <code>Scheduler</code>,
+        /// Add the given <see cref="IJobListener" /> to the<see cref="IScheduler" />,
         /// and register it to receive events for Jobs that are matched by ANY of the
         /// given Matchers.
         /// </summary>
         /// <remarks>
-        /// If no matchers are provided, the <code>EverythingMatcher</code> will be used.
+        /// If no matchers are provided, the <see cref="EverythingMatcher{TKey}" /> will be used.
         /// </remarks>
         /// <seealso cref="IMatcher{T}" />
         /// <seealso cref="EverythingMatcher{T}" />
@@ -110,7 +110,7 @@ namespace Quartz
         IList<IMatcher<JobKey>> GetJobListenerMatchers(string listenerName);
 
         /// <summary>
-        /// Remove the identified <see cref="IJobListener" /> from the <code>Scheduler</code>.
+        /// Remove the identified <see cref="IJobListener" /> from the<see cref="IScheduler" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -119,7 +119,7 @@ namespace Quartz
 
         /// <summary>
         /// Get a List containing all of the <see cref="IJobListener" />s in
-        /// the <code>Scheduler</code>.
+        /// the<see cref="IScheduler" />.
         /// </summary>
         IList<IJobListener> GetJobListeners();
 
@@ -129,24 +129,24 @@ namespace Quartz
         IJobListener GetJobListener(string name);
 
         /// <summary>
-        /// Add the given <see cref="ITriggerListener" /> to the <code>Scheduler</code>,
+        /// Add the given <see cref="ITriggerListener" /> to the<see cref="IScheduler" />,
         /// and register it to receive events for Triggers that are matched by ANY of the
         /// given Matchers.
         /// </summary>
         /// <remarks>
-        /// If no matcher is provided, the <code>EverythingMatcher</code> will be used.
+        /// If no matcher is provided, the <see cref="EverythingMatcher{TKey}" /> will be used.
         /// </remarks>
         /// <seealso cref="IMatcher{T}" />
         /// <seealso cref="EverythingMatcher{T}" />
         void AddTriggerListener(ITriggerListener triggerListener, params IMatcher<TriggerKey>[] matchers);
 
         /// <summary>
-        /// Add the given <see cref="ITriggerListener" /> to the <code>Scheduler</code>,
+        /// Add the given <see cref="ITriggerListener" /> to the<see cref="IScheduler" />,
         /// and register it to receive events for Triggers that are matched by ANY of the
         /// given Matchers.
         /// </summary>
         /// <remarks>
-        /// If no matcher is provided, the <code>EverythingMatcher</code> will be used.
+        /// If no matcher is provided, the <see cref="EverythingMatcher{TKey}" /> will be used.
         /// </remarks>
         /// <seealso cref="IMatcher{T}" />
         /// <seealso cref="EverythingMatcher{T}" />
@@ -197,7 +197,7 @@ namespace Quartz
         IList<IMatcher<TriggerKey>> GetTriggerListenerMatchers(string listenerName);
 
         /// <summary>
-        /// Remove the identified <see cref="ITriggerListener" /> from the <code>Scheduler</code>.
+        /// Remove the identified <see cref="ITriggerListener" /> from the<see cref="IScheduler" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -207,7 +207,7 @@ namespace Quartz
 
         /// <summary>
         /// Get a List containing all of the <see cref="ITriggerListener" />s
-        /// in the <code>Scheduler</code>.
+        /// in the<see cref="IScheduler" />.
         /// </summary>
         IList<ITriggerListener> GetTriggerListeners();
 
@@ -218,13 +218,13 @@ namespace Quartz
 
         /// <summary>
         /// Register the given <see cref="ISchedulerListener" /> with the
-        /// <code>Scheduler</code>.
+        ///<see cref="IScheduler" />.
         /// </summary>
         void AddSchedulerListener(ISchedulerListener schedulerListener);
 
         /// <summary>
         /// Remove the given <see cref="ISchedulerListener" /> from the
-        /// <code>Scheduler</code>.
+        ///<see cref="IScheduler" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -233,7 +233,7 @@ namespace Quartz
 
         /// <summary>
         /// Get a List containing all of the <see cref="ISchedulerListener" />s
-        /// registered with the <code>Scheduler</code>.
+        /// registered with the<see cref="IScheduler" />.
         /// </summary>
         IList<ISchedulerListener> GetSchedulerListeners();
     }

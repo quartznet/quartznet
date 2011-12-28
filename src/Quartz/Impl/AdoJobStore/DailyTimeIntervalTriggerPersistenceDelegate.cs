@@ -41,7 +41,8 @@ namespace Quartz.Impl.AdoJobStore
     {
         public override bool CanHandleTriggerType(IOperableTrigger trigger)
         {
-            return ((trigger is DailyTimeIntervalTriggerImpl) && !((DailyTimeIntervalTriggerImpl) trigger).HasAdditionalProperties);
+            return ((trigger is DailyTimeIntervalTriggerImpl) &&
+                    !((DailyTimeIntervalTriggerImpl) trigger).HasAdditionalProperties);
         }
 
         /// <summary>
@@ -63,7 +64,7 @@ namespace Quartz.Impl.AdoJobStore
             props.Int2 = dailyTrigger.TimesTriggered;
 
             ISet<DayOfWeek> days = dailyTrigger.DaysOfWeek;
-            string daysStr = string.Join(",", days.Cast<int>());
+            string daysStr = string.Join(",", days.Cast<int>().Select(x => x.ToString()).ToArray());
             props.String2 = daysStr;
 
             StringBuilder timeOfDayBuffer = new StringBuilder();
@@ -97,13 +98,13 @@ namespace Quartz.Impl.AdoJobStore
 
         protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
         {
-            int repeatCount = (int)props.Long1;
+            int repeatCount = (int) props.Long1;
             int interval = props.Int1;
             string intervalUnitStr = props.String1;
             string daysOfWeekStr = props.String2;
             string timeOfDayStr = props.String3;
 
-            IntervalUnit intervalUnit = (IntervalUnit) Enum.Parse(typeof(IntervalUnit), intervalUnitStr, true);
+            IntervalUnit intervalUnit = (IntervalUnit) Enum.Parse(typeof (IntervalUnit), intervalUnitStr, true);
             DailyTimeIntervalScheduleBuilder scheduleBuilder = DailyTimeIntervalScheduleBuilder.Create()
                 .WithInterval(interval, intervalUnit)
                 .WithRepeatCount(repeatCount);
@@ -129,7 +130,7 @@ namespace Quartz.Impl.AdoJobStore
             if (timeOfDayStr != null)
             {
                 string[] nums = timeOfDayStr.Split(',');
-                TimeOfDay startTimeOfDay = null;
+                TimeOfDay startTimeOfDay;
                 if (nums.Length >= 3)
                 {
                     int hour = Int32.Parse(nums[0]);
@@ -162,7 +163,7 @@ namespace Quartz.Impl.AdoJobStore
                 scheduleBuilder.StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(0, 0, 0));
                 scheduleBuilder.EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59));
             }
-            
+
 
             int timesTriggered = props.Int2;
             string[] statePropertyNames = {"timesTriggered"};

@@ -68,7 +68,7 @@ namespace Quartz
         IntervalUnit RepeatIntervalUnit { get; }
 
         /// <summary>
-        /// Get the the time interval that will be added to the <code>DateIntervalTrigger</code>'s
+        /// Get the the time interval that will be added to the <see cref="IDailyTimeIntervalTrigger" />'s
         /// fire time (in the set repeat interval unit) in order to calculate the time of the
         /// next trigger repeat.
         /// </summary>
@@ -94,7 +94,7 @@ namespace Quartz
         ISet<DayOfWeek> DaysOfWeek { get; set; }
 
         /// <summary>
-        /// Get the number of times the <code>DateIntervalTrigger</code> has already fired.
+        /// Get the number of times the <see cref="IDailyTimeIntervalTrigger" /> has already fired.
         /// </summary>
         int TimesTriggered { get; set; }
 

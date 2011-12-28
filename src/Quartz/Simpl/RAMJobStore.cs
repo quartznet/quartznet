@@ -122,7 +122,7 @@ namespace Quartz.Simpl
 		}
 
 	    /// <summary>
-	    /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+	    /// Called by the QuartzScheduler to inform the JobStore that
 	    /// the scheduler has been paused.
 	    /// </summary>
 	    public void SchedulerPaused()
@@ -131,7 +131,7 @@ namespace Quartz.Simpl
         }
 
 	    /// <summary>
-	    /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+	    /// Called by the QuartzScheduler to inform the JobStore that
 	    /// the scheduler has resumed after being paused.
 	    /// </summary>
 	    public void SchedulerResumed()

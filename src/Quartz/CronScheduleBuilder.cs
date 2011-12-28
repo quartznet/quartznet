@@ -28,18 +28,22 @@ namespace Quartz
 {
 
     /// <summary>
-    /// <code>CronScheduleBuilder</code> is a <see cref="IScheduleBuilder" /> that defines
-    /// <see cref="CronExpression" />-based schedules for <code>Trigger</code>s.
+    /// CronScheduleBuilder is a <see cref="IScheduleBuilder" /> that defines
+    /// <see cref="CronExpression" />-based schedules for <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
-    /// <para>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>
+    /// Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
-    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</para>
-    /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
+    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
+    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
+    /// and the various <see cref="IScheduleBuilder" /> implementations.
+    /// </para>
+    /// <para>
+    /// Client code can then use the DSL to write code such as this:
+    /// </para>
+    /// <code>
     /// IJobDetail job = JobBuilder.Create&lt;MyJob&gt;()
     ///   .WithIdentity("myJob")
     ///   .Build();
@@ -49,7 +53,7 @@ namespace Quartz
     ///  .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
     ///  .Build();
     /// scheduler.scheduleJob(job, trigger);
-    /// </pre>
+    /// </code>
     /// </remarks>
     /// <seealso cref="CronExpression" />
     /// <seealso cref="ICronTrigger" />
@@ -233,7 +237,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// The <code>TimeZone</code> in which to base the schedule.
+        /// The <see cref="TimeZoneInfo" /> in which to base the schedule.
         /// </summary>
         /// <remarks>
         /// </remarks>
