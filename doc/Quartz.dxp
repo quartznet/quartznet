@@ -12,8 +12,8 @@
   <PropertyDefinitionValues />
   <Title>Quartz.NET 2.0</Title>
   <ContentFiles>
-    <ContentFile FileName="Job Scheduling Schema v. 2.0.dxc" Moniker="&lt;XsdSchema Name=&quot;Job Scheduling Schema v. 2.0&quot; SchemaLocationType=&quot;File&quot; SchemaType=&quot;Normal&quot; SchemaLocation=&quot;..\src\Quartz\Xml\job_scheduling_data_2_0.xsd&quot; /&gt;" DocType="DX.XSD" />
     <ContentFile FileName="Quartz.dxc" Moniker="..\build\3.5\debug\Quartz\Quartz.dll" DocType="DX.NET" />
+    <ContentFile FileName="Job Scheduling Data 2.0.dxc" Moniker="&lt;XsdSchema Name=&quot;Job Scheduling Data 2.0&quot; SchemaLocationType=&quot;File&quot; SchemaType=&quot;Normal&quot; SchemaLocation=&quot;..\src\Quartz\Xml\job_scheduling_data_2_0.xsd&quot; /&gt;" DocType="DX.XSD" />
   </ContentFiles>
   <ContentFromProjectPlugin />
   <Filters>
@@ -132,7 +132,7 @@
   </DatabaseProjectPlugin>
   <XsdProjectPlugin>
     <XsdSchemas>
-      <XsdSchema Name="Job Scheduling Schema v. 2.0" SchemaLocationType="File" SchemaType="Normal" SchemaLocation="..\src\Quartz\Xml\job_scheduling_data_2_0.xsd" />
+      <XsdSchema Name="Job Scheduling Data 2.0" SchemaLocationType="File" SchemaType="Normal" SchemaLocation="..\src\Quartz\Xml\job_scheduling_data_2_0.xsd" />
     </XsdSchemas>
   </XsdProjectPlugin>
   <GlossaryProjectPlugin>
