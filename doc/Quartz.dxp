@@ -11,7 +11,10 @@
   <PropertyDefinitions />
   <PropertyDefinitionValues />
   <Title>Quartz.NET 2.0</Title>
-  <ContentFiles />
+  <ContentFiles>
+    <ContentFile FileName="Job Scheduling Schema v. 2.0.dxc" Moniker="&lt;XsdSchema Name=&quot;Job Scheduling Schema v. 2.0&quot; SchemaLocationType=&quot;File&quot; SchemaType=&quot;Normal&quot; SchemaLocation=&quot;..\src\Quartz\Xml\job_scheduling_data_2_0.xsd&quot; /&gt;" DocType="DX.XSD" />
+    <ContentFile FileName="Quartz.dxc" Moniker="..\build\3.5\debug\Quartz\Quartz.dll" DocType="DX.NET" />
+  </ContentFiles>
   <ContentFromProjectPlugin />
   <Filters>
     <ExcludedItems>
@@ -48,6 +51,75 @@
       <ExcludedItem>Quartz~Quartz.Xml.JobSchedulingData20.QuartzXmlConfiguration20</ExcludedItem>
       <ExcludedItem>Quartz~Quartz.Xml.JobSchedulingData20.simpleTriggerType</ExcludedItem>
       <ExcludedItem>Quartz~Quartz.Xml.JobSchedulingData20.triggerType</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz_namespace</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.CalendarIntervalScheduleBuilder</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.CalendarScheduleTriggerBuilderExtensions</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.CronExpression</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.CronScheduleBuilder</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.CronScheduleTriggerBuilderExtensions</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.DailyTimeIntervalScheduleBuilder</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.DailyTimeIntervalScheduleBuilderExtensions</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.DateBuilder</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.DateBuilder+IntervalUnit</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.DisallowConcurrentExecutionAttribute</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ICalendar</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ICalendarIntervalTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ICronTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IDailyTimeIntervalTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IInterruptableJob</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IJob</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IJobDetail</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IJobExecutionContext</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IJobListener</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IListenerManager</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IMatcher`1</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IntervalUnit</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IScheduleBuilder</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IScheduler</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ISchedulerFactory</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ISchedulerListener</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ISimpleTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IStatefulJob</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.IThreadRunnable</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ITrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ITriggerListener</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.JobBuilder</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.JobDataMap</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.JobExecutionContextImpl</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.JobExecutionException</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.JobKey</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.JobPersistenceException</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.MisfireInstruction</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.MisfireInstruction+CalendarIntervalTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.MisfireInstruction+CronTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.MisfireInstruction+DailyTimeIntervalTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.MisfireInstruction+NthIncludedDayTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.MisfireInstruction+SimpleTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.NthIncludedDayTrigger</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ObjectAlreadyExistsException</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.PersistJobDataAfterExecutionAttribute</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.QuartzThread</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ScheduleBuilder`1</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SchedulerConfigException</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SchedulerConstants</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SchedulerContext</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SchedulerException</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SchedulerInstruction</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SchedulerMetaData</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SimpleScheduleBuilder</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SimpleScheduleTriggerBuilderExtensions</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.SystemTime</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TimeOfDay</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TimeSpanParseRule</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TimeSpanParseRuleAttribute</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TriggerBuilder</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TriggerConstants</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TriggerKey</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TriggerState</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TriggerTimeComparator</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.TriggerUtils</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.UnableToInterruptJobException</ExcludedItem>
+      <ExcludedItem>Quartz~Quartz.ValueSet</ExcludedItem>
     </ExcludedItems>
   </Filters>
   <ComProjectPlugin />

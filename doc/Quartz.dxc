@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ContentFile Version="2010" Moniker="..\build\3.5\debug\Quartz\Quartz.dll" DocType="DX.NET" IsLocalizationDisabled="false">
+  <RelatedProject>Quartz.dxp</RelatedProject>
+  <State>
+    <Attributes>
+      <Attribute key="dtscrollpos" valuetype="integer">0</Attribute>
+      <Attribute key="inheritedMembers" valuetype="string">on</Attribute>
+      <Attribute key="protectedMembers" valuetype="string">on</Attribute>
+    </Attributes>
+  </State>
+  <LastSelectedItem>Quartz~Quartz.Impl.AdoJobStore.Common_namespace</LastSelectedItem>
+  <item qn="Quartz~Quartz.Collection_namespace">
+    <summary ChangeDateTime="2011-12-28T15:49:15.020373Z">Set abstractions for Quartz.NET.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Impl_namespace">
+    <summary ChangeDateTime="2011-12-28T15:50:20.53012Z">Interface implementations for main library components.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Impl.AdoJobStore_namespace">
+    <summary ChangeDateTime="2011-12-28T15:51:24.2007617Z">ADO.NET job store implementation.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Impl.Calendar_namespace">
+    <summary ChangeDateTime="2011-12-28T15:51:24.2007617Z">Different calendars for fine-grained control of triggers fire times.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Impl.Matchers_namespace">
+    <summary ChangeDateTime="2011-12-28T15:51:24.2007617Z">Matchers for listeners.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Impl.Triggers_namespace">
+    <summary ChangeDateTime="2011-12-28T15:51:24.2017618Z">Trigger implementations.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Job_namespace">
+    <summary ChangeDateTime="2011-12-28T15:51:24.2017618Z">Built-in job implementations.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Listener_namespace">
+    <summary ChangeDateTime="2011-12-28T15:51:57.4106612Z">Built-in listeners and templates for listener development.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Simpl_namespace">
+    <summary ChangeDateTime="2011-12-28T15:52:11.1464469Z">Service interface implementations.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Spi_namespace">
+    <summary ChangeDateTime="2011-12-28T15:52:25.4042624Z">Infrastructre service provider interfaces.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Util_namespace">
+    <summary ChangeDateTime="2011-12-28T15:52:46.5074694Z">Utilitities and extension methods.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Xml_namespace">
+    <summary ChangeDateTime="2011-12-28T15:53:04.1154765Z">XML based job and trigger definition support.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Plugin.Xml_namespace">
+    <summary ChangeDateTime="2011-12-28T15:53:23.8676063Z">Plugin for polling XML files for job and trigger configuration.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Plugin.Management_namespace">
+    <summary ChangeDateTime="2011-12-28T15:53:34.8812362Z">Management related plugins.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Plugin.History_namespace">
+    <summary ChangeDateTime="2011-12-28T15:53:48.0999923Z">Plugins for logging job and trigger history.</summary>
+  </item>
+  <item qn="Quartz~Quartz.Core_namespace">
+    <summary ChangeDateTime="2011-12-28T15:54:23.7950339Z">Quartz trigger and job handling core logic.</summary>
+  </item>
+  <item qn="Quartz">
+    <project_introduction ChangeDateTime="2011-12-28T15:56:59.5639434Z">Quartz.NET is a pure .NET library written in C# and is a port of very propular open source Java job scheduling framework, Quartz.</project_introduction>
+    <project_gettingstarted ChangeDateTime="2011-12-28T15:56:23.8779023Z">The best way to get started is to read through &lt;A href="http://www.quartz-scheduler.net/tutorial/index.html"&gt;the official Quartz.NET tutorial&lt;/A&gt;.</project_gettingstarted>
+  </item>
+  <item qn="Quartz~Quartz.Impl.AdoJobStore.Common_namespace">
+    <summary ChangeDateTime="2011-12-28T15:57:56.1271786Z">Metadata about different databases to support correct parameter and data handling.</summary>
+  </item>
+  <Filters>
+    <CONTENTSTORECOMMON>
+      <IsIncludedItemsOnly>true</IsIncludedItemsOnly>
+    </CONTENTSTORECOMMON>
+    <CONTENTSTORELOCALIZATION>
+      <IsPrimaryLocaleContentPreviewEnabled>true</IsPrimaryLocaleContentPreviewEnabled>
+    </CONTENTSTORELOCALIZATION>
+    <DX.NETCONTENTSTOREFILTER>
+      <ShowProtectedMembers>true</ShowProtectedMembers>
+      <ShowProtectedFriendMembers>true</ShowProtectedFriendMembers>
+      <ShowFriendMembers>false</ShowFriendMembers>
+      <ShowPrivateMembers>false</ShowPrivateMembers>
+      <ShowInheritedMembers>false</ShowInheritedMembers>
+      <IsSourceCodeContentVisible>true</IsSourceCodeContentVisible>
+    </DX.NETCONTENTSTOREFILTER>
+  </Filters>
+</ContentFile>
