@@ -1570,9 +1570,6 @@ namespace Quartz
             // CronTrigger does not deal with milliseconds
             DateTimeOffset d = CreateDateTimeWithoutMillis(afterTimeUtc);
 
-            // change to specified time zone
-            d = TimeZoneInfo.ConvertTime(d, TimeZone);
-
             bool gotOne = false;
             // loop until we've computed the next time, or we've past the endTime
             while (!gotOne)
