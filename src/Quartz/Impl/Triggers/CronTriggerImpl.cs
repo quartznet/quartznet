@@ -174,7 +174,7 @@ namespace Quartz.Impl.Triggers
     [Serializable]
     public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 	{
-        protected internal const int YearToGiveupSchedulingAt = 2299;
+        protected const int YearToGiveupSchedulingAt = 2299;
 		private CronExpression cronEx;
         private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
         private DateTimeOffset? endTimeUtc;
@@ -292,7 +292,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
         /// <param name="timeZone">
-        /// Specifies for which time zone the <code>cronExpression</code> should be interpreted, 
+        /// Specifies for which time zone the cronExpression should be interpreted, 
         /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
         /// </param>
 		public CronTriggerImpl(string name, string group, string jobName,

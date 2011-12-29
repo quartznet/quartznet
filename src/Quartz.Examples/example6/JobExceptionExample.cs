@@ -55,17 +55,18 @@ namespace Quartz.Examples.Example6
             // get a "nice round" time a few seconds in the future...
             DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
 
-            // badJob1 will run every three seconds
+            // badJob1 will run every 10 seconds
             // this job will throw an exception and refire
             // immediately
             IJobDetail job = JobBuilder.Create<BadJob1>()
                 .WithIdentity("badJob1", "group1")
+                .UsingJobData("denominator", "0")
                 .Build();
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                                           .WithIdentity("trigger1", "group1")
                                                           .StartAt(startTime)
-                                                          .WithSimpleSchedule(x => x.WithIntervalInSeconds(3).RepeatForever())
+                                                          .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever())
                                                           .Build();
 
             DateTimeOffset ft = sched.ScheduleJob(job, trigger);
@@ -73,7 +74,7 @@ namespace Quartz.Examples.Example6
                      + trigger.RepeatCount + " times, every "
                      + trigger.RepeatInterval.TotalSeconds + " seconds");
 
-            // badJob2 will run every three seconds
+            // badJob2 will run every five seconds
             // this job will throw an exception and never
             // refire
             job = JobBuilder.Create<BadJob2>()
@@ -83,7 +84,7 @@ namespace Quartz.Examples.Example6
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                                            .WithIdentity("trigger2", "group1")
                                            .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(3).RepeatForever())
+                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
                                            .Build();
             ft = sched.ScheduleJob(job, trigger);
             log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
@@ -95,10 +96,10 @@ namespace Quartz.Examples.Example6
 
             log.Info("------- Started Scheduler -----------------");
 
-            // sleep for 60 seconds
+            // sleep for 30 seconds
             try
             {
-                Thread.Sleep(TimeSpan.FromSeconds(60));
+                Thread.Sleep(TimeSpan.FromSeconds(30));
             }
             catch (ThreadInterruptedException)
             {
@@ -106,7 +107,7 @@ namespace Quartz.Examples.Example6
 
             log.Info("------- Shutting Down ---------------------");
 
-            sched.Shutdown(true);
+            sched.Shutdown(false);
 
             log.Info("------- Shutdown Complete -----------------");
 

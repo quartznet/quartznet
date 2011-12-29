@@ -33,11 +33,11 @@ namespace Quartz.Simpl
 	/// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType{T}" />), and
 	/// then attempts to set all values from the <see cref="IJobExecutionContext" /> and
 	/// the <see cref="IJobExecutionContext" />'s merged <see cref="JobDataMap" /> onto 
-	/// properties of the <code>Job</code>.
+	/// properties of the job.
 	/// </summary>
     /// <remarks>   
     /// Set the WarnIfPropertyNotFound property to true if you'd like noisy logging in
-    /// the case of values in the <see cref="JobDataMap" /> not mapping to properties on your <code>Job</code>
+    /// the case of values in the <see cref="JobDataMap" /> not mapping to properties on your job
     /// class. This may be useful for troubleshooting typos of property names, etc.
     /// but very noisy if you regularly (and purposely) have extra things in your
     ///  <see cref="JobDataMap" />.
@@ -54,32 +54,21 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class PropertySettingJobFactory : SimpleJobFactory
 	{
-		private static readonly ILog Log = LogManager.GetLogger(typeof (PropertySettingJobFactory));
+	    private static readonly ILog log = LogManager.GetLogger(typeof(PropertySettingJobFactory));
 
-		/// <summary> 
-		/// Whether the JobInstantiation should fail and throw and exception if
-		/// a key (name) and value (type) found in the JobDataMap does not 
-		/// correspond to a proptery setter on the Job class.
-		/// </summary>
-		public virtual bool ThrowIfPropertyNotFound
-		{
-			get { return throwIfNotFound; }
-			set { throwIfNotFound = value; }
-		}
+	    /// <summary> 
+	    /// Whether the JobInstantiation should fail and throw and exception if
+	    /// a key (name) and value (type) found in the JobDataMap does not 
+	    /// correspond to a proptery setter on the Job class.
+	    /// </summary>
+	    public virtual bool ThrowIfPropertyNotFound { get; set; }
 
-		/// <summary> 
-		/// Get or set whether a warning should be logged if
-		/// a key (name) and value (type) found in the JobDataMap does not 
-		/// correspond to a proptery setter on the Job class.
-		/// </summary>
-		public virtual bool WarnIfPropertyNotFound
-		{
-			get { return warnIfNotFound; }
-			set { warnIfNotFound = value; }
-		}
-
-		private bool warnIfNotFound = false;
-		private bool throwIfNotFound = false;
+	    /// <summary> 
+	    /// Get or set whether a warning should be logged if
+	    /// a key (name) and value (type) found in the JobDataMap does not 
+	    /// correspond to a proptery setter on the Job class.
+	    /// </summary>
+	    public virtual bool WarnIfPropertyNotFound { get; set; }
 
 	    /// <summary>
 	    /// Called by the scheduler at the time of the trigger firing, in order to
@@ -192,6 +181,13 @@ namespace Quartz.Simpl
 					
 					continue;
 				}
+                catch (Exception e)
+                {
+                    HandleError(
+                            string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' threw exception when processing.", obj.GetType(), name), e);
+
+                    continue;
+                }
 			}
 		}
 
@@ -216,11 +212,11 @@ namespace Quartz.Simpl
 			{
 				if (e == null)
 				{
-					Log.Warn(message);
+					log.Warn(message);
 				}
 				else
 				{
-					Log.Warn(message, e);
+					log.Warn(message, e);
 				}
 			}
 		}

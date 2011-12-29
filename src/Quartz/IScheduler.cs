@@ -187,10 +187,10 @@ namespace Quartz
         IJobFactory JobFactory { set; }
 
         /// <summary>
-        /// Get a reference to the scheduler's <code>ListenerManager</code>,
+        /// Get a reference to the scheduler's <see cref="IListenerManager" />,
         /// through which listeners may be registered.
         /// </summary>
-        /// <returns>the scheduler's <code>ListenerManager</code></returns>
+        /// <returns>the scheduler's <see cref="IListenerManager" /></returns>
         /// <seealso cref="ListenerManager" />
         /// <seealso cref="IJobListener" />
         /// <seealso cref="ITriggerListener" />
@@ -333,13 +333,13 @@ namespace Quartz
         bool UnscheduleJob(TriggerKey triggerKey);
 
         /// <summary>
-        /// Remove all of the indicated <code><see cref="ITrigger" /></code>s from the scheduler.
+        /// Remove all of the indicated <see cref="ITrigger" />s from the scheduler.
         /// </summary>
         /// <remarks>
         /// <para>If the related job does not have any other triggers, and the job is
         /// not durable, then the job will also be deleted.</para>
         /// Note that while this bulk operation is likely more efficient than
-        /// invoking <code>unscheduleJob(TriggerKey triggerKey)</code> several
+        /// invoking <see cref="UnscheduleJob(TriggerKey)" /> several
         /// times, it may have the adverse affect of holding data locks for a
         /// single long duration of time (rather than lots of small durations
         /// of time).
@@ -385,12 +385,12 @@ namespace Quartz
 
 
         /// <summary>
-        /// Delete the identified <code>Job</code>s from the Scheduler - and any
-        /// associated <code>Trigger</code>s.
+        /// Delete the identified jobs from the Scheduler - and any
+        /// associated <see cref="ITrigger" />s.
         /// </summary>
         /// <remarks>
         /// <para>Note that while this bulk operation is likely more efficient than
-        /// invoking <code>deleteJob(JobKey jobKey)</code> several
+        /// invoking <see cref="DeleteJob(JobKey)" /> several
         /// times, it may have the adverse affect of holding data locks for a
         /// single long duration of time (rather than lots of small durations
         /// of time).</para>
@@ -560,7 +560,7 @@ namespace Quartz
         /// <remarks>
         /// The returned Trigger objects will be snap-shots of the actual stored
         /// triggers.  If you wish to modify a trigger, you must re-store the
-        /// trigger afterward (e.g. see {@link #rescheduleJob(TriggerKey, Trigger)}).
+        /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger)" />).
         /// </remarks>
         IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
@@ -577,7 +577,7 @@ namespace Quartz
         /// <remarks>
         /// The returned JobDetail object will be a snap-shot of the actual stored
         /// JobDetail.  If you wish to modify the JobDetail, you must re-store the
-        /// JobDetail afterward (e.g. see {@link #addJob(JobDetail, boolean)}).
+        /// JobDetail afterward (e.g. see <see cref="AddJob(IJobDetail, bool)" />).
         /// </remarks>
         IJobDetail GetJobDetail(JobKey jobKey);
 
@@ -587,7 +587,7 @@ namespace Quartz
         /// <remarks>
         /// The returned Trigger object will be a snap-shot of the actual stored
         /// trigger.  If you wish to modify the trigger, you must re-store the
-        /// trigger afterward (e.g. see {@link #rescheduleJob(TriggerKey, Trigger)}).
+        /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger)" />).
         /// </remarks>
         ITrigger GetTrigger(TriggerKey triggerKey);
 
@@ -669,8 +669,8 @@ namespace Quartz
 
         /// <summary>
         /// Request the interruption, within this Scheduler instance, of the 
-        /// identified executing <code>Job</code> instance, which 
-        /// must be an implementor of the <code>InterruptableJob</code> interface.
+        /// identified executing job instance, which 
+        /// must be an implementor of the <see cref="IInterruptableJob" /> interface.
         /// </summary>
         /// <remarks>
         /// This method is not cluster aware.  That is, it will only interrupt 

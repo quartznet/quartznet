@@ -28,18 +28,22 @@ namespace Quartz
 {
 
     /// <summary>
-    /// <code>CronScheduleBuilder</code> is a <see cref="IScheduleBuilder" /> that defines
-    /// {@link CronExpression}-based schedules for <code>Trigger</code>s.
+    /// CronScheduleBuilder is a <see cref="IScheduleBuilder" /> that defines
+    /// <see cref="CronExpression" />-based schedules for <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
-    /// <para>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>
+    /// Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
-    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</para>
-    /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
+    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
+    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
+    /// and the various <see cref="IScheduleBuilder" /> implementations.
+    /// </para>
+    /// <para>
+    /// Client code can then use the DSL to write code such as this:
+    /// </para>
+    /// <code>
     /// IJobDetail job = JobBuilder.Create&lt;MyJob&gt;()
     ///   .WithIdentity("myJob")
     ///   .Build();
@@ -49,7 +53,7 @@ namespace Quartz
     ///  .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
     ///  .Build();
     /// scheduler.scheduleJob(job, trigger);
-    /// </pre>
+    /// </code>
     /// </remarks>
     /// <seealso cref="CronExpression" />
     /// <seealso cref="ICronTrigger" />
@@ -60,14 +64,13 @@ namespace Quartz
     public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     {
         private readonly CronExpression cronExpression;
-        private TimeZoneInfo tz;
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
-        private CronScheduleBuilder(CronExpression cronExpression)
+        protected CronScheduleBuilder(CronExpression cronExpression)
         {
             if (cronExpression == null)
             {
-                throw new ArgumentNullException("cronExpression cannot be null");
+                throw new ArgumentNullException("cronExpression", "cronExpression cannot be null");
             }            
             
             this.cronExpression = cronExpression;
@@ -161,6 +164,35 @@ namespace Quartz
 
         /// <summary>
         /// Create a CronScheduleBuilder with a cron-expression that sets the
+        /// schedule to fire at the given day at the given time (hour and minute) on the given days of the week.
+        /// </summary>
+        /// <param name="hour">the hour of day to fire</param>
+        /// <param name="minute">the minute of the given hour to fire</param>
+        /// <param name="daysOfWeek">the days of the week to fire</param>
+        /// <returns>the new CronScheduleBuilder</returns>
+        /// <seealso cref="CronExpression" />
+        public static CronScheduleBuilder AtHourAndMinuteOnGivenDaysOfWeek(int hour, int minute, params DayOfWeek[] daysOfWeek)
+        {
+            if (daysOfWeek == null || daysOfWeek.Length == 0)
+            {
+                throw new ArgumentException("You must specify at least one day of week.");
+            }
+
+            DateBuilder.ValidateHour(hour);
+            DateBuilder.ValidateMinute(minute);
+
+            string cronExpression = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) daysOfWeek[0]) + 1);
+
+            for (int i = 1; i < daysOfWeek.Length; i++)
+            {
+                cronExpression = cronExpression + "," + (((int) daysOfWeek[i]) + 1);
+            }
+
+            return CronScheduleNoParseException(cronExpression);
+        }
+
+        /// <summary>
+        /// Create a CronScheduleBuilder with a cron-expression that sets the
         /// schedule to fire one per week on the given day at the given time
         /// (hour and minute).
         /// </summary>
@@ -171,20 +203,12 @@ namespace Quartz
         /// <param name="minute">the minute of the given hour to fire</param>
         /// <returns>the new CronScheduleBuilder</returns>
         /// <seealso cref="CronExpression" />
-        /// <seealso cref="DateBuilder.Monday" />
-        /// <seealso cref="DateBuilder.Tuesday" />
-        /// <seealso cref="DateBuilder.Wednesday" />
-        /// <seealso cref="DateBuilder.Thursday" />
-        /// <seealso cref="DateBuilder.Friday" />
-        /// <seealso cref="DateBuilder.Saturday" />
-        /// <seealso cref="DateBuilder.Sunday" />
-        public static CronScheduleBuilder WeeklyOnDayAndHourAndMinute(int dayOfWeek, int hour, int minute)
+        public static CronScheduleBuilder WeeklyOnDayAndHourAndMinute(DayOfWeek dayOfWeek, int hour, int minute)
         {
-            DateBuilder.ValidateDayOfWeek(dayOfWeek);
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = String.Format("0 {0} {1} ? * {2}", minute, hour, dayOfWeek);
+            string cronExpression = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) dayOfWeek) + 1);
 
             return CronScheduleNoParseException(cronExpression);
         }
@@ -213,7 +237,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// The <code>TimeZone</code> in which to base the schedule.
+        /// The <see cref="TimeZoneInfo" /> in which to base the schedule.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -222,7 +246,7 @@ namespace Quartz
         /// <seealso cref="CronExpression.TimeZone" />
         public CronScheduleBuilder InTimeZone(TimeZoneInfo tz)
         {
-            this.tz = tz;
+            cronExpression.TimeZone = tz;
             return this;
         }
 
@@ -276,6 +300,9 @@ namespace Quartz
         }
     }
 
+    /// <summary>
+    /// Extension methods that attach <see cref="CronScheduleBuilder" /> to <see cref="TriggerBuilder" />.
+    /// </summary>
     public static class CronScheduleTriggerBuilderExtensions
     {
         public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression)

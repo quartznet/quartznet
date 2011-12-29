@@ -27,31 +27,33 @@ using Quartz.Spi;
 namespace Quartz
 {
     /// <summary>
-    /// <code>SimpleScheduleBuilder</code> is a <see cref="IScheduleBuilder" />
+    /// SimpleScheduleBuilder is a <see cref="IScheduleBuilder" />
     /// that defines strict/literal interval-based schedules for
-    /// <code>Trigger</code>s.
+    /// <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
-    /// <para>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>
+    /// Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
-    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</para>
+    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
+    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
+    /// and the various <see cref="IScheduleBuilder" /> implementations.
+    /// </para>
     /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
-    /// JobDetail job = newJob(MyJob.class)
-    /// .withIdentity("myJob")
-    /// .build();
-    /// Trigger trigger = newTrigger()
-    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-    /// .withSchedule(simpleSchedule()
-    /// .withIntervalInHours(1)
-    /// .repeatForever())
-    /// .startAt(futureDate(10, MINUTES))
-    /// .build();
+    /// <code>
+    /// JobDetail job = JobBuilder.Create&lt;MyJob>()
+    ///     .WithIdentity("myJob")
+    ///     .Build();
+    /// Trigger trigger = TriggerBuilder.Create()
+    ///     .WithIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    ///     .WithSimpleSchedule(x => x
+    ///         .WithIntervalInHours(1)
+    ///         .RepeatForever())
+    ///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+    ///     .Build();
     /// scheduler.scheduleJob(job, trigger);
-    /// </pre>
+    /// </code>
     /// </remarks>
     /// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="CalendarIntervalScheduleBuilder" />
@@ -61,10 +63,10 @@ namespace Quartz
     public class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     {
         private TimeSpan interval = TimeSpan.Zero;
-        private int repeatCount = 0;
+        private int repeatCount;
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
-        private SimpleScheduleBuilder()
+        protected SimpleScheduleBuilder()
         {
         }
 
@@ -333,7 +335,7 @@ namespace Quartz
         /// <seealso cref="WithRepeatCount(int)" />
         public SimpleScheduleBuilder WithInterval(TimeSpan timeSpan)
         {
-            this.interval = timeSpan;
+            interval = timeSpan;
             return this;
         }
 
@@ -385,7 +387,7 @@ namespace Quartz
 
         /// <summary>
         /// If the Trigger misfires, use the
-        /// {@link Trigger#MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY} instruction.
+        /// <see cref="MisfireInstruction.IgnoreMisfirePolicy" /> instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -413,7 +415,7 @@ namespace Quartz
 
         /// <summary>
         /// If the Trigger misfires, use the
-        /// <seea cref="MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount" /> instruction.
+        /// <see cref="MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount" /> instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -427,7 +429,7 @@ namespace Quartz
 
         /// <summary>
         /// If the Trigger misfires, use the
-        /// {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT} instruction.
+        /// <see cref="MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount" /> instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -441,7 +443,7 @@ namespace Quartz
 
         /// <summary>
         /// If the Trigger misfires, use the
-        /// {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_EXISTING_REPEAT_COUNT} instruction.
+        /// <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount" /> instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -455,7 +457,7 @@ namespace Quartz
 
         /// <summary>
         /// If the Trigger misfires, use the
-        /// {@link SimpleTrigger#MISFIRE_INSTRUCTION_RESCHEDULE_NOW_WITH_REMAINING_REPEAT_COUNT} instruction.
+        /// <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount" /> instruction.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -484,6 +486,9 @@ namespace Quartz
         }
     }
 
+    /// <summary>
+    /// Extension methods that attach <see cref="SimpleScheduleBuilder" /> to <see cref="TriggerBuilder" />.
+    /// </summary>
     public static class SimpleScheduleTriggerBuilderExtensions
     {
         public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder, Action<SimpleScheduleBuilder> action)

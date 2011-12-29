@@ -122,7 +122,7 @@ namespace Quartz.Simpl
 		}
 
 	    /// <summary>
-	    /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+	    /// Called by the QuartzScheduler to inform the JobStore that
 	    /// the scheduler has been paused.
 	    /// </summary>
 	    public void SchedulerPaused()
@@ -131,7 +131,7 @@ namespace Quartz.Simpl
         }
 
 	    /// <summary>
-	    /// Called by the QuartzScheduler to inform the <code>JobStore</code> that
+	    /// Called by the QuartzScheduler to inform the JobStore that
 	    /// the scheduler has resumed after being paused.
 	    /// </summary>
 	    public void SchedulerResumed()
@@ -1418,7 +1418,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		/// <param name="tw">The trigger wrapper.</param>
 		/// <returns></returns>
-		protected internal virtual bool ApplyMisfire(TriggerWrapper tw)
+		protected virtual bool ApplyMisfire(TriggerWrapper tw)
 		{
             DateTimeOffset misfireTime = SystemTime.UtcNow();
 			if (MisfireThreshold > TimeSpan.Zero)
@@ -1819,7 +1819,7 @@ namespace Quartz.Simpl
 	    /// <summary>
 		/// Sets the state of all triggers of job to specified state.
 		/// </summary>
-		protected internal virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
+		protected virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
 		{
 			List<TriggerWrapper> tws = GetTriggerWrappersForJob(jobKey);
 			foreach (TriggerWrapper tw in tws)

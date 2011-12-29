@@ -29,7 +29,7 @@ using Quartz.Util;
 namespace Quartz.Impl.AdoJobStore.Common
 {
     /// <summary>
-    ///     
+    /// Concrete implementation of <see cref="IDbProvider" />.
     /// </summary>
     /// <author>Marko Lahma</author>
     public class DbProvider : IDbProvider

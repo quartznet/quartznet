@@ -21,6 +21,7 @@ using Common.Logging;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Job;
 using Quartz.Plugin.History;
 using Quartz.Spi;

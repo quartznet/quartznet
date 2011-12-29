@@ -75,7 +75,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Compute the <code>Date</code> that is 1 second after the Nth firing of 
+        /// Compute the <see cref="DateTimeOffset" /> that is 1 second after the Nth firing of 
         /// the given <see cref="ITrigger" />, taking the triger's associated 
         /// <see cref="ICalendar" /> into consideration.
         /// </summary>

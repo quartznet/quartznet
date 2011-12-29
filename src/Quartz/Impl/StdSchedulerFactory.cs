@@ -349,7 +349,7 @@ Please add configuration to your application config file to correctly initialize
             NameValueCollection tProps;
             bool autoId = false;
             TimeSpan idleWaitTime = TimeSpan.Zero;
-            TimeSpan dbFailureRetry = TimeSpan.Zero;
+            TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
             IThreadExecutor threadExecutor;
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
@@ -382,6 +382,11 @@ Please add configuration to your application config file to correctly initialize
             }
 
             dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
+            if (dbFailureRetry < TimeSpan.Zero)
+            {
+                throw new SchedulerException(PropertySchedulerDbFailureRetryInterval + " of less than 0 ms is not legal.");
+            }
+
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
             long batchTimeWindow = cfg.GetLongProperty(PropertySchedulerBatchTimeWindow, 0L);
             int maxBatchSize = cfg.GetIntProperty(PropertySchedulerMaxBatchSize, 1);
@@ -996,8 +1001,8 @@ Please add configuration to your application config file to correctly initialize
 
                 js.InstanceId = schedInstId;
                 js.InstanceName = schedName;
-                js.Initialize(loadHelper, qs.SchedulerSignaler);
                 js.ThreadPoolSize = tp.PoolSize;
+                js.Initialize(loadHelper, qs.SchedulerSignaler);
 
                 jrsf.Initialize(sched);
                 qs.Initialize();
@@ -1044,7 +1049,7 @@ Please add configuration to your application config file to correctly initialize
             }
         }
 
-        protected internal virtual IScheduler Instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs)
+        protected virtual IScheduler Instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs)
         {
             IScheduler sched = new StdScheduler(qs);
             return sched;

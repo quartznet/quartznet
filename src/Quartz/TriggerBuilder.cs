@@ -20,34 +20,45 @@
 using System;
 
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz
 {
     /// <summary>
-    /// <code>TriggerBuilder</code> is used to instantiate <see cref="ITrigger" />s.
+    /// TriggerBuilder is used to instantiate <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
-    /// <para>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>
+    /// The builder will always try to keep itself in a valid state, with 
+    /// reasonable defaults set for calling build() at any point.  For instance
+    /// if you do not invoke <i>WithSchedule(..)</i> method, a default schedule
+    /// of firing once immediately will be used.  As another example, if you
+    /// do not invoked <i>WithIdentity(..)</i> a trigger name will be generated
+    /// for you.
+    /// </para>
+    /// <para>
+    /// Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
-    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</para>
-    /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
-    /// JobDetail job = newJob(MyJob.class)
-    /// .withIdentity("myJob")
-    /// .build();
-    /// Trigger trigger = newTrigger()
-    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-    /// .withSchedule(simpleSchedule()
-    /// .withIntervalInHours(1)
-    /// .repeatForever())
-    /// .startAt(futureDate(10, MINUTES))
-    /// .build();
+    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
+    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
+    /// and the various <see cref="IScheduleBuilder" /> implementations.
+    /// </para>
+    /// <para>
+    /// Client code can then use the DSL to write code such as this:
+    /// </para>
+    /// <code>
+    /// IJobDetail job = JobBuilder.Create&lt;MyJob>()
+    ///     .WithIdentity("myJob")
+    ///     .Build();
+    /// ITrigger trigger = TriggerBuilder.Create()
+    ///     .WithIdentity("myTrigger", "myTriggerGroup")
+    ///     .WithSimpleSchedule(x => x
+    ///         .WithIntervalInHours(1)
+    ///         .RepeatForever())
+    ///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+    ///     .Build();
     /// scheduler.scheduleJob(job, trigger);
-    /// </pre>
+    /// </code>
     /// </remarks>
     /// <seealso cref="JobBuilder" />
     /// <seealso cref="IScheduleBuilder" />
@@ -83,7 +94,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Produce the <code>Trigger</code>.
+        /// Produce the <see cref="ITrigger" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -120,7 +131,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Use a <code>TriggerKey</code> with the given name and default group to
+        /// Use a <see cref="TriggerKey" /> with the given name and default group to
         /// identify the Trigger.
         /// </summary>
         /// <remarks>
@@ -274,7 +285,7 @@ namespace Quartz
         /// Trigger's schedule.
         /// </summary>
         /// <remarks>
-        /// <para>The particular <code>SchedulerBuilder</code> used will dictate
+        /// <para>The particular <see cref="IScheduleBuilder" /> used will dictate
         /// the concrete type of Trigger that is produced by the TriggerBuilder.</para>
         /// </remarks>
         /// <param name="scheduleBuilder">the SchedulerBuilder to use.</param>
@@ -306,7 +317,7 @@ namespace Quartz
 
         /// <summary>
         /// Set the identity of the Job which should be fired by the produced
-        /// Trigger - a <code>JobKey</code> will be produced with the given
+        /// Trigger - a <see cref="JobKey" /> will be produced with the given
         /// name and default group.
         /// </summary>
         /// <remarks>
@@ -322,7 +333,7 @@ namespace Quartz
 
         /// <summary>
         /// Set the identity of the Job which should be fired by the produced
-        /// Trigger - a <code>JobKey</code> will be produced with the given
+        /// Trigger - a <see cref="JobKey" /> will be produced with the given
         /// name and group.
         /// </summary>
         /// <remarks>

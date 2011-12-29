@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ContentFile Version="2010" Moniker="&lt;XsdSchema Name=&quot;Job Scheduling Data 2.0&quot; SchemaLocationType=&quot;File&quot; SchemaType=&quot;Normal&quot; SchemaLocation=&quot;..\src\Quartz\Xml\job_scheduling_data_2_0.xsd&quot; /&gt;" DocType="DX.XSD" IsLocalizationDisabled="false">
+  <RelatedProject>Quartz.dxp</RelatedProject>
+  <State>
+    <Attributes />
+  </State>
+  <LastSelectedItem />
+  <Filters />
+</ContentFile>

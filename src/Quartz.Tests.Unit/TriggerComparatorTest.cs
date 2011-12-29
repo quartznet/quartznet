@@ -45,23 +45,23 @@ namespace Quartz.Tests.Unit
         public void TestTriggerTimeSort()
         {
             // build trigger in expected sort order
-            ITrigger t1 = TriggerBuilder.Create().WithIdentity("a").StartAt(DateBuilder.FutureDate(1, DateBuilder.IntervalUnit.Minute)).Build();
+            ITrigger t1 = TriggerBuilder.Create().WithIdentity("a").StartAt(DateBuilder.FutureDate(1, IntervalUnit.Minute)).Build();
             ((IOperableTrigger) t1).ComputeFirstFireTimeUtc(null);
-            ITrigger t2 = TriggerBuilder.Create().WithIdentity("b").StartAt(DateBuilder.FutureDate(2, DateBuilder.IntervalUnit.Minute)).Build();
+            ITrigger t2 = TriggerBuilder.Create().WithIdentity("b").StartAt(DateBuilder.FutureDate(2, IntervalUnit.Minute)).Build();
             ((IOperableTrigger) t2).ComputeFirstFireTimeUtc(null);
-            ITrigger t3 = TriggerBuilder.Create().WithIdentity("c").StartAt(DateBuilder.FutureDate(3, DateBuilder.IntervalUnit.Minute)).Build();
+            ITrigger t3 = TriggerBuilder.Create().WithIdentity("c").StartAt(DateBuilder.FutureDate(3, IntervalUnit.Minute)).Build();
             ((IOperableTrigger) t3).ComputeFirstFireTimeUtc(null);
-            ITrigger t4 = TriggerBuilder.Create().WithIdentity("d").StartAt(DateBuilder.FutureDate(5, DateBuilder.IntervalUnit.Minute)).WithPriority(7).Build();
+            ITrigger t4 = TriggerBuilder.Create().WithIdentity("d").StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute)).WithPriority(7).Build();
             ((IOperableTrigger) t4).ComputeFirstFireTimeUtc(null);
-            ITrigger t5 = TriggerBuilder.Create().WithIdentity("e").StartAt(DateBuilder.FutureDate(5, DateBuilder.IntervalUnit.Minute)).Build();
+            ITrigger t5 = TriggerBuilder.Create().WithIdentity("e").StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute)).Build();
             ((IOperableTrigger) t5).ComputeFirstFireTimeUtc(null);
-            ITrigger t6 = TriggerBuilder.Create().WithIdentity("g").StartAt(DateBuilder.FutureDate(5, DateBuilder.IntervalUnit.Minute)).Build();
+            ITrigger t6 = TriggerBuilder.Create().WithIdentity("g").StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute)).Build();
             ((IOperableTrigger) t6).ComputeFirstFireTimeUtc(null);
-            ITrigger t7 = TriggerBuilder.Create().WithIdentity("h").StartAt(DateBuilder.FutureDate(5, DateBuilder.IntervalUnit.Minute)).WithPriority(2).Build();
+            ITrigger t7 = TriggerBuilder.Create().WithIdentity("h").StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute)).WithPriority(2).Build();
             ((IOperableTrigger) t7).ComputeFirstFireTimeUtc(null);
-            ITrigger t8 = TriggerBuilder.Create().WithIdentity("i").StartAt(DateBuilder.FutureDate(6, DateBuilder.IntervalUnit.Minute)).Build();
+            ITrigger t8 = TriggerBuilder.Create().WithIdentity("i").StartAt(DateBuilder.FutureDate(6, IntervalUnit.Minute)).Build();
             ((IOperableTrigger) t8).ComputeFirstFireTimeUtc(null);
-            ITrigger t9 = TriggerBuilder.Create().WithIdentity("j").StartAt(DateBuilder.FutureDate(7, DateBuilder.IntervalUnit.Minute)).Build();
+            ITrigger t9 = TriggerBuilder.Create().WithIdentity("j").StartAt(DateBuilder.FutureDate(7, IntervalUnit.Minute)).Build();
             ((IOperableTrigger) t9).ComputeFirstFireTimeUtc(null);
 
             List<ITrigger> ts = new List<ITrigger>();

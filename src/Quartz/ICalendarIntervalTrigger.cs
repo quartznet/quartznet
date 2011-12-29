@@ -1,5 +1,9 @@
 namespace Quartz
 {
+    /// <summary>
+    ///  A <see cref="ITrigger" /> that is used to fire a <see cref="IJobDetail" />
+    ///  based upon repeating calendar time intervals.
+    ///  </summary>
     public interface ICalendarIntervalTrigger : ITrigger
     {
         /// <summary>
@@ -15,21 +19,10 @@ namespace Quartz
         int RepeatInterval { get; set; }
 
         /// <summary>
-        /// Get the number of times the <code>DateIntervalTrigger</code> has already fired.
+        /// Get the number of times the <see cref="ICalendarIntervalTrigger" /> has already fired.
         /// </summary>
         int TimesTriggered { get; set; }
 
         TriggerBuilder GetTriggerBuilder();
-    }
-
-    public enum IntervalUnit
-    {
-        Second,
-        Minute,
-        Hour,
-        Day,
-        Week,
-        Month,
-        Year
     }
 }

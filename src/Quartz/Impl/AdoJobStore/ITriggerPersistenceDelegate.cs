@@ -25,7 +25,7 @@ namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
     /// An interface which provides an implementation for storing a particular
-    /// type of <code>Trigger</code>'s extended properties.
+    /// type of <see cref="ITrigger" />'s extended properties.
     /// </summary>
     /// <author>jhouse</author>
     public interface ITriggerPersistenceDelegate
@@ -33,7 +33,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Initializes the persistence delegate.
         /// </summary>
-        void Initialize(string tablePrefix, string schedulerName, ICommandAccessor commandAccessor);
+        void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor);
 
         /// <summary>
         /// Returns whether the trigger type can be handled by delegate.

@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -26,40 +28,49 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
     /// <summary>
-    /// 
+    /// Remote scheduler service interface.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     public interface IRemotableQuartzScheduler
-	{
-		string SchedulerName { get; }
-		string SchedulerInstanceId { get; }
-		SchedulerContext SchedulerContext { get; }
-		bool InStandbyMode { get; }
-		bool IsShutdown { get; }
-		string Version { get; }
-		Type JobStoreClass { get; }
-		Type ThreadPoolClass { get; }
-		int ThreadPoolSize { get; }
-        
+    {
+        string SchedulerName { get; }
+
+        string SchedulerInstanceId { get; }
+
+        SchedulerContext SchedulerContext { get; }
+
+        bool InStandbyMode { get; }
+
+        bool IsShutdown { get; }
+
+        string Version { get; }
+
+        Type JobStoreClass { get; }
+
+        Type ThreadPoolClass { get; }
+
+        int ThreadPoolSize { get; }
+
         void Clear();
+
         IList<IJobExecutionContext> CurrentlyExecutingJobs { get; }
 
-		/// <summary>
-		/// Starts this instance.
-		/// </summary>
-		void Start();
+        /// <summary>
+        /// Starts this instance.
+        /// </summary>
+        void Start();
 
-	    void StartDelayed(TimeSpan delay);
+        void StartDelayed(TimeSpan delay);
 
-		/// <summary>
-		/// Standbies this instance.
-		/// </summary>
-		void Standby();
+        /// <summary>
+        /// Standbies this instance.
+        /// </summary>
+        void Standby();
 
-		/// <summary>
-		/// Shutdowns this instance.
-		/// </summary>
-		void Shutdown();
+        /// <summary>
+        /// Shutdowns this instance.
+        /// </summary>
+        void Shutdown();
 
         void Shutdown(bool waitForJobsToComplete);
 
@@ -67,7 +78,7 @@ namespace Quartz.Simpl
 
         int NumJobsExecuted { get; }
 
-		bool SupportsPersistence { get; }
+        bool SupportsPersistence { get; }
 
         bool Clustered { get; }
 
@@ -92,8 +103,8 @@ namespace Quartz.Simpl
         /// <param name="groupName"></param>
         /// <returns></returns>
         bool IsTriggerGroupPaused(string groupName);
-        
-	    bool DeleteJob(JobKey jobKey);
+
+        bool DeleteJob(JobKey jobKey);
 
         bool UnscheduleJob(TriggerKey triggerKey);
 
@@ -121,9 +132,9 @@ namespace Quartz.Simpl
 
         void ResumeJobs(GroupMatcher<JobKey> matcher);
 
-		void PauseAll();
+        void PauseAll();
 
-		void ResumeAll();
+        void ResumeAll();
 
         IList<string> GetJobGroupNames();
 
@@ -131,30 +142,30 @@ namespace Quartz.Simpl
 
         IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
-		IList<string> GetTriggerGroupNames();
+        IList<string> GetTriggerGroupNames();
 
         Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
         IJobDetail GetJobDetail(JobKey jobKey);
 
-		ITrigger GetTrigger(TriggerKey triggerKey);
+        ITrigger GetTrigger(TriggerKey triggerKey);
 
         TriggerState GetTriggerState(TriggerKey triggerKey);
 
-		void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
+        void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
-		bool DeleteCalendar(string calName);
+        bool DeleteCalendar(string calName);
 
-		ICalendar GetCalendar(string calName);
+        ICalendar GetCalendar(string calName);
 
-		IList<string> GetCalendarNames();
+        IList<string> GetCalendarNames();
 
         bool Interrupt(JobKey jobKey);
 
         bool Interrupt(string fireInstanceId);
 
-        bool CheckExists(JobKey jobKey); 
-   
+        bool CheckExists(JobKey jobKey);
+
         bool CheckExists(TriggerKey triggerKey);
 
         bool DeleteJobs(IList<JobKey> jobKeys);
@@ -162,5 +173,5 @@ namespace Quartz.Simpl
         void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace);
 
         bool UnscheduleJobs(IList<TriggerKey> triggerKeys);
-	}
+    }
 }

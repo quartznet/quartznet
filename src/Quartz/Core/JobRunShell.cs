@@ -22,6 +22,8 @@ using System.Globalization;
 using System.Threading;
 
 using Common.Logging;
+
+using Quartz.Impl;
 using Quartz.Listener;
 using Quartz.Spi;
 
@@ -302,7 +304,7 @@ namespace Quartz.Core
 		/// <summary>
 		/// Runs begin procedures on this instance.
 		/// </summary>
-		protected internal virtual void Begin()
+		protected virtual void Begin()
 		{
 		}
 
@@ -310,7 +312,7 @@ namespace Quartz.Core
 		/// Completes the execution.
 		/// </summary>
 		/// <param name="successfulExecution">if set to <c>true</c> [successful execution].</param>
-		protected internal virtual void Complete(bool successfulExecution)
+        protected virtual void Complete(bool successfulExecution)
 		{
 		}
 
@@ -423,8 +425,7 @@ namespace Quartz.Core
             {
 				try
 				{
-                    Thread.Sleep(TimeSpan.FromSeconds(15)); 
-                    // retry every 15 seconds (the db connection must be failed)
+                    Thread.Sleep(qs.DbRetryInterval); // retry per config setting (the db connection must be failed)
 					qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode);
 					return true;
 				}
@@ -456,8 +457,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    Thread.Sleep(TimeSpan.FromSeconds(5)); // retry every 5 seconds (the db
-                    // connection must be failed)
+                    Thread.Sleep(qs.DbRetryInterval); // retry per config setting (the db connection must be failed)
                     qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode);
                     return true;
                 }

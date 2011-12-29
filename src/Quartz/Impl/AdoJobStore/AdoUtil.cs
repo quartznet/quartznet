@@ -20,6 +20,8 @@
 using System;
 using System.Data;
 
+using Quartz.Impl.AdoJobStore.Common;
+
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
@@ -51,7 +53,11 @@ namespace Quartz.Impl.AdoJobStore
             param.Value = paramValue ?? DBNull.Value;
             cmd.Parameters.Add(param);
 
-            if (dbProvider.Metadata.ParameterNamePrefix != "@")
+            if (!dbProvider.Metadata.BindByName)
+            {
+                cmd.CommandText = cmd.CommandText.Replace("@" + paramName, dbProvider.Metadata.ParameterNamePrefix);
+            }
+            else if (dbProvider.Metadata.ParameterNamePrefix != "@")
             {
                 // we need to replace
                 cmd.CommandText = cmd.CommandText.Replace("@" + paramName, dbProvider.Metadata.ParameterNamePrefix + paramName);

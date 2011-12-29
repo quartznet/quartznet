@@ -23,6 +23,9 @@ using System;
 
 namespace Quartz.Impl.Matchers
 {
+    /// <summary>
+    /// Operators available for comparing string values.
+    /// </summary>
     [Serializable]
     public abstract class StringOperator : IEquatable<StringOperator>
     {

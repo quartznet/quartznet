@@ -339,6 +339,9 @@ namespace Quartz.Plugin.Xml
             ProcessFile(file);
         }
 
+        /// <summary>
+        /// Information about a file that should be processed by <see cref="XMLSchedulingDataProcessor" />. 
+        /// </summary>
         public class JobFile
         {
             private readonly string fileName;

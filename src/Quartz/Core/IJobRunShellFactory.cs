@@ -32,7 +32,7 @@ namespace Quartz.Core
 		/// <summary>
 		/// Initialize the factory, providing a handle to the <see cref="IScheduler" />
 		/// that should be made available within the <see cref="JobRunShell" /> and 
-		/// the <code>JobExecutionContext</code> s within it.
+		/// the <see cref="IJobExecutionContext" />s within it.
 		/// </summary>
 		void Initialize(IScheduler sched);
 

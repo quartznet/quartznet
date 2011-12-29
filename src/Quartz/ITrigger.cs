@@ -24,7 +24,7 @@ using Quartz.Spi;
 namespace Quartz
 {
     /// <summary>
-    /// The base interface with properties common to all <code>Trigger</code>s - 
+    /// The base interface with properties common to all <see cref="ITrigger" />s - 
     /// use <see cref="TriggerBuilder" /> to instantiate an actual Trigger.
     /// </summary>
     /// <remarks>

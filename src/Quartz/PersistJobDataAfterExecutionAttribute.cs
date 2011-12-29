@@ -26,7 +26,7 @@ namespace Quartz
     /// <summary>
     /// An attribute that marks a <see cref="IJob"/> class as one that makes updates to its
     /// <see cref="JobDataMap" /> during execution, and wishes the scheduler to re-store the
-    /// <code>JobDataMap</code> when execution completes. 
+    /// <see cref="JobDataMap" /> when execution completes. 
     /// </summary>
     /// <remarks>
     /// <para>

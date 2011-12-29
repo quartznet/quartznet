@@ -79,6 +79,7 @@ namespace Quartz.Core
         private volatile bool shuttingDown;
         private DateTimeOffset? initialStart;
         private bool boundRemotely;
+        private TimeSpan dbRetryInterval;
 
         /// <summary>
         /// Initializes the <see cref="QuartzScheduler"/> class.
@@ -345,7 +346,14 @@ namespace Quartz.Core
 
             signaler = new SchedulerSignalerImpl(this, schedThread);
 
+            this.dbRetryInterval = dbRetryInterval;
+
             log.InfoFormat(CultureInfo.InvariantCulture, "Quartz Scheduler v.{0} created.", Version);
+        }
+
+        public TimeSpan DbRetryInterval
+        {
+            get { return dbRetryInterval; }
         }
 
         public void Initialize()
@@ -1510,7 +1518,7 @@ namespace Quartz.Core
 
         /// <summary>
         /// Get a List containing all of the <see cref="IJobListener" />s
-        /// in the <code>Scheduler</code>'s <i>internal</i> list.
+        /// in the <see cref="IScheduler" />'s <i>internal</i> list.
         /// </summary>
         /// <returns></returns>
         public IList<IJobListener> InternalJobListeners
@@ -1541,8 +1549,8 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Add the given <code>{@link org.quartz.TriggerListener}</code> to the
-        /// <code>Scheduler</code>'s <i>internal</i> list.
+        /// Add the given <see cref="ITriggerListener" /> to the
+        /// <see cref="IScheduler" />'s <i>internal</i> list.
         /// </summary>
         /// <param name="triggerListener"></param>
         public void AddInternalTriggerListener(ITriggerListener triggerListener)
@@ -1624,7 +1632,7 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler thread.
         /// </summary>
-        protected internal virtual void NotifySchedulerThread(DateTimeOffset? candidateNewNextFireTimeUtc)
+        protected virtual void NotifySchedulerThread(DateTimeOffset? candidateNewNextFireTimeUtc)
         {
             if (SignalOnSchedulingChange)
             {

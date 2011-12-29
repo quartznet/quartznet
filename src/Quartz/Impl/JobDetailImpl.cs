@@ -25,7 +25,7 @@ using Quartz.Util;
 namespace Quartz.Impl
 {
     /// <summary>
-    /// Conveys the detail properties of a given <code>Job</code> instance. 
+    /// Conveys the detail properties of a given job instance. 
     /// </summary>
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but

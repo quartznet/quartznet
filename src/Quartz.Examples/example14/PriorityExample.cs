@@ -78,7 +78,7 @@ namespace Quartz.Examples.Example14
             // 6. Priority10Trigger15SecondRepeat
 
             // Calculate the start time of all triggers as 5 seconds from now
-            DateTimeOffset startTime = DateBuilder.FutureDate(5, DateBuilder.IntervalUnit.Second);
+            DateTimeOffset startTime = DateBuilder.FutureDate(5, IntervalUnit.Second);
 
             // First trigger has priority of 1, and will repeat after 5 seconds
             ITrigger trigger1 = TriggerBuilder.Create()

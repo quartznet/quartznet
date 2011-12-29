@@ -38,22 +38,22 @@ namespace Quartz.Impl
 	/// To create a scheduler that does not write anything to the database (is not
 	/// persistent), you can call <see cref="CreateVolatileScheduler" />:
 	/// </para>
-	/// <pre>
+	/// <code>
 	/// DirectSchedulerFactory.Instance.CreateVolatileScheduler(10); // 10 threads 
 	/// // don't forget to start the scheduler: 
 	/// DirectSchedulerFactory.Instance.GetScheduler().Start();
-	/// </pre>
+    /// </code>
 	/// <para>
 	/// Several create methods are provided for convenience. All create methods
 	/// eventually end up calling the create method with all the parameters:
 	/// </para>
-	/// <pre>
+    /// <code>
     /// public void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IJobStore jobStore)
-	/// </pre>
+    /// </code>
 	/// <para>
 	/// Here is an example of using this method:
 	/// </para>
-	/// <pre>
+    /// <code>
 	/// // create the thread pool 
     /// SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, ThreadPriority.Normal); 
 	/// threadPool.Initialize(); 
@@ -63,7 +63,7 @@ namespace Quartz.Impl
 	/// DirectSchedulerFactory.Instance.CreateScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore); 
 	/// // don't forget to start the scheduler: 
 	/// DirectSchedulerFactory.Instance.GetScheduler("My Quartz Scheduler", "My Instance").Start();
-	/// </pre>
+    /// </code>
 	/// </remarks>>
 	/// <author>Mohammad Rezaei</author>
 	/// <author>James House</author>
@@ -113,7 +113,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
         /// </summary>
-		protected internal DirectSchedulerFactory()
+		protected DirectSchedulerFactory()
 		{
 		    log = LogManager.GetLogger(GetType());
 		}
@@ -150,7 +150,7 @@ namespace Quartz.Impl
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
 		/// <param name="proxyAddress"></param>
 		/// <throws>  SchedulerException </throws>
-		protected internal virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
+		protected virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
 		{
 			string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
 

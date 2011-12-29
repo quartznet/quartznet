@@ -37,11 +37,14 @@ namespace Quartz.Tests.Unit.Simpl
 		[SetUp]
 		public void SetUp()
 		{
-			factory = new PropertySettingJobFactory {ThrowIfPropertyNotFound = true};
+			factory = new PropertySettingJobFactory
+			              {
+			                  ThrowIfPropertyNotFound = true
+			              };
 		}
 
 		[Test]
-		public void TestSetObjectPropsPrimatives()
+		public void TestSetObjectPropsPrimitives()
 		{
 			JobDataMap jobDataMap = new JobDataMap();
 			jobDataMap.Put("intValue", 1);
@@ -88,7 +91,7 @@ namespace Quartz.Tests.Unit.Simpl
 		}
 
 		[Test]
-		public void TestSetObjectPropsNullPrimative()
+		public void TestSetObjectPropsNullPrimitive()
 		{
 			JobDataMap jobDataMap = new JobDataMap();
 			jobDataMap.Put("intValue", null);
@@ -103,7 +106,7 @@ namespace Quartz.Tests.Unit.Simpl
 		}
 
 		[Test]
-		public void TestSetObjectPropsNullNonPrimative()
+		public void TestSetObjectPropsNullNonPrimitive()
 		{
 			JobDataMap jobDataMap = new JobDataMap();
 			jobDataMap.Put("mapValue", null);
@@ -116,10 +119,10 @@ namespace Quartz.Tests.Unit.Simpl
 		}
 
 		[Test]
-		public void TestSetObjectPropsWrongPrimativeType()
+		public void TestSetObjectPropsWrongPrimitiveType()
 		{
 			JobDataMap jobDataMap = new JobDataMap();
-			jobDataMap.Put("intValue", (float) 7);
+			jobDataMap.Put("intValue", "myvalue");
 			try
 			{
 				factory.SetObjectProperties(new TestObject(), jobDataMap);
@@ -131,10 +134,10 @@ namespace Quartz.Tests.Unit.Simpl
 		}
 
 		[Test]
-		public void TestSetObjectPropsWrongNonPrimativeType()
+		public void TestSetObjectPropsWrongNonPrimitiveType()
 		{
 			JobDataMap jobDataMap = new JobDataMap();
-			jobDataMap.Put("mapValue", (float) 7);
+			jobDataMap.Put("mapValue", 7.2f);
 			try
 			{
 				factory.SetObjectProperties(new TestObject(), jobDataMap);

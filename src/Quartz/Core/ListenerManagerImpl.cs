@@ -1,16 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Linq;
 
 using Quartz.Impl.Matchers;
 using Quartz.Util;
 
 namespace Quartz.Core
 {
+    /// <summary>
+    /// Default concrete implementation of <see cref="IListenerManager" />.
+    /// </summary>
     public class ListenerManagerImpl : IListenerManager
     {
-        private readonly Dictionary<string, IJobListener> globalJobListeners = new Dictionary<string, IJobListener>(10);
+        private readonly OrderedDictionary globalJobListeners = new OrderedDictionary(10);
 
-        private readonly Dictionary<string, ITriggerListener> globalTriggerListeners = new Dictionary<string, ITriggerListener>(10);
+        private readonly OrderedDictionary globalTriggerListeners = new OrderedDictionary(10);
 
         private readonly Dictionary<string, List<IMatcher<JobKey>>> globalJobListenersMatchers = new Dictionary<string, List<IMatcher<JobKey>>>(10);
 
@@ -125,7 +130,12 @@ namespace Quartz.Core
         {
             lock (globalJobListeners)
             {
-                return globalJobListeners.Remove(name);
+                if (globalJobListeners.Contains(name))
+                {
+                    globalJobListeners.Remove(name);
+                    return true;
+                }
+                return false;
             }
         }
 
@@ -133,7 +143,7 @@ namespace Quartz.Core
         {
             lock (globalJobListeners)
             {
-                return new List<IJobListener>(globalJobListeners.Values).AsReadOnly();
+                return new List<IJobListener>(globalJobListeners.Values.Cast<IJobListener>()).AsReadOnly();
             }
         }
 
@@ -141,7 +151,7 @@ namespace Quartz.Core
         {
             lock (globalJobListeners)
             {
-                return globalJobListeners.TryGetAndReturn(name);
+                return (IJobListener) globalJobListeners[name];
             }
         }
 
@@ -268,7 +278,12 @@ namespace Quartz.Core
         {
             lock (globalTriggerListeners)
             {
-                return globalTriggerListeners.Remove(name);
+                if (globalTriggerListeners.Contains(name))
+                {
+                    globalTriggerListeners.Remove(name);
+                    return true;
+                }
+                return false;
             }
         }
 
@@ -277,7 +292,7 @@ namespace Quartz.Core
         {
             lock (globalTriggerListeners)
             {
-                return new List<ITriggerListener>(globalTriggerListeners.Values).AsReadOnly();
+                return new List<ITriggerListener>(globalTriggerListeners.Values.Cast<ITriggerListener>()).AsReadOnly();
             }
         }
 
@@ -285,7 +300,7 @@ namespace Quartz.Core
         {
             lock (globalTriggerListeners)
             {
-                return globalTriggerListeners.TryGetAndReturn(name);
+                return (ITriggerListener) globalTriggerListeners[name];
             }
         }
 

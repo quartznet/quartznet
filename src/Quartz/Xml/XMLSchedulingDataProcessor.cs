@@ -87,7 +87,7 @@ namespace Quartz.Xml
         private IList<Exception> validationExceptions = new List<Exception>();
 
 
-        protected internal ITypeLoadHelper typeLoadHelper;
+        protected ITypeLoadHelper typeLoadHelper;
         private readonly IList<String> jobGroupsToNeverDelete = new List<String>();
         private readonly IList<String> triggerGroupsToNeverDelete = new List<String>();
 
@@ -105,7 +105,7 @@ namespace Quartz.Xml
         /// overwritten. 
         /// </summary>
         /// <remarks>
-        /// If false, and <code>IgnoreDuplicates</code> is not false, and jobs or 
+        /// If false, and <see cref="IgnoreDuplicates" /> is not false, and jobs or 
         /// triggers with the same names already exist as those in the file, an 
         /// error will occur.
         /// </remarks> 
@@ -117,7 +117,7 @@ namespace Quartz.Xml
         }
 
         /// <summary>
-        /// If true (and <code>OverWriteExistingData</code> is false) then any 
+        /// If true (and <see cref="OverWriteExistingData" /> is false) then any 
         /// job/triggers encountered in this file that have names that already exist 
         /// in the scheduler will be ignored, and no error will be produced.
         /// </summary>
@@ -132,7 +132,7 @@ namespace Quartz.Xml
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected internal ILog Log
+        protected ILog Log
         {
             get { return log; }
         }

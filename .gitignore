@@ -30,6 +30,7 @@ obj/
 [Dd]ebug*/
 [Rr]elease*/
 Ankh.NoLoad
+*.docstates
 
 #Tooling
 _ReSharper*/
@@ -51,3 +52,4 @@ _ReSharper*/
 *.snk
 *.zip
 website
+/doc/apidoc

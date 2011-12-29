@@ -1,5 +1,8 @@
 namespace Quartz
 {
+    /// <summary>
+    /// Common constants for triggers.
+    /// </summary>
     public static class TriggerConstants
     {
         /// <summary>

@@ -24,54 +24,37 @@ using System;
 namespace Quartz
 {
     /// <summary>
-    /// <code>DateBuilder</code> is used to conveniently create
-    /// <code>java.util.Date</code> instances that meet particular criteria.
+    /// DateBuilder is used to conveniently create
+    /// <see cref="DateTimeOffset" /> instances that meet particular criteria.
     /// </summary>
     /// <remarks>
-    /// <para>Quartz provides a builder-style API for constructing scheduling-related
+    /// <para>
+    /// Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
     /// utilized through the usage of static imports of the methods on the classes
-    /// <code>TriggerBuilder</code>, <code>JobBuilder</code>,
-    /// <code>DateBuilder</code>, <code>JobKey</code>, <code>TriggerKey</code>
-    /// and the various <code>ScheduleBuilder</code> implementations.</para>
+    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
+    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
+    /// and the various <see cref="IScheduleBuilder" /> implementations.
+    /// </para>
     /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <pre>
-    /// JobDetail job = newJob(MyJob.class)
-    /// .withIdentity("myJob")
-    /// .build();
-    /// Trigger trigger = newTrigger()
-    /// .withIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-    /// .withSchedule(simpleSchedule()
-    /// .withIntervalInHours(1)
-    /// .repeatForever())
-    /// .startAt(futureDate(10, MINUTES))
-    /// .build();
+    /// <code>
+    /// IJobDetail job = JobBuilder.Create&lt;MyJob>()
+    ///     .WithIdentity("myJob")
+    ///     .Build();
+    /// ITrigger trigger = newTrigger()
+    ///     .WithIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+    ///     .WithSimpleSchedule(x => x
+    ///         .WithIntervalInHours(1)
+    ///         .RepeatForever())
+    ///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minutes))
+    ///     .Build();
     /// scheduler.scheduleJob(job, trigger);
-    /// </pre>
+    /// </code>
     /// </remarks>
     /// <seealso cref="TriggerBuilder" />
     /// <seealso cref="JobBuilder" />
     public class DateBuilder
     {
-        public enum IntervalUnit
-        {
-            Millisecond,
-            Second,
-            Minute,
-            Hour,
-            Day,
-            Week,
-            Month,
-            Year
-        } ;
-
-        public const int Sunday = 1;
-        public const int Monday = 2;
-        public const int Tuesday = 3;
-        public const int Wednesday = 4;
-        public const int Thursday = 5;
-        public const int Friday = 6;
-        public const int Saturday = 7;
         public const long SecondsInMostDays = 24L*60L*60L;
 
         private int month;
@@ -274,7 +257,7 @@ namespace Quartz
 
 
         /// <summary>
-        /// Get a <code>Date</code> object that represents the given time, on
+        /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on
         /// tomorrow's date.
         /// </summary>
         /// <param name="hour"></param>
@@ -343,7 +326,7 @@ namespace Quartz
 
         /// <summary>
         /// <para>
-        /// Get a <code>Date</code> object that represents the given time, on
+        /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on
         /// today's date.
         /// </para>
         /// </summary>
@@ -368,7 +351,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Get a <code>Date</code> object that represents the given time, on the
+        /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on the
         /// given date.
         /// </summary>
         /// <param name="second"></param>
@@ -398,7 +381,7 @@ namespace Quartz
 
         /// <summary>
         /// <para>
-        /// Get a <code>Date</code> object that represents the given time, on the
+        /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on the
         /// given date.
         /// </para>
         /// </summary>
@@ -577,7 +560,7 @@ namespace Quartz
         /// <remarks>
         /// </remarks>
         /// <param name="date"></param>
-        /// the Date to round, if <code>null</code> the current time will
+        /// the Date to round, if <see langword="null" /> the current time will
         /// be used
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenSecondDate(DateTimeOffset date)
@@ -599,7 +582,7 @@ namespace Quartz
         /// </para>
         /// </remarks>
         /// <param name="date"></param>
-        /// the Date to round, if <code>null</code> the current time will
+        /// the Date to round, if <see langword="null" /> the current time will
         /// be used
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenSecondDateBefore(DateTimeOffset date)
@@ -693,7 +676,7 @@ namespace Quartz
         /// </para>
         /// </remarks>
         /// <param name="date"></param>
-        /// the Date to round, if <code>null</code> the current time will
+        /// the Date to round, if <see langword="null" /> the current time will
         /// be used
         /// <param name="minuteBase"></param>
         /// the base-minute to set the time on
@@ -737,10 +720,9 @@ namespace Quartz
         /// </summary>
         /// <remarks>
         /// The rules for calculating the second are the same as those for
-        /// calculating the minute in the method
-        /// <code>getNextGivenMinuteDate(..)</code>.
+        /// calculating the minute in the method <see cref="NextGivenMinuteDate" />.
         /// </remarks>
-        /// <param name="date">the Date to round, if <code>null</code> the current time will</param>
+        /// <param name="date">the Date to round, if <see langword="null" /> the current time will</param>
         /// be used
         /// <param name="secondBase">the base-second to set the time on</param>
         /// <returns>the new rounded date</returns>
@@ -810,16 +792,6 @@ namespace Quartz
             }
 
             return tz.BaseUtcOffset.TotalMilliseconds;
-        }
-
-        ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        public static void ValidateDayOfWeek(int dayOfWeek)
-        {
-            if (dayOfWeek < Sunday || dayOfWeek > Saturday)
-            {
-                throw new ArgumentException("Invalid day of week.");
-            }
         }
 
         public static void ValidateHour(int hour)

@@ -26,7 +26,7 @@ using Quartz.Collection;
 namespace Quartz.Impl.Triggers
 {
     /// <summary>
-    /// A concrete implementation of DailyTimeIntervalTrigger that is used to fire a <code><see cref="IJobDetail"/></code>
+    /// A concrete implementation of DailyTimeIntervalTrigger that is used to fire a <see cref="IJobDetail"/>
     /// based upon daily repeating time intervals.
     /// </summary>
     /// <remarks>
@@ -70,7 +70,7 @@ namespace Quartz.Impl.Triggers
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
-    public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger, ICoreTrigger
+    public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
     {
         /// <summary>
         /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in
@@ -90,8 +90,8 @@ namespace Quartz.Impl.Triggers
         private ISet<DayOfWeek> daysOfWeek;
         private TimeOfDay startTimeOfDayUtc;
         private TimeOfDay endTimeOfDayUtc;
-        private int timesTriggered = 0;
-        private bool complete = false;
+        private int timesTriggered;
+        private bool complete;
         private int repeatCount = RepeatIndefinitely;
 
         /// <summary>
@@ -102,12 +102,12 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <code>DailyTimeIntervalTrigger</code> that will occur immediately, and
+        /// Create a <see cref="IDailyTimeIntervalTrigger" /> that will occur immediately, and
         /// repeat at the the given interval.
         /// </summary>
         /// <param name="name"></param>
-        /// <param name="startTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should begin occurring.</param>
-        /// <param name="endTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should stop occurring.</param>
+        /// <param name="startTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should begin occurring.</param>
+        /// <param name="endTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should stop occurring.</param>
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
@@ -118,13 +118,13 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <code>DailyTimeIntervalTrigger</code> that will occur immediately, and
+        /// Create a <see cref="IDailyTimeIntervalTrigger" /> that will occur immediately, and
         /// repeat at the the given interval.
         /// </summary>
         /// <param name="name"></param>
         /// <param name="group"></param>
-        /// <param name="startTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should begin occurring.</param>
-        /// <param name="endTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should stop occurring.</param>
+        /// <param name="startTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should begin occurring.</param>
+        /// <param name="endTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should stop occurring.</param>
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
@@ -136,14 +136,14 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <code>DailyTimeIntervalTrigger</code> that will occur at the given time,
+        /// Create a <see cref="IDailyTimeIntervalTrigger" /> that will occur at the given time,
         /// and repeat at the the given interval until the given end time.
         /// </summary>
         /// <param name="name"></param>
-        /// <param name="startTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code>to fire.</param>
-        /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code>to quit repeat firing.</param>
-        /// <param name="startTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should begin occurring.</param>
-        /// <param name="endTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should stop occurring.</param>
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to fire.</param>
+        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to quit repeat firing.</param>
+        /// <param name="startTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should begin occurring.</param>
+        /// <param name="endTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should stop occurring.</param>
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
@@ -155,15 +155,15 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <code>DailyTimeIntervalTrigger</code> that will occur at the given time,
+        /// Create a <see cref="IDailyTimeIntervalTrigger" /> that will occur at the given time,
         /// and repeat at the the given interval until the given end time.
         /// </summary>
         /// <param name="name"></param>
         /// <param name="group"></param>
-        /// <param name="startTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code>to fire.</param>
-        /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code>to quit repeat firing.</param>
-        /// <param name="startTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should begin occurring.</param>
-        /// <param name="endTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should stop occurring.</param>
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to fire.</param>
+        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to quit repeat firing.</param>
+        /// <param name="startTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should begin occurring.</param>
+        /// <param name="endTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should stop occurring.</param>
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
@@ -179,18 +179,18 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Create a <code>DailyTimeIntervalTrigger</code> that will occur at the given time,
-        /// fire the identified <code>Job</code> and repeat at the the given
+        /// Create a <see cref="IDailyTimeIntervalTrigger" /> that will occur at the given time,
+        /// fire the identified job and repeat at the the given
         /// interval until the given end time.
         /// </summary>
         /// <param name="name"></param>
         /// <param name="group"></param>
         /// <param name="jobName"></param>
         /// <param name="jobGroup"></param>
-        /// <param name="startTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code>to fire.</param>
-        /// <param name="endTimeUtc">A <code>Date</code> set to the time for the <code>Trigger</code>to quit repeat firing.</param>
-        /// <param name="startTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should begin occurring.</param>
-        /// <param name="endTimeOfDayUtc">The <code>TimeOfDay</code> that the repeating should stop occurring.</param>
+        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to fire.</param>
+        /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to quit repeat firing.</param>
+        /// <param name="startTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should begin occurring.</param>
+        /// <param name="endTimeOfDayUtc">The <see cref="TimeOfDay" /> that the repeating should stop occurring.</param>
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
@@ -208,7 +208,7 @@ namespace Quartz.Impl.Triggers
 
 
         /// <summary>
-        /// The time at which the <code>DailyTimeIntervalTrigger</code> should occur.
+        /// The time at which the <see cref="IDailyTimeIntervalTrigger" /> should occur.
         /// </summary>
         public override DateTimeOffset StartTimeUtc
         {
@@ -239,7 +239,7 @@ namespace Quartz.Impl.Triggers
 
 
         /// <summary>
-        /// the time at which the <code>DailyTimeIntervalTrigger</code> should quit repeating.
+        /// the time at which the <see cref="IDailyTimeIntervalTrigger" /> should quit repeating.
         /// </summary>
         /// <see cref="DailyTimeIntervalTriggerImpl.FinalFireTimeUtc"/>
         public override DateTimeOffset? EndTimeUtc
@@ -299,7 +299,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// the the time interval that will be added to the <code>DailyTimeIntervalTrigger</code>'s
+        /// the the time interval that will be added to the <see cref="IDailyTimeIntervalTrigger" />'s
         /// fire time (in the set repeat interval unit) in order to calculate the time of the
         /// next trigger repeat.
         /// </summary>
@@ -318,7 +318,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// the number of times the <code>DailyTimeIntervalTrigger</code> has already
+        /// the number of times the <see cref="IDailyTimeIntervalTrigger" /> has already
         /// fired.
         /// </summary>
         public int TimesTriggered
@@ -343,14 +343,14 @@ namespace Quartz.Impl.Triggers
 
         /// <summary> 
         /// Updates the <see cref="ICalendarIntervalTrigger" />'s state based on the
-        /// MISFIRE_INSTRUCTION_XXX that was selected when the <code>DailyTimeIntervalTrigger</code>
+        /// MisfireInstruction.XXX that was selected when the <see cref="IDailyTimeIntervalTrigger" />
         /// was created.
         /// </summary>
         /// <remarks>
-        ///  If the misfire instruction is set to MISFIRE_INSTRUCTION_SMART_POLICY,
+        /// If the misfire instruction is set to <see cref="MisfireInstruction.SmartPolicy" />,
         /// then the following scheme will be used:
         /// <ul>
-        /// <li>The instruction will be interpreted as <code>MISFIRE_INSTRUCTION_FIRE_ONCE_NOW</code></li>
+        ///     <li>The instruction will be interpreted as <see cref="MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow" /></li>
         /// </ul>
         /// </remarks>
         public override void UpdateAfterMisfire(ICalendar cal)
@@ -388,9 +388,9 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Called when the <code>{@link Scheduler}</code> has decided to 'fire'
-        /// the trigger (execute the associated <code>Job</code>), in order to
-        /// give the <code>Trigger</code> a chance to update itself for its next
+        /// Called when the scheduler has decided to 'fire'
+        /// the trigger (execute the associated job), in order to
+        /// give the trigger a chance to update itself for its next
         /// triggering (if any).
         /// </summary>
         /// <param name="calendar"></param>
@@ -568,7 +568,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Set the next time at which the <code>DailyTimeIntervalTrigger</code> should fire.
+        /// Set the next time at which the <see cref="IDailyTimeIntervalTrigger" /> should fire.
         /// </summary>
         /// <remarks>
         /// This method should not be invoked by client code.
@@ -580,7 +580,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Set the previous time at which the <code>DailyTimeIntervalTrigger</code> fired.
+        /// Set the previous time at which the <see cref="IDailyTimeIntervalTrigger" /> fired.
         /// </summary>
         /// <remarks>
         /// This method should not be invoked by client code.
@@ -593,9 +593,9 @@ namespace Quartz.Impl.Triggers
 
 
         /// <summary>
-        /// Returns the next time at which the <code>DailyTimeIntervalTrigger</code> will
+        /// Returns the next time at which the <see cref="IDailyTimeIntervalTrigger" /> will
         /// fire, after the given time. If the trigger will not fire after the given
-        /// time, <code>null</code> will be returned.
+        /// time, <see langword="null" /> will be returned.
         /// </summary>
         /// <param name="afterTime"></param>
         /// <returns></returns>
@@ -780,7 +780,7 @@ namespace Quartz.Impl.Triggers
 
 
         /// <summary>
-        /// Returns the final time at which the <code>DailyTimeIntervalTrigger</code> will
+        /// Returns the final time at which the <see cref="IDailyTimeIntervalTrigger" /> will
         /// fire, if there is no end time set, null will be returned.
         /// </summary>
         /// <remarks>Note that the return time may be in the past.</remarks>
@@ -810,7 +810,7 @@ namespace Quartz.Impl.Triggers
 
 
         /// <summary>
-        /// Determines whether or not the <code>DailyTimeIntervalTrigger</code> will occur
+        /// Determines whether or not the <see cref="IDailyTimeIntervalTrigger" /> will occur
         /// again.
         /// </summary>
         /// <returns></returns>
@@ -820,15 +820,14 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Validates whether the properties of the <code>JobDetail</code> are
-        /// valid for submission into a <code>Scheduler</code>.
+        /// Validates whether the properties of the <see cref="IJobDetail" /> are
+        /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
         public override void Validate()
         {
             base.Validate();
 
-            if (!((repeatIntervalUnit == IntervalUnit.Second) ||
-                  (repeatIntervalUnit == IntervalUnit.Minute) || (repeatIntervalUnit == IntervalUnit.Hour)))
+            if (repeatIntervalUnit != IntervalUnit.Second && repeatIntervalUnit != IntervalUnit.Minute && repeatIntervalUnit == IntervalUnit.Hour)
             {
                 throw new SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
             }
@@ -838,14 +837,14 @@ namespace Quartz.Impl.Triggers
             }
 
             // Ensure interval does not exceed 24 hours
-            long secondsInHour = 24*60*60L;
-            if (repeatIntervalUnit == IntervalUnit.Second && repeatInterval > secondsInHour)
+            const long SecondsInHour = 24*60*60L;
+            if (repeatIntervalUnit == IntervalUnit.Second && repeatInterval > SecondsInHour)
             {
-                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + secondsInHour + " seconds). Given " + repeatInterval);
+                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour + " seconds). Given " + repeatInterval);
             }
-            if (repeatIntervalUnit == IntervalUnit.Minute && repeatInterval > secondsInHour/60L)
+            if (repeatIntervalUnit == IntervalUnit.Minute && repeatInterval > SecondsInHour/60L)
             {
-                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + secondsInHour/60L + " minutes). Given " + repeatInterval);
+                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour/60L + " minutes). Given " + repeatInterval);
             }
             if (repeatIntervalUnit == IntervalUnit.Hour && repeatInterval > 24)
             {
@@ -950,7 +949,7 @@ namespace Quartz.Impl.Triggers
 
 
         /// <summary>
-        /// Get a {@link ScheduleBuilder} that is configured to produce a 
+        /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a 
         /// schedule identical to this trigger's schedule.
         /// </summary>
         /// <returns></returns>

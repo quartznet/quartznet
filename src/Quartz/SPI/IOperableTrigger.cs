@@ -2,6 +2,9 @@ using System;
 
 namespace Quartz.Spi
 {
+    /// <summary>
+    /// Internal interface for managing triggers. This interface should not be used by the Quartz client.
+    /// </summary>
     public interface IOperableTrigger : IMutableTrigger
     {
         /// <summary>

@@ -19,6 +19,8 @@
 
 using NUnit.Framework;
 
+using Quartz.Impl;
+
 namespace Quartz.Tests.Unit
 {
     /// <summary>

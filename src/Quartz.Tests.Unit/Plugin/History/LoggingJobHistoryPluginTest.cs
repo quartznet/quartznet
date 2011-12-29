@@ -23,6 +23,7 @@ using Common.Logging;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Plugin.History;
