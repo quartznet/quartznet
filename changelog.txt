@@ -4,7 +4,7 @@ http://www.quartz-scheduler.net
 
 
 Release 2.0 beta 2, Dec 31, 2011
--------------------------------
+--------------------------------
 
 This release contains some bug fixes and some compile time breaking changes.
 
@@ -23,10 +23,14 @@ Bug
 
     * DailyTimeIntervalTriggerPersistenceDelegate does not store weekdays in correct format
     * DisallowConcurrentExecution decorated triggers not being updated after TriggerCompleted
-	* DailyTimeIntervalTrigger fixed to actually work
+	* DailyTimeIntervalTrigger does not work as expected
+
+Improvement
+
+	* ADO.NET job store: force UTC ticks when storing datetimes
 
 Release 2.0 beta 1, October 2, 2011
--------------------------------
+-----------------------------------
 
 BREAKING CHANGES
 

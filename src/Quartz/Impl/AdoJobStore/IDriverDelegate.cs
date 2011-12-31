@@ -69,7 +69,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="timestamp">The timestamp.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        IList<TriggerKey> SelectMisfiredTriggers(ConnectionAndTransactionHolder conn, long timestamp);
+        IList<TriggerKey> SelectMisfiredTriggers(ConnectionAndTransactionHolder conn, DateTimeOffset timestamp);
 
         /// <summary>
         /// Get the names of all of the triggers in the given state that have
@@ -79,7 +79,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="ts">The time stamp.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        IList<TriggerKey> HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, long ts);
+        IList<TriggerKey> HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, DateTimeOffset ts);
 
         /// <summary>
         /// Get the names of all of the triggers in the given group and state that
@@ -90,7 +90,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="ts">The timestamp.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        IList<TriggerKey> SelectMisfiredTriggersInGroupInState(ConnectionAndTransactionHolder conn, string groupName, string state, long ts);
+        IList<TriggerKey> SelectMisfiredTriggersInGroupInState(ConnectionAndTransactionHolder conn, string groupName, string state, DateTimeOffset ts);
 
 		/// <summary> 
 		/// Select all of the triggers for jobs that are requesting recovery. The
