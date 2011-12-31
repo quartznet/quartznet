@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("net-3.5.win32; Release")]
 #endif
 
-[assembly: AssemblyProduct("Quarz.NET Server 2.0")]
+[assembly: AssemblyProduct("Quarz.NET Server 2.0 beta 2")]
 [assembly: AssemblyDescription("Quartz Scheduling Server for .NET")]
 [assembly : AssemblyCompany("http://quartznet.sourceforge.net/")]
 [assembly : AssemblyCopyright("Copyright 2007-2010 Marko Lahma")]
@@ -21,11 +21,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 
-#if NET_40
-[assembly: AssemblyVersion("2.0.0.4")]
-#else
-[assembly: AssemblyVersion("2.0.0.3")]
-#endif
+[assembly: AssemblyVersion("2.0.0.200")]
 
 
 #if STRONG
