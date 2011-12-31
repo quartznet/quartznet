@@ -525,8 +525,6 @@ namespace Quartz.Impl.Triggers
             DateTimeOffset? time = null;
             long repeatLong = RepeatInterval;
             
-            DateTimeOffset? aTime = afterTime;
-            
             DateTimeOffset sTime = StartTimeUtc;
 
             if (RepeatIntervalUnit == IntervalUnit.Second)

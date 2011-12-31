@@ -3,13 +3,19 @@ QUARTZ.NET CHANGELOG
 http://www.quartz-scheduler.net
 
 
-Release 2.0 RC 1, Dec 27, 2011
+Release 2.0 beta 2, Dec 31, 2011
 -------------------------------
+
+This release contains some bug fixes and some compile time breaking changes.
 
 BREAKING CHANGES (since 2.0 beta 1)
 
+* DateBuilder TranslateTime method was removed as it's better done with TimeZoneInfo's ConvertTime
 * DateBuilder.IntervalUnit enumeration was replaced by usage of generic IntervalUnit enumeration in root namespace
+* DateBuilder now creates all dates in local time zone by default
 * ICommandAccessor was renamed IDbAccessor, this interface should normally not be used from client code
+* DailyTimeIntervalTrigger was changed to correctly assume start and end times are UTC times (calculation is based on local time)
+* DailyTimeIntervalTrigger properties StartTimeOfDayUtc and EndTimeOfDayUtc were renamed to StartTimeOfDay and EndTimeOfDay as they are local times without UTC notion
 
 FIXES
 
@@ -17,7 +23,7 @@ Bug
 
     * DailyTimeIntervalTriggerPersistenceDelegate does not store weekdays in correct format
     * DisallowConcurrentExecution decorated triggers not being updated after TriggerCompleted
-
+	* DailyTimeIntervalTrigger fixed to actually work
 
 Release 2.0 beta 1, October 2, 2011
 -------------------------------

@@ -88,8 +88,8 @@ namespace Quartz.Tests.Unit
 		    Assert.AreEqual(true, null == trigger.EndTimeUtc);
 		    Assert.AreEqual(IntervalUnit.Minute, trigger.RepeatIntervalUnit);
 		    Assert.AreEqual(72, trigger.RepeatInterval);
-		    Assert.AreEqual(new TimeOfDay(8, 0), trigger.StartTimeOfDayUtc);
-		    Assert.AreEqual(new TimeOfDay(17, 0), trigger.EndTimeOfDayUtc);
+		    Assert.AreEqual(new TimeOfDay(8, 0), trigger.StartTimeOfDay);
+		    Assert.AreEqual(new TimeOfDay(17, 0), trigger.EndTimeOfDay);
 		    IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 48);
 		    Assert.AreEqual(48, fireTimes.Count);
 	    }
@@ -115,8 +115,8 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(true, endTime == trigger.EndTimeUtc);
             Assert.AreEqual(IntervalUnit.Second, trigger.RepeatIntervalUnit);
             Assert.AreEqual(121, trigger.RepeatInterval);
-            Assert.AreEqual(new TimeOfDay(10, 0, 0), trigger.StartTimeOfDayUtc);
-            Assert.AreEqual(new TimeOfDay(23, 59, 59), trigger.EndTimeOfDayUtc);
+            Assert.AreEqual(new TimeOfDay(10, 0, 0), trigger.StartTimeOfDay);
+            Assert.AreEqual(new TimeOfDay(23, 59, 59), trigger.EndTimeOfDay);
 		    IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
 	    }
@@ -156,7 +156,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
             Assert.AreEqual(DateBuilder.DateOf(10, 45, 0, 4, 1, 2011), fireTimes[47]);
-            Assert.AreEqual(new TimeOfDay(10, 45), trigger.EndTimeOfDayUtc);
+            Assert.AreEqual(new TimeOfDay(10, 45), trigger.EndTimeOfDay);
         }
 
         [Test]
@@ -177,7 +177,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 17, 2, 2011), fireTimes[47]);
-            Assert.AreEqual(new TimeOfDay(8, 0), trigger.EndTimeOfDayUtc);
+            Assert.AreEqual(new TimeOfDay(8, 0), trigger.EndTimeOfDay);
         }
 
         [Test]

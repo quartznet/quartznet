@@ -77,12 +77,12 @@ namespace Quartz
         /// <summary>
         /// The time of day to start firing at the given interval.
         /// </summary>
-        TimeOfDay StartTimeOfDayUtc { get;  }
+        TimeOfDay StartTimeOfDay { get;  }
         
         /// <summary>
         /// The time of day to complete firing at the given interval.
         /// </summary>
-        TimeOfDay EndTimeOfDayUtc { get; }
+        TimeOfDay EndTimeOfDay { get; }
 
         /// <summary>
         /// The days of the week upon which to fire.

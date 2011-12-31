@@ -55,8 +55,6 @@ namespace Quartz
     /// <seealso cref="JobBuilder" />
     public class DateBuilder
     {
-        public const long SecondsInMostDays = 24L*60L*60L;
-
         private int month;
         private int day;
         private int year;
@@ -133,7 +131,7 @@ namespace Quartz
             }
             else
             {
-                cal = new DateTimeOffset(year, month, day, hour, minute, second, TimeSpan.Zero);
+                cal = new DateTimeOffset(year, month, day, hour, minute, second, DateTimeOffset.Now.Offset);
             }
 
             return cal;
@@ -252,7 +250,7 @@ namespace Quartz
 
         public static DateTimeOffset FutureDate(int interval, IntervalUnit unit)
         {
-            return TranslatedAdd(SystemTime.UtcNow(), unit, interval);
+            return TranslatedAdd(SystemTime.Now(), unit, interval);
         }
 
 
@@ -278,7 +276,7 @@ namespace Quartz
                 minute,
                 second,
                 0,
-                TimeSpan.Zero);
+                DateTimeOffset.Now.Offset);
 
             // advance one day
             c = c.AddDays(1);
@@ -325,19 +323,11 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <para>
-        /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on
-        /// today's date.
-        /// </para>
+        /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on today's date.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
-        /// <param name="second"></param>
-        /// The value (0-59) to give the seconds field of the date
-        /// <param name="minute"></param>
-        /// The value (0-59) to give the minutes field of the date
-        /// <param name="hour"></param>
-        /// The value (0-23) to give the hours field of the date
+        /// <param name="second">The value (0-59) to give the seconds field of the date</param>
+        /// <param name="minute">The value (0-59) to give the minutes field of the date</param>
+        /// <param name="hour">The value (0-23) to give the hours field of the date</param>
         /// <returns>the new date</returns>
         public static DateTimeOffset DateOf(int hour, int minute, int second)
         {
@@ -345,25 +335,20 @@ namespace Quartz
             ValidateMinute(minute);
             ValidateHour(hour);
 
-            DateTimeOffset c = SystemTime.UtcNow();
+            DateTimeOffset c = SystemTime.Now();
 
-            return new DateTimeOffset(c.Year, c.Month, c.Day, hour, minute, second, TimeSpan.Zero);
+            return new DateTimeOffset(c.Year, c.Month, c.Day, hour, minute, second, DateTimeOffset.Now.Offset);
         }
 
         /// <summary>
         /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on the
         /// given date.
         /// </summary>
-        /// <param name="second"></param>
-        /// The value (0-59) to give the seconds field of the date
-        /// <param name="minute"></param>
-        /// The value (0-59) to give the minutes field of the date
-        /// <param name="hour"></param>
-        /// The value (0-23) to give the hours field of the date
-        /// <param name="dayOfMonth"></param>
-        /// The value (1-31) to give the day of month field of the date
-        /// <param name="month"></param>
-        /// The value (1-12) to give the month field of the date
+        /// <param name="second">The value (0-59) to give the seconds field of the date</param>
+        /// <param name="minute">The value (0-59) to give the minutes field of the date</param>
+        /// <param name="hour">The value (0-23) to give the hours field of the date</param>
+        /// <param name="dayOfMonth">The value (1-31) to give the day of month field of the date</param>
+        /// <param name="month">The value (1-12) to give the month field of the date</param>
         /// <returns>the new date</returns>
         public static DateTimeOffset DateOf(int hour, int minute, int second,
                                             int dayOfMonth, int month)
@@ -374,31 +359,23 @@ namespace Quartz
             ValidateDayOfMonth(dayOfMonth);
             ValidateMonth(month);
 
-            DateTimeOffset c = SystemTime.UtcNow();
+            DateTimeOffset c = SystemTime.Now();
 
-            return new DateTimeOffset(c.Year, month, dayOfMonth, hour, minute, second, TimeSpan.Zero);
+            return new DateTimeOffset(c.Year, month, dayOfMonth, hour, minute, second, DateTimeOffset.Now.Offset);
         }
 
         /// <summary>
-        /// <para>
         /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on the
         /// given date.
-        /// </para>
         /// </summary>
         /// <remarks>
         /// </remarks>
-        /// <param name="second"></param>
-        /// The value (0-59) to give the seconds field of the date
-        /// <param name="minute"></param>
-        /// The value (0-59) to give the minutes field of the date
-        /// <param name="hour"></param>
-        /// The value (0-23) to give the hours field of the date
-        /// <param name="dayOfMonth"></param>
-        /// The value (1-31) to give the day of month field of the date
-        /// <param name="month"></param>
-        /// The value (1-12) to give the month field of the date
-        /// <param name="year"></param>
-        /// The value (1970-2099) to give the year field of the date
+        /// <param name="second">The value (0-59) to give the seconds field of the date</param>
+        /// <param name="minute">The value (0-59) to give the minutes field of the date</param>
+        /// <param name="hour">The value (0-23) to give the hours field of the date</param>
+        /// <param name="dayOfMonth">The value (1-31) to give the day of month field of the date</param>
+        /// <param name="month">The value (1-12) to give the month field of the date</param>
+        /// <param name="year">The value (1970-2099) to give the year field of the date</param>
         /// <returns>the new date</returns>
         public static DateTimeOffset DateOf(int hour, int minute, int second,
                                             int dayOfMonth, int month, int year)
@@ -410,22 +387,16 @@ namespace Quartz
             ValidateMonth(month);
             ValidateYear(year);
 
-            DateTimeOffset c = SystemTime.UtcNow();
-
-            return new DateTimeOffset(year, month, dayOfMonth, hour, minute, second, TimeSpan.Zero);
+            return new DateTimeOffset(year, month, dayOfMonth, hour, minute, second, DateTimeOffset.Now.Offset);
         }
 
         /// <summary>
-        /// <para>
         /// Returns a date that is rounded to the next even hour after the current time.
-        /// </para>
         /// </summary>
         /// <remarks>
-        /// <para>
         /// For example a current time of 08:13:54 would result in a date
         /// with the time of 09:00:00. If the date's time is in the 23rd hour, the
         /// date's 'day' will be promoted, and the time will be set to 00:00:00.
-        /// </para>
         /// </remarks>
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenHourDateAfterNow()
@@ -434,45 +405,43 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Returns a date that is rounded to the next even hour above the given
-        /// date.
-        /// <para>
+        /// Returns a date that is rounded to the next even hour above the given date.
+        /// </summary>
+        /// <remarks>
         /// For example an input date with a time of 08:13:54 would result in a date
         /// with the time of 09:00:00. If the date's time is in the 23rd hour, the
         /// date's 'day' will be promoted, and the time will be set to 00:00:00.
-        /// </para>
-        /// </summary>
-        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
+        /// </remarks>
+        /// <param name="date">the Date to round, if <see langword="null" /> the current time will
         /// be used</param>
         /// <returns>the new rounded date</returns>
-        public static DateTimeOffset EvenHourDate(DateTimeOffset? dateUtc)
+        public static DateTimeOffset EvenHourDate(DateTimeOffset? date)
         {
-            if (!dateUtc.HasValue)
+            if (!date.HasValue)
             {
-                dateUtc = SystemTime.UtcNow();
+                date = SystemTime.Now();
             }
-            DateTimeOffset d = dateUtc.Value.AddHours(1);
+            DateTimeOffset d = date.Value.AddHours(1);
             return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, d.Offset);
         }
 
         /// <summary>
-        /// Returns a date that is rounded to the previous even hour below the given
-        /// date.
-        /// <para>
+        /// Returns a date that is rounded to the previous even hour below the given date.
+        /// </summary>
+        /// <remarks>
         /// For example an input date with a time of 08:13:54 would result in a date
         /// with the time of 08:00:00.
-        /// </para>
-        /// </summary>
-        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
+        /// </remarks>
+        /// <param name="date">the Date to round, if <see langword="null" /> the current time will
         /// be used</param>
         /// <returns>the new rounded date</returns>
-        public static DateTimeOffset EvenHourDateBefore(DateTimeOffset? dateUtc)
+        public static DateTimeOffset EvenHourDateBefore(DateTimeOffset? date)
         {
-            if (!dateUtc.HasValue)
+            if (!date.HasValue)
             {
-                dateUtc = SystemTime.UtcNow();
+                date = SystemTime.Now();
             }
-            return new DateTimeOffset(dateUtc.Value.Year, dateUtc.Value.Month, dateUtc.Value.Day, dateUtc.Value.Hour, 0, 0, dateUtc.Value.Offset);
+            return new DateTimeOffset(date.Value.Year, date.Value.Month, date.Value.Day, date.Value.Hour, 0, 0, date.Value.Offset);
         }
 
         /// <summary>
@@ -481,84 +450,71 @@ namespace Quartz
         /// </para>
         /// </summary>
         /// <remarks>
-        /// <para>
         /// For example a current time of 08:13:54 would result in a date
         /// with the time of 08:14:00. If the date's time is in the 59th minute,
         /// then the hour (and possibly the day) will be promoted.
-        /// </para>
         /// </remarks>
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenMinuteDateAfterNow()
         {
-            return EvenMinuteDate(SystemTime.UtcNow());
+            return EvenMinuteDate(SystemTime.Now());
         }
 
         /// <summary>
-        /// Returns a date that is rounded to the next even minute above the given
-        /// date.
-        /// <para>
+        /// Returns a date that is rounded to the next even minute above the given date.
+        /// </summary>
+        /// <remarks>
         /// For example an input date with a time of 08:13:54 would result in a date
         /// with the time of 08:14:00. If the date's time is in the 59th minute,
         /// then the hour (and possibly the day) will be promoted.
-        /// </para>
-        /// </summary>
-        /// <param name="dateUtc">The Date to round, if <see langword="null" /> the current time will  be used</param>
+        /// </remarks>
+        /// <param name="date">The Date to round, if <see langword="null" /> the current time will  be used</param>
         /// <returns>The new rounded date</returns>
-        public static DateTimeOffset EvenMinuteDate(DateTimeOffset? dateUtc)
+        public static DateTimeOffset EvenMinuteDate(DateTimeOffset? date)
         {
-            if (!dateUtc.HasValue)
+            if (!date.HasValue)
             {
-                dateUtc = SystemTime.UtcNow();
+                date = SystemTime.Now();
             }
 
-            DateTimeOffset d = dateUtc.Value;
+            DateTimeOffset d = date.Value;
             d = d.AddMinutes(1);
             return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
         }
 
         /// <summary>
-        /// Returns a date that is rounded to the previous even minute below the
-        /// given date.
-        /// <para>
+        /// Returns a date that is rounded to the previous even minute below the given date.
+        /// </summary>
+        /// <remarks>
         /// For example an input date with a time of 08:13:54 would result in a date
         /// with the time of 08:13:00.
-        /// </para>
-        /// </summary>
-        /// <param name="dateUtc">the Date to round, if <see langword="null" /> the current time will
+        /// </remarks>
+        /// <param name="date">the Date to round, if <see langword="null" /> the current time will
         /// be used</param>
         /// <returns>the new rounded date</returns>
-        public static DateTimeOffset EvenMinuteDateBefore(DateTimeOffset? dateUtc)
+        public static DateTimeOffset EvenMinuteDateBefore(DateTimeOffset? date)
         {
-            if (!dateUtc.HasValue)
+            if (!date.HasValue)
             {
-                dateUtc = SystemTime.UtcNow();
+                date = SystemTime.Now();
             }
 
-            DateTimeOffset d = dateUtc.Value;
+            DateTimeOffset d = date.Value;
             return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
         }
 
         /// <summary>
-        /// <para>
         /// Returns a date that is rounded to the next even second after the current time.
-        /// </para>
         /// </summary>
-        /// <remarks>
-        /// </remarks>
         /// <returns>the new rounded date</returns>
         public static DateTimeOffset EvenSecondDateAfterNow()
         {
-            return EvenSecondDate(SystemTime.UtcNow());
+            return EvenSecondDate(SystemTime.Now());
         }
 
         /// <summary>
-        /// <para>
-        /// Returns a date that is rounded to the next even second above the given
-        /// date.
-        /// </para>
+        /// Returns a date that is rounded to the next even second above the given date.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
         /// <param name="date"></param>
         /// the Date to round, if <see langword="null" /> the current time will
         /// be used
@@ -570,10 +526,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <para>
         /// Returns a date that is rounded to the previous even second below the
         /// given date.
-        /// </para>
         /// </summary>
         /// <remarks>
         /// <para>
@@ -591,10 +545,8 @@ namespace Quartz
         }
 
         /// <summary>
-        /// <para>
         /// Returns a date that is rounded to the next even multiple of the given
         /// minute.
-        /// </para>
         /// </summary>
         /// <remarks>
         /// <para>
@@ -689,7 +641,7 @@ namespace Quartz
                 throw new ArgumentException("minuteBase must be >=0 and <= 59");
             }
 
-            DateTimeOffset c = date ?? SystemTime.UtcNow();
+            DateTimeOffset c = date ?? SystemTime.Now();
 
             if (minuteBase == 0)
             {
@@ -734,11 +686,11 @@ namespace Quartz
                 throw new ArgumentException("secondBase must be >=0 and <= 59");
             }
 
-            DateTimeOffset c = date ?? SystemTime.UtcNow();
+            DateTimeOffset c = date ?? SystemTime.Now();
 
             if (secondBase == 0)
             {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute + 1, 0, 0, TimeSpan.Zero);
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute + 1, 0, 0, c.Offset);
             }
 
             int second = c.Second;
@@ -749,49 +701,12 @@ namespace Quartz
 
             if (nextSecondOccurance < 60)
             {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, nextSecondOccurance, 0, TimeSpan.Zero);
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, nextSecondOccurance, 0, c.Offset);
             }
             else
             {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute + 1, 0, 0, TimeSpan.Zero);
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute + 1, 0, 0, c.Offset);
             }
-        }
-
-        /// <summary>
-        /// Translate a date and time from a users time zone to the another
-        /// (probably server) timezone to assist in creating a simple trigger with
-        /// the right date and time.
-        /// </summary>
-        /// <param name="date">the date to translate</param>
-        /// <param name="src">the original time-zone</param>
-        /// <param name="dest">the destination time-zone</param>
-        /// <returns>the translated UTC date</returns>
-        public static DateTimeOffset TranslateTime(DateTimeOffset date, TimeZoneInfo src, TimeZoneInfo dest)
-        {
-            DateTimeOffset newDate = SystemTime.UtcNow();
-            double offset = (GetOffset(date, dest) - GetOffset(date, src));
-
-            newDate = newDate.AddMilliseconds(-1*offset);
-
-            return newDate;
-        }
-
-        /// <summary>
-        /// Gets the offset from UT for the given date in the given time zone,
-        /// taking into account daylight savings.
-        /// </summary>
-        /// <param name="date">the date that is the base for the offset</param>
-        /// <param name="tz">the time-zone to calculate to offset to</param>
-        /// <returns>the offset</returns>
-        private static double GetOffset(DateTimeOffset date, TimeZoneInfo tz)
-        {
-            if (tz.IsDaylightSavingTime(date))
-            {
-                // TODO
-                return tz.BaseUtcOffset.TotalMilliseconds + 0;
-            }
-
-            return tz.BaseUtcOffset.TotalMilliseconds;
         }
 
         public static void ValidateHour(int hour)

@@ -163,20 +163,20 @@ namespace Quartz
 
             if (startTimeOfDayUtc != null)
             {
-                st.StartTimeOfDayUtc = startTimeOfDayUtc;
+                st.StartTimeOfDay = startTimeOfDayUtc;
             }
             else
             {
-                st.StartTimeOfDayUtc = TimeOfDay.HourAndMinuteOfDay(0, 0);
+                st.StartTimeOfDay = TimeOfDay.HourAndMinuteOfDay(0, 0);
             }
 
             if (endTimeOfDayUtc != null)
             {
-                st.EndTimeOfDayUtc = endTimeOfDayUtc;
+                st.EndTimeOfDay = endTimeOfDayUtc;
             }
             else
             {
-                st.EndTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59);
+                st.EndTimeOfDay = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59);
             }
 
             return st;

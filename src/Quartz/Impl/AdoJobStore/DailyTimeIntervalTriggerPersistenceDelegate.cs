@@ -68,7 +68,7 @@ namespace Quartz.Impl.AdoJobStore
             props.String2 = daysStr;
 
             StringBuilder timeOfDayBuffer = new StringBuilder();
-            TimeOfDay startTimeOfDay = dailyTrigger.StartTimeOfDayUtc;
+            TimeOfDay startTimeOfDay = dailyTrigger.StartTimeOfDay;
             if (startTimeOfDay != null)
             {
                 timeOfDayBuffer.Append(startTimeOfDay.Minute).Append(",");
@@ -80,7 +80,7 @@ namespace Quartz.Impl.AdoJobStore
                 timeOfDayBuffer.Append(",,,");
             }
 
-            TimeOfDay endTimeOfDay = dailyTrigger.EndTimeOfDayUtc;
+            TimeOfDay endTimeOfDay = dailyTrigger.EndTimeOfDay;
             if (endTimeOfDay != null)
             {
                 timeOfDayBuffer.Append(endTimeOfDay.Hour).Append(",");

@@ -1,4 +1,5 @@
 ﻿#region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -36,8 +38,8 @@ namespace Quartz
     [Serializable]
     public class TimeOfDay
     {
-        private readonly int hour;
-        private readonly int minute;
+        private readonly int hour;
+        private readonly int minute;
         private readonly int second;
 
         /// <summary>
@@ -66,8 +68,8 @@ namespace Quartz
             this.second = 0;
             Validate();
         }
-    
-        private void Validate() 
+
+        private void Validate()
         {
             if (hour < 0 || hour > 23)
             {
@@ -83,7 +85,7 @@ namespace Quartz
             {
                 throw new ArgumentException("Second must be from 0 to 59");
             }
-        }
+        }
 
         /// <summary>
         /// Create a TimeOfDay instance for the given hour, minute and second.
@@ -107,7 +109,6 @@ namespace Quartz
         {
             return new TimeOfDay(hour, minute);
         }
-
 
         /// <summary>
         /// The hour of the day (between 0 and 23). 
@@ -133,12 +134,12 @@ namespace Quartz
             get { return second; }
         }
 
-        /// <summary>
+        /// <summary>
         /// Determine with this time of day is before the given time of day.
-        /// </summary>
-        /// <param name="timeOfDay"></param>
+        /// </summary>
+        /// <param name="timeOfDay"></param>
         /// <returns>True this time of day is before the given time of day.</returns>
-        public bool Before(TimeOfDay timeOfDay) 
+        public bool Before(TimeOfDay timeOfDay)
         {
             if (timeOfDay.hour > hour)
             {
@@ -168,25 +169,24 @@ namespace Quartz
             }
 
             return false; // must be equal...        
-        }
+        }
 
-        public override bool Equals(Object obj) 
+        public override bool Equals(Object obj)
         {
             if (!(obj is TimeOfDay))
             {
                 return false;
             }
-        
-            TimeOfDay other = (TimeOfDay)obj;
-        
-            return (other.hour == hour && other.minute == minute && other.second == second);
-        }
+
+            TimeOfDay other = (TimeOfDay) obj;
+
+            return (other.hour == hour && other.minute == minute && other.second == second);
+        }
 
         public override int GetHashCode()
         {
             return (hour + 1) ^ (minute + 1) ^ (second + 1);
         }
-
 
         /// <summary>
         /// Return a date with time of day reset to this object values. The millisecond value will be zero. 
@@ -195,7 +195,9 @@ namespace Quartz
         public DateTimeOffset? GetTimeOfDayForDate(DateTimeOffset? dateTime)
         {
             if (dateTime == null)
+            {
                 return null;
+            }
 
             DateTimeOffset cal = new DateTimeOffset(dateTime.Value.Date, dateTime.Value.Offset);
             TimeSpan t = new TimeSpan(0, hour, minute, second);
@@ -206,6 +208,5 @@ namespace Quartz
         {
             return "TimeOfDay[" + hour + ":" + minute + ":" + second + "]";
         }
-    
     }
 }

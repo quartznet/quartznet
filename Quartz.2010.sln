@@ -3,8 +3,10 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{69B269BD-CB8C-438A-A32E-4CB7CEA47BB2}"
 	ProjectSection(SolutionItems) = preProject
 		src\AssemblyInfo.cs = src\AssemblyInfo.cs
+		changelog.txt = changelog.txt
 		Quartz.build = Quartz.build
 		Quartz.nuspec = Quartz.nuspec
+		readme.txt = readme.txt
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "database", "database", "{A4C0607E-7BEA-4A00-90ED-A3EFB812D045}"
