@@ -4,7 +4,7 @@
   <property name="build.configuration" value="debug" overwrite="false" />
   <property name="build.optimize" value="false" overwrite="false" />
   <property name="build.debug" value="Full" overwrite="false" />
-  <property name="build.keyfile" value="" overwrite="false" />
+  <property name="build.keyfile" value="quartz.net.snk" overwrite="false" />
 
   <!-- whether to use C5 collection library -->
   <property name="c5-collections" value="true" overwrite="false" />
@@ -464,6 +464,8 @@
         <include name="**/*" />
       </fileset>
     </zip>
+	
+	<exec program="tools\NuGet\NuGet.exe" commandline="pack Quartz.nuspec" />
 
   </target>
 

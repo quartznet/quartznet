@@ -53,3 +53,4 @@ _ReSharper*/
 *.zip
 website
 /doc/apidoc
+*.nupkg
