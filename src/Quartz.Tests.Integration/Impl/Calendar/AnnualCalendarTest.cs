@@ -24,8 +24,6 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Triggers;
-using Quartz.Spi;
 
 namespace Quartz.Tests.Integration.Impl.Calendar
 {
@@ -45,23 +43,36 @@ namespace Quartz.Tests.Integration.Impl.Calendar
         {
             sched.Start();
             TestJob.JobHasFired = false;
-            JobDetailImpl myDesc = new JobDetailImpl("name", "group", typeof(TestJob));
-            IOperableTrigger trigger = new CronTriggerImpl("trigName", "trigGroup", "0/15 * * * * ?");
-            AnnualCalendar calendar = new AnnualCalendar();
+            IJobDetail jobDetail = JobBuilder.Create<TestJob>()
+                .WithIdentity("name", "group")
+                .Build();
 
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("trigName", "trigGroup")
+                .ModifiedByCalendar("calendar")
+                .WithCronSchedule("0/15 * * * * ?")
+                .Build();
+
+            AnnualCalendar calendar = new AnnualCalendar();
             calendar.SetDayExcluded(DateTime.Now, true);
             sched.AddCalendar("calendar", calendar, true, true);
-            trigger.CalendarName = "calendar";
-            sched.ScheduleJob(myDesc, trigger);
-            IOperableTrigger triggerreplace = new CronTriggerImpl("foo", "trigGroup", "name", "group", "0/15 * * * * ?");
-            triggerreplace.CalendarName = "calendar";
+
+            sched.ScheduleJob(jobDetail, trigger);
+
+            ITrigger triggerreplace = TriggerBuilder.Create()
+                .WithIdentity("foo", "trigGroup")
+                .ForJob(jobDetail)
+                .ModifiedByCalendar("calendar")
+                .WithCronSchedule("0/15 * * * * ?")
+                .Build();
+
             sched.RescheduleJob(new TriggerKey("trigName", "trigGroup"), triggerreplace);
-            Thread.Sleep(1000 * 20);
+            Thread.Sleep(TimeSpan.FromSeconds(20));
             Assert.IsFalse(TestJob.JobHasFired, "task must not be neglected - it is forbidden by the calendar");
 
             calendar.SetDayExcluded(DateTime.Now, false);
             sched.AddCalendar("calendar", calendar, true, true);
-            Thread.Sleep(1000 * 20);
+            Thread.Sleep(TimeSpan.FromSeconds(20));
             Assert.IsTrue(TestJob.JobHasFired, "task must be neglected - it is permitted by the calendar");
 
             sched.DeleteJob(new JobKey("name", "group"));
