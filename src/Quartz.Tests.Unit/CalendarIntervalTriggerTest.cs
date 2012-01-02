@@ -10,67 +10,67 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class CalendarIntervalTriggerTest : SerializationTestSupport
     {
-        private static readonly string[] versions = new string[] {"2.0"};
+        private static readonly string[] versions = new[] {"2.0"};
 
 
         [Test]
         public void TestYearlyIntervalGetFireTimeAfter()
         {
-            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
 
-            CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.StartTimeUtc = startCalendar;
-            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Year;
-            yearlyTrigger.RepeatInterval = 2; // every two years;
+            var yearlyTrigger = new CalendarIntervalTriggerImpl
+                                                            {
+                                                                StartTimeUtc = startCalendar,
+                                                                RepeatIntervalUnit = IntervalUnit.Year,
+                                                                RepeatInterval = 2  // every two years;
+                                                            };
 
-            DateTimeOffset targetCalendar = new DateTimeOffset(2009, 6, 1, 9, 30, 17, TimeSpan.Zero); // jump 4 years (2 intervals)
+            DateTimeOffset targetCalendar = startCalendar.AddYears(4);
 
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 4);
-            DateTimeOffset secondTime = fireTimes[2]; // get the third fire time
+            DateTimeOffset thirdTime = fireTimes[2]; // get the third fire time
 
-            Assert.AreEqual(targetCalendar, secondTime, "Year increment result not as expected.");
+            Assert.AreEqual(targetCalendar, thirdTime, "Year increment result not as expected.");
         }
 
 
         [Test]
         public void TestMonthlyIntervalGetFireTimeAfter()
         {
-            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
 
-            CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.StartTimeUtc = startCalendar;
-            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Month;
-            yearlyTrigger.RepeatInterval = 5; // every five months
+            var yearlyTrigger = new CalendarIntervalTriggerImpl
+                                                            {
+                                                                StartTimeUtc = startCalendar,
+                                                                RepeatIntervalUnit = IntervalUnit.Month,
+                                                                RepeatInterval = 5  // every five months
+                                                            };
 
-            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
-
-            targetCalendar = targetCalendar.AddMonths(25); // jump 25 five months (5 intervals)
+            DateTimeOffset targetCalendar = startCalendar.AddMonths(25); // jump 25 five months (5 intervals)
             
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
-            DateTimeOffset fifthTime = fireTimes[5]; // get the sixth fire time
+            DateTimeOffset sixthTime = fireTimes[5]; // get the sixth fire time
 
-            Assert.AreEqual(targetCalendar, fifthTime, "Month increment result not as expected.");
+            Assert.AreEqual(targetCalendar, sixthTime, "Month increment result not as expected.");
         }
 
         [Test]
         public void TestWeeklyIntervalGetFireTimeAfter()
         {
-            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
-            
-            CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.StartTimeUtc = startCalendar;
-            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Week;
-            yearlyTrigger.RepeatInterval = 6; // every six weeks
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
 
-            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            var yearlyTrigger = new CalendarIntervalTriggerImpl
+                                                            {
+                                                                StartTimeUtc = startCalendar,
+                                                                RepeatIntervalUnit = IntervalUnit.Week,
+                                                                RepeatInterval = 6  // every six weeks
+                                                            };
 
-            targetCalendar = targetCalendar.AddDays(7 * 6 * 4); // jump 24 weeks (4 intervals)
+
+            DateTimeOffset targetCalendar = startCalendar.AddDays(7 * 6 * 4); // jump 24 weeks (4 intervals)
             
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 7);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
-
-            Console.Out.WriteLine("targetCalendar:" + targetCalendar);
-            Console.Out.WriteLine("fifthTimee" + fifthTime);
 
             Assert.AreEqual(targetCalendar, fifthTime, "Week increment result not as expected.");
         }
@@ -78,16 +78,16 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestDailyIntervalGetFireTimeAfter()
         {
-            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
-            
-            CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.StartTimeUtc = startCalendar;
-            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
-            dailyTrigger.RepeatInterval = 90; // every ninety days
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
 
-            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
-            
-            targetCalendar = targetCalendar.AddDays(360); // jump 360 days (4 intervals)
+            var dailyTrigger = new CalendarIntervalTriggerImpl
+                                                           {
+                                                               StartTimeUtc = startCalendar,
+                                                               RepeatIntervalUnit = IntervalUnit.Day,
+                                                               RepeatInterval = 90  // every ninety days
+                                                           };
+
+            DateTimeOffset targetCalendar = startCalendar.AddDays(360); // jump 360 days (4 intervals)
             
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
@@ -98,17 +98,17 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestHourlyIntervalGetFireTimeAfter()
         {
-            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
 
 
-            CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.StartTimeUtc = startCalendar;
-            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Hour;
-            yearlyTrigger.RepeatInterval = 100; // every 100 hours
+            var yearlyTrigger = new CalendarIntervalTriggerImpl
+                                                            {
+                                                                StartTimeUtc = startCalendar,
+                                                                RepeatIntervalUnit = IntervalUnit.Hour,
+                                                                RepeatInterval = 100    // every 100 hours
+                                                            };
 
-            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
-
-            targetCalendar = targetCalendar.AddHours(400); // jump 400 hours (4 intervals)
+            DateTimeOffset targetCalendar = startCalendar.AddHours(400); // jump 400 hours (4 intervals)
             
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
@@ -119,17 +119,17 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestMinutelyIntervalGetFireTimeAfter()
         {
-            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
 
 
-            CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.StartTimeUtc = startCalendar;
-            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Minute;
-            yearlyTrigger.RepeatInterval = 100; // every 100 minutes
+            var yearlyTrigger = new CalendarIntervalTriggerImpl
+                                    {
+                                        StartTimeUtc = startCalendar,
+                                        RepeatIntervalUnit = IntervalUnit.Minute,
+                                        RepeatInterval = 100    // every 100 minutes
+                                    };
 
-            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
-
-            targetCalendar = targetCalendar.AddMinutes(400); // jump 400 minutes (4 intervals)
+            DateTimeOffset targetCalendar = startCalendar.AddMinutes(400); // jump 400 minutes (4 intervals)
             
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
@@ -140,17 +140,16 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestSecondlyIntervalGetFireTimeAfter()
         {
-            DateTimeOffset startCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
 
+            var yearlyTrigger = new CalendarIntervalTriggerImpl
+                                                            {
+                                                                StartTimeUtc = startCalendar,
+                                                                RepeatIntervalUnit = IntervalUnit.Second,
+                                                                RepeatInterval = 100    // every 100 seconds
+                                                            };
 
-            CalendarIntervalTriggerImpl yearlyTrigger = new CalendarIntervalTriggerImpl();
-            yearlyTrigger.StartTimeUtc = startCalendar;
-            yearlyTrigger.RepeatIntervalUnit = IntervalUnit.Second;
-            yearlyTrigger.RepeatInterval = 100; // every 100 seconds
-
-            DateTimeOffset targetCalendar = new DateTimeOffset(2005, 6, 1, 9, 30, 17, TimeSpan.Zero);
-
-            targetCalendar = targetCalendar.AddSeconds(400); // jump 400 seconds (4 intervals)
+            DateTimeOffset targetCalendar = startCalendar.AddSeconds(400); // jump 400 seconds (4 intervals)
             
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
             DateTimeOffset fifthTime = fireTimes[4]; // get the third fire time
@@ -163,16 +162,16 @@ namespace Quartz.Tests.Unit
         {
             // Pick a day before a daylight savings transition...
 
-            DateTimeOffset startCalendar = new DateTimeOffset(2010, 3, 12, 9, 30, 17, TimeSpan.Zero);
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 12, 3, 2010);
 
-            CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.StartTimeUtc = startCalendar;
-            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
-            dailyTrigger.RepeatInterval = 5; // every 5 days
+            var dailyTrigger = new CalendarIntervalTriggerImpl
+                                                           {
+                                                               StartTimeUtc = startCalendar,
+                                                               RepeatIntervalUnit = IntervalUnit.Day,
+                                                               RepeatInterval = 5   // every 5 days
+                                                           };
 
-            DateTimeOffset targetCalendar = startCalendar;
-
-            targetCalendar = targetCalendar.AddDays(10); // jump 10 days (2 intervals)
+            DateTimeOffset targetCalendar = startCalendar.AddDays(10); // jump 10 days (2 intervals)
 
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
             DateTimeOffset testTime = fireTimes[2]; // get the third fire time
@@ -182,15 +181,15 @@ namespace Quartz.Tests.Unit
             // Pick a day before a daylight savings transition...
 
             startCalendar = new DateTimeOffset(2010, 10, 31, 9, 30, 17, TimeSpan.Zero);
-            
-            dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.StartTimeUtc = startCalendar;
-            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
-            dailyTrigger.RepeatInterval = 5; // every 5 days
 
-            targetCalendar = startCalendar;
+            dailyTrigger = new CalendarIntervalTriggerImpl
+                               {
+                                   StartTimeUtc = startCalendar,
+                                   RepeatIntervalUnit = IntervalUnit.Day,
+                                   RepeatInterval = 5   // every 5 days
+                               };
 
-            targetCalendar = targetCalendar.AddDays(15); // jump 15 days (3 intervals)
+            targetCalendar = startCalendar.AddDays(15); // jump 15 days (3 intervals)
             
             fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
             testTime = fireTimes[3]; // get the fourth fire time
@@ -202,32 +201,29 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestFinalFireTimes()
         {
-            DateTimeOffset startCalendar = new DateTimeOffset(2010, 3, 12, 9, 0, 0, TimeSpan.Zero);
-            
-            CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.StartTimeUtc = startCalendar;
-            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
-            dailyTrigger.RepeatInterval = 5; // every 5 days
+            DateTimeOffset startCalendar = DateBuilder.DateOf(9, 0, 0, 12, 3, 2010);
+            DateTimeOffset endCalendar = startCalendar.AddDays(10); // jump 10 days (2 intervals)
 
-            DateTimeOffset endCalendar = startCalendar;
-            endCalendar = endCalendar.AddDays(10); // jump 10 days (2 intervals)
-            dailyTrigger.EndTimeUtc = endCalendar;
+            var dailyTrigger = new CalendarIntervalTriggerImpl
+                                                           {
+                                                               StartTimeUtc = startCalendar,
+                                                               RepeatIntervalUnit = IntervalUnit.Day,
+                                                               RepeatInterval = 5,   // every 5 days
+                                                               EndTimeUtc = endCalendar
+                                                           };
 
             DateTimeOffset? testTime = dailyTrigger.FinalFireTimeUtc;
 
             Assert.AreEqual(endCalendar, testTime, "Final fire time not computed correctly for day interval.");
 
-            startCalendar = new DateTimeOffset(2010, 3, 12, 9, 0, 0, TimeSpan.Zero);
-
-            dailyTrigger = new CalendarIntervalTriggerImpl();
-            dailyTrigger.StartTimeUtc = startCalendar;
-            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Minute;
-            dailyTrigger.RepeatInterval = 5; // every 5 minutes
-
-            endCalendar = startCalendar;
-            endCalendar = endCalendar.AddDays(15); // jump 15 days 
-            endCalendar = endCalendar.AddMinutes(-2); // back up two minutes
-            dailyTrigger.EndTimeUtc = endCalendar;
+            endCalendar = startCalendar.AddDays(15).AddMinutes(-2); // jump 15 days and back up 2 minutes
+            dailyTrigger = new CalendarIntervalTriggerImpl
+                               {
+                                   StartTimeUtc = startCalendar,
+                                   RepeatIntervalUnit = IntervalUnit.Minute,
+                                   RepeatInterval = 5,   // every 5 minutes
+                                   EndTimeUtc = endCalendar
+                               };
 
             testTime = dailyTrigger.FinalFireTimeUtc;
 
@@ -241,7 +237,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestMisfireInstructionValidity()
         {
-            CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
+            var trigger = new CalendarIntervalTriggerImpl();
 
             try
             {
@@ -272,17 +268,19 @@ namespace Quartz.Tests.Unit
 
         protected override object GetTargetObject()
         {
-            JobDataMap jobDataMap = new JobDataMap();
+            var jobDataMap = new JobDataMap();
             jobDataMap["A"] =  "B";
 
-            CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
-            t.Name = "test";
-            t.Group = "testGroup";
-            t.CalendarName = "MyCalendar";
-            t.Description = "CronTriggerDesc";
-            t.JobDataMap = jobDataMap;
-            t.RepeatInterval = 5;
-            t.RepeatIntervalUnit = IntervalUnit.Day;
+            var t = new CalendarIntervalTriggerImpl
+                                                {
+                                                    Name = "test",
+                                                    Group = "testGroup",
+                                                    CalendarName = "MyCalendar",
+                                                    Description = "CronTriggerDesc",
+                                                    JobDataMap = jobDataMap,
+                                                    RepeatInterval = 5,
+                                                    RepeatIntervalUnit = IntervalUnit.Day
+                                                };
 
             return t;
         }
@@ -295,8 +293,8 @@ namespace Quartz.Tests.Unit
 
         protected override void VerifyMatch(object target, object deserialized)
         {
-            CalendarIntervalTriggerImpl targetCalTrigger = (CalendarIntervalTriggerImpl) target;
-            CalendarIntervalTriggerImpl deserializedCalTrigger = (CalendarIntervalTriggerImpl) deserialized;
+            var targetCalTrigger = (CalendarIntervalTriggerImpl) target;
+            var deserializedCalTrigger = (CalendarIntervalTriggerImpl) deserialized;
 
             Assert.IsNotNull(deserializedCalTrigger);
             Assert.AreEqual(targetCalTrigger.Name, deserializedCalTrigger.Name);
