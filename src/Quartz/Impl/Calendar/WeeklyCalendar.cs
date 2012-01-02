@@ -141,8 +141,7 @@ namespace Quartz.Impl.Calendar
 
         /// <summary>
         /// Redefine a certain day of the week to be excluded (true) or included
-        /// (false). Use java.util.Calendar's constants like MONDAY to determine the
-        /// wday.
+        /// (false). Use <see cref="DayOfWeek"/> enum to determine the weekday.
         /// </summary>
         public virtual void SetDayExcluded(DayOfWeek wday, bool exclude)
         {
