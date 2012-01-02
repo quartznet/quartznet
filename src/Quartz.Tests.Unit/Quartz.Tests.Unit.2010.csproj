@@ -116,6 +116,7 @@
     <Compile Include="CronScheduleBuilderTest.cs" />
     <Compile Include="CronTriggerTest.cs" />
     <Compile Include="DailyTimeIntervalScheduleBuilderTest.cs" />
+    <Compile Include="DateBuilderTest.cs" />
     <Compile Include="DisallowConcurrentJobExecutionTest.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
     <Compile Include="Impl\AdoJobStore\StubConnection.cs" />

@@ -645,7 +645,7 @@ namespace Quartz
 
             if (minuteBase == 0)
             {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour + 1, 0, 0, 0, TimeSpan.Zero);
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, 0, 0, 0, c.Offset).AddHours(1);
             }
 
             int minute = c.Minute;
@@ -656,19 +656,17 @@ namespace Quartz
 
             if (nextMinuteOccurance < 60)
             {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, nextMinuteOccurance, 0, 0, TimeSpan.Zero);
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, nextMinuteOccurance, 0, 0, c.Offset);
             }
             else
             {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour + 1, 0, 0, 0, TimeSpan.Zero);
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, 0, 0, 0, c.Offset).AddHours(1);
             }
         }
 
         /// <summary>
-        /// <para>
         /// Returns a date that is rounded to the next even multiple of the given
         /// minute.
-        /// </para>
         /// </summary>
         /// <remarks>
         /// The rules for calculating the second are the same as those for
@@ -690,7 +688,7 @@ namespace Quartz
 
             if (secondBase == 0)
             {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute + 1, 0, 0, c.Offset);
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, 0, 0, c.Offset).AddMinutes(1);
             }
 
             int second = c.Second;
@@ -705,7 +703,7 @@ namespace Quartz
             }
             else
             {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute + 1, 0, 0, c.Offset);
+                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, 0, 0, c.Offset).AddMinutes(1);
             }
         }
 
