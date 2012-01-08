@@ -23,12 +23,12 @@ namespace Quartz.Job
     {
         ///<see cref="JobDataMap"/> key with which to specify the directory to be 
         /// monitored - an absolute path is recommended. 
-        public const string DIRECTORY_NAME = "DIRECTORY_NAME";
+        public const string DirectoryName = "DIRECTORY_NAME";
 
         /// <see cref="JobDataMap"/> key with which to specify the 
         /// <see cref="IDirectoryScanListener"/> to be 
         /// notified when the directory contents change.  
-        public const string DIRECTORY_SCAN_LISTENER_NAME = "DIRECTORY_SCAN_LISTENER_NAME";
+        public const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
 
        /// <see cref="JobDataMap"/> key with which to specify a <see cref="long"/>
        /// value that represents the minimum number of milliseconds that must have
@@ -37,9 +37,9 @@ namespace Quartz.Job
        /// in the middle of writing to the file when the scan occurs, and the
        ///  file may therefore not yet be ready for processing.
        /// <para>If this parameter is not specified, a default value of 5000 (five seconds) will be used.</para>
-        public const string MINIMUM_UPDATE_AGE = "MINIMUM_UPDATE_AGE";
+        public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
 
-        private const string LAST_MODIFIED_TIME = "LAST_MODIFIED_TIME";
+        private const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
         private readonly ILog log;
 
@@ -57,7 +57,7 @@ namespace Quartz.Job
         public void Execute(IJobExecutionContext context)
         {
             JobDataMap mergedJobDataMap = context.MergedJobDataMap;
-            SchedulerContext schedCtxt = null;
+            SchedulerContext schedCtxt;
             try
             {
                 schedCtxt = context.Scheduler.Context;
@@ -67,18 +67,18 @@ namespace Quartz.Job
                 throw new JobExecutionException("Error obtaining scheduler context.", e, false);
             }
 
-            string dirName = mergedJobDataMap.GetString(DIRECTORY_NAME);
-            string listenerName = mergedJobDataMap.GetString(DIRECTORY_SCAN_LISTENER_NAME);
+            string dirName = mergedJobDataMap.GetString(DirectoryName);
+            string listenerName = mergedJobDataMap.GetString(DirectoryScanListenerName);
 
             if (dirName == null)
             {
                 throw new JobExecutionException("Required parameter '" +
-                                                DIRECTORY_NAME + "' not found in merged JobDataMap");
+                                                DirectoryName + "' not found in merged JobDataMap");
             }
             if (listenerName == null)
             {
                 throw new JobExecutionException("Required parameter '" +
-                                                DIRECTORY_SCAN_LISTENER_NAME + "' not found in merged JobDataMap");
+                                                DirectoryScanListenerName + "' not found in merged JobDataMap");
             }
 
             object temp;
@@ -92,17 +92,18 @@ namespace Quartz.Job
             }
 
             DateTime lastDate = DateTime.MinValue;
-            if (mergedJobDataMap.ContainsKey(LAST_MODIFIED_TIME))
+            if (mergedJobDataMap.ContainsKey(LastModifiedTime))
             {
-                lastDate = mergedJobDataMap.GetDateTime(LAST_MODIFIED_TIME);
+                lastDate = mergedJobDataMap.GetDateTime(LastModifiedTime);
             }
 
-            long minAge = 5000;
-            if (mergedJobDataMap.ContainsKey(MINIMUM_UPDATE_AGE))
+            TimeSpan minAge = TimeSpan.FromSeconds(5);
+            if (mergedJobDataMap.ContainsKey(MinimumUpdateAge))
             {
-                minAge = mergedJobDataMap.GetLong(MINIMUM_UPDATE_AGE);
+                minAge = TimeSpan.FromMilliseconds(mergedJobDataMap.GetLong(MinimumUpdateAge));
             }
-            DateTime maxAgeDate = DateTime.Now.AddMilliseconds(minAge);
+
+            DateTime maxAgeDate = DateTime.Now - minAge;
 
             FileInfo[] updatedFiles = GetUpdatedOrNewFiles(dirName, lastDate, maxAgeDate);
 
@@ -112,7 +113,7 @@ namespace Quartz.Job
                 return;
             }
 
-            DateTime latestMod = DateTime.MinValue;
+            DateTime latestMod = lastDate;
             foreach (FileInfo updFile in updatedFiles)
             {
                 DateTime lm = updFile.LastWriteTime;
@@ -131,7 +132,7 @@ namespace Quartz.Job
             }
 
             // It is the JobDataMap on the JobDetail which is actually stateful
-            context.JobDetail.JobDataMap.Put(LAST_MODIFIED_TIME, latestMod);
+            context.JobDetail.JobDataMap.Put(LastModifiedTime, latestMod);
         }
 
         protected FileInfo[] GetUpdatedOrNewFiles(string dirName, DateTime lastDate, DateTime maxAgeDate)
