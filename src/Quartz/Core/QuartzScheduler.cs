@@ -373,7 +373,7 @@ namespace Quartz.Core
                                             InStandbyMode, IsShutdown, RunningSince,
                                             NumJobsExecuted, JobStoreClass,
                                             SupportsPersistence, Clustered, ThreadPoolClass,
-                                            ThreadPoolSize, Version)).ToString());
+                                            ThreadPoolSize, Version)));
         }
 
         /// <summary>
@@ -733,7 +733,8 @@ namespace Quartz.Core
 
             if (!ft.HasValue)
             {
-                throw new SchedulerException("Based on configured schedule, the given trigger will never fire.");
+                var message = string.Format("Based on configured schedule, the given trigger '{0}' will never fire.", trigger.Key);
+                throw new SchedulerException(message);
             }
 
             resources.JobStore.StoreJobAndTrigger(jobDetail, trig);
@@ -774,7 +775,8 @@ namespace Quartz.Core
 
             if (!ft.HasValue)
             {
-                throw new SchedulerException("Based on configured schedule, the given trigger will never fire.");
+                var message = string.Format("Based on configured schedule, the given trigger '{0}' will never fire.", trigger.Key);
+                throw new SchedulerException(message);
             }
 
             resources.JobStore.StoreTrigger(trig, false);
@@ -845,9 +847,7 @@ namespace Quartz.Core
         {
             ValidateState();
 
-            bool result = false;
-
-            result = resources.JobStore.RemoveJobs(jobKeys);
+            bool result = resources.JobStore.RemoveJobs(jobKeys);
             NotifySchedulerThread(null);
             foreach (JobKey key in jobKeys)
             {
@@ -893,7 +893,8 @@ namespace Quartz.Core
 
                     if (ft == null)
                     {
-                        throw new SchedulerException("Based on configured schedule, the given trigger will never fire.");
+                        var message = string.Format("Based on configured schedule, the given trigger '{0}' will never fire.", trigger.Key);
+                        throw new SchedulerException(message);
                     }
                 }
             }
@@ -910,9 +911,7 @@ namespace Quartz.Core
         {
             ValidateState();
 
-            bool result = false;
-
-            result = resources.JobStore.RemoveTriggers(triggerKeys);
+            bool result = resources.JobStore.RemoveTriggers(triggerKeys);
             NotifySchedulerThread(null);
             foreach (TriggerKey key in triggerKeys)
             {
@@ -968,17 +967,15 @@ namespace Quartz.Core
                 throw new ArgumentException("newTrigger cannot be null");
             }
 
-            IOperableTrigger trig = (IOperableTrigger) newTrigger;
+            var trigger = (IOperableTrigger) newTrigger;
             ITrigger oldTrigger = GetTrigger(triggerKey);
             if (oldTrigger == null)
             {
                 return null;
             }
-            else
-            {
-                trig.JobKey = oldTrigger.JobKey;
-            }
-            trig.Validate();
+            
+            trigger.JobKey = oldTrigger.JobKey;
+            trigger.Validate();
 
             ICalendar cal = null;
             if (newTrigger.CalendarName != null)
@@ -986,14 +983,15 @@ namespace Quartz.Core
                 cal = resources.JobStore.RetrieveCalendar(newTrigger.CalendarName);
             }
 
-            DateTimeOffset? ft = trig.ComputeFirstFireTimeUtc(cal);
+            DateTimeOffset? ft = trigger.ComputeFirstFireTimeUtc(cal);
 
             if (!ft.HasValue)
             {
-                throw new SchedulerException("Based on configured schedule, the given trigger will never fire.");
+                var message = string.Format("Based on configured schedule, the given trigger '{0}' will never fire.", trigger.Key);
+                throw new SchedulerException(message);
             }
 
-            if (resources.JobStore.ReplaceTrigger(triggerKey, trig))
+            if (resources.JobStore.ReplaceTrigger(triggerKey, trigger))
             {
                 NotifySchedulerThread(newTrigger.GetNextFireTimeUtc());
                 NotifySchedulerListenersUnscheduled(triggerKey);
@@ -2328,10 +2326,7 @@ namespace Quartz.Core
                         ((IInterruptableJob) job).Interrupt();
                         return true;
                     }
-                    else
-                    {
-                        throw new UnableToInterruptJobException("Job " + jec.JobDetail.Key + " can not be interrupted, since it does not implement " + typeof (IInterruptableJob).Name);
-                    }
+                    throw new UnableToInterruptJobException("Job " + jec.JobDetail.Key + " can not be interrupted, since it does not implement " + typeof (IInterruptableJob).Name);
                 }
             }
 
