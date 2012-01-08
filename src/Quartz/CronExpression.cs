@@ -1669,6 +1669,18 @@ namespace Quartz
                             t = day;
                             day = GetLastDayOfMonth(mon, d.Year);
                             day -= lastdayOffset;
+
+                            if (t > day)
+                            {
+                                mon++;
+                                if (mon > 12)
+                                {
+                                    mon = 1;
+                                    tmon = 3333; // ensure test of mon != tmon further below fails
+                                    d.AddYears(1);
+                                }
+                                day = 1;
+                            }
                         }
                         else
                         {
