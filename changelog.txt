@@ -11,6 +11,10 @@ POSSIBLE BREAKING CHANGES (since 2.0 beta 2)
 
 * DateBuilder now uses the UTC offset that is active for the date constructed (earlier it was always current offset)
 
+FIXES
+
+* Possible bug with triggers left/stuck in ACQUIRED state (QTZ-179)
+
 
 Release 2.0 beta 2, Dec 31, 2011
 --------------------------------

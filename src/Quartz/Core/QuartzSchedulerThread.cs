@@ -374,6 +374,13 @@ namespace Quartz.Core
                                 catch (SchedulerException se)
                                 {
                                     qs.NotifySchedulerListenersError("An error occurred while firing triggers '" + triggers + "'", se);
+                                    // QTZ-179 : a problem occurred interacting with the triggers from the db
+                                    // we release them and loop again
+                                    foreach (IOperableTrigger t in triggers)
+                                    {
+                                        ReleaseTriggerRetryLoop(t);
+                                    }
+                                    continue;
                                 }
 
                             }
