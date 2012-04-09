@@ -2,18 +2,19 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
-Release 2.0 Release Candidate 1, Apr xx, 2012
+Release 2.0, Apr 9, 2012
 --------------------------------
 
 This release contains some bug fixes.
 
 POSSIBLE BREAKING CHANGES (since 2.0 beta 2)
 
-* DateBuilder now uses the UTC offset that is active for the date constructed (earlier it was always current offset)
+* DateBuilder now uses the UTC offset that is active for the date constructed (earlier it was always offset of DateOffset.Now)
 
 FIXES
 
 * Possible bug with triggers left/stuck in ACQUIRED state (QTZ-179)
+* More checks to CalendarIntevalTrigger for daylight savings
 
 
 Release 2.0 beta 2, Dec 31, 2011

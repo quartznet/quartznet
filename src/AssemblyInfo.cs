@@ -17,19 +17,19 @@ using System.Runtime.InteropServices;
 #endif
 
 #if NET_40
-[assembly: AssemblyProduct("Quarz.NET 2.0 beta 2 for .NET 4.0")]
+[assembly: AssemblyProduct("Quarz.NET 2.0 for .NET 4.0")]
 #else
-[assembly: AssemblyProduct("Quarz.NET 2.0 beta 2 for .NET 3.5 SP1")]
+[assembly: AssemblyProduct("Quarz.NET 2.0 for .NET 3.5 SP1")]
 #endif
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
 [assembly: AssemblyCompany("http://www.quartz-scheduler.net/")]
-[assembly: AssemblyCopyright("Copyright 2001-2010 Terracotta Inc. and partially Marko Lahma")]
+[assembly: AssemblyCopyright("Copyright 2001-2012 Terracotta Inc. and partially Marko Lahma")]
 [assembly: AssemblyTrademark("Apache License, Version 2.0")]
 [assembly: AssemblyCulture("")]
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
-[assembly: AssemblyVersion("2.0.0.200")]
+[assembly: AssemblyVersion("2.0.0.400")]
 
 [assembly: AssemblyDelaySign(false)]
 #if !NET_40

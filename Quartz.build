@@ -37,7 +37,8 @@
 
 
   <target name="build">
-    <call target="build-${target.framework}" />
+    <call target="build-3.5" />
+    <call target="build-4.0" />
   </target>
 
   <target name="build-all">
