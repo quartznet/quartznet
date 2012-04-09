@@ -48,19 +48,30 @@ namespace Quartz.Impl.AdoJobStore
 
             SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
 
-            props.Int1 = (calTrig.RepeatInterval);
-            props.String1 = (calTrig.RepeatIntervalUnit.ToString());
-            props.Int2 = (calTrig.TimesTriggered);
+            props.Int1 = calTrig.RepeatInterval;
+            props.String1 = calTrig.RepeatIntervalUnit.ToString();
+            props.Int2 = calTrig.TimesTriggered;
+            props.String2 = calTrig.TimeZone.Id;
+            props.Boolean1 = calTrig.PreserveHourOfDayAcrossDaylightSavings;
+            props.Boolean2 = calTrig.SkipDayIfHourDoesNotExist;
 
             return props;
         }
 
         protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
         {
+            TimeZoneInfo tz = null; // if we use null, that's ok as system default tz will be used
+            string tzId = props.String2;
+            if (tzId != null && tzId.Trim().Length != 0) // there could be null entries from previously released versions
+            {
+                tz = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+            }
+
             CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.Create()
-                .WithInterval(
-                    props.Int1, 
-                    (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1, true));
+                .WithInterval(props.Int1, (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1, true))
+                .InTimeZone(tz)
+                .PreserveHourOfDayAcrossDaylightSavings(props.Boolean1)
+                .SkipDayIfHourDoesNotExist(props.Boolean2);
 
             int timesTriggered = props.Int2;
 

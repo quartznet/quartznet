@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -60,8 +62,11 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? previousFireTimeUtc;
         private int repeatInterval;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
+        private TimeZoneInfo timeZone;
+        private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
+        private bool skipDayIfHourDoesNotExist = false;
         private int timesTriggered;
-        private bool complete;
+        private bool complete = false;
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
@@ -91,7 +96,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, string group, IntervalUnit intervalUnit,
-                                   int repeatInterval)
+                                           int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, intervalUnit, repeatInterval)
         {
         }
@@ -106,7 +111,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, DateTimeOffset startTimeUtc,
-                                   DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
+                                           DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, null, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval)
         {
         }
@@ -122,7 +127,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
-                                   DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
+                                           DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
         {
             StartTimeUtc = startTimeUtc;
@@ -144,8 +149,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, string group, string jobName,
-                                   string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
-                                   IntervalUnit intervalUnit, int repeatInterval)
+                                           string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
+                                           IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group, jobName, jobGroup)
         {
             StartTimeUtc = startTimeUtc;
@@ -241,6 +246,75 @@ namespace Quartz.Impl.Triggers
             }
         }
 
+        public TimeZoneInfo TimeZone
+        {
+            get
+            {
+                if (timeZone == null)
+                {
+                    timeZone = TimeZoneInfo.Local;
+                }
+                return timeZone;
+            }
+
+            set { timeZone = value; }
+        }
+
+        ///<summary>
+        /// If intervals are a day or greater, this property (set to true) will 
+        /// cause the firing of the trigger to always occur at the same time of day,
+        /// (the time of day of the startTime) regardless of daylight saving time 
+        /// transitions.  Default value is false.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// For example, without the property set, your trigger may have a start 
+        /// time of 9:00 am on March 1st, and a repeat interval of 2 days.  But 
+        /// after the daylight saving transition occurs, the trigger may start 
+        /// firing at 8:00 am every other day.
+        /// </para>
+        /// <para>
+        /// If however, the time of day does not exist on a given day to fire
+        /// (e.g. 2:00 am in the United States on the days of daylight saving
+        /// transition), the trigger will go ahead and fire one hour off on 
+        /// that day, and then resume the normal hour on other days.  If
+        /// you wish for the trigger to never fire at the "wrong" hour, then
+        /// you should set the property skipDayIfHourDoesNotExist.
+        /// </para>
+        ///</remarks>
+        /// <seealso cref="ICalendarIntervalTrigger.SkipDayIfHourDoesNotExist"/>
+        /// <seealso cref="ICalendarIntervalTrigger.TimeZone"/>
+        /// <seealso cref="TriggerBuilder.StartAt"/>
+        public bool PreserveHourOfDayAcrossDaylightSavings
+        {
+            get { return preserveHourOfDayAcrossDaylightSavings; }
+            set { preserveHourOfDayAcrossDaylightSavings = value; }
+        }
+
+        /// <summary>
+        /// If intervals are a day or greater, and 
+        /// preserveHourOfDayAcrossDaylightSavings property is set to true, and the
+        /// hour of the day does not exist on a given day for which the trigger 
+        /// would fire, the day will be skipped and the trigger advanced a second
+        /// interval if this property is set to true.  Defaults to false.
+        /// </summary>
+        /// <remarks>
+        /// <b>CAUTION!</b>  If you enable this property, and your hour of day happens 
+        /// to be that of daylight savings transition (e.g. 2:00 am in the United 
+        /// States) and the trigger's interval would have had the trigger fire on
+        /// that day, then you may actually completely miss a firing on the day of 
+        /// transition if that hour of day does not exist on that day!  In such a 
+        /// case the next fire time of the trigger will be computed as double (if 
+        /// the interval is 2 days, then a span of 4 days between firings will 
+        /// occur).
+        /// </remarks>
+        /// <seealso cref="ICalendarIntervalTrigger.PreserveHourOfDayAcrossDaylightSavings"/>
+        public bool SkipDayIfHourDoesNotExist
+        {
+            get { return skipDayIfHourDoesNotExist; }
+            set { skipDayIfHourDoesNotExist = value; }
+        }
+
         /// <summary>
         /// Get the number of times the <see cref="ICalendarIntervalTrigger" /> has already fired.
         /// </summary>
@@ -254,7 +328,6 @@ namespace Quartz.Impl.Triggers
         {
             throw new NotImplementedException();
         }
-
 
         /// <summary>
         /// Validates the misfire instruction.
@@ -344,7 +417,9 @@ namespace Quartz.Impl.Triggers
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
                 if (nextFireTimeUtc == null)
+                {
                     break;
+                }
 
                 //avoid infinite loop
                 if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
@@ -380,7 +455,9 @@ namespace Quartz.Impl.Triggers
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
                 if (nextFireTimeUtc == null)
+                {
                     break;
+                }
 
                 //avoid infinite loop
                 if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
@@ -429,7 +506,9 @@ namespace Quartz.Impl.Triggers
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
                 if (nextFireTimeUtc == null)
+                {
                     break;
+                }
 
                 //avoid infinite loop
                 if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
@@ -520,141 +599,181 @@ namespace Quartz.Impl.Triggers
                 return startMillis;
             }
 
-            long secondsAfterStart = (long)(afterMillis - startMillis).TotalSeconds;
+            long secondsAfterStart = (long) (afterMillis - startMillis).TotalSeconds;
 
             DateTimeOffset? time = null;
             long repeatLong = RepeatInterval;
-            
+
             DateTimeOffset sTime = StartTimeUtc;
+            if (timeZone != null)
+            {
+                sTime = TimeZoneInfo.ConvertTime(sTime, timeZone);
+            }
 
             if (RepeatIntervalUnit == IntervalUnit.Second)
             {
-                long jumpCount = secondsAfterStart / repeatLong;
-                if (secondsAfterStart % repeatLong != 0)
+                long jumpCount = secondsAfterStart/repeatLong;
+                if (secondsAfterStart%repeatLong != 0)
                 {
                     jumpCount++;
                 }
-                time = sTime.AddSeconds(RepeatInterval * (int)jumpCount);
+                time = sTime.AddSeconds(RepeatInterval*(int) jumpCount);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Minute)
             {
-                long jumpCount = secondsAfterStart / (repeatLong * 60L);
-                if (secondsAfterStart % (repeatLong * 60L) != 0)
+                long jumpCount = secondsAfterStart/(repeatLong*60L);
+                if (secondsAfterStart%(repeatLong*60L) != 0)
                 {
                     jumpCount++;
                 }
-                time = sTime.AddMinutes(RepeatInterval * (int)jumpCount);
+                time = sTime.AddMinutes(RepeatInterval*(int) jumpCount);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Hour)
             {
-                long jumpCount = secondsAfterStart / (repeatLong * 60L * 60L);
-                if (secondsAfterStart % (repeatLong * 60L * 60L) != 0)
+                long jumpCount = secondsAfterStart/(repeatLong*60L*60L);
+                if (secondsAfterStart%(repeatLong*60L*60L) != 0)
                 {
                     jumpCount++;
                 }
-                time = sTime.AddHours(RepeatInterval * (int)jumpCount);
+                time = sTime.AddHours(RepeatInterval*(int) jumpCount);
             }
-            else if (RepeatIntervalUnit == IntervalUnit.Day)
+            else
             {
-                // Because intervals greater than an hour have an non-fixed number 
-                // of seconds in them (due to daylight savings, variation number of 
-                // days in each month, leap year, etc. ) we can't jump forward an
-                // exact number of seconds to calculate the fire time as we can
-                // with the second, minute and hour intervals.   But, rather
-                // than slowly crawling our way there by iteratively adding the 
-                // increment to the start time until we reach the "after time",
-                // we can first make a big leap most of the way there...
+                // intervals a day or greater ...
 
-                long jumpCount = secondsAfterStart / (repeatLong * 24L * 60L * 60L);
-                // if we need to make a big jump, jump most of the way there, 
-                // but not all the way because in some cases we may over-shoot or under-shoot
-                if (jumpCount > 20)
-                {
-                    if (jumpCount < 50)
-                    {
-                        jumpCount = (long)(jumpCount * 0.80);
-                    }
-                    else if (jumpCount < 500)
-                    {
-                        jumpCount = (long)(jumpCount * 0.90);
-                    }
-                    else
-                    {
-                        jumpCount = (long)(jumpCount * 0.95);
-                    }
-                    sTime = sTime.AddDays(RepeatInterval * jumpCount);
-                }
+                int initialHourOfDay = sTime.Hour;
 
-                // now baby-step the rest of the way there...
-                while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                if (RepeatIntervalUnit == IntervalUnit.Day)
                 {
-                    sTime= sTime.AddDays(RepeatInterval);
-                }
-                time = sTime;
-            }
-            else if (RepeatIntervalUnit == IntervalUnit.Week)
-            {
-                // Because intervals greater than an hour have an non-fixed number 
-                // of seconds in them (due to daylight savings, variation number of 
-                // days in each month, leap year, etc. ) we can't jump forward an
-                // exact number of seconds to calculate the fire time as we can
-                // with the second, minute and hour intervals.   But, rather
-                // than slowly crawling our way there by iteratively adding the 
-                // increment to the start time until we reach the "after time",
-                // we can first make a big leap most of the way there...
+                    // Because intervals greater than an hour have an non-fixed number 
+                    // of seconds in them (due to daylight savings, variation number of 
+                    // days in each month, leap year, etc. ) we can't jump forward an
+                    // exact number of seconds to calculate the fire time as we can
+                    // with the second, minute and hour intervals.   But, rather
+                    // than slowly crawling our way there by iteratively adding the 
+                    // increment to the start time until we reach the "after time",
+                    // we can first make a big leap most of the way there...
 
-                long jumpCount = secondsAfterStart / (repeatLong * 7L * 24L * 60L * 60L);
-                // if we need to make a big jump, jump most of the way there, 
-                // but not all the way because in some cases we may over-shoot or under-shoot
-                if (jumpCount > 20)
-                {
-                    if (jumpCount < 50)
+                    long jumpCount = secondsAfterStart/(repeatLong*24L*60L*60L);
+                    // if we need to make a big jump, jump most of the way there, 
+                    // but not all the way because in some cases we may over-shoot or under-shoot
+                    if (jumpCount > 20)
                     {
-                        jumpCount = (long)(jumpCount * 0.80);
+                        if (jumpCount < 50)
+                        {
+                            jumpCount = (long) (jumpCount*0.80);
+                        }
+                        else if (jumpCount < 500)
+                        {
+                            jumpCount = (long) (jumpCount*0.90);
+                        }
+                        else
+                        {
+                            jumpCount = (long) (jumpCount*0.95);
+                        }
+                        sTime = sTime.AddDays(RepeatInterval*jumpCount);
                     }
-                    else if (jumpCount < 500)
-                    {
-                        jumpCount = (long)(jumpCount * 0.90);
-                    }
-                    else
-                    {
-                        jumpCount = (long)(jumpCount * 0.95);
-                    }
-                    sTime = sTime.AddDays((int)(RepeatInterval * jumpCount * 7));
-                }
 
-                while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
-                {
-                    sTime = sTime.AddDays(RepeatInterval * 7);
+                    // now baby-step the rest of the way there...
+                    while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                    {
+                        sTime = sTime.AddDays(RepeatInterval);
+                    }
+                    while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                    {
+                        sTime = sTime.AddDays(RepeatInterval);
+                    }
+                    time = sTime;
                 }
-                time = sTime;
-            }
-            else if (RepeatIntervalUnit == IntervalUnit.Month)
-            {
-                // because of the large variation in size of months, and 
-                // because months are already large blocks of time, we will
-                // just advance via brute-force iteration.
-                while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                else if (RepeatIntervalUnit == IntervalUnit.Week)
                 {
-                    sTime = sTime.AddMonths(RepeatInterval);
-                }
-                time = sTime;
-            }
-            else if (RepeatIntervalUnit == IntervalUnit.Year)
-            {
-                while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
-                {
-                    sTime = sTime.AddYears(RepeatInterval);
-                }
-                time = sTime;
-            }
+                    // Because intervals greater than an hour have an non-fixed number 
+                    // of seconds in them (due to daylight savings, variation number of 
+                    // days in each month, leap year, etc. ) we can't jump forward an
+                    // exact number of seconds to calculate the fire time as we can
+                    // with the second, minute and hour intervals.   But, rather
+                    // than slowly crawling our way there by iteratively adding the 
+                    // increment to the start time until we reach the "after time",
+                    // we can first make a big leap most of the way there...
 
+                    long jumpCount = secondsAfterStart/(repeatLong*7L*24L*60L*60L);
+                    // if we need to make a big jump, jump most of the way there, 
+                    // but not all the way because in some cases we may over-shoot or under-shoot
+                    if (jumpCount > 20)
+                    {
+                        if (jumpCount < 50)
+                        {
+                            jumpCount = (long) (jumpCount*0.80);
+                        }
+                        else if (jumpCount < 500)
+                        {
+                            jumpCount = (long) (jumpCount*0.90);
+                        }
+                        else
+                        {
+                            jumpCount = (long) (jumpCount*0.95);
+                        }
+                        sTime = sTime.AddDays((int) (RepeatInterval*jumpCount*7));
+                    }
+
+                    while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                    {
+                        sTime = sTime.AddDays(RepeatInterval*7);
+                    }
+                    while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                    {
+                        sTime = sTime.AddDays(RepeatInterval*7);
+                    }
+                    time = sTime;
+                }
+                else if (RepeatIntervalUnit == IntervalUnit.Month)
+                {
+                    // because of the large variation in size of months, and 
+                    // because months are already large blocks of time, we will
+                    // just advance via brute-force iteration.
+                    while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                    {
+                        sTime = sTime.AddMonths(RepeatInterval);
+                    }
+                    while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay)
+                           && sTime.Year < YearToGiveupSchedulingAt)
+                    {
+                        sTime = sTime.AddMonths(RepeatInterval);
+                    }
+                    time = sTime;
+                }
+                else if (RepeatIntervalUnit == IntervalUnit.Year)
+                {
+                    while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                    {
+                        sTime = sTime.AddYears(RepeatInterval);
+                    }
+                    while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                    {
+                        sTime = sTime.AddYears(RepeatInterval);
+                    }
+                    time = sTime;
+                }
+            } // case of interval of a day or greater
             if (!ignoreEndTime && endMillis <= time)
             {
                 return null;
             }
 
             return time;
+        }
+
+        private bool DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref DateTimeOffset newTime, int initialHourOfDay)
+        {
+            if (PreserveHourOfDayAcrossDaylightSavings && newTime.Hour != initialHourOfDay)
+            {
+                newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, newTime.Offset);
+                if (newTime.Hour != initialHourOfDay)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -689,31 +808,31 @@ namespace Quartz.Impl.Triggers
 
                 if (RepeatIntervalUnit == IntervalUnit.Second)
                 {
-                    lTime = lTime.AddSeconds(-1 * RepeatInterval);
+                    lTime = lTime.AddSeconds(-1*RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Minute)
                 {
-                    lTime = lTime.AddMinutes(-1 * RepeatInterval);
+                    lTime = lTime.AddMinutes(-1*RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Hour)
                 {
-                    lTime = lTime.AddHours(-1 * RepeatInterval);
+                    lTime = lTime.AddHours(-1*RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Day)
                 {
-                    lTime = lTime.AddDays(-1 * RepeatInterval);
+                    lTime = lTime.AddDays(-1*RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Week)
                 {
-                    lTime = lTime.AddDays(-1 * RepeatInterval * 7);
+                    lTime = lTime.AddDays(-1*RepeatInterval*7);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Month)
                 {
-                    lTime = lTime.AddMonths(-1 * RepeatInterval);
+                    lTime = lTime.AddMonths(-1*RepeatInterval);
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Year)
                 {
-                    lTime = lTime.AddYears( -1 * RepeatInterval);
+                    lTime = lTime.AddYears(-1*RepeatInterval);
                 }
 
                 return lTime;
@@ -758,16 +877,15 @@ namespace Quartz.Impl.Triggers
         /// <seealso cref="GetTriggerBuilder()" />
         public override IScheduleBuilder GetScheduleBuilder()
         {
-
             CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.Create()
-                    .WithInterval(RepeatInterval, RepeatIntervalUnit);
+                .WithInterval(RepeatInterval, RepeatIntervalUnit);
 
             switch (MisfireInstruction)
             {
-                case Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing: 
+                case Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing:
                     cb.WithMisfireHandlingInstructionDoNothing();
                     break;
-                case Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow: 
+                case Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow:
                     cb.WithMisfireHandlingInstructionFireAndProceed();
                     break;
             }

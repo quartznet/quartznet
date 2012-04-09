@@ -160,7 +160,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestDaylightSavingsTransitions()
         {
-            // Pick a day before a daylight savings transition...
+            // Pick a day before a spring daylight savings transition...
 
             DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 12, 3, 2010);
 
@@ -176,9 +176,67 @@ namespace Quartz.Tests.Unit
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
             DateTimeOffset testTime = fireTimes[2]; // get the third fire time
 
-            Assert.AreEqual(targetCalendar, testTime, "Day increment result not as expected over spring daylight savings transition.");
+            Assert.AreEqual(targetCalendar, testTime, "Day increment result not as expected over spring 2010 daylight savings transition.");
 
-            // Pick a day before a daylight savings transition...
+            // And again, Pick a day before a spring daylight savings transition... (QTZ-240)
+
+            startCalendar = new DateTime(2011, 3, 12, 1, 0, 0);
+
+            dailyTrigger = new CalendarIntervalTriggerImpl();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 1; // every day
+
+            targetCalendar = startCalendar.AddDays(2); // jump 2 days (2 intervals)
+
+            fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+            testTime = fireTimes[2]; // get the third fire time
+
+            Assert.AreEqual(targetCalendar, testTime, "Day increment result not as expected over spring 2011 daylight savings transition.");
+
+            // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove time of day is not preserved without setPreserveHourOfDayAcrossDaylightSavings(true)
+
+            var cetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+            startCalendar = TimeZoneInfo.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
+
+            dailyTrigger = new CalendarIntervalTriggerImpl();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
+            dailyTrigger.RepeatInterval= 1; // every day
+
+            targetCalendar = TimeZoneInfo.ConvertTime(startCalendar, cetTimeZone);
+            targetCalendar = targetCalendar.AddDays(2); // jump 2 days (2 intervals)
+
+            fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+
+            testTime = fireTimes[2]; // get the third fire time
+
+            DateTimeOffset testCal = TimeZoneInfo.ConvertTime(testTime, cetTimeZone);
+
+            Assert.AreNotEqual(targetCalendar.Hour, testCal.Hour, "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
+
+            // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove time of day is preserved with setPreserveHourOfDayAcrossDaylightSavings(true)
+
+            startCalendar = TimeZoneInfo.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
+
+            dailyTrigger = new CalendarIntervalTriggerImpl();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 1; // every day
+            dailyTrigger.TimeZone = cetTimeZone;
+            dailyTrigger.PreserveHourOfDayAcrossDaylightSavings = true;
+
+            targetCalendar = startCalendar.AddDays(2); // jump 2 days (2 intervals)
+
+            fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+
+            testTime = fireTimes[2]; // get the third fire time
+
+            testCal = TimeZoneInfo.ConvertTime(testTime, cetTimeZone);
+
+            Assert.AreEqual(targetCalendar.Hour, testCal.Hour, "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
+
+            // Pick a day before a fall daylight savings transition...
 
             startCalendar = new DateTimeOffset(2010, 10, 31, 9, 30, 17, TimeSpan.Zero);
 
@@ -227,11 +285,11 @@ namespace Quartz.Tests.Unit
 
             testTime = dailyTrigger.FinalFireTimeUtc;
 
-            Assert.IsTrue((endCalendar > (testTime)), "Final fire time not computed correctly for minutely interval.");
+            Assert.IsTrue(endCalendar > (testTime), "Final fire time not computed correctly for minutely interval.");
 
             endCalendar = endCalendar.AddMinutes(-3); // back up three more minutes
 
-            Assert.IsTrue((endCalendar.Equals(testTime)), "Final fire time not computed correctly for minutely interval.");
+            Assert.AreEqual(endCalendar, testTime, "Final fire time not computed correctly for minutely interval.");
         }
 
         [Test]
