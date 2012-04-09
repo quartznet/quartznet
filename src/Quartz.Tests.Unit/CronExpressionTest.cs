@@ -508,6 +508,22 @@ namespace Quartz.Tests.Unit
             }
         }
 
+        [Test]
+        public void TestDaylightSaving_QRTZNETZ186()
+        {
+            CronExpression expression = new CronExpression("0 15 * * * ?");
+            if (!TimeZoneInfo.Local.SupportsDaylightSavingTime)
+            {
+                return;
+            }
+            var daylightChange = TimeZone.CurrentTimeZone.GetDaylightChanges(2012);
+            DateTimeOffset before = daylightChange.Start.ToUniversalTime().AddMinutes(-5); // keep outside the potentially undefined interval
+            DateTimeOffset? after = expression.GetNextValidTimeAfter(before);
+            Assert.IsTrue(after.HasValue);
+            DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15).ToUniversalTime();
+            Assert.AreEqual(expected, after.Value);
+        }
+
         private class SimpleCronExpression : CronExpression
         {
             public SimpleCronExpression(string cronExpression)
