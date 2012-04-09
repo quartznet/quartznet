@@ -123,8 +123,10 @@
     </Compile>
     <Compile Include="CalendarIntervalTriggerTest.cs" />
     <Compile Include="Core\ListenerManagerTest .cs" />
+    <Compile Include="CronScheduleBuilderTest.cs" />
     <Compile Include="CronTriggerTest.cs" />
     <Compile Include="DailyTimeIntervalScheduleBuilderTest.cs" />
+    <Compile Include="DateBuilderTest.cs" />
     <Compile Include="DisallowConcurrentJobExecutionTest.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
     <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
@@ -138,6 +140,7 @@
     <Compile Include="SchedulerListenerTest.cs" />
     <Compile Include="SchedulerTest.cs" />
     <Compile Include="SerializationTest.cs" />
+    <Compile Include="Simpl\SystemPropertyInstanceIdGeneratorTest.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
     <Compile Include="CronExpressionTest.cs">
