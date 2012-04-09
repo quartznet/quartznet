@@ -131,6 +131,7 @@
     <Compile Include="SchedulerListenerTest.cs" />
     <Compile Include="SchedulerTest.cs" />
     <Compile Include="SerializationTest.cs" />
+    <Compile Include="Simpl\SystemPropertyInstanceIdGeneratorTest.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
     <Compile Include="CronExpressionTest.cs">
