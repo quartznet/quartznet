@@ -616,10 +616,13 @@ namespace Quartz
         /// <summary>
         /// Delete the identified <see cref="ICalendar" /> from the Scheduler.
         /// </summary>
+        /// <remarks>
+        /// If removal of the <code>Calendar</code> would result in
+        /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
+        /// <see cref="SchedulerException" /> will be thrown.
+        /// </remarks>
         /// <param name="calName">Name of the calendar.</param>
-        /// <returns>
-        /// true if the Calendar was found and deleted.
-        /// </returns>
+        /// <returns>true if the Calendar was found and deleted.</returns>
         bool DeleteCalendar(string calName);
 
         /// <summary>
@@ -684,6 +687,7 @@ namespace Quartz
         /// <param nane="fireInstanceId">
         /// the unique identifier of the job instance to  be interrupted (see <see cref="IJobExecutionContext.FireInstanceId" />
         /// </param>
+        /// <param name="fireInstanceId"> </param>
         /// <returns>true if the identified job instance was found and interrupted.</returns>
         bool Interrupt(string fireInstanceId);
 
