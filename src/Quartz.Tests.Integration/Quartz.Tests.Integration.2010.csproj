@@ -86,21 +86,11 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\2.0\nunit.framework.dll</HintPath>
     </Reference>
-    <Reference Include="Rhino.Mocks, Version=3.2.0.781, Culture=neutral, PublicKeyToken=0b3305902db7183f, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\2.0\Rhino.Mocks.dll</HintPath>
-    </Reference>
     <Reference Include="System">
       <Name>System</Name>
     </Reference>
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="System.Data">
-      <Name>System.Data</Name>
-    </Reference>
-    <Reference Include="System.XML">
-      <Name>System.XML</Name>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -126,10 +116,6 @@
     <Folder Include="Impl\AdoJobStore\Common\" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz.Examples\Quartz.Examples.2010.csproj">
-      <Project>{70A37974-17DE-474C-8A1C-19637622E75F}</Project>
-      <Name>Quartz.Examples.2010</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Quartz\Quartz.2010.csproj">
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
       <Name>Quartz.2010</Name>
