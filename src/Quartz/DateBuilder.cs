@@ -131,7 +131,8 @@ namespace Quartz
             }
             else
             {
-                cal = new DateTimeOffset(year, month, day, hour, minute, second, DateTimeOffset.Now.Offset);
+                var utcOffset = TimeZoneInfo.Local.GetUtcOffset(new DateTime(year, month, day, hour, minute, second));
+                cal = new DateTimeOffset(year, month, day, hour, minute, second, utcOffset);
             }
 
             return cal;
@@ -268,15 +269,16 @@ namespace Quartz
             ValidateMinute(minute);
             ValidateHour(hour);
 
+            DateTimeOffset now = DateTimeOffset.Now;
             DateTimeOffset c = new DateTimeOffset(
-                DateTimeOffset.Now.Year,
-                DateTimeOffset.Now.Month,
-                DateTimeOffset.Now.Day,
+                now.Year,
+                now.Month,
+                now.Day,
                 hour,
                 minute,
                 second,
                 0,
-                DateTimeOffset.Now.Offset);
+                now.Offset);
 
             // advance one day
             c = c.AddDays(1);
@@ -337,7 +339,8 @@ namespace Quartz
 
             DateTimeOffset c = SystemTime.Now();
 
-            return new DateTimeOffset(c.Year, c.Month, c.Day, hour, minute, second, DateTimeOffset.Now.Offset);
+            var utcOffset = TimeZoneInfo.Local.GetUtcOffset(new DateTime(c.Year, c.Month, c.Day, hour, minute, second));
+            return new DateTimeOffset(c.Year, c.Month, c.Day, hour, minute, second, utcOffset);
         }
 
         /// <summary>
@@ -361,7 +364,8 @@ namespace Quartz
 
             DateTimeOffset c = SystemTime.Now();
 
-            return new DateTimeOffset(c.Year, month, dayOfMonth, hour, minute, second, DateTimeOffset.Now.Offset);
+            var utcOffset = TimeZoneInfo.Local.GetUtcOffset(new DateTime(c.Year, month, dayOfMonth, hour, minute, second));
+            return new DateTimeOffset(c.Year, month, dayOfMonth, hour, minute, second, utcOffset);
         }
 
         /// <summary>
@@ -387,7 +391,8 @@ namespace Quartz
             ValidateMonth(month);
             ValidateYear(year);
 
-            return new DateTimeOffset(year, month, dayOfMonth, hour, minute, second, DateTimeOffset.Now.Offset);
+            var utcOffset = TimeZoneInfo.Local.GetUtcOffset(new DateTime(year, month, dayOfMonth, hour, minute, second));
+            return new DateTimeOffset(year, month, dayOfMonth, hour, minute, second, utcOffset);
         }
 
         /// <summary>
