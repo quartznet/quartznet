@@ -124,6 +124,9 @@
       <resources dynamicprefix="false" prefix="Quartz.Impl.AdoJobStore.Common">
         <include name="src/Quartz/Impl/AdoJobStore/Common/dbproviders.properties" />
       </resources>
+      <resources dynamicprefix="false" prefix="Quartz.Xml">
+        <include name="src/Quartz/Xml/job_scheduling_data_2_0.xsd" />
+      </resources>
       <references>
         <include name="System.dll" />
         <include name="System.Core.dll" />
