@@ -4,6 +4,8 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Threading;
 
+using Common.Logging;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -22,17 +24,32 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         private bool clearJobs = true;
         private bool scheduleJobs = true;
         private bool clustered = true;
+        private ILoggerFactoryAdapter oldAdapter;
 
         static AdoJobStoreSmokeTest()
         {
-            dbConnectionStrings["Oracle"] =
-                "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=quartznet;Password=quartznet;";
+            dbConnectionStrings["Oracle"] = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=quartznet;Password=quartznet;";
             dbConnectionStrings["SQLServer"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
             dbConnectionStrings["SQLServerCe"] = @"Data Source=C:\quartznet.sdf;Persist Security Info=False;";
             dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartz; Uid = quartznet; Pwd = quartznet";
             dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Protocol=3;SSL=false;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Encoding=UTF8;Timeout=15;SslMode=Disable;Database=quartznet";
             dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
             dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=c:\\quartznet;DataSource=localhost;Port=3050;Dialect=3; Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
+        }
+
+        [TestFixtureSetUp]
+        public void FixtureSetUp()
+        {
+            // set Adapter to report problems
+            oldAdapter = LogManager.Adapter;
+            LogManager.Adapter = new FailFastLoggerFactoryAdapter();  
+        }
+
+        [TestFixtureTearDown]
+        public void FixtureTearDown()
+        {
+            // default back to old
+            LogManager.Adapter = oldAdapter;
         }
 
         [Test]
@@ -259,6 +276,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             IScheduler sched = sf.GetScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
             performer.Test(sched, clearJobs, scheduleJobs);
+
+            Assert.IsEmpty(FailFastLoggerFactoryAdapter.Errors, "Found error from logging output");
         }
 
 

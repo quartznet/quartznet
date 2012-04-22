@@ -101,6 +101,7 @@
     <Compile Include="ExceptionPolicy\ExceptionJob.cs" />
     <Compile Include="ExceptionPolicy\ExceptionJobTest.cs" />
     <Compile Include="Impl\AdoJobStore\AdoJobStoreSmokeTest.cs" />
+    <Compile Include="FailFastLoggerFactoryAdapter.cs" />
     <Compile Include="Impl\Calendar\AnnualCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>

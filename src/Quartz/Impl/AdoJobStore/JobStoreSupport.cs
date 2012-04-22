@@ -2562,11 +2562,13 @@ namespace Quartz.Impl.AdoJobStore
                                                     }
                                                     catch (JobPersistenceException jpe)
                                                     {
+                                                        log.ErrorFormat("Caught job persistence exception: " + jpe.Message, jpe);
                                                         result = new TriggerFiredResult(jpe);
                                                     }
-                                                    catch (Exception re)
+                                                    catch (Exception ex)
                                                     {
-                                                        result = new TriggerFiredResult(re);
+                                                        log.ErrorFormat("Caught exception: " + ex.Message, ex);
+                                                        result = new TriggerFiredResult(ex);
                                                     }
                                                     results.Add(result);
                                                 }

@@ -2197,15 +2197,15 @@ namespace Quartz.Impl.AdoJobStore
             {
                 AddCommandParameter(ps, "jobName", trigger.JobKey.Name);
                 AddCommandParameter(ps, "jobGroup", trigger.JobKey.Group);
-                AddCommandParameter(ps, "isNonConcurrent", job.ConcurrentExectionDisallowed);
-                AddCommandParameter(ps, "requestsRecover", job.RequestsRecovery);
+                AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(job.ConcurrentExectionDisallowed));
+                AddCommandParameter(ps, "requestsRecover", GetDbBooleanValue(job.RequestsRecovery));
             }
             else
             {
                 AddCommandParameter(ps, "jobName", null);
                 AddCommandParameter(ps, "JobGroup", null);
-                AddCommandParameter(ps, "isNonConcurrent", false);
-                AddCommandParameter(ps, "requestsRecover", false);
+                AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(false));
+                AddCommandParameter(ps, "requestsRecover", GetDbBooleanValue(false));
             }
 
             AddCommandParameter(ps, "entryId", trigger.FireInstanceId);
