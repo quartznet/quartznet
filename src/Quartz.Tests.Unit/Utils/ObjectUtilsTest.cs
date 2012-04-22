@@ -24,6 +24,7 @@ using System.Collections.Specialized;
 
 using NUnit.Framework;
 
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Utils
@@ -132,6 +133,14 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof (ReallyExtendedJob), typeof (PersistJobDataAfterExecutionAttribute)));
         }
 
+        [Test]
+        public void ShouldBeAbleToSetValuesToExplicitlyImplementedInterfaceMembers()
+        {
+            ExplicitImplementor testObject = new ExplicitImplementor();
+            ObjectUtils.SetObjectProperties(testObject, new[] {"InstanceName"}, new object[] {"instance"});
+            Assert.That(testObject.InstanceName, Is.EqualTo("instance"));
+        }
+
         [DisallowConcurrentExecution]
         private class BaseJob : IJob
         {
@@ -191,6 +200,51 @@ namespace Quartz.Tests.Unit.Utils
                 get { return timeDefault; }
                 set { timeDefault = value; }
             }
+        }
+    }
+
+    internal class ExplicitImplementor : IThreadPool
+    {
+        private string instanceName;
+
+        bool IThreadPool.RunInThread(IThreadRunnable runnable)
+        {
+            throw new NotImplementedException();
+        }
+
+        int IThreadPool.BlockForAvailableThreads()
+        {
+            throw new NotImplementedException();
+        }
+
+        void IThreadPool.Initialize()
+        {
+            throw new NotImplementedException();
+        }
+
+        void IThreadPool.Shutdown(bool waitForJobsToComplete)
+        {
+            throw new NotImplementedException();
+        }
+
+        int IThreadPool.PoolSize
+        {
+            get { throw new NotImplementedException(); }
+        }
+
+        string IThreadPool.InstanceId
+        {
+            set { throw new NotImplementedException(); }
+        }
+
+        string IThreadPool.InstanceName
+        {
+            set { instanceName = value; }
+        }
+
+        public string InstanceName
+        {
+            get { return instanceName; }
         }
     }
 }

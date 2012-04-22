@@ -162,11 +162,26 @@ namespace Quartz.Util
 
             PropertyInfo pi = t.GetProperty(propertyName);
 
-			if (pi == null)
+			if (pi == null || !pi.CanWrite)
 			{
-				throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "No property '{0}'", propertyName));
+                // try to find from interfaces
+                foreach (var interfaceType in target.GetType().GetInterfaces())
+                {
+                    pi = interfaceType.GetProperty(propertyName);
+                    if (pi != null && pi.CanWrite)
+                    {
+                        // found suitable
+                        break;
+                    }
+                }
 			}
-			
+            
+            if (pi == null)
+            {
+                // not match from anywhere
+                throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "No writable property '{0}' found", propertyName));
+            }
+
 			MethodInfo mi = pi.GetSetMethod();
 
             if (mi == null)
