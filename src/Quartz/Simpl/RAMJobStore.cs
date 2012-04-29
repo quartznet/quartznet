@@ -1529,7 +1529,7 @@ namespace Quartz.Simpl
 		            // put it back into the timeTriggers set and continue to search for next trigger.
 		            JobKey jobKey = tw.trigger.JobKey;
 		            IJobDetail job = jobsByKey[tw.trigger.JobKey].jobDetail;
-		            if (job.ConcurrentExectionDisallowed)
+		            if (job.ConcurrentExecutionDisallowed)
 		            {
 		                if (acquiredJobKeysForNoConcurrentExec.Contains(jobKey))
 		                {
@@ -1637,7 +1637,7 @@ namespace Quartz.Simpl
 
 		            IJobDetail job = bndle.JobDetail;
 
-                    if (job.ConcurrentExectionDisallowed)
+                    if (job.ConcurrentExecutionDisallowed)
 		            {
 		                List<TriggerWrapper> trigs = GetTriggerWrappersForJob(job.Key);
 		                foreach (TriggerWrapper ttw in trigs)
@@ -1703,7 +1703,7 @@ namespace Quartz.Simpl
                         }
                         ((JobDetailImpl) jd).JobDataMap = newData;
                     }
-                    if (jd.ConcurrentExectionDisallowed)
+                    if (jd.ConcurrentExecutionDisallowed)
                     {
 				        blockedJobs.Remove(jd.Key);
 						List<TriggerWrapper> trigs = GetTriggerWrappersForJob(jd.Key);

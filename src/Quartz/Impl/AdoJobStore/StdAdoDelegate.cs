@@ -503,7 +503,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "jobDescription", job.Description);
                 AddCommandParameter(cmd, "jobType", GetStorableJobTypeName(job.JobType));
                 AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
-                AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExectionDisallowed));
+                AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
                 AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
                 AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
                 AddCommandParameter(cmd, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
@@ -633,7 +633,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "jobDescription", job.Description);
                 AddCommandParameter(cmd, "jobType", GetStorableJobTypeName(job.JobType));
                 AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
-                AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExectionDisallowed));
+                AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
                 AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
                 AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
                 AddCommandParameter(cmd, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
@@ -2154,7 +2154,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
                     AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
-                    AddCommandParameter(cmd, "triggerJobStateful", GetDbBooleanValue(job.ConcurrentExectionDisallowed));
+                    AddCommandParameter(cmd, "triggerJobStateful", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
                     AddCommandParameter(cmd, "triggerJobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
                 }
                 else
@@ -2197,7 +2197,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 AddCommandParameter(ps, "jobName", trigger.JobKey.Name);
                 AddCommandParameter(ps, "jobGroup", trigger.JobKey.Group);
-                AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(job.ConcurrentExectionDisallowed));
+                AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
                 AddCommandParameter(ps, "requestsRecover", GetDbBooleanValue(job.RequestsRecovery));
             }
             else

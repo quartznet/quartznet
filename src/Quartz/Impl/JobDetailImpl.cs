@@ -307,7 +307,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
         /// </summary>
-        public bool ConcurrentExectionDisallowed
+        public bool ConcurrentExecutionDisallowed
         {
             get { return ObjectUtils.IsAttributePresent(jobType, typeof (DisallowConcurrentExecutionAttribute)); }
         }
@@ -343,7 +343,7 @@ namespace Quartz.Impl
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "JobDetail '{0}':  jobType: '{1} persistJobDataAfterExecution: {2} concurrentExectionDisallowed: {3} isDurable: {4} requestsRecovers: {5}",
-                    FullName, ((JobType == null) ? null : JobType.FullName), PersistJobDataAfterExecution, ConcurrentExectionDisallowed, Durable, RequestsRecovery);
+                    FullName, ((JobType == null) ? null : JobType.FullName), PersistJobDataAfterExecution, ConcurrentExecutionDisallowed, Durable, RequestsRecovery);
         }
 
         /// <summary>

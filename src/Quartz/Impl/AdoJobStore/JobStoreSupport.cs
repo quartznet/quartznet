@@ -1045,7 +1045,7 @@ namespace Quartz.Impl.AdoJobStore
                     throw new JobPersistenceException("The job (" + newTrigger.JobKey +
                                                       ") referenced by the trigger does not exist.");
                 }
-                if (job.ConcurrentExectionDisallowed && !recovering)
+                if (job.ConcurrentExecutionDisallowed && !recovering)
                 {
                     state = CheckBlockedState(conn, job.Key, state);
                 }
@@ -2470,7 +2470,7 @@ namespace Quartz.Impl.AdoJobStore
                         // put it back into the timeTriggers set and continue to search for next trigger.
                         JobKey jobKey = nextTrigger.JobKey;
                         IJobDetail job = Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper);
-                        if (job.ConcurrentExectionDisallowed)
+                        if (job.ConcurrentExecutionDisallowed)
                         {
                             if (acquiredJobKeysForNoConcurrentExec.Contains(jobKey))
                             {
@@ -2645,7 +2645,7 @@ namespace Quartz.Impl.AdoJobStore
             string state2 = StateWaiting;
             bool force = true;
 
-            if (job.ConcurrentExectionDisallowed)
+            if (job.ConcurrentExecutionDisallowed)
             {
                 state2 = StateBlocked;
                 force = false;
@@ -2743,7 +2743,7 @@ namespace Quartz.Impl.AdoJobStore
                     SignalSchedulingChangeOnTxCompletion(null);
                 }
 
-                if (jobDetail.ConcurrentExectionDisallowed)
+                if (jobDetail.ConcurrentExecutionDisallowed)
                 {
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked);
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked);

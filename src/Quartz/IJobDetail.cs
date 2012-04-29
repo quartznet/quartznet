@@ -92,7 +92,7 @@ namespace Quartz
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" />.
         /// </summary>
         /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
-        bool ConcurrentExectionDisallowed { get; }
+        bool ConcurrentExecutionDisallowed { get; }
 
         /// <summary>
         /// Set whether or not the the <see cref="IScheduler" /> should re-Execute
