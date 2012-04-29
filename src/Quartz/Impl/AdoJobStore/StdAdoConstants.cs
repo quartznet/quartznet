@@ -276,12 +276,10 @@ namespace Quartz.Impl.AdoJobStore
             ColumnMifireInstruction, (int)MisfireInstruction.IgnoreMisfirePolicy, ColumnNextFireTime, ColumnTriggerState, ColumnNextFireTime, ColumnPriority);
 
         public static readonly string SqlSelectNextTriggerToAcquire =
-            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2}, {3} FROM {4}{5} WHERE {6} = {7} AND {8} = @state AND {9} <= @noLaterThan AND {10} >= @noEarlierThan ORDER BY {11} ASC, {12} DESC", 
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1}, {2}, {3} FROM {4}{5} WHERE {6} = {7} AND {8} = @state AND {9} <= @noLaterThan AND ({10} = -1 OR ({10} <> -1 AND {9} >= @noEarlierThan)) ORDER BY {9} ASC, {11} DESC", 
             ColumnTriggerName, ColumnTriggerGroup, ColumnNextFireTime, ColumnPriority,
             TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst,
-            ColumnTriggerState, ColumnNextFireTime, 
-            ColumnNextFireTime, ColumnNextFireTime, 
-            ColumnPriority);
+            ColumnTriggerState, ColumnNextFireTime, ColumnMifireInstruction, ColumnPriority);
 
         public static readonly string SqlSelectNumCalendars =
             string.Format(CultureInfo.InvariantCulture, "SELECT COUNT({0})  FROM {1}{2} WHERE {3} = {4}",
