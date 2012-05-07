@@ -552,5 +552,19 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.AreEqual(1, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
         }
+
+        [Test]
+        public void ValidateShouldSucceedWithValidIntervalUnitHourConfiguration()
+        {
+            var trigger = new DailyTimeIntervalTriggerImpl
+                              {
+                                  Name = "name",
+                                  Group = "group",
+                                  JobName = "jobname",
+                                  JobGroup = "jobgroup",
+                                  RepeatIntervalUnit = IntervalUnit.Hour
+                              };
+            trigger.Validate();
+        }
     }
 }

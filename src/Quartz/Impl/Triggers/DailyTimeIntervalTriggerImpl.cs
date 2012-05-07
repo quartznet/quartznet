@@ -817,7 +817,7 @@ namespace Quartz.Impl.Triggers
         {
             base.Validate();
 
-            if (repeatIntervalUnit != IntervalUnit.Second && repeatIntervalUnit != IntervalUnit.Minute && repeatIntervalUnit == IntervalUnit.Hour)
+            if (repeatIntervalUnit != IntervalUnit.Second && repeatIntervalUnit != IntervalUnit.Minute && repeatIntervalUnit != IntervalUnit.Hour)
             {
                 throw new SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
             }
