@@ -196,8 +196,8 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
                 DbAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
                 DbAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
-                DbAccessor.AddCommandParameter(cmd, "boolean1", properties.Boolean1);
-                DbAccessor.AddCommandParameter(cmd, "boolean2", properties.Boolean2);
+                DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
+                DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
