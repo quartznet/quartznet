@@ -197,10 +197,8 @@ namespace Quartz.Plugin.Xml
                         scheduler.Context.Put(JobInitializationPluginName + '_' + Name, this);
                     }
 
-                    foreach (KeyValuePair<string, JobFile> pair in jobFiles)
+                    foreach (JobFile jobFile in jobFiles.Select(pair => pair.Value))
                     {
-                        JobFile jobFile = pair.Value;
-
                         if (scanInterval > TimeSpan.Zero)
                         {
                             string jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
@@ -211,14 +209,16 @@ namespace Quartz.Plugin.Xml
                             Scheduler.UnscheduleJob(tKey);
 
                             // TODO: convert to use builder
-                            SimpleTriggerImpl trig = (SimpleTriggerImpl) Scheduler.GetTrigger(tKey);
-                            trig = new SimpleTriggerImpl();
-                            trig.Name = (jobTriggerName);
-                            trig.Group = (JobInitializationPluginName);
-                            trig.StartTimeUtc = SystemTime.UtcNow();
-                            trig.EndTimeUtc = (null);
-                            trig.RepeatCount = (SimpleTriggerImpl.RepeatIndefinitely);
-                            trig.RepeatInterval = (scanInterval);
+                            SimpleTriggerImpl trig =
+                                new SimpleTriggerImpl
+                                    {
+                                        Name = (jobTriggerName),
+                                        Group = (JobInitializationPluginName),
+                                        StartTimeUtc = SystemTime.UtcNow(),
+                                        EndTimeUtc = (null),
+                                        RepeatCount = (SimpleTriggerImpl.RepeatIndefinitely),
+                                        RepeatInterval = (scanInterval)
+                                    };
 
                             // TODO: convert to use builder
                             JobDetailImpl job = new JobDetailImpl(

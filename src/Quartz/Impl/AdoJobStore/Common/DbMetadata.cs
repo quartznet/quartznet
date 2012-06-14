@@ -32,23 +32,13 @@ namespace Quartz.Impl.AdoJobStore.Common
     public class DbMetadata
     {
         private string productName;
-        private string assemblyName;
-        private Type connectionType;
-        private Type commandType;
         private Type parameterType;
  
         private Type parameterDbType;
         private PropertyInfo parameterDbTypeProperty;
         private string parameterDbTypePropertyName;
-        private PropertyInfo parameterIsNullableProperty;
         private string parameterNamePrefix;
 
-        private Type exceptionType;
-        private bool bindByName;
-        private bool useParameterNamePrefixInParameterCollection;
-
-        private Type commandBuilderType;
-        private MethodInfo commandBuilderDeriveParametersMethod;
         private string dbBinaryTypeName;
         private Enum dbBinaryType;
 
@@ -74,11 +64,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         /// <summary>Gets or sets the name of the assembly that holds the connection library.</summary>
         /// <value>The name of the assembly.</value>
-        public virtual string AssemblyName
-        {
-            get { return assemblyName; }
-            set { assemblyName = value; }
-        }
+        public virtual string AssemblyName { get; set; }
 
         /// <summary>
         /// Gets or sets the name of the product.
@@ -90,26 +76,17 @@ namespace Quartz.Impl.AdoJobStore.Common
             set { productName = value; }
         }
 
-
         /// <summary>
         /// Gets or sets the type of the connection.
         /// </summary>
         /// <value>The type of the connection.</value>
-        public virtual Type ConnectionType
-        {
-            get { return connectionType; }
-            set { connectionType = value; }
-        }
+        public virtual Type ConnectionType { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the command.
         /// </summary>
         /// <value>The type of the command.</value>
-        public virtual Type CommandType
-        {
-            get { return commandType; }
-            set { commandType = value; }
-        }
+        public virtual Type CommandType { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the parameter.
@@ -125,19 +102,11 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the type of the command builder.
         /// </summary>
         /// <value>The type of the command builder.</value>
-        public virtual Type CommandBuilderType
-        {
-            get { return commandBuilderType; }
-            set { commandBuilderType = value;  }
-        }
+        public virtual Type CommandBuilderType { get; set; }
 
         /// <summary>Gets the command builder's derive parameters method.</summary>
         /// <value>The command builder derive parameters method.</value>
-        public virtual MethodInfo CommandBuilderDeriveParametersMethod
-        {
-            get { return commandBuilderDeriveParametersMethod; }
-            set { commandBuilderDeriveParametersMethod = value; }
-        }
+        public virtual MethodInfo CommandBuilderDeriveParametersMethod { get; set; }
 
         /// <summary>
         /// Gets or sets the parameter name prefix.
@@ -154,22 +123,14 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// library.
         /// </summary>
         /// <value>The type of the exception.</value>
-        public virtual Type ExceptionType
-        {
-            get { return exceptionType; }
-            set { exceptionType = value; }
-        }
+        public virtual Type ExceptionType { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether parameters are bind by name when using
         /// ADO.NET parameters.
         /// </summary>
         /// <value><c>true</c> if parameters are bind by name; otherwise, <c>false</c>.</value>
-        public virtual bool BindByName
-        {
-            get { return bindByName; }
-            set { bindByName = value; }
-        }
+        public virtual bool BindByName { get; set; }
 
         /// <summary>Gets or sets the type of the database parameters.</summary>
         /// <value>The type of the parameter db.</value>
@@ -193,11 +154,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the parameter is nullable property.
         /// </summary>
         /// <value>The parameter is nullable property.</value>
-        public virtual PropertyInfo ParameterIsNullableProperty
-        {
-            get { return parameterIsNullableProperty; }
-            set { parameterIsNullableProperty = value; }
-        }
+        public virtual PropertyInfo ParameterIsNullableProperty { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the db binary column. This is a string representation of
@@ -226,18 +183,13 @@ namespace Quartz.Impl.AdoJobStore.Common
             set { parameterDbTypePropertyName = value; }
         }
 
-
         /// <summary>
         /// Gets or sets a value indicating whether [use parameter name prefix in parameter collection].
         /// </summary>
         /// <value>
         /// 	<c>true</c> if [use parameter name prefix in parameter collection]; otherwise, <c>false</c>.
         /// </value>
-        public virtual bool UseParameterNamePrefixInParameterCollection
-        {
-            get { return useParameterNamePrefixInParameterCollection; }
-            set { useParameterNamePrefixInParameterCollection = value; }
-        }
+        public virtual bool UseParameterNamePrefixInParameterCollection { get; set; }
 
         /// <summary>
         /// Gets the name of the parameter which includes the parameter prefix for this

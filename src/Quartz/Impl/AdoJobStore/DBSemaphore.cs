@@ -59,7 +59,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="defaultInsertSQL">The SQL.</param>
         /// <param name="defaultSQL">The default SQL.</param>
         /// <param name="dbProvider">The db provider.</param>
-        public DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
+        protected DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
         {
             log = LogManager.GetLogger(GetType());
             this.schedName = schedName;
@@ -91,14 +91,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private static HashSet<string> ThreadLocks
         {
-            get
-            {
-                if (LockOwners == null)
-                {
-                    LockOwners = new HashSet<string>();
-                }
-                return LockOwners;
-            }
+            get { return LockOwners ?? (LockOwners = new HashSet<string>()); }
         }
 
         /// <summary>
@@ -240,14 +233,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected string SchedulerNameLiteral
         {
-            get
-            {
-                if (schedNameLiteral == null)
-                {
-                    schedNameLiteral = "'" + schedName + "'";
-                }
-                return schedNameLiteral;
-            }
+            get { return schedNameLiteral ?? (schedNameLiteral = "'" + schedName + "'"); }
         }
 
         public string SchedName

@@ -25,36 +25,36 @@ using Quartz.Impl.Matchers;
 
 namespace Quartz.Spi
 {
-	/// <summary> 
-	/// The interface to be implemented by classes that want to provide a <see cref="IJob" />
-	/// and <see cref="ITrigger" /> storage mechanism for the
-	/// <see cref="QuartzScheduler" />'s use.
-	/// </summary>
-	/// <remarks>
-	/// Storage of <see cref="IJob" /> s and <see cref="ITrigger" /> s should be keyed
-	/// on the combination of their name and group for uniqueness.
-	/// </remarks>
-	/// <seealso cref="QuartzScheduler" />
-	/// <seealso cref="ITrigger" />
-	/// <seealso cref="IJob" />
-	/// <seealso cref="IJobDetail" />
-	/// <seealso cref="JobDataMap" />
-	/// <seealso cref="ICalendar" />
-	/// <author>James House</author>
+    /// <summary> 
+    /// The interface to be implemented by classes that want to provide a <see cref="IJob" />
+    /// and <see cref="ITrigger" /> storage mechanism for the
+    /// <see cref="QuartzScheduler" />'s use.
+    /// </summary>
+    /// <remarks>
+    /// Storage of <see cref="IJob" /> s and <see cref="ITrigger" /> s should be keyed
+    /// on the combination of their name and group for uniqueness.
+    /// </remarks>
+    /// <seealso cref="QuartzScheduler" />
+    /// <seealso cref="ITrigger" />
+    /// <seealso cref="IJob" />
+    /// <seealso cref="IJobDetail" />
+    /// <seealso cref="JobDataMap" />
+    /// <seealso cref="ICalendar" />
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface IJobStore
-	{
-		/// <summary>
-		/// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
-		/// used, in order to give the it a chance to Initialize.
-		/// </summary>
-		void Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler);
+    {
+        /// <summary>
+        /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
+        /// used, in order to give the it a chance to Initialize.
+        /// </summary>
+        void Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler);
 
-		/// <summary>
-		/// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
-		/// the scheduler has started.
-		/// </summary>
-		void SchedulerStarted();
+        /// <summary>
+        /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
+        /// the scheduler has started.
+        /// </summary>
+        void SchedulerStarted();
 
         /// <summary>
         /// Called by the QuartzScheduler to inform the JobStore that
@@ -68,18 +68,18 @@ namespace Quartz.Spi
         /// </summary>
         void SchedulerResumed();
 
-		/// <summary>
-		/// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
-		/// it should free up all of it's resources because the scheduler is
-		/// shutting down.
-		/// </summary>
-		void Shutdown();
+        /// <summary>
+        /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
+        /// it should free up all of it's resources because the scheduler is
+        /// shutting down.
+        /// </summary>
+        void Shutdown();
 
-	    /// <summary>
-	    /// Indicates whether job store supports persistence.
-	    /// </summary>
-	    /// <returns></returns>
-	    bool SupportsPersistence { get; }
+        /// <summary>
+        /// Indicates whether job store supports persistence.
+        /// </summary>
+        /// <returns></returns>
+        bool SupportsPersistence { get; }
 
         /// <summary>
         /// How long (in milliseconds) the <see cref="IJobStore" /> implementation 
@@ -125,9 +125,9 @@ namespace Quartz.Spi
         /// <see cref="IJobStore" /> with the same name and group should be
         /// over-written.
         /// </param>
-		void StoreJob(IJobDetail newJob, bool replaceExisting);
+        void StoreJob(IJobDetail newJob, bool replaceExisting);
 
-	    void StoreJobsAndTriggers(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace); 
+        void StoreJobsAndTriggers(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace); 
 
         /// <summary>
         /// Remove (delete) the <see cref="IJob" /> with the given
@@ -145,7 +145,7 @@ namespace Quartz.Spi
         /// </returns>
         bool RemoveJob(JobKey jobKey);
 
-	    bool RemoveJobs(IList<JobKey> jobKeys);
+        bool RemoveJobs(IList<JobKey> jobKeys);
 
         /// <summary>
         /// Retrieve the <see cref="IJobDetail" /> for the given
@@ -187,7 +187,7 @@ namespace Quartz.Spi
         /// </returns>
         bool RemoveTrigger(TriggerKey triggerKey);
 
-	    bool RemoveTriggers(IList<TriggerKey> triggerKeys);
+        bool RemoveTriggers(IList<TriggerKey> triggerKeys);
 
         /// <summary>
         /// Remove (delete) the <see cref="ITrigger" /> with the
@@ -238,7 +238,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <remarks>
         /// </remarks>
-	    void ClearAllSchedulingData();
+        void ClearAllSchedulingData();
 
         /// <summary>
         /// Store the given <see cref="ICalendar" />.
@@ -253,7 +253,7 @@ namespace Quartz.Spi
         /// Calendar with the same name with have their next fire time
         /// re-computed with the new <see cref="ICalendar" />.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
-		void StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers);
+        void StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers);
 
         /// <summary>
         /// Remove (delete) the <see cref="ICalendar" /> with the
@@ -269,7 +269,7 @@ namespace Quartz.Spi
         /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         /// </returns>
-		bool RemoveCalendar(string calName);
+        bool RemoveCalendar(string calName);
 
         /// <summary>
         /// Retrieve the given <see cref="ITrigger" />.
@@ -279,7 +279,7 @@ namespace Quartz.Spi
         /// The desired <see cref="ICalendar" />, or null if there is no
         /// match.
         /// </returns>
-		ICalendar RetrieveCalendar(string calName);
+        ICalendar RetrieveCalendar(string calName);
 
 
         /// <summary>
@@ -287,152 +287,152 @@ namespace Quartz.Spi
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
         /// <returns></returns>
-		int GetNumberOfJobs();
+        int GetNumberOfJobs();
 
         /// <summary>
         /// Get the number of <see cref="ITrigger" />s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
         /// <returns></returns>
-		int GetNumberOfTriggers();
+        int GetNumberOfTriggers();
 
         /// <summary>
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
         /// <returns></returns>
-		int GetNumberOfCalendars();
-
-	    /// <summary>
-	    /// Get the names of all of the <see cref="IJob" /> s that
-	    /// have the given group name.
-	    /// <para>
-	    /// If there are no jobs in the given group name, the result should be a
-	    /// zero-length array (not <see langword="null" />).
-	    /// </para>
-	    /// </summary>
-	    /// <param name="matcher"></param>
-	    /// <returns></returns>
-	    Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
-
-		/// <summary>
-		/// Get the names of all of the <see cref="ITrigger" />s
-		/// that have the given group name.
-		/// <para>
-		/// If there are no triggers in the given group name, the result should be a
-		/// zero-length array (not <see langword="null" />).
-		/// </para>
-		/// </summary>
-        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
-
-		/// <summary>
-		/// Get the names of all of the <see cref="IJob" />
-		/// groups.
-		/// <para>
-		/// If there are no known group names, the result should be a zero-length
-		/// array (not <see langword="null" />).
-		/// </para>
-		/// </summary>
-		IList<string> GetJobGroupNames();
-
-		/// <summary>
-		/// Get the names of all of the <see cref="ITrigger" />
-		/// groups.
-		/// <para>
-		/// If there are no known group names, the result should be a zero-length
-		/// array (not <see langword="null" />).
-		/// </para>
-		/// </summary>
-		IList<string> GetTriggerGroupNames();
-
-		/// <summary>
-		/// Get the names of all of the <see cref="ICalendar" /> s
-		/// in the <see cref="IJobStore" />.
-    	/// 
-		/// <para>
-		/// If there are no Calendars in the given group name, the result should be
-		/// a zero-length array (not <see langword="null" />).
-		/// </para>
-		/// </summary>
-		IList<string> GetCalendarNames();
-
-		/// <summary>
-		/// Get all of the Triggers that are associated to the given Job.
-		/// </summary>
-		/// <remarks>
-		/// If there are no matches, a zero-length array should be returned.
-		/// </remarks>
-        IList<IOperableTrigger> GetTriggersForJob(JobKey jobKey);
-
-		/// <summary>
-		/// Get the current state of the identified <see cref="ITrigger" />.
-		/// </summary>
-		/// <seealso cref="TriggerState" />
-        TriggerState GetTriggerState(TriggerKey triggerKey);
-
-		/////////////////////////////////////////////////////////////////////////////
-		//
-		// Trigger State manipulation methods
-		//
-		/////////////////////////////////////////////////////////////////////////////
+        int GetNumberOfCalendars();
 
         /// <summary>
-		/// Pause the <see cref="ITrigger" /> with the given key.
-		/// </summary>
+        /// Get the names of all of the <see cref="IJob" /> s that
+        /// have the given group name.
+        /// <para>
+        /// If there are no jobs in the given group name, the result should be a
+        /// zero-length array (not <see langword="null" />).
+        /// </para>
+        /// </summary>
+        /// <param name="matcher"></param>
+        /// <returns></returns>
+        Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
+
+        /// <summary>
+        /// Get the names of all of the <see cref="ITrigger" />s
+        /// that have the given group name.
+        /// <para>
+        /// If there are no triggers in the given group name, the result should be a
+        /// zero-length array (not <see langword="null" />).
+        /// </para>
+        /// </summary>
+        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+
+        /// <summary>
+        /// Get the names of all of the <see cref="IJob" />
+        /// groups.
+        /// <para>
+        /// If there are no known group names, the result should be a zero-length
+        /// array (not <see langword="null" />).
+        /// </para>
+        /// </summary>
+        IList<string> GetJobGroupNames();
+
+        /// <summary>
+        /// Get the names of all of the <see cref="ITrigger" />
+        /// groups.
+        /// <para>
+        /// If there are no known group names, the result should be a zero-length
+        /// array (not <see langword="null" />).
+        /// </para>
+        /// </summary>
+        IList<string> GetTriggerGroupNames();
+
+        /// <summary>
+        /// Get the names of all of the <see cref="ICalendar" /> s
+        /// in the <see cref="IJobStore" />.
+        /// 
+        /// <para>
+        /// If there are no Calendars in the given group name, the result should be
+        /// a zero-length array (not <see langword="null" />).
+        /// </para>
+        /// </summary>
+        IList<string> GetCalendarNames();
+
+        /// <summary>
+        /// Get all of the Triggers that are associated to the given Job.
+        /// </summary>
+        /// <remarks>
+        /// If there are no matches, a zero-length array should be returned.
+        /// </remarks>
+        IList<IOperableTrigger> GetTriggersForJob(JobKey jobKey);
+
+        /// <summary>
+        /// Get the current state of the identified <see cref="ITrigger" />.
+        /// </summary>
+        /// <seealso cref="TriggerState" />
+        TriggerState GetTriggerState(TriggerKey triggerKey);
+
+        /////////////////////////////////////////////////////////////////////////////
+        //
+        // Trigger State manipulation methods
+        //
+        /////////////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Pause the <see cref="ITrigger" /> with the given key.
+        /// </summary>
         void PauseTrigger(TriggerKey triggerKey);
 
-		/// <summary>
-		/// Pause all of the <see cref="ITrigger" />s in the
-		/// given group.
-		/// </summary>
-		/// <remarks>
-		/// The JobStore should "remember" that the group is paused, and impose the
-		/// pause on any new triggers that are added to the group while the group is
-		/// paused.
-		/// </remarks>
+        /// <summary>
+        /// Pause all of the <see cref="ITrigger" />s in the
+        /// given group.
+        /// </summary>
+        /// <remarks>
+        /// The JobStore should "remember" that the group is paused, and impose the
+        /// pause on any new triggers that are added to the group while the group is
+        /// paused.
+        /// </remarks>
         Collection.ISet<string> PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
-		/// <summary>
-		/// Pause the <see cref="IJob" /> with the given key - by
-		/// pausing all of its current <see cref="ITrigger" />s.
-		/// </summary>
+        /// <summary>
+        /// Pause the <see cref="IJob" /> with the given key - by
+        /// pausing all of its current <see cref="ITrigger" />s.
+        /// </summary>
         void PauseJob(JobKey jobKey);
 
-		/// <summary>
-		/// Pause all of the <see cref="IJob" />s in the given
-		/// group - by pausing all of their <see cref="ITrigger" />s.
-		/// <para>
-		/// The JobStore should "remember" that the group is paused, and impose the
-		/// pause on any new jobs that are added to the group while the group is
-		/// paused.
-		/// </para>
-		/// </summary>
-		/// <seealso cref="string">
-		/// </seealso>
-		IList<string> PauseJobs(GroupMatcher<JobKey> matcher);
+        /// <summary>
+        /// Pause all of the <see cref="IJob" />s in the given
+        /// group - by pausing all of their <see cref="ITrigger" />s.
+        /// <para>
+        /// The JobStore should "remember" that the group is paused, and impose the
+        /// pause on any new jobs that are added to the group while the group is
+        /// paused.
+        /// </para>
+        /// </summary>
+        /// <seealso cref="string">
+        /// </seealso>
+        IList<string> PauseJobs(GroupMatcher<JobKey> matcher);
 
-		/// <summary>
-		/// Resume (un-pause) the <see cref="ITrigger" /> with the
-		/// given key.
-		/// 
-		/// <para>
-		/// If the <see cref="ITrigger" /> missed one or more fire-times, then the
-		/// <see cref="ITrigger" />'s misfire instruction will be applied.
-		/// </para>
-		/// </summary>
-		/// <seealso cref="string">
-		/// </seealso>
+        /// <summary>
+        /// Resume (un-pause) the <see cref="ITrigger" /> with the
+        /// given key.
+        /// 
+        /// <para>
+        /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
+        /// </para>
+        /// </summary>
+        /// <seealso cref="string">
+        /// </seealso>
         void ResumeTrigger(TriggerKey triggerKey);
 
-		/// <summary>
-		/// Resume (un-pause) all of the <see cref="ITrigger" />s
-		/// in the given group.
-		/// <para>
-		/// If any <see cref="ITrigger" /> missed one or more fire-times, then the
-		/// <see cref="ITrigger" />'s misfire instruction will be applied.
-		/// </para>
-		/// </summary>
-		IList<string> ResumeTriggers(GroupMatcher<TriggerKey> matcher);
+        /// <summary>
+        /// Resume (un-pause) all of the <see cref="ITrigger" />s
+        /// in the given group.
+        /// <para>
+        /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
+        /// </para>
+        /// </summary>
+        IList<string> ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Gets the paused trigger groups.
@@ -440,50 +440,50 @@ namespace Quartz.Spi
         /// <returns></returns>
         Collection.ISet<string> GetPausedTriggerGroups();
 
-		/// <summary> 
-		/// Resume (un-pause) the <see cref="IJob" /> with the
-		/// given key.
-		/// <para>
-		/// If any of the <see cref="IJob" />'s<see cref="ITrigger" /> s missed one
-		/// or more fire-times, then the <see cref="ITrigger" />'s misfire
-		/// instruction will be applied.
-		/// </para>
-		/// </summary>
-		void ResumeJob(JobKey jobKey);
+        /// <summary> 
+        /// Resume (un-pause) the <see cref="IJob" /> with the
+        /// given key.
+        /// <para>
+        /// If any of the <see cref="IJob" />'s<see cref="ITrigger" /> s missed one
+        /// or more fire-times, then the <see cref="ITrigger" />'s misfire
+        /// instruction will be applied.
+        /// </para>
+        /// </summary>
+        void ResumeJob(JobKey jobKey);
 
-		/// <summary>
-		/// Resume (un-pause) all of the <see cref="IJob" />s in
-		/// the given group.
-		/// <para>
-		/// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
-		/// missed one or more fire-times, then the <see cref="ITrigger" />'s
-		/// misfire instruction will be applied.
-		/// </para> 
-		/// </summary>
-		Collection.ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher);
+        /// <summary>
+        /// Resume (un-pause) all of the <see cref="IJob" />s in
+        /// the given group.
+        /// <para>
+        /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
+        /// missed one or more fire-times, then the <see cref="ITrigger" />'s
+        /// misfire instruction will be applied.
+        /// </para> 
+        /// </summary>
+        Collection.ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher);
 
-		/// <summary>
-		/// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
-		/// on every group.
-		/// <para>
-		/// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
-		/// instructions WILL be applied.
-		/// </para>
-		/// </summary>
-		/// <seealso cref="ResumeAll" />
-		void PauseAll();
+        /// <summary>
+        /// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
+        /// on every group.
+        /// <para>
+        /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
+        /// instructions WILL be applied.
+        /// </para>
+        /// </summary>
+        /// <seealso cref="ResumeAll" />
+        void PauseAll();
 
-		/// <summary>
-		/// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
-		/// on every group.
-		/// <para>
-		/// If any <see cref="ITrigger" /> missed one or more fire-times, then the
-		/// <see cref="ITrigger" />'s misfire instruction will be applied.
-		/// </para>
-		/// 
-		/// </summary>
-		/// <seealso cref="PauseAll" />
-		void ResumeAll();
+        /// <summary>
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
+        /// on every group.
+        /// <para>
+        /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
+        /// <see cref="ITrigger" />'s misfire instruction will be applied.
+        /// </para>
+        /// 
+        /// </summary>
+        /// <seealso cref="PauseAll" />
+        void ResumeAll();
 
         /// <summary>
         /// Get a handle to the next trigger to be fired, and mark it as 'reserved'
@@ -499,50 +499,50 @@ namespace Quartz.Spi
         /// </seealso>
         IList<IOperableTrigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow);
 
-		/// <summary> 
-		/// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
-		/// fire the given <see cref="ITrigger" />, that it had previously acquired
-		/// (reserved).
-		/// </summary>
+        /// <summary> 
+        /// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
+        /// fire the given <see cref="ITrigger" />, that it had previously acquired
+        /// (reserved).
+        /// </summary>
         void ReleaseAcquiredTrigger(IOperableTrigger trigger);
 
-		/// <summary>
-		/// Inform the <see cref="IJobStore" /> that the scheduler is now firing the
-		/// given <see cref="ITrigger" /> (executing its associated <see cref="IJob" />),
-		/// that it had previously acquired (reserved).
-		/// </summary>
-		/// <returns>
-		/// May return null if all the triggers or their calendars no longer exist, or
-		/// if the trigger was not successfully put into the 'executing'
-		/// state.  Preference is to return an empty list if none of the triggers
-		/// could be fired.
-		/// </returns>
+        /// <summary>
+        /// Inform the <see cref="IJobStore" /> that the scheduler is now firing the
+        /// given <see cref="ITrigger" /> (executing its associated <see cref="IJob" />),
+        /// that it had previously acquired (reserved).
+        /// </summary>
+        /// <returns>
+        /// May return null if all the triggers or their calendars no longer exist, or
+        /// if the trigger was not successfully put into the 'executing'
+        /// state.  Preference is to return an empty list if none of the triggers
+        /// could be fired.
+        /// </returns>
         IList<TriggerFiredResult> TriggersFired(IList<IOperableTrigger> triggers);
 
-		/// <summary>
-		/// Inform the <see cref="IJobStore" /> that the scheduler has completed the
-		/// firing of the given <see cref="ITrigger" /> (and the execution its
-		/// associated <see cref="IJob" />), and that the <see cref="JobDataMap" />
-		/// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
-		/// is stateful.
-		/// </summary>
+        /// <summary>
+        /// Inform the <see cref="IJobStore" /> that the scheduler has completed the
+        /// firing of the given <see cref="ITrigger" /> (and the execution its
+        /// associated <see cref="IJob" />), and that the <see cref="JobDataMap" />
+        /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
+        /// is stateful.
+        /// </summary>
         void TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode);
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id, 
         /// prior to initialize being invoked.
         /// </summary>
-	    string InstanceId { set; }
+        string InstanceId { set; }
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name, 
         /// prior to initialize being invoked.
         /// </summary>
-	    string InstanceName { set; }
+        string InstanceName { set; }
 
         /// <summary>
         /// Tells the JobStore the pool size used to execute jobs.
         /// </summary>
-	    int ThreadPoolSize { set; }
-	}
+        int ThreadPoolSize { set; }
+    }
 }

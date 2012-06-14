@@ -25,49 +25,49 @@ using Quartz.Collection;
 
 namespace Quartz.Impl.Calendar
 {
-	/// <summary>
-	/// This implementation of the Calendar stores a list of holidays (full days
-	/// that are excluded from scheduling).
+    /// <summary>
+    /// This implementation of the Calendar stores a list of holidays (full days
+    /// that are excluded from scheduling).
     /// </summary>
-	/// <remarks>
-	/// The implementation DOES take the year into consideration, so if you want to
-	/// exclude July 4th for the next 10 years, you need to add 10 entries to the
-	/// exclude list.
-	/// </remarks>
-	/// <author>Sharada Jambula</author>
-	/// <author>Juergen Donnerstag</author>
-	/// <author>Marko Lahma (.NET)</author>
-	[Serializable]
-	public class HolidayCalendar : BaseCalendar
-	{
-		/// <summary>
-		/// Returns a <see cref="ISortedSet&lt;DateTime&gt;" /> of Dates representing the excluded
-		/// days. Only the month, day and year of the returned dates are
-		/// significant.
-		/// </summary>
-		public virtual ISortedSet<DateTime> ExcludedDates
-		{
-			get { return new TreeSet<DateTime>(dates); }
-		}
+    /// <remarks>
+    /// The implementation DOES take the year into consideration, so if you want to
+    /// exclude July 4th for the next 10 years, you need to add 10 entries to the
+    /// exclude list.
+    /// </remarks>
+    /// <author>Sharada Jambula</author>
+    /// <author>Juergen Donnerstag</author>
+    /// <author>Marko Lahma (.NET)</author>
+    [Serializable]
+    public class HolidayCalendar : BaseCalendar
+    {
+        /// <summary>
+        /// Returns a <see cref="ISortedSet&lt;DateTime&gt;" /> of Dates representing the excluded
+        /// days. Only the month, day and year of the returned dates are
+        /// significant.
+        /// </summary>
+        public virtual ISortedSet<DateTime> ExcludedDates
+        {
+            get { return new TreeSet<DateTime>(dates); }
+        }
 
-		// A sorted set to store the holidays
-		private TreeSet<DateTime> dates = new TreeSet<DateTime>();
+        // A sorted set to store the holidays
+        private TreeSet<DateTime> dates = new TreeSet<DateTime>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
         /// </summary>
-		public HolidayCalendar()
-		{
-		}
+        public HolidayCalendar()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
         /// </summary>
         /// <param name="baseCalendar">The base calendar.</param>
-		public HolidayCalendar(ICalendar baseCalendar)
-		{
-			CalendarBase = baseCalendar;
-		}
+        public HolidayCalendar(ICalendar baseCalendar)
+        {
+            CalendarBase = baseCalendar;
+        }
         
         /// <summary>
         /// Serialization constructor.
@@ -121,82 +121,82 @@ namespace Quartz.Impl.Calendar
             info.AddValue("dates", dates);
         }
 
-		/// <summary>
-		/// Determine whether the given time (in milliseconds) is 'included' by the
-		/// Calendar.
-		/// <para>
-		/// Note that this Calendar is only has full-day precision.
-		/// </para>
-		/// </summary>
+        /// <summary>
+        /// Determine whether the given time (in milliseconds) is 'included' by the
+        /// Calendar.
+        /// <para>
+        /// Note that this Calendar is only has full-day precision.
+        /// </para>
+        /// </summary>
         public override bool IsTimeIncluded(DateTimeOffset timeStampUtc)
-		{
-			if (!base.IsTimeIncluded(timeStampUtc))
-			{
-				return false;
-			}
+        {
+            if (!base.IsTimeIncluded(timeStampUtc))
+            {
+                return false;
+            }
 
-			DateTime lookFor = timeStampUtc.Date;
+            DateTime lookFor = timeStampUtc.Date;
 
-			return !(dates.Contains(lookFor));
-		}
+            return !(dates.Contains(lookFor));
+        }
 
-		/// <summary>
-		/// Determine the next time (in milliseconds) that is 'included' by the
-		/// Calendar after the given time.
-		/// <para>
-		/// Note that this Calendar is only has full-day precision.
-		/// </para>
-		/// </summary>
+        /// <summary>
+        /// Determine the next time (in milliseconds) that is 'included' by the
+        /// Calendar after the given time.
+        /// <para>
+        /// Note that this Calendar is only has full-day precision.
+        /// </para>
+        /// </summary>
         public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
-		{
-			// Call base calendar implementation first
+        {
+            // Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
             if ((timeUtc != DateTimeOffset.MinValue) && (baseTime > timeUtc))
-			{
-				timeUtc = baseTime;
-			}
+            {
+                timeUtc = baseTime;
+            }
 
-			// Get timestamp for 00:00:00
-			DateTime day = timeUtc.Date;
+            // Get timestamp for 00:00:00
+            DateTime day = timeUtc.Date;
 
-			while (!IsTimeIncluded(day))
-			{
-				day = day.AddDays(1);
-			}
+            while (!IsTimeIncluded(day))
+            {
+                day = day.AddDays(1);
+            }
 
             return TimeZoneInfo.ConvertTimeToUtc(day);
-		}
+        }
 
-	    /// <summary>
-	    /// Creates a new object that is a copy of the current instance.
-	    /// </summary>
-	    /// <returns>A new object that is a copy of this instance.</returns>
-	    public override object Clone()
-	    {
+        /// <summary>
+        /// Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// <returns>A new object that is a copy of this instance.</returns>
+        public override object Clone()
+        {
             HolidayCalendar clone = (HolidayCalendar) base.Clone();
             clone.dates = new TreeSet<DateTime>(dates);
             return clone;
-	    }
+        }
 
-	    /// <summary>
-		/// Add the given Date to the list of excluded days. Only the month, day and
-		/// year of the returned dates are significant.
-		/// </summary>
-		public virtual void AddExcludedDate(DateTime excludedDateUtc)
-		{
-			DateTime date = excludedDateUtc.Date;
-			dates.Add(date);
-		}
+        /// <summary>
+        /// Add the given Date to the list of excluded days. Only the month, day and
+        /// year of the returned dates are significant.
+        /// </summary>
+        public virtual void AddExcludedDate(DateTime excludedDateUtc)
+        {
+            DateTime date = excludedDateUtc.Date;
+            dates.Add(date);
+        }
 
-		/// <summary>
-		/// Removes the excluded date.
-		/// </summary>
-		/// <param name="dateToRemoveUtc">The date to remove.</param>
-		public virtual void RemoveExcludedDate(DateTime dateToRemoveUtc)
-		{
-			DateTime date = dateToRemoveUtc.Date;
-			dates.Remove(date);
-		}
+        /// <summary>
+        /// Removes the excluded date.
+        /// </summary>
+        /// <param name="dateToRemoveUtc">The date to remove.</param>
+        public virtual void RemoveExcludedDate(DateTime dateToRemoveUtc)
+        {
+            DateTime date = dateToRemoveUtc.Date;
+            dates.Remove(date);
+        }
 
         public override int GetHashCode()
         {
@@ -233,5 +233,5 @@ namespace Quartz.Impl.Calendar
             
             return Equals((HolidayCalendar)obj);
         }
-	}
+    }
 }

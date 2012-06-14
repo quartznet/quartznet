@@ -82,9 +82,8 @@ namespace Quartz.Xml
 
         // directives
         private bool overWriteExistingData = true;
-        private bool ignoreDuplicates = false;
 
-        private IList<Exception> validationExceptions = new List<Exception>();
+        private readonly IList<Exception> validationExceptions = new List<Exception>();
 
 
         protected ITypeLoadHelper typeLoadHelper;
@@ -96,6 +95,7 @@ namespace Quartz.Xml
         /// </summary>
         public XMLSchedulingDataProcessor(ITypeLoadHelper typeLoadHelper)
         {
+            IgnoreDuplicates = false;
             log = LogManager.GetLogger(GetType());
             this.typeLoadHelper = typeLoadHelper;
         }
@@ -122,11 +122,7 @@ namespace Quartz.Xml
         /// in the scheduler will be ignored, and no error will be produced.
         /// </summary>
         /// <seealso cref="OverWriteExistingData"/>
-        public bool IgnoreDuplicates
-        {
-            get { return ignoreDuplicates; }
-            set { ignoreDuplicates = value; }
-        }
+        public bool IgnoreDuplicates { get; set; }
 
         /// <summary>
         /// Gets the log.
@@ -558,8 +554,11 @@ namespace Quartz.Xml
                 // stream to validate
                 using (StringReader stringReader = new StringReader(xml))
                 {
-                    XmlReaderSettings settings = new XmlReaderSettings();
-                    settings.ValidationType = ValidationType.Schema;
+                    XmlReaderSettings settings =
+                        new XmlReaderSettings
+                            {
+                                ValidationType = ValidationType.Schema
+                            };
                     settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessInlineSchema;
                     settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
                     settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
@@ -570,7 +569,7 @@ namespace Quartz.Xml
                     settings.ValidationEventHandler += XmlValidationCallBack;
 
 
-                    XmlReader reader = XmlTextReader.Create(stringReader, settings);
+                    XmlReader reader = XmlReader.Create(stringReader, settings);
 
                     // Read XML data
                     while (reader.Read())
@@ -607,8 +606,7 @@ namespace Quartz.Xml
         /// <param name="overWriteExistingJobs"></param>
         public void ProcessFileAndScheduleJobs(IScheduler sched, bool overWriteExistingJobs)
         {
-            string fileName = QuartzXmlFileName;
-            ProcessFile(fileName, fileName);
+            ProcessFile(QuartzXmlFileName, QuartzXmlFileName);
             // The overWriteExistingJobs flag was set by processFile() -> prepForProcessing(), then by xml parsing, and then now
             // we need to reset it again here by this method parameter to override it.
             OverWriteExistingData = overWriteExistingJobs;

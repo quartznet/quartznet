@@ -34,7 +34,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             string sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
 
-            int whereEndIdx = sqlSelectNextTriggerToAcquire.IndexOf("WHERE") + 6;
+            int whereEndIdx = sqlSelectNextTriggerToAcquire.IndexOf("WHERE", StringComparison.Ordinal) + 6;
             string beginningAndWhere = sqlSelectNextTriggerToAcquire.Substring(0, whereEndIdx);
             string theRest = sqlSelectNextTriggerToAcquire.Substring(whereEndIdx);
 

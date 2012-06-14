@@ -67,7 +67,7 @@ namespace Quartz.Listener
         /// </remarks>
         /// <param name="name">the name of this instance</param>
         /// <param name="listeners">the initial List of JobListeners to broadcast to.</param>
-        public BroadcastJobListener(string name, List<IJobListener> listeners) : this(name)
+        public BroadcastJobListener(string name, IEnumerable<IJobListener> listeners) : this(name)
         {
             this.listeners.AddRange(listeners);
         }

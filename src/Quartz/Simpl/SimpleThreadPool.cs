@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 
 using Common.Logging;
@@ -54,7 +55,6 @@ namespace Quartz.Simpl
         private int count = DefaultThreadPoolSize;
         private bool handoffPending;
         private bool isShutdown;
-        private bool makeThreadsDaemons;
         private ThreadPriority prio = ThreadPriority.Normal;
         private string threadNamePrefix;
         private string schedulerInstanceName = null;
@@ -112,25 +112,14 @@ namespace Quartz.Simpl
         /// <value>The thread name prefix.</value>
         public virtual string ThreadNamePrefix
         {
-            get
-            {
-                if (threadNamePrefix == null)
-                {
-                    threadNamePrefix = schedulerInstanceName + "-SimpleThreadPoolWorker";
-                } 
-                return threadNamePrefix;
-            }
+            get { return threadNamePrefix ?? (threadNamePrefix = schedulerInstanceName + "-SimpleThreadPoolWorker"); }
             set { threadNamePrefix = value; }
         }
 
         /// <summary> 
         /// Gets or sets the value of makeThreadsDaemons.
         /// </summary>
-        public virtual bool MakeThreadsDaemons
-        {
-            get { return makeThreadsDaemons; }
-            set { makeThreadsDaemons = value; }
-        }
+        public virtual bool MakeThreadsDaemons { get; set; }
 
         #region IThreadPool Members
 
@@ -207,12 +196,9 @@ namespace Quartz.Simpl
                 }
 
                 // signal each worker thread to shut down
-                for (int i = 0; i < workers.Count; i++)
+                foreach (WorkerThread t in workers.Where(t => t != null))
                 {
-                    if (workers[i] != null)
-                    {
-                        workers[i].Shutdown();
-                    }
+                    t.Shutdown();
                 }
                 Monitor.PulseAll(nextRunnableLock);
 

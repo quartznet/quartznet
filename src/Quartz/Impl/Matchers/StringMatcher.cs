@@ -56,7 +56,7 @@ namespace Quartz.Impl.Matchers
 
         public override int GetHashCode()
         {
-            int prime = 31;
+            const int prime = 31;
             int result = 1;
             result = prime*result + ((compareTo == null) ? 0 : compareTo.GetHashCode());
             result = prime*result + compareWith.GetHashCode();

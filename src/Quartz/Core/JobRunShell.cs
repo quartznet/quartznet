@@ -55,7 +55,7 @@ namespace Quartz.Core
         private JobExecutionContextImpl jec;
 		private QuartzScheduler qs;
 		private readonly IScheduler scheduler;
-	    private TriggerFiredBundle firedTriggerBundle = null;
+	    private readonly TriggerFiredBundle firedTriggerBundle;
         private volatile bool shutdownRequested;
 
 
@@ -68,7 +68,7 @@ namespace Quartz.Core
         public JobRunShell(IScheduler scheduler, TriggerFiredBundle bndle)
 		{
 			this.scheduler = scheduler;
-            this.firedTriggerBundle = bndle;
+            firedTriggerBundle = bndle;
             log = LogManager.GetLogger(GetType());
 		}
 

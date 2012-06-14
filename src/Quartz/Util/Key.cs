@@ -51,14 +51,7 @@ namespace Quartz.Util
                 throw new ArgumentNullException("name", "Name cannot be null.");
             }
             this.name = name;
-            if (group != null)
-            {
-                this.group = group;
-            }
-            else
-            {
-                this.group = DefaultGroup;
-            }
+            this.@group = @group ?? DefaultGroup;
         }
 
         /// <summary>
@@ -159,12 +152,7 @@ namespace Quartz.Util
             }
 
             int r = group.CompareTo(o.Group);
-            if (r != 0)
-            {
-                return r;
-            }
-
-            return name.CompareTo(o.Name);
+            return r != 0 ? r : String.CompareOrdinal(name, o.Name);
         }
     }
 }

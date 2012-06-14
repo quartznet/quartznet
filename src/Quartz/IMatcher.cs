@@ -29,7 +29,7 @@ namespace Quartz
     /// </summary>
     /// <author>James House</author>
     /// <typeparam name="T"></typeparam>
-    public interface IMatcher<T> where T : Key<T>
+    public interface IMatcher<in T> where T : Key<T>
     {
         bool IsMatch(T key);
 

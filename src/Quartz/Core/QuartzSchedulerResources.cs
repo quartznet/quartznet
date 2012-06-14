@@ -25,15 +25,15 @@ using Quartz.Spi;
 
 namespace Quartz.Core
 {
-	/// <summary>
-	/// Contains all of the resources (<see cref="IJobStore" />,<see cref="IThreadPool" />,
-	/// etc.) necessary to create a <see cref="QuartzScheduler" /> instance.
-	/// </summary>
-	/// <seealso cref="QuartzScheduler" />
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	public class QuartzSchedulerResources
-	{
+    /// <summary>
+    /// Contains all of the resources (<see cref="IJobStore" />,<see cref="IThreadPool" />,
+    /// etc.) necessary to create a <see cref="QuartzScheduler" /> instance.
+    /// </summary>
+    /// <seealso cref="QuartzScheduler" />
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+    public class QuartzSchedulerResources
+    {
         private string name;
         private string instanceId;
         private string threadName;
@@ -41,169 +41,164 @@ namespace Quartz.Core
         private IJobStore jobStore;
         private IJobRunShellFactory jobRunShellFactory;
         private readonly IList<ISchedulerPlugin> schedulerPlugins = new List<ISchedulerPlugin>(10);
-        private bool makeSchedulerThreadDaemon;
-	    private ISchedulerExporter exporter;
-        private IThreadExecutor threadExecutor;
         private TimeSpan batchTimeWindow = TimeSpan.Zero;
         private int maxBatchSize = 1;
-        private bool interruptJobsOnShutdown;
-        private bool interruptJobsOnShutdownWithWait;
 
-		/// <summary>
-		/// Get or set the name for the <see cref="QuartzScheduler" />.
-		/// </summary>
-		/// <exception cref="ArgumentException">
-		/// if name is null or empty.
-		/// </exception>
-		public virtual string Name
-		{
-			get { return name; }
+        /// <summary>
+        /// Get or set the name for the <see cref="QuartzScheduler" />.
+        /// </summary>
+        /// <exception cref="ArgumentException">
+        /// if name is null or empty.
+        /// </exception>
+        public virtual string Name
+        {
+            get { return name; }
 
-			set
-			{
-				if (value == null || value.Trim().Length == 0)
-				{
-					throw new ArgumentException("Scheduler name cannot be empty.");
-				}
+            set
+            {
+                if (value == null || value.Trim().Length == 0)
+                {
+                    throw new ArgumentException("Scheduler name cannot be empty.");
+                }
 
-				name = value;
+                name = value;
 
-				if (threadName == null)
-				{
-					// thread name not already set, use default thread name
-					ThreadName = string.Format(CultureInfo.InvariantCulture, "{0}_QuartzSchedulerThread", value);
-				}
-			}
-		}
+                if (threadName == null)
+                {
+                    // thread name not already set, use default thread name
+                    ThreadName = string.Format(CultureInfo.InvariantCulture, "{0}_QuartzSchedulerThread", value);
+                }
+            }
+        }
 
-		/// <summary>
-		/// Get or set the instance Id for the <see cref="QuartzScheduler" />.
-		/// </summary>
-		/// <exception cref="ArgumentException"> 
-		/// if name is null or empty.
-		/// </exception>
-		public virtual string InstanceId
-		{
-			get { return instanceId; }
+        /// <summary>
+        /// Get or set the instance Id for the <see cref="QuartzScheduler" />.
+        /// </summary>
+        /// <exception cref="ArgumentException"> 
+        /// if name is null or empty.
+        /// </exception>
+        public virtual string InstanceId
+        {
+            get { return instanceId; }
 
-			set
-			{
-				if (value == null || value.Trim().Length == 0)
-				{
-					throw new ArgumentException("Scheduler instanceId cannot be empty.");
-				}
+            set
+            {
+                if (value == null || value.Trim().Length == 0)
+                {
+                    throw new ArgumentException("Scheduler instanceId cannot be empty.");
+                }
 
-				instanceId = value;
-			}
-		}
+                instanceId = value;
+            }
+        }
 
 
-		/// <summary>
-		/// Get or set the name for the <see cref="QuartzSchedulerThread" />.
-		/// </summary>
-		/// <exception cref="ArgumentException"> 
-		/// if name is null or empty.
-		/// </exception>
-		public virtual string ThreadName
-		{
-			get { return threadName; }
+        /// <summary>
+        /// Get or set the name for the <see cref="QuartzSchedulerThread" />.
+        /// </summary>
+        /// <exception cref="ArgumentException"> 
+        /// if name is null or empty.
+        /// </exception>
+        public virtual string ThreadName
+        {
+            get { return threadName; }
 
-			set
-			{
-				if (value == null || value.Trim().Length == 0)
-				{
-					throw new ArgumentException("Scheduler thread name cannot be empty.");
-				}
+            set
+            {
+                if (value == null || value.Trim().Length == 0)
+                {
+                    throw new ArgumentException("Scheduler thread name cannot be empty.");
+                }
 
-				threadName = value;
-			}
-		}
+                threadName = value;
+            }
+        }
 
-		/// <summary>
-		/// Get or set the <see cref="ThreadPool" /> for the <see cref="QuartzScheduler" />
-		/// to use.
-		/// </summary>
-		/// <exception cref="ArgumentException"> 
-		/// if threadPool is null.
-		/// </exception>
-		public virtual IThreadPool ThreadPool
-		{
-			get { return threadPool; }
+        /// <summary>
+        /// Get or set the <see cref="ThreadPool" /> for the <see cref="QuartzScheduler" />
+        /// to use.
+        /// </summary>
+        /// <exception cref="ArgumentException"> 
+        /// if threadPool is null.
+        /// </exception>
+        public virtual IThreadPool ThreadPool
+        {
+            get { return threadPool; }
 
-			set
-			{
-				if (value == null)
-				{
-					throw new ArgumentException("ThreadPool cannot be null.");
-				}
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentException("ThreadPool cannot be null.");
+                }
 
-				threadPool = value;
-			}
-		}
+                threadPool = value;
+            }
+        }
 
-		/// <summary>
-		/// Get or set the <see cref="IJobStore" /> for the <see cref="QuartzScheduler" />
-		/// to use.
-		/// </summary>
-		/// <exception cref="ArgumentException"> 
-		/// if jobStore is null.
-		/// </exception>
-		public virtual IJobStore JobStore
-		{
-			get { return jobStore; }
+        /// <summary>
+        /// Get or set the <see cref="IJobStore" /> for the <see cref="QuartzScheduler" />
+        /// to use.
+        /// </summary>
+        /// <exception cref="ArgumentException"> 
+        /// if jobStore is null.
+        /// </exception>
+        public virtual IJobStore JobStore
+        {
+            get { return jobStore; }
 
-			set
-			{
-				if (value == null)
-				{
-					throw new ArgumentException("JobStore cannot be null.");
-				}
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentException("JobStore cannot be null.");
+                }
 
-				jobStore = value;
-			}
-		}
+                jobStore = value;
+            }
+        }
 
-		/// <summary> 
-		/// Get or set the <see cref="JobRunShellFactory" /> for the <see cref="QuartzScheduler" />
-		/// to use.
-		/// </summary>
-		/// <exception cref="ArgumentException"> 
-		/// if jobRunShellFactory is null.
-		/// </exception>
-		public virtual IJobRunShellFactory JobRunShellFactory
-		{
-			get { return jobRunShellFactory; }
+        /// <summary> 
+        /// Get or set the <see cref="JobRunShellFactory" /> for the <see cref="QuartzScheduler" />
+        /// to use.
+        /// </summary>
+        /// <exception cref="ArgumentException"> 
+        /// if jobRunShellFactory is null.
+        /// </exception>
+        public virtual IJobRunShellFactory JobRunShellFactory
+        {
+            get { return jobRunShellFactory; }
 
-			set
-			{
-				if (value == null)
-				{
-					throw new ArgumentException("JobRunShellFactory cannot be null.");
-				}
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentException("JobRunShellFactory cannot be null.");
+                }
 
-				jobRunShellFactory = value;
-			}
-		}
+                jobRunShellFactory = value;
+            }
+        }
 
-		/// <summary>
-		/// Gets the unique identifier.
-		/// </summary>
-		/// <param name="schedName">Name of the scheduler.</param>
-		/// <param name="schedInstId">The scheduler instance id.</param>
-		/// <returns></returns>
-		public static string GetUniqueIdentifier(string schedName, string schedInstId)
-		{
-			return string.Format(CultureInfo.InvariantCulture, "{0}_$_{1}", schedName, schedInstId);
-		}
+        /// <summary>
+        /// Gets the unique identifier.
+        /// </summary>
+        /// <param name="schedName">Name of the scheduler.</param>
+        /// <param name="schedInstId">The scheduler instance id.</param>
+        /// <returns></returns>
+        public static string GetUniqueIdentifier(string schedName, string schedInstId)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0}_$_{1}", schedName, schedInstId);
+        }
 
-		/// <summary>
-		/// Gets the unique identifier.
-		/// </summary>
-		/// <returns></returns>
-		public virtual string GetUniqueIdentifier()
-		{
-			return GetUniqueIdentifier(name, instanceId);
-		}
+        /// <summary>
+        /// Gets the unique identifier.
+        /// </summary>
+        /// <returns></returns>
+        public virtual string GetUniqueIdentifier()
+        {
+            return GetUniqueIdentifier(name, instanceId);
+        }
 
         /// <summary>
         /// Add the given <see cref="ISchedulerPlugin" /> for the 
@@ -217,16 +212,15 @@ namespace Quartz.Core
             schedulerPlugins.Add(plugin);
         }
 
-	    /// <summary>
+        /// <summary>
         /// Get the <see cref="IList&lt;ISchedulerPlugin&gt;" /> of all  <see cref="ISchedulerPlugin" />s for the 
         /// <see cref="QuartzScheduler" /> to use.
-	    /// </summary>
-	    /// <returns></returns>
-	    public IList<ISchedulerPlugin> SchedulerPlugins
-	    {
-	        get { return schedulerPlugins; }
-	    }
-
+        /// </summary>
+        /// <returns></returns>
+        public IList<ISchedulerPlugin> SchedulerPlugins
+        {
+            get { return schedulerPlugins; }
+        }
 
         /// <summary>
         /// Gets or sets a value indicating whether to make scheduler thread daemon.
@@ -234,58 +228,37 @@ namespace Quartz.Core
         /// <value>
         /// 	<c>true</c> if scheduler should be thread daemon; otherwise, <c>false</c>.
         /// </value>
-	    public bool MakeSchedulerThreadDaemon
-	    {
-	        get { return makeSchedulerThreadDaemon; }
-	        set { makeSchedulerThreadDaemon = value; }
-	    }
-
+        public bool MakeSchedulerThreadDaemon { get; set; }
 
         /// <summary>
         /// Gets or sets the scheduler exporter.
         /// </summary>
         /// <value>The scheduler exporter.</value>
-	    public ISchedulerExporter SchedulerExporter
-	    {
-	        get { return exporter; }
-	        set { exporter = value; }
-	    }
+        public ISchedulerExporter SchedulerExporter { get; set; }
 
         /// <summary>
         /// The ThreadExecutor which runs the QuartzSchedulerThread.
         /// </summary>
-	    public IThreadExecutor ThreadExecutor
-	    {
-	        get { return threadExecutor; }
-	        set { threadExecutor = value; }
-	    }
+        public IThreadExecutor ThreadExecutor { get; set; }
 
-	    /// <summary>
+        /// <summary>
         /// Gets or sets the batch time window.
         /// </summary>
-	    public TimeSpan BatchTimeWindow
-	    {
-	        get { return batchTimeWindow; }
-	        set { batchTimeWindow = value; }
-	    }
+        public TimeSpan BatchTimeWindow
+        {
+            get { return batchTimeWindow; }
+            set { batchTimeWindow = value; }
+        }
 
 
-	    public int MaxBatchSize
-	    {
-	        get { return maxBatchSize; }
-	        set { maxBatchSize = value; }
-	    }
+        public int MaxBatchSize
+        {
+            get { return maxBatchSize; }
+            set { maxBatchSize = value; }
+        }
 
-	    public bool InterruptJobsOnShutdown
-	    {
-	        get { return interruptJobsOnShutdown; }
-	        set { interruptJobsOnShutdown = value; }
-	    }
+        public bool InterruptJobsOnShutdown { get; set; }
 
-	    public bool InterruptJobsOnShutdownWithWait
-	    {
-	        get { return interruptJobsOnShutdownWithWait; }
-	        set { interruptJobsOnShutdownWithWait = value; }
-	    }
-	}
+        public bool InterruptJobsOnShutdownWithWait { get; set; }
+    }
 }

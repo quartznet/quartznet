@@ -66,7 +66,7 @@ namespace Quartz.Impl.Triggers
         private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
         private bool skipDayIfHourDoesNotExist = false;
         private int timesTriggered;
-        private bool complete = false;
+        private const bool complete = false;
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
@@ -223,7 +223,7 @@ namespace Quartz.Impl.Triggers
         public IntervalUnit RepeatIntervalUnit
         {
             get { return repeatIntervalUnit; }
-            set { this.repeatIntervalUnit = value; }
+            set { repeatIntervalUnit = value; }
         }
 
 
@@ -248,14 +248,7 @@ namespace Quartz.Impl.Triggers
 
         public TimeZoneInfo TimeZone
         {
-            get
-            {
-                if (timeZone == null)
-                {
-                    timeZone = TimeZoneInfo.Local;
-                }
-                return timeZone;
-            }
+            get { return timeZone ?? (timeZone = TimeZoneInfo.Local); }
 
             set { timeZone = value; }
         }
@@ -321,7 +314,7 @@ namespace Quartz.Impl.Triggers
         public int TimesTriggered
         {
             get { return timesTriggered; }
-            set { this.timesTriggered = value; }
+            set { timesTriggered = value; }
         }
 
         public TriggerBuilder GetTriggerBuilder()
@@ -569,21 +562,16 @@ namespace Quartz.Impl.Triggers
 
         protected DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime)
         {
+/*
             if (complete)
             {
                 return null;
             }
+*/
 
             // increment afterTme by a second, so that we are 
             // comparing against a time after it!
-            if (afterTime == null)
-            {
-                afterTime = SystemTime.UtcNow().AddSeconds(1);
-            }
-            else
-            {
-                afterTime = afterTime.Value.AddSeconds(1);
-            }
+            afterTime = afterTime == null ? SystemTime.UtcNow().AddSeconds(1) : afterTime.Value.AddSeconds(1);
 
             DateTimeOffset startMillis = StartTimeUtc;
             DateTimeOffset afterMillis = afterTime.Value;
@@ -599,7 +587,7 @@ namespace Quartz.Impl.Triggers
                 return startMillis;
             }
 
-            long secondsAfterStart = (long) (afterMillis - startMillis).TotalSeconds;
+            long secondsAfterStart = (long)(afterMillis - startMillis).TotalSeconds;
 
             DateTimeOffset? time = null;
             long repeatLong = RepeatInterval;
@@ -612,30 +600,30 @@ namespace Quartz.Impl.Triggers
 
             if (RepeatIntervalUnit == IntervalUnit.Second)
             {
-                long jumpCount = secondsAfterStart/repeatLong;
-                if (secondsAfterStart%repeatLong != 0)
+                long jumpCount = secondsAfterStart / repeatLong;
+                if (secondsAfterStart % repeatLong != 0)
                 {
                     jumpCount++;
                 }
-                time = sTime.AddSeconds(RepeatInterval*(int) jumpCount);
+                time = sTime.AddSeconds(RepeatInterval * (int)jumpCount);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Minute)
             {
-                long jumpCount = secondsAfterStart/(repeatLong*60L);
-                if (secondsAfterStart%(repeatLong*60L) != 0)
+                long jumpCount = secondsAfterStart / (repeatLong * 60L);
+                if (secondsAfterStart % (repeatLong * 60L) != 0)
                 {
                     jumpCount++;
                 }
-                time = sTime.AddMinutes(RepeatInterval*(int) jumpCount);
+                time = sTime.AddMinutes(RepeatInterval * (int)jumpCount);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Hour)
             {
-                long jumpCount = secondsAfterStart/(repeatLong*60L*60L);
-                if (secondsAfterStart%(repeatLong*60L*60L) != 0)
+                long jumpCount = secondsAfterStart / (repeatLong * 60L * 60L);
+                if (secondsAfterStart % (repeatLong * 60L * 60L) != 0)
                 {
                     jumpCount++;
                 }
-                time = sTime.AddHours(RepeatInterval*(int) jumpCount);
+                time = sTime.AddHours(RepeatInterval * (int)jumpCount);
             }
             else
             {
@@ -654,24 +642,24 @@ namespace Quartz.Impl.Triggers
                     // increment to the start time until we reach the "after time",
                     // we can first make a big leap most of the way there...
 
-                    long jumpCount = secondsAfterStart/(repeatLong*24L*60L*60L);
+                    long jumpCount = secondsAfterStart / (repeatLong * 24L * 60L * 60L);
                     // if we need to make a big jump, jump most of the way there, 
                     // but not all the way because in some cases we may over-shoot or under-shoot
                     if (jumpCount > 20)
                     {
                         if (jumpCount < 50)
                         {
-                            jumpCount = (long) (jumpCount*0.80);
+                            jumpCount = (long)(jumpCount * 0.80);
                         }
                         else if (jumpCount < 500)
                         {
-                            jumpCount = (long) (jumpCount*0.90);
+                            jumpCount = (long)(jumpCount * 0.90);
                         }
                         else
                         {
-                            jumpCount = (long) (jumpCount*0.95);
+                            jumpCount = (long)(jumpCount * 0.95);
                         }
-                        sTime = sTime.AddDays(RepeatInterval*jumpCount);
+                        sTime = sTime.AddDays(RepeatInterval * jumpCount);
                     }
 
                     // now baby-step the rest of the way there...
@@ -696,33 +684,33 @@ namespace Quartz.Impl.Triggers
                     // increment to the start time until we reach the "after time",
                     // we can first make a big leap most of the way there...
 
-                    long jumpCount = secondsAfterStart/(repeatLong*7L*24L*60L*60L);
+                    long jumpCount = secondsAfterStart / (repeatLong * 7L * 24L * 60L * 60L);
                     // if we need to make a big jump, jump most of the way there, 
                     // but not all the way because in some cases we may over-shoot or under-shoot
                     if (jumpCount > 20)
                     {
                         if (jumpCount < 50)
                         {
-                            jumpCount = (long) (jumpCount*0.80);
+                            jumpCount = (long)(jumpCount * 0.80);
                         }
                         else if (jumpCount < 500)
                         {
-                            jumpCount = (long) (jumpCount*0.90);
+                            jumpCount = (long)(jumpCount * 0.90);
                         }
                         else
                         {
-                            jumpCount = (long) (jumpCount*0.95);
+                            jumpCount = (long)(jumpCount * 0.95);
                         }
-                        sTime = sTime.AddDays((int) (RepeatInterval*jumpCount*7));
+                        sTime = sTime.AddDays((int)(RepeatInterval * jumpCount * 7));
                     }
 
                     while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
-                        sTime = sTime.AddDays(RepeatInterval*7);
+                        sTime = sTime.AddDays(RepeatInterval * 7);
                     }
                     while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
-                        sTime = sTime.AddDays(RepeatInterval*7);
+                        sTime = sTime.AddDays(RepeatInterval * 7);
                     }
                     time = sTime;
                 }
@@ -806,33 +794,29 @@ namespace Quartz.Impl.Triggers
 
                 DateTimeOffset lTime = fTime.Value;
 
-                if (RepeatIntervalUnit == IntervalUnit.Second)
+                switch (RepeatIntervalUnit)
                 {
-                    lTime = lTime.AddSeconds(-1*RepeatInterval);
-                }
-                else if (RepeatIntervalUnit == IntervalUnit.Minute)
-                {
-                    lTime = lTime.AddMinutes(-1*RepeatInterval);
-                }
-                else if (RepeatIntervalUnit == IntervalUnit.Hour)
-                {
-                    lTime = lTime.AddHours(-1*RepeatInterval);
-                }
-                else if (RepeatIntervalUnit == IntervalUnit.Day)
-                {
-                    lTime = lTime.AddDays(-1*RepeatInterval);
-                }
-                else if (RepeatIntervalUnit == IntervalUnit.Week)
-                {
-                    lTime = lTime.AddDays(-1*RepeatInterval*7);
-                }
-                else if (RepeatIntervalUnit == IntervalUnit.Month)
-                {
-                    lTime = lTime.AddMonths(-1*RepeatInterval);
-                }
-                else if (RepeatIntervalUnit == IntervalUnit.Year)
-                {
-                    lTime = lTime.AddYears(-1*RepeatInterval);
+                    case IntervalUnit.Second:
+                        lTime = lTime.AddSeconds(-1 * RepeatInterval);
+                        break;
+                    case IntervalUnit.Minute:
+                        lTime = lTime.AddMinutes(-1 * RepeatInterval);
+                        break;
+                    case IntervalUnit.Hour:
+                        lTime = lTime.AddHours(-1 * RepeatInterval);
+                        break;
+                    case IntervalUnit.Day:
+                        lTime = lTime.AddDays(-1 * RepeatInterval);
+                        break;
+                    case IntervalUnit.Week:
+                        lTime = lTime.AddDays(-1 * RepeatInterval * 7);
+                        break;
+                    case IntervalUnit.Month:
+                        lTime = lTime.AddMonths(-1 * RepeatInterval);
+                        break;
+                    case IntervalUnit.Year:
+                        lTime = lTime.AddYears(-1 * RepeatInterval);
+                        break;
                 }
 
                 return lTime;

@@ -24,35 +24,35 @@ using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
-	/// <summary>
-	/// <see cref="IInstanceIdGenerator" /> that names the scheduler instance using 
-	/// just the machine hostname.
-	/// </summary>
-	/// <remarks>
-	/// This class is useful when you know that your scheduler instance will be the 
-	/// only one running on a particular machine.  Each time the scheduler is 
-	/// restarted, it will get the same instance id as long as the machine is not 
-	/// renamed.
-	/// </remarks>
+    /// <summary>
+    /// <see cref="IInstanceIdGenerator" /> that names the scheduler instance using 
+    /// just the machine hostname.
+    /// </summary>
+    /// <remarks>
+    /// This class is useful when you know that your scheduler instance will be the 
+    /// only one running on a particular machine.  Each time the scheduler is 
+    /// restarted, it will get the same instance id as long as the machine is not 
+    /// renamed.
+    /// </remarks>
     /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="IInstanceIdGenerator" />
-	/// <seealso cref="SimpleInstanceIdGenerator" />
-	public class HostnameInstanceIdGenerator : IInstanceIdGenerator
-	{
-		/// <summary>
-		/// Generate the instance id for a <see cref="IScheduler"/>
-		/// </summary>
-		/// <returns>The clusterwide unique instance id.</returns>
-		public virtual string GenerateInstanceId()
-		{
-			try
-			{
-				return Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName;
-			}
-			catch (Exception e)
-			{
-				throw new SchedulerException("Couldn't get host name!", e);
-			}
-		}
-	}
+    /// <seealso cref="SimpleInstanceIdGenerator" />
+    public class HostnameInstanceIdGenerator : IInstanceIdGenerator
+    {
+        /// <summary>
+        /// Generate the instance id for a <see cref="IScheduler"/>
+        /// </summary>
+        /// <returns>The clusterwide unique instance id.</returns>
+        public virtual string GenerateInstanceId()
+        {
+            try
+            {
+                return Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName;
+            }
+            catch (Exception e)
+            {
+                throw new SchedulerException("Couldn't get host name!", e);
+            }
+        }
+    }
 }

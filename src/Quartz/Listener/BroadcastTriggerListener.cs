@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Quartz.Listener
 {
@@ -67,7 +68,7 @@ namespace Quartz.Listener
         /// </remarks>
         /// <param name="name">the name of this instance</param>
         /// <param name="listeners">the initial List of TriggerListeners to broadcast to.</param>
-        public BroadcastTriggerListener(string name, IList<ITriggerListener> listeners) : this(name)
+        public BroadcastTriggerListener(string name, IEnumerable<ITriggerListener> listeners) : this(name)
         {
             this.listeners.AddRange(listeners);
         }
@@ -113,14 +114,7 @@ namespace Quartz.Listener
 
         public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
-            foreach (ITriggerListener l in listeners)
-            {
-                if (l.VetoJobExecution(trigger, context))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return listeners.Any(l => l.VetoJobExecution(trigger, context));
         }
 
         public void TriggerMisfired(ITrigger trigger)

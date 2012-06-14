@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -57,14 +58,17 @@ namespace Quartz.Impl.AdoJobStore
         protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
         {
             DailyTimeIntervalTriggerImpl dailyTrigger = (DailyTimeIntervalTriggerImpl) trigger;
-            SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
+            SimplePropertiesTriggerProperties props =
+                new SimplePropertiesTriggerProperties
+                    {
+                        Int1 = dailyTrigger.RepeatInterval,
+                        String1 = dailyTrigger.RepeatIntervalUnit.ToString(),
+                        Int2 = dailyTrigger.TimesTriggered
+                    };
 
-            props.Int1 = dailyTrigger.RepeatInterval;
-            props.String1 = dailyTrigger.RepeatIntervalUnit.ToString();
-            props.Int2 = dailyTrigger.TimesTriggered;
 
             ISet<DayOfWeek> days = dailyTrigger.DaysOfWeek;
-            string daysStr = string.Join(",", days.Cast<int>().Select(x => x.ToString()).ToArray());
+            string daysStr = string.Join(",", days.Cast<int>().Select(x => x.ToString(CultureInfo.InvariantCulture)).ToArray());
             props.String2 = daysStr;
 
             StringBuilder timeOfDayBuffer = new StringBuilder();

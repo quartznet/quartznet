@@ -325,7 +325,7 @@ namespace Quartz.Impl.Triggers
         public int TimesTriggered
         {
             get { return timesTriggered; }
-            set { this.timesTriggered = value; }
+            set { timesTriggered = value; }
         }
 
         protected override bool ValidateMisfireInstruction(int misfireInstruction)
@@ -494,14 +494,7 @@ namespace Quartz.Impl.Triggers
             DateTimeOffset? startTimeOfDayDate = StartTimeOfDay.GetTimeOfDayForDate(startTime);
 
             // If startTime is after the timeOfDay, then use starTime
-            if (startTime > startTimeOfDayDate)
-            {
-                nextFireTimeUtc = GetFireTimeAfter(startTime);
-            }
-            else
-            {
-                nextFireTimeUtc = AdvanceToNextDayOfWeek(startTimeOfDayDate.Value, false);
-            }
+            nextFireTimeUtc = startTime > startTimeOfDayDate ? GetFireTimeAfter(startTime) : AdvanceToNextDayOfWeek(startTimeOfDayDate.Value, false);
 
             // Check calendar for date-time exclusion
             while (nextFireTimeUtc != null && calendar != null
@@ -565,7 +558,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="value"></param>
         public override void SetNextFireTimeUtc(DateTimeOffset? value)
         {
-            this.nextFireTimeUtc = value;
+            nextFireTimeUtc = value;
         }
 
         /// <summary>
@@ -603,14 +596,7 @@ namespace Quartz.Impl.Triggers
             }
 
             // a. Increment afterTime by a second, so that we are comparing against a time after it!
-            if (afterTime == null)
-            {
-                afterTime = SystemTime.UtcNow().AddSeconds(1);
-            }
-            else
-            {
-                afterTime = afterTime.Value.AddSeconds(1);
-            }
+            afterTime = afterTime == null ? SystemTime.UtcNow().AddSeconds(1) : afterTime.Value.AddSeconds(1);
 
             // now change to local time zone
             afterTime = afterTime.Value.ToLocalTime();
@@ -629,15 +615,7 @@ namespace Quartz.Impl.Triggers
             }
 
             // c. Calculate and save fireTimeEndDate variable for later use
-            DateTimeOffset fireTimeEndDate;
-            if (endTimeOfDay == null)
-            {
-                fireTimeEndDate = new TimeOfDay(23, 59, 59).GetTimeOfDayForDate(fireTime).Value;
-            }
-            else
-            {
-                fireTimeEndDate = endTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
-            }
+            DateTimeOffset fireTimeEndDate = endTimeOfDay == null ? new TimeOfDay(23, 59, 59).GetTimeOfDayForDate(fireTime).Value : endTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
 
             // e. Check fireTime against startTime or startTimeOfDay to see which go first.
             DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
@@ -645,11 +623,11 @@ namespace Quartz.Impl.Triggers
             {
                 return fireTimeStartDate;
             }
-            else if (fireTime < startTimeUtc && startTimeUtc > fireTimeStartDate)
+            if (fireTime < startTimeUtc && startTimeUtc > fireTimeStartDate)
             {
                 return startTimeUtc;
             }
-            else if (fireTime > startTimeUtc && fireTime < fireTimeStartDate)
+            if (fireTime > startTimeUtc && fireTime < fireTimeStartDate)
             {
                 return fireTimeStartDate;
             }
@@ -699,15 +677,9 @@ namespace Quartz.Impl.Triggers
             if (fireTime > fireTimeEndDate)
             {
                 // Check to see if fireTime has pass fireTime's end of day. If not, we need to advance by one day.
-                DateTimeOffset fireTimeEndOfDay = new TimeOfDay(23, 59, 59).GetTimeOfDayForDate(fireTimeEndDate).Value;
-                if (fireTime > fireTimeEndOfDay)
-                {
-                    fireTime = AdvanceToNextDayOfWeek(fireTime.Value, false);
-                }
-                else
-                {
-                    fireTime = AdvanceToNextDayOfWeek(fireTime.Value, true);
-                }
+                DateTimeOffset fireTimeEndOfDay = 
+                    new TimeOfDay(23, 59, 59).GetTimeOfDayForDate(fireTimeEndDate).Value;
+                fireTime = AdvanceToNextDayOfWeek(fireTime.Value, fireTime <= fireTimeEndOfDay);
                 if (fireTime == null)
                 {
                     return null;
@@ -858,14 +830,7 @@ namespace Quartz.Impl.Triggers
         /// </returns>
         public ISet<DayOfWeek> DaysOfWeek
         {
-            get
-            {
-                if (daysOfWeek == null)
-                {
-                    daysOfWeek = DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek;
-                }
-                return daysOfWeek;
-            }
+            get { return daysOfWeek ?? (daysOfWeek = DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek); }
 
             set
             {
@@ -887,14 +852,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         public TimeOfDay StartTimeOfDay
         {
-            get
-            {
-                if (startTimeOfDay == null)
-                {
-                    startTimeOfDay = new TimeOfDay(0, 0, 0);
-                }
-                return startTimeOfDay;
-            }
+            get { return startTimeOfDay ?? (startTimeOfDay = new TimeOfDay(0, 0, 0)); }
             set
             {
                 if (value == null)

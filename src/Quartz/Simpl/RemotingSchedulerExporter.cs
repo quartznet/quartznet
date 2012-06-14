@@ -64,7 +64,7 @@ namespace Quartz.Simpl
             {
                 throw new ArgumentNullException("scheduler");
             }
-            if (!typeof(MarshalByRefObject).IsAssignableFrom(scheduler.GetType()))
+            if (!(scheduler is MarshalByRefObject))
             {
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
             }
@@ -105,8 +105,11 @@ namespace Quartz.Simpl
                 props["name"] = channelName;
 
                 // use binary formatter
-                BinaryServerFormatterSinkProvider formatprovider = new BinaryServerFormatterSinkProvider(props, null);
-                formatprovider.TypeFilterLevel = typeFilgerLevel;
+                BinaryServerFormatterSinkProvider formatprovider =
+                    new BinaryServerFormatterSinkProvider(props, null)
+                        {
+                            TypeFilterLevel = typeFilgerLevel
+                        };
 
                 string channelRegistrationKey = channelType + "_" + port;
                 if (registeredChannels.ContainsKey(channelRegistrationKey))
@@ -147,7 +150,7 @@ namespace Quartz.Simpl
             {
                 throw new ArgumentNullException("scheduler");
             }
-            if (!typeof(MarshalByRefObject).IsAssignableFrom(scheduler.GetType()))
+            if (!(scheduler is MarshalByRefObject))
             {
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
             }

@@ -24,32 +24,32 @@ using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
-	/// <summary> 
-	/// The default InstanceIdGenerator used by Quartz when instance id is to be
-	/// automatically generated.  Instance id is of the form HOSTNAME + CURRENT_TIME.
-	/// </summary>
-	/// <author>Marko Lahma (.NET)</author>
-	/// <seealso cref="IInstanceIdGenerator" />
-	/// <seealso cref="HostnameInstanceIdGenerator" />
-	public class SimpleInstanceIdGenerator : IInstanceIdGenerator
-	{
-		/// <summary>
-		/// Generate the instance id for a <see cref="IScheduler" />
-		/// </summary>
-		/// <returns>The clusterwide unique instance id.</returns>
-		public virtual string GenerateInstanceId()
-		{
-			try
-			{
+    /// <summary> 
+    /// The default InstanceIdGenerator used by Quartz when instance id is to be
+    /// automatically generated.  Instance id is of the form HOSTNAME + CURRENT_TIME.
+    /// </summary>
+    /// <author>Marko Lahma (.NET)</author>
+    /// <seealso cref="IInstanceIdGenerator" />
+    /// <seealso cref="HostnameInstanceIdGenerator" />
+    public class SimpleInstanceIdGenerator : IInstanceIdGenerator
+    {
+        /// <summary>
+        /// Generate the instance id for a <see cref="IScheduler" />
+        /// </summary>
+        /// <returns>The clusterwide unique instance id.</returns>
+        public virtual string GenerateInstanceId()
+        {
+            try
+            {
 
-				return
-					Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName +
-					SystemTime.UtcNow().Ticks;
+                return
+                    Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName +
+                    SystemTime.UtcNow().Ticks;
             }
-			catch (Exception e)
-			{
-				throw new SchedulerException("Couldn't get host name!", e);
-			}
-		}
-	}
+            catch (Exception e)
+            {
+                throw new SchedulerException("Couldn't get host name!", e);
+            }
+        }
+    }
 }

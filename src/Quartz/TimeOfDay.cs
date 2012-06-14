@@ -65,7 +65,7 @@ namespace Quartz
         {
             this.hour = hour;
             this.minute = minute;
-            this.second = 0;
+            second = 0;
             Validate();
         }
 

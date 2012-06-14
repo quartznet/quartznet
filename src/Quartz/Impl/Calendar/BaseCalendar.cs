@@ -23,25 +23,25 @@ using System.Security;
 
 namespace Quartz.Impl.Calendar
 {
-	/// <summary>
-	/// This implementation of the Calendar may be used (you don't have to) as a
-	/// base class for more sophisticated one's. It merely implements the base
-	/// functionality required by each Calendar.
-	/// </summary>
-	/// <remarks>
-	/// Regarded as base functionality is the treatment of base calendars. Base
-	/// calendar allow you to chain (stack) as much calendars as you may need. For
-	/// example to exclude weekends you may use WeeklyCalendar. In order to exclude
-	/// holidays as well you may define a WeeklyCalendar instance to be the base
-	/// calendar for HolidayCalendar instance.
-	/// </remarks>
-	/// <seealso cref="ICalendar" /> 
-	/// <author>Juergen Donnerstag</author>
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	[Serializable]
-	public class BaseCalendar : ICalendar, ISerializable
-	{
+    /// <summary>
+    /// This implementation of the Calendar may be used (you don't have to) as a
+    /// base class for more sophisticated one's. It merely implements the base
+    /// functionality required by each Calendar.
+    /// </summary>
+    /// <remarks>
+    /// Regarded as base functionality is the treatment of base calendars. Base
+    /// calendar allow you to chain (stack) as much calendars as you may need. For
+    /// example to exclude weekends you may use WeeklyCalendar. In order to exclude
+    /// holidays as well you may define a WeeklyCalendar instance to be the base
+    /// calendar for HolidayCalendar instance.
+    /// </remarks>
+    /// <seealso cref="ICalendar" /> 
+    /// <author>Juergen Donnerstag</author>
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+    [Serializable]
+    public class BaseCalendar : ICalendar, ISerializable
+    {
         // A optional base calendar.
         private ICalendar baseCalendar;
         private string description;
@@ -69,9 +69,9 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="timeZone">The time zone.</param>
         public BaseCalendar(TimeZoneInfo timeZone)
-	    {
-	        this.timeZone = timeZone;
-	    }
+        {
+            this.timeZone = timeZone;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
@@ -80,9 +80,9 @@ namespace Quartz.Impl.Calendar
         /// <param name="timeZone">The time zone.</param>
         public BaseCalendar(ICalendar baseCalendar, TimeZoneInfo timeZone)
         {
-	        this.baseCalendar = baseCalendar;
-	        this.timeZone = timeZone;
-	    }
+            this.baseCalendar = baseCalendar;
+            this.timeZone = timeZone;
+        }
 
         /// <summary>
         /// Serialization constructor.
@@ -109,7 +109,7 @@ namespace Quartz.Impl.Calendar
 
         [SecurityCritical]
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
-	    {
+        {
             info.AddValue("baseCalendar", baseCalendar);
             info.AddValue("description", description);
             info.AddValue("timeZone", timeZone);
@@ -120,19 +120,12 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <value>The time zone.</value>
         public virtual TimeZoneInfo TimeZone
-	    {
-	        get
-	        {
-                if (timeZone == null)
-                {
-                    timeZone = TimeZoneInfo.Local;
-                }
-                return timeZone;
-            }
+        {
+            get { return timeZone ?? (timeZone = TimeZoneInfo.Local); }
             set { timeZone = value; }
         }
 
-	    /// <summary>
+        /// <summary>
         /// checks whether two arrays have 
         /// the same length and 
         /// for any given place there are equal elements 
@@ -154,92 +147,92 @@ namespace Quartz.Impl.Calendar
         }
 
 
-		/// <summary> 
-		/// Gets or sets the description given to the <see cref="ICalendar" /> instance by
-		/// its creator (if any).
-		/// </summary>
-		public virtual string Description
-		{
-			get { return description; }
-			set { description = value; }
-		}
+        /// <summary> 
+        /// Gets or sets the description given to the <see cref="ICalendar" /> instance by
+        /// its creator (if any).
+        /// </summary>
+        public virtual string Description
+        {
+            get { return description; }
+            set { description = value; }
+        }
 
-		/// <summary>
-		/// Set a new base calendar or remove the existing one
-		/// </summary>
-		/// <value></value>
-		public ICalendar CalendarBase
-		{
-			set { baseCalendar = value; }
-			get { return baseCalendar; }
-		}
+        /// <summary>
+        /// Set a new base calendar or remove the existing one
+        /// </summary>
+        /// <value></value>
+        public ICalendar CalendarBase
+        {
+            set { baseCalendar = value; }
+            get { return baseCalendar; }
+        }
 
-		/// <summary>
-		/// Get the base calendar. Will be null, if not set.
-		/// </summary>
-		public ICalendar GetBaseCalendar()
-		{
-			return baseCalendar;
-		}
+        /// <summary>
+        /// Get the base calendar. Will be null, if not set.
+        /// </summary>
+        public ICalendar GetBaseCalendar()
+        {
+            return baseCalendar;
+        }
 
-		/// <summary>
-		/// Check if date/time represented by timeStamp is included. If included
-		/// return true. The implementation of BaseCalendar simply calls the base
-		/// calendars IsTimeIncluded() method if base calendar is set.
-		/// </summary>
-		/// <seealso cref="ICalendar.IsTimeIncluded" />
+        /// <summary>
+        /// Check if date/time represented by timeStamp is included. If included
+        /// return true. The implementation of BaseCalendar simply calls the base
+        /// calendars IsTimeIncluded() method if base calendar is set.
+        /// </summary>
+        /// <seealso cref="ICalendar.IsTimeIncluded" />
         public virtual bool IsTimeIncluded(DateTimeOffset timeStampUtc)
-		{
+        {
             if (timeStampUtc == DateTimeOffset.MinValue)
-			{
-				throw new ArgumentException("timeStampUtc must be greater 0");
-			}
+            {
+                throw new ArgumentException("timeStampUtc must be greater 0");
+            }
 
-			if (baseCalendar != null)
-			{
-				if (baseCalendar.IsTimeIncluded(timeStampUtc) == false)
-				{
-					return false;
-				}
-			}
+            if (baseCalendar != null)
+            {
+                if (baseCalendar.IsTimeIncluded(timeStampUtc) == false)
+                {
+                    return false;
+                }
+            }
 
-			return true;
-		}
+            return true;
+        }
 
-		/// <summary>
-		/// Determine the next UTC time (in milliseconds) that is 'included' by the
-		/// Calendar after the given time. Return the original value if timeStamp is
-		/// included. Return 0 if all days are excluded.
-		/// </summary>
-		/// <seealso cref="ICalendar.GetNextIncludedTimeUtc" />
+        /// <summary>
+        /// Determine the next UTC time (in milliseconds) that is 'included' by the
+        /// Calendar after the given time. Return the original value if timeStamp is
+        /// included. Return 0 if all days are excluded.
+        /// </summary>
+        /// <seealso cref="ICalendar.GetNextIncludedTimeUtc" />
         public virtual DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
-		{
-			if (timeUtc == DateTimeOffset.MinValue)
-			{
-				throw new ArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
-			}
+        {
+            if (timeUtc == DateTimeOffset.MinValue)
+            {
+                throw new ArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
+            }
 
-			if (baseCalendar != null)
-			{
-				return baseCalendar.GetNextIncludedTimeUtc(timeUtc);
-			}
+            if (baseCalendar != null)
+            {
+                return baseCalendar.GetNextIncludedTimeUtc(timeUtc);
+            }
 
-			return timeUtc;
-		}
+            return timeUtc;
+        }
 
 
-	    /// <summary>
-	    /// Creates a new object that is a copy of the current instance.
-	    /// </summary>
-	    /// <returns>A new object that is a copy of this instance.</returns>
-	    public virtual object Clone()
-	    {
-	        BaseCalendar clone = (BaseCalendar) MemberwiseClone();
+        /// <summary>
+        /// Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// <returns>A new object that is a copy of this instance.</returns>
+        public virtual object Clone()
+        {
+            BaseCalendar clone = (BaseCalendar) MemberwiseClone();
             if (GetBaseCalendar() != null)
             {
                 clone.baseCalendar = (ICalendar) GetBaseCalendar().Clone();
             }
             return clone;
-	    }
-	}
+        }
+    }
 }

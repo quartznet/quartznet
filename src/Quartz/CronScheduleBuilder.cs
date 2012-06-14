@@ -61,7 +61,7 @@ namespace Quartz
     /// <seealso cref="SimpleScheduleBuilder" />
     /// <seealso cref="CalendarIntervalScheduleBuilder" />
     /// <seealso cref="TriggerBuilder" />
-    public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
+    public class CronScheduleBuilder : ScheduleBuilder
     {
         private readonly CronExpression cronExpression;
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
@@ -84,11 +84,13 @@ namespace Quartz
         /// <seealso cref="TriggerBuilder.WithSchedule" />
         public override IMutableTrigger Build()
         {
-            CronTriggerImpl ct = new CronTriggerImpl();
-            
-            ct.CronExpression = cronExpression;
-            ct.TimeZone = cronExpression.TimeZone;
-            ct.MisfireInstruction = misfireInstruction;
+            CronTriggerImpl ct =
+                new CronTriggerImpl
+                    {
+                        CronExpression = cronExpression,
+                        TimeZone = cronExpression.TimeZone,
+                        MisfireInstruction = misfireInstruction
+                    };
 
             return ct;
         }

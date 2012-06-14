@@ -117,10 +117,13 @@ namespace Quartz
         /// <returns>the defined JobDetail.</returns>
         public IJobDetail Build()
         {
-            JobDetailImpl job = new JobDetailImpl();
+            JobDetailImpl job =
+                new JobDetailImpl
+                    {
+                        JobType = jobType,
+                        Description = description
+                    };
 
-            job.JobType = jobType;
-            job.Description = description;
             if (key == null)
             {
                 key = new JobKey(Guid.NewGuid().ToString(), null);
@@ -239,7 +242,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.RequestsRecovery" />
         public JobBuilder RequestRecovery()
         {
-            this.shouldRecover = true;
+            shouldRecover = true;
             return this;
         }
 
@@ -270,7 +273,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Durable" />
         public JobBuilder StoreDurably()
         {
-            this.durability = true;
+            durability = true;
             return this;
         }
 
