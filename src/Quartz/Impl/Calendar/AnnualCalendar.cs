@@ -20,6 +20,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Security;
 
@@ -123,14 +124,7 @@ namespace Quartz.Impl.Calendar
 
             set
             {
-                if (value == null)
-                {
-                    excludeDays = new List<DateTimeOffset>();
-                }
-                else
-                {
-                    excludeDays = new List<DateTimeOffset>(value);
-                }
+                excludeDays = value == null ? new List<DateTimeOffset>() : new List<DateTimeOffset>(value);
                 dataSorted = false;
             }
         }
@@ -284,16 +278,12 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            bool toReturn = GetBaseCalendar() != null ?
-                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+            bool toReturn = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
             toReturn = toReturn && (DaysExcluded.Count == obj.DaysExcluded.Count);
             if (toReturn)
             {
-                foreach (DateTimeOffset date in DaysExcluded)
-                {
-                    toReturn = toReturn && obj.DaysExcluded.Contains(date);
-                }
+                toReturn = DaysExcluded.Aggregate(toReturn, (current, date) => current && obj.DaysExcluded.Contains(date));
             }
             return toReturn;
         }

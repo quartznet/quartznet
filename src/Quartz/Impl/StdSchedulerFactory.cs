@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 using Common.Logging;
@@ -286,20 +287,12 @@ Please add configuration to your application config file to correctly initialize
             }
 
             // determine currently supported configuration keys via reflection
-            List<string> supportedKeys = new List<string>();
             List<FieldInfo> fields = new List<FieldInfo>(GetType().GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy));
             // choose constant string fields
             fields = fields.FindAll(field => field.FieldType == typeof (string));
 
             // read value from each field
-            foreach (FieldInfo field in fields)
-            {
-                string value = (string) field.GetValue(null);
-                if (value != null && value.StartsWith(ConfigurationKeyPrefix) && value != ConfigurationKeyPrefix)
-                {
-                    supportedKeys.Add(value);
-                }
-            }
+            List<string> supportedKeys = fields.Select(field => (string) field.GetValue(null)).Where(value => value != null && value.StartsWith(ConfigurationKeyPrefix) && value != ConfigurationKeyPrefix).ToList();
 
             // now check against allowed))
             foreach (string configurationKey in cfg.UnderlyingProperties.AllKeys)
@@ -310,15 +303,7 @@ Please add configuration to your application config file to correctly initialize
                     continue;
                 }
 
-                bool isMatch = false;
-                foreach (string supportedKey in supportedKeys)
-                {
-                    if (configurationKey.StartsWith(supportedKey, StringComparison.InvariantCulture))
-                    {
-                        isMatch = true;
-                        break;
-                    }
-                }
+                bool isMatch = supportedKeys.Any(supportedKey => configurationKey.StartsWith(supportedKey, StringComparison.InvariantCulture));
                 if (!isMatch)
                 {
                     throw new SchedulerConfigException("Unknown configuration property '" + configurationKey + "'");
@@ -589,7 +574,7 @@ Please add configuration to your application config file to correctly initialize
                     try
                     {
                         DbProvider dbp = new DbProvider(dsProvider, dsConnectionString);
-						
+                        
                         dbMgr = DBConnectionManager.Instance;
                         dbMgr.AddConnectionProvider(dsNames[i], dbp);
                     }

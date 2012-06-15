@@ -98,7 +98,7 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, bool value)
         {
-            string strValue = value.ToString();
+            string strValue = value.ToString(CultureInfo.InvariantCulture);
             base.Put(key, strValue);
         }
 
@@ -174,14 +174,7 @@ namespace Quartz
         {
             object obj = this[key];
 
-            if (obj is string)
-            {
-                return GetIntFromString(key);
-            }
-            else
-            {
-                return GetInt(key);
-            }
+            return obj is string ? GetIntFromString(key) : GetInt(key);
         }
 
         /// <summary>

@@ -60,7 +60,7 @@ namespace Quartz
     /// <seealso cref="CronScheduleBuilder" />
     /// <seealso cref="IScheduleBuilder" />
     /// <seealso cref="TriggerBuilder" />
-    public class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
+    public class SimpleScheduleBuilder : ScheduleBuilder
     {
         private TimeSpan interval = TimeSpan.Zero;
         private int repeatCount;
@@ -316,10 +316,13 @@ namespace Quartz
         /// <seealso cref="TriggerBuilder.WithSchedule(IScheduleBuilder)" />
         public override IMutableTrigger Build()
         {
-            SimpleTriggerImpl st = new SimpleTriggerImpl();
-            st.RepeatInterval = interval;
-            st.RepeatCount = repeatCount;
-            st.MisfireInstruction = misfireInstruction;
+            SimpleTriggerImpl st =
+                new SimpleTriggerImpl
+                    {
+                        RepeatInterval = interval,
+                        RepeatCount = repeatCount,
+                        MisfireInstruction = misfireInstruction
+                    };
 
             return st;
         }

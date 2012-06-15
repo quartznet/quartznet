@@ -46,14 +46,16 @@ namespace Quartz.Impl.AdoJobStore
         {
             CalendarIntervalTriggerImpl calTrig = (CalendarIntervalTriggerImpl) trigger;
 
-            SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
-
-            props.Int1 = calTrig.RepeatInterval;
-            props.String1 = calTrig.RepeatIntervalUnit.ToString();
-            props.Int2 = calTrig.TimesTriggered;
-            props.String2 = calTrig.TimeZone.Id;
-            props.Boolean1 = calTrig.PreserveHourOfDayAcrossDaylightSavings;
-            props.Boolean2 = calTrig.SkipDayIfHourDoesNotExist;
+            SimplePropertiesTriggerProperties props =
+                new SimplePropertiesTriggerProperties
+                    {
+                        Int1 = calTrig.RepeatInterval,
+                        String1 = calTrig.RepeatIntervalUnit.ToString(),
+                        Int2 = calTrig.TimesTriggered,
+                        String2 = calTrig.TimeZone.Id,
+                        Boolean1 = calTrig.PreserveHourOfDayAcrossDaylightSavings,
+                        Boolean2 = calTrig.SkipDayIfHourDoesNotExist
+                    };
 
             return props;
         }

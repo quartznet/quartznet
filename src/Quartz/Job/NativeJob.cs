@@ -161,7 +161,7 @@ namespace Quartz.Job
                     throw new JobExecutionException("Could not read environment variable for OS");
                 }
 
-				if (osName.ToLower().IndexOf("windows") > -1)
+				if (osName.ToLower().IndexOf("windows", StringComparison.Ordinal) > -1)
 				{
     				cmd = new string[args.Length + 2];
 					cmd[0] = "cmd.exe";
@@ -171,7 +171,7 @@ namespace Quartz.Job
 						cmd[i + 2] = args[i];
 					}
 				}
-                else if (osName.ToLower().IndexOf("linux") > -1) 
+                else if (osName.ToLower().IndexOf("linux", StringComparison.Ordinal) > -1) 
                 {
                     cmd = new String[3];
                     cmd[0] = "/bin/sh";
@@ -195,17 +195,23 @@ namespace Quartz.Job
 
                 Log.Info(string.Format(CultureInfo.InvariantCulture, "About to run {0} {1}...", cmd[0], temp));
 
-				Process proc = new Process();
-			    
-                proc.StartInfo.FileName = cmd[0];
-                proc.StartInfo.Arguments = temp;
-                proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-			    proc.StartInfo.CreateNoWindow = true;
-			    proc.StartInfo.UseShellExecute = false;
-			    proc.StartInfo.RedirectStandardError = true;
-                proc.StartInfo.RedirectStandardOutput = true;
+			    Process proc =
+			        new Process
+			            {
+			                StartInfo =
+			                    {
+			                        FileName = cmd[0],
+			                        Arguments = temp,
+			                        WindowStyle = ProcessWindowStyle.Hidden,
+			                        CreateNoWindow = true,
+			                        UseShellExecute = false,
+			                        RedirectStandardError = true,
+			                        RedirectStandardOutput = true
+			                    }
+			            };
 
-                if (!String.IsNullOrEmpty(workingDirectory))
+
+			    if (!String.IsNullOrEmpty(workingDirectory))
                 {
                     proc.StartInfo.WorkingDirectory = workingDirectory;
                 }

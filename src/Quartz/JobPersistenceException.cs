@@ -22,22 +22,22 @@ using System.Runtime.Serialization;
 
 namespace Quartz
 {
-	/// <summary>
-	/// An exception that is thrown to indicate that there has been a failure in the
-	/// scheduler's underlying persistence mechanism.
-	/// </summary>
-	/// <author>James House</author>
+    /// <summary>
+    /// An exception that is thrown to indicate that there has been a failure in the
+    /// scheduler's underlying persistence mechanism.
+    /// </summary>
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public class JobPersistenceException : SchedulerException
-	{
-		/// <summary> <para>
-		/// Create a <see cref="JobPersistenceException" /> with the given message.
-		/// </para>
-		/// </summary>
-		public JobPersistenceException(string msg) : base(msg)
-		{
-		}
+    public class JobPersistenceException : SchedulerException
+    {
+        /// <summary> <para>
+        /// Create a <see cref="JobPersistenceException" /> with the given message.
+        /// </para>
+        /// </summary>
+        public JobPersistenceException(string msg) : base(msg)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="JobPersistenceException"/> class.
@@ -50,13 +50,13 @@ namespace Quartz
         {
         }
 
-		/// <summary> <para>
-		/// Create a <see cref="JobPersistenceException" /> with the given message
-		/// and cause.
-		/// </para>
-		/// </summary>
-		public JobPersistenceException(string msg, Exception cause) : base(msg, cause)
-		{
-		}
-	}
+        /// <summary> <para>
+        /// Create a <see cref="JobPersistenceException" /> with the given message
+        /// and cause.
+        /// </para>
+        /// </summary>
+        public JobPersistenceException(string msg, Exception cause) : base(msg, cause)
+        {
+        }
+    }
 }

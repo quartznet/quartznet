@@ -276,8 +276,7 @@ namespace Quartz.Impl.Calendar
         {
             if (obj == null)
                 return false;
-            bool baseEqual = GetBaseCalendar() != null ?
-                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
 
             return baseEqual && (ArraysEqualElementsOnEqualPlaces(obj.DaysExcluded,DaysExcluded));
@@ -287,12 +286,7 @@ namespace Quartz.Impl.Calendar
 
         public override bool Equals(object obj)
         {
-            if ((obj == null) || !(obj is WeeklyCalendar))
-                return false;
-            else
-                return Equals((WeeklyCalendar)obj);
-
-
+            return (obj != null) && (obj is WeeklyCalendar) && Equals((WeeklyCalendar) obj);
         }
     }
 }

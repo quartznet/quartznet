@@ -22,29 +22,29 @@ using System.Runtime.Serialization;
 
 namespace Quartz
 {
-	/// <summary>
-	/// An exception that is thrown to indicate that a call to 
-	/// <see cref="IInterruptableJob.Interrupt" /> failed without interrupting the Job.
-	/// </summary>
-	/// <seealso cref="IInterruptableJob" />
-	/// <author>James House</author>
+    /// <summary>
+    /// An exception that is thrown to indicate that a call to 
+    /// <see cref="IInterruptableJob.Interrupt" /> failed without interrupting the Job.
+    /// </summary>
+    /// <seealso cref="IInterruptableJob" />
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public class UnableToInterruptJobException : SchedulerException
-	{
-		/// <summary>
-		/// Create a <see cref="UnableToInterruptJobException" /> with the given message.
-		/// </summary>
-		public UnableToInterruptJobException(string msg) : base(msg)
-		{
-		}
+    public class UnableToInterruptJobException : SchedulerException
+    {
+        /// <summary>
+        /// Create a <see cref="UnableToInterruptJobException" /> with the given message.
+        /// </summary>
+        public UnableToInterruptJobException(string msg) : base(msg)
+        {
+        }
 
-		/// <summary>
-		/// Create a <see cref="UnableToInterruptJobException" /> with the given cause.
-		/// </summary>
-		public UnableToInterruptJobException(Exception cause) : base(cause)
-		{
-		}
+        /// <summary>
+        /// Create a <see cref="UnableToInterruptJobException" /> with the given cause.
+        /// </summary>
+        public UnableToInterruptJobException(Exception cause) : base(cause)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UnableToInterruptJobException"/> class.
@@ -57,5 +57,5 @@ namespace Quartz
             : base(info, context)
         {
         }
-	}
+    }
 }

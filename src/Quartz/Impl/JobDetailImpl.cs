@@ -252,14 +252,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual JobDataMap JobDataMap
         {
-            get
-            {
-                if (jobDataMap == null)
-                {
-                    jobDataMap = new JobDataMap();
-                }
-                return jobDataMap;
-            }
+            get { return jobDataMap ?? (jobDataMap = new JobDataMap()); }
 
             set { jobDataMap = value; }
         }

@@ -75,13 +75,9 @@ namespace Quartz.Impl.Matchers
 
         public bool Equals(StringOperator other)
         {
-            if (other == null)
-            {
-                return false;
-            }
+            return other != null && GetType() == other.GetType();
 
             // just check by type, equality based on behavior
-            return GetType().Equals(other.GetType());
         }
 
         public override int GetHashCode()

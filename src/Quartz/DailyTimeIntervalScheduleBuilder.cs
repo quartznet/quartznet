@@ -70,7 +70,7 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
-    public class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTimeIntervalTrigger>
+    public class DailyTimeIntervalScheduleBuilder : ScheduleBuilder
     {
         private int interval = 1;
         private IntervalUnit intervalUnit = IntervalUnit.Minute;
@@ -119,9 +119,12 @@ namespace Quartz
                 }
             }
 
-            SaturdayAndSunday = new HashSet<DayOfWeek>();
-            SaturdayAndSunday.Add(DayOfWeek.Sunday);
-            SaturdayAndSunday.Add(DayOfWeek.Saturday);
+            SaturdayAndSunday = 
+                new HashSet<DayOfWeek>
+                    {
+                        DayOfWeek.Sunday,
+                        DayOfWeek.Saturday
+                    };
         }
 
         protected DailyTimeIntervalScheduleBuilder()
@@ -146,38 +149,20 @@ namespace Quartz
         public override IMutableTrigger Build()
         {
 
-            DailyTimeIntervalTriggerImpl st = new DailyTimeIntervalTriggerImpl();
-            st.RepeatInterval = interval;
-            st.RepeatIntervalUnit = intervalUnit;
-            st.MisfireInstruction = misfireInstruction;
-            st.RepeatCount = repeatCount;
+            DailyTimeIntervalTriggerImpl st =
+                new DailyTimeIntervalTriggerImpl
+                    {
+                        RepeatInterval = interval,
+                        RepeatIntervalUnit = intervalUnit,
+                        MisfireInstruction = misfireInstruction,
+                        RepeatCount = repeatCount
+                    };
 
-            if (daysOfWeek != null)
-            {
-                st.DaysOfWeek = daysOfWeek;
-            }
-            else
-            {
-                st.DaysOfWeek = AllDaysOfTheWeek;
-            }
+            st.DaysOfWeek = daysOfWeek ?? AllDaysOfTheWeek;
 
-            if (startTimeOfDayUtc != null)
-            {
-                st.StartTimeOfDay = startTimeOfDayUtc;
-            }
-            else
-            {
-                st.StartTimeOfDay = TimeOfDay.HourAndMinuteOfDay(0, 0);
-            }
+            st.StartTimeOfDay = startTimeOfDayUtc ?? TimeOfDay.HourAndMinuteOfDay(0, 0);
 
-            if (endTimeOfDayUtc != null)
-            {
-                st.EndTimeOfDay = endTimeOfDayUtc;
-            }
-            else
-            {
-                st.EndTimeOfDay = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59);
-            }
+            st.EndTimeOfDay = endTimeOfDayUtc ?? TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59);
 
             return st;
         }
@@ -202,7 +187,7 @@ namespace Quartz
 
             ValidateInterval(interval);
             this.interval = interval;
-            this.intervalUnit = unit;
+            intervalUnit = unit;
             return this;
         }
 
@@ -269,7 +254,7 @@ namespace Quartz
                 }
             }
 
-            this.daysOfWeek = onDaysOfWeek;
+            daysOfWeek = onDaysOfWeek;
             return this;
         }
 
@@ -370,21 +355,19 @@ namespace Quartz
             DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today).Value;
             TimeSpan remainingMillisInDay = maxEndTimeOfDayDate - startTimeOfDayDate;
             TimeSpan intervalInMillis = TimeSpan.Zero;
-            if (intervalUnit == IntervalUnit.Second)
+            switch (intervalUnit)
             {
-                intervalInMillis = TimeSpan.FromSeconds(interval);
-            }
-            else if (intervalUnit == IntervalUnit.Minute)
-            {
-                intervalInMillis = TimeSpan.FromSeconds(interval * 60);
-            }
-            else if (intervalUnit == IntervalUnit.Hour)
-            {
-                intervalInMillis = TimeSpan.FromSeconds(interval * 60 * 24);
-            }
-            else
-            {
-                throw new ArgumentException("The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
+                case IntervalUnit.Second:
+                    intervalInMillis = TimeSpan.FromSeconds(interval);
+                    break;
+                case IntervalUnit.Minute:
+                    intervalInMillis = TimeSpan.FromSeconds(interval * 60);
+                    break;
+                case IntervalUnit.Hour:
+                    intervalInMillis = TimeSpan.FromSeconds(interval * 60 * 24);
+                    break;
+                default:
+                    throw new ArgumentException("The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
             }
 
             if (remainingMillisInDay < intervalInMillis)

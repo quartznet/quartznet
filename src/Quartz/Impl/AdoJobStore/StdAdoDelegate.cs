@@ -24,6 +24,7 @@ using System.Collections.Specialized;
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 
 using Common.Logging;
@@ -135,30 +136,13 @@ namespace Quartz.Impl.AdoJobStore
 
         public virtual ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(IOperableTrigger trigger)
         {
-            foreach (ITriggerPersistenceDelegate del in triggerPersistenceDelegates)
-            {
-                if (del.CanHandleTriggerType(trigger))
-                {
-                    return del;
-                }
-            }
-
-            return null;
+            return triggerPersistenceDelegates.FirstOrDefault(del => del.CanHandleTriggerType(trigger));
         }
 
         public virtual ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(string discriminator)
         {
-            foreach (ITriggerPersistenceDelegate del in triggerPersistenceDelegates)
-            {
-                if (del.GetHandledTriggerTypeDiscriminator().Equals(discriminator))
-                {
-                    return del;
-                }
-            }
-
-            return null;
+            return triggerPersistenceDelegates.FirstOrDefault(del => del.GetHandledTriggerTypeDiscriminator().Equals(discriminator));
         }
-
 
         //---------------------------------------------------------------------------
         // startup / recovery
@@ -398,12 +382,15 @@ namespace Quartz.Impl.AdoJobStore
                         // string trigGroup = rs.GetString(ColumnTriggerGroup);
                         int priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
                         DateTimeOffset firedTime = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
-                        SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
-                                              SchedulerConstants.DefaultRecoveryGroup, firedTime);
-                        rcvryTrig.JobName = jobName;
-                        rcvryTrig.JobGroup = jobGroup;
-                        rcvryTrig.Priority = priority;
-                        rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+                        SimpleTriggerImpl rcvryTrig =
+                            new SimpleTriggerImpl("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
+                                                  SchedulerConstants.DefaultRecoveryGroup, firedTime)
+                                {
+                                    JobName = jobName,
+                                    JobGroup = jobGroup,
+                                    Priority = priority,
+                                    MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow
+                                };
 
                         list.Add(rcvryTrig);
                     }
@@ -780,14 +767,17 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (rs.Read())
                     {
-                        job = new JobDetailImpl();
+                        job =
+                            new JobDetailImpl
+                                {
+                                    Name = rs.GetString(ColumnJobName),
+                                    Group = rs.GetString(ColumnJobGroup),
+                                    Description = rs.GetString(ColumnDescription),
+                                    JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass)),
+                                    Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]),
+                                    RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery])
+                                };
 
-                        job.Name = rs.GetString(ColumnJobName);
-                        job.Group = rs.GetString(ColumnJobGroup);
-                        job.Description = rs.GetString(ColumnDescription);
-                        job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass));
-                        job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
-                        job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
 
                         IDictionary map = CanUseProperties ? GetMapFromProperties(rs, 6) : GetObjectFromBlob<IDictionary>(rs, 6);
 
@@ -946,14 +936,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstruction);
 
                 paramName = "triggerJobJobDataMap";
-                if (baos != null)
-                {
-                    AddCommandParameter(cmd, paramName, baos, dbProvider.Metadata.DbBinaryType);
-                }
-                else
-                {
-                    AddCommandParameter(cmd, paramName, null, dbProvider.Metadata.DbBinaryType);
-                }
+                AddCommandParameter(cmd, paramName, baos, dbProvider.Metadata.DbBinaryType);
                 AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
 
                 int insertResult = cmd.ExecuteNonQuery();
@@ -1010,16 +993,7 @@ namespace Quartz.Impl.AdoJobStore
                 baos = SerializeJobData(trigger.JobDataMap);
             }
 
-            IDbCommand cmd;
-
-            if (updateJobData)
-            {
-                cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTrigger));
-            }
-            else
-            {
-                cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerSkipData));
-            }
+            IDbCommand cmd = PrepareCommand(conn, updateJobData ? ReplaceTablePrefix(SqlUpdateTrigger) : ReplaceTablePrefix(SqlUpdateTriggerSkipData));
 
             AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
             AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
@@ -1047,14 +1021,7 @@ namespace Quartz.Impl.AdoJobStore
             const string JobDataMapParameter = "triggerJobJobDataMap";
             if (updateJobData)
             {
-                if (baos != null)
-                {
-                    AddCommandParameter(cmd, JobDataMapParameter, baos, dbProvider.Metadata.DbBinaryType);
-                }
-                else
-                {
-                    AddCommandParameter(cmd, JobDataMapParameter, null, dbProvider.Metadata.DbBinaryType);
-                }
+                AddCommandParameter(cmd, JobDataMapParameter, baos, dbProvider.Metadata.DbBinaryType);
                 AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
             }
@@ -1319,12 +1286,9 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual void DeleteTriggerExtension(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            foreach (ITriggerPersistenceDelegate tDel in triggerPersistenceDelegates)
+            if (triggerPersistenceDelegates.Any(tDel => tDel.DeleteExtendedTriggerProperties(conn, triggerKey) > 0))
             {
-                if (tDel.DeleteExtendedTriggerProperties(conn, triggerKey) > 0)
-                {
-                    return; // as soon as one affects a row, we're done.
-                }
+                return; // as soon as one affects a row, we're done.
             }
 
             DeleteBlobTrigger(conn, triggerKey);
@@ -1371,12 +1335,15 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        JobDetailImpl job = new JobDetailImpl();
-                        job.Name = rs.GetString(ColumnJobName);
-                        job.Group = rs.GetString(ColumnJobGroup);
-                        job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
-                        job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass));
-                        job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
+                        JobDetailImpl job =
+                            new JobDetailImpl
+                                {
+                                    Name = rs.GetString(ColumnJobName),
+                                    Group = rs.GetString(ColumnJobGroup),
+                                    Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]),
+                                    JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass)),
+                                    RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery])
+                                };
 
                         return job;
                     }
@@ -1400,7 +1367,6 @@ namespace Quartz.Impl.AdoJobStore
         /// </returns>
         public virtual IList<IOperableTrigger> SelectTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
-            List<IOperableTrigger> trigList = new List<IOperableTrigger>();
             List<TriggerKey> keys = new List<TriggerKey>();
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForJob)))
@@ -1417,17 +1383,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
 
-            foreach (TriggerKey triggerKey in keys)
-            {
-                IOperableTrigger t = SelectTrigger(conn, triggerKey);
-
-                if (t != null)
-                {
-                    trigList.Add(t);
-                }
-            }
-
-            return trigList;
+            return keys.Select(triggerKey => SelectTrigger(conn, triggerKey)).Where(t => t != null).ToList();
         }
 
 
@@ -1454,14 +1410,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
 
-            List<IOperableTrigger> trigList = new List<IOperableTrigger>();
-            foreach (TriggerKey key in keys)
-            {
-                trigList.Add(SelectTrigger(conn, key));
-
-            }
-
-            return trigList;
+            return keys.Select(key => SelectTrigger(conn, key)).ToList();
         }
 
         /// <summary>
@@ -1473,7 +1422,6 @@ namespace Quartz.Impl.AdoJobStore
         public virtual IOperableTrigger SelectTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             IOperableTrigger trigger = null;
-            string triggerType;
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
             {
@@ -1487,7 +1435,7 @@ namespace Quartz.Impl.AdoJobStore
                         string jobName = rs.GetString(ColumnJobName);
                         string jobGroup = rs.GetString(ColumnJobGroup);
                         string description = rs.GetString(ColumnDescription);
-                        triggerType = rs.GetString(ColumnTriggerType);
+                        string triggerType = rs.GetString(ColumnTriggerType);
                         string calendarName = rs.GetString(ColumnCalendarName);
                         int misFireInstr = rs.GetInt32(ColumnMifireInstruction);
                         int priority = rs.GetInt32(ColumnPriority);
@@ -1587,15 +1535,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        IDictionary map;
-                        if (CanUseProperties)
-                        {
-                            map = GetMapFromProperties(rs, 0);
-                        }
-                        else
-                        {
-                            map = GetObjectFromBlob<IDictionary>(rs, 0);
-                        }
+                        IDictionary map = CanUseProperties ? GetMapFromProperties(rs, 0) : GetObjectFromBlob<IDictionary>(rs, 0);
 
                         if (map != null)
                         {
@@ -1625,14 +1565,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    if (rs.Read())
-                    {
-                        state = rs.GetString(ColumnTriggerState);
-                    }
-                    else
-                    {
-                        state = StateDeleted;
-                    }
+                    state = rs.Read() ? rs.GetString(ColumnTriggerState) : StateDeleted;
                 }
                 return String.Intern(state);
             }
@@ -1665,9 +1598,12 @@ namespace Quartz.Impl.AdoJobStore
 
                         DateTimeOffset? nft = GetDateTimeFromDbValue(nextFireTime);
 
-                        status = new TriggerStatus(state, nft);
-                        status.Key = triggerKey;
-                        status.JobKey = new JobKey(jobName, jobGroup);
+                        status =
+                            new TriggerStatus(state, nft)
+                                {
+                                    Key = triggerKey,
+                                    JobKey = new JobKey(jobName, jobGroup)
+                                };
                     }
                 }
                 return status;
@@ -2244,14 +2180,17 @@ namespace Quartz.Impl.AdoJobStore
             {
                 while (rs.Read())
                 {
-                    FiredTriggerRecord rec = new FiredTriggerRecord();
+                    FiredTriggerRecord rec =
+                        new FiredTriggerRecord
+                            {
+                                FireInstanceId = rs.GetString(ColumnEntryId),
+                                FireInstanceState = rs.GetString(ColumnEntryState),
+                                FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue,
+                                Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture),
+                                SchedulerInstanceId = rs.GetString(ColumnInstanceName),
+                                TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup))
+                            };
 
-                    rec.FireInstanceId = rs.GetString(ColumnEntryId);
-                    rec.FireInstanceState = rs.GetString(ColumnEntryState);
-                    rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
-                    rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
-                    rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
-                    rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                     if (!rec.FireInstanceState.Equals(StateAcquired))
                     {
                         rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
@@ -2294,14 +2233,17 @@ namespace Quartz.Impl.AdoJobStore
             {
                 while (rs.Read())
                 {
-                    FiredTriggerRecord rec = new FiredTriggerRecord();
+                    FiredTriggerRecord rec =
+                        new FiredTriggerRecord
+                            {
+                                FireInstanceId = rs.GetString(ColumnEntryId),
+                                FireInstanceState = rs.GetString(ColumnEntryState),
+                                FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue,
+                                Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture),
+                                SchedulerInstanceId = rs.GetString(ColumnInstanceName),
+                                TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup))
+                            };
 
-                    rec.FireInstanceId = rs.GetString(ColumnEntryId);
-                    rec.FireInstanceState = rs.GetString(ColumnEntryState);
-                    rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
-                    rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
-                    rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
-                    rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                     if (!rec.FireInstanceState.Equals(StateAcquired))
                     {
                         rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
@@ -2333,13 +2275,16 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     while (rs.Read())
                     {
-                        FiredTriggerRecord rec = new FiredTriggerRecord();
+                        FiredTriggerRecord rec =
+                            new FiredTriggerRecord
+                                {
+                                    FireInstanceId = rs.GetString(ColumnEntryId),
+                                    FireInstanceState = rs.GetString(ColumnEntryState),
+                                    FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue,
+                                    SchedulerInstanceId = rs.GetString(ColumnInstanceName),
+                                    TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup))
+                                };
 
-                        rec.FireInstanceId = rs.GetString(ColumnEntryId);
-                        rec.FireInstanceState = rs.GetString(ColumnEntryState);
-                        rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
-                        rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
-                        rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                         if (!rec.FireInstanceState.Equals(StateAcquired))
                         {
                             rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
@@ -2510,10 +2455,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 while (rs.Read())
                 {
-                    SchedulerStateRecord rec = new SchedulerStateRecord();
-                    rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
-                    rec.CheckinTimestamp = GetDateTimeFromDbValue(rs[ColumnLastCheckinTime]) ?? DateTimeOffset.MinValue;
-                    rec.CheckinInterval = GetTimeSpanFromDbValue(rs[ColumnCheckinInterval]) ?? TimeSpan.Zero;
+                    SchedulerStateRecord rec =
+                        new SchedulerStateRecord
+                            {
+                                SchedulerInstanceId = rs.GetString(ColumnInstanceName),
+                                CheckinTimestamp = GetDateTimeFromDbValue(rs[ColumnLastCheckinTime]) ?? DateTimeOffset.MinValue,
+                                CheckinInterval = GetTimeSpanFromDbValue(rs[ColumnCheckinInterval]) ?? TimeSpan.Zero
+                            };
                     list.Add(rec);
                 }
             }
@@ -2537,14 +2485,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected string SchedulerNameLiteral
         {
-            get
-            {
-                if (schedNameLiteral == null)
-                {
-                    schedNameLiteral = "'" + schedName + "'";
-                }
-                return schedNameLiteral;
-            }
+            get { return schedNameLiteral ?? (schedNameLiteral = string.Format("'{0}'", schedName)); }
         }
 
 
@@ -2585,7 +2526,7 @@ namespace Quartz.Impl.AdoJobStore
                 throw new SerializationException(
                     "Unable to serialize JobDataMap for insertion into " +
                     "database because the value of property '" +
-                    GetKeyOfNonSerializableValue((IDictionary) data) +
+                    GetKeyOfNonSerializableValue(data) +
                     "' is not serializable: " + e.Message);
             }
         }

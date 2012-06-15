@@ -23,25 +23,25 @@ using System.Runtime.Serialization;
 
 namespace Quartz
 {
-	/// <summary>
-	/// An exception that is thrown to indicate that an attempt to store a new
-	/// object (i.e. <see cref="IJobDetail" />,<see cref="ITrigger" />
-	/// or <see cref="ICalendar" />) in a <see cref="IScheduler" />
-	/// failed, because one with the same name and group already exists.
-	/// </summary>
-	/// <author>James House</author>
+    /// <summary>
+    /// An exception that is thrown to indicate that an attempt to store a new
+    /// object (i.e. <see cref="IJobDetail" />,<see cref="ITrigger" />
+    /// or <see cref="ICalendar" />) in a <see cref="IScheduler" />
+    /// failed, because one with the same name and group already exists.
+    /// </summary>
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public class ObjectAlreadyExistsException : JobPersistenceException
-	{
-		/// <summary> <para>
-		/// Create a <see cref="ObjectAlreadyExistsException" /> with the given
-		/// message.
-		/// </para>
-		/// </summary>
-		public ObjectAlreadyExistsException(string msg) : base(msg)
-		{
-		}
+    public class ObjectAlreadyExistsException : JobPersistenceException
+    {
+        /// <summary> <para>
+        /// Create a <see cref="ObjectAlreadyExistsException" /> with the given
+        /// message.
+        /// </para>
+        /// </summary>
+        public ObjectAlreadyExistsException(string msg) : base(msg)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectAlreadyExistsException"/> class.
@@ -54,34 +54,34 @@ namespace Quartz
         {
         }
 
-		/// <summary> <para>
-		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
-		/// message using the name/group from the given <see cref="IJobDetail" />.
-		/// </para>
-		/// 
-		/// <para>
-		/// The message will read: <br />"Unable to store Job with name: '__' and
-		/// group: '__', because one already exists with this identification."
-		/// </para>
-		/// </summary>
+        /// <summary> <para>
+        /// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
+        /// message using the name/group from the given <see cref="IJobDetail" />.
+        /// </para>
+        /// 
+        /// <para>
+        /// The message will read: <br />"Unable to store Job with name: '__' and
+        /// group: '__', because one already exists with this identification."
+        /// </para>
+        /// </summary>
         public ObjectAlreadyExistsException(IJobDetail offendingJob)
-			: base(string.Format(CultureInfo.InvariantCulture, "Unable to store Job: '{0}', because one already exists with this identification.", offendingJob.Key))
-		{
-		}
+            : base(string.Format(CultureInfo.InvariantCulture, "Unable to store Job: '{0}', because one already exists with this identification.", offendingJob.Key))
+        {
+        }
 
-		/// <summary> <para>
-		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
-		/// message using the name/group from the given <see cref="ITrigger" />.
-		/// </para>
-		/// 
-		/// <para>
-		/// The message will read: <br />"Unable to store Trigger with name: '__' and
-		/// group: '__', because one already exists with this identification."
-		/// </para>
-		/// </summary>
-		public ObjectAlreadyExistsException(ITrigger offendingTrigger)
-			: base(string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger: '{0}', because one already exists with this identification.", offendingTrigger.Key))
-		{
-		}
-	}
+        /// <summary> <para>
+        /// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
+        /// message using the name/group from the given <see cref="ITrigger" />.
+        /// </para>
+        /// 
+        /// <para>
+        /// The message will read: <br />"Unable to store Trigger with name: '__' and
+        /// group: '__', because one already exists with this identification."
+        /// </para>
+        /// </summary>
+        public ObjectAlreadyExistsException(ITrigger offendingTrigger)
+            : base(string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger: '{0}', because one already exists with this identification.", offendingTrigger.Key))
+        {
+        }
+    }
 }

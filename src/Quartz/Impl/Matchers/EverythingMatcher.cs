@@ -65,7 +65,7 @@ namespace Quartz.Impl.Matchers
                 return false;
             }
 
-            return obj.GetType().Equals(GetType());
+            return obj.GetType() == GetType();
         }
 
         public override int GetHashCode()

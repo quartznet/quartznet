@@ -22,30 +22,30 @@ using Quartz.Impl;
 
 namespace Quartz
 {
-	/// <summary>
-	/// Provides a mechanism for obtaining client-usable handles to <see cref="IScheduler" />
-	/// instances.
-	/// </summary>
-	/// <seealso cref="IScheduler" />
-	/// <seealso cref="StdSchedulerFactory" />
-	/// <author>James House</author>
+    /// <summary>
+    /// Provides a mechanism for obtaining client-usable handles to <see cref="IScheduler" />
+    /// instances.
+    /// </summary>
+    /// <seealso cref="IScheduler" />
+    /// <seealso cref="StdSchedulerFactory" />
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface ISchedulerFactory
-	{
-		/// <summary>
-		/// Returns handles to all known Schedulers (made by any SchedulerFactory
-		/// within this app domain.).
-		/// </summary>
-		ICollection<IScheduler> AllSchedulers { get; }
+    {
+        /// <summary>
+        /// Returns handles to all known Schedulers (made by any SchedulerFactory
+        /// within this app domain.).
+        /// </summary>
+        ICollection<IScheduler> AllSchedulers { get; }
 
-		/// <summary>
-		/// Returns a client-usable handle to a <see cref="IScheduler" />.
-		/// </summary>
-		IScheduler GetScheduler();
+        /// <summary>
+        /// Returns a client-usable handle to a <see cref="IScheduler" />.
+        /// </summary>
+        IScheduler GetScheduler();
 
-		/// <summary>
-		/// Returns a handle to the Scheduler with the given name, if it exists.
-		/// </summary>
-		IScheduler GetScheduler(string schedName);
-	}
+        /// <summary>
+        /// Returns a handle to the Scheduler with the given name, if it exists.
+        /// </summary>
+        IScheduler GetScheduler(string schedName);
+    }
 }

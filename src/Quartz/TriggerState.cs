@@ -30,7 +30,7 @@ namespace Quartz
         /// </summary>
         Normal,
 
-	   /// <summary>
+       /// <summary>
         /// Indicates that the <see cref="ITrigger" /> is in the "paused" state.
         /// </summary>
         Paused,
@@ -73,7 +73,7 @@ namespace Quartz
         /// <seealso cref="DisallowConcurrentExecutionAttribute" />
         Blocked,
 
-		/// <summary>
+        /// <summary>
         /// Indicates that the <see cref="ITrigger" /> does not exist.
         /// </summary>
         None

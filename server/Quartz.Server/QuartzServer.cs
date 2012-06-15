@@ -5,117 +5,117 @@ using Quartz.Impl;
 
 namespace Quartz.Server
 {
-	/// <summary>
-	/// The main server logic.
-	/// </summary>
-	public class QuartzServer : IQuartzServer
-	{
-		private readonly ILog logger;
-		private ISchedulerFactory schedulerFactory;
-		private IScheduler scheduler;
+    /// <summary>
+    /// The main server logic.
+    /// </summary>
+    public class QuartzServer : IQuartzServer
+    {
+        private readonly ILog logger;
+        private ISchedulerFactory schedulerFactory;
+        private IScheduler scheduler;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="QuartzServer"/> class.
         /// </summary>
-	    public QuartzServer()
-	    {
-	        logger = LogManager.GetLogger(GetType());
-	    }
+        public QuartzServer()
+        {
+            logger = LogManager.GetLogger(GetType());
+        }
 
-	    /// <summary>
-		/// Initializes the instance of the <see cref="QuartzServer"/> class.
-		/// </summary>
-		public virtual void Initialize()
-		{
-			try
-			{				
-				schedulerFactory = CreateSchedulerFactory();
-				scheduler = GetScheduler();
-			}
-			catch (Exception e)
-			{
-				logger.Error("Server initialization failed:" + e.Message, e);
-				throw;
-			}
-		}
+        /// <summary>
+        /// Initializes the instance of the <see cref="QuartzServer"/> class.
+        /// </summary>
+        public virtual void Initialize()
+        {
+            try
+            {				
+                schedulerFactory = CreateSchedulerFactory();
+                scheduler = GetScheduler();
+            }
+            catch (Exception e)
+            {
+                logger.Error("Server initialization failed:" + e.Message, e);
+                throw;
+            }
+        }
 
         /// <summary>
         /// Gets the scheduler with which this server should operate with.
         /// </summary>
         /// <returns></returns>
-	    protected virtual IScheduler GetScheduler()
-	    {
-	        return schedulerFactory.GetScheduler();
-	    }
+        protected virtual IScheduler GetScheduler()
+        {
+            return schedulerFactory.GetScheduler();
+        }
 
         /// <summary>
         /// Returns the current scheduler instance (usually created in <see cref="Initialize" />
         /// using the <see cref="GetScheduler" /> method).
         /// </summary>
-	    protected virtual IScheduler Scheduler
-	    {
-	        get { return scheduler; }
-	    }
+        protected virtual IScheduler Scheduler
+        {
+            get { return scheduler; }
+        }
 
-	    /// <summary>
+        /// <summary>
         /// Creates the scheduler factory that will be the factory
         /// for all schedulers on this instance.
         /// </summary>
         /// <returns></returns>
-	    protected virtual ISchedulerFactory CreateSchedulerFactory()
-	    {
-	        return new StdSchedulerFactory();
-	    }
+        protected virtual ISchedulerFactory CreateSchedulerFactory()
+        {
+            return new StdSchedulerFactory();
+        }
 
-	    /// <summary>
-		/// Starts this instance, delegates to scheduler.
-		/// </summary>
-		public virtual void Start()
-		{
-			scheduler.Start();
+        /// <summary>
+        /// Starts this instance, delegates to scheduler.
+        /// </summary>
+        public virtual void Start()
+        {
+            scheduler.Start();
 
-			try 
-			{
-				Thread.Sleep(3000);
-			} 
-			catch (ThreadInterruptedException) 
-			{
-			}
+            try 
+            {
+                Thread.Sleep(3000);
+            } 
+            catch (ThreadInterruptedException) 
+            {
+            }
 
-			logger.Info("Scheduler started successfully");
-		}
+            logger.Info("Scheduler started successfully");
+        }
 
-		/// <summary>
-		/// Stops this instance, delegates to scheduler.
-		/// </summary>
-		public virtual void Stop()
-		{
-			scheduler.Shutdown(true);
-			logger.Info("Scheduler shutdown complete");
-		}
+        /// <summary>
+        /// Stops this instance, delegates to scheduler.
+        /// </summary>
+        public virtual void Stop()
+        {
+            scheduler.Shutdown(true);
+            logger.Info("Scheduler shutdown complete");
+        }
 
         /// <summary>
         /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
         /// </summary>
-	    public virtual void Dispose()
-	    {
-	        // no-op for now
-	    }
+        public virtual void Dispose()
+        {
+            // no-op for now
+        }
 
         /// <summary>
         /// Pauses all activity in scheudler.
         /// </summary>
-	    public virtual void Pause()
-	    {
-	        scheduler.PauseAll();
-	    }
+        public virtual void Pause()
+        {
+            scheduler.PauseAll();
+        }
 
         /// <summary>
         /// Resumes all acitivity in server.
         /// </summary>
-	    public void Resume()
-	    {
-	        scheduler.ResumeAll();
-	    }
-	}
+        public void Resume()
+        {
+            scheduler.ResumeAll();
+        }
+    }
 }

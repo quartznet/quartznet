@@ -39,6 +39,5 @@ namespace Quartz.Server
 
             host.Run();
         }
-
     }
 }

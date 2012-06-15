@@ -24,71 +24,71 @@ using System.Text;
 
 namespace Quartz.Xml
 {
-	/// <summary> 
-	/// Reports JobSchedulingDataProcessor validation exceptions.
-	/// </summary>
-	/// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
+    /// <summary> 
+    /// Reports JobSchedulingDataProcessor validation exceptions.
+    /// </summary>
+    /// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-	public class ValidationException : Exception
-	{
-		private readonly ICollection<Exception> validationExceptions = new List<Exception>();
+    public class ValidationException : Exception
+    {
+        private readonly ICollection<Exception> validationExceptions = new List<Exception>();
 
-		/// <summary>
-		/// Gets the validation exceptions.
-		/// </summary>
-		/// <value>The validation exceptions.</value>
-		public virtual ICollection<Exception> ValidationExceptions
-		{
-			get { return validationExceptions; }
-		}
+        /// <summary>
+        /// Gets the validation exceptions.
+        /// </summary>
+        /// <value>The validation exceptions.</value>
+        public virtual ICollection<Exception> ValidationExceptions
+        {
+            get { return validationExceptions; }
+        }
 
-		/// <summary>
-		/// Returns the detail message string.
-		/// </summary>
-		public override string Message
-		{
-			get
-			{
-				if (ValidationExceptions.Count == 0)
-				{
-					return base.Message;
-				}
+        /// <summary>
+        /// Returns the detail message string.
+        /// </summary>
+        public override string Message
+        {
+            get
+            {
+                if (ValidationExceptions.Count == 0)
+                {
+                    return base.Message;
+                }
 
-				StringBuilder sb = new StringBuilder();
+                StringBuilder sb = new StringBuilder();
 
-				foreach (Exception e in ValidationExceptions)
-				{
-					sb.AppendLine(e.Message);
-				}
+                foreach (Exception e in ValidationExceptions)
+                {
+                    sb.AppendLine(e.Message);
+                }
 
-				return sb.ToString();
-			}
-		}
+                return sb.ToString();
+            }
+        }
 
-		/// <summary>
-		/// Constructor for ValidationException.
-		/// </summary>
-		public ValidationException()    
-		{
-		}
+        /// <summary>
+        /// Constructor for ValidationException.
+        /// </summary>
+        public ValidationException()    
+        {
+        }
 
-		/// <summary>
-		/// Constructor for ValidationException.
-		/// </summary>
-		/// <param name="message">exception message.</param>
-		public ValidationException(string message) : base(message)
-		{
-		}
+        /// <summary>
+        /// Constructor for ValidationException.
+        /// </summary>
+        /// <param name="message">exception message.</param>
+        public ValidationException(string message) : base(message)
+        {
+        }
 
-		/// <summary>
-		/// Constructor for ValidationException.
-		/// </summary>
-		/// <param name="errors">collection of validation exceptions.</param>
-		public ValidationException(IEnumerable<Exception> errors) : this()
-		{
-			validationExceptions = new List<Exception>(errors).AsReadOnly();
-		}
+        /// <summary>
+        /// Constructor for ValidationException.
+        /// </summary>
+        /// <param name="errors">collection of validation exceptions.</param>
+        public ValidationException(IEnumerable<Exception> errors) : this()
+        {
+            validationExceptions = new List<Exception>(errors).AsReadOnly();
+        }
 
                 /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
@@ -100,5 +100,5 @@ namespace Quartz.Xml
         protected ValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-	}
+    }
 }

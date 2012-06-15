@@ -25,15 +25,15 @@ using Quartz.Spi;
 
 namespace Quartz.Core
 {
-	/// <summary> 
-	/// An interface to be used by <see cref="IJobStore" /> instances in order to
-	/// communicate signals back to the <see cref="QuartzScheduler" />.
-	/// </summary>
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	public class SchedulerSignalerImpl : ISchedulerSignaler
-	{
-		private ILog log = LogManager.GetLogger(typeof (SchedulerSignalerImpl));
+    /// <summary> 
+    /// An interface to be used by <see cref="IJobStore" /> instances in order to
+    /// communicate signals back to the <see cref="QuartzScheduler" />.
+    /// </summary>
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+    public class SchedulerSignalerImpl : ISchedulerSignaler
+    {
+        private readonly ILog log = LogManager.GetLogger(typeof (SchedulerSignalerImpl));
         protected QuartzScheduler sched;
         protected QuartzSchedulerThread schedThread;
 
@@ -51,17 +51,17 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="trigger">The trigger that misfired.</param>
         public virtual void NotifyTriggerListenersMisfired(ITrigger trigger)
-		{
-			try
-			{
-				sched.NotifyTriggerListenersMisfired(trigger);
-			}
-			catch (SchedulerException se)
-			{
-				log.Error("Error notifying listeners of trigger misfire.", se);
-				sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se);
-			}
-		}
+        {
+            try
+            {
+                sched.NotifyTriggerListenersMisfired(trigger);
+            }
+            catch (SchedulerException se)
+            {
+                log.Error("Error notifying listeners of trigger misfire.", se);
+                sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se);
+            }
+        }
 
 
         /// <summary>
@@ -73,9 +73,9 @@ namespace Quartz.Core
             sched.NotifySchedulerListenersFinalized(trigger);
         }
 
-		/// <summary>
-		/// Signals the scheduling change.
-		/// </summary>
+        /// <summary>
+        /// Signals the scheduling change.
+        /// </summary>
         public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTime)
         {
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
@@ -86,5 +86,5 @@ namespace Quartz.Core
         {
             sched.NotifySchedulerListenersJobDeleted(jobKey);
         }
-	}
+    }
 }
