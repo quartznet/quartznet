@@ -144,6 +144,10 @@ namespace Quartz.Tests.Unit
             {
             }
 
+            public void SchedulerStarting()
+            {
+            }
+
             public void SchedulerShutdown()
             {
             }

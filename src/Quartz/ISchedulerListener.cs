@@ -147,6 +147,11 @@ namespace Quartz
         /// </summary>
         void SchedulerStarted();
 
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> to inform the listener that it is starting.
+        /// </summary>
+        void SchedulerStarting();
+
 		/// <summary> 
 		/// Called by the <see cref="IScheduler" /> to inform the listener
 		/// that it has Shutdown.

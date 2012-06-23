@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System.Collections.Generic;
@@ -43,7 +45,6 @@ namespace Quartz.Listener
             listeners = new List<ISchedulerListener>();
         }
 
-
         /// <summary>
         /// Construct an instance with the given List of listeners.
         /// </summary>
@@ -52,7 +53,6 @@ namespace Quartz.Listener
         {
             this.listeners.AddRange(listeners);
         }
-
 
         public void AddListener(ISchedulerListener listener)
         {
@@ -68,8 +68,7 @@ namespace Quartz.Listener
         {
             return listeners.AsReadOnly();
         }
-
-
+        
         public void JobAdded(IJobDetail jobDetail)
         {
             foreach (ISchedulerListener listener in listeners)
@@ -195,6 +194,14 @@ namespace Quartz.Listener
             foreach (ISchedulerListener listener in listeners)
             {
                 listener.SchedulerStarted();
+            }
+        }
+
+        public void SchedulerStarting()
+        {
+            foreach (ISchedulerListener listener in listeners)
+            {
+                listener.SchedulerStarting();
             }
         }
 

@@ -112,6 +112,10 @@ namespace Quartz.Listener
         public virtual void SchedulerStarted()
         {
         }
+        
+        public void SchedulerStarting()
+        {
+        }
 
         public virtual void SchedulerShutdown()
         {

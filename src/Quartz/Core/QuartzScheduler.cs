@@ -433,6 +433,8 @@ namespace Quartz.Core
                 throw new SchedulerException("The Scheduler cannot be restarted after Shutdown() has been called.");
             }
 
+            NotifySchedulerListenersStarting();
+
             if (!initialStart.HasValue)
             {
                 initialStart = SystemTime.UtcNow();
@@ -2178,7 +2180,7 @@ namespace Quartz.Core
             }
         }
 
-        public void NotifySchedulerListenersStarted()
+        public virtual void NotifySchedulerListenersStarted()
         {
             // notify all scheduler listeners
             foreach (ISchedulerListener listener in BuildSchedulerListenerList())
@@ -2190,6 +2192,25 @@ namespace Quartz.Core
                 catch (Exception e)
                 {
                     log.Error("Error while notifying SchedulerListener of startup.", e);
+                }
+            }
+        }
+
+        public virtual void NotifySchedulerListenersStarting()
+        {
+            // build a list of all scheduler listeners that are to be notified...
+            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+
+            // notify all scheduler listeners
+            foreach (ISchedulerListener sl in schedListeners)
+            {
+                try
+                {
+                    sl.SchedulerStarting();
+                }
+                catch (Exception e)
+                {
+                    log.Error("Error while notifying SchedulerListener of scheduler starting.", e);
                 }
             }
         }
