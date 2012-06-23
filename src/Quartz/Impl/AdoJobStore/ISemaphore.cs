@@ -40,19 +40,12 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		void ReleaseLock(ConnectionAndTransactionHolder conn, string lockName);
-
-		/// <summary> 
-		/// Determine whether the calling thread owns a lock on the identified
-		/// resource.
-		/// </summary>
-		bool IsLockOwner(ConnectionAndTransactionHolder conn, string lockName);
+		void ReleaseLock(string lockName);
 
         /// <summary>
         /// Whether this Semaphore implementation requires a database connection for
         /// its lock management operations.
         /// </summary>
-        /// <seealso cref="IsLockOwner" />
         /// <seealso cref="ObtainLock" />
         /// <seealso cref="ReleaseLock" />
         bool RequiresConnection {  get; }

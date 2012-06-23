@@ -82,7 +82,7 @@ namespace Quartz.Impl.AdoJobStore
 				if (log.IsDebugEnabled)
 					log.Debug("Lock '" + lockName + "' is desired by: " + Thread.CurrentThread.Name);
 
-				if (!IsLockOwner(conn, lockName))
+				if (!IsLockOwner(lockName))
 				{
 					if (log.IsDebugEnabled)
 					{
@@ -123,13 +123,13 @@ namespace Quartz.Impl.AdoJobStore
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		public virtual void ReleaseLock(ConnectionAndTransactionHolder conn, string lockName)
+		public virtual void ReleaseLock(string lockName)
 		{
 			lock (this)
 			{
 				lockName = String.Intern(lockName);
 
-				if (IsLockOwner(conn, lockName))
+				if (IsLockOwner(lockName))
 				{
 					if (log.IsDebugEnabled)
 					{
@@ -150,12 +150,11 @@ namespace Quartz.Impl.AdoJobStore
 		/// Determine whether the calling thread owns a lock on the identified
 		/// resource.
 		/// </summary>
-		public virtual bool IsLockOwner(ConnectionAndTransactionHolder conn, string lockName)
+		public virtual bool IsLockOwner(string lockName)
 		{
 			lock (this)
 			{
 				lockName = String.Intern(lockName);
-
 				return ThreadLocks.Contains(lockName);
 			}
 		}

@@ -661,13 +661,13 @@ namespace Quartz.Impl.AdoJobStore
         }
 
 
-        protected virtual void ReleaseLock(ConnectionAndTransactionHolder cth, string lockName, bool doIt)
+        protected virtual void ReleaseLock(string lockName, bool doIt)
         {
-            if (doIt && cth != null)
+            if (doIt)
             {
                 try
                 {
-                    LockHandler.ReleaseLock(cth, lockName);
+                    LockHandler.ReleaseLock(lockName);
                 }
                 catch (LockException le)
                 {
@@ -2832,7 +2832,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    ReleaseLock(conn, LockTriggerAccess, transOwner);
+                    ReleaseLock(LockTriggerAccess, transOwner);
                 }
                 finally
                 {
@@ -2931,13 +2931,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    ReleaseLock(conn, LockTriggerAccess, transOwner);
+                    ReleaseLock(LockTriggerAccess, transOwner);
                 }
                 finally
                 {
                     try
                     {
-                        ReleaseLock(conn, LockStateAccess, transStateOwner);
+                        ReleaseLock(LockStateAccess, transStateOwner);
                     }
                     finally
                     {
@@ -3471,7 +3471,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    ReleaseLock(conn, lockName, transOwner);
+                    ReleaseLock(lockName, transOwner);
                 }
                 finally
                 {

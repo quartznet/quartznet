@@ -159,7 +159,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    ReleaseLock(conn, LockTriggerAccess, transOwner);
+                    ReleaseLock(LockTriggerAccess, transOwner);
                 }
                 finally
                 {
