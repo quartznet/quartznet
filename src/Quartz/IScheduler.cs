@@ -323,8 +323,20 @@ namespace Quartz
         /// parameter is not set to true then an exception will be thrown.</para>
         /// </remarks>
         void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace);
-
-
+        
+        /// <summary>
+        /// Schedule the given job with the related set of triggers.
+        /// </summary>
+        /// <remarks>
+        /// If any of the given job or triggers already exist (or more
+        /// specifically, if the keys are not unique) and the replace 
+        /// parameter is not set to true then an exception will be thrown.
+        /// </remarks>
+        /// <param name="jobDetail"></param>
+        /// <param name="triggersForJob"></param>
+        /// <param name="replace"></param>
+        void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace);
+    
         /// <summary>
         /// Remove the indicated <see cref="ITrigger" /> from the scheduler.
         /// <para>If the related job does not have any other triggers, and the job is

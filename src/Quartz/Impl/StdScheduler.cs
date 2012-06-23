@@ -288,6 +288,11 @@ namespace Quartz.Impl
             sched.ScheduleJobs(triggersAndJobs, replace);
         }
 
+        public void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace)
+        {
+            sched.ScheduleJob(jobDetail, triggersForJob, replace);
+        }
+
         public bool UnscheduleJobs(IList<TriggerKey> triggerKeys)
         {
             return sched.UnscheduleJobs(triggerKeys);

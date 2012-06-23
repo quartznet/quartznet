@@ -909,6 +909,13 @@ namespace Quartz.Core
             }
         }
 
+        public void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace)
+        {
+            var  triggersAndJobs = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
+            triggersAndJobs.Add(jobDetail, triggersForJob);
+            ScheduleJobs(triggersAndJobs, replace);
+        }
+
         public bool UnscheduleJobs(IList<TriggerKey> triggerKeys)
         {
             ValidateState();

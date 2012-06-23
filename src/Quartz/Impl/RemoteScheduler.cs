@@ -285,6 +285,11 @@ namespace Quartz.Impl
             CallInGuard(x => x.ScheduleJobs(triggersAndJobs, replace));
         }
 
+        public void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace)
+        {
+            CallInGuard(x => x.ScheduleJob(jobDetail, triggersForJob, replace));
+        }
+
         public virtual bool UnscheduleJobs(IList<TriggerKey> triggerKeys)
         {
             return CallInGuard(x => x.UnscheduleJobs(triggerKeys));

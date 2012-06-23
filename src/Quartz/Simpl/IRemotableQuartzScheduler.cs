@@ -171,6 +171,8 @@ namespace Quartz.Simpl
         bool DeleteJobs(IList<JobKey> jobKeys);
 
         void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace);
+        
+        void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace);
 
         bool UnscheduleJobs(IList<TriggerKey> triggerKeys);
     }
