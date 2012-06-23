@@ -1159,7 +1159,7 @@ namespace Quartz.Impl.AdoJobStore
                     }));
         }
 
-        public void StoreJobsAndTriggers(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace)
+        public void StoreJobsAndTriggers(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace)
         {
             ExecuteInLock(
                 (LockOnInsert || replace) ? LockTriggerAccess : null,

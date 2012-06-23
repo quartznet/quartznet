@@ -280,7 +280,7 @@ namespace Quartz.Impl
             return CallInGuard(x => x.DeleteJobs(jobKeys));
         }
 
-        public virtual void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace)
+        public virtual void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace)
         {
             CallInGuard(x => x.ScheduleJobs(triggersAndJobs, replace));
         }

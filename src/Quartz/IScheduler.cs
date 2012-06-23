@@ -322,7 +322,7 @@ namespace Quartz
         /// specifically, if the keys are not unique) and the replace
         /// parameter is not set to true then an exception will be thrown.</para>
         /// </remarks>
-        void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace);
+        void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace);
 
 
         /// <summary>

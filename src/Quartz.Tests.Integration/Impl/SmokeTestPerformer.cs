@@ -159,10 +159,10 @@ namespace Quartz.Tests.Integration.Impl
                    scheduler.ScheduleJob(intervalTrigger);
 
                    // bulk operations
-                   IDictionary<IJobDetail, IList<ITrigger>> info = new Dictionary<IJobDetail, IList<ITrigger>>();
+                   var info = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
                    IJobDetail detail = new JobDetailImpl("job_" + count, schedId, typeof(SimpleRecoveryJob));
                    ITrigger simple = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
-                   List<ITrigger> triggers = new List<ITrigger>();
+                   var triggers = new Collection.HashSet<ITrigger>();
                    triggers.Add(simple);
                    info[detail] = triggers;
 

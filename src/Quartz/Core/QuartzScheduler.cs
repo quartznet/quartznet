@@ -858,7 +858,7 @@ namespace Quartz.Core
             return result;
         }
 
-        public void ScheduleJobs(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace)
+        public void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace)
         {
             ValidateState();
 
@@ -869,7 +869,7 @@ namespace Quartz.Core
                 {
                     continue;
                 }
-                IList<ITrigger> triggers = triggersAndJobs[job];
+                Collection.ISet<ITrigger> triggers = triggersAndJobs[job];
                 if (triggers == null) // this is possible because the job may be durable, and not yet be having triggers
                 {
                     continue;

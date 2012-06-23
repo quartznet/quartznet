@@ -127,7 +127,7 @@ namespace Quartz.Spi
         /// </param>
 		void StoreJob(IJobDetail newJob, bool replaceExisting);
 
-	    void StoreJobsAndTriggers(IDictionary<IJobDetail, IList<ITrigger>> triggersAndJobs, bool replace); 
+	    void StoreJobsAndTriggers(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace); 
 
         /// <summary>
         /// Remove (delete) the <see cref="IJob" /> with the given
