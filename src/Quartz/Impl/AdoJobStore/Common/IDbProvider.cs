@@ -30,6 +30,11 @@ namespace Quartz.Impl.AdoJobStore.Common
     public interface IDbProvider
     {
         /// <summary>
+        /// Initializes the db provider implementation.
+        /// </summary>
+        void Initialize();
+
+        /// <summary>
         /// Returns a new command object for executing SQL statments/Stored Procedures
         /// against the database.
         /// </summary>

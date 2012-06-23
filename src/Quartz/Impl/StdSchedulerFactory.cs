@@ -516,7 +516,7 @@ Please add configuration to your application config file to correctly initialize
                 throw initException;
             }
 
-                        // Set up any DataSources
+            // Set up any DataSources
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             string[] dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
@@ -548,6 +548,7 @@ Please add configuration to your application config file to correctly initialize
                         pp.UnderlyingProperties.Remove(PropertyDbProviderType);
 
                         ObjectUtils.SetObjectProperties(cp, pp.UnderlyingProperties);
+                        cp.Initialize();
                     }
                     catch (Exception e)
                     {
@@ -589,7 +590,8 @@ Please add configuration to your application config file to correctly initialize
                     try
                     {
                         DbProvider dbp = new DbProvider(dsProvider, dsConnectionString);
-						
+                        dbp.Initialize();
+
                         dbMgr = DBConnectionManager.Instance;
                         dbMgr.AddConnectionProvider(dsNames[i], dbp);
                     }
