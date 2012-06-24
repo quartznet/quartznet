@@ -89,7 +89,7 @@
 
     <copy todir="build\${target.framework}\${build.configuration}\Quartz\" flatten="true" >
       <fileset>
-        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="${common-logging-dll}" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
@@ -97,7 +97,8 @@
 
   </target>
 
-  <target name="compile-quartz">
+  <target name="compile-quartz" depends="determine-lib-dirs">
+  
     <csc
       target="library"
       output="${target.dir}\Quartz.dll"
@@ -135,7 +136,7 @@
         <include name="System.Runtime.Remoting.dll" />
         <include name="System.Web.dll" unless="${client-profile}" />
         <include name="System.Xml.dll" />
-        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="${common-logging-dll}" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
@@ -143,7 +144,7 @@
   </target>
 
 
-  <target name="build-examples" depends="build-quartz">
+  <target name="build-examples" depends="build-quartz, determine-lib-dirs">
 
     <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Examples\" />
 
@@ -167,7 +168,7 @@
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="${common-logging-dll}" />
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
@@ -176,7 +177,7 @@
     <copy todir="build\${target.framework}\${build.configuration}\Quartz.Examples\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.*" />
-        <include name="lib\2.0\Common.Logging.dll" />
+        <include name="${common-logging-dll}" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
@@ -203,7 +204,7 @@
     <call target="build-server-internal" />
   </target>  
 
-  <target name="build-server-internal" depends="build-quartz">
+  <target name="build-server-internal" depends="build-quartz, determine-lib-dirs">
 
     <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Server\" />
 
@@ -223,8 +224,8 @@
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\other\${target.framework}\TopShelf.dll" />
+        <include name="${common-logging-dll}" />
+        <include name="${topshelf-dll}" />
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
@@ -233,10 +234,10 @@
       <fileset>
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.pdb" />
-        <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\2.0\Common.Logging.Log4Net.dll" />
-        <include name="lib\other\log4net.dll" />
-        <include name="lib\other\${target.framework}\TopShelf.dll" />
+        <include name="${common-logging-dll}" />
+        <include name="${common-logging-log4net-dll}" />
+        <include name="${log4net-dll}" />
+        <include name="${topshelf-dll}" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
@@ -254,7 +255,7 @@
     <call target="build-tests-internal" />
   </target>
 
-  <target name="build-tests-internal" depends="build-quartz">
+  <target name="build-tests-internal" depends="build-quartz,determine-lib-dirs">
 
     <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Tests.${test.project}\" />
 
@@ -283,10 +284,10 @@
       <references>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\2.0\nunit.framework.dll" />
+        <include name="${common-logging-dll}" />
+        <include name="${nunit-dll}" />
+        <include name="${rhino-mocks-dll}" />
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
-        <include name="lib\2.0\Rhino.Mocks.dll"  />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
@@ -294,9 +295,9 @@
     <copy todir="build\${target.framework}\${build.configuration}\Quartz.Tests.${test.project}\" flatten="true" >
       <fileset>
         <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.*" />
-        <include name="lib\2.0\Common.Logging.dll" />
-        <include name="lib\2.0\nunit.framework.dll" />
-        <include name="lib\2.0\Rhino.Mocks.dll"  />
+        <include name="${common-logging-dll}" />
+        <include name="${nunit-dll}" />
+        <include name="${rhino-mocks-dll}" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
@@ -483,6 +484,19 @@
 
   </target>
 
+  <target name="determine-lib-dirs">
+	<property name="nuget-framework" value="net40" />
+	<property name="nuget-framework" value="net35" if="${target.framework == '3.5'}" /> 
+	<property name="common-logging-dll" value="packages/Common.Logging.2.1.1/lib/${nuget-framework}/Common.Logging.dll" />
+	<property name="common-logging-log4net-dll" value="packages/Common.Logging.Log4Net1211.2.1.1/lib/${nuget-framework}/Common.Logging.Log4Net1211.dll" />
+	<property name="nunit-dll" value="packages/NUnit.2.6.0.12054/lib/nunit.framework.dll" />
+	<property name="rhino-mocks-dll" value="packages/RhinoMocks.3.6.1/lib/net/Rhino.Mocks.dll" />
+	<property name="topshelf-dll" value="packages/TopShelf.2.3.0.0/lib/${nuget-framework}\Topshelf.dll" />
+	
+	<property name="log4net-dll" value="packages/log4net.1.2.11/lib/${nuget-framework}-full/log4net.dll" unless="${client-profile}" />
+	<property name="log4net-dll" value="packages/log4net.1.2.11/lib/${nuget-framework}-client/log4net.dll" if="${client-profile}" />
+  </target>
+  
   <target name="build-website">
 
     <loadtasks assembly="lib\other\Anakia.dll" verbose="true" />

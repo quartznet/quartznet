@@ -74,18 +74,17 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Common.Logging, Version=2.0.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
+    <Reference Include="Common.Logging, Version=2.1.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
+      <HintPath>..\..\packages\Common.Logging.2.1.1\lib\net35\Common.Logging.dll</HintPath>
     </Reference>
-    <Reference Include="Common.Logging.Log4Net, Version=2.0.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
+    <Reference Include="Common.Logging.Log4Net1211, Version=2.1.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\2.0\Common.Logging.Log4Net.dll</HintPath>
+      <HintPath>..\..\packages\Common.Logging.Log4Net1211.2.1.1\lib\net35\Common.Logging.Log4Net1211.dll</HintPath>
     </Reference>
-    <Reference Include="log4net, Version=1.2.10.0, Culture=neutral, PublicKeyToken=1b44e1d426115821">
+    <Reference Include="log4net, Version=1.2.11.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\other\log4net.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\packages\log4net.1.2.11\lib\net35-full\log4net.dll</HintPath>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>
@@ -100,9 +99,9 @@
     <Reference Include="System.Xml">
       <Name>System.XML</Name>
     </Reference>
-    <Reference Include="Topshelf, Version=2.2.2.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Topshelf, Version=2.3.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\other\3.5\Topshelf.dll</HintPath>
+      <HintPath>..\..\packages\TopShelf.2.3.0.0\lib\NET35\Topshelf.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

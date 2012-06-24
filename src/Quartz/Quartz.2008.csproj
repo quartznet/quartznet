@@ -45,6 +45,8 @@
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <TargetFrameworkSubset>
     </TargetFrameworkSubset>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
+    <RestorePackages>true</RestorePackages>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\..\build\3.5\Debug\Quartz\</OutputPath>
@@ -95,9 +97,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\2.0\C5.dll</HintPath>
     </Reference>
-    <Reference Include="Common.Logging, Version=1.2.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
+    <Reference Include="Common.Logging, Version=2.1.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
+      <HintPath>..\..\packages\Common.Logging.2.1.1\lib\net35\Common.Logging.dll</HintPath>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>

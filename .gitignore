@@ -45,12 +45,16 @@ _ReSharper*/
 
 # Office Temp Files
 ~$*
+
+# Other
 /src/Quartz/Quartz.xml
 *.ReSharper
 *.dotCover
-/package
+/package/*
 *.snk
 *.zip
 website
 /doc/apidoc
 *.nupkg
+/packages/*
+!/packages/repositories.config

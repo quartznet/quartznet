@@ -78,9 +78,9 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Common.Logging, Version=1.2.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
+    <Reference Include="Common.Logging, Version=2.1.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\lib\2.0\Common.Logging.dll</HintPath>
+      <HintPath>..\..\packages\Common.Logging.2.1.1\lib\net35\Common.Logging.dll</HintPath>
     </Reference>
     <Reference Include="System">
       <Name>System</Name>
