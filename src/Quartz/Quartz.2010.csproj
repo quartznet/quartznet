@@ -98,8 +98,7 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\2.0\C5.dll</HintPath>
     </Reference>
-    <Reference Include="Common.Logging, Version=2.1.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="Common.Logging">
       <HintPath>..\..\packages\Common.Logging.2.1.1\lib\net40\Common.Logging.dll</HintPath>
     </Reference>
     <Reference Include="System">
@@ -516,6 +515,9 @@
     <Compile Include="Impl\Matchers\NameMatcher.cs" />
     <Compile Include="Impl\Matchers\NotMatcher.cs" />
     <Compile Include="Impl\Matchers\OrMatcher.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
