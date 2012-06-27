@@ -21,25 +21,25 @@ using Quartz.Spi;
 
 namespace Quartz.Core
 {
-	/// <summary>
-	/// Responsible for creating the instances of <see cref="JobRunShell" />
-	/// to be used within the <see cref="QuartzScheduler" /> instance.
-	/// </summary>
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	public interface IJobRunShellFactory
-	{
-		/// <summary>
-		/// Initialize the factory, providing a handle to the <see cref="IScheduler" />
-		/// that should be made available within the <see cref="JobRunShell" /> and 
-		/// the <see cref="IJobExecutionContext" />s within it.
-		/// </summary>
-		void Initialize(IScheduler sched);
+    /// <summary>
+    /// Responsible for creating the instances of <see cref="JobRunShell" />
+    /// to be used within the <see cref="QuartzScheduler" /> instance.
+    /// </summary>
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+    public interface IJobRunShellFactory
+    {
+        /// <summary>
+        /// Initialize the factory, providing a handle to the <see cref="IScheduler" />
+        /// that should be made available within the <see cref="JobRunShell" /> and 
+        /// the <see cref="IJobExecutionContext" />s within it.
+        /// </summary>
+        void Initialize(IScheduler sched);
 
-		/// <summary>
-		/// Called by the <see cref="QuartzSchedulerThread" />
-		/// to obtain instances of <see cref="JobRunShell" />.
-		/// </summary>
+        /// <summary>
+        /// Called by the <see cref="QuartzSchedulerThread" />
+        /// to obtain instances of <see cref="JobRunShell" />.
+        /// </summary>
         JobRunShell CreateJobRunShell(TriggerFiredBundle bndle);
-	}
+    }
 }

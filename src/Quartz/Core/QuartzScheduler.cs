@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting;
 using System.Security;
@@ -62,11 +63,11 @@ namespace Quartz.Core
         private readonly QuartzSchedulerThread schedThread;
         private readonly SchedulerContext context = new SchedulerContext();
 
-        private IListenerManager listenerManager = new ListenerManagerImpl();
+        private readonly IListenerManager listenerManager = new ListenerManagerImpl();
 
-        private IDictionary<string, IJobListener> internalJobListeners = new Dictionary<string, IJobListener>(10);
-        private IDictionary<string, ITriggerListener> internalTriggerListeners = new Dictionary<string, ITriggerListener>(10);
-        private IList<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
+        private readonly IDictionary<string, IJobListener> internalJobListeners = new Dictionary<string, IJobListener>(10);
+        private readonly IDictionary<string, ITriggerListener> internalTriggerListeners = new Dictionary<string, ITriggerListener>(10);
+        private readonly IList<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
 
         private IJobFactory jobFactory = new PropertySettingJobFactory();
         private readonly ExecutingJobsManager jobMgr;
@@ -79,7 +80,7 @@ namespace Quartz.Core
         private volatile bool shuttingDown;
         private DateTimeOffset? initialStart;
         private bool boundRemotely;
-        private TimeSpan dbRetryInterval;
+        private readonly TimeSpan dbRetryInterval;
 
         /// <summary>
         /// Initializes the <see cref="QuartzScheduler"/> class.
@@ -321,9 +322,10 @@ namespace Quartz.Core
             log = LogManager.GetLogger(GetType());
             this.resources = resources;
 
-            if (resources.JobStore is IJobListener)
+            IJobListener jobListener = resources.JobStore as IJobListener;
+            if (jobListener != null)
             {
-                AddInternalJobListener((IJobListener) resources.JobStore);
+                AddInternalJobListener(jobListener);
             }
 
             schedThread = new QuartzSchedulerThread(this, resources);
@@ -594,11 +596,12 @@ namespace Quartz.Core
                 IList<IJobExecutionContext> jobs = CurrentlyExecutingJobs;
                 foreach (IJobExecutionContext job in jobs)
                 {
-                    if (job.JobInstance is IInterruptableJob)
+                    IInterruptableJob interruptableJob = job.JobInstance as IInterruptableJob;
+                    if (interruptableJob != null)
                     {
                         try
                         {
-                            ((IInterruptableJob) job.JobInstance).Interrupt();
+                            (interruptableJob).Interrupt();
                         }
                         catch (Exception ex)
                         {
@@ -911,8 +914,11 @@ namespace Quartz.Core
 
         public void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace)
         {
-            var  triggersAndJobs = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
-            triggersAndJobs.Add(jobDetail, triggersForJob);
+            var  triggersAndJobs = 
+                new Dictionary<IJobDetail, Collection.ISet<ITrigger>>
+                    {
+                        {jobDetail, triggersForJob}
+                    };
             ScheduleJobs(triggersAndJobs, replace);
         }
 
@@ -1340,10 +1346,7 @@ namespace Quartz.Core
             IList<IOperableTrigger> triggersForJob = resources.JobStore.GetTriggersForJob(jobKey);
 
             var retValue = new List<ITrigger>(triggersForJob.Count);
-            foreach (IOperableTrigger trigger in triggersForJob)
-            {
-                retValue.Add(trigger);
-            }
+            retValue.AddRange(triggersForJob);
             return retValue;
         }
 
@@ -1664,7 +1667,7 @@ namespace Quartz.Core
         }
 
 
-        private IList<ISchedulerListener> BuildSchedulerListenerList()
+        private IEnumerable<ISchedulerListener> BuildSchedulerListenerList()
         {
             List<ISchedulerListener> allListeners = new List<ISchedulerListener>();
             allListeners.AddRange(ListenerManager.GetSchedulerListeners());
@@ -1675,18 +1678,7 @@ namespace Quartz.Core
         private bool MatchJobListener(IJobListener listener, JobKey key)
         {
             IList<IMatcher<JobKey>> matchers = ListenerManager.GetJobListenerMatchers(listener.Name);
-            if (matchers == null)
-            {
-                return true;
-            }
-            foreach (IMatcher<JobKey> matcher in matchers)
-            {
-                if (matcher.IsMatch(key))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return matchers == null || matchers.Any(matcher => matcher.IsMatch(key));
         }
 
         private bool MatchTriggerListener(ITriggerListener listener, TriggerKey key)
@@ -1696,14 +1688,7 @@ namespace Quartz.Core
             {
                 return true;
             }
-            foreach (IMatcher<TriggerKey> matcher in matchers)
-            {
-                if (matcher.IsMatch(key))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return matchers.Any(matcher => matcher.IsMatch(key));
         }
 
         /// <summary>
@@ -1895,7 +1880,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersError(string msg, SchedulerException se)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1919,7 +1904,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersScheduled(ITrigger trigger)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1941,7 +1926,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersUnscheduled(TriggerKey triggerKey)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1975,7 +1960,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersFinalized(ITrigger trigger)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -1998,7 +1983,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersPausedTriggers(string group)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2020,7 +2005,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersPausedTrigger(TriggerKey triggerKey)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2043,7 +2028,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersResumedTriggers(string group)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2065,7 +2050,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersResumedTrigger(TriggerKey triggerKey)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2087,7 +2072,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersPausedJob(JobKey jobKey)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2110,7 +2095,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersPausedJobs(string group)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2132,7 +2117,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersResumedJob(JobKey jobKey)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2155,7 +2140,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersResumedJobs(string group)
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2206,7 +2191,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersStarting()
         {
             // build a list of all scheduler listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2228,7 +2213,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersShutdown()
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2248,7 +2233,7 @@ namespace Quartz.Core
         public virtual void NotifySchedulerListenersShuttingdown()
         {
             // build a list of all job listeners that are to be notified...
-            IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
             foreach (ISchedulerListener sl in schedListeners)
@@ -2349,9 +2334,10 @@ namespace Quartz.Core
                 if (jec.FireInstanceId.Equals(fireInstanceId))
                 {
                     IJob job = jec.JobInstance;
-                    if (job is IInterruptableJob)
+                    IInterruptableJob interruptableJob = job as IInterruptableJob;
+                    if (interruptableJob != null)
                     {
-                        ((IInterruptableJob) job).Interrupt();
+                        (interruptableJob).Interrupt();
                         return true;
                     }
                     throw new UnableToInterruptJobException("Job " + jec.JobDetail.Key + " can not be interrupted, since it does not implement " + typeof (IInterruptableJob).Name);
@@ -2450,7 +2436,7 @@ namespace Quartz.Core
             }
         }
 
-        private Dictionary<string, IJobExecutionContext> executingJobs = new Dictionary<string, IJobExecutionContext>();
+        private readonly Dictionary<string, IJobExecutionContext> executingJobs = new Dictionary<string, IJobExecutionContext>();
 
         private int numJobsFired;
 

@@ -55,7 +55,7 @@ namespace Quartz.Core
         private JobExecutionContextImpl jec;
 		private QuartzScheduler qs;
 		private readonly IScheduler scheduler;
-	    private TriggerFiredBundle firedTriggerBundle = null;
+	    private readonly TriggerFiredBundle firedTriggerBundle = null;
         private volatile bool shutdownRequested;
 
 
