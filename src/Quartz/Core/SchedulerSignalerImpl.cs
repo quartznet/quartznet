@@ -33,7 +33,7 @@ namespace Quartz.Core
 	/// <author>Marko Lahma (.NET)</author>
 	public class SchedulerSignalerImpl : ISchedulerSignaler
 	{
-		private ILog log = LogManager.GetLogger(typeof (SchedulerSignalerImpl));
+		private readonly ILog log = LogManager.GetLogger(typeof (SchedulerSignalerImpl));
         protected QuartzScheduler sched;
         protected QuartzSchedulerThread schedThread;
 
