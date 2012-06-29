@@ -36,6 +36,15 @@ namespace Quartz.Tests.Unit.Core
     public class QuartzSchedulerTest
     {
         [Test]
+        public void TestVersionInfo()
+        {
+            var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(System.Reflection.Assembly.GetAssembly(typeof(Quartz.Core.QuartzScheduler)).Location);
+            Assert.AreEqual(versionInfo.FileMajorPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionMajor);
+            Assert.AreEqual(versionInfo.FileMinorPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionMinor);
+            Assert.AreEqual(versionInfo.FileBuildPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionIteration);
+        }
+
+        [Test]
         public void TestInvalidCalendarScheduling()
         {
             const string ExpectedError = "Calendar not found: FOOBAR";
