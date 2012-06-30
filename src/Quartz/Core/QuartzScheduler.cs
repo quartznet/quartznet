@@ -55,7 +55,7 @@ namespace Quartz.Core
     public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler
     {
         private readonly ILog log;
-        private static readonly FileVersionInfo versionInfo;
+        private static readonly Version version; 
 
         private readonly QuartzSchedulerResources resources;
 
@@ -86,10 +86,11 @@ namespace Quartz.Core
         /// </summary>
         static QuartzScheduler()
         {
-            Assembly asm = Assembly.GetAssembly(typeof (QuartzScheduler));
+            var asm = Assembly.GetAssembly(typeof(QuartzScheduler));
+
             if (asm != null)
             {
-                versionInfo = FileVersionInfo.GetVersionInfo(asm.Location);
+                version = asm.GetName().Version;
             }
         }
 
@@ -99,8 +100,8 @@ namespace Quartz.Core
         /// <value>The version.</value>
         public string Version
         {
-            get { return versionInfo.FileVersion; }
-        }
+            get { return version.ToString(); }
+        } 
 
         /// <summary>
         /// Gets the version major.
@@ -108,8 +109,8 @@ namespace Quartz.Core
         /// <value>The version major.</value>
         public static string VersionMajor
         {
-            get { return versionInfo.FileMajorPart.ToString(CultureInfo.InvariantCulture); }
-        }
+            get { return version.Major.ToString(CultureInfo.InvariantCulture); }
+        } 
 
         /// <summary>
         /// Gets the version minor.
@@ -117,7 +118,7 @@ namespace Quartz.Core
         /// <value>The version minor.</value>
         public static string VersionMinor
         {
-            get { return versionInfo.FileMinorPart.ToString(CultureInfo.InvariantCulture); }
+            get { return version.Minor.ToString(CultureInfo.InvariantCulture); }
         }
 
         /// <summary>
@@ -126,7 +127,7 @@ namespace Quartz.Core
         /// <value>The version iteration.</value>
         public static string VersionIteration
         {
-            get { return versionInfo.FileBuildPart.ToString(CultureInfo.InvariantCulture); }
+            get { return version.Build.ToString(CultureInfo.InvariantCulture); }
         }
 
         /// <summary>
