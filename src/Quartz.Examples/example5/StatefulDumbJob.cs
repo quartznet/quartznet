@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -22,50 +24,53 @@ using System.Threading;
 
 namespace Quartz.Examples.Example5
 {
-	
-	/// <summary>
-	/// A dumb implementation of Job, for unittesting purposes.
-	/// </summary>
-	/// <author>James House</author>
+    /// <summary>
+    /// A dumb implementation of Job, for unittesting purposes.
+    /// </summary>
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [PersistJobDataAfterExecution]
     [DisallowConcurrentExecution]
     public class StatefulDumbJob : IJob
-	{
-		public const string NumExecutions = "NumExecutions";
-		public const string ExecutionDelay = "ExecutionDelay";
-		
-		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
-		/// fires that is associated with the <see cref="IJob" />.
-		/// </summary>
-		public virtual void  Execute(IJobExecutionContext context)
-		{
-			Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.Key, DateTime.Now.ToString("r"));
-			
-			JobDataMap map = context.JobDetail.JobDataMap;
-			
-			int executeCount = 0;
-			if (map.ContainsKey(NumExecutions))
-				executeCount = map.GetInt(NumExecutions);
-			
-			executeCount++;
-			
-			map.Put(NumExecutions, executeCount);
-			
-			int delay = 5;
-			if (map.ContainsKey(ExecutionDelay))
-				delay = map.GetInt(ExecutionDelay);
-			
-			try
-			{
-				Thread.Sleep(1000 * delay);
-			}
+    {
+        public const string NumExecutions = "NumExecutions";
+        public const string ExecutionDelay = "ExecutionDelay";
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
+        /// fires that is associated with the <see cref="IJob" />.
+        /// </summary>
+        public virtual void Execute(IJobExecutionContext context)
+        {
+            Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.Key, DateTime.Now.ToString("r"));
+
+            JobDataMap map = context.JobDetail.JobDataMap;
+
+            int executeCount = 0;
+            if (map.ContainsKey(NumExecutions))
+            {
+                executeCount = map.GetInt(NumExecutions);
+            }
+
+            executeCount++;
+
+            map.Put(NumExecutions, executeCount);
+
+            int delay = 5;
+            if (map.ContainsKey(ExecutionDelay))
+            {
+                delay = map.GetInt(ExecutionDelay);
+            }
+
+            try
+            {
+                Thread.Sleep(delay);
+            }
             catch (ThreadInterruptedException)
-			{
-			}
+            {
+            }
 
             Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
-		}
-	}
+        }
+    }
 }

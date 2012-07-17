@@ -403,11 +403,11 @@ namespace Quartz.Simpl
         protected class WorkerThread : QuartzThread
         {
             // A flag that signals the WorkerThread to terminate.
-            private bool run = true;
+            private volatile bool run = true;
 
             private IThreadRunnable runnable;
             private readonly SimpleThreadPool tp;
-            private bool runOnce = false;
+            private readonly bool runOnce;
 
             /// <summary>
             /// Create a worker thread and start it. Waiting for the next Runnable,
@@ -443,10 +443,7 @@ namespace Quartz.Simpl
             /// </summary>
             internal virtual void Shutdown()
             {
-                lock (this)
-                {
-                    run = false;
-                }
+                run = false;
             }
 
 
@@ -470,13 +467,8 @@ namespace Quartz.Simpl
             public override void Run()
             {
                 bool ran = false;
-                bool shouldRun;
-                lock (this) 
-                {
-            	    shouldRun = run;
-                }
-            
-                while (shouldRun) 
+
+                while (run) 
                 {
                     try
                     {
@@ -505,17 +497,11 @@ namespace Quartz.Simpl
                             runnable = null;
                         }
                         // repair the thread in case the runnable mucked it up...
-                        if (Priority != tp.ThreadPriority)
-                        {
-                            Priority = tp.ThreadPriority;
-                        }
+                        Priority = tp.ThreadPriority;
 
                         if (runOnce)
                         {
-                            lock (this)
-                            {
-                                run = false;
-                            }
+                            run = false;
                             tp.ClearFromBusyWorkersList(this);
                         }
                         else if (ran)
@@ -523,14 +509,6 @@ namespace Quartz.Simpl
                             ran = false;
                             tp.MakeAvailable(this);
                         }
-
-                    }
-                    
-                    // read value of run within synchronized block to be 
-                    // sure of its value
-                    lock (this) 
-                    {
-                	    shouldRun = run;
                     }
                 }
 
