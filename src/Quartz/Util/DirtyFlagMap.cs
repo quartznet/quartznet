@@ -187,9 +187,17 @@ namespace Quartz.Util
         }
 
         /// <summary>
+        /// Gets the value behind the specified key.
+        /// </summary>
+        /// <param name="key">The key.</param>
+        public virtual TValue Get(TKey key)
+        {
+            return this[key];
+        }
+
+        /// <summary>
         /// Gets or sets the <see cref="Object"/> with the specified key.
         /// </summary>
-        /// <value></value>
         public virtual TValue this[TKey key]
         {
             get 
