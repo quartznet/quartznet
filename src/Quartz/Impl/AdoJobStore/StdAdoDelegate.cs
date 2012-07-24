@@ -535,7 +535,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (columnValue != null && columnValue != DBNull.Value)
             {
-                return (bool) columnValue;
+                return Convert.ToBoolean(columnValue);
             }
 
             throw new ArgumentException("Value must be non-null.");
