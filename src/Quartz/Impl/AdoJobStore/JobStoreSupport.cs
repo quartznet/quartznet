@@ -3297,6 +3297,12 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected virtual void RollbackConnection(ConnectionAndTransactionHolder cth)
         {
+            if (cth == null)
+            {
+                log.Warn("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
+                return;
+            }
+
             CheckNotZombied(cth);
 
             if (cth.Transaction != null)
