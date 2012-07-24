@@ -187,6 +187,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        public void TestMySql65()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
+            RunAdoJobStoreTest("MySql-65", "MySQL", properties);
+        }
+
+        [Test]
         public void TestMySql10()
         {
             NameValueCollection properties = new NameValueCollection();
