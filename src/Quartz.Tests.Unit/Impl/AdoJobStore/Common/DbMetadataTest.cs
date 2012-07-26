@@ -47,6 +47,18 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
         }
 
         [Test]
+        public void TestDbMetadataOracleODP1120()
+        {
+            TestDbMetadata("OracleODP-1123-20");
+        }
+
+        [Test]
+        public void TestDbMetadataOracleODP1140()
+        {
+            TestDbMetadata("OracleODP-1123-40");
+        }
+
+        [Test]
         public void TestDbMetadataMySql50()
         {
             TestDbMetadata("MySql-50");
