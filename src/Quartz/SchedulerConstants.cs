@@ -67,11 +67,16 @@ namespace Quartz
         public const string FailedJobOriginalTriggerGroup = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
 
         /// <summary>
-        ///  A constant <see cref="JobDataMap" /> key that can be used to retrieve the
-        /// scheduled fire time of the original <see cref="ITrigger" /> from a recovery
+        /// A constant <see cref="JobDataMap" /> key that can be used to retrieve the
+        /// fire time of the original <see cref="ITrigger" /> from a recovery
         /// trigger's data map in the case of a job recovering after a failed scheduler
         /// instance.
         /// </summary>
+        /// <remarks>
+        /// Note that this is the time the original firing actually occurred,
+        /// which may be different from the scheduled fire time - as a trigger doesn't
+        /// always fire exactly on time.
+        /// </remarks>
         /// <seealso cref="IJobDetail.RequestsRecovery" />
         public const string FailedJobOriginalTriggerFiretimeInMillisecoonds = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING";
 

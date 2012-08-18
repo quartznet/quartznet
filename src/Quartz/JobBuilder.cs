@@ -264,7 +264,8 @@ namespace Quartz
         /// orphaned (no <see cref="ITrigger" />s point to it).
         /// </summary>
         /// <remarks>
-        /// If not explicitly set, the default value is <see langword="false" />.
+        /// If not explicitly set, the default value is <see langword="false" />
+        /// - this method sets the value to <code>true</code>.
         /// </remarks>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.Durable" />
