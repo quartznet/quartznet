@@ -51,6 +51,7 @@
     <property name="build.defines" value="${build.defines}" />
 
     <property name="target.framework" value="3.5" />
+    <property name="buildoutputbasedir" value="build\${target.framework}\${build.configuration}\Quartz" />
     <call target="build-all-csc" />
   </target>
 
@@ -58,6 +59,7 @@
     <property name="build.defines" value="${build.defines},NET_40" />
 
     <property name="target.framework" value="4.0" />
+    <property name="buildoutputbasedir" value="build\${target.framework}\${build.configuration}\Quartz" />
     <property name="nant.settings.currentframework" value="net-4.0" />
     <call target="build-all-csc" />
   </target>
@@ -66,6 +68,7 @@
     <property name="build.defines" value="${build.defines},MONO" />
 
     <property name="target.framework" value="mono-2.0" />
+    <property name="buildoutputbasedir" value="build\${target.framework}\${build.configuration}\Quartz" />
     <property name="nant.settings.currentframework" value="${target.framework}" />
     <call target="build-all-csc" />
 
@@ -73,28 +76,48 @@
 
   <target name="build-quartz" >
 
-    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz\" />
+     <mkdir dir="${buildoutputbasedir}" />
 
-    <property name="target.dir" value="build\${target.framework}\${build.configuration}\Quartz" />
+    <property name="target.dir" value="${buildoutputbasedir}" />
     <property name="client-profile" value="false" />
     <call target="compile-quartz" />
 
     <!-- client profile -->
     <property name="original.build.defines" value="${build.defines}" />
     <property name="build.defines" value="${build.defines},ClientProfile" />
-    <property name="target.dir" value="build\${target.framework}\${build.configuration}\Quartz\ClientProfile" />
+    <property name="target.dir" value="${buildoutputbasedir}\ClientProfile" />
     <property name="client-profile" value="true" />
     <call target="compile-quartz" />
     <property name="build.defines" value="${original.build.defines}" />
 
-    <copy todir="build\${target.framework}\${build.configuration}\Quartz\" flatten="true" >
+    <copy todir="${buildoutputbasedir}\" flatten="true" >
       <fileset>
         <include name="${common-logging-dll}" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
+    <copy todir="${buildoutputbasedir}\ClientProfile\" flatten="true" >
+        <fileset>
+            <include name="${common-logging-dll}" />
+        </fileset>
+    </copy>
+      
+    <!-- ILMerge Quartz with C5 -->
+    <property name="ilmerge.options" value="/targetplatform:v4 /internalize" if="${target.framework == '4.0'}" />
+    <property name="ilmerge.options" value="/internalize" unless="${target.framework == '4.0'}" />
 
-
+    <foreach item="String" in="Quartz,ClientProfile\Quartz" delim="," property="ilmergefile">
+		<mkdir dir="mergetemp\ClientProfile" />
+        <exec
+        verbose="true"
+        program="tools\ilmerge\ilmerge.exe"
+        commandline="${ilmerge.options} /target:library /out:mergetemp\${ilmergefile}.dll ${buildoutputbasedir}\${ilmergefile}.dll lib\2.0\C5.dll"  />
+        <delete file="${buildoutputbasedir}\${ilmergefile}.dll" />
+		<delete file="${buildoutputbasedir}\${ilmergefile}.pdb" />
+        <move file="mergetemp\${ilmergefile}.dll" tofile="${buildoutputbasedir}\${ilmergefile}.dll" /> 
+        <move file="mergetemp\${ilmergefile}.pdb" tofile="${buildoutputbasedir}\${ilmergefile}.pdb" /> 
+		<delete dir="mergetemp" />
+    </foreach>
+      
   </target>
 
   <target name="compile-quartz" depends="determine-lib-dirs">
@@ -140,17 +163,17 @@
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
-
+     
   </target>
 
 
-  <target name="build-examples" depends="build-quartz, determine-lib-dirs">
+  <target name="build-examples" depends="determine-lib-dirs">
 
-    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Examples\" />
+    <mkdir dir="${buildoutputbasedir}.Examples\" />
 
     <csc
       target="exe"
-      output="build\${target.framework}\${build.configuration}\Quartz.Examples\Quartz.Examples.exe"
+      output="${buildoutputbasedir}.Examples\Quartz.Examples.exe"
       debug="${build.debug}" 
       optimize="${build.optimize}" 
       define="${build.defines}">
@@ -169,19 +192,19 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
-        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
+        <include name="${buildoutputbasedir}\Quartz.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
 
-    <copy todir="build\${target.framework}\${build.configuration}\Quartz.Examples\" flatten="true" >
+    <copy todir="${buildoutputbasedir}.Examples\" flatten="true" >
       <fileset>
-        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.*" />
+        <include name="${buildoutputbasedir}\Quartz.*" />
         <include name="${common-logging-dll}" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
-    <copy file="src\Quartz.Examples\App.config" tofile="build\${target.framework}\${build.configuration}\Quartz.Examples\Quartz.Examples.exe.config" />
+    <copy file="src\Quartz.Examples\App.config" tofile="${buildoutputbasedir}.Examples\Quartz.Examples.exe.config" />
   </target>
 
   <target name="build-server-3.5">
@@ -204,13 +227,13 @@
     <call target="build-server-internal" />
   </target>  
 
-  <target name="build-server-internal" depends="build-quartz, determine-lib-dirs">
+  <target name="build-server-internal" depends="determine-lib-dirs">
 
-    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Server\" />
+    <mkdir dir="${buildoutputbasedir}.Server\" />
 
     <csc
       target="exe"
-      output="build\${target.framework}\${build.configuration}\Quartz.Server\Quartz.Server.exe"
+      output="${buildoutputbasedir}.Server\Quartz.Server.exe"
       debug="${build.debug}" 
       optimize="${build.optimize}" 
       define="${build.defines}">
@@ -226,14 +249,14 @@
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
         <include name="${topshelf-dll}" />
-        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
+        <include name="${buildoutputbasedir}\Quartz.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
-    <copy todir="build\${target.framework}\${build.configuration}\Quartz.Server\" flatten="true" >
+    <copy todir="${buildoutputbasedir}.Server\" flatten="true" >
       <fileset>
-        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
-        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.pdb" />
+        <include name="${buildoutputbasedir}\Quartz.dll" />
+        <include name="${buildoutputbasedir}\Quartz.pdb" />
         <include name="${common-logging-dll}" />
         <include name="${common-logging-log4net-dll}" />
         <include name="${log4net-dll}" />
@@ -242,9 +265,9 @@
       </fileset>
     </copy>
     
-    <copy file="${dir.server.src}\Quartz.Server\App.config" tofile="build\${target.framework}\${build.configuration}\Quartz.Server\Quartz.Server.exe.config" />
-    <copy file="${dir.server.src}\Quartz.Server\quartz_jobs.xml" todir="build\${target.framework}\${build.configuration}\Quartz.Server" />
-    <copy file="${dir.server.src}\Quartz.Server\quartz.config" todir="build\${target.framework}\${build.configuration}\Quartz.Server" />
+    <copy file="${dir.server.src}\Quartz.Server\App.config" tofile="${buildoutputbasedir}.Server\Quartz.Server.exe.config" />
+    <copy file="${dir.server.src}\Quartz.Server\quartz_jobs.xml" todir="${buildoutputbasedir}.Server" />
+    <copy file="${dir.server.src}\Quartz.Server\quartz.config" todir="${buildoutputbasedir}.Server" />
 
   </target>
 
@@ -255,13 +278,13 @@
     <call target="build-tests-internal" />
   </target>
 
-  <target name="build-tests-internal" depends="build-quartz,determine-lib-dirs">
+  <target name="build-tests-internal" depends="determine-lib-dirs">
 
-    <mkdir dir="build\${target.framework}\${build.configuration}\Quartz.Tests.${test.project}\" />
+    <mkdir dir="${buildoutputbasedir}.Tests.${test.project}\" />
 
     <csc 
       target="library" 
-      output="build\${target.framework}\${build.configuration}\Quartz.Tests.${test.project}\Quartz.Tests.${test.project}.dll" 
+      output="${buildoutputbasedir}.Tests.${test.project}\Quartz.Tests.${test.project}.dll" 
       debug="${build.debug}" 
       optimize="${build.optimize}" 
       define="${build.defines}">
@@ -287,14 +310,14 @@
         <include name="${common-logging-dll}" />
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
-        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.dll" />
+        <include name="${buildoutputbasedir}\Quartz.dll" />
         <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
 
-    <copy todir="build\${target.framework}\${build.configuration}\Quartz.Tests.${test.project}\" flatten="true" >
+    <copy todir="${buildoutputbasedir}.Tests.${test.project}\" flatten="true" >
       <fileset>
-        <include name="build\${target.framework}\${build.configuration}\Quartz\Quartz.*" />
+        <include name="${buildoutputbasedir}\Quartz.*" />
         <include name="${common-logging-dll}" />
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
@@ -318,7 +341,7 @@
   </target>
 
   <target name="unit-internal" depends="build">
-    <property name="test.dll" value="build\${target.framework}\${build.configuration}\Quartz.Tests.Unit\Quartz.Tests.Unit.dll" />
+    <property name="test.dll" value="${buildoutputbasedir}.Tests.Unit\Quartz.Tests.Unit.dll" />
     <echo message="Testing dll: ${test.dll}"  />
     <nunit2 verbose="true" failonerror="false">
       <formatter type="Plain" />
@@ -403,7 +426,7 @@
     <property name="build.optimize" value="true" />
     <property name="build.debug" value="PdbOnly" />
     <property name="build.defines" value="TRACE,STRONG" />
-	  <property name="build.keyfile" value="Quartz.Net.snk" />
+	<property name="build.keyfile" value="Quartz.Net.snk" />
 
     <if test="${c5-collections}" >
       <property name="build.defines" value="${build.defines},C5" />
