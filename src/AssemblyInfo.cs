@@ -29,7 +29,7 @@ using System.Runtime.InteropServices;
 [assembly: CLSCompliant(true)]
 [assembly: ComVisible(false)]
 
-[assembly: AssemblyVersion("2.0.0.400")]
+[assembly: AssemblyVersion("2.1.0.400")]
 
 [assembly: AssemblyDelaySign(false)]
 #if !NET_40
