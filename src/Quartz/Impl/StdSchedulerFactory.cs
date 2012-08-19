@@ -24,6 +24,8 @@ using System.Collections.Specialized;
 using System.Configuration;
 using System.IO;
 using System.Reflection;
+using System.Security;
+using System.Security.Permissions;
 
 using Common.Logging;
 
@@ -204,11 +206,20 @@ namespace Quartz.Impl
 
             NameValueCollection props = (NameValueCollection) ConfigurationManager.GetSection("quartz");
 
-            string requestedFile = Environment.GetEnvironmentVariable(PropertiesFile);
+            string requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
+
             string propFileName = requestedFile != null && requestedFile.Trim().Length > 0 ? requestedFile : "~/quartz.config";
 
             // check for specials
-            propFileName = FileUtil.ResolveFile(propFileName);
+            try
+            {
+                propFileName = FileUtil.ResolveFile(propFileName);
+            }
+            catch (SecurityException)
+            {
+                log.WarnFormat("Unable to resolve file path '{0}' due to security exception, probably running under medium trust");
+                propFileName = "quartz.config";
+            }
 
             if (props == null && File.Exists(propFileName))
             {
@@ -257,12 +268,13 @@ Please add configuration to your application config file to correctly initialize
         private static NameValueCollection OverrideWithSysProps(NameValueCollection props)
         {
             NameValueCollection retValue = new NameValueCollection(props);
-            IDictionary vars = Environment.GetEnvironmentVariables();
+            IDictionary<string, string> vars = QuartzEnvironment.GetEnvironmentVariables();
 
             foreach (string key in vars.Keys)
             {
-                retValue.Set(key, vars[key] as string);
+                retValue.Set(key, vars[key]);
             }
+
             return retValue;
         }
 

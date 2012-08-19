@@ -408,6 +408,7 @@
     <Compile Include="Util\PropertiesParser.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\QuartzEnvironment.cs" />
     <Compile Include="Util\StringExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
