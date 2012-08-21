@@ -380,6 +380,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual IList<IOperableTrigger> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn)
         {
             List<IOperableTrigger> list = new List<IOperableTrigger>();
+            List<TriggerKey> keys = new List<TriggerKey>();
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectInstancesRecoverableFiredTriggers)))
             {
@@ -394,8 +395,8 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         string jobName = rs.GetString(ColumnJobName);
                         string jobGroup = rs.GetString(ColumnJobGroup);
-                        // string trigName = rs.GetString(ColumnTriggerName);
-                        // string trigGroup = rs.GetString(ColumnTriggerGroup);
+                        string trigName = rs.GetString(ColumnTriggerName);
+                        string trigGroup = rs.GetString(ColumnTriggerGroup);
                         int priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
                         DateTimeOffset firedTime = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
                         SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
@@ -406,21 +407,24 @@ namespace Quartz.Impl.AdoJobStore
                         rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
 
                         list.Add(rcvryTrig);
+                        keys.Add(new TriggerKey(trigName, trigGroup));
                     }
                 }
             }
 
             // read JobDataMaps with different reader..
-            foreach (SimpleTriggerImpl trigger in list)
+            for (int i = 0; i < list.Count; i++)
             {
-                JobDataMap jd = SelectTriggerJobDataMap(conn, trigger.Key);
-                jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, trigger.Name);
-                jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, trigger.Group);
+                IOperableTrigger trigger = list[i];
+                TriggerKey key = keys[i];
+                JobDataMap jd = SelectTriggerJobDataMap(conn, key);
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, key.Name);
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, key.Group);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretimeInMillisecoonds, Convert.ToString(trigger.StartTimeUtc, CultureInfo.InvariantCulture));
                 trigger.JobDataMap = jd;
             }
 
-            return list.ToArray();
+            return list;
         }
 
         /// <summary>
