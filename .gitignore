@@ -34,6 +34,7 @@ Ankh.NoLoad
 
 #Tooling
 _ReSharper*/
+_dotCover*/
 *.resharper
 [Tt]est[Rr]esult*
 
