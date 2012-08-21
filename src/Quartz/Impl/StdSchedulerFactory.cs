@@ -18,14 +18,12 @@
 #endregion
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.IO;
 using System.Reflection;
 using System.Security;
-using System.Security.Permissions;
 
 using Common.Logging;
 
@@ -531,8 +529,8 @@ Please add configuration to your application config file to correctly initialize
             // Set up any DataSources
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            string[] dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
-            for (int i = 0; i < dsNames.Length; i++)
+            IList<string> dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
+            for (int i = 0; i < dsNames.Count; i++)
             {
                 string datasourceKey = "{0}.{1}".FormatInvariant( PropertyDataSourcePrefix, dsNames[i]);
                 NameValueCollection propertyGroup = cfg.GetPropertyGroup(datasourceKey, true);
@@ -726,9 +724,9 @@ Please add configuration to your application config file to correctly initialize
             // Set up any SchedulerPlugins
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            string[] pluginNames = cfg.GetPropertyGroups(PropertyPluginPrefix);
-            ISchedulerPlugin[] plugins = new ISchedulerPlugin[pluginNames.Length];
-            for (int i = 0; i < pluginNames.Length; i++)
+            IList<string> pluginNames = cfg.GetPropertyGroups(PropertyPluginPrefix);
+            ISchedulerPlugin[] plugins = new ISchedulerPlugin[pluginNames.Count];
+            for (int i = 0; i < pluginNames.Count; i++)
             {
                 NameValueCollection pp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyPluginPrefix, pluginNames[i]), true);
 
@@ -763,9 +761,9 @@ Please add configuration to your application config file to correctly initialize
 
             // Set up any JobListeners
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            string[] jobListenerNames = cfg.GetPropertyGroups(PropertyJobListenerPrefix);
-            IJobListener[] jobListeners = new IJobListener[jobListenerNames.Length];
-            for (int i = 0; i < jobListenerNames.Length; i++)
+            IList<string> jobListenerNames = cfg.GetPropertyGroups(PropertyJobListenerPrefix);
+            IJobListener[] jobListeners = new IJobListener[jobListenerNames.Count];
+            for (int i = 0; i < jobListenerNames.Count; i++)
             {
                 NameValueCollection lp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyJobListenerPrefix, jobListenerNames[i]), true);
 
@@ -806,9 +804,9 @@ Please add configuration to your application config file to correctly initialize
             // Set up any TriggerListeners
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            string[] triggerListenerNames = cfg.GetPropertyGroups(PropertyTriggerListenerPrefix);
-            ITriggerListener[] triggerListeners = new ITriggerListener[triggerListenerNames.Length];
-            for (int i = 0; i < triggerListenerNames.Length; i++)
+            IList<string> triggerListenerNames = cfg.GetPropertyGroups(PropertyTriggerListenerPrefix);
+            ITriggerListener[] triggerListeners = new ITriggerListener[triggerListenerNames.Count];
+            for (int i = 0; i < triggerListenerNames.Count; i++)
             {
                 NameValueCollection lp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyTriggerListenerPrefix, triggerListenerNames[i]), true);
 

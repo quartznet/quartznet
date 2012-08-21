@@ -50,7 +50,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         {
             // parse metadata
             PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(DbProviderResourceName);
-            string[] providers = pp.GetPropertyGroups(PropertyDbProvider);
+            IList<string> providers = pp.GetPropertyGroups(PropertyDbProvider);
             foreach (string providerName in providers)
             {
                 dbMetadataLookup[providerName] = notInitializedMetadata;

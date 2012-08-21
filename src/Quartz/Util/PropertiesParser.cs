@@ -93,7 +93,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="name">The name.</param>
         /// <returns></returns>
-		public virtual string[] GetStringArrayProperty(string name)
+		public virtual IList<string> GetStringArrayProperty(string name)
 		{
 			return GetStringArrayProperty(name, null);
 		}
@@ -104,7 +104,7 @@ namespace Quartz.Util
         /// <param name="name">The name.</param>
         /// <param name="defaultValue">The default value.</param>
         /// <returns></returns>
-		public virtual string[] GetStringArrayProperty(string name, string[] defaultValue)
+		public virtual IList<string> GetStringArrayProperty(string name, string[] defaultValue)
 		{
 
             string vals = GetStringProperty(name);
@@ -122,7 +122,7 @@ namespace Quartz.Util
                     strs.Add(s.Trim());
                 }
 
-                return strs.ToArray();
+                return strs;
             }
             catch (Exception)
             {
@@ -399,18 +399,18 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="name">The name.</param>
         /// <returns></returns>
-		public virtual int[] GetIntArrayProperty(string name)
+        public virtual IList<int> GetIntArrayProperty(string name)
 		{
 			return GetIntArrayProperty(name, null);
 		}
 
-        /// <summary>
-        /// Gets the int array property.
-        /// </summary>
-        /// <param name="name">The name.</param>
-        /// <param name="defaultValue">The default value.</param>
-        /// <returns></returns>
-		public virtual int[] GetIntArrayProperty(string name, int[] defaultValue)
+	    /// <summary>
+	    /// Gets the int array property.
+	    /// </summary>
+	    /// <param name="name">The name.</param>
+	    /// <param name="defaultValue">The default value.</param>
+	    /// <returns></returns>
+        public virtual IList<int> GetIntArrayProperty(string name, IList<int> defaultValue)
 		{
 			string vals = GetStringProperty(name);
 			if (vals == null)
@@ -435,7 +435,7 @@ namespace Quartz.Util
 							throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", vals));
 						}
 					}
-					return ints.ToArray();
+					return ints;
 				}
 				catch (Exception)
 				{
@@ -569,9 +569,9 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="prefix">The prefix.</param>
         /// <returns></returns>
-		public virtual string[] GetPropertyGroups(string prefix)
+        public virtual IList<string> GetPropertyGroups(string prefix)
 		{
-            Collection.HashSet<string> groups = new Collection.HashSet<string>();
+            var groups = new Collection.HashSet<string>();
 
 			if (!prefix.EndsWith("."))
 			{
@@ -587,7 +587,7 @@ namespace Quartz.Util
 				}
 			}
 
-            return new List<string>(groups).ToArray();
+            return new List<string>(groups);
 		}
 
         /// <summary>

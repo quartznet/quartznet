@@ -105,7 +105,7 @@ namespace Quartz.Job
 
             DateTime maxAgeDate = DateTime.Now - minAge;
 
-            FileInfo[] updatedFiles = GetUpdatedOrNewFiles(dirName, lastDate, maxAgeDate);
+            IList<FileInfo> updatedFiles = GetUpdatedOrNewFiles(dirName, lastDate, maxAgeDate);
 
             if (updatedFiles == null)
             {
@@ -120,7 +120,7 @@ namespace Quartz.Job
                 latestMod = (lm > latestMod) ? lm : latestMod;
             }
 
-            if (updatedFiles.Length > 0)
+            if (updatedFiles.Count > 0)
             {
                 // notify call back...
                 log.Info("Directory '" + dirName + "' contents updated, notifying listener.");
@@ -135,7 +135,7 @@ namespace Quartz.Job
             context.JobDetail.JobDataMap.Put(LastModifiedTime, latestMod);
         }
 
-        protected FileInfo[] GetUpdatedOrNewFiles(string dirName, DateTime lastDate, DateTime maxAgeDate)
+        protected IList<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastDate, DateTime maxAgeDate)
         {
             DirectoryInfo dir = new DirectoryInfo(dirName);
             if (!dir.Exists)
@@ -154,7 +154,7 @@ namespace Quartz.Job
                 }
             }
 
-            return acceptedFiles.ToArray();
+            return acceptedFiles;
         }
     }
 }

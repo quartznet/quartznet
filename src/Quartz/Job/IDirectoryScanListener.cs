@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 
 namespace Quartz.Job
@@ -11,6 +12,6 @@ namespace Quartz.Job
     {
         ///<param name="updatedFiles">An array of <see cref="FileInfo"/> objects that were updated/added 
         ///since the last scan of the directory</param>
-        void FilesUpdatedOrAdded(FileInfo[] updatedFiles);
+        void FilesUpdatedOrAdded(IEnumerable<FileInfo> updatedFiles);
     }
 }

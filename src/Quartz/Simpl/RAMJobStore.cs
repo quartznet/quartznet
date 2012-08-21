@@ -916,7 +916,7 @@ namespace Quartz.Simpl
 		{
             lock (lockObject)
             {
-                return new List<string>(calendarsByName.Keys).ToArray();
+                return new List<string>(calendarsByName.Keys);
             }
 		}
 
@@ -982,7 +982,7 @@ namespace Quartz.Simpl
 		{
             lock (lockObject)
 			{
-			    return  new List<string>(jobsByGroup.Keys).ToArray();
+			    return  new List<string>(jobsByGroup.Keys);
 			}
 		}
 
@@ -993,7 +993,7 @@ namespace Quartz.Simpl
 		{
             lock (lockObject)
             {
-                return new List<string>(triggersByGroup.Keys).ToArray();
+                return new List<string>(triggersByGroup.Keys);
             }
 		}
 

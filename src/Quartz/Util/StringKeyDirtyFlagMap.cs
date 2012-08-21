@@ -89,9 +89,9 @@ namespace Quartz.Util
         /// Gets the keys.
         /// </summary>
         /// <returns></returns>
-        public virtual string[] GetKeys()
+        public virtual IList<string> GetKeys()
         {
-            return new List<string>(KeySet()).ToArray();
+            return new List<string>(KeySet());
         }
 
         /// <summary>

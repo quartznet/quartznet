@@ -848,7 +848,7 @@ namespace Quartz.Impl.AdoJobStore
                         list.Add(rs.GetString(0));
                     }
 
-                    return list.ToArray();
+                    return list;
                 }
             }
         }
@@ -1720,7 +1720,7 @@ namespace Quartz.Impl.AdoJobStore
                         list.Add((string) rs[0]);
                     }
 
-                    return list.ToArray();
+                    return list;
                 }
             }
         }
@@ -2055,7 +2055,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         list.Add((string) rs[0]);
                     }
-                    return list.ToArray();
+                    return list;
                 }
             }
         }
