@@ -145,7 +145,7 @@ namespace Quartz.Impl.Calendar
 				return false;
 			}
 
-			return (!(cronExpression.IsSatisfiedBy(timeUtc)));
+			return (cronExpression.IsSatisfiedBy(timeUtc));
 		}
 
 		/// <summary>

@@ -25,33 +25,62 @@ using Quartz.Impl.Calendar;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class CronCalendarTest
-    {
-        [Test]
-        public void TestTimeIncluded()
-        {
-            string expr = string.Format("0/15 * * * * ?");
-            CronCalendar calendar = new CronCalendar(expr);
-            string fault = "Time was included when it was not supposed to be";
-            DateTime tst = DateTime.UtcNow.AddMinutes(2);
-            tst = new DateTime(tst.Year, tst.Month, tst.Day, tst.Hour, tst.Minute, 30);
-            Assert.IsFalse(calendar.IsTimeIncluded(tst), fault);
+	/// <author>Marko Lahma (.NET)</author>
+	[TestFixture]
+	public class CronCalendarTest
+	{
+		[Test]
+		public void TestTimeIncluded()
+		{
+			string expr = string.Format("0/15 * * * * ?");
+			CronCalendar calendar = new CronCalendar(expr);
+			string fault = "Time was not included when it was supposed to be";
+			DateTime tst = DateTime.UtcNow.AddMinutes(2);
+			tst = new DateTime(tst.Year, tst.Month, tst.Day, tst.Hour, tst.Minute, 30);
+			Assert.IsTrue(calendar.IsTimeIncluded(tst), fault);
 
-            calendar.SetCronExpressionString("0/25 * * * * ?");
-            fault = "Time was not included as expected";
-            Assert.IsTrue(calendar.IsTimeIncluded(tst), fault);
-        }
+			calendar.SetCronExpressionString("0/25 * * * * ?");
+			fault = "Time was not included as expected";
+			Assert.IsFalse(calendar.IsTimeIncluded(tst), fault);
+		}
 
-        [Test]
-        public void TestClone()
-        {
-            string expr = string.Format("0/15 * * * * ?");
-            CronCalendar calendar = new CronCalendar(expr);
-            CronCalendar clone = (CronCalendar) calendar.Clone();
-            Assert.AreEqual(calendar.CronExpression, clone.CronExpression);            
-        }
-  
-    }
+		[Test]
+		public void TestTimeIncluded_Range()
+		{
+			string expr = string.Format("* * 0-7,18-23 ? * *");
+			CronCalendar calendar = new CronCalendar(expr);
+			DateTime tst = DateTime.UtcNow;
+			tst = new DateTime(tst.Year, tst.Month, tst.Day, 7, tst.Minute, tst.Second);
+			Assert.IsTrue(calendar.IsTimeIncluded(tst), "Time was not included but it should be");
+
+			tst = new DateTime(tst.Year, tst.Month, tst.Day, 10, tst.Minute, tst.Second);
+
+			Assert.IsFalse(calendar.IsTimeIncluded(tst), "Time was included, but it shouldn't be");
+
+			tst = new DateTime(tst.Year, tst.Month, tst.Day, 19, tst.Minute, tst.Second);
+			Assert.IsTrue(calendar.IsTimeIncluded(tst), "Time was not included but it should be");
+		}
+		[Test]
+		public void TestTimeIncluded_Range2()
+		{
+			string expr = string.Format("* * 0-20 ? * *");
+			CronCalendar calendar = new CronCalendar(expr);
+			DateTime tst = DateTime.UtcNow;
+			tst = new DateTime(tst.Year, tst.Month, tst.Day, 10, tst.Minute, tst.Second);
+			Assert.IsTrue(calendar.IsTimeIncluded(tst), "Time was not included but it should be");
+
+			tst = new DateTime(tst.Year, tst.Month, tst.Day, 22, tst.Minute, tst.Second);
+
+			Assert.IsFalse(calendar.IsTimeIncluded(tst), "Time was included, but it shouldn't be");
+		}
+		[Test]
+		public void TestClone()
+		{
+			string expr = string.Format("0/15 * * * * ?");
+			CronCalendar calendar = new CronCalendar(expr);
+			CronCalendar clone = (CronCalendar)calendar.Clone();
+			Assert.AreEqual(calendar.CronExpression, clone.CronExpression);
+		}
+
+	}
 }
