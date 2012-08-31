@@ -2,13 +2,14 @@ using System;
 using System.Threading;
 using Common.Logging;
 using Quartz.Impl;
+using Topshelf;
 
 namespace Quartz.Server
 {
 	/// <summary>
 	/// The main server logic.
 	/// </summary>
-	public class QuartzServer : IQuartzServer
+	public class QuartzServer : ServiceControl, IQuartzServer
 	{
 		private readonly ILog logger;
 		private ISchedulerFactory schedulerFactory;
@@ -116,6 +117,42 @@ namespace Quartz.Server
 	    public void Resume()
 	    {
 	        scheduler.ResumeAll();
+	    }
+
+	    /// <summary>
+        /// TopShelf's method delegated to <see cref="Start()"/>.
+	    /// </summary>
+	    public bool Start(HostControl hostControl)
+	    {
+	        Start();
+	        return true;
+	    }
+
+        /// <summary>
+        /// TopShelf's method delegated to <see cref="Stop()"/>.
+        /// </summary>
+        public bool Stop(HostControl hostControl)
+	    {
+	        Stop();
+	        return true;
+	    }
+
+        /// <summary>
+        /// TopShelf's method delegated to <see cref="Pause()"/>.
+        /// </summary>
+        public bool Pause(HostControl hostControl)
+	    {
+	        Pause();
+	        return true;
+	    }
+
+        /// <summary>
+        /// TopShelf's method delegated to <see cref="Resume()"/>.
+        /// </summary>
+        public bool Continue(HostControl hostControl)
+	    {
+	        Resume();
+	        return true;
 	    }
 	}
 }
