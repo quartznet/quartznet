@@ -71,6 +71,7 @@ namespace Quartz.Impl.Triggers
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
+    [Serializable]
     public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
     {
         /// <summary>
