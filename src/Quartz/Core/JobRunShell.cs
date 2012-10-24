@@ -287,8 +287,8 @@ namespace Quartz.Core
                                           jobDetail.Key), jpe);
                         if (!CompleteTriggerRetryLoop(trigger, jobDetail, instCode))
                         {
+                            return;
                         }
-                        return;
                     }
 
                     break;

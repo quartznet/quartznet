@@ -3303,12 +3303,11 @@ namespace Quartz.Impl.AdoJobStore
                 return;
             }
 
-            CheckNotZombied(cth);
-
             if (cth.Transaction != null)
             {
                 try
                 {
+                    CheckNotZombied(cth);
                     cth.Transaction.Rollback();
                 }
                 catch (Exception e)
@@ -3326,12 +3325,17 @@ namespace Quartz.Impl.AdoJobStore
         /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
         protected virtual void CommitConnection(ConnectionAndTransactionHolder cth, bool openNewTransaction)
         {
-            CheckNotZombied(cth);
+            if (cth == null)
+            {
+                log.Error("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
+                return;
+            }
 
             if (cth.Transaction != null)
             {
                 try
                 {
+                    CheckNotZombied(cth);
                     IsolationLevel il = cth.Transaction.IsolationLevel;
                     cth.Transaction.Commit();
                     if (openNewTransaction)
