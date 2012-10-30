@@ -22,6 +22,7 @@ using System.Globalization;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -716,7 +717,7 @@ namespace Quartz
 			int weekCount = 0;
 			bool gotOne = false;
 
-            afterDateUtc = TimeZoneInfo.ConvertTime(afterDateUtc, TimeZone);
+            afterDateUtc = TimeZoneUtil.ConvertTime(afterDateUtc, TimeZone);
             DateTime currCal = new DateTime(afterDateUtc.Year, afterDateUtc.Month, afterDateUtc.Day);
 
             // move to the first day of the week
@@ -813,7 +814,7 @@ namespace Quartz
         private DateTimeOffset? GetMonthlyFireTimeAfter(DateTimeOffset afterDateUtc)
 		{
 			int currN = 0;
-            DateTimeOffset currCal = TimeZoneInfo.ConvertTime(afterDateUtc, TimeZone);
+            DateTimeOffset currCal = TimeZoneUtil.ConvertTime(afterDateUtc, TimeZone);
             currCal = new DateTime(currCal.Year, currCal.Month, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currMonth;
 			int monthCount = 0;
@@ -875,7 +876,7 @@ namespace Quartz
 
 			if (monthCount < nextFireCutoffInterval)
 			{
-                return TimeZoneInfo.ConvertTime(currCal, TimeZone);
+                return TimeZoneUtil.ConvertTime(currCal, TimeZone);
 			}
 			else
 			{
@@ -901,7 +902,7 @@ namespace Quartz
         private DateTimeOffset? GetYearlyFireTimeAfter(DateTimeOffset afterDateUtc)
 		{
 			int currN = 0;
-            DateTimeOffset currCal = TimeZoneInfo.ConvertTime(afterDateUtc, TimeZone);
+            DateTimeOffset currCal = TimeZoneUtil.ConvertTime(afterDateUtc, TimeZone);
             currCal = new DateTime(currCal.Year, 1, 1, fireAtHour, fireAtMinute, fireAtSecond, 0);
 			int currYear;
 			int yearCount = 0;
@@ -935,7 +936,7 @@ namespace Quartz
 					}
 
 					//if we pass endTime, drop out and return null.
-                    if (EndTimeUtc.HasValue && TimeZoneInfo.ConvertTime(currCal, TimeZone) > EndTimeUtc.Value)
+                    if (EndTimeUtc.HasValue && TimeZoneUtil.ConvertTime(currCal, TimeZone) > EndTimeUtc.Value)
                     {
 						return null;
 					}
@@ -946,7 +947,7 @@ namespace Quartz
 				// could be looking at an nth day PRIOR to afterDateUtc
 				if (currN == n)
 				{
-                    if (afterDateUtc < TimeZoneInfo.ConvertTime(currCal, TimeZone))
+                    if (afterDateUtc < TimeZoneUtil.ConvertTime(currCal, TimeZone))
 					{
 						gotOne = true;
 					}
@@ -961,7 +962,7 @@ namespace Quartz
 
 			if (yearCount < nextFireCutoffInterval)
 			{
-                return TimeZoneInfo.ConvertTime(currCal, TimeZone);
+                return TimeZoneUtil.ConvertTime(currCal, TimeZone);
 			}
 			else
 			{

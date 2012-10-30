@@ -13,6 +13,15 @@ namespace Quartz.Util
     public static class QuartzEnvironment
     {
         private static readonly ILog log = LogManager.GetLogger(typeof(QuartzEnvironment));
+        private static readonly bool isRunningOnMono = Type.GetType("Mono.Runtime") != null;
+
+        /// <summary>
+        /// Return whether we are currently running under Mono runtime.
+        /// </summary>
+        public static bool IsRunningOnMono
+        {
+            get { return isRunningOnMono; }
+        }
 
         /// <summary>
         /// Retrieves the value of an environment variable from the current process.

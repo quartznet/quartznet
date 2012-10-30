@@ -21,6 +21,8 @@
 
 using System;
 
+using Quartz.Util;
+
 namespace Quartz.Impl.Triggers
 {
     /// <summary>
@@ -607,7 +609,7 @@ namespace Quartz.Impl.Triggers
             DateTimeOffset sTime = StartTimeUtc;
             if (timeZone != null)
             {
-                sTime = TimeZoneInfo.ConvertTime(sTime, timeZone);
+                sTime = TimeZoneUtil.ConvertTime(sTime, timeZone);
             }
 
             if (RepeatIntervalUnit == IntervalUnit.Second)

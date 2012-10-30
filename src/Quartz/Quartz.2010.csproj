@@ -460,6 +460,7 @@
     <Compile Include="Util\FileUtil.cs" />
     <Compile Include="Util\LogicalThreadContext.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
+    <Compile Include="Util\TimeZoneUtil.cs" />
     <Compile Include="Xml\job_scheduling_data_2_0.cs">
       <DependentUpon>job_scheduling_data_2_0.xsd</DependentUpon>
     </Compile>

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 
 using Quartz.Impl.Triggers;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
@@ -204,14 +205,14 @@ namespace Quartz.Tests.Unit
             dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
             dailyTrigger.RepeatInterval= 1; // every day
 
-            targetCalendar = TimeZoneInfo.ConvertTime(startCalendar, cetTimeZone);
+            targetCalendar = TimeZoneUtil.ConvertTime(startCalendar, cetTimeZone);
             targetCalendar = targetCalendar.AddDays(2); // jump 2 days (2 intervals)
 
             fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
 
             testTime = fireTimes[2]; // get the third fire time
 
-            DateTimeOffset testCal = TimeZoneInfo.ConvertTime(testTime, cetTimeZone);
+            DateTimeOffset testCal = TimeZoneUtil.ConvertTime(testTime, cetTimeZone);
 
             Assert.AreNotEqual(targetCalendar.Hour, testCal.Hour, "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
 
@@ -232,7 +233,7 @@ namespace Quartz.Tests.Unit
 
             testTime = fireTimes[2]; // get the third fire time
 
-            testCal = TimeZoneInfo.ConvertTime(testTime, cetTimeZone);
+            testCal = TimeZoneUtil.ConvertTime(testTime, cetTimeZone);
 
             Assert.AreEqual(targetCalendar.Hour, testCal.Hour, "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
 

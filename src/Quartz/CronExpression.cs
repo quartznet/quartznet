@@ -25,6 +25,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 using Quartz.Collection;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -1571,7 +1572,7 @@ namespace Quartz
             DateTimeOffset d = CreateDateTimeWithoutMillis(afterTimeUtc);
 
             // change to specified time zone
-            d = TimeZoneInfo.ConvertTime(d, TimeZone);
+            d = TimeZoneUtil.ConvertTime(d, TimeZone);
 
             bool gotOne = false;
             // loop until we've computed the next time, or we've past the endTime

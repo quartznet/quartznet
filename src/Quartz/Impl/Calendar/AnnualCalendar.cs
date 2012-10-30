@@ -23,6 +23,8 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security;
 
+using Quartz.Util;
+
 namespace Quartz.Impl.Calendar
 {
     /// <summary>
@@ -226,7 +228,7 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            return !(IsDayExcluded(TimeZoneInfo.ConvertTime(dateUtc, TimeZoneInfo.Local)));
+            return !(IsDayExcluded(TimeZoneUtil.ConvertTime(dateUtc, TimeZoneInfo.Local)));
         }
 
         /// <summary>

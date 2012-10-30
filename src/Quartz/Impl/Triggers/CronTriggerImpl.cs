@@ -20,6 +20,7 @@
 using System;
 
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Impl.Triggers
 {
@@ -766,7 +767,7 @@ namespace Quartz.Impl.Triggers
                 return false;
             }
 
-            DateTimeOffset p = TimeZoneInfo.ConvertTime(fta.Value, TimeZone);
+            DateTimeOffset p = TimeZoneUtil.ConvertTime(fta.Value, TimeZone);
 
 			if (dayOnly)
 			{
