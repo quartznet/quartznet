@@ -91,6 +91,7 @@ namespace Quartz.Examples.Example13
             properties["quartz.jobStore.clustered"] = "true";
             // if running SQLite we need this
             // properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
 
             properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
             properties["quartz.dataSource.default.provider"] = "SqlServer-20";

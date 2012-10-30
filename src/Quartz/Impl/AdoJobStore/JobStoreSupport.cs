@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -550,7 +551,7 @@ namespace Quartz.Impl.AdoJobStore
                         if (SelectWithLockSQL == null)
                         {
                             const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = {1} AND LOCK_NAME = @lockName";
-                            Log.Info("Detected usage of MSSQLDelegate - defaulting 'selectWithLockSQL' to '" + DefaultLockSql + "'.");
+                            Log.InfoFormat("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '" + DefaultLockSql + "'.", TablePrefix, "'" + InstanceName + "'");
                             SelectWithLockSQL = DefaultLockSql;
                         }
                     }
@@ -562,6 +563,19 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     Log.Info("Using thread monitor-based data access locking (synchronization).");
                     LockHandler = new SimpleSemaphore();
+                }
+            }
+            else
+            {
+                // be ready to give a friendly warning if SQL Server is used and sub-optimal locking
+                if (LockHandler is UpdateLockRowSemaphore && Delegate is SqlServerDelegate)
+                {
+                    Log.Warn("Detected usage of SqlServerDelegate and UpdateLockRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
+                }
+                // be ready to give a friendly warning if SQL Server provider and wrong delegate
+                if (DbProvider != null && DbProvider.Metadata.ConnectionType == typeof(SqlConnection) && !(Delegate is SqlServerDelegate))
+                {
+                    Log.Warn("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
                 }
             }
         }
