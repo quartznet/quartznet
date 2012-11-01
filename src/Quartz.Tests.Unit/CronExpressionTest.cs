@@ -451,7 +451,7 @@ namespace Quartz.Tests.Unit
             CronExpression expression = new CronExpression("0 5 13 5W 1-12 ?");
             DateTimeOffset test = new DateTimeOffset(2009, 3, 8, 0, 0, 0, TimeSpan.Zero);
             DateTimeOffset d = expression.GetNextValidTimeAfter(test).Value;
-            Assert.AreEqual(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneInfo.Local.GetUtcOffset(test)).ToUniversalTime(), d);
+            Assert.AreEqual(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneInfo.Local.GetUtcOffset(d)).ToUniversalTime(), d);
             d = expression.GetNextValidTimeAfter(d).Value;
             Assert.AreEqual(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneInfo.Local.GetUtcOffset(d)), d);
         }
@@ -522,6 +522,36 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(after.HasValue);
             DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15).ToUniversalTime();
             Assert.AreEqual(expected, after.Value);
+        }
+
+        [Test]
+        public void TestDaylightSavingsDoesNotMatchAnHourBefore()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            CronExpression expression = new CronExpression("0 15 15 5 11 ?");
+            expression.TimeZone = est;
+
+            DateTimeOffset startTime = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
+            
+            var actualTime = expression.GetTimeAfter(startTime);
+            DateTimeOffset expected = new DateTimeOffset(2012, 11, 5, 15, 15, 0, TimeSpan.FromHours(-5));
+
+            Assert.AreEqual(expected, actualTime.Value);
+        }
+
+        [Test]
+        public void TestDaylightSavingsDoesNotMatchAnHourBefore2()
+        {
+            //another case
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            CronExpression expression = new CronExpression("0 0 0 ? * THU");
+            expression.TimeZone = est;
+
+            DateTimeOffset startTime = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
+
+            var actualTime = expression.GetTimeAfter(startTime);
+            DateTimeOffset expected = new DateTimeOffset(2012, 11, 8, 0, 0, 0, TimeSpan.FromHours(-5));
+            Assert.AreEqual(expected, actualTime);
         }
 
         private class SimpleCronExpression : CronExpression
