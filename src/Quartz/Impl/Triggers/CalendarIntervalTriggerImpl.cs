@@ -767,9 +767,12 @@ namespace Quartz.Impl.Triggers
 
         private bool DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref DateTimeOffset newTime, int initialHourOfDay)
         {
-            if (PreserveHourOfDayAcrossDaylightSavings && newTime.Hour != initialHourOfDay)
+            //need to apply timezone again to properly check if initialHourOfDay has changed.
+            DateTimeOffset toCheck = TimeZoneUtil.ConvertTime(newTime, this.TimeZone);
+
+            if (PreserveHourOfDayAcrossDaylightSavings && toCheck.Hour != initialHourOfDay)
             {
-                newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, newTime.Offset);
+                newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, toCheck.Offset);
                 if (newTime.Hour != initialHourOfDay)
                 {
                     return true;

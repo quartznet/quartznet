@@ -125,6 +125,7 @@
     <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
     <Compile Include="Impl\Triggers\AbstractTriggerTest.cs" />
+    <Compile Include="Impl\Triggers\CalendarIntervalTriggerImplTest.cs" />
     <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImplTest.cs" />
     <Compile Include="InterrubtableJobTest.cs" />
     <Compile Include="JobBuilderTest.cs" />
