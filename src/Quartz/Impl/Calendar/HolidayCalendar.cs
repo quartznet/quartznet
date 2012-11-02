@@ -159,15 +159,18 @@ namespace Quartz.Impl.Calendar
 				timeUtc = baseTime;
 			}
 
-			// Get timestamp for 00:00:00
-			DateTime day = timeUtc.Date;
+            //apply the timezone
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+
+            // Get timestamp for 00:00:00, with the correct timezone offset
+            DateTimeOffset day = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
 
 			while (!IsTimeIncluded(day))
 			{
 				day = day.AddDays(1);
 			}
 
-            return TimeZoneInfo.ConvertTimeToUtc(day);
+            return day;
 		}
 
 	    /// <summary>

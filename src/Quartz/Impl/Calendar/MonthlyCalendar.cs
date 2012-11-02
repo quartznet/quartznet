@@ -223,8 +223,11 @@ namespace Quartz.Impl.Calendar
 				timeUtc = baseTime;
 			}
 
-            // Get timestamp for 00:00:00, while applying correct offset
-            DateTimeOffset newTimeStamp = new DateTimeOffset(timeUtc.Date, this.TimeZone.GetUtcOffset(timeUtc.DateTime)); 
+            //apply the timezone
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+
+            // Get timestamp for 00:00:00, in the correct timezone offset
+            DateTimeOffset newTimeStamp = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
 
             int day = newTimeStamp.Day;
 
