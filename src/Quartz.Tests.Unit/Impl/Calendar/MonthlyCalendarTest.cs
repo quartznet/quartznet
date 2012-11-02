@@ -38,6 +38,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public void Setup()
         {
             cal = new MonthlyCalendar();
+            cal.TimeZone = TimeZoneInfo.Utc; //assume utc if not specified.
         }
 
         [Test]
