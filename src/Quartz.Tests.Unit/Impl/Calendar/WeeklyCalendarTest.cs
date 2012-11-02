@@ -74,7 +74,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             cal.SetDayExcluded(DayOfWeek.Saturday, true);
             cal.SetDayExcluded(DayOfWeek.Sunday, true);
 
-            //11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00, which is a Sunday, not monday
+            //11/5/2012 12:00:00 AM -04:00 will translate into 11/4/2012 11:00:00 PM -05:00, which is a Sunday, not monday
             DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4)); 
             Assert.IsFalse(cal.IsTimeIncluded(date));
 
