@@ -22,6 +22,7 @@ using System.Runtime.Serialization;
 using System.Security;
 
 using Quartz.Collection;
+using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
 {
@@ -135,7 +136,9 @@ namespace Quartz.Impl.Calendar
 				return false;
 			}
 
-			DateTime lookFor = timeStampUtc.Date;
+            //apply the timezone
+            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, this.TimeZone);
+            DateTime lookFor = timeStampUtc.Date;
 
 			return !(dates.Contains(lookFor));
 		}
