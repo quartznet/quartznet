@@ -17,6 +17,7 @@
  */
 #endregion
 
+using Quartz.Util;
 using System;
 using System.Globalization;
 using System.Runtime.Serialization;
@@ -427,6 +428,9 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
+            //Before we start, apply the correct timezone offsets.
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+
             DateTimeOffset startOfDayInMillis = GetStartOfDay(timeUtc);
             DateTimeOffset endOfDayInMillis = GetEndOfDay(timeUtc);
             DateTimeOffset timeRangeStartingTimeInMillis =
@@ -559,7 +563,7 @@ namespace Quartz.Impl.Calendar
         {
             DateTimeOffset rangeStartingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
                                                       rangeStartingHourOfDay, rangeStartingMinute,
-                                                      rangeStartingSecond, rangeStartingMillis, TimeSpan.Zero);
+                                                      rangeStartingSecond, rangeStartingMillis, timeUtc.Offset);
             return rangeStartingTime;
         }
 
@@ -575,7 +579,7 @@ namespace Quartz.Impl.Calendar
         {
             DateTimeOffset rangeEndingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
                                                     rangeEndingHourOfDay, rangeEndingMinute,
-                                                    rangeEndingSecond, rangeEndingMillis, TimeSpan.Zero);
+                                                    rangeEndingSecond, rangeEndingMillis, timeUtc.Offset);
             return rangeEndingTime;
         }
 
