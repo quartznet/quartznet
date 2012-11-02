@@ -772,8 +772,11 @@ namespace Quartz.Impl.Triggers
 
             if (PreserveHourOfDayAcrossDaylightSavings && toCheck.Hour != initialHourOfDay)
             {
-                newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, toCheck.Offset);
-                if (newTime.Hour != initialHourOfDay)
+                //first set the hour, then adjust to have the proper offset for that day
+                newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, TimeSpan.Zero);
+                newTime = new DateTimeOffset(newTime.DateTime, this.timeZone.GetUtcOffset(newTime.DateTime));
+
+                if (toCheck.Hour != initialHourOfDay)
                 {
                     return true;
                 }
