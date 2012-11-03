@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 
@@ -218,7 +219,7 @@ namespace Quartz.Tests.Unit
 
             // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove time of day is preserved with setPreserveHourOfDayAcrossDaylightSavings(true)
 
-            startCalendar = TimeZoneInfo.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
+            startCalendar = TimeZoneUtil.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
 
             dailyTrigger = new CalendarIntervalTriggerImpl();
             dailyTrigger.StartTimeUtc = startCalendar;
@@ -231,10 +232,10 @@ namespace Quartz.Tests.Unit
 
             fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
 
-            testTime = fireTimes[2]; // get the third fire time
+            testTime = fireTimes[1]; // get the second fire time
 
             testCal = TimeZoneUtil.ConvertTime(testTime, cetTimeZone);
-
+            
             Assert.AreEqual(targetCalendar.Hour, testCal.Hour, "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
 
             // Pick a day before a fall daylight savings transition...
@@ -325,6 +326,228 @@ namespace Quartz.Tests.Unit
             }
         }
 
+        [Test]
+        public void TestTimeZoneTransition()
+        {
+            TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl("trigger", IntervalUnit.Day, 1);
+            trigger.TimeZone = timeZone;
+            trigger.StartTimeUtc = new DateTimeOffset(2012, 11, 2, 12, 0, 0, TimeSpan.FromHours(-4));
+
+            var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 6);
+
+            var expected = new DateTimeOffset(2012, 11, 2, 12, 0, 0, TimeSpan.FromHours(-4));
+            Assert.AreEqual(expected, fireTimes[0]);
+
+            expected = new DateTimeOffset(2012, 11, 3, 12, 0, 0, TimeSpan.FromHours(-4));
+            Assert.AreEqual(expected, fireTimes[1]);
+
+            //this next day should be a new daylight savings change, notice the change in offset
+            expected = new DateTimeOffset(2012, 11, 4, 12, 0, 0, TimeSpan.FromHours(-5));
+            Assert.AreEqual(expected, fireTimes[2]);
+
+            expected = new DateTimeOffset(2012, 11, 5, 12, 0, 0, TimeSpan.FromHours(-5));
+            Assert.AreEqual(expected, fireTimes[3]);
+        }
+
+        [Test]
+        public void TestSkipDayIfItDoesNotExists()
+        {
+            TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            //March 11, 2012, EST DST starts at 2am and jumps to 3.
+            // 3/11/2012 2:00:00 AM is an invalid time
+
+            //------------------------------------------------- 
+            // DAILY
+            //------------------------------------------------- 
+            CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
+            trigger.TimeZone = timeZone;
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Day;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = true;
+            
+            DateTimeOffset startDate = new DateTimeOffset(2012, 3, 10, 2, 0, 0, 0, TimeSpan.FromHours(-5));
+            trigger.StartTimeUtc = startDate;
+
+            var fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+            var targetTime = fires[1]; //get second fire
+
+            Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
+
+            DateTimeOffset expectedTarget = new DateTimeOffset(2012, 3, 12, 2, 0, 0, TimeSpan.FromHours(-4)); // 3/12/2012 2am
+            Assert.AreEqual(expectedTarget, targetTime);
+
+            //------------------------------------------------- 
+            // WEEKLY
+            //------------------------------------------------- 
+            trigger = new CalendarIntervalTriggerImpl();
+            trigger.TimeZone = timeZone;
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Week;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = true;
+
+            startDate = new DateTimeOffset(2012, 3, 4, 2, 0, 0, 0, TimeSpan.FromHours(-5));
+            trigger.StartTimeUtc = startDate;
+
+            fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+            targetTime = fires[1]; //get second fire
+
+            Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
+
+            expectedTarget = new DateTimeOffset(2012, 3, 18, 2, 0, 0, TimeSpan.FromHours(-4)); // 3/18/2012 2am
+            Assert.AreEqual(expectedTarget, targetTime);
+
+            //------------------------------------------------- 
+            // MONTHLY
+            //------------------------------------------------- 
+
+            trigger = new CalendarIntervalTriggerImpl();
+            trigger.TimeZone = timeZone;
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Month ;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = true;
+
+            startDate = new DateTimeOffset(2012, 2, 11, 2, 0, 0, 0, TimeSpan.FromHours(-5));
+            trigger.StartTimeUtc = startDate;
+
+            fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+            targetTime = fires[1]; //get second fire
+
+            Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
+
+            expectedTarget = new DateTimeOffset(2012, 4, 11, 2, 0, 0, TimeSpan.FromHours(-4)); // 4/11/2012 2am
+            Assert.AreEqual(expectedTarget, targetTime);
+
+            //------------------------------------------------- 
+            // YEARLY
+            //------------------------------------------------- 
+
+            trigger = new CalendarIntervalTriggerImpl();
+            trigger.TimeZone = timeZone;
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Year;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = true;
+
+            startDate = new DateTimeOffset(2011, 3, 11, 2, 0, 0, 0, TimeSpan.FromHours(-5));
+            trigger.StartTimeUtc = startDate;
+
+            fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+            targetTime = fires[1]; //get second fire
+
+            Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
+
+            expectedTarget = new DateTimeOffset(2013, 3, 11, 2, 0, 0, TimeSpan.FromHours(-4)); // 3/11/2013 2am
+            Assert.AreEqual(expectedTarget, targetTime);
+        }
+
+        [Test]
+        public void TestSkipDayIfItDoesNotExistsIsFalse()
+        {
+            TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            //March 11, 2012, EST DST starts at 2am and jumps to 3.
+            // 3/11/2012 2:00:00 AM is an invalid time
+
+            //expected target will always be the on the next valid time, (3/11/2012 3am) in this case
+            DateTimeOffset expectedTarget = new DateTimeOffset(2012, 3, 11, 3, 0, 0, TimeSpan.FromHours(-5));
+
+            //------------------------------------------------- 
+            // DAILY
+            //------------------------------------------------- 
+
+            CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
+            trigger.TimeZone = timeZone;
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Day;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = false;
+
+
+            DateTimeOffset startDate = new DateTimeOffset(2012, 3, 10, 2, 0, 0, 0, TimeSpan.FromHours(-5));
+            trigger.StartTimeUtc = startDate;
+
+            var fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+            var targetTime = fires[1]; //get second fire
+
+            Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
+            Assert.AreEqual(expectedTarget, targetTime);
+
+
+            //------------------------------------------------- 
+            // WEEKLY
+            //------------------------------------------------- 
+            trigger = new CalendarIntervalTriggerImpl();
+            trigger.TimeZone = timeZone;
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Week;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = false;
+
+            startDate = new DateTimeOffset(2012, 3, 4, 2, 0, 0, 0, TimeSpan.FromHours(-5));
+            trigger.StartTimeUtc = startDate;
+
+            fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+            targetTime = fires[1]; //get second fire
+
+            Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
+            Assert.AreEqual(expectedTarget, targetTime);
+
+            //------------------------------------------------- 
+            // MONTHLY
+            //------------------------------------------------- 
+            trigger = new CalendarIntervalTriggerImpl();
+            trigger.TimeZone = timeZone;
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Month;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = false;
+
+            startDate = new DateTimeOffset(2012, 2, 11, 2, 0, 0, 0, TimeSpan.FromHours(-5));
+            trigger.StartTimeUtc = startDate;
+
+            fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+            targetTime = fires[1]; //get second fire
+
+            Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
+            Assert.AreEqual(expectedTarget, targetTime);
+
+
+            //------------------------------------------------- 
+            // YEARLY
+            //------------------------------------------------- 
+
+            trigger = new CalendarIntervalTriggerImpl();
+            trigger.TimeZone = timeZone;
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Year;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = false;
+
+            startDate = new DateTimeOffset(2011, 3, 11, 2, 0, 0, 0, TimeSpan.FromHours(-5));
+            trigger.StartTimeUtc = startDate;
+
+            fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+            targetTime = fires[1]; //get second fire
+
+            Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
+            Assert.AreEqual(expectedTarget, targetTime);
+        }
+
+
         protected override object GetTargetObject()
         {
             var jobDataMap = new JobDataMap();
@@ -343,7 +566,6 @@ namespace Quartz.Tests.Unit
 
             return t;
         }
-
 
         protected override string[] GetVersions()
         {
