@@ -2009,7 +2009,7 @@ namespace Quartz
                 d = new DateTimeOffset(year, d.Month, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
 
                 //apply the proper offset for this date
-                d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, timeZone.GetUtcOffset(d.DateTime));
+                d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, this.TimeZone.GetUtcOffset(d.DateTime));
 
                 gotOne = true;
             } // while( !done )
