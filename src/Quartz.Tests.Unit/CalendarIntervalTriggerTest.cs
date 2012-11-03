@@ -344,10 +344,10 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(expected, fireTimes[1]);
 
             //this next day should be a new daylight savings change, notice the change in offset
-            expected = new DateTimeOffset(2012, 11, 4, 12, 0, 0, TimeSpan.FromHours(-5));
+            expected = new DateTimeOffset(2012, 11, 4, 11, 0, 0, TimeSpan.FromHours(-5));
             Assert.AreEqual(expected, fireTimes[2]);
 
-            expected = new DateTimeOffset(2012, 11, 5, 12, 0, 0, TimeSpan.FromHours(-5));
+            expected = new DateTimeOffset(2012, 11, 5, 11, 0, 0, TimeSpan.FromHours(-5));
             Assert.AreEqual(expected, fireTimes[3]);
         }
 
@@ -545,6 +545,76 @@ namespace Quartz.Tests.Unit
 
             Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
             Assert.AreEqual(expectedTarget, targetTime);
+        }
+
+        [Test]
+        public void TestStartTimeOnDayInDifferentOffset()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            DateTimeOffset startDate = new DateTimeOffset(2012, 3, 11, 12, 0, 0, TimeSpan.FromHours(-5));
+
+            CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
+            t.RepeatInterval = 1;
+            t.RepeatIntervalUnit = IntervalUnit.Day;
+            t.PreserveHourOfDayAcrossDaylightSavings = true;
+            t.SkipDayIfHourDoesNotExist = false;
+            t.StartTimeUtc = startDate;
+            t.TimeZone = est;
+
+            var fireTimes = TriggerUtils.ComputeFireTimes(t, null, 10);
+
+            var firstFire = fireTimes[0];
+            var secondFire = fireTimes[1];
+
+            Assert.AreNotEqual(firstFire, secondFire);
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public void TestMovingAcrossDSTAvoidsInfiniteLoop()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            DateTimeOffset startDate = new DateTimeOffset(1990, 10, 27, 0, 0, 0, TimeSpan.FromHours(-4));
+
+            CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
+            t.RepeatInterval = 1;
+            t.RepeatIntervalUnit = IntervalUnit.Day;
+            t.PreserveHourOfDayAcrossDaylightSavings = true;
+            t.SkipDayIfHourDoesNotExist = false;
+            t.StartTimeUtc = startDate;
+            t.TimeZone = est;
+
+            var fireTimes = TriggerUtils.ComputeFireTimes(t, null, 10);
+
+            var firstFire = fireTimes[0];
+            var secondFire = fireTimes[1];
+
+            Assert.AreNotEqual(firstFire, secondFire);
+        }
+
+        [Test]
+        public void TestCrossingDSTBoundry()
+        {
+            TimeZoneInfo cetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+            DateTimeOffset startCalendar = TimeZoneUtil.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
+
+            CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
+            dailyTrigger.StartTimeUtc = startCalendar;
+            dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
+            dailyTrigger.RepeatInterval = 1; 
+            dailyTrigger.TimeZone = cetTimeZone;
+            dailyTrigger.PreserveHourOfDayAcrossDaylightSavings = true;
+
+            var fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+
+            //none of these should match the previous fire time.
+            for (int i = 1; i < fireTimes.Count; i++)
+            {
+                var previousFire = fireTimes[i - 1];
+                var currentFire = fireTimes[i];
+
+                Assert.AreNotEqual(previousFire, currentFire);
+            }
         }
 
 

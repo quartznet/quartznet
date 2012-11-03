@@ -678,8 +678,8 @@ namespace Quartz.Impl.Triggers
 
                     // now baby-step the rest of the way there...
                     sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
-                    
-                    while (sTime.DateTime < afterTime.Value.DateTime && sTime.Year < YearToGiveupSchedulingAt)
+
+                    while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval);
                         MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
@@ -724,9 +724,10 @@ namespace Quartz.Impl.Triggers
 
                     sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
 
-                    while (sTime.DateTime < afterTime.Value.DateTime && sTime.Year < YearToGiveupSchedulingAt)
+                    while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval*7);
+                        MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
                     while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
@@ -742,9 +743,10 @@ namespace Quartz.Impl.Triggers
 
                     sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
 
-                    while (sTime.DateTime < afterTime.Value.DateTime && sTime.Year < YearToGiveupSchedulingAt)
+                    while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddMonths(RepeatInterval);
+                        MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
                     while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay)
                            && sTime.Year < YearToGiveupSchedulingAt)
@@ -757,9 +759,10 @@ namespace Quartz.Impl.Triggers
                 {
                     sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
 
-                    while (sTime.DateTime < afterTime.Value.DateTime && sTime.Year < YearToGiveupSchedulingAt)
+                    while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddYears(RepeatInterval);
+                        MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
                     while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
@@ -812,13 +815,16 @@ namespace Quartz.Impl.Triggers
             //this method was made to adjust the time if a DST occurred, this is to stay consistent with the time
             //we are checking against, which is the afterTime. There were problems the occurred when the DST adjusment
             //took the time an hour back, leading to the times were not being adjusted properly.
+            
+            //avoid shifts in day, otherwise this will cause an infinite loop in the code.
+            int initialDay = sTime.Day;
 
             sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone);
 
             if (PreserveHourOfDayAcrossDaylightSavings && sTime.Hour != initialHourOfDay)
             {
                 //first apply the date, and then find the proper timezone offset
-                sTime = new DateTimeOffset(sTime.Year, sTime.Month, sTime.Day, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
+                sTime = new DateTimeOffset(sTime.Year, sTime.Month, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
                 sTime = new DateTimeOffset(sTime.DateTime, this.TimeZone.GetUtcOffset(sTime));
             }
         }
