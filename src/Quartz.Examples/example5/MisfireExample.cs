@@ -33,7 +33,7 @@ namespace Quartz.Examples.Example5
     /// as well as how misfire instructions affect the firings of triggers of
     /// that have <see cref="DisallowConcurrentExecutionAttribute" /> present - 
     /// when the jobs take longer to execute that the frequency of the trigger's
-    /// repitition.
+    /// repetition.
     /// </summary>
     /// <remarks>
     /// <para>
