@@ -39,6 +39,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public void Setup()
         {
             cal = new HolidayCalendar();
+            cal.TimeZone = TimeZoneInfo.Utc; //assume utc if not specified.
         }
 
         [Test]
@@ -55,7 +56,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             // use end of day to get by with utc offsets
             DateTime excluded = new DateTime(2007, 12, 31);
             cal.AddExcludedDate(excluded);
-            Assert.AreEqual(new DateTimeOffset(new DateTime(2008, 1, 1, 0, 0, 0)), cal.GetNextIncludedTimeUtc(excluded).ToLocalTime());
+            
+            Assert.AreEqual(new DateTimeOffset(2008, 1, 1, 0,0,0, TimeSpan.Zero), cal.GetNextIncludedTimeUtc(excluded).ToLocalTime());
         }
     
         /// <summary>
@@ -65,12 +67,34 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// <returns></returns>
         protected override object GetTargetObject()
         {
-            AnnualCalendar c = new AnnualCalendar();
+            HolidayCalendar c = new HolidayCalendar();
             c.Description = "description";
             DateTime date = new DateTime(2005, 1, 20, 10, 5, 15);
-            c.SetDayExcluded(date, true);
+            c.AddExcludedDate(date);
             return c;
         }
+
+        [Test]
+        public void TestTimeZone()
+        {
+            TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            HolidayCalendar c = new HolidayCalendar();
+            c.TimeZone = tz;
+
+            DateTimeOffset excludedDay = new DateTimeOffset(2012, 11, 4, 0,0,0, TimeSpan.Zero);
+            c.AddExcludedDate(excludedDay.DateTime);
+
+            // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
+            DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
+
+            Assert.IsFalse(c.IsTimeIncluded(date), "date was expected to not be included.");
+            Assert.IsTrue(c.IsTimeIncluded(date.AddDays(1)));
+
+            DateTimeOffset expectedNextAvailable = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset actualNextAvailable = c.GetNextIncludedTimeUtc(date);
+            Assert.AreEqual(expectedNextAvailable, actualNextAvailable);
+        }
+    
 
         /// <summary>
         /// Get the Quartz versions for which we should verify
@@ -90,12 +114,12 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// <param name="deserialized"></param>
         protected override void VerifyMatch(object target, object deserialized)
         {
-            AnnualCalendar targetCalendar = (AnnualCalendar)target;
-            AnnualCalendar deserializedCalendar = (AnnualCalendar)deserialized;
+            HolidayCalendar targetCalendar = (HolidayCalendar)target;
+            HolidayCalendar deserializedCalendar = (HolidayCalendar)deserialized;
 
             Assert.IsNotNull(deserializedCalendar);
             Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
-            Assert.AreEqual(targetCalendar.DaysExcluded, deserializedCalendar.DaysExcluded);
+            Assert.AreEqual(targetCalendar.ExcludedDates, deserializedCalendar.ExcludedDates);
             ///Assert.IsNull(deserializedCalendar.getTimeZone());
         }
     }

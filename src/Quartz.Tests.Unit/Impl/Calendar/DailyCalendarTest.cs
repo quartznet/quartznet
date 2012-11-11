@@ -70,6 +70,21 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 			Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: False") > 0);
 		}
 
+        [Test]
+        public void TestTimeZone()
+        {
+            TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00");
+            dailyCalendar.InvertTimeRange = true; //inclusive calendar
+            dailyCalendar.TimeZone = tz;
+            
+            // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
+            DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));
+            Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
+        }
+
+
 		/// <summary>
 		/// Get the object to serialize when generating serialized file for future
 		/// tests, and against which to validate deserialized object.
