@@ -17,6 +17,7 @@
  */
 #endregion
 
+using Quartz.Util;
 using System;
 using System.Runtime.Serialization;
 using System.Security;
@@ -213,6 +214,7 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone); //apply the timezone
             return !(IsDayExcluded(timeUtc.DayOfWeek));
         }
 
@@ -238,13 +240,16 @@ namespace Quartz.Impl.Calendar
                 timeUtc = baseTime;
             }
 
-            // Get timestamp for 00:00:00
-            DateTimeOffset d = new DateTimeOffset(timeUtc.Date, TimeSpan.Zero);
+            //apply the timezone
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+
+            // Get timestamp for 00:00:00, in the correct timezone offset
+            DateTimeOffset d = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
 
             if (!IsDayExcluded(d.DayOfWeek))
             {
-                return timeUtc;
-            } // return the original value
+                return d;
+            } // return the original value with the correct offset time.
 
             while (IsDayExcluded(d.DayOfWeek))
             {

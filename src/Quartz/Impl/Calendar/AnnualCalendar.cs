@@ -152,7 +152,7 @@ namespace Quartz.Impl.Calendar
             {
                 return true;
             }
-
+            
             int dmonth = day.Month;
             int dday = day.Day;
 
@@ -228,7 +228,10 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            return !(IsDayExcluded(TimeZoneUtil.ConvertTime(dateUtc, TimeZoneInfo.Local)));
+            //apply the timezone
+            dateUtc = TimeZoneUtil.ConvertTime(dateUtc, this.TimeZone);
+
+            return !(IsDayExcluded(dateUtc));
         }
 
         /// <summary>
@@ -248,8 +251,11 @@ namespace Quartz.Impl.Calendar
                 timeStampUtc = baseTime;
             }
 
-            // Get timestamp for 00:00:00
-            DateTime day = TimeZoneInfo.ConvertTimeFromUtc(new DateTime(timeStampUtc.Year, timeStampUtc.Month, timeStampUtc.Day), TimeZoneInfo.Local);
+            //apply the timezone
+            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, this.TimeZone);
+
+            // Get timestamp for 00:00:00, in the correct timezone offset
+            DateTimeOffset day = new DateTimeOffset(timeStampUtc.Date, timeStampUtc.Offset);
 
             if (!IsDayExcluded(day))
             {
@@ -262,7 +268,7 @@ namespace Quartz.Impl.Calendar
                 day = day.AddDays(1);
             }
 
-            return TimeZoneInfo.ConvertTimeToUtc(day);
+            return day;
         }
 
 

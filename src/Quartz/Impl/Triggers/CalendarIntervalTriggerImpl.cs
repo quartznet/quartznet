@@ -677,14 +677,18 @@ namespace Quartz.Impl.Triggers
                     }
 
                     // now baby-step the rest of the way there...
-                    while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                    sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
+
+                    while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval);
+                        MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
                     while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval);
                     }
+                    
                     time = sTime;
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Week)
@@ -718,9 +722,12 @@ namespace Quartz.Impl.Triggers
                         sTime = sTime.AddDays((int) (RepeatInterval*jumpCount*7));
                     }
 
-                    while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                    sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
+
+                    while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval*7);
+                        MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
                     while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
@@ -733,9 +740,13 @@ namespace Quartz.Impl.Triggers
                     // because of the large variation in size of months, and 
                     // because months are already large blocks of time, we will
                     // just advance via brute-force iteration.
-                    while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+
+                    sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
+
+                    while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddMonths(RepeatInterval);
+                        MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
                     while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay)
                            && sTime.Year < YearToGiveupSchedulingAt)
@@ -746,9 +757,12 @@ namespace Quartz.Impl.Triggers
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Year)
                 {
-                    while (sTime < afterTime && sTime.Year < YearToGiveupSchedulingAt)
+                    sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
+
+                    while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddYears(RepeatInterval);
+                        MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
                     while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
@@ -762,20 +776,57 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
+            sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone before we return the time.
             return time;
         }
 
         private bool DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref DateTimeOffset newTime, int initialHourOfDay)
         {
-            if (PreserveHourOfDayAcrossDaylightSavings && newTime.Hour != initialHourOfDay)
+            //need to apply timezone again to properly check if initialHourOfDay has changed.
+            DateTimeOffset toCheck = TimeZoneUtil.ConvertTime(newTime, this.TimeZone);
+
+            if (PreserveHourOfDayAcrossDaylightSavings && toCheck.Hour != initialHourOfDay)
             {
-                newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, newTime.Offset);
-                if (newTime.Hour != initialHourOfDay)
+                //first apply the date, and then find the proper timezone offset
+                newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, TimeSpan.Zero);
+                newTime = new DateTimeOffset(newTime.DateTime, this.timeZone.GetUtcOffset(newTime.DateTime));
+
+                //TimeZone.IsInvalidTime is true, if this hour does not exist in the specified timezone
+                bool isInvalid = this.TimeZone.IsInvalidTime(newTime.DateTime);
+
+                if (isInvalid && skipDayIfHourDoesNotExist)
                 {
-                    return true;
+                    return skipDayIfHourDoesNotExist;
+                }
+                else 
+                {
+                    //don't skip this day, instead find cloest valid time by adding minutes.
+                    while (this.TimeZone.IsInvalidTime(newTime.DateTime))
+                    {
+                        newTime = newTime.AddMinutes(1);
+                    }
                 }
             }
             return false;
+        }
+        
+        private void MakeHourAdjustmentIfNeeded(ref DateTimeOffset sTime, int initialHourOfDay)
+        {
+            //this method was made to adjust the time if a DST occurred, this is to stay consistent with the time
+            //we are checking against, which is the afterTime. There were problems the occurred when the DST adjusment
+            //took the time an hour back, leading to the times were not being adjusted properly.
+            
+            //avoid shifts in day, otherwise this will cause an infinite loop in the code.
+            int initialDay = sTime.Day;
+
+            sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone);
+
+            if (PreserveHourOfDayAcrossDaylightSavings && sTime.Hour != initialHourOfDay)
+            {
+                //first apply the date, and then find the proper timezone offset
+                sTime = new DateTimeOffset(sTime.Year, sTime.Month, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
+                sTime = new DateTimeOffset(sTime.DateTime, this.TimeZone.GetUtcOffset(sTime));
+            }
         }
 
         /// <summary>
