@@ -553,6 +553,89 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
         }
 
+
+        [Test]
+        public void TestFollowsTimeZone1()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            DateTimeOffset startTime = new DateTimeOffset(2012, 3, 9, 23, 0, 0, TimeSpan.FromHours(-5));
+
+            TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+            TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
+            var trigger = new DailyTimeIntervalTriggerImpl
+            {
+                StartTimeUtc = startTime.ToUniversalTime(),
+                StartTimeOfDay = startTimeOfDay,
+                EndTimeOfDay = endTimeOfDay,
+                RepeatIntervalUnit = IntervalUnit.Hour,
+                RepeatInterval = 1,
+                TimeZone = est
+            };
+
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 8);
+
+            DateTimeOffset expected0 = new DateTimeOffset(2012, 3, 10, 8, 0, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset expected1 = new DateTimeOffset(2012, 3, 10, 9, 0, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset expected2 = new DateTimeOffset(2012, 3, 10, 10, 0, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset expected3 = new DateTimeOffset(2012, 3, 10, 11, 0, 0, 0, TimeSpan.FromHours(-5));
+
+            DateTimeOffset expected4 = new DateTimeOffset(2012, 3, 11, 8, 0, 0, 0, TimeSpan.FromHours(-4));
+            DateTimeOffset expected5 = new DateTimeOffset(2012, 3, 11, 9, 0, 0, 0, TimeSpan.FromHours(-4));
+            DateTimeOffset expected6 = new DateTimeOffset(2012, 3, 11, 10, 0, 0, 0, TimeSpan.FromHours(-4));
+            DateTimeOffset expected7 = new DateTimeOffset(2012, 3, 11, 11, 0, 0, 0, TimeSpan.FromHours(-4));
+
+            Assert.AreEqual(expected0, fireTimes[0]);
+            Assert.AreEqual(expected1, fireTimes[1]);
+            Assert.AreEqual(expected2, fireTimes[2]);
+            Assert.AreEqual(expected3, fireTimes[3]);
+            Assert.AreEqual(expected4, fireTimes[4]);
+            Assert.AreEqual(expected5, fireTimes[5]);
+            Assert.AreEqual(expected6, fireTimes[6]);
+            Assert.AreEqual(expected7, fireTimes[7]);
+        }
+
+        [Test]
+        public void TestFollowsTimeZone2()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            DateTimeOffset startTime = new DateTimeOffset(2012, 11, 2, 12, 0, 0, TimeSpan.FromHours(-4));
+            
+            TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+            TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
+            var trigger = new DailyTimeIntervalTriggerImpl
+            {
+                StartTimeUtc = startTime.ToUniversalTime(),
+                StartTimeOfDay = startTimeOfDay,
+                EndTimeOfDay = endTimeOfDay,
+                RepeatIntervalUnit = IntervalUnit.Hour,
+                RepeatInterval = 1,
+                TimeZone = est
+            };
+
+            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 8);
+
+            DateTimeOffset expected0 = new DateTimeOffset(2012, 11, 3, 8, 0, 0, 0, TimeSpan.FromHours(-4));
+            DateTimeOffset expected1 = new DateTimeOffset(2012, 11, 3, 9, 0, 0, 0, TimeSpan.FromHours(-4));
+            DateTimeOffset expected2 = new DateTimeOffset(2012, 11, 3, 10, 0, 0, 0, TimeSpan.FromHours(-4));
+            DateTimeOffset expected3 = new DateTimeOffset(2012, 11, 3, 11, 0, 0, 0, TimeSpan.FromHours(-4));
+
+            DateTimeOffset expected4 = new DateTimeOffset(2012, 11, 4, 8, 0, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset expected5 = new DateTimeOffset(2012, 11, 4, 9, 0, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset expected6 = new DateTimeOffset(2012, 11, 4, 10, 0, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset expected7 = new DateTimeOffset(2012, 11, 4, 11, 0, 0, 0, TimeSpan.FromHours(-5));
+
+            Assert.AreEqual(expected0, fireTimes[0]);
+            Assert.AreEqual(expected1, fireTimes[1]);
+            Assert.AreEqual(expected2, fireTimes[2]);
+            Assert.AreEqual(expected3, fireTimes[3]);
+            Assert.AreEqual(expected4, fireTimes[4]);
+            Assert.AreEqual(expected5, fireTimes[5]);
+            Assert.AreEqual(expected6, fireTimes[6]);
+            Assert.AreEqual(expected7, fireTimes[7]);
+        }
+
         [Test]
         public void ValidateShouldSucceedWithValidIntervalUnitHourConfiguration()
         {

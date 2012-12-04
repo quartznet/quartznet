@@ -218,5 +218,19 @@ namespace Quartz.Tests.Unit
                 // Expected.
             }
         }
+
+        [Test]
+        public void TestCanSetTimeZone()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger)TriggerBuilder.Create()
+                .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(1)
+                    .InTimeZone(est))
+                .Build();
+
+
+            Assert.AreEqual(est, trigger.TimeZone);
+        }
     }
 }

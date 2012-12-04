@@ -78,6 +78,7 @@ namespace Quartz
         private TimeOfDay startTimeOfDayUtc;
         private TimeOfDay endTimeOfDayUtc;
         private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
+        private TimeZoneInfo timeZone;
 
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
@@ -151,6 +152,7 @@ namespace Quartz
             st.RepeatIntervalUnit = intervalUnit;
             st.MisfireInstruction = misfireInstruction;
             st.RepeatCount = repeatCount;
+            st.TimeZone = timeZone;
 
             if (daysOfWeek != null)
             {
@@ -459,6 +461,18 @@ namespace Quartz
         public DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount)
         {
             this.repeatCount = repeatCount;
+            return this;
+        }
+
+        /// <summary>
+        /// TimeZone in which to base the schedule.
+        /// </summary>
+        /// <param name="timezone">the time-zone for the schedule</param>
+        /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
+        /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
+        public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
+        {
+            this.timeZone = timezone;
             return this;
         }
 

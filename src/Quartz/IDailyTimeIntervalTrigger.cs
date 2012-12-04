@@ -99,6 +99,14 @@ namespace Quartz
         int TimesTriggered { get; set; }
 
         /// <summary>
+        /// Gets the time zone within which time calculations related to this trigger will be performed.
+        /// </summary>
+        /// <remarks>
+        /// If null, the system default TimeZone will be used.
+        /// </remarks>
+        TimeZoneInfo TimeZone { get; }
+
+        /// <summary>
         /// 
         /// </summary>
         TriggerBuilder GetTriggerBuilder();
