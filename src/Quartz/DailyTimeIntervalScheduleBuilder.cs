@@ -367,9 +367,15 @@ namespace Quartz
                 throw new ArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
             }
 
-            DateTimeOffset today = DateTime.UtcNow;
+            DateTimeOffset today = SystemTime.UtcNow();
             DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today).Value;
             DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today).Value;
+
+            //apply proper offsets accroding to timezone
+            TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;
+            startTimeOfDayDate = new DateTimeOffset(startTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(startTimeOfDayDate.DateTime));
+            maxEndTimeOfDayDate = new DateTimeOffset(maxEndTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(maxEndTimeOfDayDate.DateTime));
+
             TimeSpan remainingMillisInDay = maxEndTimeOfDayDate - startTimeOfDayDate;
             TimeSpan intervalInMillis = TimeSpan.Zero;
             if (intervalUnit == IntervalUnit.Second)
@@ -408,7 +414,7 @@ namespace Quartz
                 throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
             }
 
-            DateTime cal = DateTime.UtcNow.Date;
+            DateTime cal = SystemTime.UtcNow().Date;
             cal = cal.Add(endTimeOfDayDate.TimeOfDay);
             endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(cal.Hour, cal.Minute, cal.Second);
             return this;
