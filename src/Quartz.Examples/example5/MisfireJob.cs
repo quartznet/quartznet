@@ -25,7 +25,7 @@ namespace Quartz.Examples.Example5
 {
 	
 	/// <summary>
-	/// A dumb implementation of Job, for unittesting purposes.
+	/// A dumb implementation of Job, for unit testing purposes.
 	/// </summary>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>

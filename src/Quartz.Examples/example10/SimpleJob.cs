@@ -27,7 +27,7 @@ using Common.Logging;
 namespace Quartz.Examples.Example10
 {
     /// <summary>
-    /// This is just a simple job that gets fired off many times by example 1
+    /// This is just a simple job.
     /// </summary>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

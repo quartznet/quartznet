@@ -25,7 +25,7 @@ namespace Quartz.Examples.Example4
 	
 	/// <summary>
 	/// This is just a simple job that receives parameters and
-	/// maintains state
+	/// maintains state.
 	/// </summary>
 	/// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

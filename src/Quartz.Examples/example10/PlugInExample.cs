@@ -27,7 +27,7 @@ namespace Quartz.Examples.Example10
 {
 	
 	/// <summary> 
-	/// This example will spawn a large number of jobs to run.
+    /// Plugin example.
 	/// </summary>
 	/// <author>James House, Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
@@ -48,7 +48,7 @@ namespace Quartz.Examples.Example10
 			
 			log.Info("------- Initialization Complete -----------");
 			
-			log.Info("------- (Not Scheduling any Jobs - relying on XML definitions --");
+			log.Info("------- Not Scheduling any Jobs - relying on XML definitions --");
 			
 			log.Info("------- Starting Scheduler ----------------");
 			

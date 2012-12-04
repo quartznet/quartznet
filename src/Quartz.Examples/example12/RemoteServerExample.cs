@@ -36,8 +36,8 @@ namespace Quartz.Examples.Example12
 			get { return GetType().Name; }
 		}
 
-		/// <summary> This example will spawn a large number of jobs to run
-		/// 
+		/// <summary>
+		/// This example will start a server that will allow clients to remotely schedule jobs.
 		/// </summary>
 		/// <author>  James House, Bill Kratzer
 		/// </author>
@@ -53,7 +53,7 @@ namespace Quartz.Examples.Example12
             properties["quartz.threadPool.threadCount"] = "5";
             properties["quartz.threadPool.threadPriority"] = "Normal";
 
-            // set remoting expoter
+            // set remoting exporter
             properties["quartz.scheduler.exporter.type"] = "Quartz.Simpl.RemotingSchedulerExporter, Quartz";
             properties["quartz.scheduler.exporter.port"] = "555";
             properties["quartz.scheduler.exporter.bindName"] = "QuartzScheduler";
@@ -65,7 +65,7 @@ namespace Quartz.Examples.Example12
 			
 			log.Info("------- Initialization Complete -----------");
 			
-			log.Info("------- (Not Scheduling any Jobs - relying on a remote client to schedule jobs --");
+			log.Info("------- Not scheduling any Jobs - relying on a remote client to schedule jobs --");
 			
 			log.Info("------- Starting Scheduler ----------------");
 			
@@ -74,9 +74,9 @@ namespace Quartz.Examples.Example12
 			
 			log.Info("------- Started Scheduler -----------------");
 			
-			log.Info("------- Waiting ten minutes... ------------");
+			log.Info("------- Waiting 5 minutes... ------------");
 			
-			// wait five minutes to give our jobs a chance to run
+			// wait to give our jobs a chance to run
 			try
 			{
 				Thread.Sleep(TimeSpan.FromMinutes(5));

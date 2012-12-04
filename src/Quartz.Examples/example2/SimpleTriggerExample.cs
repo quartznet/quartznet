@@ -29,7 +29,7 @@ using Quartz.Impl;
 namespace Quartz.Examples.Example2
 {
     /// <summary> 
-    /// This Example will demonstrate all of the basics of scheduling capabilities
+    /// This example will demonstrate all of the basics of scheduling capabilities
     /// of Quartz using Simple Triggers.
     /// </summary>
     /// <author>Bill Kratzer</author>

@@ -26,7 +26,7 @@ using Common.Logging;
 namespace Quartz.Examples.Example12
 {
     /// <summary>
-    /// A dumb implementation of Job, for unittesting purposes.
+    /// A dumb implementation of Job, for unit testing purposes.
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
