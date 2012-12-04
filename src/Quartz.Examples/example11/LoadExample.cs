@@ -48,7 +48,7 @@ namespace Quartz.Examples.Example11
 
 			log.Info("------- Initialization Complete -----------");
 
-			log.Info("------- (Not Scheduling any Jobs - relying on XML definitions --");
+            log.Info("------- Scheduling Jobs -------------------");
 
             Random r = new Random();
 			// schedule 500 jobs to run

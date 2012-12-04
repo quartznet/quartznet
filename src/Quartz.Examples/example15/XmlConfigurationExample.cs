@@ -28,7 +28,7 @@ using Quartz.Impl.Calendar;
 namespace Quartz.Examples.example15
 {
     /// <summary>
-    /// This Example will demonstrate how configuration can be
+    /// This example will demonstrate how configuration can be
     /// done using an XML file.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>

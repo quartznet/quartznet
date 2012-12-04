@@ -28,7 +28,7 @@ using Quartz.Impl;
 namespace Quartz.Examples.Example14
 {
     /// <summary>
-    /// This Example will demonstrate how Triggers are ordered by priority.
+    /// This example will demonstrate how Triggers are ordered by priority.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     public class PriorityExample : IExample

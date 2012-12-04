@@ -29,28 +29,8 @@ using Quartz.Impl;
 namespace Quartz.Examples.Example7
 {
     /// <summary>
-    /// Demonstrates the behavior of <see cref="PersistJobDataAfterExecutionAttribute" />, 
-    /// as well as how misfire instructions affect the firings of triggers of
-    /// that have <see cref="DisallowConcurrentExecutionAttribute" /> present - 
-    /// when the jobs take longer to execute that the frequency of the trigger's
-    /// repetition.
+    /// Demonstrates how to interrupt jobs.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// While the example is running, you should note that there are two triggers
-    /// with identical schedules, firing identical jobs. The triggers "want" to fire
-    /// every 3 seconds, but the jobs take 10 seconds to execute. Therefore, by the
-    /// time the jobs complete their execution, the triggers have already "misfired"
-    /// (unless the scheduler's "misfire threshold" has been set to more than 7
-    /// seconds). You should see that one of the jobs has its misfire instruction
-    /// set to <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />-
-    /// which causes it to fire immediately, when the misfire is detected. The other
-    /// trigger uses the default "smart policy" misfire instruction, which causes
-    /// the trigger to advance to its next fire time (skipping those that it has
-    /// missed) - so that it does not refire immediately, but rather at the next
-    /// scheduled time.
-    /// </para>
-    /// </remarks>
     /// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
     /// <author>Marko Lahma (.NET)</author>
     public class InterruptExample : IExample
