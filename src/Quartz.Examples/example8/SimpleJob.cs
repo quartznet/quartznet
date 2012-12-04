@@ -22,7 +22,7 @@ using Common.Logging;
 namespace Quartz.Examples.Example8
 {
 	/// <summary>
-	/// This is just a simple job that gets fired off many times by example 1
+	/// This is just a simple job that gets fired off by example 8.
 	/// </summary>
 	/// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

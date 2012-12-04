@@ -24,7 +24,7 @@ namespace Quartz.Examples.Example6
 {
 	
 	/// <summary>
-	/// A job dumb job that will throw a job execution exception
+	/// A job dumb job that will throw a job execution exception.
 	/// </summary>
 	/// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

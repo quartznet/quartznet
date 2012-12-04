@@ -25,7 +25,7 @@ namespace Quartz.Examples.Example3
 {
 	
 	/// <summary>
-	/// This is just a simple job that gets fired off many times by examples.
+	/// This is just a simple job that gets fired off many times by example 3.
 	/// </summary>
 	/// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

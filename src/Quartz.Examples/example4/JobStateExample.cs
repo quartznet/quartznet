@@ -29,8 +29,8 @@ using Quartz.Impl;
 namespace Quartz.Examples.Example4
 {
     /// <summary> 
-    /// This Example will demonstrate how job parameters can be 
-    /// passed into jobs and how state can be maintained
+    /// This example will demonstrate how job parameters can be 
+    /// passed into jobs and how state can be maintained.
     /// </summary>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
