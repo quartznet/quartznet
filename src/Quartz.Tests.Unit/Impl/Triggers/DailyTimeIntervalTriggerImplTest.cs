@@ -636,6 +636,39 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.AreEqual(expected7, fireTimes[7]);
         }
 
+
+        [Test]
+        public void DayOfWeekPropertyShouldNotAffectOtherTriggers()
+        {
+            //make 2 trigger exactly the same
+            DailyTimeIntervalTriggerImpl trigger1 = new DailyTimeIntervalTriggerImpl()
+            {
+                RepeatInterval = 1,
+                RepeatIntervalUnit = IntervalUnit.Hour
+            };
+
+            DailyTimeIntervalTriggerImpl trigger2 = new DailyTimeIntervalTriggerImpl()
+            {
+                RepeatInterval = 1,
+                RepeatIntervalUnit = IntervalUnit.Hour
+            };
+
+            //make an adjustment to only one trigger. 
+            //I only want mondays now
+            trigger1.DaysOfWeek.Clear();
+            trigger1.DaysOfWeek.Add(DayOfWeek.Monday);
+
+            //check trigger 2 DOW
+            //this fails because the reference collection only contains MONDAY b/c it was cleared.
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Monday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Tuesday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Wednesday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Thursday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Friday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Saturday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Sunday));
+        }
+
         [Test]
         public void ValidateShouldSucceedWithValidIntervalUnitHourConfiguration()
         {

@@ -123,6 +123,7 @@
       <Link>AssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="CalendarIntervalScheduleBuilder.cs" />
+    <Compile Include="Collection\ReadOnlyHashSet.cs" />
     <Compile Include="Impl\AdoJobStore\IDbAccessor.cs" />
     <Compile Include="IntervalUnit.cs" />
     <Compile Include="Core\ListenerManagerImpl.cs" />

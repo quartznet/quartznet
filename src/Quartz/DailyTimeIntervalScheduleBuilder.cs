@@ -123,6 +123,11 @@ namespace Quartz
             SaturdayAndSunday = new HashSet<DayOfWeek>();
             SaturdayAndSunday.Add(DayOfWeek.Sunday);
             SaturdayAndSunday.Add(DayOfWeek.Saturday);
+
+            //set as read only sets
+            AllDaysOfTheWeek = new ReadOnlySet<DayOfWeek>(AllDaysOfTheWeek);
+            MondayThroughFriday = new ReadOnlySet<DayOfWeek>(MondayThroughFriday);
+            SaturdayAndSunday = new ReadOnlySet<DayOfWeek>(SaturdayAndSunday);
         }
 
         protected DailyTimeIntervalScheduleBuilder()
@@ -156,11 +161,11 @@ namespace Quartz
 
             if (daysOfWeek != null)
             {
-                st.DaysOfWeek = daysOfWeek;
+                st.DaysOfWeek = new HashSet<DayOfWeek>(daysOfWeek);
             }
             else
             {
-                st.DaysOfWeek = AllDaysOfTheWeek;
+                st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
             }
 
             if (startTimeOfDayUtc != null)

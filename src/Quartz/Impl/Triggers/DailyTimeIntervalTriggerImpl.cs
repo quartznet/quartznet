@@ -894,7 +894,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (daysOfWeek == null)
                 {
-                    daysOfWeek = DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek;
+                    daysOfWeek = new HashSet<DayOfWeek>(DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek);
                 }
                 return daysOfWeek;
             }
