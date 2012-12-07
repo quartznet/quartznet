@@ -113,9 +113,9 @@
     <Reference Include="System.Xml">
       <Name>System.XML</Name>
     </Reference>
-    <Reference Include="Topshelf, Version=3.0.85.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Topshelf, Version=3.1.106.0, Culture=neutral, PublicKeyToken=b800c4cfcdeea87b, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\packages\Topshelf.3.0.0\lib\net40-full\Topshelf.dll</HintPath>
+      <HintPath>..\..\packages\TopShelf.3.1.0\lib\net40-full\Topshelf.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -123,7 +123,9 @@
     <Compile Include="SampleJob.cs" />
     <None Include="App.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </None>
+    <None Include="packages.config" />
     <None Include="quartz.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

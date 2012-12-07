@@ -146,11 +146,12 @@ namespace Quartz.Job
 
         protected virtual void Send(MailMessage mimeMessage, string smtpHost)
         {
-            using (SmtpClient client = new SmtpClient(smtpHost))
+            SmtpClient client = new SmtpClient(smtpHost);
+            // Do not remove this using. In .NET 4.0 SmtpClient implements IDisposable.
+            using (client as IDisposable)
             {
                 client.Send(mimeMessage);
-            }
-
+            } 
         }
     }
 }

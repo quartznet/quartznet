@@ -519,6 +519,9 @@
     <Compile Include="Impl\Matchers\NotMatcher.cs" />
     <Compile Include="Impl\Matchers\OrMatcher.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

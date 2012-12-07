@@ -180,6 +180,7 @@
     <Compile Include="IExample.cs">
       <SubType>Code</SubType>
     </Compile>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="example15\XmlConfigurationExample.cs" />
