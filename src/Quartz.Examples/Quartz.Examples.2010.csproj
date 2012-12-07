@@ -110,6 +110,7 @@
     <Compile Include="example13\ClusterExample.cs" />
     <Compile Include="example13\SimpleRecoveryJob.cs" />
     <Compile Include="example13\SimpleRecoveryStatefulJob.cs" />
+    <Compile Include="example15\SimpleJob.cs" />
     <Compile Include="example1\HelloJob.cs">
       <SubType>Code</SubType>
     </Compile>

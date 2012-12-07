@@ -25,7 +25,7 @@ using Common.Logging;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 
-namespace Quartz.Examples.example15
+namespace Quartz.Examples.Example15
 {
     /// <summary>
     /// This example will demonstrate how configuration can be

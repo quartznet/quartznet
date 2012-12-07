@@ -14,7 +14,7 @@
       <name>jobName1</name>
       <group>jobGroup1</group>
       <description>jobDesciption1</description>
-      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <job-type>Quartz.Examples.Example15.SimpleJob, Quartz.Examples</job-type>
       <durable>true</durable>
       <recover>false</recover>
       <job-data-map>
