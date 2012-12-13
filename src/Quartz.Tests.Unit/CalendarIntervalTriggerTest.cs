@@ -618,6 +618,30 @@ namespace Quartz.Tests.Unit
         }
 
 
+        [Test]
+        public void TestPreserveHourOfDayAcrossDaylightSavingsNotHanging()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            DateTimeOffset startTime = new DateTimeOffset(2013, 3, 1, 4, 0, 0, TimeSpan.FromHours(-5));
+
+            CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Day;
+            trigger.TimeZone = est;
+            trigger.StartTimeUtc = startTime;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+
+            DateTimeOffset? fireTimeAfter = new DateTimeOffset(2013, 3, 10, 4, 0, 0, TimeSpan.FromHours(-4));
+
+            DateTimeOffset? fireTime = trigger.GetFireTimeAfter(fireTimeAfter);
+
+            Assert.AreNotEqual(fireTime, fireTimeAfter);
+            Assert.IsTrue(fireTime > fireTimeAfter);
+        }
+
+
+
         protected override object GetTargetObject()
         {
             var jobDataMap = new JobDataMap();

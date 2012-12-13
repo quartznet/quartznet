@@ -825,7 +825,7 @@ namespace Quartz.Impl.Triggers
             {
                 //first apply the date, and then find the proper timezone offset
                 sTime = new DateTimeOffset(sTime.Year, sTime.Month, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
-                sTime = new DateTimeOffset(sTime.DateTime, this.TimeZone.GetUtcOffset(sTime));
+                sTime = new DateTimeOffset(sTime.DateTime, this.TimeZone.GetUtcOffset(sTime.DateTime));
             }
         }
 
