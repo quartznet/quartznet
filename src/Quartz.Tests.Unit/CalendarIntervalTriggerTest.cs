@@ -459,7 +459,7 @@ namespace Quartz.Tests.Unit
             // 3/11/2012 2:00:00 AM is an invalid time
 
             //expected target will always be the on the next valid time, (3/11/2012 3am) in this case
-            DateTimeOffset expectedTarget = new DateTimeOffset(2012, 3, 11, 3, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset expectedTarget = new DateTimeOffset(2012, 3, 11, 3, 0, 0, TimeSpan.FromHours(-4));
 
             //------------------------------------------------- 
             // DAILY

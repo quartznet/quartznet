@@ -805,6 +805,9 @@ namespace Quartz.Impl.Triggers
                     {
                         newTime = newTime.AddMinutes(1);
                     }
+
+                    //apply proper offset for the adjusted time
+                    newTime = new DateTimeOffset(newTime.DateTime, this.TimeZone.GetUtcOffset(newTime.DateTime));
                 }
             }
             return false;
