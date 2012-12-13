@@ -588,6 +588,20 @@ namespace Quartz.Tests.Unit
 
             var firstFire = fireTimes[0];
             var secondFire = fireTimes[1];
+            Assert.AreNotEqual(firstFire, secondFire);
+
+            //try to trigger a shift in month
+            startDate = new DateTimeOffset(2012, 6, 1, 0, 0, 0, TimeSpan.FromHours(-4));
+
+            t = new CalendarIntervalTriggerImpl();
+            t.RepeatInterval = 1;
+            t.RepeatIntervalUnit = IntervalUnit.Month;
+            t.PreserveHourOfDayAcrossDaylightSavings = true;
+            t.SkipDayIfHourDoesNotExist = false;
+            t.StartTimeUtc = startDate;
+            t.TimeZone = est;
+
+            fireTimes = TriggerUtils.ComputeFireTimes(t, null, 10);
 
             Assert.AreNotEqual(firstFire, secondFire);
         }

@@ -820,6 +820,8 @@ namespace Quartz.Impl.Triggers
             //took the time an hour back, leading to the times were not being adjusted properly.
             
             //avoid shifts in day, otherwise this will cause an infinite loop in the code.
+            int initalYear = sTime.Year;
+            int initalMonth = sTime.Month;
             int initialDay = sTime.Day;
 
             sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone);
@@ -827,7 +829,7 @@ namespace Quartz.Impl.Triggers
             if (PreserveHourOfDayAcrossDaylightSavings && sTime.Hour != initialHourOfDay)
             {
                 //first apply the date, and then find the proper timezone offset
-                sTime = new DateTimeOffset(sTime.Year, sTime.Month, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
+                sTime = new DateTimeOffset(initalYear, initalMonth, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
                 sTime = new DateTimeOffset(sTime.DateTime, this.TimeZone.GetUtcOffset(sTime.DateTime));
             }
         }
