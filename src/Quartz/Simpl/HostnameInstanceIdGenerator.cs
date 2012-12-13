@@ -17,9 +17,6 @@
  */
 #endregion
 
-using System;
-using System.Net;
-
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -37,22 +34,15 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="IInstanceIdGenerator" />
 	/// <seealso cref="SimpleInstanceIdGenerator" />
-	public class HostnameInstanceIdGenerator : IInstanceIdGenerator
+	public class HostnameInstanceIdGenerator : HostNameBasedIdGenerator
 	{
 		/// <summary>
 		/// Generate the instance id for a <see cref="IScheduler"/>
 		/// </summary>
 		/// <returns>The clusterwide unique instance id.</returns>
-		public virtual string GenerateInstanceId()
+		public override string GenerateInstanceId()
 		{
-			try
-			{
-				return Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName;
-			}
-			catch (Exception e)
-			{
-				throw new SchedulerException("Couldn't get host name!", e);
-			}
+		    return GetHostName(IdMaxLengh);
 		}
 	}
 }

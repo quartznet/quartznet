@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,41 +16,33 @@
  * under the License.
  * 
  */
-#endregion
 
-using System;
-using System.Net;
+#endregion
 
 using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
-	/// <summary> 
-	/// The default InstanceIdGenerator used by Quartz when instance id is to be
-	/// automatically generated.  Instance id is of the form HOSTNAME + CURRENT_TIME.
-	/// </summary>
-	/// <author>Marko Lahma (.NET)</author>
-	/// <seealso cref="IInstanceIdGenerator" />
-	/// <seealso cref="HostnameInstanceIdGenerator" />
-	public class SimpleInstanceIdGenerator : IInstanceIdGenerator
-	{
-		/// <summary>
-		/// Generate the instance id for a <see cref="IScheduler" />
-		/// </summary>
-		/// <returns>The clusterwide unique instance id.</returns>
-		public virtual string GenerateInstanceId()
-		{
-			try
-			{
+    /// <summary> 
+    /// The default InstanceIdGenerator used by Quartz when instance id is to be
+    /// automatically generated.  Instance id is of the form HOSTNAME + CURRENT_TIME.
+    /// </summary>
+    /// <author>Marko Lahma (.NET)</author>
+    /// <seealso cref="IInstanceIdGenerator" />
+    /// <seealso cref="HostnameInstanceIdGenerator" />
+    public class SimpleInstanceIdGenerator : HostNameBasedIdGenerator
+    {
+        // assume ticks to be at most 20 chars long
+        private const int HostNameMaxLength = IdMaxLengh - 20;
 
-				return
-					Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString()).HostName +
-					SystemTime.UtcNow().Ticks;
-            }
-			catch (Exception e)
-			{
-				throw new SchedulerException("Couldn't get host name!", e);
-			}
-		}
-	}
+        /// <summary>
+        /// Generate the instance id for a <see cref="IScheduler" />
+        /// </summary>
+        /// <returns>The clusterwide unique instance id.</returns>
+        public override string GenerateInstanceId()
+        {
+            string hostName = GetHostName(HostNameMaxLength);
+            return hostName + SystemTime.UtcNow().Ticks;
+        }
+    }
 }
