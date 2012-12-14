@@ -20,6 +20,8 @@
 using System;
 using System.Net;
 
+using Common.Logging;
+
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -31,6 +33,13 @@ namespace Quartz.Simpl
     public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
     {
         protected const int IdMaxLengh = 50;
+
+        private readonly ILog logger;
+
+        protected HostNameBasedIdGenerator()
+        {
+            logger = LogManager.GetLogger(GetType());
+        }
 
         /// <summary>
         /// Generate the instance id for a <see cref="IScheduler" />
@@ -46,7 +55,9 @@ namespace Quartz.Simpl
                 string hostName = GetHostAddress().HostName;
                 if (hostName != null && hostName.Length > maxLenght)
                 {
-                    hostName = hostName.Substring(0, maxLenght);
+                    string newName = hostName.Substring(0, maxLenght);
+                    logger.WarnFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
+                    hostName = newName;
                 }
                 return hostName;
             }
