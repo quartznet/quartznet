@@ -91,6 +91,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 conn = DBConnectionManager.Instance.GetConnection(DataSource);
+                conn.Open();
             }
             catch (SqlException sqle)
             {
