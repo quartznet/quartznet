@@ -459,7 +459,7 @@ namespace Quartz.Tests.Unit
             // 3/11/2012 2:00:00 AM is an invalid time
 
             //expected target will always be the on the next valid time, (3/11/2012 3am) in this case
-            DateTimeOffset expectedTarget = new DateTimeOffset(2012, 3, 11, 3, 0, 0, TimeSpan.FromHours(-5));
+            DateTimeOffset expectedTarget = new DateTimeOffset(2012, 3, 11, 3, 0, 0, TimeSpan.FromHours(-4));
 
             //------------------------------------------------- 
             // DAILY
@@ -588,6 +588,20 @@ namespace Quartz.Tests.Unit
 
             var firstFire = fireTimes[0];
             var secondFire = fireTimes[1];
+            Assert.AreNotEqual(firstFire, secondFire);
+
+            //try to trigger a shift in month
+            startDate = new DateTimeOffset(2012, 6, 1, 0, 0, 0, TimeSpan.FromHours(-4));
+
+            t = new CalendarIntervalTriggerImpl();
+            t.RepeatInterval = 1;
+            t.RepeatIntervalUnit = IntervalUnit.Month;
+            t.PreserveHourOfDayAcrossDaylightSavings = true;
+            t.SkipDayIfHourDoesNotExist = false;
+            t.StartTimeUtc = startDate;
+            t.TimeZone = est;
+
+            fireTimes = TriggerUtils.ComputeFireTimes(t, null, 10);
 
             Assert.AreNotEqual(firstFire, secondFire);
         }
@@ -616,6 +630,30 @@ namespace Quartz.Tests.Unit
                 Assert.AreNotEqual(previousFire, currentFire);
             }
         }
+
+
+        [Test]
+        public void TestPreserveHourOfDayAcrossDaylightSavingsNotHanging()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            DateTimeOffset startTime = new DateTimeOffset(2013, 3, 1, 4, 0, 0, TimeSpan.FromHours(-5));
+
+            CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
+            trigger.RepeatInterval = 1;
+            trigger.RepeatIntervalUnit = IntervalUnit.Day;
+            trigger.TimeZone = est;
+            trigger.StartTimeUtc = startTime;
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+
+            DateTimeOffset? fireTimeAfter = new DateTimeOffset(2013, 3, 10, 4, 0, 0, TimeSpan.FromHours(-4));
+
+            DateTimeOffset? fireTime = trigger.GetFireTimeAfter(fireTimeAfter);
+
+            Assert.AreNotEqual(fireTime, fireTimeAfter);
+            Assert.IsTrue(fireTime > fireTimeAfter);
+        }
+
 
 
         protected override object GetTargetObject()
