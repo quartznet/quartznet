@@ -31,15 +31,12 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     {
         private HolidayCalendar cal;
 
-        private static string[] VERSIONS = new string[] { "1.5.1" };
-
-        //private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("America/New_York"); 
+        private static readonly string[] versions = new[] { "1.5.1" };
 
         [SetUp]
         public void Setup()
         {
             cal = new HolidayCalendar();
-            cal.TimeZone = TimeZoneInfo.Utc; //assume utc if not specified.
         }
 
         [Test]
@@ -57,7 +54,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             DateTime excluded = new DateTime(2007, 12, 31);
             cal.AddExcludedDate(excluded);
             
-            Assert.AreEqual(new DateTimeOffset(2008, 1, 1, 0,0,0, TimeSpan.Zero), cal.GetNextIncludedTimeUtc(excluded).ToLocalTime());
+            Assert.AreEqual(new DateTimeOffset(2008, 1, 1, 0,0,0, cal.TimeZone.BaseUtcOffset), cal.GetNextIncludedTimeUtc(excluded));
         }
     
         /// <summary>
@@ -103,7 +100,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// <returns></returns>
         protected override string[] GetVersions()
         {
-            return VERSIONS;
+            return versions;
         }
 
         /// <summary>
@@ -120,7 +117,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.IsNotNull(deserializedCalendar);
             Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
             Assert.AreEqual(targetCalendar.ExcludedDates, deserializedCalendar.ExcludedDates);
-            ///Assert.IsNull(deserializedCalendar.getTimeZone());
+            //Assert.IsNull(deserializedCalendar.getTimeZone());
         }
     }
 }

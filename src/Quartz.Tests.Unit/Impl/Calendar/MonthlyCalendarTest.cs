@@ -30,15 +30,12 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     {
         private MonthlyCalendar cal;
 
-        private static string[] VERSIONS = new string[] { "1.5.1" };
-
-        //private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("America/New_York"); 
+        private static readonly string[] versions = new[] { "1.5.1" };
 
         [SetUp]
         public void Setup()
         {
             cal = new MonthlyCalendar();
-            cal.TimeZone = TimeZoneInfo.Utc; //assume utc if not specified.
         }
 
         [Test]
@@ -109,7 +106,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// <returns></returns>
         protected override string[] GetVersions()
         {
-            return VERSIONS;
+            return versions;
         }
 
         /// <summary>
@@ -126,7 +123,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.IsNotNull(deserializedCalendar);
             Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
             Assert.AreEqual(targetCalendar.DaysExcluded, deserializedCalendar.DaysExcluded);
-            ///Assert.IsNull(deserializedCalendar.getTimeZone());
+            //Assert.IsNull(deserializedCalendar.getTimeZone());
         }
     }
 }

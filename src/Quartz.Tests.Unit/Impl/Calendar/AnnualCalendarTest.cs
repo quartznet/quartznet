@@ -37,7 +37,6 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public void Setup()
         {
             cal = new AnnualCalendar();
-            cal.TimeZone = TimeZoneInfo.Utc; //assume utc if not specified.
         }
     
         [Test]
@@ -82,7 +81,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public void TestExclusionAndNextIncludedTime()
         {
             cal.DaysExcluded = null;
-            DateTimeOffset test = new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+            DateTimeOffset test = DateTimeOffset.UtcNow.Date;
             Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test), "Did not get today as date when nothing was excluded");
 
             cal.SetDayExcluded(test, true);

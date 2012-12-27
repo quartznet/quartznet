@@ -180,6 +180,8 @@ namespace Quartz.Impl.Triggers
             EndTimeUtc = endTimeUtc;
             RepeatIntervalUnit = intervalUnit;
             RepeatInterval = repeatInterval;
+            StartTimeOfDay = startTimeOfDayUtc;
+            EndTimeOfDay = endTimeOfDayUtc;
         }
 
         /// <summary>
@@ -208,6 +210,8 @@ namespace Quartz.Impl.Triggers
             EndTimeUtc = endTimeUtc;
             RepeatIntervalUnit = intervalUnit;
             RepeatInterval = repeatInterval;
+            StartTimeOfDay = startTimeOfDayUtc;
+            EndTimeOfDay = endTimeOfDayUtc;
         }
 
 
@@ -328,7 +332,7 @@ namespace Quartz.Impl.Triggers
         public int TimesTriggered
         {
             get { return timesTriggered; }
-            set { this.timesTriggered = value; }
+            set { timesTriggered = value; }
         }
 
         public TimeZoneInfo TimeZone
