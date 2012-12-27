@@ -218,5 +218,52 @@ namespace Quartz.Tests.Unit
                 // Expected.
             }
         }
+
+        [Test]
+        public void TestCanSetTimeZone()
+        {
+            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+            IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger)TriggerBuilder.Create()
+                .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(1)
+                    .InTimeZone(est))
+                .Build();
+
+
+            Assert.AreEqual(est, trigger.TimeZone);
+        }
+        [Test]
+        public void DayOfWeekPropertyShouldNotAffectOtherTriggers()
+        {
+            DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
+
+            DailyTimeIntervalTriggerImpl trigger1 = (DailyTimeIntervalTriggerImpl)builder
+                .WithInterval(1, IntervalUnit.Hour)
+                .OnMondayThroughFriday()
+                .Build();
+
+            //make an adjustment to this one trigger. 
+            //I only want mondays now
+            trigger1.DaysOfWeek.Clear();
+            trigger1.DaysOfWeek.Add(DayOfWeek.Monday);
+
+
+            //build same way as trigger1
+            DailyTimeIntervalTriggerImpl trigger2 = (DailyTimeIntervalTriggerImpl)builder
+                .WithInterval(1, IntervalUnit.Hour)
+                .OnMondayThroughFriday()
+                .Build();
+
+            //check trigger 2 DOW
+            //this fails because the reference collection only contains MONDAY b/c it was cleared.
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Monday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Tuesday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Wednesday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Thursday));
+            Assert.IsTrue(trigger2.DaysOfWeek.Contains(DayOfWeek.Friday));
+
+            Assert.IsFalse(trigger2.DaysOfWeek.Contains(DayOfWeek.Saturday));
+            Assert.IsFalse(trigger2.DaysOfWeek.Contains(DayOfWeek.Sunday));
+        }
     }
 }

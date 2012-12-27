@@ -78,6 +78,7 @@ namespace Quartz
         private TimeOfDay startTimeOfDayUtc;
         private TimeOfDay endTimeOfDayUtc;
         private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
+        private TimeZoneInfo timeZone;
 
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
@@ -122,6 +123,11 @@ namespace Quartz
             SaturdayAndSunday = new HashSet<DayOfWeek>();
             SaturdayAndSunday.Add(DayOfWeek.Sunday);
             SaturdayAndSunday.Add(DayOfWeek.Saturday);
+
+            //set as read only sets
+            AllDaysOfTheWeek = new ReadOnlySet<DayOfWeek>(AllDaysOfTheWeek);
+            MondayThroughFriday = new ReadOnlySet<DayOfWeek>(MondayThroughFriday);
+            SaturdayAndSunday = new ReadOnlySet<DayOfWeek>(SaturdayAndSunday);
         }
 
         protected DailyTimeIntervalScheduleBuilder()
@@ -151,14 +157,15 @@ namespace Quartz
             st.RepeatIntervalUnit = intervalUnit;
             st.MisfireInstruction = misfireInstruction;
             st.RepeatCount = repeatCount;
+            st.TimeZone = timeZone;
 
             if (daysOfWeek != null)
             {
-                st.DaysOfWeek = daysOfWeek;
+                st.DaysOfWeek = new HashSet<DayOfWeek>(daysOfWeek);
             }
             else
             {
-                st.DaysOfWeek = AllDaysOfTheWeek;
+                st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
             }
 
             if (startTimeOfDayUtc != null)
@@ -365,9 +372,15 @@ namespace Quartz
                 throw new ArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
             }
 
-            DateTimeOffset today = DateTime.UtcNow;
+            DateTimeOffset today = SystemTime.UtcNow();
             DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today).Value;
             DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today).Value;
+
+            //apply proper offsets accroding to timezone
+            TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;
+            startTimeOfDayDate = new DateTimeOffset(startTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(startTimeOfDayDate.DateTime));
+            maxEndTimeOfDayDate = new DateTimeOffset(maxEndTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(maxEndTimeOfDayDate.DateTime));
+
             TimeSpan remainingMillisInDay = maxEndTimeOfDayDate - startTimeOfDayDate;
             TimeSpan intervalInMillis = TimeSpan.Zero;
             if (intervalUnit == IntervalUnit.Second)
@@ -406,7 +419,7 @@ namespace Quartz
                 throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
             }
 
-            DateTime cal = DateTime.UtcNow.Date;
+            DateTime cal = SystemTime.UtcNow().Date;
             cal = cal.Add(endTimeOfDayDate.TimeOfDay);
             endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(cal.Hour, cal.Minute, cal.Second);
             return this;
@@ -459,6 +472,18 @@ namespace Quartz
         public DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount)
         {
             this.repeatCount = repeatCount;
+            return this;
+        }
+
+        /// <summary>
+        /// TimeZone in which to base the schedule.
+        /// </summary>
+        /// <param name="timezone">the time-zone for the schedule</param>
+        /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
+        /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
+        public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
+        {
+            this.timeZone = timezone;
             return this;
         }
 

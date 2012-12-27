@@ -22,6 +22,7 @@
 using System;
 
 using Quartz.Collection;
+using Quartz.Util;
 
 namespace Quartz.Impl.Triggers
 {
@@ -95,6 +96,7 @@ namespace Quartz.Impl.Triggers
         private int timesTriggered;
         private bool complete;
         private int repeatCount = RepeatIndefinitely;
+        private TimeZoneInfo timeZone;
 
         /// <summary>
         /// Create a  <see cref="IDailyTimeIntervalTrigger"/> with no settings.
@@ -329,6 +331,20 @@ namespace Quartz.Impl.Triggers
             set { this.timesTriggered = value; }
         }
 
+        public TimeZoneInfo TimeZone
+        {
+            get
+            {
+                if (timeZone == null)
+                {
+                    timeZone = TimeZoneInfo.Local;
+                }
+                return timeZone;
+            }
+
+            set { timeZone = value; }
+        }
+
         protected override bool ValidateMisfireInstruction(int misfireInstruction)
         {
             if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)
@@ -491,7 +507,7 @@ namespace Quartz.Impl.Triggers
         /// </returns>        
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
         {
-            DateTimeOffset startTime = StartTimeUtc.ToLocalTime();
+            DateTimeOffset startTime = TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone);
             DateTimeOffset? startTimeOfDayDate = StartTimeOfDay.GetTimeOfDayForDate(startTime);
 
             // If startTime is after the timeOfDay, then use starTime
@@ -527,7 +543,7 @@ namespace Quartz.Impl.Triggers
 
         private DateTimeOffset CreateCalendarTime(DateTimeOffset dateTime)
         {
-            return dateTime.ToLocalTime();
+            return TimeZoneUtil.ConvertTime(dateTime, TimeZone);
         }
 
         /// <summary>
@@ -614,7 +630,7 @@ namespace Quartz.Impl.Triggers
             }
 
             // now change to local time zone
-            afterTime = afterTime.Value.ToLocalTime();
+            afterTime = TimeZoneUtil.ConvertTime(afterTime.Value, TimeZone);
 
             // b.Check to see if afterTime is after endTimeOfDay or not. 
             // If yes, then we need to advance to next day as well.
@@ -624,10 +640,15 @@ namespace Quartz.Impl.Triggers
                 afterTimePassEndTimeOfDay = afterTime.Value > endTimeOfDay.GetTimeOfDayForDate(afterTime).Value;
             }
             DateTimeOffset? fireTime = AdvanceToNextDayOfWeek(afterTime.Value, afterTimePassEndTimeOfDay);
+
             if (fireTime == null)
             {
                 return null;
             }
+
+            //apply timezone for this date & time
+            fireTime = new DateTimeOffset(fireTime.Value.DateTime, TimeZone.GetUtcOffset(fireTime.Value));
+
 
             // c. Calculate and save fireTimeEndDate variable for later use
             DateTimeOffset fireTimeEndDate;
@@ -640,8 +661,16 @@ namespace Quartz.Impl.Triggers
                 fireTimeEndDate = endTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
             }
 
+            //apply the proper offset for the end date
+            fireTimeEndDate = new DateTimeOffset(fireTimeEndDate.DateTime, this.TimeZone.GetUtcOffset(fireTimeEndDate.DateTime));
+
+
             // e. Check fireTime against startTime or startTimeOfDay to see which go first.
             DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
+
+            //apply the proper offset for the start date
+            fireTimeStartDate = new DateTimeOffset(fireTimeStartDate.DateTime, this.TimeZone.GetUtcOffset(fireTimeStartDate.DateTime));
+
             if (fireTime < startTimeUtc && startTimeUtc < fireTimeStartDate)
             {
                 return fireTimeStartDate;
@@ -659,40 +688,41 @@ namespace Quartz.Impl.Triggers
             startTimeUtc = fireTimeStartDate.ToUniversalTime();
 
             // f. Continue to calculate the fireTime by incremental unit of intervals.
-            long secondsAfterStart = (long) (fireTime.Value - startTimeUtc.ToLocalTime()).TotalSeconds;
+            startTimeUtc = TimeZoneUtil.ConvertTime(startTimeUtc, TimeZone);
+            long secondsAfterStart = (long)(fireTime.Value - startTimeUtc).TotalSeconds;
             long repeatLong = RepeatInterval;
 
-            DateTimeOffset sTime = startTimeUtc.ToLocalTime();
+            DateTimeOffset sTime = startTimeUtc;
             IntervalUnit repeatUnit = RepeatIntervalUnit;
             if (repeatUnit == IntervalUnit.Second)
             {
-                long jumpCount = secondsAfterStart/repeatLong;
-                if (secondsAfterStart%repeatLong != 0)
+                long jumpCount = secondsAfterStart / repeatLong;
+                if (secondsAfterStart % repeatLong != 0)
                 {
                     jumpCount++;
                 }
 
-                sTime = sTime.AddSeconds(RepeatInterval*(int) jumpCount);
+                sTime = sTime.AddSeconds(RepeatInterval * (int)jumpCount);
                 fireTime = sTime;
             }
             else if (repeatUnit == IntervalUnit.Minute)
             {
-                long jumpCount = secondsAfterStart/(repeatLong*60L);
-                if (secondsAfterStart%(repeatLong*60L) != 0)
+                long jumpCount = secondsAfterStart / (repeatLong * 60L);
+                if (secondsAfterStart % (repeatLong * 60L) != 0)
                 {
                     jumpCount++;
                 }
-                sTime = sTime.AddMinutes(RepeatInterval*(int) jumpCount);
+                sTime = sTime.AddMinutes(RepeatInterval * (int)jumpCount);
                 fireTime = sTime;
             }
             else if (repeatUnit == IntervalUnit.Hour)
             {
-                long jumpCount = secondsAfterStart/(repeatLong*60L*60L);
-                if (secondsAfterStart%(repeatLong*60L*60L) != 0)
+                long jumpCount = secondsAfterStart / (repeatLong * 60L * 60L);
+                if (secondsAfterStart % (repeatLong * 60L * 60L) != 0)
                 {
                     jumpCount++;
                 }
-                sTime = sTime.AddHours(RepeatInterval*(int) jumpCount);
+                sTime = sTime.AddHours(RepeatInterval * (int)jumpCount);
                 fireTime = sTime;
             }
 
@@ -761,7 +791,8 @@ namespace Quartz.Impl.Triggers
 
             // Check fireTime not pass the endTime
             DateTimeOffset? endTime = EndTimeUtc;
-            if (endTime != null && fireTime > endTime.Value.ToLocalTime())
+
+            if (endTime != null && fireTime > endTime.Value)
             {
                 return null;
             }
@@ -828,14 +859,14 @@ namespace Quartz.Impl.Triggers
             }
 
             // Ensure interval does not exceed 24 hours
-            const long SecondsInHour = 24*60*60L;
+            const long SecondsInHour = 24 * 60 * 60L;
             if (repeatIntervalUnit == IntervalUnit.Second && repeatInterval > SecondsInHour)
             {
                 throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour + " seconds). Given " + repeatInterval);
             }
-            if (repeatIntervalUnit == IntervalUnit.Minute && repeatInterval > SecondsInHour/60L)
+            if (repeatIntervalUnit == IntervalUnit.Minute && repeatInterval > SecondsInHour / 60L)
             {
-                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour/60L + " minutes). Given " + repeatInterval);
+                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour / 60L + " minutes). Given " + repeatInterval);
             }
             if (repeatIntervalUnit == IntervalUnit.Hour && repeatInterval > 24)
             {
@@ -863,7 +894,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (daysOfWeek == null)
                 {
-                    daysOfWeek = DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek;
+                    daysOfWeek = new HashSet<DayOfWeek>(DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek);
                 }
                 return daysOfWeek;
             }
