@@ -40,7 +40,6 @@
         <description>SimpleTriggerDescription</description>
         <job-name>jobName1</job-name>
         <job-group>jobGroup1</job-group>
-        <calendar-name>cal1</calendar-name>
         <start-time>1982-06-28T18:15:00.0Z</start-time>
         <end-time>2020-05-04T18:13:51.0Z</end-time>
         <misfire-instruction>SmartPolicy</misfire-instruction>
