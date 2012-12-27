@@ -83,9 +83,9 @@
     <Reference Include="C5">
       <HintPath>..\..\lib\2.0\C5.dll</HintPath>
     </Reference>
-    <Reference Include="Common.Logging, Version=2.0.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
+    <Reference Include="Common.Logging, Version=2.1.2.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\packages\Common.Logging.2.1.1\lib\net40\Common.Logging.dll</HintPath>
+      <HintPath>..\..\packages\Common.Logging.2.1.2\lib\net40\Common.Logging.dll</HintPath>
     </Reference>
     <Reference Include="nunit.framework, Version=2.6.2.12296, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -117,6 +117,7 @@
     <Compile Include="DailyTimeIntervalScheduleBuilderTest.cs" />
     <Compile Include="DateBuilderTest.cs" />
     <Compile Include="DisallowConcurrentJobExecutionTest.cs" />
+    <Compile Include="Impl\AdoJobStore\JobStoreCMTTest.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
     <Compile Include="Impl\AdoJobStore\StubConnection.cs" />
     <Compile Include="Impl\AdoJobStore\UpdateTriggerTest.cs">

@@ -42,6 +42,11 @@ namespace Quartz.Impl.AdoJobStore
     public class JobStoreCMT : JobStoreSupport
     {
         /// <summary>
+        /// Instructs this job store whether connections should be automatically opened.
+        /// </summary>
+        public virtual bool OpenConnection { protected get; set; }
+
+        /// <summary>
         /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
@@ -73,7 +78,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                DBConnectionManager.Instance.Shutdown(DataSource);
+                ConnectionManager.Shutdown(DataSource);
             }
             catch (SqlException sqle)
             {
@@ -90,7 +95,11 @@ namespace Quartz.Impl.AdoJobStore
             IDbConnection conn;
             try
             {
-                conn = DBConnectionManager.Instance.GetConnection(DataSource);
+                conn = ConnectionManager.GetConnection(DataSource);
+                if (OpenConnection)
+                {
+                    conn.Open();
+                }
             }
             catch (SqlException sqle)
             {

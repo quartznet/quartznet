@@ -85,6 +85,7 @@ namespace Quartz.Impl.AdoJobStore
         private IObjectSerializer objectSerializer;
         private IThreadExecutor threadExecutor = new DefaultThreadExecutor();
         private bool schedulerRunning = false;
+        private IDbConnectionManager connectionManager = DBConnectionManager.Instance;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
@@ -102,6 +103,15 @@ namespace Quartz.Impl.AdoJobStore
         {
             get { return dataSource; }
             set { dataSource = value; }
+        }
+
+        /// <summary> 
+        /// Get or set the database connection manager.
+        /// </summary>
+        public virtual IDbConnectionManager ConnectionManager
+        {
+            get { return connectionManager; }
+            set { connectionManager = value; }
         }
 
         /// <summary>
@@ -380,7 +390,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected DbMetadata DbMetadata
         {
-            get { return DBConnectionManager.Instance.GetDbMetadata(DataSource); }
+            get { return ConnectionManager.GetDbMetadata(DataSource); }
         }
 
 
@@ -396,7 +406,7 @@ namespace Quartz.Impl.AdoJobStore
             IDbTransaction tx;
             try
             {
-                conn = DBConnectionManager.Instance.GetConnection(DataSource);
+                conn = ConnectionManager.GetConnection(DataSource);
                 conn.Open();
             }
             catch (Exception e)
@@ -468,7 +478,7 @@ namespace Quartz.Impl.AdoJobStore
                                 delegateType = TypeLoadHelper.LoadType(delegateTypeName);
                             }
 
-                            IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(DataSource);
+                            IDbProvider dbProvider = ConnectionManager.GetDbProvider(DataSource);
                             var args = new DelegateInitializationArgs();
                             args.UseProperties = CanUseProperties;
                             args.Logger = log;
@@ -501,7 +511,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private IDbProvider DbProvider
         {
-            get { return DBConnectionManager.Instance.GetDbProvider(DataSource); }
+            get { return ConnectionManager.GetDbProvider(DataSource); }
         }
 
         protected internal virtual ISemaphore LockHandler
@@ -656,7 +666,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                DBConnectionManager.Instance.Shutdown(DataSource);
+                ConnectionManager.Shutdown(DataSource);
             }
             catch (Exception sqle)
             {

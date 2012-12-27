@@ -354,7 +354,7 @@ Please add configuration to your application config file to correctly initialize
             IJobStore js;
             IThreadPool tp;
             QuartzScheduler qs = null;
-            DBConnectionManager dbMgr = null;
+            IDbConnectionManager dbMgr = null;
             Type instanceIdGeneratorType = null;
             NameValueCollection tProps;
             bool autoId = false;

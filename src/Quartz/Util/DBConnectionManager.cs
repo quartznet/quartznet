@@ -24,7 +24,6 @@ using System.Globalization;
 
 using Common.Logging;
 
-using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Util
@@ -38,10 +37,8 @@ namespace Quartz.Util
 	/// <author>Sharada Jambula</author>
 	/// <author>Mohammad Rezaei</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class DBConnectionManager
-	{
-        public const string PropertyDbPrefix = "quartz.db.";
-        
+    public class DBConnectionManager : IDbConnectionManager
+	{        
         private static readonly DBConnectionManager instance = new DBConnectionManager();
 	    private static readonly ILog log = LogManager.GetLogger(typeof (DBConnectionManager));
 
@@ -52,7 +49,7 @@ namespace Quartz.Util
 		/// </summary>
 		/// <returns> an instance of this class
 		/// </returns>
-		public static DBConnectionManager Instance
+		public static IDbConnectionManager Instance
 		{
 			get
 			{
@@ -85,9 +82,9 @@ namespace Quartz.Util
 		/// Get a database connection from the DataSource with the given name.
 		/// </summary>
 		/// <returns> a database connection </returns>
-		public virtual IDbConnection GetConnection(string dsName)
+        public virtual IDbConnection GetConnection(string dataSourceName)
 		{
-		    IDbProvider provider = GetDbProvider(dsName);
+            IDbProvider provider = GetDbProvider(dataSourceName);
 
 			return provider.CreateConnection();
 		}
@@ -96,7 +93,6 @@ namespace Quartz.Util
 		/// Shuts down database connections from the DataSource with the given name,
 		/// if applicable for the underlying provider.
 		/// </summary>
-		/// <returns> a database connection </returns>
 		public virtual void Shutdown(string dsName)
 		{
 		    IDbProvider provider = GetDbProvider(dsName);
@@ -129,4 +125,37 @@ namespace Quartz.Util
             return provider;
         }
 	}
+
+    /// <summary>
+    /// Manages a collection of IDbProviders, and provides transparent access
+    /// to their database.
+    /// </summary>
+    public interface IDbConnectionManager
+    {
+        /// <summary> 
+        /// Shuts down database connections from the data source with the given name,
+        /// if applicable for the underlying provider.
+        /// </summary>
+        void Shutdown(string dataSourceName);
+
+        /// <summary>
+        /// Get a database connection from the data source with the given name.
+        /// </summary>
+        IDbConnection GetConnection(string dataSourceName);
+
+        /// <summary>
+        /// Returns meta data for data source with the given name.
+        /// </summary>
+        DbMetadata GetDbMetadata(string dataSourceName);
+
+        /// <summary>
+        /// Gets db provider for data source with the given name.
+        /// </summary>
+        IDbProvider GetDbProvider(string dataSourceName);
+
+        /// <summary>
+        /// Adds a connection provider to data source with the given name.
+        /// </summary>
+        void AddConnectionProvider(string dataSourceName, IDbProvider provider);
+    }
 }
