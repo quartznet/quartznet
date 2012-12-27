@@ -58,5 +58,10 @@ namespace Quartz.Spi
 	    /// <returns> the newly instantiated Job
 	    /// </returns>
 	    IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler);
+
+        /// <summary>
+        /// Allows the the job factory to destroy/cleanup the job if needed.
+        /// </summary>
+	    void ReturnJob(IJob job);
 	}
 }

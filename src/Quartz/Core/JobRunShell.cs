@@ -55,7 +55,7 @@ namespace Quartz.Core
         private JobExecutionContextImpl jec;
 		private QuartzScheduler qs;
 		private readonly IScheduler scheduler;
-	    private TriggerFiredBundle firedTriggerBundle = null;
+	    private readonly TriggerFiredBundle firedTriggerBundle;
         private volatile bool shutdownRequested;
 
 
@@ -64,11 +64,11 @@ namespace Quartz.Core
 		/// </summary>
 		/// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
 		/// available within the <see cref="IJobExecutionContext" />.</param>
-		/// <param name="bndle"></param>
-        public JobRunShell(IScheduler scheduler, TriggerFiredBundle bndle)
+		/// <param name="bundle"></param>
+        public JobRunShell(IScheduler scheduler, TriggerFiredBundle bundle)
 		{
 			this.scheduler = scheduler;
-            this.firedTriggerBundle = bndle;
+            firedTriggerBundle = bundle;
             log = LogManager.GetLogger(GetType());
 		}
 
@@ -298,6 +298,10 @@ namespace Quartz.Core
 		    finally
             {
                 qs.RemoveInternalSchedulerListener(this);
+                if (jec != null && jec.JobInstance != null)
+                {
+                    qs.JobFactory.ReturnJob(jec.JobInstance);
+                }
             }
 		}
 

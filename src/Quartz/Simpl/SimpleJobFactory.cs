@@ -76,5 +76,13 @@ namespace Quartz.Simpl
 				throw se;
 			}
 		}
+
+	    /// <summary>
+	    /// Allows the the job factory to destroy/cleanup the job if needed. 
+	    /// No-op when using SimpleJobFactory.
+	    /// </summary>
+	    public virtual void ReturnJob(IJob job)
+	    {
+	    }
 	}
 }
