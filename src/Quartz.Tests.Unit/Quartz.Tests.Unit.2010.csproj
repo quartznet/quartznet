@@ -255,6 +255,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\DirectivesNoOverwriteIgnoreDups.xml" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Xml\TestData\ScheduleRelativeToOldTrigger.xml" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

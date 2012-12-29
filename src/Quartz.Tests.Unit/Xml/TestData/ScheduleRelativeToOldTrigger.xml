@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+
+  <pre-processing-commands></pre-processing-commands>
+
+  <processing-directives>
+    <overwrite-existing-data>true</overwrite-existing-data>
+    <schedule-trigger-relative-to-replaced-trigger>true</schedule-trigger-relative-to-replaced-trigger>
+  </processing-directives>
+
+  <schedule>
+    <job>
+      <name>jobName1</name>
+      <group>jobGroup1</group>
+      <job-type>
+        Quartz.Job.NoOpJob, Quartz
+      </job-type>
+    </job>
+
+    <trigger>
+      <simple>
+        <name>triggerToReplace</name>
+        <group>groupToReplace</group>
+        <job-name>jobName1</job-name>
+        <job-group>jobGroup1</job-group>
+        <repeat-count>-1</repeat-count>
+        <repeat-interval>10000</repeat-interval>
+      </simple>
+    </trigger>
+  </schedule>
+
+</job-scheduling-data>

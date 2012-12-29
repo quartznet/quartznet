@@ -26,12 +26,16 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
+using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Xml;
 
 using Rhino.Mocks;
+using Rhino.Mocks.Constraints;
+
+using Is = NUnit.Framework.Is;
 
 namespace Quartz.Tests.Unit.Xml
 {
@@ -83,6 +87,33 @@ namespace Quartz.Tests.Unit.Xml
             processor.ScheduleJobs(mockScheduler);
             mockScheduler.AssertWasCalled(x => x.AddJob(Arg<IJobDetail>.Is.NotNull, Arg<bool>.Is.Anything), constraints => constraints.Repeat.Twice());
             mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Is.NotNull), constraints => constraints.Repeat.Twice());
+        }
+
+        [Test]
+        public void TestSchedulingWhenUpdatingScheduleBasedOnExistingTrigger()
+        {
+            DateTimeOffset startTime = new DateTimeOffset(2012, 12, 30, 1, 0, 0, TimeSpan.Zero);
+            DateTimeOffset previousFireTime = new DateTimeOffset(2013, 2, 15, 15, 0, 0, TimeSpan.Zero);
+            SimpleTriggerImpl existing = new SimpleTriggerImpl("triggerToReplace", "groupToReplace", startTime, null, SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromHours(1));
+            existing.JobKey = new JobKey("jobName1", "jobGroup1");
+            existing.SetPreviousFireTimeUtc(previousFireTime);
+            existing.GetNextFireTimeUtc();
+
+            mockScheduler.Stub(x => x.GetTrigger(existing.Key)).Return(existing);
+
+            Stream s = ReadJobXmlFromEmbeddedResource("ScheduleRelativeToOldTrigger.xml");
+            processor.ProcessStream(s, null);
+            processor.ScheduleJobs(mockScheduler);
+
+            // check that last fire time was taken from existing trigger
+            mockScheduler.Stub(x => x.RescheduleJob(null, null)).IgnoreArguments();
+            var args = mockScheduler.GetArgumentsForCallsMadeOn(x => x.RescheduleJob(null, null));
+            ITrigger argumentTrigger = (ITrigger) args[0][1];
+            
+            // replacement trigger should have same start time and next fire relative to old trigger's last fire time 
+            Assert.That(argumentTrigger, Is.Not.Null);
+            Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
+            Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));         
         }
 
         /// <summary>

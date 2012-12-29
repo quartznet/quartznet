@@ -87,6 +87,11 @@
           <xs:documentation>If true (and overwrite-existing-data is false) then any job/triggers encountered in this file that have names that already exist in the scheduler will be ignored, and no error will be produced.</xs:documentation>
         </xs:annotation>
       </xs:element>
+      <xs:element name="schedule-trigger-relative-to-replaced-trigger" type="xs:boolean" minOccurs="0" default="false">
+        <xs:annotation>
+          <xs:documentation>If true trigger's start time is calculated based on earlier run time instead of fixed value. Trigger's start time must be undefined for this to work.</xs:documentation>
+        </xs:annotation>
+      </xs:element>
     </xs:sequence>
   </xs:complexType>
 
