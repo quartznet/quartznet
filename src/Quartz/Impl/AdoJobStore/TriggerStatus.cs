@@ -31,9 +31,6 @@ namespace Quartz.Impl.AdoJobStore
     public class TriggerStatus
     {
         // TODO: Repackage under spi or root pkg ?, put status constants here.
-        private TriggerKey key;
-
-        private JobKey jobKey;
 
         private readonly string status;
 
@@ -50,17 +47,9 @@ namespace Quartz.Impl.AdoJobStore
             this.nextFireTime = nextFireTime;
         }
 
-        public JobKey JobKey
-        {
-            get { return jobKey; }
-            set { jobKey = value; }
-        }
+        public JobKey JobKey { get; set; }
 
-        public TriggerKey Key
-        {
-            set { this.key = value; }
-            get { return this.key; }
-        }
+        public TriggerKey Key { get; set; }
 
         public string Status
         {

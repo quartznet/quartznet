@@ -87,14 +87,14 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "DELETE FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup",
                 TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName, ColumnTriggerGroup);
 
-        public static readonly string SqlDeleteAllSimpleTriggers = "DELETE FROM " + TablePrefixSubst + "SIMPLE_TRIGGERS WHERE " + ColumnSchedulerName + " = " + SchedulerNameSubst;
-        public static readonly string SqlDeleteAllSimpropTriggers = "DELETE FROM " + TablePrefixSubst + "SIMPROP_TRIGGERS WHERE " + ColumnSchedulerName + " = " + SchedulerNameSubst;
-        public static readonly string SqlDeleteAllCronTriggers = "DELETE FROM " + TablePrefixSubst + "CRON_TRIGGERS WHERE " + ColumnSchedulerName + " = " + SchedulerNameSubst;
-        public static readonly string SqlDeleteAllBlobTriggers = "DELETE FROM " + TablePrefixSubst + "BLOB_TRIGGERS WHERE " + ColumnSchedulerName + " = " + SchedulerNameSubst;
-        public static readonly string SqlDeleteAllTriggers = "DELETE FROM " + TablePrefixSubst + "TRIGGERS WHERE " + ColumnSchedulerName + " = " + SchedulerNameSubst;
-        public static readonly string SqlDeleteAllJobDetails = "DELETE FROM " + TablePrefixSubst + "JOB_DETAILS WHERE " + ColumnSchedulerName + " = " + SchedulerNameSubst;
-        public static readonly string SqlDeleteAllCalendars = "DELETE FROM " + TablePrefixSubst + "CALENDARS WHERE " + ColumnSchedulerName + " = " + SchedulerNameSubst;
-        public static readonly string SqlDeleteAllPausedTriggerGrps = "DELETE FROM " + TablePrefixSubst + "PAUSED_TRIGGER_GRPS WHERE " + ColumnSchedulerName + " = " + SchedulerNameSubst;
+        public static readonly string SqlDeleteAllSimpleTriggers = string.Format("DELETE FROM {0}SIMPLE_TRIGGERS WHERE {1} = {2}", TablePrefixSubst, ColumnSchedulerName, SchedulerNameSubst);
+        public static readonly string SqlDeleteAllSimpropTriggers = string.Format("DELETE FROM {0}SIMPROP_TRIGGERS WHERE {1} = {2}", TablePrefixSubst, ColumnSchedulerName, SchedulerNameSubst);
+        public static readonly string SqlDeleteAllCronTriggers = string.Format("DELETE FROM {0}CRON_TRIGGERS WHERE {1} = {2}", TablePrefixSubst, ColumnSchedulerName, SchedulerNameSubst);
+        public static readonly string SqlDeleteAllBlobTriggers = string.Format("DELETE FROM {0}BLOB_TRIGGERS WHERE {1} = {2}", TablePrefixSubst, ColumnSchedulerName, SchedulerNameSubst);
+        public static readonly string SqlDeleteAllTriggers = string.Format("DELETE FROM {0}TRIGGERS WHERE {1} = {2}", TablePrefixSubst, ColumnSchedulerName, SchedulerNameSubst);
+        public static readonly string SqlDeleteAllJobDetails = string.Format("DELETE FROM {0}JOB_DETAILS WHERE {1} = {2}", TablePrefixSubst, ColumnSchedulerName, SchedulerNameSubst);
+        public static readonly string SqlDeleteAllCalendars = string.Format("DELETE FROM {0}CALENDARS WHERE {1} = {2}", TablePrefixSubst, ColumnSchedulerName, SchedulerNameSubst);
+        public static readonly string SqlDeleteAllPausedTriggerGrps = string.Format("DELETE FROM {0}PAUSED_TRIGGER_GRPS WHERE {1} = {2}", TablePrefixSubst, ColumnSchedulerName, SchedulerNameSubst);
 
 
         // INSERT

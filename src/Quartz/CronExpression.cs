@@ -881,7 +881,7 @@ namespace Quartz
             }
             else if (c >= '0' && c <= '9')
             {
-                int val = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
+                int val = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
                 i++;
                 if (i >= s.Length)
                 {
@@ -1022,7 +1022,7 @@ namespace Quartz
             {
                 i++;
                 c = s[i];
-                int v = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
+                int v = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
                 end = v;
                 i++;
                 if (i >= s.Length)
@@ -1042,7 +1042,7 @@ namespace Quartz
                 {
                     i++;
                     c = s[i];
-                    int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
+                    int v2 = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
                     i++;
                     if (i >= s.Length)
                     {
@@ -1075,7 +1075,7 @@ namespace Quartz
             {
                 i++;
                 c = s[i];
-                int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
+                int v2 = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
                 i++;
                 if (i >= s.Length)
                 {
@@ -1678,7 +1678,7 @@ namespace Quartz
                                 {
                                     mon = 1;
                                     tmon = 3333; // ensure test of mon != tmon further below fails
-                                    d.AddYears(1);
+                                    d = d.AddYears(1);
                                 }
                                 day = 1;
                             }
@@ -1866,11 +1866,7 @@ namespace Quartz
                             daysToAdd = dow + (7 - cDow);
                         }
 
-                        bool dayShifted = false;
-                        if (daysToAdd > 0)
-                        {
-                            dayShifted = true;
-                        }
+                        bool dayShifted = daysToAdd > 0;
 
                         day += daysToAdd;
                         int weekOfMonth = day/7;

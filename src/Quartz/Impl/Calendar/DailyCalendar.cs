@@ -110,7 +110,6 @@ namespace Quartz.Impl.Calendar
             SetTimeRange(rangeStartingTime, rangeEndingTime);
         }
 
-
         /// <summary>
         /// Create a <see cref="DailyCalendar"/> with a time range defined by the
         /// specified strings and the specified baseCalendar.
@@ -326,7 +325,6 @@ namespace Quartz.Impl.Calendar
         {
             SetTimeRange(rangeStartingTimeInMillis, rangeEndingTimeInMillis);
         }
-
 
         /// <summary>
         /// Create a <see cref="DailyCalendar"/> with a time range defined by the
@@ -607,7 +605,7 @@ namespace Quartz.Impl.Calendar
             buffer.Append("base calendar: [");
             if (GetBaseCalendar() != null)
             {
-                buffer.Append(GetBaseCalendar().ToString());
+                buffer.Append(GetBaseCalendar());
             }
             else
             {
@@ -879,11 +877,12 @@ namespace Quartz.Impl.Calendar
         public bool Equals(DailyCalendar obj)
         {
             if (obj == null)
+            {
                 return false;
-            bool baseEqual = GetBaseCalendar() != null ?
-                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
-            
-            return baseEqual &&  (InvertTimeRange == obj.InvertTimeRange) &&
+            }
+            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+
+            return baseEqual && (InvertTimeRange == obj.InvertTimeRange) &&
                    (rangeStartingHourOfDay == obj.rangeStartingHourOfDay) &&
                    (rangeStartingMinute == obj.rangeStartingMinute) &&
                    (rangeStartingSecond == obj.rangeStartingSecond) &&

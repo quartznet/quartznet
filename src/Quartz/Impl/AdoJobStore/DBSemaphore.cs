@@ -59,7 +59,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="defaultInsertSQL">The SQL.</param>
         /// <param name="defaultSQL">The default SQL.</param>
         /// <param name="dbProvider">The db provider.</param>
-        public DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
+        protected DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
         {
             log = LogManager.GetLogger(GetType());
             this.schedName = schedName;

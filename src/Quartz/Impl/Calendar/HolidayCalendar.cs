@@ -222,8 +222,7 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            bool baseEqual = GetBaseCalendar() != null ?
-                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
             return baseEqual && (ExcludedDates.Equals(obj.ExcludedDates));
 

@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 
 namespace Quartz.Util
 {
@@ -32,7 +33,7 @@ namespace Quartz.Util
     /// <author>Marko Lahma (.NET)</author>
     public class PropertiesParser
 	{
-        internal NameValueCollection props;
+        internal readonly NameValueCollection props;
 
         /// <summary>
         /// Gets the underlying properties.
@@ -106,7 +107,6 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual IList<string> GetStringArrayProperty(string name, string[] defaultValue)
 		{
-
             string vals = GetStringProperty(name);
             if (vals == null)
             {
@@ -114,13 +114,10 @@ namespace Quartz.Util
             }
 
             string[] items = vals.Split(',');
-            List<string> strs = new List<string>();
+            List<string> strs = new List<string>(items.Length);
             try
             {
-                foreach (string s in items)
-                {
-                    strs.Add(s.Trim());
-                }
+                strs.AddRange(items.Select(s => s.Trim()));
 
                 return strs;
             }

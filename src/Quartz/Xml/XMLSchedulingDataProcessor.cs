@@ -71,8 +71,8 @@ namespace Quartz.Xml
         protected const string ThreadLocalKeyScheduler = "quartz_scheduler";
 
         // pre-processing commands
-        private readonly IList<String> jobGroupsToDelete = new List<String>();
-        private readonly IList<String> triggerGroupsToDelete = new List<String>();
+        private readonly IList<string> jobGroupsToDelete = new List<string>();
+        private readonly IList<string> triggerGroupsToDelete = new List<string>();
         private readonly IList<JobKey> jobsToDelete = new List<JobKey>();
         private readonly IList<TriggerKey> triggersToDelete = new List<TriggerKey>();
 
@@ -81,13 +81,11 @@ namespace Quartz.Xml
         private readonly List<ITrigger> loadedTriggers = new List<ITrigger>();
 
         // directives
+        private readonly IList<Exception> validationExceptions = new List<Exception>();
 
-        private IList<Exception> validationExceptions = new List<Exception>();
-
-
-        protected ITypeLoadHelper typeLoadHelper;
-        private readonly IList<String> jobGroupsToNeverDelete = new List<String>();
-        private readonly IList<String> triggerGroupsToNeverDelete = new List<String>();
+        protected readonly ITypeLoadHelper typeLoadHelper;
+        private readonly IList<string> jobGroupsToNeverDelete = new List<string>();
+        private readonly IList<string> triggerGroupsToNeverDelete = new List<string>();
 
         /// <summary>
         /// Constructor for XMLSchedulingDataProcessor.
@@ -571,30 +569,23 @@ namespace Quartz.Xml
         {
             try
             {
+                XmlReaderSettings settings = new XmlReaderSettings();
+                settings.ValidationType = ValidationType.Schema;
+                settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessInlineSchema;
+                settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
+                settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
+
+                Stream stream = GetType().Assembly.GetManifestResourceStream(QuartzXsdResourceName);
+                XmlSchema schema = XmlSchema.Read(stream, XmlValidationCallBack);
+                settings.Schemas.Add(schema);
+                settings.ValidationEventHandler += XmlValidationCallBack;
+
                 // stream to validate
-                using (StringReader stringReader = new StringReader(xml))
+                using (XmlReader reader = XmlReader.Create(new StringReader(xml), settings))
                 {
-                    XmlReaderSettings settings = new XmlReaderSettings();
-                    settings.ValidationType = ValidationType.Schema;
-                    settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessInlineSchema;
-                    settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
-                    settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
-
-                    Stream stream = GetType().Assembly.GetManifestResourceStream(QuartzXsdResourceName);
-                    XmlSchema schema = XmlSchema.Read(stream, XmlValidationCallBack);
-                    settings.Schemas.Add(schema);
-                    settings.ValidationEventHandler += XmlValidationCallBack;
-
-
-                    XmlReader reader = XmlTextReader.Create(stringReader, settings);
-
-                    // Read XML data
                     while (reader.Read())
                     {
                     }
-
-                    //Close the reader.
-                    reader.Close();
                 }
             }
             catch (Exception ex)
@@ -623,8 +614,7 @@ namespace Quartz.Xml
         /// <param name="overWriteExistingJobs"></param>
         public void ProcessFileAndScheduleJobs(IScheduler sched, bool overWriteExistingJobs)
         {
-            string fileName = QuartzXmlFileName;
-            ProcessFile(fileName, fileName);
+            ProcessFile(QuartzXmlFileName, QuartzXmlFileName);
             // The overWriteExistingJobs flag was set by processFile() -> prepForProcessing(), then by xml parsing, and then now
             // we need to reset it again here by this method parameter to override it.
             OverWriteExistingData = overWriteExistingJobs;

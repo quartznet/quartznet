@@ -292,8 +292,7 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            bool toReturn = GetBaseCalendar() != null ?
-                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+            bool toReturn = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
             toReturn = toReturn && (DaysExcluded.Count == obj.DaysExcluded.Count);
             if (toReturn)

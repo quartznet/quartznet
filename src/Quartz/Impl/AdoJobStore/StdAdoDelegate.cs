@@ -24,6 +24,7 @@ using System.Collections.Specialized;
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 
 using Common.Logging;
@@ -135,30 +136,13 @@ namespace Quartz.Impl.AdoJobStore
 
         public virtual ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(IOperableTrigger trigger)
         {
-            foreach (ITriggerPersistenceDelegate del in triggerPersistenceDelegates)
-            {
-                if (del.CanHandleTriggerType(trigger))
-                {
-                    return del;
-                }
-            }
-
-            return null;
+            return triggerPersistenceDelegates.FirstOrDefault(del => del.CanHandleTriggerType(trigger));
         }
 
         public virtual ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(string discriminator)
         {
-            foreach (ITriggerPersistenceDelegate del in triggerPersistenceDelegates)
-            {
-                if (del.GetHandledTriggerTypeDiscriminator().Equals(discriminator))
-                {
-                    return del;
-                }
-            }
-
-            return null;
+            return triggerPersistenceDelegates.FirstOrDefault(del => del.GetHandledTriggerTypeDiscriminator() == discriminator);
         }
-
 
         //---------------------------------------------------------------------------
         // startup / recovery
@@ -1458,14 +1442,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
 
-            List<IOperableTrigger> trigList = new List<IOperableTrigger>();
-            foreach (TriggerKey key in keys)
-            {
-                trigList.Add(SelectTrigger(conn, key));
-
-            }
-
-            return trigList;
+            return keys.Select(key => SelectTrigger(conn, key)).ToList();
         }
 
         /// <summary>

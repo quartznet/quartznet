@@ -47,10 +47,7 @@ namespace Quartz.Impl.AdoJobStore
     public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         protected const string LockTriggerAccess = "TRIGGER_ACCESS";
-        protected const string LockJobAccess = "JOB_ACCESS";
-        protected const string LockCalendarAccess = "CALENDAR_ACCESS";
         protected const string LockStateAccess = "STATE_ACCESS";
-        protected const string LockMisfireAccess = "MISFIRE_ACCESS";
 
         private string dataSource;
         private string tablePrefix = DefaultTablePrefix;
@@ -58,29 +55,16 @@ namespace Quartz.Impl.AdoJobStore
         private string instanceId;
         private string instanceName;
         protected string delegateTypeName;
-        protected string delegateInitString;
         protected Type delegateType;
-        protected Dictionary<string, ICalendar> calendarCache = new Dictionary<string, ICalendar>();
+        protected readonly Dictionary<string, ICalendar> calendarCache = new Dictionary<string, ICalendar>();
         private IDriverDelegate driverDelegate;
         private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
-        private bool dontSetAutoCommitFalse;
-        private bool clustered;
-        private bool useDBLocks;
 
         private bool lockOnInsert = true;
-        private ISemaphore lockHandler; // set in Initialize() method...
-        private string selectWithLockSQL;
-        private TimeSpan clusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
         private ClusterManager clusterManagementThread;
         private MisfireHandler misfireHandler;
         private ITypeLoadHelper typeLoadHelper;
         private ISchedulerSignaler schedSignaler;
-        protected int maxToRecoverAtATime = 20;
-        private bool setTxIsolationLevelSequential;
-        private TimeSpan dbRetryInterval = TimeSpan.FromSeconds(15);
-        private bool acquireTriggersWithinLock;
-        private bool makeThreadsDaemons;
-        private bool doubleCheckLockMisfireHandler = true;
         private readonly ILog log;
         private IObjectSerializer objectSerializer;
         private IThreadExecutor threadExecutor = new DefaultThreadExecutor();
@@ -92,6 +76,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected JobStoreSupport()
         {
+            DoubleCheckLockMisfireHandler = true;
+            ClusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
+            MaxMisfiresToHandleAtATime = 20;
+            DbRetryInterval = TimeSpan.FromSeconds(15);
             log = LogManager.GetLogger(GetType());
             delegateType = typeof (StdAdoDelegate);
         }
@@ -199,11 +187,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary> 
         /// Get or set whether this instance is part of a cluster.
         /// </summary>
-        public virtual bool Clustered
-        {
-            get { return clustered; }
-            set { clustered = value; }
-        }
+        public virtual bool Clustered { get; set; }
 
         /// <summary>
         /// Get or set the frequency at which this instance "checks-in"
@@ -211,43 +195,27 @@ namespace Quartz.Impl.AdoJobStore
         /// detecting failed instances.
         /// </summary>
         [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-        public virtual TimeSpan ClusterCheckinInterval
-        {
-            get { return clusterCheckinInterval; }
-            set { clusterCheckinInterval = value; }
-        }
+        public virtual TimeSpan ClusterCheckinInterval { get; set; }
 
         /// <summary>
         /// Get or set the maximum number of misfired triggers that the misfire handling
         /// thread will try to recover at one time (within one transaction).  The
         /// default is 20.
         /// </summary>
-        public virtual int MaxMisfiresToHandleAtATime
-        {
-            get { return maxToRecoverAtATime; }
-            set { maxToRecoverAtATime = value; }
-        }
+        public virtual int MaxMisfiresToHandleAtATime { get; set; }
 
         /// <summary>
         /// Gets or sets the database retry interval.
         /// </summary>
         /// <value>The db retry interval.</value>
         [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-        public virtual TimeSpan DbRetryInterval
-        {
-            get { return dbRetryInterval; }
-            set { dbRetryInterval = value; }
-        }
+        public virtual TimeSpan DbRetryInterval { get; set; }
 
         /// <summary>
         /// Get or set whether this instance should use database-based thread
         /// synchronization.
         /// </summary>
-        public virtual bool UseDBLocks
-        {
-            get { return useDBLocks; }
-            set { useDBLocks = value; }
-        }
+        public virtual bool UseDBLocks { get; set; }
 
         /// <summary> 
         /// Whether or not to obtain locks when inserting new jobs/triggers.  
@@ -290,20 +258,12 @@ namespace Quartz.Impl.AdoJobStore
         /// DataSource. This can be helpfull in a few situations, such as if you
         /// have a driver that complains if it is called when it is already off.
         /// </summary>
-        public virtual bool DontSetAutoCommitFalse
-        {
-            get { return dontSetAutoCommitFalse; }
-            set { dontSetAutoCommitFalse = value; }
-        }
+        public virtual bool DontSetAutoCommitFalse { get; set; }
 
         /// <summary> 
         /// Set the transaction isolation level of DB connections to sequential.
         /// </summary>
-        public virtual bool TxIsolationLevelSerializable
-        {
-            get { return setTxIsolationLevelSequential; }
-            set { setTxIsolationLevelSequential = value; }
-        }
+        public virtual bool TxIsolationLevelSerializable { get; set; }
 
         /// <summary>
         /// Whether or not the query and update to acquire a Trigger for firing
@@ -316,11 +276,7 @@ namespace Quartz.Impl.AdoJobStore
         /// However, if batch acquisition is used, it is important for this behavior 
         /// to be used for all dbs.
         /// </remarks>
-        public bool AcquireTriggersWithinLock
-        {
-            get { return acquireTriggersWithinLock; }
-            set { acquireTriggersWithinLock = value; }
-        }
+        public bool AcquireTriggersWithinLock { get; set; }
 
         /// <summary> 
         /// Get or set the ADO.NET driver delegate class name.
@@ -340,22 +296,14 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// The driver delegate's initialization string.
         /// </summary>
-        public string DriverDelegateInitString
-        {
-            set { delegateInitString = value; }
-            get { return delegateInitString; }
-        }
+        public string DriverDelegateInitString { get; set; }
 
         /// <summary>
         /// set the SQL statement to use to select and lock a row in the "locks"
         /// table.
         /// </summary>
         /// <seealso cref="StdRowLockSemaphore" />
-        public virtual string SelectWithLockSQL
-        {
-            get { return selectWithLockSQL; }
-            set { selectWithLockSQL = value; }
-        }
+        public virtual string SelectWithLockSQL { get; set; }
 
         protected virtual ITypeLoadHelper TypeLoadHelper
         {
@@ -368,12 +316,7 @@ namespace Quartz.Impl.AdoJobStore
         /// and the <see cref="ClusterManager"/>.
         /// </summary>
         /// <returns></returns>
-        public bool MakeThreadsDaemons
-        {
-            get { return makeThreadsDaemons; }
-            set { makeThreadsDaemons = value; }
-        }
-
+        public bool MakeThreadsDaemons { get; set; }
 
         /// <summary>
         /// Get whether to check to see if there are Triggers that have misfired
@@ -382,17 +325,12 @@ namespace Quartz.Impl.AdoJobStore
         /// Triggers.
         /// </summary>
         /// <returns></returns>
-        public bool DoubleCheckLockMisfireHandler
-        {
-            get { return doubleCheckLockMisfireHandler; }
-            set { doubleCheckLockMisfireHandler = value; }
-        }
+        public bool DoubleCheckLockMisfireHandler { get; set; }
 
         protected DbMetadata DbMetadata
         {
             get { return ConnectionManager.GetDbMetadata(DataSource); }
         }
-
 
         protected abstract ConnectionAndTransactionHolder GetNonManagedTXConnection();
 
@@ -514,11 +452,7 @@ namespace Quartz.Impl.AdoJobStore
             get { return ConnectionManager.GetDbProvider(DataSource); }
         }
 
-        protected internal virtual ISemaphore LockHandler
-        {
-            get { return lockHandler; }
-            set { lockHandler = value; }
-        }
+        protected internal virtual ISemaphore LockHandler { get; set; }
 
         /// <summary>
         /// Get whether String-only properties will be handled in JobDataMaps.
@@ -699,19 +633,6 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
         }
-
-
-        protected class CallbackSupport
-        {
-            protected JobStoreSupport js;
-
-
-            public CallbackSupport(JobStoreSupport js)
-            {
-                this.js = js;
-            }
-        }
-
 
         /// <summary>
         /// Will recover any failed or misfired jobs and clean up the data store as
@@ -2109,11 +2030,7 @@ namespace Quartz.Impl.AdoJobStore
                     return;
                 }
 
-                bool blocked = false;
-                if (StatePausedBlocked.Equals(status.Status))
-                {
-                    blocked = true;
-                }
+                bool blocked = StatePausedBlocked.Equals(status.Status);
 
                 string newState = CheckBlockedState(conn, status.JobKey, StateWaiting);
 

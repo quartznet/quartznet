@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
 
 namespace Quartz.Collection
 {
     public class ReadOnlySet<T> : ISet<T>
     {
-        private ISet<T> _internalSet;
+        private readonly ISet<T> internalSet;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReadOnlySet{T}" /> class.
@@ -18,9 +16,11 @@ namespace Quartz.Collection
         public ReadOnlySet(ISet<T> internalSet)
         {
             if (internalSet == null)
+            {
                 throw new ArgumentNullException("internalSet");
+            }
 
-            _internalSet = internalSet;
+            this.internalSet = internalSet;
         }
 
         public void Add(T item)
@@ -35,17 +35,17 @@ namespace Quartz.Collection
 
         public bool Contains(T item)
         {
-            return _internalSet.Contains(item);
+            return internalSet.Contains(item);
         }
 
         public void CopyTo(T[] array, int arrayIndex)
         {
-            _internalSet.CopyTo(array, arrayIndex);
+            internalSet.CopyTo(array, arrayIndex);
         }
 
         public int Count
         {
-            get { return _internalSet.Count; }
+            get { return internalSet.Count; }
         }
 
         public bool IsReadOnly
@@ -60,12 +60,12 @@ namespace Quartz.Collection
 
         public IEnumerator<T> GetEnumerator()
         {
-            return _internalSet.GetEnumerator();
+            return internalSet.GetEnumerator();
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
-            return _internalSet.GetEnumerator();
+            return internalSet.GetEnumerator();
         }
     }
 }

@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Quartz.Listener
 {
@@ -113,14 +114,7 @@ namespace Quartz.Listener
 
         public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
-            foreach (ITriggerListener l in listeners)
-            {
-                if (l.VetoJobExecution(trigger, context))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return listeners.Any(l => l.VetoJobExecution(trigger, context));
         }
 
         public void TriggerMisfired(ITrigger trigger)

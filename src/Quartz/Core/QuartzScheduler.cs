@@ -21,8 +21,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting;
 using System.Security;
@@ -62,24 +62,24 @@ namespace Quartz.Core
         private readonly QuartzSchedulerThread schedThread;
         private readonly SchedulerContext context = new SchedulerContext();
 
-        private IListenerManager listenerManager = new ListenerManagerImpl();
+        private readonly IListenerManager listenerManager = new ListenerManagerImpl();
 
-        private IDictionary<string, IJobListener> internalJobListeners = new Dictionary<string, IJobListener>(10);
-        private IDictionary<string, ITriggerListener> internalTriggerListeners = new Dictionary<string, ITriggerListener>(10);
-        private IList<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
+        private readonly IDictionary<string, IJobListener> internalJobListeners = new Dictionary<string, IJobListener>(10);
+        private readonly IDictionary<string, ITriggerListener> internalTriggerListeners = new Dictionary<string, ITriggerListener>(10);
+        private readonly IList<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
 
         private IJobFactory jobFactory = new PropertySettingJobFactory();
         private readonly ExecutingJobsManager jobMgr;
         private readonly ErrorLogger errLogger;
         private readonly ISchedulerSignaler signaler;
         private readonly Random random = new Random();
-        private readonly List<object> holdToPreventGC = new List<object>(5);
+        private readonly List<object> holdToPreventGc = new List<object>(5);
         private bool signalOnSchedulingChange = true;
         private volatile bool closed;
         private volatile bool shuttingDown;
         private DateTimeOffset? initialStart;
         private bool boundRemotely;
-        private TimeSpan dbRetryInterval;
+        private readonly TimeSpan dbRetryInterval;
 
         /// <summary>
         /// Initializes the <see cref="QuartzScheduler"/> class.
@@ -407,7 +407,7 @@ namespace Quartz.Core
         /// <param name="obj">The obj.</param>
         public virtual void AddNoGCObject(object obj)
         {
-            holdToPreventGC.Add(obj);
+            holdToPreventGc.Add(obj);
         }
 
         /// <summary>
@@ -417,7 +417,7 @@ namespace Quartz.Core
         /// <returns></returns>
         public virtual bool RemoveNoGCObject(object obj)
         {
-            return holdToPreventGC.Remove(obj);
+            return holdToPreventGc.Remove(obj);
         }
 
         /// <summary>
@@ -658,7 +658,7 @@ namespace Quartz.Core
 
             SchedulerRepository.Instance.Remove(resources.Name);
 
-            holdToPreventGC.Clear();
+            holdToPreventGc.Clear();
 
             log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} Shutdown complete.", resources.GetUniqueIdentifier()));
         }
@@ -1341,10 +1341,7 @@ namespace Quartz.Core
             IList<IOperableTrigger> triggersForJob = resources.JobStore.GetTriggersForJob(jobKey);
 
             var retValue = new List<ITrigger>(triggersForJob.Count);
-            foreach (IOperableTrigger trigger in triggersForJob)
-            {
-                retValue.Add(trigger);
-            }
+            retValue.AddRange(triggersForJob);
             return retValue;
         }
 
@@ -1697,14 +1694,7 @@ namespace Quartz.Core
             {
                 return true;
             }
-            foreach (IMatcher<TriggerKey> matcher in matchers)
-            {
-                if (matcher.IsMatch(key))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return matchers.Any(matcher => matcher.IsMatch(key));
         }
 
         /// <summary>
@@ -2451,7 +2441,7 @@ namespace Quartz.Core
             }
         }
 
-        private Dictionary<string, IJobExecutionContext> executingJobs = new Dictionary<string, IJobExecutionContext>();
+        private readonly Dictionary<string, IJobExecutionContext> executingJobs = new Dictionary<string, IJobExecutionContext>();
 
         private int numJobsFired;
 

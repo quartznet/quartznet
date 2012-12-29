@@ -52,12 +52,12 @@ namespace Quartz.Util
 
                 // try to convert using type converter
                 TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
-                if (typeConverter != null && typeConverter.CanConvertFrom(newValue.GetType()))
+                if (typeConverter.CanConvertFrom(newValue.GetType()))
                 {
                     return typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
                 }
                 typeConverter = TypeDescriptor.GetConverter(newValue);
-                if (typeConverter != null && typeConverter.CanConvertTo(requiredType))
+                if (typeConverter.CanConvertTo(requiredType))
                 {
                     return typeConverter.ConvertTo(null, CultureInfo.InvariantCulture, newValue, requiredType);
                 }
@@ -74,7 +74,7 @@ namespace Quartz.Util
 	        }
 
             // return default
-	        return newValue;
+	        return null;
 		}
 
 
@@ -88,7 +88,7 @@ namespace Quartz.Util
 		/// </returns>
 		private static bool IsAssignableFrom(object value, Type requiredType)
 		{
-			return requiredType.IsAssignableFrom(value.GetType());
+			return requiredType.IsInstanceOfType(value);
 		}
 		
 		/// <summary>

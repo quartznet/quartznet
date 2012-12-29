@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 using Common.Logging;
 
@@ -105,7 +106,7 @@ namespace Quartz.Job
 
             DateTime maxAgeDate = DateTime.Now - minAge;
 
-            IList<FileInfo> updatedFiles = GetUpdatedOrNewFiles(dirName, lastDate, maxAgeDate);
+            IEnumerable<FileInfo> updatedFiles = GetUpdatedOrNewFiles(dirName, lastDate, maxAgeDate);
 
             if (updatedFiles == null)
             {
@@ -120,7 +121,7 @@ namespace Quartz.Job
                 latestMod = (lm > latestMod) ? lm : latestMod;
             }
 
-            if (updatedFiles.Count > 0)
+            if (updatedFiles.Any())
             {
                 // notify call back...
                 log.Info("Directory '" + dirName + "' contents updated, notifying listener.");
@@ -135,7 +136,7 @@ namespace Quartz.Job
             context.JobDetail.JobDataMap.Put(LastModifiedTime, latestMod);
         }
 
-        protected IList<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastDate, DateTime maxAgeDate)
+        protected static IEnumerable<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastDate, DateTime maxAgeDate)
         {
             DirectoryInfo dir = new DirectoryInfo(dirName);
             if (!dir.Exists)
@@ -144,17 +145,8 @@ namespace Quartz.Job
             }
 
             FileInfo[] files = dir.GetFiles();
-            List<FileInfo> acceptedFiles = new List<FileInfo>();
 
-            foreach (FileInfo fileInfo in files)
-            {
-                if (fileInfo.LastWriteTime > lastDate && fileInfo.LastWriteTime < maxAgeDate)
-                {
-                    acceptedFiles.Add(fileInfo);
-                }
-            }
-
-            return acceptedFiles;
+            return files.Where(fileInfo => fileInfo.LastWriteTime > lastDate && fileInfo.LastWriteTime < maxAgeDate);
         }
     }
 }

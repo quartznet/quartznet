@@ -738,22 +738,21 @@ namespace Quartz.Simpl
 
 			    if (obj != null && updateTriggers)
 			    {
-					List<TriggerWrapper> trigs = GetTriggerWrappersForCalendar(name);
-					for (int i = 0; i < trigs.Count; ++i)
-					{
-						TriggerWrapper tw = trigs[i];
-						IOperableTrigger trig = tw.trigger;
-                        bool removed = timeTriggers.Remove(tw);
+			        List<TriggerWrapper> trigs = GetTriggerWrappersForCalendar(name);
+			        foreach (TriggerWrapper tw in trigs)
+			        {
+			            IOperableTrigger trig = tw.trigger;
+			            bool removed = timeTriggers.Remove(tw);
 
-						trig.UpdateWithNewCalendar(calendar, MisfireThreshold);
+			            trig.UpdateWithNewCalendar(calendar, MisfireThreshold);
 
-						if (removed)
-						{
-							timeTriggers.Add(tw);
-						}
-					}
-				}
-			}
+			            if (removed)
+			            {
+			                timeTriggers.Add(tw);
+			            }
+			        }
+			    }
+            }
 		}
 
 		/// <summary>
@@ -1192,16 +1191,16 @@ namespace Quartz.Simpl
 		        }
 		        else
 		        {
-		                foreach (String group in jobsByGroup.Keys)
+		            foreach (string group in jobsByGroup.Keys)
+		            {
+		                if (op.Evaluate(group, matcher.CompareToValue))
 		                {
-		                    if (op.Evaluate(group, matcher.CompareToValue))
+		                    if (pausedJobGroups.Add(group))
 		                    {
-		                        if (pausedJobGroups.Add(group))
-		                        {
-		                            pausedGroups.Add(group);
-		                        }
+		                        pausedGroups.Add(group);
 		                    }
 		                }
+		            }
 		        }
 
 		        foreach (string groupName in  pausedGroups)

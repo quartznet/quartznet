@@ -40,8 +40,8 @@ namespace Quartz.Impl.AdoJobStore.Common
         private string connectionString;
         private readonly DbMetadata dbMetadata;
 
-        protected static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
-        protected static readonly DbMetadata notInitializedMetadata = new DbMetadata();
+        private static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
+        private static readonly DbMetadata notInitializedMetadata = new DbMetadata();
 
         /// <summary>
         /// Parse metadata once in static constructor.

@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,9 +16,11 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using Quartz.Util;
+
 using System;
 using System.Runtime.Serialization;
 using System.Security;
@@ -81,13 +84,12 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                 case 1:
-                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]));
-                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool));
+                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof (bool[]));
+                    excludeAll = (bool) info.GetValue("excludeAll", typeof (bool));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
-
         }
 
         [SecurityCritical]
@@ -104,8 +106,8 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         private void Init()
         {
-            excludeDays[(int)DayOfWeek.Sunday] = true;
-            excludeDays[(int)DayOfWeek.Saturday] = true;
+            excludeDays[(int) DayOfWeek.Sunday] = true;
+            excludeDays[(int) DayOfWeek.Saturday] = true;
             excludeAll = AreAllDaysExcluded();
         }
 
@@ -137,7 +139,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual bool IsDayExcluded(DayOfWeek wday)
         {
-            return excludeDays[(int)wday];
+            return excludeDays[(int) wday];
         }
 
         /// <summary>
@@ -146,7 +148,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual void SetDayExcluded(DayOfWeek wday, bool exclude)
         {
-            excludeDays[(int)wday] = exclude;
+            excludeDays[(int) wday] = exclude;
             excludeAll = AreAllDaysExcluded();
         }
 
@@ -272,32 +274,34 @@ namespace Quartz.Impl.Calendar
         {
             int baseHash = 0;
             if (GetBaseCalendar() != null)
+            {
                 baseHash = GetBaseCalendar().GetHashCode();
+            }
 
-            return DaysExcluded.GetHashCode() + 5 * baseHash;
+            return DaysExcluded.GetHashCode() + 5*baseHash;
         }
 
         public bool Equals(WeeklyCalendar obj)
         {
             if (obj == null)
+            {
                 return false;
-            bool baseEqual = GetBaseCalendar() != null ?
-                             GetBaseCalendar().Equals(obj.GetBaseCalendar()) : true;
+            }
+            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
-
-            return baseEqual && (ArraysEqualElementsOnEqualPlaces(obj.DaysExcluded,DaysExcluded));
-
+            return baseEqual && (ArraysEqualElementsOnEqualPlaces(obj.DaysExcluded, DaysExcluded));
         }
-
 
         public override bool Equals(object obj)
         {
             if ((obj == null) || !(obj is WeeklyCalendar))
+            {
                 return false;
+            }
             else
-                return Equals((WeeklyCalendar)obj);
-
-
+            {
+                return Equals((WeeklyCalendar) obj);
+            }
         }
     }
 }

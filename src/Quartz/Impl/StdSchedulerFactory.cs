@@ -530,9 +530,9 @@ Please add configuration to your application config file to correctly initialize
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             IList<string> dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
-            for (int i = 0; i < dsNames.Count; i++)
+            foreach (string dataSourceName in dsNames)
             {
-                string datasourceKey = "{0}.{1}".FormatInvariant( PropertyDataSourcePrefix, dsNames[i]);
+                string datasourceKey = "{0}.{1}".FormatInvariant(PropertyDataSourcePrefix, dataSourceName);
                 NameValueCollection propertyGroup = cfg.GetPropertyGroup(datasourceKey, true);
                 PropertiesParser pp = new PropertiesParser(propertyGroup);
 
@@ -567,7 +567,7 @@ Please add configuration to your application config file to correctly initialize
                     }
 
                     dbMgr = DBConnectionManager.Instance;
-                    dbMgr.AddConnectionProvider(dsNames[i], cp);
+                    dbMgr.AddConnectionProvider(dataSourceName, cp);
                 }
                 else
                 {
@@ -581,7 +581,7 @@ Please add configuration to your application config file to correctly initialize
                         ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
                         if (connectionStringSettings == null)
                         {
-                            initException = new SchedulerException("Named connection string '{0}' not found for DataSource: {1}".FormatInvariant(dsConnectionStringName,  dsNames[i]));
+                            initException = new SchedulerException("Named connection string '{0}' not found for DataSource: {1}".FormatInvariant(dsConnectionStringName, dataSourceName));
                             throw initException;
                         }
                         dsConnectionString = connectionStringSettings.ConnectionString;
@@ -589,12 +589,12 @@ Please add configuration to your application config file to correctly initialize
 
                     if (dsProvider == null)
                     {
-                        initException = new SchedulerException("Provider not specified for DataSource: {0}".FormatInvariant(dsNames[i]));
+                        initException = new SchedulerException("Provider not specified for DataSource: {0}".FormatInvariant(dataSourceName));
                         throw initException;
                     }
                     if (dsConnectionString == null)
                     {
-                        initException = new SchedulerException("Connection string not specified for DataSource: {0}".FormatInvariant(dsNames[i]));
+                        initException = new SchedulerException("Connection string not specified for DataSource: {0}".FormatInvariant(dataSourceName));
                         throw initException;
                     }
                     try
@@ -603,11 +603,11 @@ Please add configuration to your application config file to correctly initialize
                         dbp.Initialize();
 
                         dbMgr = DBConnectionManager.Instance;
-                        dbMgr.AddConnectionProvider(dsNames[i], dbp);
+                        dbMgr.AddConnectionProvider(dataSourceName, dbp);
                     }
                     catch (Exception exception)
                     {
-                        initException = new SchedulerException("Could not Initialize DataSource: {0}".FormatInvariant(dsNames[i]), exception);
+                        initException = new SchedulerException("Could not Initialize DataSource: {0}".FormatInvariant(dataSourceName), exception);
                         throw initException;
                     }
                 }
@@ -730,7 +730,7 @@ Please add configuration to your application config file to correctly initialize
             {
                 NameValueCollection pp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyPluginPrefix, pluginNames[i]), true);
 
-                string plugInType = pp[PropertyPluginType] ?? null;
+                string plugInType = pp[PropertyPluginType];
 
                 if (plugInType == null)
                 {
@@ -969,9 +969,9 @@ Please add configuration to your application config file to correctly initialize
                 rsrcs.JobStore = js;
 
                 // add plugins
-                for (int i = 0; i < plugins.Length; i++)
+                foreach (ISchedulerPlugin plugin in plugins)
                 {
-                    rsrcs.AddSchedulerPlugin(plugins[i]);
+                    rsrcs.AddSchedulerPlugin(plugin);
                 }
 
                 qs = new QuartzScheduler(rsrcs, idleWaitTime, dbFailureRetry);
@@ -993,13 +993,13 @@ Please add configuration to your application config file to correctly initialize
                 }
 
                 // add listeners
-                for (int i = 0; i < jobListeners.Length; i++)
+                foreach (IJobListener listener in jobListeners)
                 {
-                    qs.ListenerManager.AddJobListener(jobListeners[i], EverythingMatcher<JobKey>.AllJobs());
+                    qs.ListenerManager.AddJobListener(listener, EverythingMatcher<JobKey>.AllJobs());
                 }
-                for (int i = 0; i < triggerListeners.Length; i++)
+                foreach (ITriggerListener listener in triggerListeners)
                 {
-                    qs.ListenerManager.AddTriggerListener(triggerListeners[i], EverythingMatcher<TriggerKey>.AllTriggers());
+                    qs.ListenerManager.AddTriggerListener(listener, EverythingMatcher<TriggerKey>.AllTriggers());
                 }
 
                 // set scheduler context data...

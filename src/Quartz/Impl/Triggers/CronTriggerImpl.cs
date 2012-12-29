@@ -339,20 +339,19 @@ namespace Quartz.Impl.Triggers
             TimeZone = TimeZoneInfo.Local;
         }
 
-
-		/// <summary>
-		/// Create a <see cref="CronTriggerImpl" /> with fire time dictated by the
-		/// <param name="cronExpression" /> resolved with respect to the specified
-        /// <param name="timeZone" /> occurring from the <see cref="startTimeUtc" /> until
-		/// the given <paran name="endTimeUtc" />.
-		/// </summary>
-        /// <param name="name">The name of the <see cref="ITrigger" /></param>
-        /// <param name="group">The group of the <see cref="ITrigger" /></param>
-        /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
-		/// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
-        /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="ITrigger" /> to start firing.</param>
-        /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
-        public CronTriggerImpl(string name, string group, string jobName,
+	    /// <summary>
+	    /// Create a <see cref="CronTriggerImpl" /> with fire time dictated by the
+	    /// <param name="cronExpression" /> resolved with respect to the specified
+	    /// <param name="timeZone" /> occurring from the <see cref="startTimeUtc" /> until
+	    /// the given <paran name="endTimeUtc" />.
+	    /// </summary>
+	    /// <param name="name">The name of the <see cref="ITrigger" /></param>
+	    /// <param name="group">The group of the <see cref="ITrigger" /></param>
+	    /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
+	    /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
+	    /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="ITrigger" /> to start firing.</param>
+	    /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
+	    public CronTriggerImpl(string name, string group, string jobName,
             string jobGroup, DateTimeOffset startTimeUtc, 
             DateTimeOffset? endTime,
 			string cronExpression, 

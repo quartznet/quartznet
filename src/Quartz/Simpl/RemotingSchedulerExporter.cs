@@ -64,7 +64,7 @@ namespace Quartz.Simpl
             {
                 throw new ArgumentNullException("scheduler");
             }
-            if (!typeof(MarshalByRefObject).IsAssignableFrom(scheduler.GetType()))
+            if (!(scheduler is MarshalByRefObject))
             {
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
             }
@@ -147,7 +147,7 @@ namespace Quartz.Simpl
             {
                 throw new ArgumentNullException("scheduler");
             }
-            if (!typeof(MarshalByRefObject).IsAssignableFrom(scheduler.GetType()))
+            if (!(scheduler is MarshalByRefObject))
             {
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
             }

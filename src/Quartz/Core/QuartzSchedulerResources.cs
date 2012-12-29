@@ -41,15 +41,14 @@ namespace Quartz.Core
         private IJobStore jobStore;
         private IJobRunShellFactory jobRunShellFactory;
         private readonly IList<ISchedulerPlugin> schedulerPlugins = new List<ISchedulerPlugin>(10);
-        private bool makeSchedulerThreadDaemon;
-	    private ISchedulerExporter exporter;
-        private IThreadExecutor threadExecutor;
-        private TimeSpan batchTimeWindow = TimeSpan.Zero;
-        private int maxBatchSize = 1;
-        private bool interruptJobsOnShutdown;
-        private bool interruptJobsOnShutdownWithWait;
 
-		/// <summary>
+	    public QuartzSchedulerResources()
+	    {
+	        MaxBatchSize = 1;
+	        BatchTimeWindow = TimeSpan.Zero;
+	    }
+
+	    /// <summary>
 		/// Get or set the name for the <see cref="QuartzScheduler" />.
 		/// </summary>
 		/// <exception cref="ArgumentException">
@@ -227,65 +226,34 @@ namespace Quartz.Core
 	        get { return schedulerPlugins; }
 	    }
 
-
-        /// <summary>
-        /// Gets or sets a value indicating whether to make scheduler thread daemon.
-        /// </summary>
-        /// <value>
-        /// 	<c>true</c> if scheduler should be thread daemon; otherwise, <c>false</c>.
-        /// </value>
-	    public bool MakeSchedulerThreadDaemon
-	    {
-	        get { return makeSchedulerThreadDaemon; }
-	        set { makeSchedulerThreadDaemon = value; }
-	    }
-
-
-        /// <summary>
-        /// Gets or sets the scheduler exporter.
-        /// </summary>
-        /// <value>The scheduler exporter.</value>
-	    public ISchedulerExporter SchedulerExporter
-	    {
-	        get { return exporter; }
-	        set { exporter = value; }
-	    }
-
-        /// <summary>
-        /// The ThreadExecutor which runs the QuartzSchedulerThread.
-        /// </summary>
-	    public IThreadExecutor ThreadExecutor
-	    {
-	        get { return threadExecutor; }
-	        set { threadExecutor = value; }
-	    }
+	    /// <summary>
+	    /// Gets or sets a value indicating whether to make scheduler thread daemon.
+	    /// </summary>
+	    /// <value>
+	    /// 	<c>true</c> if scheduler should be thread daemon; otherwise, <c>false</c>.
+	    /// </value>
+	    public bool MakeSchedulerThreadDaemon { get; set; }
 
 	    /// <summary>
-        /// Gets or sets the batch time window.
-        /// </summary>
-	    public TimeSpan BatchTimeWindow
-	    {
-	        get { return batchTimeWindow; }
-	        set { batchTimeWindow = value; }
-	    }
+	    /// Gets or sets the scheduler exporter.
+	    /// </summary>
+	    /// <value>The scheduler exporter.</value>
+	    public ISchedulerExporter SchedulerExporter { get; set; }
 
+	    /// <summary>
+	    /// The ThreadExecutor which runs the QuartzSchedulerThread.
+	    /// </summary>
+	    public IThreadExecutor ThreadExecutor { get; set; }
 
-	    public int MaxBatchSize
-	    {
-	        get { return maxBatchSize; }
-	        set { maxBatchSize = value; }
-	    }
+	    /// <summary>
+	    /// Gets or sets the batch time window.
+	    /// </summary>
+	    public TimeSpan BatchTimeWindow { get; set; }
 
-	    public bool InterruptJobsOnShutdown
-	    {
-	        get { return interruptJobsOnShutdown; }
-	        set { interruptJobsOnShutdown = value; }
-	    }
+	    public int MaxBatchSize { get; set; }
 
-	    public bool InterruptJobsOnShutdownWithWait
-	    {
-	        get { return interruptJobsOnShutdownWithWait; }
-	        set { interruptJobsOnShutdownWithWait = value; }
-	    }
+	    public bool InterruptJobsOnShutdown { get; set; }
+
+	    public bool InterruptJobsOnShutdownWithWait { get; set; }
 	}
 }

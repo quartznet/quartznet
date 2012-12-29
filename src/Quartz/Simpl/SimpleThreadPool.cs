@@ -54,10 +54,9 @@ namespace Quartz.Simpl
         private int count = DefaultThreadPoolSize;
         private bool handoffPending;
         private bool isShutdown;
-        private bool makeThreadsDaemons;
         private ThreadPriority prio = ThreadPriority.Normal;
         private string threadNamePrefix;
-        private string schedulerInstanceName = null;
+        private readonly string schedulerInstanceName = null;
 
         private List<WorkerThread> workers;
 
@@ -126,13 +125,7 @@ namespace Quartz.Simpl
         /// <summary> 
         /// Gets or sets the value of makeThreadsDaemons.
         /// </summary>
-        public virtual bool MakeThreadsDaemons
-        {
-            get { return makeThreadsDaemons; }
-            set { makeThreadsDaemons = value; }
-        }
-
-        #region IThreadPool Members
+        public virtual bool MakeThreadsDaemons { get; set; }
 
         /// <summary>
         /// Gets the size of the pool.
@@ -207,11 +200,11 @@ namespace Quartz.Simpl
                 }
 
                 // signal each worker thread to shut down
-                for (int i = 0; i < workers.Count; i++)
+                foreach (WorkerThread thread in workers)
                 {
-                    if (workers[i] != null)
+                    if (thread != null)
                     {
-                        workers[i].Shutdown();
+                        thread.Shutdown();
                     }
                 }
                 Monitor.PulseAll(nextRunnableLock);
@@ -321,8 +314,6 @@ namespace Quartz.Simpl
 
             return true;
         }
-
-        #endregion
 
         public int BlockForAvailableThreads()
         {

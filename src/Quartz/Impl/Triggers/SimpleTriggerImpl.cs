@@ -565,7 +565,7 @@ namespace Quartz.Impl.Triggers
     	{
 			nextFireTimeUtc = StartTimeUtc;
 
-			while (nextFireTimeUtc.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
+			while (cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
 			{
 				nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
