@@ -985,6 +985,10 @@ namespace Quartz.Core
             }
             
             trigger.JobKey = oldTrigger.JobKey;
+            
+            var oldTriggerPreviousFireTime = oldTrigger.GetPreviousFireTimeUtc();
+            trigger.StartTimeUtc = oldTrigger.StartTimeUtc;
+            trigger.SetPreviousFireTimeUtc(oldTriggerPreviousFireTime);
             trigger.Validate();
 
             ICalendar cal = null;
@@ -1000,6 +1004,8 @@ namespace Quartz.Core
                 var message = string.Format("Based on configured schedule, the given trigger '{0}' will never fire.", trigger.Key);
                 throw new SchedulerException(message);
             }
+
+            trigger.SetNextFireTimeUtc(trigger.GetFireTimeAfter(oldTriggerPreviousFireTime));
 
             if (resources.JobStore.ReplaceTrigger(triggerKey, trigger))
             {
