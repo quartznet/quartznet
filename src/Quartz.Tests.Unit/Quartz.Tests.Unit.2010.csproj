@@ -162,9 +162,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="JobExecutionContextTest.cs" />
-    <Compile Include="NthIncludedDayTriggerTest.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Plugin\History\LoggingJobHistoryPluginTest.cs" />
     <Compile Include="Plugin\History\LoggingTriggerHistoryPluginTest.cs" />
     <Compile Include="PriorityTest.cs">

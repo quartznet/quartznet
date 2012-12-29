@@ -289,9 +289,6 @@
     <Compile Include="Job\SendMailJob.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="NthIncludedDayTrigger.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="ObjectAlreadyExistsException.cs">
       <SubType>Code</SubType>
     </Compile>

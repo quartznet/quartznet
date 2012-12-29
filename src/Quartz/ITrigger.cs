@@ -48,7 +48,7 @@ namespace Quartz
     /// <seealso cref="ICalendarIntervalTrigger" />
     /// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="ICronTrigger" />
-    /// <seealso cref="NthIncludedDayTrigger" />
+    /// <seealso cref="IDailyTimeIntervalTrigger" />
     /// <seealso cref="JobDataMap" />
     /// <seealso cref="IJobExecutionContext" />
     /// <author>James House</author>

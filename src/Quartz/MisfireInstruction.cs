@@ -19,6 +19,8 @@
 
 #endregion
 
+using System;
+
 namespace Quartz
 {
     ///<summary>
@@ -163,27 +165,6 @@ namespace Quartz
             /// next-fire-time updated to the next time in the schedule after the
             /// current time (taking into account any associated <see cref="ICalendar" />,
             /// but it does not want to be fired now.
-            /// </summary>
-            public const int DoNothing = 2;
-        }
-
-        /// <summary>
-        /// misfire instructions for NthIncludedDayTrigger
-        /// </summary>
-        public struct NthIncludedDayTrigger
-        {
-            /// <summary> 
-            /// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
-            /// <see cref="NthIncludedDayTrigger" /> wants to be fired now by the 
-            /// <see cref="IScheduler" />
-            /// </summary>
-            public const int FireOnceNow = 1;
-
-            /// <summary> 
-            /// Instructs the <see cref="IScheduler" /> that upon a mis-fire situation, the
-            /// <see cref="NthIncludedDayTrigger" /> wants to have 
-            /// nextFireTime updated to the next time in the schedule after
-            /// the current time, but it does not want to be fired now.
             /// </summary>
             public const int DoNothing = 2;
         }

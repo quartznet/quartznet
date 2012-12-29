@@ -140,9 +140,8 @@ namespace Quartz.Tests.Integration.Impl
                    // ask scheduler to re-Execute this job if it was in progress when
                    // the scheduler went down...
                    job.RequestsRecovery = (true);
-                   NthIncludedDayTrigger nt = new NthIncludedDayTrigger("nth_trig_" + count, schedId);
+                   DailyTimeIntervalTriggerImpl nt = new DailyTimeIntervalTriggerImpl("nth_trig_" + count, schedId, new TimeOfDay(1, 1, 1), new TimeOfDay(23, 30, 0), IntervalUnit.Hour, 1);
                    nt.StartTimeUtc = DateTime.Now.Date.AddMilliseconds(1000);
-                   nt.N = 1;
 
                    scheduler.ScheduleJob(job, nt);
 

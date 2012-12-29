@@ -49,7 +49,7 @@ namespace Quartz.Impl.Triggers
     /// <see cref="ITrigger" />
     /// <see cref="ICronTrigger" />
     /// <see cref="ISimpleTrigger" />
-    /// <see cref="NthIncludedDayTrigger" />
+    /// <see cref="IDailyTimeIntervalTrigger" />
     /// <since>2.0</since>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
