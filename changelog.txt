@@ -2,6 +2,59 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.1, Dec 31, 2012
+--------------------------------
+
+This release contains important bug fixes, new functionality and minor breaking changes.
+Custom IJobFactory implementations now need to implement new method void ReturnJob(IJob job) for container managed cleanup.
+NthIncludedDayTrigger was removed as it was accidentally left behind even though being legacy and replaced by DailyTimeIntervalTrigger.
+
+NEW FEATURES
+
+* TimeZone support for calendars / Andrew Smith
+* Allow scheduling relative to replaced trigger with XML configuration
+* Add method to IJobFactory to destroy a job instance created by the factory breaking / minor breaking, added new required method
+* Internalize C5 dependency
+* Support for Oracle ODP 11.2 Release 4
+* Upgrade SQLite dependency to version 1.0.83
+* Upgrade to Common.Logging 2.1.2
+
+FIXES
+
+* Scheduled Shutdown blocked even if waitForJobsToComplete is false
+* DailyTimeIntervalTriggerImpl should be serializable
+* InstanceID = "AUTO" may cause "String or binary data would be truncated" error on qrtz_fired_triggers.entry_id
+* PlugInExample doesn't execute any jobs
+* Recovering triggers have empty/incorrect JobDataMap
+* Make Quartz.NET work under medium trust when running .NET 3.5
+* tables_oracle.sql uses deprecated VARCHAR type
+* Improve error reporting for database connection failure
+* Scheduler Shutdown Freezes when There are Jobs Still Running
+* Use System.Version instead of FileVersionInfo to retive current Quartz version
+* DailyTimeIntervalTriggerImpl Validate broken
+
+BREAKING CHANGES
+
+* Remove NthIncludedDayTrigger that was supposed to be removed in 2.0 breaking
+* Remove Visual Studio 2008 solutions and projects breaking
+* Add support for DateTimeOffset and TimeSpan to JobDataMap / minor breaking - cleanup of API
+
+
+Special thanks to Andrew Smith for working hard on TimeZone support. 
+Credits go also to our vibrant community actively helping on mailing list and reportings issues and creating pull requests.
+
+Release 2.0.1, Apr 22, 2012
+--------------------------------
+
+This release contains some bug fixes.
+
+FIXES
+
+* Oracle database support broken
+* Incorrect .NET 4.5 requirement in 4.0 build (only NuGet affected)
+* XML validation fails as schema not embedded (only NuGet affected)
+* ObjectUtils.SetPropertyValue fails with explicitly implemented interface members
+
 Release 2.0, Apr 9, 2012
 --------------------------------
 

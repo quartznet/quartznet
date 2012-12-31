@@ -1341,7 +1341,10 @@ namespace Quartz.Core
             IList<IOperableTrigger> triggersForJob = resources.JobStore.GetTriggersForJob(jobKey);
 
             var retValue = new List<ITrigger>(triggersForJob.Count);
-            retValue.AddRange(triggersForJob);
+            foreach (var trigger in triggersForJob)
+            {
+                retValue.Add(trigger);
+            }
             return retValue;
         }
 

@@ -17,9 +17,9 @@ using System.Runtime.InteropServices;
 #endif
 
 #if NET_40
-[assembly: AssemblyProduct("Quarz.NET 2.0 for .NET 4.0")]
+[assembly: AssemblyProduct("Quarz.NET 2.1 for .NET 4.0")]
 #else
-[assembly: AssemblyProduct("Quarz.NET 2.0 for .NET 3.5 SP1")]
+[assembly: AssemblyProduct("Quarz.NET 2.1 for .NET 3.5 SP1")]
 #endif
 [assembly: AssemblyDescription("Quartz Scheduling Framework for .NET")]
 [assembly: AssemblyCompany("http://www.quartz-scheduler.net/")]

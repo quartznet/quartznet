@@ -8,7 +8,7 @@
     <language>en-US</language>
     <projectUrl>http://www.quartz-scheduler.net/</projectUrl>
     <dependencies>
-      <dependency id="Common.Logging" version="2.1.1" />
+      <dependency id="Common.Logging" version="2.1.2" />
     </dependencies>
   </metadata>
   <files>

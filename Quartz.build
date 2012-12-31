@@ -129,8 +129,8 @@
       debug="${build.debug}"
       define="${build.defines}"
       optimize="${build.optimize}"
-      noconfig="true"
-      keyfile="${build.keyfile}">
+      keyfile="${build.keyfile}"
+	  nostdlib="true" noconfig="true">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -152,6 +152,10 @@
         <include name="src/Quartz/Xml/job_scheduling_data_2_0.xsd" />
       </resources>
       <references>
+	    <include name="mscorlib.dll"/>
+		<include name="Microsoft.CSharp.dll"/>
+		<include name="System.Configuration.dll"/>
+		<include name="System.Core.dll"/>
         <include name="System.dll" />
         <include name="System.Core.dll" />
         <include name="System.Configuration.dll" />
@@ -176,7 +180,8 @@
       output="${buildoutputbasedir}.Examples\Quartz.Examples.exe"
       debug="${build.debug}" 
       optimize="${build.optimize}" 
-      define="${build.defines}">
+      define="${build.defines}"
+	  nostdlib="true" noconfig="true">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -189,6 +194,10 @@
         <include name="src/Quartz.Examples/**/*.cs" />
       </sources>
       <references>
+	    <include name="mscorlib.dll"/>
+		<include name="Microsoft.CSharp.dll"/>
+		<include name="System.Configuration.dll"/>
+		<include name="System.Core.dll"/>
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
@@ -201,7 +210,6 @@
       <fileset>
         <include name="${buildoutputbasedir}\Quartz.*" />
         <include name="${common-logging-dll}" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
     <copy file="src\Quartz.Examples\App.config" tofile="${buildoutputbasedir}.Examples\Quartz.Examples.exe.config" />
@@ -236,7 +244,8 @@
       output="${buildoutputbasedir}.Server\Quartz.Server.exe"
       debug="${build.debug}" 
       optimize="${build.optimize}" 
-      define="${build.defines}">
+      define="${build.defines}"
+	  nostdlib="true" noconfig="true">
       <nowarn>
       </nowarn>
       <sources>
@@ -245,12 +254,15 @@
         <include name="${dir.server.src}/Quartz.Server.Core/**/*.cs" />
       </sources>
       <references>
+	    <include name="mscorlib.dll"/>
+		<include name="Microsoft.CSharp.dll"/>
+		<include name="System.Configuration.dll"/>
+		<include name="System.Core.dll"/>
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
         <include name="${topshelf-dll}" />
         <include name="${buildoutputbasedir}\Quartz.dll" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
     <copy todir="${buildoutputbasedir}.Server\" flatten="true" >
@@ -261,7 +273,6 @@
         <include name="${common-logging-log4net-dll}" />
         <include name="${log4net-dll}" />
         <include name="${topshelf-dll}" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
     
@@ -287,7 +298,8 @@
       output="${buildoutputbasedir}.Tests.${test.project}\Quartz.Tests.${test.project}.dll" 
       debug="${build.debug}" 
       optimize="${build.optimize}" 
-      define="${build.defines}">
+      define="${build.defines}"
+	  nostdlib="true" noconfig="true">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />
@@ -305,13 +317,16 @@
         <include name="src/Quartz.Tests.Unit/Xml/TestData/RichConfiguration_20.xml" />
       </resources>
       <references>
-        <include name="System.dll" />
+		<include name="mscorlib.dll"/>
+		<include name="Microsoft.CSharp.dll"/>
+		<include name="System.Configuration.dll"/>
+		<include name="System.Core.dll"/>
+		<include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
         <include name="${buildoutputbasedir}\Quartz.dll" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </references>
     </csc>
 
@@ -321,7 +336,6 @@
         <include name="${common-logging-dll}" />
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
       </fileset>
     </copy>
 
@@ -510,14 +524,17 @@
   <target name="determine-lib-dirs">
 	<property name="nuget-framework" value="net40" />
 	<property name="nuget-framework" value="net35" if="${target.framework == '3.5'}" /> 
-	<property name="common-logging-dll" value="packages/Common.Logging.2.1.1/lib/${nuget-framework}/Common.Logging.dll" />
-	<property name="common-logging-log4net-dll" value="packages/Common.Logging.Log4Net1211.2.1.1/lib/${nuget-framework}/Common.Logging.Log4Net1211.dll" />
+	<property name="common-logging-dll" value="packages/Common.Logging.2.1.2/lib/${nuget-framework}/Common.Logging.dll" />
+	<property name="common-logging-log4net-dll" value="packages/Common.Logging.Log4Net1211.2.1.2/lib/${nuget-framework}/Common.Logging.Log4Net1211.dll" />
 	<property name="nunit-dll" value="packages/NUnit.2.6.2/lib/nunit.framework.dll" />
 	<property name="rhino-mocks-dll" value="packages/RhinoMocks.3.6.1/lib/net/Rhino.Mocks.dll" />
-	<property name="topshelf-dll" value="packages/TopShelf.3.1.0/lib/${nuget-framework}\Topshelf.dll" />
+    <property name="topshelf-dll" value="packages/TopShelf.3.1.0/lib/net40-full/Topshelf.dll" />
 	
-	<property name="log4net-dll" value="packages/log4net.1.2.11/lib/${nuget-framework}-full/log4net.dll" unless="${client-profile}" />
-	<property name="log4net-dll" value="packages/log4net.1.2.11/lib/${nuget-framework}-client/log4net.dll" if="${client-profile}" />
+	<if test="${target.framework == '3.5'}">
+		<property name="topshelf-dll" value="packages/TopShelf.3.1.0/lib/net35/Topshelf.dll" />
+	</if>
+	<property name="log4net-dll" value="packages/log4net.2.0.0/lib/${nuget-framework}-full/log4net.dll" unless="${client-profile}" />
+	<property name="log4net-dll" value="packages/log4net.2.0.0/lib/${nuget-framework}-client/log4net.dll" if="${client-profile}" />
   </target>
   
   <target name="build-website">
