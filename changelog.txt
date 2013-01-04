@@ -2,6 +2,12 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.1.1, Jan 5, 2013
+--------------------------------
+
+This is a maintenance release that adds strong naming back to Quartz.NET assemblies.
+
+
 Release 2.1, Dec 31, 2012
 --------------------------------
 

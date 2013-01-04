@@ -102,15 +102,15 @@
     </copy>
       
     <!-- ILMerge Quartz with C5 -->
-    <property name="ilmerge.options" value="/targetplatform:v4 /internalize" if="${target.framework == '4.0'}" />
-    <property name="ilmerge.options" value="/internalize" unless="${target.framework == '4.0'}" />
+    <property name="ilmerge.options" value="/targetplatform:v4" if="${target.framework == '4.0'}" />
+    <property name="ilmerge.options" value="/targetplatform:v2" unless="${target.framework == '4.0'}" />
 
     <foreach item="String" in="Quartz,ClientProfile\Quartz" delim="," property="ilmergefile">
 		<mkdir dir="mergetemp\ClientProfile" />
         <exec
         verbose="true"
         program="tools\ilmerge\ilmerge.exe"
-        commandline="${ilmerge.options} /target:library /out:mergetemp\${ilmergefile}.dll ${buildoutputbasedir}\${ilmergefile}.dll lib\2.0\C5.dll"  />
+        commandline="${ilmerge.options} /target:library /keyfile:${build.keyfile} /internalize /out:mergetemp\${ilmergefile}.dll ${buildoutputbasedir}\${ilmergefile}.dll lib\2.0\C5.dll"  />
         <delete file="${buildoutputbasedir}\${ilmergefile}.dll" />
 		<delete file="${buildoutputbasedir}\${ilmergefile}.pdb" />
         <move file="mergetemp\${ilmergefile}.dll" tofile="${buildoutputbasedir}\${ilmergefile}.dll" /> 
