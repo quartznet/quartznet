@@ -2,6 +2,11 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.1.2, Jan 13, 2013
+--------------------------------
+
+This is a maintenance release that fixes .NET 4.5 requirement for 4.0 DLLs caused by ilmerge process
+
 Release 2.1.1, Jan 5, 2013
 --------------------------------
 
