@@ -13,6 +13,8 @@
     <property name="build.defines" value="${build.defines},C5" />
   </if>
 
+  <property name="net-40.reference.assembly.path" value="C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0" overwrite="false" />
+  
   <call target="init" />
 
   <target name="init">
@@ -102,7 +104,7 @@
     </copy>
       
     <!-- ILMerge Quartz with C5 -->
-    <property name="ilmerge.options" value="/targetplatform:v4" if="${target.framework == '4.0'}" />
+    <property name="ilmerge.options" value="/targetplatform:&quot;v4,${net-40.reference.assembly.path}&quot;" if="${target.framework == '4.0'}" />
     <property name="ilmerge.options" value="/targetplatform:v2" unless="${target.framework == '4.0'}" />
 
     <foreach item="String" in="Quartz,ClientProfile\Quartz" delim="," property="ilmergefile">
