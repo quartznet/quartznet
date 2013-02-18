@@ -936,7 +936,7 @@ namespace Quartz.Xml
                 {
                     if (!jobGroupsToNeverDelete.Contains(group))
                     {
-                        log.InfoFormat("Deleting all jobs in group: {}", group);
+                        log.InfoFormat("Deleting all jobs in group: {0}", group);
                         foreach (JobKey key in scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group)))
                         {
                             scheduler.DeleteJob(key);
