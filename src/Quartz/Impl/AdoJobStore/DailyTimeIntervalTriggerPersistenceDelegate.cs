@@ -113,7 +113,7 @@ namespace Quartz.Impl.AdoJobStore
             if (daysOfWeekStr != null)
             {
                 ISet<DayOfWeek> daysOfWeek = new HashSet<DayOfWeek>();
-                string[] nums = daysOfWeekStr.Split(',');
+                string[] nums = daysOfWeekStr.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
                 if (nums.Length > 0)
                 {
                     foreach (String num in nums)
@@ -130,7 +130,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (timeOfDayStr != null)
             {
-                string[] nums = timeOfDayStr.Split(',');
+                string[] nums = timeOfDayStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 TimeOfDay startTimeOfDay;
                 if (nums.Length >= 3)
                 {

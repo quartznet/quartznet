@@ -145,6 +145,15 @@ namespace Quartz.Tests.Integration.Impl
 
                    scheduler.ScheduleJob(job, nt);
 
+                   DailyTimeIntervalTriggerImpl nt2 = new DailyTimeIntervalTriggerImpl();
+                   nt2.Key = new TriggerKey("nth_trig2_" + count, schedId);
+                   nt2.StartTimeUtc = DateTime.Now.Date.AddMilliseconds(1000);
+                   nt2.JobKey = job.Key;
+                   scheduler.ScheduleJob(nt2);
+
+                   // GitHub issue #92
+                   scheduler.GetTrigger(nt2.Key);
+
                    job.RequestsRecovery = (true);
                    CalendarIntervalTriggerImpl intervalTrigger = new CalendarIntervalTriggerImpl(
                        "calint_trig_" + count,
