@@ -33,7 +33,6 @@ using Quartz.Spi;
 using Quartz.Xml;
 
 using Rhino.Mocks;
-using Rhino.Mocks.Constraints;
 
 using Is = NUnit.Framework.Is;
 
@@ -243,6 +242,18 @@ namespace Quartz.Tests.Unit.Xml
                     scheduler.Shutdown();
                 }
             }
+        }
+
+        [Test]
+        public void MultipleScheduleElementsShouldBeSupported()
+        {
+            Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration_20.xml");
+            processor.ProcessStream(s, null);
+
+            processor.ScheduleJobs(mockScheduler);
+
+            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<IJobDetail>.Matches(p => p.Key.Name == "sched2_job"), Arg<ITrigger>.Is.Anything));
+            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Matches(p => p.Key.Name == "sched2_trig")));
         }
 
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)

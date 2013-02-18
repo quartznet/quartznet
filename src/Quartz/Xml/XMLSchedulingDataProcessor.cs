@@ -59,6 +59,7 @@ namespace Quartz.Xml
     /// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+    /// <author>Christian Krumm (.NET Bugfix)</author>
     public class XMLSchedulingDataProcessor
     {
         private readonly ILog log;
@@ -309,7 +310,7 @@ namespace Quartz.Xml
             }
             else
             {
-                log.Debug("Directive 'ignore-duplicates' not specified, defaulting to " + IgnoreDuplicates);
+                log.Debug("Directive 'overwrite-existing-data' not specified, defaulting to " + OverWriteExistingData);
             }
 
             if (data.processingdirectives != null && data.processingdirectives.Length > 0)
@@ -320,7 +321,7 @@ namespace Quartz.Xml
             }
             else
             {
-                log.Debug("Directive 'overwrite-existing-data' not specified, defaulting to " + OverWriteExistingData);
+                log.Debug("Directive 'ignore-duplicates' not specified, defaulting to " + IgnoreDuplicates);
             }
 
             if (data.processingdirectives != null && data.processingdirectives.Length > 0)
@@ -338,9 +339,18 @@ namespace Quartz.Xml
             // Extract Job definitions...
             //
             List<jobdetailType> jobNodes = new List<jobdetailType>();
-            if (data.schedule != null && data.schedule.Length > 0 && data.schedule[0].job != null)
+            if (data.schedule != null)
             {
-                jobNodes.AddRange(data.schedule[0].job);
+                foreach (var schedule in data.schedule)
+                {
+                    if (schedule != null)
+                    {
+                        if (schedule.job != null)
+                        {
+                            jobNodes.AddRange(schedule.job);
+                        }
+                    }
+                }
             }
 
             log.Debug("Found " + jobNodes.Count + " job definitions.");
@@ -387,9 +397,15 @@ namespace Quartz.Xml
             //
 
             List<triggerType> triggerEntries = new List<triggerType>();
-            if (data.schedule != null && data.schedule.Length > 0 && data.schedule[0].trigger != null)
+            if (data.schedule != null)
             {
-                triggerEntries.AddRange(data.schedule[0].trigger);
+                foreach (var schedule in data.schedule)
+                {
+                    if (schedule != null && schedule.trigger != null)
+                    {
+                        triggerEntries.AddRange(schedule.trigger);
+                    }
+                }
             }
 
             log.Debug("Found " + triggerEntries.Count + " trigger definitions.");
@@ -519,8 +535,7 @@ namespace Quartz.Xml
         {
             loadedTriggers.Add(trigger);
         }
-
-
+        
         protected virtual int ParseSimpleTriggerRepeatCount(string repeatcount)
         {
             int value = Convert.ToInt32(repeatcount, CultureInfo.InvariantCulture);
