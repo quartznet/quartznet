@@ -154,6 +154,22 @@ namespace Quartz.Tests.Integration.Impl
                    // GitHub issue #92
                    scheduler.GetTrigger(nt2.Key);
 
+                   // GitHub issue #98
+                   nt2.StartTimeOfDay = new TimeOfDay(1, 2, 3);
+                   nt2.EndTimeOfDay = new TimeOfDay(2, 3, 4);
+
+                   scheduler.UnscheduleJob(nt2.Key);
+                   scheduler.ScheduleJob(nt2);
+
+                   var triggerFromDb = (IDailyTimeIntervalTrigger) scheduler.GetTrigger(nt2.Key);
+                   Assert.That(triggerFromDb.StartTimeOfDay.Hour, Is.EqualTo(1));
+                   Assert.That(triggerFromDb.StartTimeOfDay.Minute, Is.EqualTo(2));
+                   Assert.That(triggerFromDb.StartTimeOfDay.Second, Is.EqualTo(3));
+
+                   Assert.That(triggerFromDb.EndTimeOfDay.Hour, Is.EqualTo(2));
+                   Assert.That(triggerFromDb.EndTimeOfDay.Minute, Is.EqualTo(3));
+                   Assert.That(triggerFromDb.EndTimeOfDay.Second, Is.EqualTo(4));
+
                    job.RequestsRecovery = (true);
                    CalendarIntervalTriggerImpl intervalTrigger = new CalendarIntervalTriggerImpl(
                        "calint_trig_" + count,

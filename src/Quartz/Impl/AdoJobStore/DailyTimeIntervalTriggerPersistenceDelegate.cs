@@ -72,9 +72,9 @@ namespace Quartz.Impl.AdoJobStore
             TimeOfDay startTimeOfDay = dailyTrigger.StartTimeOfDay;
             if (startTimeOfDay != null)
             {
+                timeOfDayBuffer.Append(startTimeOfDay.Hour).Append(",");
                 timeOfDayBuffer.Append(startTimeOfDay.Minute).Append(",");
                 timeOfDayBuffer.Append(startTimeOfDay.Second).Append(",");
-                timeOfDayBuffer.Append(startTimeOfDay.Hour).Append(",");
             }
             else
             {
