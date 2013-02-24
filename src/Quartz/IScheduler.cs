@@ -273,8 +273,7 @@ namespace Quartz
 
         /// <summary> 
         /// Halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s,
-        /// and cleans up all resources associated with the Scheduler. Equivalent to
-        /// <see cref="Shutdown(bool)" />.
+        /// and cleans up all resources associated with the Scheduler. Equivalent to Shutdown(false).
         /// </summary>
         /// <remarks>
         /// The scheduler cannot be re-started.
