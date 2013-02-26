@@ -2990,7 +2990,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             TimeSpan passed = SystemTime.UtcNow() - lastCheckin;
             TimeSpan ts = rec.CheckinInterval > passed ? rec.CheckinInterval : passed;
-            return rec.CheckinTimestamp.Add(ts).Add(TimeSpan.FromMilliseconds(7500));
+            return rec.CheckinTimestamp.Add(ts).Add(ClusterCheckinInterval);
         }
 
         protected virtual IList<SchedulerStateRecord> ClusterCheckIn(ConnectionAndTransactionHolder conn)
