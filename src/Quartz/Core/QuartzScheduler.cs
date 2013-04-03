@@ -803,7 +803,7 @@ namespace Quartz.Core
         {
             ValidateState();
 
-            if (!jobDetail.Durable && !replace)
+            if (!jobDetail.Durable)
             {
                 throw new SchedulerException("Jobs added with no trigger must be durable.");
             }
