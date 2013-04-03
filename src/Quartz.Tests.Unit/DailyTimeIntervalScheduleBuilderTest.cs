@@ -220,6 +220,19 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        public void TestEndingAtAfterCountEndTimeOfDayValidation()
+        {
+            DailyTimeIntervalTriggerImpl trigger = (DailyTimeIntervalTriggerImpl)TriggerBuilder.Create()
+                    .WithIdentity("testTrigger")
+                    .ForJob("testJob")
+                    .WithDailyTimeIntervalSchedule(x =>
+                        x.StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+                        .EndingDailyAfterCount(1))
+                    .Build();
+            Assert.DoesNotThrow(trigger.Validate, "We should accept EndTimeOfDay specified by EndingDailyAfterCount(x).");
+        }
+
+        [Test]
         public void TestCanSetTimeZone()
         {
             TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
