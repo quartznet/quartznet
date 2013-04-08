@@ -78,7 +78,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Create a <see cref="IJobDetail" /> with the given name, default group, and
         /// the default settings of all the other properties.
-        /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
+        /// If <see langword="null" />, SchedulerConstants.DefaultGroup will be used.
         /// </summary>
         /// <exception cref="ArgumentException">
         /// If name is null or empty, or the group is an empty string.
@@ -90,7 +90,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Create a <see cref="IJobDetail" /> with the given name, and group, and
         /// the default settings of all the other properties.
-        /// If <see langword="null" />, Scheduler.DefaultGroup will be used.
+        /// If <see langword="null" />, SchedulerConstants.DefaultGroup will be used.
         /// </summary>
         /// <exception cref="ArgumentException">
         /// If name is null or empty, or the group is an empty string.
@@ -107,7 +107,7 @@ namespace Quartz.Impl
         /// the given settings of all the other properties.
         /// </summary>
         /// <param name="name">The name.</param>
-        /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
+        /// <param name="group">if <see langword="null" />, SchedulerConstants.DefaultGroup will be used.</param>
         /// <param name="jobType">Type of the job.</param>
         /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
         /// <param name="requestsRecovery">if set to <c>true</c>, job will request recovery.</param>
