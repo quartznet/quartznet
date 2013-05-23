@@ -163,12 +163,21 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        public void TestOracleODPManaged40()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
+            RunAdoJobStoreTest("OracleODPManaged-1123-40", "Oracle", properties);
+        }
+
+        [Test]
         public void TestOracleODP20()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
             RunAdoJobStoreTest("OracleODP-20", "Oracle", properties);
         }
+
 
         [Test]
         public void TestMySql50()
