@@ -256,10 +256,24 @@ namespace Quartz.Tests.Unit.Xml
             mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Matches(p => p.Key.Name == "sched2_trig")));
         }
 
+        [Test]
+        public void TestSimpleTriggerNoRepeat()
+        {
+            Stream s = ReadJobXmlFromEmbeddedResource("SimpleTriggerNoRepeat.xml");
+            processor.ProcessStream(s, null);
+
+            processor.ScheduleJobs(mockScheduler);
+
+            mockScheduler.AssertWasCalled(x => x.AddJob(Arg<IJobDetail>.Matches(p => p.Key.Group == "DEFAULT"), Arg<bool>.Is.Equal(true)));
+            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Matches(p => p.Key.Group == "DEFAULT" && ((SimpleTriggerImpl)p).RepeatCount == 0)));
+        }
+
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)
         {
             string fullName = "Quartz.Tests.Unit.Xml.TestData." + resourceName;
-            return new StreamReader(typeof (XMLSchedulingDataProcessorTest).Assembly.GetManifestResourceStream(fullName)).BaseStream;
+            Stream stream = typeof (XMLSchedulingDataProcessorTest).Assembly.GetManifestResourceStream(fullName);
+            Assert.That(stream, Is.Not.Null, "resource " + resourceName + " not found");
+            return new StreamReader(stream).BaseStream;
         }
     }
 }

@@ -185,6 +185,9 @@
     <Compile Include="Utils\PropertiesParserTest.cs">
       <SubType>Code</SubType>
     </Compile>
+    <EmbeddedResource Include="Xml\TestData\SimpleTriggerNoRepeat.xml">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
     <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
   </ItemGroup>
   <ItemGroup>
