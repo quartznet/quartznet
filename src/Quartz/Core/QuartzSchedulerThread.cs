@@ -501,7 +501,14 @@ namespace Quartz.Core
                         {
                             try
                             {
-                                Monitor.Wait(sigLock, timeUntilContinue);
+                                // QTZ-336 A job might have been completed in the mean time and we might have
+                                // missed the scheduled changed signal by not waiting for the notify() yet
+                                // Check that before waiting for too long in case this very job needs to be
+                                // scheduled very soon
+                                if (!IsScheduleChanged())
+                                {
+                                    Monitor.Wait(sigLock, timeUntilContinue);
+                                }
                             }
                             catch (ThreadInterruptedException)
                             {

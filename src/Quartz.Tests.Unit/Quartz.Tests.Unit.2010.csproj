@@ -112,6 +112,7 @@
     </Compile>
     <Compile Include="CalendarIntervalTriggerTest.cs" />
     <Compile Include="Core\ListenerManagerTest .cs" />
+    <Compile Include="Core\MissSchedulingChangeSignalTest.cs" />
     <Compile Include="CronScheduleBuilderTest.cs" />
     <Compile Include="CronTriggerTest.cs" />
     <Compile Include="DailyTimeIntervalScheduleBuilderTest.cs" />
