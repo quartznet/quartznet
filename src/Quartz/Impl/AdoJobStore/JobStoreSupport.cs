@@ -2360,6 +2360,11 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual IList<IOperableTrigger> AcquireNextTrigger(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
+            if (timeWindow < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException("timeWindow");
+            }
+
             List<IOperableTrigger> acquiredTriggers = new List<IOperableTrigger>();
             Collection.ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new Collection.HashSet<JobKey>();
             const int MaxDoLoopRetry = 3;
@@ -2371,17 +2376,7 @@ namespace Quartz.Impl.AdoJobStore
                 currentLoopCount ++;
                 try
                 {
-                    IList<TriggerKey> keys;
-
-                    // If timeWindow is specified, then we need to select trigger fire time with wider range!
-                    if (timeWindow > TimeSpan.Zero)
-                    {
-                        keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount);
-                    }
-                    else
-                    {
-                        keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan, MisfireTime, maxCount);
-                    }
+                    IList<TriggerKey> keys = Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount);
 
                     // No trigger is ready to fire yet.
                     if (keys == null || keys.Count == 0)

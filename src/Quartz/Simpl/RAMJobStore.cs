@@ -1498,17 +1498,6 @@ namespace Quartz.Simpl
 		                continue;
 		            }
 
-                    // it's possible that we've selected triggers way outside of the max fire ahead time for batches 
-                    // (up to idleWaitTime + fireAheadTime) so we need to make sure not to include such triggers.  
-                    // So we select from the first next trigger to fire up until the max fire ahead time after that...
-                    // which will perfectly honor the fireAheadTime window because the no firing will occur until
-                    // the first acquired trigger's fire time arrives.
-                    if (firstAcquiredTriggerFireTime != null && tw.trigger.GetNextFireTimeUtc() > (firstAcquiredTriggerFireTime.Value + timeWindow))
-                    {
-                        timeTriggers.Add(tw);
-                        break;
-                    }
-
 		            if (ApplyMisfire(tw))
 		            {
 		                if (tw.trigger.GetNextFireTimeUtc() != null)
