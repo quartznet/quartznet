@@ -71,6 +71,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected override void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL)
         {
+            Exception initCause = null;
             // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)
             int count = 0;
             do
@@ -126,12 +127,17 @@ namespace Quartz.Impl.AdoJobStore
                                         " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
                                 }
                             }
-                            break; // obtained lock, no need to retry
+                            return; // obtained lock, go
                         }
                     }
                 }
                 catch (Exception sqle)
                 {
+                    if (initCause == null)
+                    {
+                        initCause = sqle;
+                    }
+
                     if (Log.IsDebugEnabled)
                     {
                         Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, Thread.CurrentThread.Name, (count < 3 ? " - will try again." : ""));
@@ -154,7 +160,9 @@ namespace Quartz.Impl.AdoJobStore
 
                     throw new LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
                 }
-            } while (count < 2);
+            } while (count < 4);
+
+            throw new LockException("Failure obtaining db row lock, reached maximum number of attempts. Initial exception (if any) attached as root cause.", initCause);
         }
     }
 }
