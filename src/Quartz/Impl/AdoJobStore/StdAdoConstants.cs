@@ -246,8 +246,12 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "SELECT {0} FROM {1}{2} WHERE {3} = {4} AND {5} = @jobName AND {6} = @jobGroup", 
                 ColumnIsNonConcurrent, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobName, ColumnJobGroup);
 
-        public static readonly string SqlSelectJobsInGroup =
+        public static readonly string SqlSelectJobsInGroupLike =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} LIKE @jobGroup",
+                ColumnJobName, ColumnJobGroup, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobGroup);
+
+        public static readonly string SqlSelectJobsInGroup =
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} = @jobGroup",
                 ColumnJobName, ColumnJobGroup, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnJobGroup);
 
         public static readonly string SqlSelectMisfiredTriggers =
@@ -366,8 +370,12 @@ namespace Quartz.Impl.AdoJobStore
             string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} = @jobName AND {7} = @jobGroup",
                 ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnJobName, ColumnJobGroup);
 
-        public static readonly string SqlSelectTriggersInGroup =
+        public static readonly string SqlSelectTriggersInGroupLike =
             string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} LIKE @triggerGroup",
+                ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerGroup);
+
+        public static readonly string SqlSelectTriggersInGroup =
+            string.Format(CultureInfo.InvariantCulture, "SELECT {0}, {1} FROM {2}{3} WHERE {4} = {5} AND {6} = @triggerGroup",
                 ColumnTriggerName, ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerGroup);
 
         public static readonly string SqlSelectTriggersInState =

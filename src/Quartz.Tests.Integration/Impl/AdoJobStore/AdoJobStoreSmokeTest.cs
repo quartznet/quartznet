@@ -10,6 +10,7 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
@@ -356,6 +357,67 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 sched.Shutdown(false);
             }
 
+        }
+
+        
+        [Test]
+        public void TestGetTriggerKeysWithLike()
+        {
+            var sched = CreateScheduler();
+
+            sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("foo"));
+        }
+
+        [Test]
+        public void TestGetTriggerKeysWithEquals()
+        {
+            var sched = CreateScheduler();
+
+            sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("bar"));
+        }
+
+        [Test]
+        public void TestGetJobKeysWithLike()
+        {
+            var sched = CreateScheduler();
+
+            sched.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("foo"));
+        }
+
+        [Test]
+        public void TestGetJobKeysWithEquals()
+        {
+            var sched = CreateScheduler();
+
+            sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("bar"));
+        }
+
+        private static IScheduler CreateScheduler()
+        {
+            NameValueCollection properties = new NameValueCollection();
+
+            properties["quartz.scheduler.instanceName"] = "TestScheduler";
+            properties["quartz.scheduler.instanceId"] = "instance_one";
+            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.threadPool.threadCount"] = "10";
+            properties["quartz.threadPool.threadPriority"] = "Normal";
+            properties["quartz.jobStore.misfireThreshold"] = "60000";
+            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
+            properties["quartz.jobStore.useProperties"] = "false";
+            properties["quartz.jobStore.dataSource"] = "default";
+            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
+            properties["quartz.jobStore.clustered"] = "false";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+
+            string connectionString = "Server=(local);Database=quartz;Trusted_Connection=True;";
+            properties["quartz.dataSource.default.connectionString"] = connectionString;
+            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+
+            // First we must get a reference to a scheduler
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler sched = sf.GetScheduler();
+            return sched;
         }
 
         [Test]

@@ -845,13 +845,26 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>An array of <see cref="String" /> job names.</returns>
         public virtual Collection.ISet<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
         {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobsInGroup)))
+            string sql;
+            string parameter;
+            if (IsMatcherEquals(matcher))
             {
-                AddCommandParameter(cmd, "jobGroup", ToSqlLikeClause(matcher));
+                sql = ReplaceTablePrefix(SqlSelectJobsInGroup);
+                parameter = ToSqlEqualsClause(matcher);
+            }
+            else
+            {
+                sql = ReplaceTablePrefix(SqlSelectJobsInGroupLike);
+                parameter = ToSqlLikeClause(matcher);
+            }
+
+            using (IDbCommand cmd = PrepareCommand(conn, sql))
+            {
+                AddCommandParameter(cmd, "jobGroup", parameter);
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    Collection.HashSet<JobKey> list = new Collection.HashSet<JobKey>();
+                    var list = new Collection.HashSet<JobKey>();
                     while (rs.Read())
                     {
                         list.Add(new JobKey(rs.GetString(0), rs.GetString(1)));
@@ -862,6 +875,15 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
+        protected bool IsMatcherEquals<T>(GroupMatcher<T> matcher) where T : Key<T>
+        {
+            return matcher.CompareWithOperator.Equals(StringOperator.Equality);
+        }
+
+        protected String ToSqlEqualsClause<T>(GroupMatcher<T> matcher) where T : Key<T>
+        {
+            return matcher.CompareToValue;
+        }
 
         protected static string ToSqlLikeClause<T>(GroupMatcher<T> matcher) where T : Key<T>
         {
@@ -1730,12 +1752,25 @@ namespace Quartz.Impl.AdoJobStore
         /// </returns>
         public virtual Collection.ISet<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersInGroup)))
+            string sql;
+            string parameter;
+            if (IsMatcherEquals(matcher))
             {
-                AddCommandParameter(cmd, "triggerGroup", ToSqlLikeClause(matcher));
+                sql = ReplaceTablePrefix(SqlSelectTriggersInGroup);
+                parameter = ToSqlEqualsClause(matcher);
+            }
+            else
+            {
+                sql = ReplaceTablePrefix(SqlSelectTriggersInGroupLike);
+                parameter = ToSqlLikeClause(matcher);
+            }
+
+            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(sql)))
+            {
+                AddCommandParameter(cmd, "triggerGroup", parameter);
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    Collection.HashSet<TriggerKey> keys = new Collection.HashSet<TriggerKey>();
+                    var keys = new Collection.HashSet<TriggerKey>();
                     while (rs.Read())
                     {
                         keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
