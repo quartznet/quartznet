@@ -89,7 +89,7 @@ namespace Quartz.Core
         /// <value>The randomized idle wait time.</value>
         private TimeSpan GetRandomizedIdleWaitTime()
         {
-            return idleWaitTime.Add(TimeSpan.FromMilliseconds(random.Next(idleWaitVariablness)));
+            return idleWaitTime - TimeSpan.FromMilliseconds(random.Next(idleWaitVariablness));
         }
 
         /// <summary>
@@ -100,7 +100,6 @@ namespace Quartz.Core
         {
             get { return paused; }
         }
-
 
         /// <summary>
         /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
