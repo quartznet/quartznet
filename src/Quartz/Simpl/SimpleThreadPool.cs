@@ -393,6 +393,8 @@ namespace Quartz.Simpl
         /// </summary>
         protected class WorkerThread : QuartzThread
         {
+            private readonly object lockObject = new object();
+
             // A flag that signals the WorkerThread to terminate.
             private volatile bool run = true;
 
@@ -440,7 +442,7 @@ namespace Quartz.Simpl
 
             public void Run(IThreadRunnable newRunnable)
             {
-                lock (this)
+                lock (lockObject)
                 {
                     if (runnable != null)
                     {
@@ -448,7 +450,7 @@ namespace Quartz.Simpl
                     }
 
                     runnable = newRunnable;
-                    Monitor.PulseAll(this);
+                    Monitor.PulseAll(lockObject);
                 }
             }
 
@@ -463,11 +465,11 @@ namespace Quartz.Simpl
                 {
                     try
                     {
-                        lock (this)
+                        lock (lockObject)
                         {
                             while (runnable == null && run)
                             {
-                                Monitor.Wait(this, 500);
+                                Monitor.Wait(lockObject, 500);
                             }
                             if (runnable != null)
                             {
@@ -483,7 +485,7 @@ namespace Quartz.Simpl
                     }
                     finally
                     {
-                        lock (this)
+                        lock (lockObject)
                         {
                             runnable = null;
                         }
