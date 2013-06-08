@@ -74,7 +74,7 @@ namespace Quartz
 
         private JobDataMap jobDataMap = new JobDataMap();
 
-        private JobBuilder()
+        protected JobBuilder()
         {
         }
 
@@ -358,20 +358,26 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the JobDetail's <see cref="JobDataMap" />, adding any values to it
-        /// that were already set on this JobBuilder using any of the
-        /// other 'usingJobData' methods. 
+        /// Add all the data from the given <see cref="JobDataMap" /> to the 
+        /// <see cref="IJobDetail" />'s <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
         public JobBuilder UsingJobData(JobDataMap newJobDataMap)
         {
-            // add any existing data to this new map
-            foreach (string key in jobDataMap.KeySet())
-            {
-                newJobDataMap.Put(key, jobDataMap.Get(key));
-            }
-            jobDataMap = newJobDataMap; // set new map as the map to use
+            jobDataMap.PutAll(newJobDataMap);
+            return this;
+        }
+
+        /// <summary>
+        /// Replace the <see cref="IJobDetail" />'s <see cref="JobDataMap" /> with the
+        /// given <see cref="JobDataMap" />.
+        /// </summary>
+        /// <param name="newJobDataMap"></param>
+        /// <returns></returns>
+        public JobBuilder SetJobData(JobDataMap newJobDataMap)
+        {
+            jobDataMap = newJobDataMap;
             return this;
         }
     }

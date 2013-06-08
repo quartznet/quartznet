@@ -1689,7 +1689,8 @@ namespace Quartz.Simpl
                             newData = (JobDataMap) newData.Clone();
                             newData.ClearDirtyFlag();
                         }
-                        ((JobDetailImpl) jd).JobDataMap = newData;
+                        jd = jd.GetJobBuilder().SetJobData(newData).Build();
+                        jw.jobDetail = jd;
                     }
                     if (jd.ConcurrentExecutionDisallowed)
                     {
