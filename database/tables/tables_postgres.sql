@@ -129,6 +129,7 @@ CREATE TABLE qrtz_fired_triggers
     trigger_group VARCHAR(150) NOT NULL,
     instance_name VARCHAR(200) NOT NULL,
     fired_time BIGINT NOT NULL,
+	sched_time BIGINT NOT NULL,
     priority INTEGER NOT NULL,
     state VARCHAR(16) NOT NULL,
     job_name VARCHAR(200) NULL,

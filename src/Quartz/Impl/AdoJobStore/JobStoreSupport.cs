@@ -3082,7 +3082,7 @@ namespace Quartz.Impl.AdoJobStore
                                     JobDataMap jd = Delegate.SelectTriggerJobDataMap(conn, tKey);
                                     jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, tKey.Name);
                                     jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, tKey.Group);
-                                    jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretimeInMillisecoonds, Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture));
+                                    jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture));
                                     rcvryTrig.JobDataMap = jd;
 
                                     rcvryTrig.ComputeFirstFireTimeUtc(null);

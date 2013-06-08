@@ -81,7 +81,8 @@ namespace Quartz.Impl.AdoJobStore
 		// TableFiredTriggers columns names
 		public const string ColumnInstanceName = "INSTANCE_NAME";
 		public const string ColumnFiredTime = "FIRED_TIME";
-		public const string ColumnEntryId = "ENTRY_ID";
+	    public const string ColumnScheduledTime = "SCHED_TIME";
+        public const string ColumnEntryId = "ENTRY_ID";
 		public const string ColumnEntryState = "STATE";
 		
 		// TableCalendars columns names

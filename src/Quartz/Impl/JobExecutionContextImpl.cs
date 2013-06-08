@@ -146,7 +146,21 @@ namespace Quartz.Impl
 			get { return recovering; }
 		}
 
-        /// <summary>
+	    public TriggerKey RecoveringTriggerKey
+	    {
+	        get
+	        {
+	            if (Recovering)
+	            {
+	                return new TriggerKey(jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup),
+	                                      jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName));
+	            }
+	            
+                throw new InvalidOperationException("Not a recovering job");
+	        }
+	    }
+
+	    /// <summary>
         /// Gets the refire count.
         /// </summary>
         /// <value>The refire count.</value>

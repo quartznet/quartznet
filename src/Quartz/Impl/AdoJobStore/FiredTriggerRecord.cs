@@ -44,6 +44,11 @@ namespace Quartz.Impl.AdoJobStore
         public virtual DateTimeOffset FireTimestamp { get; set; }
 
         /// <summary>
+        /// Gets or sets the scheduled fire timestamp.
+        /// </summary>
+        public virtual DateTimeOffset ScheduleTimestamp { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether job disallows concurrent execution.
         /// </summary>
         public virtual bool JobDisallowsConcurrentExecution { get; set; }
@@ -82,6 +87,6 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the priority.
         /// </summary>
         /// <value>The priority.</value>
-        public int Priority { get; set; }
+        public virtual int Priority { get; set; }
     }
 }

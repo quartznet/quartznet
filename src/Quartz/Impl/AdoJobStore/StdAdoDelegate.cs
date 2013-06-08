@@ -363,7 +363,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns> an array of <see cref="ITrigger" /> objects</returns>
         public virtual IList<IOperableTrigger> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn)
         {
-            List<IOperableTrigger> list = new List<IOperableTrigger>();
+            List<IOperableTrigger> triggers = new List<IOperableTrigger>();
+            List<FiredTriggerRecord> triggerData = new List<FiredTriggerRecord>();
             List<TriggerKey> keys = new List<TriggerKey>();
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectInstancesRecoverableFiredTriggers)))
@@ -383,32 +384,44 @@ namespace Quartz.Impl.AdoJobStore
                         string trigGroup = rs.GetString(ColumnTriggerGroup);
                         int priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
                         DateTimeOffset firedTime = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
+                        DateTimeOffset scheduledTime = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
                         SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
-                                              SchedulerConstants.DefaultRecoveryGroup, firedTime);
+                                              SchedulerConstants.DefaultRecoveryGroup, scheduledTime);
                         rcvryTrig.JobName = jobName;
                         rcvryTrig.JobGroup = jobGroup;
                         rcvryTrig.Priority = priority;
-                        rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+                        rcvryTrig.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
 
-                        list.Add(rcvryTrig);
+                        var dataHolder = new FiredTriggerRecord
+                                             {
+                                                 ScheduleTimestamp = scheduledTime,
+                                                 FireTimestamp = firedTime
+                                             };
+
+                        triggerData.Add(dataHolder);
+                        triggers.Add(rcvryTrig);
                         keys.Add(new TriggerKey(trigName, trigGroup));
                     }
                 }
             }
 
             // read JobDataMaps with different reader..
-            for (int i = 0; i < list.Count; i++)
+            for (int i = 0; i < triggers.Count; i++)
             {
-                IOperableTrigger trigger = list[i];
+                IOperableTrigger trigger = triggers[i];
                 TriggerKey key = keys[i];
+                FiredTriggerRecord dataHolder = triggerData[i];
+
+                // load job data map and transfer information
                 JobDataMap jd = SelectTriggerJobDataMap(conn, key);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, key.Name);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, key.Group);
-                jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretimeInMillisecoonds, Convert.ToString(trigger.StartTimeUtc, CultureInfo.InvariantCulture));
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture));
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime, Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)); 
                 trigger.JobDataMap = jd;
             }
 
-            return list;
+            return triggers;
         }
 
         /// <summary>
@@ -2164,7 +2177,8 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
                 AddCommandParameter(cmd, "triggerInstanceName", instanceId);
-                AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+                AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(SystemTime.UtcNow()));
+                AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
                 AddCommandParameter(cmd, "triggerState", state);
                 if (job != null)
                 {
@@ -2206,7 +2220,8 @@ namespace Quartz.Impl.AdoJobStore
         {
             IDbCommand ps = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateFiredTrigger));
             AddCommandParameter(ps, "instanceName", instanceId);
-            AddCommandParameter(ps, "firedTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+            AddCommandParameter(ps, "firedTime", GetDbDateTimeValue(SystemTime.UtcNow()));
+            AddCommandParameter(ps, "scheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
             AddCommandParameter(ps, "entryState", state);
 
             if (job != null)
@@ -2265,6 +2280,7 @@ namespace Quartz.Impl.AdoJobStore
                     rec.FireInstanceId = rs.GetString(ColumnEntryId);
                     rec.FireInstanceState = rs.GetString(ColumnEntryState);
                     rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
+                    rec.ScheduleTimestamp = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
                     rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
                     rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
                     rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
@@ -2315,6 +2331,7 @@ namespace Quartz.Impl.AdoJobStore
                     rec.FireInstanceId = rs.GetString(ColumnEntryId);
                     rec.FireInstanceState = rs.GetString(ColumnEntryState);
                     rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
+                    rec.ScheduleTimestamp = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
                     rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
                     rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
                     rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
@@ -2354,6 +2371,7 @@ namespace Quartz.Impl.AdoJobStore
                         rec.FireInstanceId = rs.GetString(ColumnEntryId);
                         rec.FireInstanceState = rs.GetString(ColumnEntryState);
                         rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
+                        rec.ScheduleTimestamp = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
                         rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
                         rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                         if (!rec.FireInstanceState.Equals(StateAcquired))

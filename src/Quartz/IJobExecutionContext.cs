@@ -35,6 +35,19 @@ namespace Quartz
         bool Recovering { get; }
 
         /// <summary>
+        /// Returns the <see cref="TriggerKey" /> of the originally scheduled and now recovering job.
+        /// </summary>
+        /// <remarks>
+        /// When recovering a previously failed job execution this property returns the identity
+        /// of the originally firing trigger. This recovering job will have been scheduled for 
+        /// the same firing time as the original job, and so is available via the
+        /// <see cref="ScheduledFireTimeUtc" /> property. The original firing time of the job can be 
+        /// accessed via the <see cref="SchedulerConstants.FailedJobOriginalTriggerFiretime" />
+        /// element of this job's <see cref="JobDataMap" />.
+        /// </remarks>
+        TriggerKey RecoveringTriggerKey { get; }
+
+        /// <summary>
         /// Gets the refire count.
         /// </summary>
         /// <value>The refire count.</value>

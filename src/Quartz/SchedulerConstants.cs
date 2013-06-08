@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System;
+
 using Quartz.Util;
 
 namespace Quartz
@@ -78,7 +80,17 @@ namespace Quartz
         /// always fire exactly on time.
         /// </remarks>
         /// <seealso cref="IJobDetail.RequestsRecovery" />
-        public const string FailedJobOriginalTriggerFiretimeInMillisecoonds = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_IN_MILLISECONDS_AS_STRING";
+        public const string FailedJobOriginalTriggerFiretime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_AS_STRING";
 
+        /// <summary>
+        /// A constant <code>JobDataMap</code> key that can be used to retrieve the scheduled
+        /// fire time of the original <code>Trigger</code> from a recovery  trigger's data
+        /// map in the case of a job recovering after a failed scheduler instance.  
+        /// </summary>
+        /// <remarks>
+        /// Note that this is the time the original firing was scheduled for, which may
+        /// be different from the actual firing time - as a trigger doesn't always fire exactly on time.
+        /// </remarks>
+        public const string FailedJobOriginalTriggerScheduledFiretime =  "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
     }
 }

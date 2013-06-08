@@ -127,9 +127,11 @@ namespace Quartz.Impl.AdoJobStore
                                         " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
                                 }
                             }
-                            return; // obtained lock, go
                         }
                     }
+                    
+                    // obtained lock, go
+                    return;
                 }
                 catch (Exception sqle)
                 {

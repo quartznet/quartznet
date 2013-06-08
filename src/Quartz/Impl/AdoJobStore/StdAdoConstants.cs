@@ -118,12 +118,12 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlInsertFiredTrigger =
             string.Format(CultureInfo.InvariantCulture,
-                "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}) VALUES({14}, @triggerEntryId, @triggerName, @triggerGroup, @triggerInstanceName, @triggerFireTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority)",
+                "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}) VALUES({15}, @triggerEntryId, @triggerName, @triggerGroup, @triggerInstanceName, @triggerFireTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority, @triggerScheduledTime)",
                 TablePrefixSubst, TableFiredTriggers, ColumnSchedulerName, ColumnEntryId,
                 ColumnTriggerName, ColumnTriggerGroup,
                 ColumnInstanceName, ColumnFiredTime, ColumnEntryState,
                 ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent,
-                ColumnRequestsRecovery, ColumnPriority, SchedulerNameSubst);
+                ColumnRequestsRecovery, ColumnPriority, ColumnScheduledTime, SchedulerNameSubst);
 
         public static readonly string SqlInsertJobDetail =
             string.Format(CultureInfo.InvariantCulture,
@@ -398,12 +398,6 @@ namespace Quartz.Impl.AdoJobStore
                 TablePrefixSubst, TableCronTriggers, ColumnCronExpression, ColumnTimeZoneId, ColumnSchedulerName, SchedulerNameSubst, 
                 ColumnTriggerName, ColumnTriggerGroup);
 
-        public static readonly string SqlUpdateInstancesFiredTriggerState =
-            string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = @triggerEntryState AND {3} = @firedTime AND {4} = @priority WHERE {5} = {6} AND {7} = @instanceName",
-                          TablePrefixSubst,
-                          TableFiredTriggers, ColumnEntryState,
-                          ColumnFiredTime, ColumnPriority, ColumnSchedulerName, SchedulerNameSubst, ColumnInstanceName);
-
         public static readonly string SqlUpdateJobData =
             string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = @jobDataMap WHERE {3} = {4} AND {5} = @jobName AND {6} = @jobGroup",
                           TablePrefixSubst, TableJobDetails, ColumnJobDataMap, ColumnSchedulerName, SchedulerNameSubst, ColumnJobName, ColumnJobGroup);
@@ -454,9 +448,9 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlUpdateFiredTrigger = string.Format(
             CultureInfo.InvariantCulture,
-            "UPDATE {0}{1} SET {2} = @instanceName, {3} = @firedTime, {4} = @entryState, {5} = @jobName, {6} = @jobGroup, {7} = @isNonConcurrent, {8} = @requestsRecover WHERE {9} = {10} AND {11} = @entryId", 
+            "UPDATE {0}{1} SET {2} = @instanceName, {3} = @firedTime, {4} = @entryState, {5} = @jobName, {6} = @jobGroup, {7} = @isNonConcurrent, {8} = @requestsRecover, {12} = @scheduledTime WHERE {9} = {10} AND {11} = @entryId", 
             TablePrefixSubst, TableFiredTriggers, ColumnInstanceName, ColumnFiredTime, ColumnEntryState, 
-            ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent, ColumnRequestsRecovery, ColumnSchedulerName, SchedulerNameSubst, ColumnEntryId);
+            ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent, ColumnRequestsRecovery, ColumnSchedulerName, SchedulerNameSubst, ColumnEntryId, ColumnScheduledTime);
 
         public static readonly string SqlUpdateTriggerGroupStateFromState =
             string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = @newState WHERE {3} = {4} AND {5} LIKE @triggerGroup AND {6} = @oldState",
