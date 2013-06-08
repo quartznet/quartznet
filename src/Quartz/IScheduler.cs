@@ -388,12 +388,25 @@ namespace Quartz
         void AddJob(IJobDetail jobDetail, bool replace);
 
         /// <summary>
+        /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
+        /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
+        /// it is scheduled with a <see cref="ITrigger" />, or <see cref="TriggerJob(Quartz.JobKey)" />
+        /// is called for it.
+        /// </summary>
+        /// <remarks>
+        /// With the <paramref name="storeNonDurableWhileAwaitingScheduling"/> parameter
+        /// set to <code>true</code>, a non-durable job can be stored.  Once it is
+        /// scheduled, it will resume normal non-durable behavior (i.e. be deleted
+        /// once there are no remaining associated triggers).
+        /// </remarks>
+        void AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
+
+        /// <summary>
         /// Delete the identified <see cref="IJob" /> from the Scheduler - and any
         /// associated <see cref="ITrigger" />s.
         /// </summary>
         /// <returns> true if the Job was found and deleted.</returns>
         bool DeleteJob(JobKey jobKey);
-
 
         /// <summary>
         /// Delete the identified jobs from the Scheduler - and any

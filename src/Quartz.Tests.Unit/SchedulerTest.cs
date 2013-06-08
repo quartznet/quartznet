@@ -59,10 +59,10 @@ namespace Quartz.Tests.Unit
             // test basic storage functions of scheduler...
 
             IJobDetail job = JobBuilder.Create()
-                .OfType<TestJob>()
-                .WithIdentity("j1")
-                .StoreDurably()
-                .Build();
+                                       .OfType<TestJob>()
+                                       .WithIdentity("j1")
+                                       .StoreDurably()
+                                       .Build();
 
             Assert.IsFalse(sched.CheckExists(new JobKey("j1")), "Unexpected existence of job named 'j1'.");
 
@@ -77,11 +77,11 @@ namespace Quartz.Tests.Unit
             sched.DeleteJob(new JobKey("j1"));
 
             ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity("t1")
-                .ForJob(job)
-                .StartNow()
-                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
-                .Build();
+                                             .WithIdentity("t1")
+                                             .ForJob(job)
+                                             .StartNow()
+                                             .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+                                             .Build();
 
             Assert.IsFalse(sched.CheckExists(new TriggerKey("t1")), "Unexpected existence of trigger named '11'.");
 
@@ -98,30 +98,30 @@ namespace Quartz.Tests.Unit
             Assert.IsNotNull(trigger, "Stored trigger not found!");
 
             job = JobBuilder.Create()
-                .OfType<TestJob>()
-                .WithIdentity("j2", "g1")
-                .Build();
+                            .OfType<TestJob>()
+                            .WithIdentity("j2", "g1")
+                            .Build();
 
             trigger = TriggerBuilder.Create()
-                .WithIdentity("t2", "g1")
-                .ForJob(job)
-                .StartNow()
-                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
-                .Build();
+                                    .WithIdentity("t2", "g1")
+                                    .ForJob(job)
+                                    .StartNow()
+                                    .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+                                    .Build();
 
             sched.ScheduleJob(job, trigger);
 
             job = JobBuilder.Create()
-                .OfType<TestJob>()
-                .WithIdentity("j3", "g1")
-                .Build();
+                            .OfType<TestJob>()
+                            .WithIdentity("j3", "g1")
+                            .Build();
 
             trigger = TriggerBuilder.Create()
-                .WithIdentity("t3", "g1")
-                .ForJob(job)
-                .StartNow()
-                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
-                .Build();
+                                    .WithIdentity("t3", "g1")
+                                    .ForJob(job)
+                                    .StartNow()
+                                    .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+                                    .Build();
 
             sched.ScheduleJob(job, trigger);
 
@@ -163,16 +163,16 @@ namespace Quartz.Tests.Unit
 
             // test that adding a trigger to a paused group causes the new trigger to be paused also... 
             job = JobBuilder.Create()
-                .OfType<TestJob>()
-                .WithIdentity("j4", "g1")
-                .Build();
+                            .OfType<TestJob>()
+                            .WithIdentity("j4", "g1")
+                            .Build();
 
             trigger = TriggerBuilder.Create()
-                .WithIdentity("t4", "g1")
-                .ForJob(job)
-                .StartNow()
-                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
-                .Build();
+                                    .WithIdentity("t4", "g1")
+                                    .ForJob(job)
+                                    .StartNow()
+                                    .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+                                    .Build();
 
             sched.ScheduleJob(job, trigger);
 
@@ -235,8 +235,8 @@ namespace Quartz.Tests.Unit
 
             Assert.True(Process.GetCurrentProcess().Threads.Count <= activeThreads);
         }
-		
-		[Test]	
+
+        [Test]
         public void SerializationExceptionTest()
         {
             SchedulerException before;
@@ -263,13 +263,13 @@ namespace Quartz.Tests.Unit
                 var formatter = new BinaryFormatter();
                 formatter.Serialize(stream, before);
                 stream.Seek(0, SeekOrigin.Begin);
-                after = (SchedulerException)formatter.Deserialize(stream);
+                after = (SchedulerException) formatter.Deserialize(stream);
             }
 
 
             Assert.NotNull(before.InnerException);
             Assert.NotNull(after.InnerException);
             Assert.AreEqual(before.ToString(), after.ToString());
-        }		
-	}		
+        }
+    }
 }

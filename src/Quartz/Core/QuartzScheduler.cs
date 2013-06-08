@@ -801,9 +801,14 @@ namespace Quartz.Core
         /// </summary>
         public virtual void AddJob(IJobDetail jobDetail, bool replace)
         {
+            AddJob(jobDetail, replace, false);
+        }
+
+        public virtual void AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
+        {
             ValidateState();
 
-            if (!jobDetail.Durable)
+            if (!storeNonDurableWhileAwaitingScheduling && !jobDetail.Durable)
             {
                 throw new SchedulerException("Jobs added with no trigger must be durable.");
             }

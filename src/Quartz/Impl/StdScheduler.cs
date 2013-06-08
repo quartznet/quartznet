@@ -273,6 +273,14 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
+        public virtual void AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
+        {
+            sched.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling);
+        }
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
         public virtual void AddJob(IJobDetail jobDetail, bool replace)
         {
             sched.AddJob(jobDetail, replace);

@@ -275,6 +275,14 @@ namespace Quartz.Impl
             CallInGuard(x => x.AddJob(jobDetail, replace));
         }
 
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual void AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
+        {
+            CallInGuard(x => x.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling));
+        }
+
         public virtual bool DeleteJobs(IList<JobKey> jobKeys)
         {
             return CallInGuard(x => x.DeleteJobs(jobKeys));

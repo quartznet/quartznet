@@ -33,6 +33,7 @@ using Common.Logging;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
+using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -66,7 +67,7 @@ namespace Quartz.Impl.AdoJobStore
         private ITypeLoadHelper typeLoadHelper;
         private ISchedulerSignaler schedSignaler;
         private readonly ILog log;
-        private IObjectSerializer objectSerializer;
+        private IObjectSerializer objectSerializer = new DefaultObjectSerializer();
         private IThreadExecutor threadExecutor = new DefaultThreadExecutor();
         private bool schedulerRunning = false;
         private IDbConnectionManager connectionManager = DBConnectionManager.Instance;
