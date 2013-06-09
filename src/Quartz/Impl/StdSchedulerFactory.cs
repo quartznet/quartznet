@@ -959,10 +959,6 @@ Please add configuration to your application config file to correctly initialize
 
                 rsrcs.ThreadPool = tp;
 
-                if (tp is SimpleThreadPool)
-                {
-                    ((SimpleThreadPool) tp).ThreadNamePrefix = schedName + "_Worker";
-                }
                 tp.Initialize();
                 tpInited = true;
 

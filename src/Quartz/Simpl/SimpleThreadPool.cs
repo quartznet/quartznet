@@ -55,7 +55,6 @@ namespace Quartz.Simpl
         private bool handoffPending;
         private bool isShutdown;
         private ThreadPriority prio = ThreadPriority.Normal;
-        private string threadNamePrefix;
         private readonly string schedulerInstanceName = null;
 
         private List<WorkerThread> workers;
@@ -109,18 +108,7 @@ namespace Quartz.Simpl
         /// Gets or sets the thread name prefix.
         /// </summary>
         /// <value>The thread name prefix.</value>
-        public virtual string ThreadNamePrefix
-        {
-            get
-            {
-                if (threadNamePrefix == null)
-                {
-                    threadNamePrefix = schedulerInstanceName + "-SimpleThreadPoolWorker";
-                } 
-                return threadNamePrefix;
-            }
-            set { threadNamePrefix = value; }
-        }
+        public virtual string ThreadNamePrefix { get; set; }
 
         /// <summary> 
         /// Gets or sets the value of makeThreadsDaemons.
@@ -357,13 +345,19 @@ namespace Quartz.Simpl
             workers = new List<WorkerThread>();
             for (int i = 1; i <= threadCount; ++i)
             {
-                WorkerThread wt = new WorkerThread(
+                string threadPrefix = ThreadNamePrefix;
+                if (threadPrefix == null)
+                {
+                    threadPrefix = schedulerInstanceName + "_Worker";
+                }
+                
+                var workerThread = new WorkerThread(
                     this,
-                    string.Format(CultureInfo.InvariantCulture, "{0}-{1}", ThreadNamePrefix, i),
+                    string.Format(CultureInfo.InvariantCulture, "{0}-{1}", threadPrefix, i),
                     ThreadPriority,
                     MakeThreadsDaemons);
 
-                workers.Add(wt);
+                workers.Add(workerThread);
             }
 
             return workers;
