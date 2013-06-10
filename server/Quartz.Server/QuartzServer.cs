@@ -104,7 +104,7 @@ namespace Quartz.Server
 	    }
 
         /// <summary>
-        /// Pauses all activity in scheudler.
+        /// Pauses all activity in scheduler.
         /// </summary>
 	    public virtual void Pause()
 	    {
@@ -112,7 +112,7 @@ namespace Quartz.Server
 	    }
 
         /// <summary>
-        /// Resumes all acitivity in server.
+        /// Resumes all activity in server.
         /// </summary>
 	    public void Resume()
 	    {
