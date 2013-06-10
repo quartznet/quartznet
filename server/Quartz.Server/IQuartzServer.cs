@@ -24,12 +24,12 @@ namespace Quartz.Server
         void Stop();
 
         /// <summary>
-        /// Pauses all activity in scheudler.
+        /// Pauses all activity in scheduler.
         /// </summary>
         void Pause();
 
         /// <summary>
-        /// Resumes all acitivity in server.
+        /// Resumes all activity in server.
         /// </summary>
         void Resume();
     }
