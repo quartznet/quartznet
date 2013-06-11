@@ -20,10 +20,12 @@
 using System;
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
 
+using Rhino.Mocks;
 
 namespace Quartz.Tests.Unit
 {
@@ -227,6 +229,18 @@ namespace Quartz.Tests.Unit
                 }
             }
         }
+        
+        [Test]
+        public void ShouldRemoveTriggerIfNotGoingToFireAgain()
+        {
+            var trigger = (IOperableTrigger) TriggerBuilder.Create()
+                .WithSimpleSchedule()
+                .StartAt(DateTime.UtcNow.AddDays(-2))
+                .EndAt(DateTime.UtcNow.AddDays(-1))
+                .Build();
 
+            var instruction = trigger.ExecutionComplete(MockRepository.GenerateMock<IJobExecutionContext>(), new JobExecutionException());
+            Assert.That(instruction, Is.EqualTo(SchedulerInstruction.DeleteTrigger));
+        }
 	}
 }

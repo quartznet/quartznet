@@ -547,9 +547,6 @@ namespace Quartz.Impl.Triggers
                 return SchedulerInstruction.SetAllJobTriggersComplete;
             }
 
-            if (result != null && !result.RefireImmediately)
-                return SchedulerInstruction.NoInstruction;
-
             if (!GetMayFireAgain())
             {
                 return SchedulerInstruction.DeleteTrigger;
