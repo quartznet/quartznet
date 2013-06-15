@@ -888,11 +888,6 @@ namespace Quartz.Impl.Triggers
 			return cronEx == null ? null : cronEx.GetExpressionSummary();
 		}
 
-	    public TriggerBuilder GetTriggerBuilder()
-	    {
-	        throw new NotImplementedException();
-	    }
-
 	    ////////////////////////////////////////////////////////////////////////////
 		//
 		// Computation Functions

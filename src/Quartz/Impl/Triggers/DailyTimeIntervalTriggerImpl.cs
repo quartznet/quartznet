@@ -1017,10 +1017,5 @@ namespace Quartz.Impl.Triggers
         {
             get { return true; }
         }
-
-        public TriggerBuilder GetTriggerBuilder()
-        {
-            return GetTriggerBuilder<IDailyTimeIntervalTrigger>();
-        }
     }
 }

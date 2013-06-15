@@ -79,7 +79,5 @@ namespace Quartz
         /// </remarks>
         /// <seealso cref="PreserveHourOfDayAcrossDaylightSavings"/>
         bool SkipDayIfHourDoesNotExist { get; }
-
-        TriggerBuilder GetTriggerBuilder();
     }
 }

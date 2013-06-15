@@ -178,7 +178,5 @@ namespace Quartz
         /// </summary>
         /// <returns></returns>
         string GetExpressionSummary();
-
-        TriggerBuilder GetTriggerBuilder();
     }
 }

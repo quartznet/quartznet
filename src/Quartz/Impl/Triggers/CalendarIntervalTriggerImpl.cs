@@ -326,11 +326,6 @@ namespace Quartz.Impl.Triggers
             set { this.timesTriggered = value; }
         }
 
-        public TriggerBuilder GetTriggerBuilder()
-        {
-            throw new NotImplementedException();
-        }
-
         /// <summary>
         /// Validates the misfire instruction.
         /// </summary>
@@ -926,13 +921,6 @@ namespace Quartz.Impl.Triggers
             }
         }
 
-        /// <summary>
-        /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a
-        /// schedule identical to this trigger's schedule.
-        /// </summary>
-        /// <remarks>
-        /// </remarks>
-        /// <seealso cref="GetTriggerBuilder()" />
         public override IScheduleBuilder GetScheduleBuilder()
         {
             CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.Create()

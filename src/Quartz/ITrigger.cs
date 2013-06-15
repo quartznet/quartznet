@@ -61,6 +61,14 @@ namespace Quartz
         JobKey JobKey { get; }
 
         /// <summary>
+        /// Get a <see cref="TriggerBuilder" /> that is configured to produce a 
+        /// trigger identical to this one.
+        /// </summary>
+        /// <seealso cref="GetScheduleBuilder"/>
+        /// <returns></returns>
+        TriggerBuilder GetTriggerBuilder();
+
+        /// <summary>
         /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a 
         /// schedule identical to this trigger's schedule.
         /// </summary>

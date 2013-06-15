@@ -32,7 +32,5 @@ namespace Quartz
         /// fired.
         /// </summary>
         int TimesTriggered { get; set; }
-
-        TriggerBuilder GetTriggerBuilder();
     }
 }

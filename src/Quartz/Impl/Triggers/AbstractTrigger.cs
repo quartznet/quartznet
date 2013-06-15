@@ -227,6 +227,20 @@ namespace Quartz.Impl.Triggers
 			get { return jobGroup + "." + jobName; }
 		}
 
+	    public TriggerBuilder GetTriggerBuilder()
+	    {
+	        return TriggerBuilder.Create()
+	                             .ForJob(JobKey)
+	                             .ModifiedByCalendar(CalendarName)
+	                             .UsingJobData(JobDataMap)
+	                             .WithDescription(Description)
+	                             .EndAt(EndTimeUtc)
+	                             .WithIdentity(Key)
+	                             .WithPriority(Priority)
+	                             .StartAt(StartTimeUtc)
+	                             .WithSchedule(GetScheduleBuilder());
+	    }
+
 	    public abstract IScheduleBuilder GetScheduleBuilder();
 
 	    /// <summary>
@@ -777,23 +791,5 @@ namespace Quartz.Impl.Triggers
 			}
 			return copy;
 		}
-
-
-	    protected TriggerBuilder GetTriggerBuilder<T>() where T : ITrigger
-        {
-            TriggerBuilder b = TriggerBuilder.Create()
-                .ForJob(JobKey)
-                .ModifiedByCalendar(CalendarName)
-                .UsingJobData(JobDataMap)
-                .WithDescription(Description)
-                .EndAt(EndTimeUtc)
-                .WithIdentity(Key)
-                .WithPriority(Priority)
-                .StartAt(StartTimeUtc)
-                .WithSchedule(GetScheduleBuilder());
-            return b;
-        }
 	}
 }
-
-

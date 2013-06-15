@@ -135,5 +135,23 @@ namespace Quartz.Tests.Unit
             }
         }
 
+        [Test]
+        public void ShouldBeAbleToGetUnderlyingTriggerBuilder()
+        {
+            DateTimeOffset startTime = new DateTimeOffset(2012, 12, 30, 0, 0, 0, TimeSpan.Zero);
+            DateTimeOffset endTime = new DateTimeOffset(2015, 1, 15, 0, 0, 0, TimeSpan.Zero);
+
+            var trigger = TriggerBuilder.Create().WithCronSchedule("0 0 12 * * ?")
+                .StartAt(startTime)
+                .EndAt(endTime)
+                .WithPriority(2)
+                .Build();
+            var triggerBuilder = trigger.GetTriggerBuilder();
+            var trigger2 = triggerBuilder.Build();
+
+            Assert.That(trigger.StartTimeUtc, Is.EqualTo(trigger2.StartTimeUtc));
+            Assert.That(trigger.EndTimeUtc, Is.EqualTo(trigger2.EndTimeUtc));
+            Assert.That(trigger.Priority, Is.EqualTo(trigger2.Priority));
+        }
     }
 }

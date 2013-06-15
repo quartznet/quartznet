@@ -105,10 +105,5 @@ namespace Quartz
         /// If null, the system default TimeZone will be used.
         /// </remarks>
         TimeZoneInfo TimeZone { get; }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        TriggerBuilder GetTriggerBuilder();
     }
 }

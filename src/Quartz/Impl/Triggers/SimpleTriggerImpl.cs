@@ -225,11 +225,6 @@ namespace Quartz.Impl.Triggers
             set { timesTriggered = value; }
         }
 
-	    public TriggerBuilder GetTriggerBuilder()
-	    {
-	        return GetTriggerBuilder<ISimpleTrigger>();
-	    }
-
 	    public override IScheduleBuilder GetScheduleBuilder()
 	    {
             SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
