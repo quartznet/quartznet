@@ -1,4 +1,4 @@
-<project name="Quartz.NET" xmlns="http://nant.sf.net/release/0.90/nant.xsd" default="build">
+<project name="Quartz.NET" xmlns="http://nant.sf.net/release/0.90/nant.xsd" default="clean build">
 
   <!-- what kind of build -->
   <property name="build.configuration" value="debug" overwrite="false" />
@@ -37,6 +37,12 @@
 
   </target>
 
+  <target name="restore-nuget-packages" unless="${target::has-executed('restore-nuget-packages')}">
+	<exec program=".nuget\nuget.exe" commandline="install -OutputDirectory packages ${dir.src}/Quartz/packages.config" />
+	<exec program=".nuget\nuget.exe" commandline="install -OutputDirectory packages ${dir.src}/Quartz.Tests.Unit/packages.config" />
+	<exec program=".nuget\nuget.exe" commandline="install -OutputDirectory packages ${dir.src}/Quartz.Tests.Integration/packages.config" />
+	<exec program=".nuget\nuget.exe" commandline="install -OutputDirectory packages ${dir.server.src}/Quartz.Server/packages.config" />
+  </target>
 
   <target name="build">
     <call target="build-3.5" />
@@ -49,7 +55,7 @@
     <call target="build-4.0" />
   </target>
 
-  <target name="build-3.5">
+  <target name="build-3.5" depends="restore-nuget-packages">
     <property name="build.defines" value="${build.defines}" />
 
     <property name="target.framework" value="3.5" />
@@ -57,7 +63,7 @@
     <call target="build-all-csc" />
   </target>
 
-  <target name="build-4.0">
+  <target name="build-4.0" depends="restore-nuget-packages">
     <property name="build.defines" value="${build.defines},NET_40" />
 
     <property name="target.framework" value="4.0" />
@@ -66,7 +72,7 @@
     <call target="build-all-csc" />
   </target>
 
-  <target name="build-mono-2.0">
+  <target name="build-mono-2.0" depends="restore-nuget-packages">
     <property name="build.defines" value="${build.defines},MONO" />
 
     <property name="target.framework" value="mono-2.0" />
@@ -78,6 +84,8 @@
 
   <target name="build-quartz" >
 
+	<fail if="${file::exists('quartz.net.snk') == false}" message="You need to generate quartz.net.snk file before building. Use command &#xa;&#xa;&#x9; sn -k quartz.net.snk" />
+  
      <mkdir dir="${buildoutputbasedir}" />
 
     <property name="target.dir" value="${buildoutputbasedir}" />

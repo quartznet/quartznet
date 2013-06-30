@@ -31,6 +31,7 @@ namespace Quartz.Tests.Integration
 
         private static readonly TimeSpan testTimeout = TimeSpan.FromSeconds(125);
 
+#if NET_40
         public class TestJobWithSync : IJob
         {
             public void Execute(IJobExecutionContext context)
@@ -51,6 +52,7 @@ namespace Quartz.Tests.Integration
                 }
             }
         }
+#endif
 
         [DisallowConcurrentExecution]
         [PersistJobDataAfterExecution]
@@ -226,6 +228,8 @@ namespace Quartz.Tests.Integration
             sched.Shutdown();
         }
 
+#if NET_40
+
         [Test]
         public void TestAbilityToFireImmediatelyWhenStartedBefore()
         {
@@ -321,6 +325,7 @@ namespace Quartz.Tests.Integration
 
             Assert.That((fTime - sTime < TimeSpan.FromMilliseconds(7000)), "Immediate trigger did not fire within a reasonable amount of time."); // This is dangerously subjective!  but what else to do?
         }
+#endif
 
         [Test]
         public void TestScheduleMultipleTriggersForAJob()

@@ -183,7 +183,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.IsNotNull(deserializedCalendar);
             Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
             Assert.AreEqual(targetCalendar.DaysExcluded, deserializedCalendar.DaysExcluded);
-            ///Assert.IsNull(deserializedCalendar.getTimeZone());
+            //Assert.IsNull(deserializedCalendar.getTimeZone());
         }
     }
 }

@@ -59,3 +59,4 @@ website
 *.nupkg
 /packages/*
 !/packages/repositories.config
+/buildlog.txt
