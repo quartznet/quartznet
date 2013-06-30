@@ -47,6 +47,7 @@
   <target name="build">
     <call target="build-3.5" />
     <call target="build-4.0" />
+	<call target="build-server" />
   </target>
 
   <target name="build-all">
@@ -225,6 +226,11 @@
     <copy file="src\Quartz.Examples\App.config" tofile="${buildoutputbasedir}.Examples\Quartz.Examples.exe.config" />
   </target>
 
+  <target name="build-server">
+	<call target="build-server-3.5" />
+	<call target="build-server-4.0" />
+  </target>
+  
   <target name="build-server-3.5">
     <property name="lib-dir-version" value="2.0" />
     <property name="build.defines" value="C5" />
@@ -246,6 +252,8 @@
   </target>  
 
   <target name="build-server-internal" depends="determine-lib-dirs">
+
+    <property name="buildoutputbasedir" value="build\${target.framework}\${build.configuration}\Quartz" />
 
     <mkdir dir="${buildoutputbasedir}.Server\" />
 
