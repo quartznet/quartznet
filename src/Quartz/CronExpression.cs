@@ -595,7 +595,7 @@ namespace Quartz
                     }
                     if (exprOn == DayOfWeek && expr.IndexOf('#') != -1 && expr.IndexOf('#', expr.IndexOf('#') + 1) != -1)
                     {
-                        throw new FormatException("Support for specifying multiple \"nth\" days is not imlemented.");
+                        throw new FormatException("Support for specifying multiple \"nth\" days is not implemented.");
                     }
 
                     string[] vTok = expr.Split(',');
