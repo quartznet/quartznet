@@ -1,0 +1,22 @@
+# Name of your blog (this will show up at the top of your page and in the RSS feed)
+name: Quartz.NET Documentation
+
+# Short description (goes below the title; it will also be used in the RSS feed)
+description: 
+
+# Your name, as you want it to appear underneath each post and in the footer
+author: Marko Lahma
+
+category_dir: /
+baseurl: 
+
+url: http://www.quartz-scheduler.net/
+
+#### Under the Hood Stuff #####
+
+markdown: redcarpet  
+pygments: true
+
+exclude: [README.markdown, package.json, grunt.js, Gruntfile.js, node_modules, Gemfile, Gemfile.lock]
+
+encoding: UTF-8
