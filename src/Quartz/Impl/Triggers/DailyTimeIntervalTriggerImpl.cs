@@ -633,6 +633,12 @@ namespace Quartz.Impl.Triggers
                 afterTime = afterTime.Value.AddSeconds(1);
             }
 
+            // if afterTime is before startTime, then return startTime directly.
+            if (afterTime <= startTimeUtc)
+            {
+                return startTimeUtc;
+            }
+
             // now change to local time zone
             afterTime = TimeZoneUtil.ConvertTime(afterTime.Value, TimeZone);
 
@@ -650,9 +656,8 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            //apply timezone for this date & time
+            // apply timezone for this date & time
             fireTime = new DateTimeOffset(fireTime.Value.DateTime, TimeZone.GetUtcOffset(fireTime.Value));
-
 
             // c. Calculate and save fireTimeEndDate variable for later use
             DateTimeOffset fireTimeEndDate;
@@ -665,25 +670,24 @@ namespace Quartz.Impl.Triggers
                 fireTimeEndDate = endTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
             }
 
-            //apply the proper offset for the end date
+            // apply the proper offset for the end date
             fireTimeEndDate = new DateTimeOffset(fireTimeEndDate.DateTime, this.TimeZone.GetUtcOffset(fireTimeEndDate.DateTime));
-
 
             // e. Check fireTime against startTime or startTimeOfDay to see which go first.
             DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
 
-            //apply the proper offset for the start date
+            // apply the proper offset for the start date
             fireTimeStartDate = new DateTimeOffset(fireTimeStartDate.DateTime, this.TimeZone.GetUtcOffset(fireTimeStartDate.DateTime));
 
             if (fireTime < startTimeUtc && startTimeUtc < fireTimeStartDate)
             {
                 return fireTimeStartDate;
             }
-            else if (fireTime < startTimeUtc && startTimeUtc > fireTimeStartDate)
+            if (fireTime < startTimeUtc && startTimeUtc > fireTimeStartDate)
             {
                 return startTimeUtc;
             }
-            else if (fireTime > startTimeUtc && fireTime < fireTimeStartDate)
+            if (fireTime > startTimeUtc && fireTime < fireTimeStartDate)
             {
                 return fireTimeStartDate;
             }
