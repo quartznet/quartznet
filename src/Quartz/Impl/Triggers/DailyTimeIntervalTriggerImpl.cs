@@ -115,7 +115,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
-        public DailyTimeIntervalTriggerImpl(String name, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
+        public DailyTimeIntervalTriggerImpl(string name, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
                                             IntervalUnit intervalUnit, int repeatInterval)
             : this(name, null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval)
         {
@@ -132,7 +132,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
-        public DailyTimeIntervalTriggerImpl(String name, string group, TimeOfDay startTimeOfDayUtc,
+        public DailyTimeIntervalTriggerImpl(string name, string group, TimeOfDay startTimeOfDayUtc,
                                             TimeOfDay endTimeOfDayUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit,
                    repeatInterval)
@@ -171,7 +171,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DailyTimeIntervalTriggerImpl(string name, String group, DateTimeOffset startTimeUtc,
+        public DailyTimeIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
                                             DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
                                             IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
@@ -200,8 +200,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DailyTimeIntervalTriggerImpl(String name, String group, String jobName,
-                                            String jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc,
+        public DailyTimeIntervalTriggerImpl(string name, string group, string jobName,
+                                            string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
                                             TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
                                             IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group, jobName, jobGroup)

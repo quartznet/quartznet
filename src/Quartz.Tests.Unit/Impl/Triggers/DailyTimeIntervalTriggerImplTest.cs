@@ -703,7 +703,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.AreEqual(dateOf(8, 0, 0, 2, 1, 2011), trigger.GetFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2011)));
         }
 
-        public DateTimeOffset? dateOf(int hour, int minute, int second, int dayOfMonth, int month, int year)
+        public DateTimeOffset dateOf(int hour, int minute, int second, int dayOfMonth, int month, int year)
         {
             return new DateTime(year, month, dayOfMonth, hour, minute, second);
         }
@@ -750,6 +750,45 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             trigger.RepeatInterval = 1;
 
             Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(new DateTime(2012, 1, 1)));
+        }
+
+        [Test]
+        public void TestExtraConstructors()
+        {
+            // A test case for QTZ-389 - some extra constructors didn't set all parameters
+            DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl(
+                "triggerName", "triggerGroup", "jobName", "jobGroup",
+                dateOf(8, 0, 0, 1, 1, 2012), null,
+                new TimeOfDay(8, 0, 0), new TimeOfDay(17, 0, 0),
+                IntervalUnit.Hour, 1);
+
+            Assert.AreEqual("triggerName", trigger.Name);
+            Assert.AreEqual("triggerGroup", trigger.Group);
+            Assert.AreEqual("jobName", trigger.JobName);
+            Assert.AreEqual("jobGroup", trigger.JobGroup);
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.StartTimeUtc);
+            Assert.AreEqual(null, trigger.EndTimeUtc);
+            Assert.AreEqual(new TimeOfDay(8, 0, 0), trigger.StartTimeOfDay);
+            Assert.AreEqual(new TimeOfDay(17, 0, 0), trigger.EndTimeOfDay);
+            Assert.AreEqual(IntervalUnit.Hour, trigger.RepeatIntervalUnit);
+            Assert.AreEqual(1, trigger.RepeatInterval);
+
+            trigger = new DailyTimeIntervalTriggerImpl(
+                "triggerName", "triggerGroup",
+                dateOf(8, 0, 0, 1, 1, 2012), null,
+                new TimeOfDay(8, 0, 0), new TimeOfDay(17, 0, 0),
+                IntervalUnit.Hour, 1);
+
+            Assert.AreEqual("triggerName", trigger.Name);
+            Assert.AreEqual("triggerGroup", trigger.Group);
+            Assert.AreEqual(null, trigger.JobName);
+            Assert.AreEqual("DEFAULT", trigger.JobGroup);
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.StartTimeUtc);
+            Assert.AreEqual(null, trigger.EndTimeUtc);
+            Assert.AreEqual(new TimeOfDay(8, 0, 0), trigger.StartTimeOfDay);
+            Assert.AreEqual(new TimeOfDay(17, 0, 0), trigger.EndTimeOfDay);
+            Assert.AreEqual(IntervalUnit.Hour, trigger.RepeatIntervalUnit);
+            Assert.AreEqual(1, trigger.RepeatInterval);
         }
     }
 }
