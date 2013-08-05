@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Globalization;
 using System.Threading;
 
 using Common.Logging;
@@ -58,7 +57,6 @@ namespace Quartz.Core
 
         private TimeSpan idleWaitTime = DefaultIdleWaitTime;
         private int idleWaitVariablness = 7*1000;
-        private TimeSpan dbFailureRetryInterval = TimeSpan.FromSeconds(15);
 
         /// <summary>
         /// Gets the log.
@@ -131,17 +129,6 @@ namespace Quartz.Core
             // so processing doesn't start yet...
             paused = true;
             halted = false;
-        }
-
-        /// <summary>
-        /// Gets or sets the db failure retry interval.
-        /// </summary>
-        /// <value>The db failure retry interval.</value>
-        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-        public TimeSpan DbFailureRetryInterval
-        {
-            get { return dbFailureRetryInterval; }
-            set { dbFailureRetryInterval = value; }
         }
 
         /// <summary>
@@ -285,20 +272,19 @@ namespace Quartz.Core
                         {
                             if (!lastAcquireFailed)
                             {
-                                qs.NotifySchedulerListenersError(
-                                    "An error occurred while scanning for the next trigger to fire.",
-                                    jpe);
+                                qs.NotifySchedulerListenersError("An error occurred while scanning for the next trigger to fire.", jpe);
                             }
                             lastAcquireFailed = true;
+                            continue;
                         }
                         catch (Exception e)
                         {
                             if (!lastAcquireFailed)
                             {
-                                Log.Error("quartzSchedulerThreadLoop: RuntimeException "
-                                          + e.Message, e);
+                                Log.Error("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
                             }
                             lastAcquireFailed = true;
+                            continue;
                         }
 
                         if (triggers != null && triggers.Count > 0)
@@ -377,7 +363,7 @@ namespace Quartz.Core
                                     // we release them and loop again
                                     foreach (IOperableTrigger t in triggers)
                                     {
-                                        ReleaseTriggerRetryLoop(t);
+                                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(t);
                                     }
                                     continue;
                                 }
@@ -396,9 +382,7 @@ namespace Quartz.Core
                             if (exception != null &&  (exception is DbException || exception.InnerException is DbException))
                             {
                                 Log.Error("DbException while firing trigger " + trigger, exception);
-                                // db connection must have failed... keep
-                                // retrying until it's up...
-                                ReleaseTriggerRetryLoop(trigger);
+                                qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
                                 continue;
                             }
 
@@ -407,21 +391,9 @@ namespace Quartz.Core
                             // fired at this time...  or if the scheduler was shutdown (halted)
                             if (bndle == null)
                             {
-                                try
-                                {
-                                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
-                                }
-                                catch (SchedulerException se)
-                                {
-                                    qs.NotifySchedulerListenersError(
-                                        "An error occurred while releasing triggers '" + trigger.Key + "'", se);
-                                    // db connection must have failed... keep retrying
-                                    // until it's up...
-                                    ReleaseTriggerRetryLoop(trigger);
-                                }
+                                qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
                                 continue;
                             }
-
 
                             // TODO: improvements:
                             //
@@ -438,46 +410,18 @@ namespace Quartz.Core
                             }
                             catch (SchedulerException)
                             {
-                                try
-                                {
-                                    qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail,
-                                                                          SchedulerInstruction.SetAllJobTriggersError);
-                                }
-                                catch (SchedulerException se2)
-                                {
-                                    qs.NotifySchedulerListenersError(
-                                        "An error occurred while placing job's triggers in error state '" +
-                                        trigger.Key + "'", se2);
-                                    // db connection must have failed... keep retrying
-                                    // until it's up...
-                                    ErrorTriggerRetryLoop(bndle);
-                                }
+                                qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError);
                                 continue;
                             }
 
                             if (qsRsrcs.ThreadPool.RunInThread(shell) == false)
                             {
-                                try
-                                {
                                     // this case should never happen, as it is indicative of the
                                     // scheduler being shutdown or a bug in the thread pool or
                                     // a thread pool being used concurrently - which the docs
                                     // say not to do...
                                     Log.Error("ThreadPool.runInThread() return false!");
-                                    qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail,
-                                                                          SchedulerInstruction.
-                                                                              SetAllJobTriggersError);
-                                }
-                                catch (SchedulerException se2)
-                                {
-                                    qs.NotifySchedulerListenersError(
-                                        string.Format(CultureInfo.InvariantCulture,
-                                                      "An error occurred while placing job's triggers in error state '{0}'",
-                                                      trigger.Key), se2);
-                                    // db connection must have failed... keep retrying
-                                    // until it's up...
-                                    ReleaseTriggerRetryLoop(trigger);
-                                }
+                                    qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError);
                             }
                         }
 
@@ -536,26 +480,8 @@ namespace Quartz.Core
             {
                 foreach (IOperableTrigger trigger in triggers)
                 {
-                    try
-                    {
-                        // above call does a clearSignaledSchedulingChange()
-                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
-                    }
-                    catch (JobPersistenceException jpe)
-                    {
-                        qs.NotifySchedulerListenersError(
-                            string.Format("An error occurred while releasing trigger '{0}'", trigger.Key), jpe);
-                        // db connection must have failed... keep
-                        // retrying until it's up...
-                        ReleaseTriggerRetryLoop(trigger);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error("ReleaseTriggerRetryLoop: Exception " + e.Message, e);
-                        // db connection must have failed... keep
-                        // retrying until it's up...
-                        ReleaseTriggerRetryLoop(trigger);
-                    }
+                    // above call does a clearSignaledSchedulingChange()
+                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
                 }
                 triggers.Clear();
                 return true;
@@ -621,101 +547,5 @@ namespace Quartz.Core
 			    return earlier;
             }
 	    }
-
-        /// <summary>
-        /// Trigger retry loop that is executed on error condition.
-        /// </summary>
-        /// <param name="bndle">The bndle.</param>
-        public virtual void ErrorTriggerRetryLoop(TriggerFiredBundle bndle)
-        {
-            int retryCount = 0;
-            try
-            {
-                while (!halted)
-                {
-                    try
-                    {
-                        Thread.Sleep(DbFailureRetryInterval);
-                        // retry every N seconds (the db connection must be failed)
-                        retryCount++;
-                        qsRsrcs.JobStore.TriggeredJobComplete(bndle.Trigger, bndle.JobDetail,
-                                                              SchedulerInstruction.SetAllJobTriggersError);
-                        retryCount = 0;
-                        break;
-                    }
-                    catch (JobPersistenceException jpe)
-                    {
-                        if (retryCount%4 == 0)
-                        {
-                            qs.NotifySchedulerListenersError(
-                                string.Format(CultureInfo.InvariantCulture, "An error occurred while releasing trigger '{0}'", bndle.Trigger.Key),
-                                jpe);
-                        }
-                    }
-                    catch (ThreadInterruptedException e)
-                    {
-                        Log.Error(string.Format(CultureInfo.InvariantCulture, "ReleaseTriggerRetryLoop: InterruptedException {0}", e.Message), e);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(string.Format(CultureInfo.InvariantCulture, "ReleaseTriggerRetryLoop: Exception {0}", e.Message), e);
-                    }
-                }
-            }
-            finally
-            {
-                if (retryCount == 0)
-                {
-                    Log.Info("ReleaseTriggerRetryLoop: connection restored.");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Releases the trigger retry loop.
-        /// </summary>
-        /// <param name="trigger">The trigger.</param>
-        public virtual void ReleaseTriggerRetryLoop(IOperableTrigger trigger)
-        {
-            int retryCount = 0;
-            try
-            {
-                while (!halted)
-                {
-                    try
-                    {
-                        Thread.Sleep(DbFailureRetryInterval);
-                        // retry every N seconds (the db connection must be failed)
-                        retryCount++;
-                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
-                        retryCount = 0;
-                        break;
-                    }
-                    catch (JobPersistenceException jpe)
-                    {
-                        if (retryCount%4 == 0)
-                        {
-                            qs.NotifySchedulerListenersError(
-                                string.Format(CultureInfo.InvariantCulture, "An error occurred while releasing trigger '{0}'", trigger.Key), jpe);
-                        }
-                    }
-                    catch (ThreadInterruptedException e)
-                    {
-                        Log.Error(string.Format(CultureInfo.InvariantCulture, "ReleaseTriggerRetryLoop: InterruptedException {0}", e.Message), e);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(string.Format(CultureInfo.InvariantCulture, "ReleaseTriggerRetryLoop: Exception {0}", e.Message), e);
-                    }
-                }
-            }
-            finally
-            {
-                if (retryCount == 0)
-                {
-                    Log.Info("ReleaseTriggerRetryLoop: connection restored.");
-                }
-            }
-        }
-    } // end of QuartzSchedulerThread
+    }
 }

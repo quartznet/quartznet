@@ -69,7 +69,7 @@ namespace Quartz.Impl.AdoJobStore
         private readonly ILog log;
         private IObjectSerializer objectSerializer = new DefaultObjectSerializer();
         private IThreadExecutor threadExecutor = new DefaultThreadExecutor();
-        private bool schedulerRunning = false;
+        private volatile bool schedulerRunning = false;
         private IDbConnectionManager connectionManager = DBConnectionManager.Instance;
 
         /// <summary>
@@ -837,7 +837,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="newTrigger">Trigger to be stored.</param>
         public void StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger)
         {
-            ExecuteInLock((LockOnInsert) ? LockTriggerAccess : null, conn =>
+            ExecuteInLock<object>((LockOnInsert) ? LockTriggerAccess : null, conn =>
                                                                          {
                                                                              StoreJob(conn, newJob, false);
                                                                              StoreTrigger(conn, newTrigger, newJob, false, StateWaiting, false, false);
@@ -2351,16 +2351,42 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger)" />
         public virtual IList<IOperableTrigger> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
+            string lockName;
             if (AcquireTriggersWithinLock || maxCount > 1)
             {
-                return (IList<IOperableTrigger>) ExecuteInNonManagedTXLock(LockTriggerAccess, conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow));
+                lockName = LockTriggerAccess;
             }
             else
             {
-                return (IList<IOperableTrigger>) ExecuteInNonManagedTXLock(
-                    null, /* passing null as lock name causes no lock to be made */
-                    conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow));
+                lockName = null;
             }
+
+            return ExecuteInNonManagedTXLock(lockName,
+                conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow),
+                (conn, result) =>
+                {
+                    try
+                    {
+                        IList<FiredTriggerRecord> acquired = Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId);
+                        var fireInstanceIds = new HashSet<string>();
+                        foreach (FiredTriggerRecord ft in acquired)
+                        {
+                            fireInstanceIds.Add(ft.FireInstanceId);
+                        }
+                        foreach (IOperableTrigger tr in result)
+                        {
+                            if (fireInstanceIds.Contains(tr.FireInstanceId))
+                            {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                    catch (Exception e)
+                    {
+                        throw new JobPersistenceException("error validating trigger acquisition", e);
+                    }
+                });
         }
 
         // TODO: this really ought to return something like a FiredTriggerBundle,
@@ -2472,7 +2498,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public void ReleaseAcquiredTrigger(IOperableTrigger trigger)
         {
-            ExecuteInNonManagedTXLock(LockTriggerAccess, conn => ReleaseAcquiredTrigger(conn, trigger));
+            RetryExecuteInNonManagedTXLock(LockTriggerAccess, conn => ReleaseAcquiredTrigger(conn, trigger));
         }
 
         protected virtual void ReleaseAcquiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
@@ -2491,34 +2517,61 @@ namespace Quartz.Impl.AdoJobStore
 
         public virtual IList<TriggerFiredResult> TriggersFired(IList<IOperableTrigger> triggers)
         {
-            return
-                (IList<TriggerFiredResult>) ExecuteInNonManagedTXLock(LockTriggerAccess, conn =>
-                                            {
-                                                List<TriggerFiredResult> results = new List<TriggerFiredResult>();
+            return ExecuteInNonManagedTXLock(LockTriggerAccess,
+                conn =>
+                {
+                    List<TriggerFiredResult> results = new List<TriggerFiredResult>();
 
-                                                TriggerFiredResult result;
-                                                foreach (IOperableTrigger trigger in triggers)
-                                                {
-                                                    try
-                                                    {
-                                                        TriggerFiredBundle bundle = TriggerFired(conn, trigger);
-                                                        result = new TriggerFiredResult(bundle);
-                                                    }
-                                                    catch (JobPersistenceException jpe)
-                                                    {
-                                                        log.ErrorFormat("Caught job persistence exception: " + jpe.Message, jpe);
-                                                        result = new TriggerFiredResult(jpe);
-                                                    }
-                                                    catch (Exception ex)
-                                                    {
-                                                        log.ErrorFormat("Caught exception: " + ex.Message, ex);
-                                                        result = new TriggerFiredResult(ex);
-                                                    }
-                                                    results.Add(result);
-                                                }
+                    TriggerFiredResult result;
+                    foreach (IOperableTrigger trigger in triggers)
+                    {
+                        try
+                        {
+                            TriggerFiredBundle bundle = TriggerFired(conn, trigger);
+                            result = new TriggerFiredResult(bundle);
+                        }
+                        catch (JobPersistenceException jpe)
+                        {
+                            log.ErrorFormat("Caught job persistence exception: " + jpe.Message, jpe);
+                            result = new TriggerFiredResult(jpe);
+                        }
+                        catch (Exception ex)
+                        {
+                            log.ErrorFormat("Caught exception: " + ex.Message, ex);
+                            result = new TriggerFiredResult(ex);
+                        }
+                        results.Add(result);
+                    }
 
-                                                return results; 
-                                            });
+                    return results;
+                },
+                (conn, result) =>
+                {
+                    try
+                    {
+                        IList<FiredTriggerRecord> acquired = Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId);
+                        var executingTriggers = new HashSet<string>();
+                        foreach (FiredTriggerRecord ft in acquired)
+                        {
+                            if (StateExecuting.Equals(ft.FireInstanceState))
+                            {
+                                executingTriggers.Add(ft.FireInstanceId);
+                            }
+                        }
+                        foreach (TriggerFiredResult tr in result)
+                        {
+                            if (tr.TriggerFiredBundle != null && executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId))
+                            {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                    catch (Exception e)
+                    {
+                        throw new JobPersistenceException("error validating trigger acquisition", e);
+                    }
+                });
         }
 
         protected virtual TriggerFiredBundle TriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
@@ -2637,7 +2690,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual void TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail,
                                                  SchedulerInstruction triggerInstCode)
         {
-            ExecuteInNonManagedTXLock(LockTriggerAccess, conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode));
+            RetryExecuteInNonManagedTXLock(LockTriggerAccess, conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode));
         }
 
         protected virtual void TriggeredJobComplete(ConnectionAndTransactionHolder conn,
@@ -3190,22 +3243,6 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (conn != null)
             {
-                /* TODO if (conn is Proxy) {
-                    Proxy connProxy = (Proxy)conn;
-                
-                    InvocationHandler invocationHandler = 
-                        Proxy.getInvocationHandler(connProxy);
-                    if (invocationHandler instanceof AttributeRestoringConnectionInvocationHandler) {
-                        AttributeRestoringConnectionInvocationHandler connHandler =
-                            (AttributeRestoringConnectionInvocationHandler)invocationHandler;
-                        
-                        connHandler.RestoreOriginalAtributes();
-                        CloseConnection(connHandler.WrappedConnection);
-                        return;
-                    }
-                }
-                */
-                // Wan't a Proxy, or was a Proxy, but wasn't ours.
                 CloseConnection(conn);
             }
         }
@@ -3303,31 +3340,18 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// This method just forwards to ExecuteInLock() with a null lockName.
         /// </remarks>
-        /// <seealso cref="ExecuteInLock(string,System.Action{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder})" />
-        protected object ExecuteWithoutLock(Func<ConnectionAndTransactionHolder, object> txCallback)
+        protected T ExecuteWithoutLock<T>(Func<ConnectionAndTransactionHolder, T> txCallback)
         {
             return ExecuteInLock(null, txCallback);
         }
 
-        /// <summary>
-        /// Execute the given callback having acquired the given lock.  
-        /// Depending on the JobStore, the surrounding transaction may be 
-        /// assumed to be already present (managed).  This version is just a 
-        /// handy wrapper around executeInLock that doesn't require a return
-        /// value.
-        /// </summary>
-        /// <param name="lockName">
-        /// The name of the lock to acquire, for example 
-        /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-        /// lockCallback is still executed in a transaction. 
-        /// </param>
-        /// <param name="txCallback">
-        /// The callback to excute after having acquired the given lock.
-        /// </param>
-        /// <seealso cref="ExecuteInLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
         protected void ExecuteInLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
         {
-            ExecuteInLock(lockName, conn => { txCallback(conn); return null; });
+            ExecuteInLock<object>(lockName, conn =>
+                                            {
+                                                txCallback(conn);
+                                                return null;
+                                            });
         }
 
         /// <summary>
@@ -3343,26 +3367,54 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">
         /// The callback to excute after having acquired the given lock.
         /// </param>
-        protected abstract object ExecuteInLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback);
+        protected abstract T ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback);
 
-        /// <summary>
-        /// Execute the given callback having optionally acquired the given lock.
-        /// This uses the non-managed transaction connection.  This version is just a 
-        /// handy wrapper around executeInNonManagedTXLock that doesn't require a return
-        /// value.
-        /// </summary>
-        /// <param name="lockName">
-        /// The name of the lock to acquire, for example 
-        /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-        /// lockCallback is still executed in a non-managed transaction. 
-        /// </param>
-        /// <seealso cref="ExecuteInNonManagedTXLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
-        /// <param name="txCallback">
-        /// The callback to excute after having acquired the given lock.
-        /// </param>
+        protected void RetryExecuteInNonManagedTXLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
+        {
+            RetryExecuteInNonManagedTXLock<object>(lockName, holder =>
+                                                             {
+                                                                 txCallback(holder);
+                                                                 return null;
+                                                             });
+        }
+
+        protected virtual T RetryExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback)
+        {
+            for (int retry = 1;; retry++)
+            {
+                try
+                {
+                    return ExecuteInNonManagedTXLock(lockName, txCallback, null);
+                }
+                catch (JobPersistenceException jpe)
+                {
+                    if (retry%4 == 0)
+                    {
+                        schedSignaler.NotifySchedulerListenersError("An error occurred while " + txCallback, jpe);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error("retryExecuteInNonManagedTXLock: RuntimeException " + e.Message, e);
+                }
+                try
+                {
+                    Thread.Sleep(DbRetryInterval); // retry every N seconds (the db connection must be failed)
+                }
+                catch (ThreadInterruptedException e)
+                {
+                    throw new InvalidOperationException("Received interrupted exception", e);
+                }
+            }
+        }
+
         protected void ExecuteInNonManagedTXLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
         {
-            ExecuteInNonManagedTXLock(lockName, conn => { txCallback(conn); return null; });
+            ExecuteInNonManagedTXLock<object>(lockName, conn =>
+                                                        {
+                                                            txCallback(conn);
+                                                            return null;
+                                                        });
         }
 
         /// <summary>
@@ -3377,7 +3429,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">
         /// The callback to excute after having acquired the given lock.
         /// </param>
-        protected object ExecuteInNonManagedTXLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback)
+        /// <param name="txValidator"></param>
+        protected T ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback, Func<ConnectionAndTransactionHolder, T, bool> txValidator = null)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
@@ -3400,8 +3453,19 @@ namespace Quartz.Impl.AdoJobStore
                     conn = GetNonManagedTXConnection();
                 }
 
-                object result = txCallback(conn);
-                CommitConnection(conn, false);
+                T result = txCallback(conn);
+                try
+                {
+                    CommitConnection(conn, false);
+                }
+                catch (JobPersistenceException)
+                {
+                    RollbackConnection(conn);
+                    if (txValidator == null || !RetryExecuteInNonManagedTXLock(lockName, connection => txValidator(connection, result)))
+                    {
+                        throw;
+                    }
+                }
 
                 DateTimeOffset? sigTime = ClearAndGetSignalSchedulingChangeOnTxCompletion();
                 if (sigTime != null)

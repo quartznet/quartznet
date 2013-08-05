@@ -127,8 +127,8 @@ namespace Quartz.Impl.AdoJobStore
         /// transaction, it does not attempt to commit or rollback the 
         /// enclosing transaction.
         /// </summary>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
-        /// <seealso cref="JobStoreTX.ExecuteInLock(string,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,object})" />
+        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
+        /// <seealso cref="JobStoreTX.ExecuteInLock" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
         /// <param name="lockName">
@@ -137,9 +137,9 @@ namespace Quartz.Impl.AdoJobStore
         /// txCallback is still executed in a transaction.
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
-        protected override object ExecuteInLock(
+        protected override T ExecuteInLock<T>(
                 string lockName,
-                Func<ConnectionAndTransactionHolder, object> txCallback)
+                Func<ConnectionAndTransactionHolder, T> txCallback)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;

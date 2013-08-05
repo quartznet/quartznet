@@ -49,5 +49,10 @@ namespace Quartz.Spi
 		/// Signals the scheduling change.
 		/// </summary>
         void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc);
+
+        /// <summary>
+        /// Informs scheduler listeners about an exception that has occurred.
+        /// </summary>
+        void NotifySchedulerListenersError(string message, SchedulerException jpe);
 	}
 }

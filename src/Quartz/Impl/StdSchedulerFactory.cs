@@ -970,7 +970,7 @@ Please add configuration to your application config file to correctly initialize
                     rsrcs.AddSchedulerPlugin(plugin);
                 }
 
-                qs = new QuartzScheduler(rsrcs, idleWaitTime, dbFailureRetry);
+                qs = new QuartzScheduler(rsrcs, idleWaitTime);
                 qsInited = true;
 
                 // Create Scheduler ref...

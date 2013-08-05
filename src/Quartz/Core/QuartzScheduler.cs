@@ -79,8 +79,7 @@ namespace Quartz.Core
         private volatile bool shuttingDown;
         private DateTimeOffset? initialStart;
         private bool boundRemotely;
-        private readonly TimeSpan dbRetryInterval;
-
+        
         /// <summary>
         /// Initializes the <see cref="QuartzScheduler"/> class.
         /// </summary>
@@ -317,7 +316,7 @@ namespace Quartz.Core
         /// properties.
         /// </summary>
         /// <seealso cref="QuartzSchedulerResources" />
-        public QuartzScheduler(QuartzSchedulerResources resources, TimeSpan idleWaitTime, TimeSpan dbRetryInterval)
+        public QuartzScheduler(QuartzSchedulerResources resources, TimeSpan idleWaitTime)
         {
             log = LogManager.GetLogger(GetType());
             this.resources = resources;
@@ -335,10 +334,6 @@ namespace Quartz.Core
             {
                 schedThread.IdleWaitTime = idleWaitTime;
             }
-            if (dbRetryInterval > TimeSpan.Zero)
-            {
-                schedThread.DbFailureRetryInterval = dbRetryInterval;
-            }
 
             jobMgr = new ExecutingJobsManager();
             AddInternalJobListener(jobMgr);
@@ -347,14 +342,7 @@ namespace Quartz.Core
 
             signaler = new SchedulerSignalerImpl(this, schedThread);
 
-            this.dbRetryInterval = dbRetryInterval;
-
             log.InfoFormat(CultureInfo.InvariantCulture, "Quartz Scheduler v.{0} created.", Version);
-        }
-
-        public TimeSpan DbRetryInterval
-        {
-            get { return dbRetryInterval; }
         }
 
         public void Initialize()
@@ -1636,8 +1624,7 @@ namespace Quartz.Core
         /// <param name="trigger">The trigger.</param>
         /// <param name="detail">The detail.</param>
         /// <param name="instCode">The instruction code.</param>
-        protected internal virtual void NotifyJobStoreJobComplete(IOperableTrigger trigger, IJobDetail detail,
-                                                                  SchedulerInstruction instCode)
+        protected internal virtual void NotifyJobStoreJobComplete(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
         {
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
         }

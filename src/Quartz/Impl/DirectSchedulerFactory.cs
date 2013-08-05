@@ -307,7 +307,7 @@ namespace Quartz.Impl
                 }
             }
 
-            QuartzScheduler qs = new QuartzScheduler(qrs, idleWaitTime, dbFailureRetryInterval);
+            QuartzScheduler qs = new QuartzScheduler(qrs, idleWaitTime);
 
             ITypeLoadHelper cch = new SimpleTypeLoadHelper();
             cch.Initialize();

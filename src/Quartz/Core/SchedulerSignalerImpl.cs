@@ -81,10 +81,14 @@ namespace Quartz.Core
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
         }
 
+	    public void NotifySchedulerListenersJobDeleted(JobKey jobKey)
+	    {
+	        sched.NotifySchedulerListenersJobDeleted(jobKey);
+	    }
 
-        public void NotifySchedulerListenersJobDeleted(JobKey jobKey)
-        {
-            sched.NotifySchedulerListenersJobDeleted(jobKey);
-        }
+	    public void NotifySchedulerListenersError(string message, SchedulerException jpe)
+	    {
+	        sched.NotifySchedulerListenersError(message, jpe);
+	    }
 	}
 }

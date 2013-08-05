@@ -427,6 +427,10 @@ namespace Quartz.Tests.Unit.Simpl
             {
             }
 
+            public void NotifySchedulerListenersError(string message, SchedulerException jpe)
+            {
+            }
+
             public void NotifySchedulerListenersJobDeleted(JobKey jobKey)
             {
             }

@@ -56,10 +56,8 @@ namespace Quartz.Core
 		private QuartzScheduler qs;
 		private readonly IScheduler scheduler;
 	    private readonly TriggerFiredBundle firedTriggerBundle;
-        private volatile bool shutdownRequested;
 
-
-		/// <summary>
+        /// <summary>
 		/// Create a JobRunShell instance with the given settings.
 		/// </summary>
 		/// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
@@ -112,7 +110,6 @@ namespace Quartz.Core
 		/// </summary>
 		public virtual void RequestShutdown()
 		{
-			shutdownRequested = true;
 		}
 
 		/// <summary>
@@ -158,14 +155,7 @@ namespace Quartz.Core
                         try
                         {
                             instCode = trigger.ExecutionComplete(jec, null);
-                            try
-                            {
-                                qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode);
-                            }
-                            catch (JobPersistenceException)
-                            {
-                                VetoedJobRetryLoop(trigger, jobDetail, instCode);
-                            }
+                            qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode);
 
                             // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
                             if (jec.Trigger.GetNextFireTimeUtc() == null)
@@ -276,20 +266,7 @@ namespace Quartz.Core
                         continue;
                     }
 
-                    try
-                    {
-                        qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode);
-                    }
-                    catch (JobPersistenceException jpe)
-                    {
-                        qs.NotifySchedulerListenersError(
-                            string.Format(CultureInfo.InvariantCulture, "An error occured while marking executed job complete. job= '{0}'",
-                                          jobDetail.Key), jpe);
-                        if (!CompleteTriggerRetryLoop(trigger, jobDetail, instCode))
-                        {
-                            return;
-                        }
-                    }
+                    qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode);
 
                     break;
                 } while (true);
@@ -414,69 +391,6 @@ namespace Quartz.Core
 
 			return true;
 		}
-
-		/// <summary>
-		/// Completes the trigger retry loop.
-		/// </summary>
-		/// <param name="trigger">The trigger.</param>
-		/// <param name="jobDetail">The job detail.</param>
-		/// <param name="instCode">The inst code.</param>
-		/// <returns></returns>
-        public virtual bool CompleteTriggerRetryLoop(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction instCode)
-		{
-            long count = 0;
-			while (!shutdownRequested && !qs.IsShuttingDown)
-            {
-				try
-				{
-                    Thread.Sleep(qs.DbRetryInterval); // retry per config setting (the db connection must be failed)
-					qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode);
-					return true;
-				}
-				catch (JobPersistenceException jpe)
-				{
-                    if (count % 4 == 0)
-					qs.NotifySchedulerListenersError(
-                            "An error occured while marking executed job complete (will continue attempts). job= '"
-                                    + jobDetail.Key + "'", jpe);
-				}
-				catch (ThreadInterruptedException)
-				{
-				}
-                count++;
-			}
-			return false;
-		}
-
-		/// <summary>
-		/// Vetoeds the job retry loop.
-		/// </summary>
-		/// <param name="trigger">The trigger.</param>
-		/// <param name="jobDetail">The job detail.</param>
-		/// <param name="instCode">The inst code.</param>
-		/// <returns></returns>
-        public bool VetoedJobRetryLoop(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction instCode)
-        {
-            while (!shutdownRequested)
-            {
-                try
-                {
-                    Thread.Sleep(qs.DbRetryInterval); // retry per config setting (the db connection must be failed)
-                    qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode);
-                    return true;
-                }
-                catch (JobPersistenceException jpe)
-                {
-                    qs.NotifySchedulerListenersError(
-                            string.Format(CultureInfo.InvariantCulture, "An error occured while marking executed job vetoed. job= '{0}'", jobDetail.Key), jpe);
-                }
-                catch (ThreadInterruptedException)
-                {
-                }
-            }
-            return false;
-        }
-
 
 		[Serializable]
 		internal class VetoedException : Exception

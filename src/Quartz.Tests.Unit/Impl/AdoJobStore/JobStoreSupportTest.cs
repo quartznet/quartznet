@@ -5,7 +5,6 @@ using System.Reflection;
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
-using Quartz.Util;
 
 using Rhino.Mocks;
 
@@ -45,9 +44,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 return new ConnectionAndTransactionHolder(null, null);
             }
 
-            protected override object ExecuteInLock(string lockName, Func<ConnectionAndTransactionHolder, object> txCallback)
+            protected override T ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback)
             {
-                return false;
+                return default(T);
             }
 
             /// <summary>
