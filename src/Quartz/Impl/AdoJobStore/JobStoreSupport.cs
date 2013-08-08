@@ -1214,6 +1214,30 @@ namespace Quartz.Impl.AdoJobStore
             return (bool) ExecuteInLock(LockTriggerAccess, conn => RemoveTrigger(conn, triggerKey));
         }
 
+        protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, IJobDetail job)
+        {
+            bool removedTrigger;
+            try
+            {                
+                removedTrigger = Delegate.DeleteTrigger(conn, triggerKey) > 0;              
+                if (null != job && !job.Durable)
+                {
+                    int numTriggers = Delegate.SelectNumTriggersForJob(conn, job.Key);
+                    if (numTriggers == 0)
+                    {
+                        Delegate.DeleteJobDetail(conn, job.Key);                   
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+            }
+
+            return removedTrigger;
+        }
+
+
         protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             bool removedTrigger;
@@ -2655,12 +2679,12 @@ namespace Quartz.Impl.AdoJobStore
                         TriggerStatus stat = Delegate.SelectTriggerStatus(conn, trigger.Key);
                         if (stat != null && !stat.NextFireTimeUtc.HasValue)
                         {
-                            RemoveTrigger(conn, trigger.Key);
+                            RemoveTrigger(conn, trigger.Key, jobDetail);
                         }
                     }
                     else
                     {
-                        RemoveTrigger(conn, trigger.Key);
+                        RemoveTrigger(conn, trigger.Key, jobDetail);
                         SignalSchedulingChangeOnTxCompletion(null);
                     }
                 }
