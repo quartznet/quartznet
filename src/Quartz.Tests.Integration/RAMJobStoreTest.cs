@@ -73,9 +73,9 @@ namespace Quartz.Tests.Integration
 
             // test basic storage functions of scheduler...
             IJobDetail job = JobBuilder.Create<TestJob>()
-                                       .WithIdentity("j1")
-                                       .StoreDurably()
-                                       .Build();
+                .WithIdentity("j1")
+                .StoreDurably()
+                .Build();
 
             Assert.That(sched.CheckExists(new JobKey("j1")), Is.False, "Unexpected existence of job named 'j1'.");
 
@@ -90,13 +90,13 @@ namespace Quartz.Tests.Integration
             sched.DeleteJob(new JobKey("j1"));
 
             ITrigger trigger = TriggerBuilder.Create()
-                                             .WithIdentity("t1")
-                                             .ForJob(job)
-                                             .StartNow()
-                                             .WithSimpleSchedule(x => x
-                                                                          .RepeatForever()
-                                                                          .WithIntervalInSeconds(5))
-                                             .Build();
+                .WithIdentity("t1")
+                .ForJob(job)
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .RepeatForever()
+                    .WithIntervalInSeconds(5))
+                .Build();
 
             Assert.That(sched.CheckExists(new TriggerKey("t1")), Is.False, "Unexpected existence of trigger named '11'.");
 
@@ -113,32 +113,32 @@ namespace Quartz.Tests.Integration
             Assert.That(trigger, Is.Not.Null, "Stored trigger not found!");
 
             job = JobBuilder.Create<TestJob>()
-                            .WithIdentity("j2", "g1")
-                            .Build();
+                .WithIdentity("j2", "g1")
+                .Build();
 
             trigger = TriggerBuilder.Create()
-                                    .WithIdentity("t2", "g1")
-                                    .ForJob(job)
-                                    .StartNow()
-                                    .WithSimpleSchedule(x => x
-                                                                 .RepeatForever()
-                                                                 .WithIntervalInSeconds(5))
-                                    .Build();
+                .WithIdentity("t2", "g1")
+                .ForJob(job)
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .RepeatForever()
+                    .WithIntervalInSeconds(5))
+                .Build();
 
             sched.ScheduleJob(job, trigger);
 
             job = JobBuilder.Create<TestJob>()
-                            .WithIdentity("j3", "g1")
-                            .Build();
+                .WithIdentity("j3", "g1")
+                .Build();
 
             trigger = TriggerBuilder.Create()
-                                    .WithIdentity("t3", "g1")
-                                    .ForJob(job)
-                                    .StartNow()
-                                    .WithSimpleSchedule(x => x
-                                                                 .RepeatForever()
-                                                                 .WithIntervalInSeconds(5))
-                                    .Build();
+                .WithIdentity("t3", "g1")
+                .ForJob(job)
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .RepeatForever()
+                    .WithIntervalInSeconds(5))
+                .Build();
 
             sched.ScheduleJob(job, trigger);
 
@@ -178,15 +178,15 @@ namespace Quartz.Tests.Integration
 
             // test that adding a trigger to a paused group causes the new trigger to be paused also... 
             job = JobBuilder.Create<TestJob>()
-                            .WithIdentity("j4", "g1")
-                            .Build();
+                .WithIdentity("j4", "g1")
+                .Build();
 
             trigger = TriggerBuilder.Create()
-                                    .WithIdentity("t4", "g1")
-                                    .ForJob(job)
-                                    .StartNow()
-                                    .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
-                                    .Build();
+                .WithIdentity("t4", "g1")
+                .ForJob(job)
+                .StartNow()
+                .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+                .Build();
 
             sched.ScheduleJob(job, trigger);
 
@@ -244,12 +244,12 @@ namespace Quartz.Tests.Integration
             Thread.Yield();
 
             IJobDetail job1 = JobBuilder.Create<TestJobWithSync>()
-                                        .WithIdentity("job1")
-                                        .Build();
+                .WithIdentity("job1")
+                .Build();
 
             ITrigger trigger1 = TriggerBuilder.Create()
-                                              .ForJob(job1)
-                                              .Build();
+                .ForJob(job1)
+                .Build();
 
             DateTime sTime = DateTime.UtcNow;
 
@@ -281,8 +281,8 @@ namespace Quartz.Tests.Integration
             Thread.Yield();
 
             IJobDetail job1 = JobBuilder.Create<TestJobWithSync>()
-                                        .WithIdentity("job1").
-                                         StoreDurably().Build();
+                .WithIdentity("job1").
+                StoreDurably().Build();
             sched.AddJob(job1, false);
 
             DateTime sTime = DateTime.UtcNow;
@@ -332,15 +332,15 @@ namespace Quartz.Tests.Integration
         {
             IJobDetail job = JobBuilder.Create<TestJob>().WithIdentity("job1", "group1").Build();
             ITrigger trigger1 = TriggerBuilder.Create()
-                                              .WithIdentity("trigger1", "group1")
-                                              .StartNow()
-                                              .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
-                                              .Build();
+                .WithIdentity("trigger1", "group1")
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
+                .Build();
             ITrigger trigger2 = TriggerBuilder.Create()
-                                              .WithIdentity("trigger2", "group1")
-                                              .StartNow()
-                                              .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
-                                              .Build();
+                .WithIdentity("trigger2", "group1")
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
+                .Build();
 
             Collection.ISet<ITrigger> triggersForJob = new Collection.HashSet<ITrigger>();
             triggersForJob.Add(trigger1);
@@ -394,5 +394,78 @@ namespace Quartz.Tests.Integration
 
             Assert.That(sched.CheckExists(new JobKey("j2")), "Unexpected non-existence of job named 'j2'.");
         }
+
+#if NET_40
+        [Test]
+        public void TestShutdownWithoutWaitIsUnclean()
+        {
+            List<DateTime> jobExecTimestamps = new List<DateTime>();
+            Barrier barrier = new Barrier(2);
+            IScheduler scheduler = CreateScheduler("testShutdownWithoutWaitIsUnclean", 8);
+            try
+            {
+                scheduler.Context.Put(Barrier, barrier);
+                scheduler.Context.Put(DateStamps, jobExecTimestamps);
+                scheduler.Start();
+                string jobName = Guid.NewGuid().ToString();
+                scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build(), false);
+                scheduler.ScheduleJob(TriggerBuilder.Create().ForJob(jobName).StartNow().Build());
+                while (scheduler.GetCurrentlyExecutingJobs().Count == 0)
+                {
+                    Thread.Sleep(50);
+                }
+            }
+            finally
+            {
+                scheduler.Shutdown(false);
+            }
+
+            barrier.SignalAndWait(testTimeout);
+        }
+
+        [Test]
+        public void TestShutdownWithWaitIsClean()
+        {
+            bool shutdown = false;
+            List<DateTime> jobExecTimestamps = new List<DateTime>();
+            Barrier barrier = new Barrier(2);
+            IScheduler scheduler = CreateScheduler("testShutdownWithoutWaitIsUnclean", 8);
+            try
+            {
+                scheduler.Context.Put(Barrier, barrier);
+                scheduler.Context.Put(DateStamps, jobExecTimestamps);
+                scheduler.Start();
+                string jobName = Guid.NewGuid().ToString();
+                scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build(), false);
+                scheduler.ScheduleJob(TriggerBuilder.Create().ForJob(jobName).StartNow().Build());
+                while (scheduler.GetCurrentlyExecutingJobs().Count == 0)
+                {
+                    Thread.Sleep(50);
+                }
+            }
+            finally
+            {
+                ThreadStart threadStart = () =>
+                                          {
+                                              try
+                                              {
+                                                  scheduler.Shutdown(true);
+                                                  shutdown = true;
+                                              }
+                                              catch (SchedulerException ex)
+                                              {
+                                                  throw new Exception("exeception: " + ex.Message, ex);
+                                              }
+                                          };
+
+                var t = new Thread(threadStart);
+                t.Start();
+                Thread.Sleep(1000);
+                Assert.That(shutdown, Is.False);
+                barrier.SignalAndWait(testTimeout);
+                t.Join();
+            }
+        }
+#endif
     }
 }

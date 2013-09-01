@@ -570,11 +570,11 @@ namespace Quartz.Core
 
             shuttingDown = true;
 
-            log.Info(string.Format(CultureInfo.InvariantCulture, "Scheduler {0} shutting down.", resources.GetUniqueIdentifier()));
+            log.InfoFormat(CultureInfo.InvariantCulture, "Scheduler {0} shutting down.", resources.GetUniqueIdentifier());
 
             Standby();
 
-            schedThread.Halt();
+            schedThread.Halt(waitForJobsToComplete);
 
             NotifySchedulerListenersShuttingdown();
 
@@ -599,20 +599,6 @@ namespace Quartz.Core
             }
 
             resources.ThreadPool.Shutdown(waitForJobsToComplete);
-
-            if (waitForJobsToComplete)
-            {
-                while (jobMgr.NumJobsCurrentlyExecuting > 0)
-                {
-                    try
-                    {
-                        Thread.Sleep(100);
-                    }
-                    catch (ThreadInterruptedException)
-                    {
-                    }
-                }
-            }
 
             // Scheduler thread may have be waiting for the fire time of an acquired 
             // trigger and need time to release the trigger once halted, so make sure

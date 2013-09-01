@@ -200,49 +200,63 @@ namespace Quartz.Simpl
 
                 if (waitForJobsToComplete)
                 {
-                    // wait for hand-off in runInThread to complete...
-                    while (handoffPending)
+                    bool interrupted = false;
+                    try
                     {
-                        try
+                        // wait for hand-off in runInThread to complete...
+                        while (handoffPending)
                         {
-                            Monitor.Wait(nextRunnableLock, 100);
+                            try
+                            {
+                                Monitor.Wait(nextRunnableLock, 100);
+                            }
+                            catch (ThreadInterruptedException)
+                            {
+                                interrupted = true;
+                            }
                         }
-                        catch (ThreadInterruptedException)
+
+                        // Wait until all worker threads are shut down
+                        while (busyWorkers.Count > 0)
                         {
+                            LinkedListNode<WorkerThread> wt = busyWorkers.First;
+                            try
+                            {
+                                log.DebugFormat(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Value.Name);
+
+                                // note: with waiting infinite time the
+                                // application may appear to 'hang'.
+                                Monitor.Wait(nextRunnableLock, 2000);
+                            }
+                            catch (ThreadInterruptedException)
+                            {
+                                interrupted = true;
+                            }
+                        }
+
+                        while (workers.Count > 0)
+                        {
+                            int index = workers.Count - 1;
+                            WorkerThread wt = workers[index];
+                            try
+                            {
+                                wt.Join();
+                                workers.RemoveAt(index);
+                            }
+                            catch (ThreadInterruptedException)
+                            {
+                                interrupted = true;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        if (interrupted)
+                        {
+                            Thread.CurrentThread.Interrupt();
                         }
                     }
 
-                    // Wait until all worker threads are shut down
-                    while (busyWorkers.Count > 0)
-                    {
-                        LinkedListNode<WorkerThread> wt = busyWorkers.First;
-                        try
-                        {
-                            log.DebugFormat(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Value.Name);
-
-                            // note: with waiting infinite time the
-                            // application may appear to 'hang'.
-                            Monitor.Wait(nextRunnableLock, 2000);
-                        }
-                        catch (ThreadInterruptedException)
-                        {
-                        }
-                    }
-
-                    while(workers.Count > 0)
-                    {
-                        int index = workers.Count - 1;
-                        WorkerThread wt = workers[index];
-                        try
-                        {
-                            wt.Join();
-                            workers.RemoveAt(index);
-                        }
-                        catch (ThreadStateException)
-                        {
-                        }
-                    }
-                    
                     log.Debug("No executing jobs remaining, all threads stopped.");
                 }
                 

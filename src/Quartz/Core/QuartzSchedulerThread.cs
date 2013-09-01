@@ -154,7 +154,7 @@ namespace Quartz.Core
         /// <summary>
         /// Signals the main processing loop to pause at the next possible point.
         /// </summary>
-        internal virtual void Halt()
+        internal virtual void Halt(bool wait)
         {
             lock (sigLock)
             {
@@ -167,6 +167,33 @@ namespace Quartz.Core
                 else
                 {
                     SignalSchedulingChange(null);
+                }
+            }
+
+            if (wait)
+            {
+                bool interrupted = false;
+                try
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            Join();
+                            break;
+                        }
+                        catch (ThreadInterruptedException)
+                        {
+                            interrupted = true;
+                        }
+                    }
+                }
+                finally
+                {
+                    if (interrupted)
+                    {
+                        Thread.CurrentThread.Interrupt();
+                    }
                 }
             }
         }

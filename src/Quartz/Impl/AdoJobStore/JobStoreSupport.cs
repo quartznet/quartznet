@@ -69,7 +69,10 @@ namespace Quartz.Impl.AdoJobStore
         private readonly ILog log;
         private IObjectSerializer objectSerializer = new DefaultObjectSerializer();
         private IThreadExecutor threadExecutor = new DefaultThreadExecutor();
+        
         private volatile bool schedulerRunning = false;
+        private volatile bool shutdown = false;
+
         private IDbConnectionManager connectionManager = DBConnectionManager.Instance;
 
         /// <summary>
@@ -582,6 +585,8 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public virtual void Shutdown()
         {
+            shutdown = true;
+
             if (misfireHandler != null)
             {
                 misfireHandler.Shutdown();
@@ -3380,7 +3385,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual T RetryExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback)
         {
-            for (int retry = 1;; retry++)
+            for (int retry = 1; !shutdown; retry++)
             {
                 try
                 {
@@ -3406,6 +3411,8 @@ namespace Quartz.Impl.AdoJobStore
                     throw new InvalidOperationException("Received interrupted exception", e);
                 }
             }
+
+            throw new InvalidOperationException("JobStore is shutdown - aborting retry");
         }
 
         protected void ExecuteInNonManagedTXLock(string lockName, Action<ConnectionAndTransactionHolder> txCallback)
