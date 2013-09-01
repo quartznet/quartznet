@@ -94,6 +94,7 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Data" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs">
@@ -106,6 +107,7 @@
     <Compile Include="ExceptionPolicy\ExceptionJobTest.cs" />
     <Compile Include="Impl\AdoJobStore\AdoJobStoreSmokeTest.cs" />
     <Compile Include="FailFastLoggerFactoryAdapter.cs" />
+    <Compile Include="Impl\AdoJobStore\DeleteNonExistsJobTest.cs" />
     <Compile Include="Impl\Calendar\AnnualCalendarTest.cs">
       <SubType>Code</SubType>
     </Compile>

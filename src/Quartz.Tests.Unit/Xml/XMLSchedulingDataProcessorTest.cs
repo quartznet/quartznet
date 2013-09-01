@@ -20,16 +20,21 @@
 #endregion
 
 using System;
+using System.Collections.Specialized;
+using System.Data;
 using System.IO;
+using System.Threading;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 using Quartz.Xml;
 
 using Rhino.Mocks;
@@ -108,11 +113,11 @@ namespace Quartz.Tests.Unit.Xml
             mockScheduler.Stub(x => x.RescheduleJob(null, null)).IgnoreArguments();
             var args = mockScheduler.GetArgumentsForCallsMadeOn(x => x.RescheduleJob(null, null));
             ITrigger argumentTrigger = (ITrigger) args[0][1];
-            
+
             // replacement trigger should have same start time and next fire relative to old trigger's last fire time 
             Assert.That(argumentTrigger, Is.Not.Null);
             Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
-            Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));         
+            Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
         }
 
         /// <summary>
@@ -185,7 +190,6 @@ namespace Quartz.Tests.Unit.Xml
             }
         }
 
-
         /** QTZ-187 */
 
         [Test]
@@ -217,7 +221,7 @@ namespace Quartz.Tests.Unit.Xml
                 ITrigger trigger = TriggerBuilder.Create()
                     .WithIdentity("job1")
                     .WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
-                
+
                 scheduler.ScheduleJob(job, trigger);
 
                 job = JobBuilder.Create<NoOpJob>()
@@ -265,7 +269,7 @@ namespace Quartz.Tests.Unit.Xml
             processor.ScheduleJobs(mockScheduler);
 
             mockScheduler.AssertWasCalled(x => x.AddJob(Arg<IJobDetail>.Matches(p => p.Key.Group == "DEFAULT"), Arg<bool>.Is.Equal(true)));
-            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Matches(p => p.Key.Group == "DEFAULT" && ((SimpleTriggerImpl)p).RepeatCount == 0)));
+            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Matches(p => p.Key.Group == "DEFAULT" && ((SimpleTriggerImpl) p).RepeatCount == 0)));
         }
 
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)
@@ -274,6 +278,57 @@ namespace Quartz.Tests.Unit.Xml
             Stream stream = typeof (XMLSchedulingDataProcessorTest).Assembly.GetManifestResourceStream(fullName);
             Assert.That(stream, Is.Not.Null, "resource " + resourceName + " not found");
             return new StreamReader(stream).BaseStream;
+        }
+
+        [Test]
+        public void TestRemoveJobTypeNotFound()
+        {
+            NameValueCollection properties = new NameValueCollection();
+
+            properties["quartz.scheduler.instanceName"] = "TestScheduler";
+            properties["quartz.scheduler.instanceId"] = "AUTO";
+            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
+            properties["quartz.jobStore.dataSource"] = "default";
+            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
+            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
+            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+
+            // First we must get a reference to a scheduler
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler scheduler = sf.GetScheduler();
+            try
+            {
+                string jobName = Guid.NewGuid().ToString();
+                IJobDetail jobDetail = JobBuilder.Create<NoOpJob>().WithIdentity(jobName, "DEFAULT").StoreDurably().Build();
+                ITrigger trigger = TriggerBuilder.Create().WithIdentity(jobName).WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?")).Build();
+                scheduler.ScheduleJob(jobDetail, trigger);
+                ModifyStoredJobType();
+
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
+
+                // when
+                processor.ProcessStream(ReadJobXmlFromEmbeddedResource("MissingJobType.xml"), "temp");
+            }
+            finally
+            {
+                scheduler.Shutdown(false);
+            }
+        }
+
+        private void ModifyStoredJobType()
+        {
+            using (var conn = DBConnectionManager.Instance.GetConnection("default"))
+            {
+                conn.Open();
+                using (IDbCommand dbCommand = conn.CreateCommand())
+                {
+                    dbCommand.CommandType = CommandType.Text;
+                    dbCommand.CommandText = "update qrtz_job_details set job_class_name='com.FakeNonExistsJob'";
+                    dbCommand.ExecuteNonQuery();
+                }
+                conn.Close();
+            }
         }
     }
 }

@@ -1377,14 +1377,12 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary>
-        /// Select the job to which the trigger is associated.
-        /// </summary>
-        /// <param name="conn">the DB Connection</param>
-        /// <param name="triggerKey">the key of the trigger</param>
-        /// <param name="loadHelper">The load helper.</param>
-        /// <returns>The <see cref="IJobDetail" /> object associated with the given trigger</returns>
         public virtual IJobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper)
+        {
+            return SelectJobForTrigger(conn, triggerKey, loadHelper, true);
+        }
+
+        public virtual IJobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper, bool loadJobType)
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobForTrigger)))
             {
@@ -1398,7 +1396,10 @@ namespace Quartz.Impl.AdoJobStore
                         job.Name = rs.GetString(ColumnJobName);
                         job.Group = rs.GetString(ColumnJobGroup);
                         job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
-                        job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass));
+                        if (loadJobType)
+                        {
+                            job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass));
+                        }
                         job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
 
                         return job;

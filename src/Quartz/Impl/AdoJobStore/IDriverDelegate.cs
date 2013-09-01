@@ -374,13 +374,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Select the job to which the trigger is associated.
         /// </summary>
-        /// <param name="conn">The DB Connection</param>
-        /// <param name="triggerKey">The key identifying the trigger.</param>
-        /// <param name="loadHelper">The load helper.</param>
-        /// <returns>
-        /// The <see cref="IJobDetail" /> object associated with the given trigger
-        /// </returns>
         IJobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper);
+
+        /// <summary>
+        /// Select the job to which the trigger is associated. Allow option to load actual job class or not. When case of
+        /// remove, we do not need to load the type, which in many cases, it's no longer exists.
+        /// </summary>
+        IJobDetail SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper, bool loadJobType);
 
 		/// <summary>
 		/// Select the triggers for a job>

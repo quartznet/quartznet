@@ -397,6 +397,7 @@
     <Compile Include="Util\DirtyFlagMap.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\IDbConnectionManager.cs" />
     <Compile Include="Util\Key.cs">
       <SubType>Code</SubType>
     </Compile>

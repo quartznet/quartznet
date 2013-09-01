@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * Copyright 2009- Marko Lahma
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -64,7 +66,11 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <param name="connectionString">The connection string.</param>
         public DbProvider(string dbProviderName, string connectionString)
         {
-            List<string> deprecatedProviders = new List<string> { "Npgsql-10", "SqlServer-11" };
+            List<string> deprecatedProviders = new List<string>
+                                               {
+                                                   "Npgsql-10",
+                                                   "SqlServer-11"
+                                               };
 
             if (deprecatedProviders.Contains(dbProviderName))
             {
@@ -93,7 +99,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         public static void RegisterDbMetadata(string dbProviderName, DbMetadata metadata)
         {
             dbMetadataLookup[dbProviderName] = metadata;
-         }
+        }
 
         protected virtual DbMetadata GetDbMetadata(string providerName)
         {
@@ -117,10 +123,10 @@ namespace Quartz.Impl.AdoJobStore.Common
                 catch (Exception ex)
                 {
                     throw new Exception("Error while reading metadata information for provider '" + providerName + "'",
-                                        ex);
+                        ex);
                 }
             }
-            
+
             return data;
         }
 
@@ -141,7 +147,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>An new <see cref="IDbCommand"/></returns>
         public virtual IDbCommand CreateCommand()
         {
-            return ObjectUtils.InstantiateType<IDbCommand>(dbMetadata.CommandType); 
+            return ObjectUtils.InstantiateType<IDbCommand>(dbMetadata.CommandType);
         }
 
         /// <summary>
@@ -153,7 +159,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// be portable (but more loosely typed) across .NET 1.1/2.0</remarks>
         public virtual object CreateCommandBuilder()
         {
-            return ObjectUtils.InstantiateType<object>(dbMetadata.CommandBuilderType); 
+            return ObjectUtils.InstantiateType<object>(dbMetadata.CommandBuilderType);
         }
 
         /// <summary>
@@ -201,9 +207,6 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// </summary>
         public virtual void Shutdown()
         {
-
         }
-
-
     }
 }

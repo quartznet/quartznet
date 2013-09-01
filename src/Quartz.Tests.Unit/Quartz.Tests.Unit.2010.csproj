@@ -189,6 +189,7 @@
     <EmbeddedResource Include="Xml\TestData\SimpleTriggerNoRepeat.xml">
       <SubType>Designer</SubType>
     </EmbeddedResource>
+    <EmbeddedResource Include="Xml\TestData\MissingJobType.xml" />
     <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -1226,7 +1226,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 // this must be called before we delete the trigger, obviously
                 // we use fault tolerant type loading as we only want to delete things
-                IJobDetail job = Delegate.SelectJobForTrigger(conn, triggerKey, new NoOpJobTypeLoader());
+                IJobDetail job = Delegate.SelectJobForTrigger(conn, triggerKey, new NoOpJobTypeLoader(), false);
 
                 removedTrigger = DeleteTriggerAndChildren(conn, triggerKey);
 
