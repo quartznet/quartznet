@@ -48,11 +48,13 @@ namespace Quartz.Impl.AdoJobStore
     {
         public static readonly string SqlUpdateForLock =
             string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = {3} WHERE {4} = {5} AND {6} = @lockName",
-                          TablePrefixSubst, TableLocks, ColumnLockName, ColumnLockName, ColumnSchedulerName, SchedulerNameSubst, ColumnLockName);
+                TablePrefixSubst, TableLocks, ColumnLockName, ColumnLockName, ColumnSchedulerName, SchedulerNameSubst, ColumnLockName);
 
         public static readonly string SqlInsertLock =
             string.Format("INSERT INTO {0}{1}({2}, {3}) VALUES ({4}, @lockName)",
-                          TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName, SchedulerNameSubst);
+                TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName, SchedulerNameSubst);
+
+        private const int RetryCount = 2;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UpdateLockRowSemaphore"/> class.
@@ -71,93 +73,68 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="expandedInsertSQL"></param>
         protected override void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL)
         {
-            // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)
-            int count = 0;
-            do
+            Exception lastFailure = null;
+            for (int i = 0; i < RetryCount; i++)
             {
-                count++;
                 try
                 {
-                    using (IDbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSQL))
+                    if (!LockViaUpdate(conn, lockName, expandedSQL))
                     {
-                        AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
-
-                        if (Log.IsDebugEnabled)
-                        {
-                            Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, Thread.CurrentThread.Name);
-                        }
-
-                        int numUpdate = cmd.ExecuteNonQuery();
-
-                        if (numUpdate < 1)
-                        {
-                            if (Log.IsDebugEnabled)
-                            {
-                                Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, Thread.CurrentThread.Name);
-                            }
-                            using (IDbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSQL))
-                            {
-                                AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
-
-                                int res = cmd2.ExecuteNonQuery();
-
-                                if (res != 1)
-                                {
-                                    if (count < 3)
-                                    {
-                                        // pause a bit to give another thread some time to commit the insert of the new lock row
-                                        try
-                                        {
-                                            Thread.Sleep(TimeSpan.FromSeconds(1));
-                                        }
-                                        catch (ThreadInterruptedException)
-                                        {
-                                            Thread.CurrentThread.Interrupt();
-                                        }
-                                        // try again ...
-                                        continue;
-                                    }
-                                    throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix(
-                                        "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
-                                        " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
-                                }
-                            }
-
-                            break; // obtained lock, no need to retry
-                        }
+                        LockViaInsert(conn, lockName, expandedInsertSQL);
                     }
+                    return;
                 }
-                catch (Exception sqle)
+                catch (Exception e)
                 {
-                    if (Log.IsDebugEnabled)
+                    lastFailure = e;
+                    if ((i + 1) == RetryCount)
                     {
-                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, Thread.CurrentThread.Name, (count < 3 ? " - will try again." : ""));
+                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}", lockName, Thread.CurrentThread.Name);
                     }
-
-                    if (count < 3)
+                    else
                     {
-                        // pause a bit to give another thread some time to commit the insert of the new lock row
-                        try
-                        {
-                            Thread.Sleep(TimeSpan.FromSeconds(1));
-                        }
-                        catch (ThreadInterruptedException)
-                        {
-                            Thread.CurrentThread.Interrupt();
-                        }
-                        // try again ...
-                        continue;
+                        Log.DebugFormat("Lock '{0}' was not obtained by: {1} - will try again.", lockName, Thread.CurrentThread.Name);
                     }
-
-                    throw new LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
+                    try
+                    {
+                        Thread.Sleep(TimeSpan.FromSeconds(1));
+                    }
+                    catch (ThreadInterruptedException)
+                    {
+                        Thread.CurrentThread.Interrupt();
+                    }
                 }
-            } while (count < 2);
+            }
+            if (lastFailure != null)
+            {
+                throw new LockException("Failure obtaining db row lock: " + lastFailure.Message, lastFailure);
+            }
         }
 
-        protected string UpdateLockRowSQL
+        private bool LockViaUpdate(ConnectionAndTransactionHolder conn, string lockName, string sql)
         {
-            get { return SQL; }
-            set { SQL = value; }
+            using (IDbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
+            {
+                AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
+
+                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, Thread.CurrentThread.Name);
+                return cmd.ExecuteNonQuery() >= 1;
+            }
+        }
+
+        private void LockViaInsert(ConnectionAndTransactionHolder conn, String lockName, String sql)
+        {
+            Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, Thread.CurrentThread.Name);
+            using (IDbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
+            {
+                AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
+
+                if (cmd.ExecuteNonQuery() != 1)
+                {
+                    throw new DataException(
+                        AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
+                }
+            }
         }
     }
 }
