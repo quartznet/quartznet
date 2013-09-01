@@ -189,7 +189,8 @@
     <EmbeddedResource Include="Xml\TestData\SimpleTriggerNoRepeat.xml">
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="Xml\TestData\MissingJobType.xml" />
+    <EmbeddedResource Include="Xml\TestData\delete-no-job-class.xml" />
+    <EmbeddedResource Include="Xml\TestData\directives_overwrite_no-ignoredups.xml" />
     <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -255,10 +256,10 @@
     <EmbeddedResource Include="Xml\TestData\SimpleJobTrigger.xml" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Xml\TestData\DirectivesNoOverwriteIgnoreDups.xml" />
+    <EmbeddedResource Include="Xml\TestData\ScheduleRelativeToOldTrigger.xml" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Xml\TestData\ScheduleRelativeToOldTrigger.xml" />
+    <EmbeddedResource Include="Xml\TestData\overwrite-no-jobclass.xml" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

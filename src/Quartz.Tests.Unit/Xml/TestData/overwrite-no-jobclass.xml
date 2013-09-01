@@ -1,0 +1,34 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+
+  <processing-directives>
+    <overwrite-existing-data>true</overwrite-existing-data>
+    <ignore-duplicates>false</ignore-duplicates>
+  </processing-directives>
+
+  <schedule>
+    <job>
+      <name>job1</name>
+      <group>DEFAULT</group>
+      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <job-data-map>
+        <entry>
+          <key>foo</key>
+          <value>bar</value>
+        </entry>
+      </job-data-map>
+    </job>
+    <trigger>
+      <simple>
+        <name>job1</name>
+        <group>DEFAULT</group>
+        <job-name>job1</job-name>
+        <job-group>DEFAULT</job-group>
+        <repeat-count>-1</repeat-count>
+        <repeat-interval>1500</repeat-interval>
+      </simple>
+    </trigger>
+
+  </schedule>
+
+</job-scheduling-data>

@@ -23,12 +23,10 @@ using System;
 using System.Collections.Specialized;
 using System.Data;
 using System.IO;
-using System.Threading;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
-using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
@@ -294,21 +292,95 @@ namespace Quartz.Tests.Unit.Xml
             properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
             properties["quartz.dataSource.default.provider"] = "SqlServer-20";
 
-            // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler scheduler = sf.GetScheduler();
+
             try
             {
                 string jobName = Guid.NewGuid().ToString();
-                IJobDetail jobDetail = JobBuilder.Create<NoOpJob>().WithIdentity(jobName, "DEFAULT").StoreDurably().Build();
-                ITrigger trigger = TriggerBuilder.Create().WithIdentity(jobName).WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?")).Build();
+                IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
+                    .WithIdentity(jobName, "DEFAULT")
+                    .UsingJobData("foo", "foo")
+                    .Build();
+                ITrigger trigger = TriggerBuilder.Create()
+                    .WithIdentity(jobName)
+                    .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
+                    .Build();
+
                 scheduler.ScheduleJob(jobDetail, trigger);
+
+                IJobDetail jobDetail2 = scheduler.GetJobDetail(jobDetail.Key);
+                ITrigger trigger2 = scheduler.GetTrigger(trigger.Key);
+                Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("foo"));
+                Assert.That(trigger2, Is.InstanceOf<ICronTrigger>());
+
                 ModifyStoredJobType();
 
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
 
                 // when
-                processor.ProcessStream(ReadJobXmlFromEmbeddedResource("MissingJobType.xml"), "temp");
+                processor.ProcessStream(ReadJobXmlFromEmbeddedResource("delete-no-job-class.xml"), "temp");
+
+                jobDetail2 = scheduler.GetJobDetail(jobDetail.Key);
+                trigger2 = scheduler.GetTrigger(trigger.Key);
+                Assert.That(trigger2, Is.Null);
+                Assert.That(jobDetail2, Is.Null);
+
+                jobDetail2 = scheduler.GetJobDetail(new JobKey("job1", "DEFAULT"));
+                trigger2 = scheduler.GetTrigger(new TriggerKey("job1", "DEFAULT"));
+                Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("bar"));
+                Assert.That(trigger2, Is.InstanceOf<ISimpleTrigger>());
+            }
+            finally
+            {
+                scheduler.Shutdown(false);
+            }
+        }
+
+        [Test]
+        public void TestOverwriteJobTypeNotFound()
+        {
+            NameValueCollection properties = new NameValueCollection();
+
+            properties["quartz.scheduler.instanceName"] = "TestScheduler";
+            properties["quartz.scheduler.instanceId"] = "AUTO";
+            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
+            properties["quartz.jobStore.dataSource"] = "default";
+            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
+            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
+            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler scheduler = sf.GetScheduler();
+            try
+            {
+                string jobName = Guid.NewGuid().ToString();
+                IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
+                    .WithIdentity(jobName, "DEFAULT")
+                    .UsingJobData("foo", "foo")
+                    .Build();
+                ITrigger trigger = TriggerBuilder.Create()
+                    .WithIdentity(jobName, "DEFAULT")
+                    .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
+                    .Build();
+                scheduler.ScheduleJob(jobDetail, trigger);
+
+                IJobDetail jobDetail2 = scheduler.GetJobDetail(jobDetail.Key);
+                ITrigger trigger2 = scheduler.GetTrigger(trigger.Key);
+                Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("foo"));
+                Assert.That(trigger2, Is.InstanceOf<ICronTrigger>());
+
+                ModifyStoredJobType();
+
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
+
+                processor.ProcessStream(ReadJobXmlFromEmbeddedResource("overwrite-no-jobclass.xml"), "temp");
+
+                jobDetail2 = scheduler.GetJobDetail(jobDetail.Key);
+                trigger2 = scheduler.GetTrigger(trigger.Key);
+                Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("bar"));
+                Assert.That(trigger2, Is.InstanceOf<ISimpleTrigger>());
             }
             finally
             {
@@ -328,6 +400,41 @@ namespace Quartz.Tests.Unit.Xml
                     dbCommand.ExecuteNonQuery();
                 }
                 conn.Close();
+            }
+        }
+
+        [Test]
+        public void TestDirectivesOverwriteWithNoIgnoreDups()
+        {
+            IScheduler scheduler = null;
+            try
+            {
+                StdSchedulerFactory factory = new StdSchedulerFactory();
+                scheduler = factory.GetScheduler();
+
+                // Setup existing job with same names as in xml data.
+                string job1 = Guid.NewGuid().ToString();
+                IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(job1).Build();
+                ITrigger trigger = TriggerBuilder.Create().WithIdentity(job1).WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
+                scheduler.ScheduleJob(job, trigger);
+
+                string job2 = Guid.NewGuid().ToString();
+                job = JobBuilder.Create<NoOpJob>().WithIdentity(job2).Build();
+                trigger = TriggerBuilder.Create().WithIdentity(job2).WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
+                scheduler.ScheduleJob(job, trigger);
+
+                // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
+                processor.ProcessStream(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml"), "temp");
+                Assert.That(scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT")).Count, Is.EqualTo(2));
+                Assert.That(scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT")).Count, Is.EqualTo(2));
+            }
+            finally
+            {
+                if (scheduler != null)
+                {
+                    scheduler.Shutdown();
+                }
             }
         }
     }

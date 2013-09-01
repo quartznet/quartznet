@@ -1168,7 +1168,7 @@ namespace Quartz.Impl.AdoJobStore
         public IJobDetail RetrieveJob(JobKey jobKey)
         {
             // no locks necessary for read...
-            return (IJobDetail) ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey));
+            return ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey));
         }
 
         protected virtual IJobDetail RetrieveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)

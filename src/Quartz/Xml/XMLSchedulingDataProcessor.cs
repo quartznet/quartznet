@@ -699,7 +699,26 @@ namespace Quartz.Xml
                 IJobDetail detail = jobs[0];
                 jobs.Remove(detail);
 
-                IJobDetail dupeJ = sched.GetJobDetail(detail.Key);
+                IJobDetail dupeJ = null;
+                try
+                {
+                    // The existing job could have been deleted, and Quartz API doesn't allow us to query this without
+                    // loading the job class, so use try/catch to handle it.
+                    dupeJ = sched.GetJobDetail(detail.Key);
+                }
+                catch (JobPersistenceException e)
+                {
+                    if (e.InnerException is TypeLoadException && OverWriteExistingData)
+                    {
+                        // We are going to replace jobDetail anyway, so just delete it first.
+                        log.Info("Removing job: " + detail.Key);
+                        sched.DeleteJob(detail.Key);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
 
                 if ((dupeJ != null))
                 {
@@ -747,7 +766,14 @@ namespace Quartz.Xml
 
                 if (dupeJ != null || detail.Durable)
                 {
-                    sched.AddJob(detail, true); // add the job if a replacement or durable
+                    if (triggersOfJob != null && triggersOfJob.Count > 0)
+                    {
+                        sched.AddJob(detail, true, true); // add the job regardless is durable or not b/c we have trigger to add
+                    }
+                    else
+                    {
+                        sched.AddJob(detail, true, false); // add the job only if a replacement or durable, else exception will throw!
+                    }
                 }
                 else
                 {
