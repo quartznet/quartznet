@@ -1543,7 +1543,23 @@ namespace Quartz.Impl.AdoJobStore
                                 throw new JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
                             }
 
-                            TriggerPropertyBundle triggerProps = tDel.LoadExtendedTriggerProperties(conn, triggerKey);
+                            TriggerPropertyBundle triggerProps;
+                            try
+                            {
+                                triggerProps = tDel.LoadExtendedTriggerProperties(conn, triggerKey);
+                            }
+                            catch (InvalidOperationException)
+                            {
+                                if (IsTriggerStillPresent(cmd))
+                                {
+                                    throw;
+                                }
+                                else
+                                {
+                                    // QTZ-386 Trigger has been deleted
+                                    return null;
+                                }
+                            }
 
                             TriggerBuilder tb = TriggerBuilder.Create()
                                 .WithDescription(description)
@@ -1576,6 +1592,13 @@ namespace Quartz.Impl.AdoJobStore
             return trigger;
         }
 
+        private static bool IsTriggerStillPresent(IDbCommand command)
+        {
+            using (var rs = command.ExecuteReader())
+            {
+                return rs.Read();
+            }
+        }
 
         private static void SetTriggerStateProperties(IOperableTrigger trigger, TriggerPropertyBundle props)
         {
