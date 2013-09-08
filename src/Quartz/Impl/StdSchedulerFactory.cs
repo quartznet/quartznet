@@ -1033,17 +1033,19 @@ Please add configuration to your application config file to correctly initialize
             }
             catch (SchedulerException)
             {
-                if (qsInited)
-                {
-                    qs.Shutdown(false);
-                }
-                else if (tpInited)
-                {
-                    tp.Shutdown(false);
-                }
+                ShutdownFromInstantiateException(tp, qs, tpInited, qsInited);
                 throw;
             }
             catch
+            {
+                ShutdownFromInstantiateException(tp, qs, tpInited, qsInited);
+                throw;
+            }
+        }
+
+        private void ShutdownFromInstantiateException(IThreadPool tp, QuartzScheduler qs, bool tpInited, bool qsInited)
+        {
+            try
             {
                 if (qsInited)
                 {
@@ -1053,7 +1055,10 @@ Please add configuration to your application config file to correctly initialize
                 {
                     tp.Shutdown(false);
                 }
-                throw;
+            }
+            catch (Exception e)
+            {
+                Log.Error("Got another exception while shutting down after instantiation exception", e);
             }
         }
 
