@@ -1141,7 +1141,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Delete a job and its listeners.
         /// </summary>
         /// <seealso cref="JobStoreSupport.RemoveJob(ConnectionAndTransactionHolder, JobKey, bool)" />
-        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey)" />
+        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail)" />
         private bool DeleteJobAndChildren(ConnectionAndTransactionHolder conn, JobKey key)
         {
             return (Delegate.DeleteJobDetail(conn, key) > 0);
@@ -1151,7 +1151,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Delete a trigger, its listeners, and its Simple/Cron/BLOB sub-table entry.
         /// </summary>
         /// <seealso cref="RemoveJob(ConnectionAndTransactionHolder, JobKey, bool)" />
-        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey)" />
+        /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail)" />
         /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, TriggerKey, IOperableTrigger)" />
         private bool DeleteTriggerAndChildren(ConnectionAndTransactionHolder conn, TriggerKey key)
         {
@@ -1219,14 +1219,17 @@ namespace Quartz.Impl.AdoJobStore
             return (bool) ExecuteInLock(LockTriggerAccess, conn => RemoveTrigger(conn, triggerKey));
         }
 
-        protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, IJobDetail job = null)
         {
             bool removedTrigger;
             try
             {
                 // this must be called before we delete the trigger, obviously
                 // we use fault tolerant type loading as we only want to delete things
-                IJobDetail job = Delegate.SelectJobForTrigger(conn, triggerKey, new NoOpJobTypeLoader(), false);
+                if (job == null)
+                {
+                    job = Delegate.SelectJobForTrigger(conn, triggerKey, new NoOpJobTypeLoader(), false);
+                }
 
                 removedTrigger = DeleteTriggerAndChildren(conn, triggerKey);
 
@@ -2713,12 +2716,12 @@ namespace Quartz.Impl.AdoJobStore
                         TriggerStatus stat = Delegate.SelectTriggerStatus(conn, trigger.Key);
                         if (stat != null && !stat.NextFireTimeUtc.HasValue)
                         {
-                            RemoveTrigger(conn, trigger.Key);
+                            RemoveTrigger(conn, trigger.Key, jobDetail);
                         }
                     }
                     else
                     {
-                        RemoveTrigger(conn, trigger.Key);
+                        RemoveTrigger(conn, trigger.Key, jobDetail);
                         SignalSchedulingChangeOnTxCompletion(null);
                     }
                 }
