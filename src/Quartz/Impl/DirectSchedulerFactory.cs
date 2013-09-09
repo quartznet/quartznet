@@ -253,29 +253,64 @@ namespace Quartz.Impl
                                             IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
                                             TimeSpan dbFailureRetryInterval)
         {
-            CreateScheduler(schedulerName, schedulerInstanceId, threadPool, threadExecutor, jobStore, schedulerPluginMap, idleWaitTime, dbFailureRetryInterval, DefaultBatchMaxSize, DefaultBatchTimeWindow);
+            CreateScheduler(schedulerName, schedulerInstanceId, threadPool, threadExecutor, jobStore, schedulerPluginMap, idleWaitTime, DefaultBatchMaxSize, DefaultBatchTimeWindow);
            
         }
 
+	    /// <summary>
+	    /// Creates a scheduler using the specified thread pool and job store and
+	    /// binds it for remote access.
+	    /// </summary>
+	    /// <param name="schedulerName">The name for the scheduler.</param>
+	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+	    /// <param name="threadPool">The thread pool for executing jobs</param>
+	    /// <param name="threadExecutor">Thread executor.</param>
+	    /// <param name="jobStore">The type of job store</param>
+	    /// <param name="schedulerPluginMap"></param>
+	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
+	    ///     the default value, which is currently 30000 ms.</param>
+	    /// <param name="maxBatchSize">The maximum batch size of triggers, when acquiring them</param>
+	    /// <param name="batchTimeWindow">The time window for which it is allowed to "pre-acquire" triggers to fire</param>
+	    public virtual void CreateScheduler(
+	        string schedulerName,
+	        string schedulerInstanceId,
+	        IThreadPool threadPool,
+	        IThreadExecutor threadExecutor,
+	        IJobStore jobStore,
+	        IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
+	        TimeSpan idleWaitTime,
+	        int maxBatchSize,
+	        TimeSpan batchTimeWindow)
+	    {
+	        CreateScheduler(schedulerName, schedulerInstanceId, threadPool, threadExecutor, jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, null);
+	    }
 
-        /// <summary>
-        /// Creates a scheduler using the specified thread pool and job store and
-        /// binds it for remote access.
-        /// </summary>
-        /// <param name="schedulerName">The name for the scheduler.</param>
-        /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-        /// <param name="threadPool">The thread pool for executing jobs</param>
-        /// <param name="threadExecutor">Thread executor.</param>
-        /// <param name="jobStore">The type of job store</param>
-        /// <param name="schedulerPluginMap"></param>
-        /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
-        /// the default value, which is currently 30000 ms.</param>
-        /// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
-        /// <param name="maxBatchSize">The maximum batch size of triggers, when acquiring them</param>
-        /// <param name="batchTimeWindow">The time window for which it is allowed to "pre-acquire" triggers to fire</param>
-        public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IThreadExecutor threadExecutor,
-                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
-                                            TimeSpan dbFailureRetryInterval, int maxBatchSize, TimeSpan batchTimeWindow)
+	    /// <summary>
+	    /// Creates a scheduler using the specified thread pool and job store and
+	    /// binds it for remote access.
+	    /// </summary>
+	    /// <param name="schedulerName">The name for the scheduler.</param>
+	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+	    /// <param name="threadPool">The thread pool for executing jobs</param>
+	    /// <param name="threadExecutor">Thread executor.</param>
+	    /// <param name="jobStore">The type of job store</param>
+	    /// <param name="schedulerPluginMap"></param>
+	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
+	    ///     the default value, which is currently 30000 ms.</param>
+	    /// <param name="maxBatchSize">The maximum batch size of triggers, when acquiring them</param>
+	    /// <param name="batchTimeWindow">The time window for which it is allowed to "pre-acquire" triggers to fire</param>
+	    /// <param name="schedulerExporter">The scheduler exporter to use</param>
+	    public virtual void CreateScheduler(
+            string schedulerName, 
+            string schedulerInstanceId, 
+            IThreadPool threadPool, 
+            IThreadExecutor threadExecutor, 
+            IJobStore jobStore, 
+            IDictionary<string, ISchedulerPlugin> schedulerPluginMap, 
+            TimeSpan idleWaitTime, 
+            int maxBatchSize, 
+            TimeSpan batchTimeWindow, 
+            ISchedulerExporter schedulerExporter)
         {
             // Currently only one run-shell factory is available...
             IJobRunShellFactory jrsf = new StdJobRunShellFactory();
@@ -297,6 +332,7 @@ namespace Quartz.Impl
             qrs.JobStore = jobStore;
             qrs.MaxBatchSize = maxBatchSize;
             qrs.BatchTimeWindow = batchTimeWindow;
+            qrs.SchedulerExporter = schedulerExporter;
 
             // add plugins
             if (schedulerPluginMap != null)

@@ -19,6 +19,7 @@ BREAKING CHANGES
  * database schema needs upgrade
  * add SchedulerStarting() method to ISchedulerListener interface
  * make the scheduler's TypeLoadHelper available to plugins when they are initialized 
+ * dbFailureRetryInterval parameter was removed from DirectSchedulerFactory APIs
 
 NEW FEATURES
 
