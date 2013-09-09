@@ -1178,11 +1178,13 @@ namespace Quartz.Impl.AdoJobStore
                 IJobDetail job = Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper);
                 return job;
             }
-
+            catch (TypeLoadException e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve job because a required type was not found: " + e.Message, e);
+            }
             catch (IOException e)
             {
-                throw new JobPersistenceException(
-                    "Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e);
+                throw new JobPersistenceException("Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e);
             }
             catch (Exception e)
             {

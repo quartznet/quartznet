@@ -39,6 +39,7 @@ FIXES
  * DailyTimeIntervalScheduleBuilder.EndingDailyAfterCount(...) doesn't pass validation
  * trace throwing exception
  * bug in QuartzSchedulerThread.GetRandomizedIdleWaitTime()
+ * can't delete or replace job without the referenced class
  
 MISC
 

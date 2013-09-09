@@ -23,6 +23,7 @@ using System;
 using System.Collections.Specialized;
 using System.Data;
 using System.IO;
+using System.Transactions;
 
 using NUnit.Framework;
 
@@ -50,12 +51,23 @@ namespace Quartz.Tests.Unit.Xml
     {
         private XMLSchedulingDataProcessor processor;
         private IScheduler mockScheduler;
+        private TransactionScope scope;
 
         [SetUp]
         public void SetUp()
         {
             processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
             mockScheduler = MockRepository.GenerateMock<IScheduler>();
+            scope = new TransactionScope();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            if (scope != null)
+            {
+                scope.Dispose();
+            }
         }
 
         [Test]
@@ -85,9 +97,8 @@ namespace Quartz.Tests.Unit.Xml
         public void TestScheduling_QuartzNet250()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
-            processor.ProcessStream(s, null);
-            processor.ScheduleJobs(mockScheduler);
-            mockScheduler.AssertWasCalled(x => x.AddJob(Arg<IJobDetail>.Is.NotNull, Arg<bool>.Is.Anything), constraints => constraints.Repeat.Twice());
+            processor.ProcessStreamAndScheduleJobs(s, mockScheduler);
+            mockScheduler.AssertWasCalled(x => x.AddJob(Arg<IJobDetail>.Is.NotNull, Arg<bool>.Is.Anything, Arg<bool>.Is.Equal(true)), constraints => constraints.Repeat.Twice());
             mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Is.NotNull), constraints => constraints.Repeat.Twice());
         }
 
@@ -197,7 +208,7 @@ namespace Quartz.Tests.Unit.Xml
             string tempFileName = XMLSchedulingDataProcessor.QuartzXmlFileName;
             using (TextWriter writer = new StreamWriter(tempFileName, false))
             {
-                using (StreamReader reader = new StreamReader(ReadJobXmlFromEmbeddedResource("DirectivesNoOverwriteIgnoreDups.xml")))
+                using (StreamReader reader = new StreamReader(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml")))
                 {
                     writer.Write(reader.ReadToEnd());
                     writer.Flush();
@@ -261,13 +272,20 @@ namespace Quartz.Tests.Unit.Xml
         [Test]
         public void TestSimpleTriggerNoRepeat()
         {
-            Stream s = ReadJobXmlFromEmbeddedResource("SimpleTriggerNoRepeat.xml");
-            processor.ProcessStream(s, null);
-
-            processor.ScheduleJobs(mockScheduler);
-
-            mockScheduler.AssertWasCalled(x => x.AddJob(Arg<IJobDetail>.Matches(p => p.Key.Group == "DEFAULT"), Arg<bool>.Is.Equal(true)));
-            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Matches(p => p.Key.Group == "DEFAULT" && ((SimpleTriggerImpl) p).RepeatCount == 0)));
+            IScheduler scheduler = CreateDbBackedScheduler();
+            try
+            {
+                processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("SimpleTriggerNoRepeat.xml"), mockScheduler);
+                Assert.That(scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT")).Count, Is.EqualTo(1));
+                Assert.That(scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT")).Count, Is.EqualTo(1));
+            }
+            finally 
+            {
+                if (scheduler != null)
+                {
+                    scheduler.Shutdown();
+                }
+            }
         }
 
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)
@@ -281,29 +299,17 @@ namespace Quartz.Tests.Unit.Xml
         [Test]
         public void TestRemoveJobTypeNotFound()
         {
-            NameValueCollection properties = new NameValueCollection();
-
-            properties["quartz.scheduler.instanceName"] = "TestScheduler";
-            properties["quartz.scheduler.instanceId"] = "AUTO";
-            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
-            properties["quartz.jobStore.dataSource"] = "default";
-            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
-            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
-
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler scheduler = sf.GetScheduler();
+            var scheduler = CreateDbBackedScheduler();
 
             try
             {
-                string jobName = Guid.NewGuid().ToString();
+                string jobName = "testjob1";
                 IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
                     .WithIdentity(jobName, "DEFAULT")
                     .UsingJobData("foo", "foo")
                     .Build();
                 ITrigger trigger = TriggerBuilder.Create()
-                    .WithIdentity(jobName)
+                    .WithIdentity(jobName, "DEFAULT")
                     .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                     .Build();
 
@@ -319,7 +325,7 @@ namespace Quartz.Tests.Unit.Xml
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
 
                 // when
-                processor.ProcessStream(ReadJobXmlFromEmbeddedResource("delete-no-job-class.xml"), "temp");
+                processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("delete-no-job-class.xml"), scheduler);
 
                 jobDetail2 = scheduler.GetJobDetail(jobDetail.Key);
                 trigger2 = scheduler.GetTrigger(trigger.Key);
@@ -337,8 +343,7 @@ namespace Quartz.Tests.Unit.Xml
             }
         }
 
-        [Test]
-        public void TestOverwriteJobTypeNotFound()
+        private static IScheduler CreateDbBackedScheduler()
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -353,9 +358,16 @@ namespace Quartz.Tests.Unit.Xml
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler scheduler = sf.GetScheduler();
+            return scheduler;
+        }
+
+        [Test]
+        public void TestOverwriteJobTypeNotFound()
+        {
+            IScheduler scheduler = CreateDbBackedScheduler();
             try
             {
-                string jobName = Guid.NewGuid().ToString();
+                string jobName = "job1";
                 IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
                     .WithIdentity(jobName, "DEFAULT")
                     .UsingJobData("foo", "foo")
@@ -375,7 +387,7 @@ namespace Quartz.Tests.Unit.Xml
 
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
 
-                processor.ProcessStream(ReadJobXmlFromEmbeddedResource("overwrite-no-jobclass.xml"), "temp");
+                processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("overwrite-no-jobclass.xml"), scheduler);
 
                 jobDetail2 = scheduler.GetJobDetail(jobDetail.Key);
                 trigger2 = scheduler.GetTrigger(trigger.Key);

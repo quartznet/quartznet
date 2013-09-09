@@ -168,8 +168,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             adoDelegate.Initialize(delegateInitializationArgs);
 
             // Mock basic trigger data
-            dataReader.Stub(x => x.Read()).Return(true).Repeat.Once();
-            dataReader.Stub(x => x.Read()).Return(false);
+            dataReader.Stub(x => x.Read()).Return(true).Repeat.Any();
             dataReader.Stub(x => x[AdoConstants.ColumnTriggerType]).Return(AdoConstants.TriggerTypeSimple);
 
             try

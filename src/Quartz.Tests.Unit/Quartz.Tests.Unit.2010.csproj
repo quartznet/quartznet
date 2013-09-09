@@ -104,6 +104,7 @@
     <Reference Include="System.Data">
       <Name>System.Data</Name>
     </Reference>
+    <Reference Include="System.Transactions" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs">
@@ -144,7 +145,9 @@
     </Compile>
     <Compile Include="Impl\AdoJobStore\Common\DbMetadataTest.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProviderTest.cs" />
-    <Compile Include="Impl\AdoJobStore\StdAdoDelegateTest.cs" />
+    <Compile Include="Impl\AdoJobStore\StdAdoDelegateTest.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Impl\Calendar\AnnualCalendarTest.cs" />
     <Compile Include="Impl\Calendar\MonthlyCalendarTest.cs" />
     <Compile Include="Impl\Calendar\WeeklyCalendarTest.cs" />

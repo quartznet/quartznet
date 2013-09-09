@@ -94,6 +94,8 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             // to ensure job will not be refired in consequent tests
             // in fact, it would be better to have a separate class
             ExceptionJob.ThrowsException = false;
+
+            Thread.Sleep(1000); 
             sched.DeleteJob(jobKey);
             Thread.Sleep(1000);
             Assert.Greater(ExceptionJob.LaunchCount, 1, "The job should have been refired after exception");

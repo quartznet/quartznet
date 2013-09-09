@@ -680,6 +680,30 @@ namespace Quartz.Xml
         }
 
         /// <summary>
+        /// Process the xml file in the given location, and schedule all of the
+        /// jobs defined within it.
+        /// </summary>
+        /// <param name="stream">stream to read XML data from.</param>
+        /// <param name="sched">The sched.</param>
+        public virtual void ProcessStreamAndScheduleJobs(Stream stream, IScheduler sched)
+        {
+            LogicalThreadContext.SetData(ThreadLocalKeyScheduler, sched);
+            try
+            {
+                using (var sr = new StreamReader(stream))
+                {
+                    ProcessInternal(sr.ReadToEnd());
+                }
+                ExecutePreProcessCommands(sched);
+                ScheduleJobs(sched);
+            }
+            finally
+            {
+                LogicalThreadContext.FreeNamedDataSlot(ThreadLocalKeyScheduler);
+            }
+        }
+
+        /// <summary>
         /// Schedules the given sets of jobs and triggers.
         /// </summary>
         /// <param name="sched">The sched.</param>
