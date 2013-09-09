@@ -1219,7 +1219,13 @@ namespace Quartz.Impl.AdoJobStore
             return (bool) ExecuteInLock(LockTriggerAccess, conn => RemoveTrigger(conn, triggerKey));
         }
 
-        protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, IJobDetail job = null)
+
+        protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        {
+            return RemoveTrigger(conn, triggerKey, null);
+        }
+
+        protected virtual bool RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, IJobDetail job)
         {
             bool removedTrigger;
             try
@@ -1769,7 +1775,7 @@ namespace Quartz.Impl.AdoJobStore
         public Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             // no locks necessary for read...
-            return (Collection.ISet<TriggerKey>)ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher));
+            return ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher));
         }
 
         protected virtual Collection.ISet<TriggerKey> GetTriggerNames(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
@@ -3427,6 +3433,12 @@ namespace Quartz.Impl.AdoJobStore
                                                         });
         }
 
+
+        protected T ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback)
+        {
+            return ExecuteInNonManagedTXLock(lockName, txCallback, null);
+        }
+
         /// <summary>
         /// Execute the given callback having optionally acquired the given lock.
         /// This uses the non-managed transaction connection.
@@ -3440,7 +3452,7 @@ namespace Quartz.Impl.AdoJobStore
         /// The callback to excute after having acquired the given lock.
         /// </param>
         /// <param name="txValidator"></param>
-        protected T ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback, Func<ConnectionAndTransactionHolder, T, bool> txValidator = null)
+        protected T ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback, Func<ConnectionAndTransactionHolder, T, bool> txValidator)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
