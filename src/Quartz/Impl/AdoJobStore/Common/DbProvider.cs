@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 
 using Quartz.Util;
@@ -44,6 +45,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         private static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
         private static readonly DbMetadata notInitializedMetadata = new DbMetadata();
+        private MethodInfo commandBindByNamePropertySetter;
 
         /// <summary>
         /// Parse metadata once in static constructor.
@@ -83,6 +85,13 @@ namespace Quartz.Impl.AdoJobStore.Common
             if (dbMetadata == null)
             {
                 throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid DB provider name: {0}{1}{2}", dbProviderName, Environment.NewLine, GenerateValidProviderNamesInfo()));
+            }
+            
+            // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
+            var property = dbMetadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
+            if (property != null && property.PropertyType == typeof (bool) && property.CanWrite)
+            {
+                commandBindByNamePropertySetter = property.GetSetMethod();
             }
         }
 
@@ -147,7 +156,12 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>An new <see cref="IDbCommand"/></returns>
         public virtual IDbCommand CreateCommand()
         {
-            return ObjectUtils.InstantiateType<IDbCommand>(dbMetadata.CommandType);
+            var command = ObjectUtils.InstantiateType<IDbCommand>(dbMetadata.CommandType);
+            if (commandBindByNamePropertySetter != null)
+            {
+                commandBindByNamePropertySetter.Invoke(command, new object[] { Metadata.BindByName });
+            }
+            return command;
         }
 
         /// <summary>
