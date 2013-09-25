@@ -38,10 +38,8 @@
   </target>
 
   <target name="restore-nuget-packages" unless="${target::has-executed('restore-nuget-packages')}">
-	<exec program=".nuget\nuget.exe" commandline="install -OutputDirectory packages ${dir.src}/Quartz/packages.config" />
-	<exec program=".nuget\nuget.exe" commandline="install -OutputDirectory packages ${dir.src}/Quartz.Tests.Unit/packages.config" />
-	<exec program=".nuget\nuget.exe" commandline="install -OutputDirectory packages ${dir.src}/Quartz.Tests.Integration/packages.config" />
-	<exec program=".nuget\nuget.exe" commandline="install -OutputDirectory packages ${dir.server.src}/Quartz.Server/packages.config" />
+	<exec program=".nuget\nuget.exe" commandline="restore Quartz.2010.sln" />
+	<exec program=".nuget\nuget.exe" commandline="restore Quartz.Server.2010.sln" />
   </target>
 
   <target name="build">
@@ -346,6 +344,7 @@
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
         <include name="${buildoutputbasedir}\Quartz.dll" />
+		<include name="${oracle-odp-managed-dll}" />
       </references>
     </csc>
 
@@ -548,6 +547,7 @@
 	<property name="nunit-dll" value="packages/NUnit.2.6.2/lib/nunit.framework.dll" />
 	<property name="rhino-mocks-dll" value="packages/RhinoMocks.3.6.1/lib/net/Rhino.Mocks.dll" />
     <property name="topshelf-dll" value="packages/TopShelf.3.1.1/lib/net40-full/Topshelf.dll" />
+	<property name="oracle-odp-managed-dll" value="packages/odp.net.managed.121.1.1/lib/net40/Oracle.ManagedDataAccess.dll" />
 	
 	<if test="${target.framework == '3.5'}">
 		<property name="topshelf-dll" value="packages/TopShelf.3.1.1/lib/net35/Topshelf.dll" />

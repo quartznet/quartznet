@@ -57,6 +57,5 @@ _dotCover*/
 website
 /doc/apidoc
 *.nupkg
-/packages/*
-!/packages/repositories.config
+/packages
 /buildlog.txt
