@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System.Net.Mail;
@@ -41,11 +43,11 @@ namespace Quartz.Tests.Unit.Job
             var job = new TestSendMailJob();
 
             var context = TestUtil.NewJobExecutionContextFor(job);
-            context.JobDetail.JobDataMap.Put("smtp_host", "someserver");
-            context.JobDetail.JobDataMap.Put("recipient", expectedMail.recipient);
-            context.JobDetail.JobDataMap.Put("sender", expectedMail.sender);
-            context.JobDetail.JobDataMap.Put("subject", expectedMail.subject);
-            context.JobDetail.JobDataMap.Put("message", expectedMail.message);
+            context.MergedJobDataMap.Put("smtp_host", "someserver");
+            context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
+            context.MergedJobDataMap.Put("sender", expectedMail.sender);
+            context.MergedJobDataMap.Put("subject", expectedMail.subject);
+            context.MergedJobDataMap.Put("message", expectedMail.message);
 
             //When
             job.Execute(context);
@@ -54,7 +56,6 @@ namespace Quartz.Tests.Unit.Job
             expectedMail.IsEqualTo(job.actualMailSent);
             Assert.AreEqual("someserver", job.actualSmtpHost);
         }
-
 
         [Test]
         public void ShouldSendMailWithOptionalProperties()
@@ -69,13 +70,13 @@ namespace Quartz.Tests.Unit.Job
             var job = new TestSendMailJob();
 
             var context = TestUtil.NewJobExecutionContextFor(job);
-            context.JobDetail.JobDataMap.Put("smtp_host", "someserver");
-            context.JobDetail.JobDataMap.Put("recipient", expectedMail.recipient);
-            context.JobDetail.JobDataMap.Put("cc_recipient", expectedMail.ccRecipient);
-            context.JobDetail.JobDataMap.Put("sender", expectedMail.sender);
-            context.JobDetail.JobDataMap.Put("reply_to", expectedMail.replyTo);
-            context.JobDetail.JobDataMap.Put("subject", expectedMail.subject);
-            context.JobDetail.JobDataMap.Put("message", expectedMail.message);
+            context.MergedJobDataMap.Put("smtp_host", "someserver");
+            context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
+            context.MergedJobDataMap.Put("cc_recipient", expectedMail.ccRecipient);
+            context.MergedJobDataMap.Put("sender", expectedMail.sender);
+            context.MergedJobDataMap.Put("reply_to", expectedMail.replyTo);
+            context.MergedJobDataMap.Put("subject", expectedMail.subject);
+            context.MergedJobDataMap.Put("message", expectedMail.message);
 
             //When
             job.Execute(context);
@@ -83,6 +84,38 @@ namespace Quartz.Tests.Unit.Job
             //Then
             expectedMail.IsEqualTo(job.actualMailSent);
             Assert.AreEqual("someserver", job.actualSmtpHost);
+        }
+
+        [Test]
+        public void ShouldSetNetworkProperties()
+        {
+            //Given
+            var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
+
+            //optional properties
+            expectedMail.ccRecipient = "anthony@acca.co.uk";
+            expectedMail.replyTo = "therese@acca.co.uk";
+
+            var job = new TestSendMailJob();
+
+            var context = TestUtil.NewJobExecutionContextFor(job);
+            context.MergedJobDataMap.Put("smtp_host", "someserver");
+            context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
+            context.MergedJobDataMap.Put("sender", expectedMail.sender);
+            context.MergedJobDataMap.Put("subject", expectedMail.subject);
+            context.MergedJobDataMap.Put("message", expectedMail.message);
+            context.MergedJobDataMap.Put("smtp_username", "user 123");
+            context.MergedJobDataMap.Put("smtp_password", "pass 321");
+            context.MergedJobDataMap.Put("smtp_port", "123");
+
+            //When
+            job.Execute(context);
+
+            //Then
+            Assert.AreEqual("someserver", job.actualSmtpHost);
+            Assert.AreEqual("user 123", job.actualSmtpUserName);
+            Assert.AreEqual("pass 321", job.actualSmtpPassword);
+            Assert.AreEqual(123, job.actualSmtpPort);
         }
     }
 
@@ -129,13 +162,17 @@ namespace Quartz.Tests.Unit.Job
     {
         public MailMessage actualMailSent = new MailMessage();
         public string actualSmtpHost = "ad";
-        
-        protected override void Send(MailMessage mimeMessage, string smtpHost)
+        public string actualSmtpUserName;
+        public string actualSmtpPassword;
+        public int? actualSmtpPort;
+
+        protected override void Send(MailInfo info)
         {
-            actualMailSent = mimeMessage;
-            actualSmtpHost = smtpHost;
+            actualMailSent = info.MailMessage;
+            actualSmtpHost = info.SmtpHost;
+            actualSmtpUserName = info.SmtpUserName;
+            actualSmtpPassword = info.SmtpPassword;
+            actualSmtpPort = info.SmtpPort;
         }
-        
     }
 }
-
