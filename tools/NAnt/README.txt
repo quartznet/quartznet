@@ -55,12 +55,12 @@ Compilation and Installation
            You will need the .NET Framework SDK as well as the runtime 
            components if you intend to compile programs.
 
-           Note: NAnt currently supports versions 1.0, 1.1 and 2.0 
+           Note: NAnt currently supports versions 1.0, 1.1, 2.0, 3.5, and 4.0 
            of the Microsoft .NET Framework. 
 
        or
 
-       * Mono for Windows (version 1.0 or higher)
+       * Mono for Windows (version 2.0 or higher)
 
            Available from http://www.mono-project.com/downloads/
    
@@ -73,7 +73,7 @@ Compilation and Installation
 
            Available from: http://www.freedesktop.org/Software/pkgconfig
 
-       * A working Mono installation and development libraries (version 1.0 or higher)
+       * A working Mono installation and development libraries (version 2.0 or higher)
 
            Available from: http://www.mono-project.com/downloads/
 
@@ -85,28 +85,28 @@ Compilation and Installation
 
     GNU Make
     --------
-        make install MONO= MCS=csc prefix=<installation path> [DESTDIR=<staging path>]
+        make install MONO= MCS=csc prefix=<installation path> [DESTDIR=<staging path>] [TARGET=<nant target>]
 
-        eg. make install MONO= MCS=csc prefix="c:\Program Files"
+        eg. make install MONO= MCS=csc prefix="c:\Program Files" TARGET=net-2.0
 
     NMake
     -----
-        nmake -f Makefile.nmake install prefix=<installation path> [DESTDIR=<staging path>]
+        nmake -f Makefile.nmake install prefix=<installation path> [DESTDIR=<staging path>] [TARGET=<nant target>]
     
-        eg. nmake -f Makefile.nmake install prefix="c:\Program Files"
+        eg. nmake -f Makefile.nmake install prefix="c:\Program Files" TARGET=net-4.0
 
 
     Building NAnt using Mono:
 
     GNU Make
     --------
-        make install prefix=<installation path> [DESTDIR=<staging path>]
+        make install prefix=<installation path> [DESTDIR=<staging path>] [TARGET=<nant target>]
 
-        eg. make install prefix="c:\Program Files"
+        eg. make install prefix="c:\Program Files" TARGET=mono-4.0
 
     NMake
     -----
-        nmake -f Makefile.nmake install MONO=mono CSC=mcs prefix=<installation path> [DESTDIR=<staging path>]
+        nmake -f Makefile.nmake install MONO=mono CSC=mcs prefix=<installation path> [DESTDIR=<staging path>] [TARGET=<nant target>]
     
         eg. nmake -f Makefile.nmake install MONO=mono CSC=mcs prefix=/usr/local/
 
@@ -123,7 +123,7 @@ Documentation is available in HTML format, in the doc/ directory.
 
 License
 -------
-Copyright (C) 2001-2008 Gerry Shaw
+Copyright (C) 2001-2012 Gerry Shaw
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
