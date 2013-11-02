@@ -49,7 +49,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                               StartTimeOfDay = startTimeOfDay,
                               EndTimeOfDay = endTimeOfDay,
                               RepeatIntervalUnit = IntervalUnit.Minute,
-                              RepeatInterval = 72
+                              RepeatInterval = 72 // this interval will give three firings per day (8:00, 9:12, and 10:24)
                           };
 
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
@@ -180,6 +180,34 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
             Assert.AreEqual(DateBuilder.DateOf(23, 0, 0, 3, 1, 2011), fireTimes[47]);
+        }
+
+        [Test]
+        public void TestStartTimeBeforeStartTimeOfDayOnInvalidDay()
+        {
+            DateTimeOffset startTime = dateOf(0, 0, 0, 1, 1, 2011); // Jan 1, 2011 was a saturday...
+            TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+            var trigger = new DailyTimeIntervalTriggerImpl();
+            var daysOfWeek = new Collection.HashSet<DayOfWeek>
+                             {
+                                 DayOfWeek.Monday,
+                                 DayOfWeek.Tuesday,
+                                 DayOfWeek.Wednesday,
+                                 DayOfWeek.Thursday,
+                                 DayOfWeek.Friday
+                             };
+            trigger.DaysOfWeek = daysOfWeek;
+            trigger.StartTimeUtc = startTime.ToUniversalTime();
+            trigger.StartTimeOfDay = startTimeOfDay;
+            trigger.RepeatIntervalUnit = IntervalUnit.Minute;
+            trigger.RepeatInterval = 60;
+
+            Assert.That(trigger.GetFireTimeAfter(dateOf(6, 0, 0, 22, 5, 2010)), Is.EqualTo(dateOf(8, 0, 0, 3, 1, 2011)));
+
+            var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+            Assert.That(fireTimes.Count, Is.EqualTo(48));
+            Assert.That(fireTimes[0], Is.EqualTo(dateOf(8, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(dateOf(23, 0, 0, 5, 1, 2011)));
         }
 
         [Test]
@@ -722,13 +750,13 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             trigger.RepeatInterval = 1;
 
             // NOTE that if you pass a date past the startTime, you will get the startTime back!
-            Assert.AreEqual(dateOf(0, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2011)));
-            Assert.AreEqual(dateOf(0, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(7, 0, 0, 1, 1, 2011)));
-            Assert.AreEqual(dateOf(0, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(7, 59, 59, 1, 1, 2011)));
-            Assert.AreEqual(dateOf(0, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.AreEqual(dateOf(0, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(9, 0, 0, 1, 1, 2011)));
-            Assert.AreEqual(dateOf(0, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(12, 59, 59, 1, 1, 2011)));
-            Assert.AreEqual(dateOf(0, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2011)));
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2011)));
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(7, 0, 0, 1, 1, 2011)));
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(7, 59, 59, 1, 1, 2011)));
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(9, 0, 0, 1, 1, 2011)));
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(12, 59, 59, 1, 1, 2011)));
+            Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(13, 0, 0, 1, 1, 2011)));
 
             // Now try some test times at or after startTime
             Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.GetFireTimeAfter(dateOf(0, 0, 0, 1, 1, 2012)));
