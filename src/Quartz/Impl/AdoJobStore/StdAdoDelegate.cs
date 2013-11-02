@@ -898,7 +898,7 @@ namespace Quartz.Impl.AdoJobStore
             return matcher.CompareToValue;
         }
 
-        protected static string ToSqlLikeClause<T>(GroupMatcher<T> matcher) where T : Key<T>
+        protected virtual string ToSqlLikeClause<T>(GroupMatcher<T> matcher) where T : Key<T>
         {
             string groupName;
             if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
@@ -916,6 +916,10 @@ namespace Quartz.Impl.AdoJobStore
             else if (StringOperator.StartsWith.Equals(matcher.CompareWithOperator))
             {
                  groupName = matcher.CompareToValue + "%";
+            }
+            else if (StringOperator.Anything.Equals(matcher.CompareWithOperator))
+            {
+                groupName = "%";
             }
             else 
             {

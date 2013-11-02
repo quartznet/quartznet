@@ -33,6 +33,7 @@ namespace Quartz.Impl.Matchers
         public static readonly StringOperator StartsWith = new StartsWithOperator();
         public static readonly StringOperator EndsWith = new EndsWithOperator();
         public static readonly StringOperator Contains = new ContainsOperator();
+        public static readonly StringOperator Anything = new AnythingOperator();
 
         public abstract bool Evaluate(string value, string compareTo);
 
@@ -65,6 +66,15 @@ namespace Quartz.Impl.Matchers
         {
             public override bool Evaluate(string value, string compareTo) {
                 return value.Contains(compareTo);
+            }
+        }
+
+        [Serializable]
+        private class AnythingOperator : StringOperator
+        {
+            public override bool Evaluate(string value, string compareTo)
+            {
+                return true;
             }
         }
 

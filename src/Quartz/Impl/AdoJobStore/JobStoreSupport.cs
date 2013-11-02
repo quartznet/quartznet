@@ -1671,7 +1671,7 @@ namespace Quartz.Impl.AdoJobStore
         public Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
             // no locks necessary for read...
-            return (Collection.ISet<JobKey>) ExecuteWithoutLock(conn => GetJobNames(conn, matcher));
+            return ExecuteWithoutLock(conn => GetJobNames(conn, matcher));
         }
 
         protected virtual Collection.ISet<JobKey> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)

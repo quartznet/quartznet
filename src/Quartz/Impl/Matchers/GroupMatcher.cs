@@ -77,6 +77,14 @@ namespace Quartz.Impl.Matchers
             return new GroupMatcher<TKey>(compareTo, StringOperator.Contains);
         }
 
+        /// <summary>
+        /// Create a GroupMatcher that matches all.
+        /// </summary>
+        public static GroupMatcher<TKey> AnyGroup()
+        {
+            return new GroupMatcher<TKey>("", StringOperator.Anything);
+        }
+
         protected override string GetValue(TKey key)
         {
             return key.Group;
