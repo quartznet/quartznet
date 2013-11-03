@@ -1,4 +1,4 @@
-<project name="Quartz.NET" xmlns="http://nant.sf.net/release/0.90/nant.xsd" default="clean build">
+<project name="Quartz.NET" xmlns="http://nant.sf.net/release/0.90/nant.xsd" default="build">
 
   <!-- what kind of build -->
   <property name="build.configuration" value="debug" overwrite="false" />

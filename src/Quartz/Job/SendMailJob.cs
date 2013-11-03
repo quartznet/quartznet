@@ -88,7 +88,7 @@ namespace Quartz.Job
             {
                 string portString = GetOptionalParameter(data, PropertySmtpPort);
                 int? port = null;
-                if (!string.IsNullOrWhiteSpace(portString))
+                if (!string.IsNullOrEmpty(portString))
                 {
                     port = Int32.Parse(portString);
                 }
@@ -135,7 +135,7 @@ namespace Quartz.Job
 #if NET_40
                 mailMessage.ReplyToList.Add(new MailAddress(replyTo));
 #else
-                mimeMessage.ReplyTo = new MailAddress(replyTo);
+                mailMessage.ReplyTo = new MailAddress(replyTo);
 #endif
             }
 
@@ -199,7 +199,7 @@ namespace Quartz.Job
 
         private static string GetMessageDescription(MailMessage message)
         {
-            string mailDesc = string.Format(CultureInfo.InvariantCulture, "'{0}' to: {1}", message.Subject, string.Join(", ", message.To.Select(x => x.Address)));
+            string mailDesc = string.Format(CultureInfo.InvariantCulture, "'{0}' to: {1}", message.Subject, string.Join(", ", message.To.Select(x => x.Address).ToArray()));
             return mailDesc;
         }
 
