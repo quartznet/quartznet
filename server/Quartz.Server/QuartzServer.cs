@@ -1,5 +1,5 @@
 using System;
-using System.Threading;
+
 using Common.Logging;
 using Quartz.Impl;
 using Topshelf;
@@ -73,15 +73,15 @@ namespace Quartz.Server
 		/// </summary>
 		public virtual void Start()
 		{
-			scheduler.Start();
-
-			try 
-			{
-				Thread.Sleep(3000);
-			} 
-			catch (ThreadInterruptedException) 
-			{
-			}
+	        try
+	        {
+	            scheduler.Start();
+	        }
+	        catch (Exception ex)
+	        {
+	            logger.Fatal(string.Format("Scheduler start failed: {0}", ex.Message), ex);
+	            throw;
+	        }
 
 			logger.Info("Scheduler started successfully");
 		}
@@ -91,7 +91,16 @@ namespace Quartz.Server
 		/// </summary>
 		public virtual void Stop()
 		{
-			scheduler.Shutdown(true);
+            try
+            {
+                scheduler.Shutdown(true);
+            }
+            catch (Exception ex)
+            {
+                logger.Error(string.Format("Scheduler stop failed: {0}", ex.Message), ex);
+                throw;
+            }
+
 			logger.Info("Scheduler shutdown complete");
 		}
 
