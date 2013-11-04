@@ -2442,16 +2442,7 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             continue; // next trigger
                         }
-                        // it's possible that we've selected triggers way outside of the max fire ahead time for batches 
-                        // (up to idleWaitTime + fireAheadTime) so we need to make sure not to include such triggers.  
-                        // So we select from the first next trigger to fire up until the max fire ahead time after that...
-                        // which will perfectly honor the fireAheadTime window because the no firing will occur until
-                        // the first acquired trigger's fire time arrives.
-                        if (firstAcquiredTriggerFireTime != null && nextTrigger.GetNextFireTimeUtc() > (firstAcquiredTriggerFireTime.Value + timeWindow))
-                        {
-                            break;
-                        }
-
+                        
                         // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
                         // put it back into the timeTriggers set and continue to search for next trigger.
                         JobKey jobKey = nextTrigger.JobKey;
