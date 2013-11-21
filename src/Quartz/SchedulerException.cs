@@ -65,7 +65,7 @@ namespace Quartz
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
         /// <param name="cause">The cause.</param>
-        public SchedulerException(Exception cause) : base(cause.ToString(), cause)
+        public SchedulerException(Exception cause) : base(cause.Message, cause)
         {
         }
 
