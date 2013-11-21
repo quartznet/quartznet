@@ -55,7 +55,7 @@ namespace Quartz.Simpl
         private bool handoffPending;
         private bool isShutdown;
         private ThreadPriority prio = ThreadPriority.Normal;
-        private readonly string schedulerInstanceName = null;
+        private string schedulerInstanceName;
 
         private List<WorkerThread> workers;
 
@@ -139,7 +139,7 @@ namespace Quartz.Simpl
         /// </summary>
         public virtual string InstanceName
         {
-            set { }
+            set { schedulerInstanceName = value; }
         }
 
         /// <summary>
