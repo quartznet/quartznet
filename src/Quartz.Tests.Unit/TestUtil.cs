@@ -58,14 +58,24 @@ namespace Quartz.Tests.Unit
             return bundle;
         }
 
+		public static TriggerFiredBundle NewMinimalRecoveringTriggerFiredBundle()
+		{
+			return NewMinimalTriggerFiredBundle(isRecovering: true);
+		}
+
         public static TriggerFiredBundle NewMinimalTriggerFiredBundle()
         {
-            IJobDetail jd = new JobDetailImpl("jobName", "jobGroup", typeof(NoOpJob));
-            IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
-            TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, false, null, null, null, null);
-
-            return retValue;
+        	return NewMinimalTriggerFiredBundle(isRecovering: false);
         }
+
+		private static TriggerFiredBundle NewMinimalTriggerFiredBundle(bool isRecovering)
+		{
+			IJobDetail jd = new JobDetailImpl("jobName", "jobGroup", typeof(NoOpJob));
+			IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
+			TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, isRecovering, null, null, null, null);
+
+			return retValue;
+		}
 
         public static IJobExecutionContext NewJobExecutionContextFor(IJob job)
         {
