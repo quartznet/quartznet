@@ -152,8 +152,8 @@ namespace Quartz.Impl
 	        {
 	            if (Recovering)
 	            {
-	                return new TriggerKey(jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup),
-	                                      jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName));
+	            	return new TriggerKey(jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName),
+	            	                      jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup));
 	            }
 	            
                 throw new InvalidOperationException("Not a recovering job");
