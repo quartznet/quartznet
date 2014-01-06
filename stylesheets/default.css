@@ -24,7 +24,7 @@ a:hover
 }
 body
 {
-	background: #0094D6 url(img/bg.gif) repeat-x;
+	background: #0094D6 url(../images/bg.gif) repeat-x;
 	color: #466;
 	font: normal 62.5% "Lucida Sans Unicode" ,sans-serif;
 	margin: 0;
@@ -46,7 +46,7 @@ h1
 }
 code
 {
-	background: url(img/bgcode.gif);
+	background: url(../images/bgcode.gif);
 	border: 1px solid #F0F0F0;
 	border-left: 6px solid #39F;
 	color: #555;
@@ -58,7 +58,7 @@ code
 }
 cite
 {
-	background: url(img/quote.gif) no-repeat;
+	background: url(../images/quote.gif) no-repeat;
 	color: #666;
 	display: block;
 	font: normal 1.3em "Lucida Sans Unicode" ,serif;
@@ -79,7 +79,7 @@ h1, h2, h3
 /* structure */
 .container
 {
-	background: url(img/topleft.gif) no-repeat;
+	background: url(../images/topleft.gif) no-repeat;
 }
 
 .header
@@ -125,7 +125,7 @@ h1, h2, h3
 /* main */
 .main
 {
-	background: #FFF url(img/bgmain.gif) no-repeat;
+	background: #FFF url(../images/bgmain.gif) no-repeat;
 	clear: both;
 	padding: 12px 12px 0 52px;
 }
@@ -166,7 +166,7 @@ h1, h2, h3
 .sidenav li a:hover
 {
 	color: #111;
-	background: url(img/nav_li.gif) no-repeat;
+	background: url(../images/nav_li.gif) no-repeat;
 }
 
 /* content */
@@ -183,7 +183,7 @@ h1, h2, h3
 }
 .content li
 {
-	list-style: url(img/li.gif);
+	list-style: url(../images/li.gif);
 	margin-left: 18px;
 }
 
@@ -203,7 +203,7 @@ h1, h2, h3
 /* footer */
 .footer
 {
-	background: #0094D6 url(img/bgfooter.gif) repeat-x;
+	background: #0094D6 url(../images/bgfooter.gif) repeat-x;
 	color: #C1DEF0;
 	font-size: 1.1em;
 	line-height: 40px;

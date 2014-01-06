@@ -1,5 +1,5 @@
 ---
 title:  JobStores
-redirect: tutorial/advanced-enterprise-features.html
+redirect: documentation/quartz-2.x/tutorial/advanced-enterprise-features.html
 layout: redirect
 ---

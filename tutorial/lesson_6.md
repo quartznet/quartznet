@@ -1,5 +1,5 @@
 ---
 title:  JobStores
-redirect: tutorial/crontriggers.html
+redirect: documentation/quartz-2.x/tutorial/crontriggers.html
 layout: redirect
 ---

@@ -1,5 +1,5 @@
 ---
 title:  JobStores
-redirect: tutorial/scheduler-listeners.html
+redirect: documentation/quartz-2.x/tutorial/scheduler-listeners.html
 layout: redirect
 ---

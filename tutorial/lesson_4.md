@@ -1,5 +1,5 @@
 ---
 title:  JobStores
-redirect: tutorial/more-about-triggers.html
+redirect: documentation/quartz-2.x/tutorial/more-about-triggers.html
 layout: redirect
 ---
