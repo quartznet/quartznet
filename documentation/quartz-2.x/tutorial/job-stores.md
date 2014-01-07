@@ -9,8 +9,9 @@ Luckily, the choice should be a very easy one once you understand the difference
 You declare which JobStore your scheduler should use (and it's configuration settings) in the properties file (or object) that
 you provide to the SchedulerFactory that you use to produce your scheduler instance.
 
-Never use a JobStore instance directly in your code. For some reason many people attempt to do this. 
-The JobStore is for behind-the-scenes use of Quartz itself. You have to tell Quartz (through configuration) which JobStore to use, but then you should only work with the Scheduler interface in your code.
+*Never use a JobStore instance directly in your code. For some reason many people attempt to do this. 
+The JobStore is for behind-the-scenes use of Quartz itself. You have to tell Quartz (through configuration) which JobStore to use,
+but then you should only work with the Scheduler interface in your code.*
 
 
 ## RAMJobStore
@@ -20,6 +21,10 @@ RAMJobStore gets its name in the obvious way: it keeps all of its data in RAM. T
 and also why it's so simple to configure. The drawback is that when your application ends (or crashes) all of 
 the scheduling information is lost - this means RAMJobStore cannot honor the setting of "non-volatility" on jobs and triggers. 
 For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disasterous.
+
+**Configuring Quartz to use RAMJobStore**
+
+	quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
 
 To use RAMJobStore (and assuming you're using StdSchedulerFactory) you don't need to do anything special. Default configuration
 of Quartz.NET uses RAMJobStore as job store implementation.
@@ -91,17 +96,19 @@ loose coupling betweeb database drivers and Quartz.
 
 Currently following database providers are supported:
 
-* SqlServer-11 - SQL Server driver for .NET Framework 1.1
 * SqlServer-20 - SQL Server driver for .NET Framework 2.0
-* OracleClient-20 - Microsoft's Oracle Driver (comes bundled with .NET Framework)
 * OracleODP-20 - Oracle's Oracle Driver
-* MySql-10 - MySQL Connector/.NET v. 1.0.7
-* MySql-109 - MySQL Connector/.NET v. 1.0.9 
+* OracleODPManaged-1123-40 Oracle's managed driver for Oracle 11
+* OracleODPManaged-1211-40 Oracle's managed driver for Oracle 12
 * MySql-50 - MySQL Connector/.NET v. 5.0 (.NET 2.0)
 * MySql-51 - MySQL Connector/:NET v. 5.1 (.NET 2.0)
+* MySql-65 - MySQL Connector/:NET v. 6.5 (.NET 2.0)
 * SQLite-10 - SQLite ADO.NET 2.0 Provider v. 1.0.56 (.NET 2.0)
 * Firebird-201 - Firebird ADO.NET 2.0 Provider v. 2.0.1 (.NET 2.0)
 * Firebird-210 - Firebird ADO.NET 2.0 Provider v. 2.1.0 (.NET 2.0)
+* Npgsql-20 - PostgreSQL Npgsql
+
+**You can and should use latest version of driver if newer is available, jsut create an assembly binding redirect**
 
 If your Scheduler is very busy (i.e. nearly always executing the same number of jobs as the size of the thread pool, then you should 
 probably set the number of connections in the data source to be the about the size of the thread pool + 1.This is commonly configured

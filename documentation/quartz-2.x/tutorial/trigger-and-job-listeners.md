@@ -12,57 +12,79 @@ and trigger completions (the jobs fired off by the trigger is finished).
 __The ITriggerListener Interface__
 
 ```c#
-    public interface ITriggerListener
-    {
-         string Name { get; }
-         
-         void TriggerFired(Trigger trigger, JobExecutionContext context);
-         
-         bool VetoJobExecution(Trigger trigger, JobExecutionContext context);
-         
-         void TriggerMisfired(Trigger trigger);
-         
-         void TriggerComplete(Trigger trigger, JobExecutionContext context, int triggerInstructionCode);
-    }
+public interface ITriggerListener
+{
+	 string Name { get; }
+	 
+	 void TriggerFired(ITrigger trigger, IJobExecutionContext context);
+	 
+	 bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context);
+	 
+	 void TriggerMisfired(ITrigger trigger);
+	 
+	 void TriggerComplete(ITrigger trigger, IJobExecutionContext context, int triggerInstructionCode);
+}
 ```
 
 Job-related events include: a notification that the job is about to be executed, and a notification when the job has completed execution.
 
-
 __The IJobListener Interface__
 
 ```c#
-    public interface IJobListener
-    {
-        string Name { get; }
-    
-        void JobToBeExecuted(JobExecutionContext context);
-    
-        void JobExecutionVetoed(JobExecutionContext context);
-    
-        void JobWasExecuted(JobExecutionContext context, JobExecutionException jobException);
-    } 
+public interface IJobListener
+{
+	string Name { get; }
+
+	void JobToBeExecuted(IJobExecutionContext context);
+
+	void JobExecutionVetoed(IJobExecutionContext context);
+
+	void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
+} 
 ```
 
 ## Using Your Own Listeners
 
 To create a listener, simply create an object the implements either the ITriggerListener and/or IJobListener interface. 
 Listeners are then registered with the scheduler during run time, and must be given a name (or rather, they must advertise their own 
-name via their Name property. Listeners can be registered as either "global" or "non-global". 
-Global listeners receive events for ALL triggers/jobs, and non-global listeners receive events only for the specific triggers/jobs that
-explicitely name the listener in their GetTriggerListenerNames() or GetJobListenerNames() properties.
+name via their Name property. 
 
-As described above, listeners are registered with the scheduler during run time, and are NOT stored in the JobStore along with the jobs and triggers.
-The jobs and triggers only have the names of the related listeners stored with them. Hence, each time your application runs, the listeners 
-need to be re-registered with the scheduler.
+For your convenience, rather than implementing those interfaces, your class could also extend the class JobListenerSupport or TriggerListenerSupport
+and simply override the events you're interested in.
 
-__Adding a JobListener to the Scheduler__
 
-    scheduler.AddGlobalJobListener(myJobListener);
+Listeners are registered with the scheduler's ListenerManager along with a Matcher that describes which Jobs/Triggers the listener wants to receive events for.
 
-or
+*Listeners are registered with the scheduler during run time, and are NOT stored in the JobStore along with the jobs and triggers. 
+This is because listeners are typically an integration point with your application. 
+Hence, each time your application runs, the listeners need to be re-registered with the scheduler.*
 
-    scheduler.AddJobListener(myJobListener);
+
+**Adding a JobListener that is interested in a particular job:**
+
+```c#
+scheduler.ListenerManager.AddJobListener(myJobListener, KeyMatcher<JobKey>.KeyEquals(new JobKey("myJobName", "myJobGroup")));
+```
+
+**Adding a JobListener that is interested in all jobs of a particular group:**
+
+```c#
+scheduler.ListenerManager.AddJobListener(myJobListener, GroupMatcher<JobKey>.GroupEquals("myJobGroup"));
+```
+
+**Adding a JobListener that is interested in all jobs of two particular groups:**
+
+```c#
+scheduler.ListenerManager.AddJobListener(myJobListener,
+	OrMatcher<JobKey>.Or(GroupMatcher<JobKey>.GroupEquals("myJobGroup"), GroupMatcher<JobKey>.GroupEquals("yourGroup")));
+```
+
+
+**Adding a JobListener that is interested in all jobs:**
+
+```c#
+scheduler.ListenerManager.AddJobListener(myJobListener, GroupMatcher<JobKey>.AnyGroup());
+```
 
 Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.

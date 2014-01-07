@@ -17,7 +17,7 @@ Note that a repeat interval of zero will cause 'repeat count' firings of the tri
 (or as close to concurrently as the scheduler can manage).
 
 If you're not already familiar with the DateTime class, you may find it helpful for computing your trigger fire-times,
-depending on the startTimeUtc (or endTimeUtc) that you're trying to create. The TriggerUtils class is also helpful in this respect.
+depending on the startTimeUtc (or endTimeUtc) that you're trying to create.
 
 The EndTimeUtc property (if it is specified) over-rides the repeat count property. This can be useful if you wish to create a trigger
 such as one that fires every 10 seconds until a given moment in time - rather than having to compute the number of times it would
@@ -25,83 +25,82 @@ repeat between the start-time and the end-time, you can simply specify the end-t
 (you could even specify a repeat count of some huge number that is sure to be more than the number of times the trigger will actually
 fire before the end-time arrives).
 
-SimpleTrigger has a few different constructors, but we'll examine this one, and use it in the few examples that follow:
+SimpleTrigger instances are built using **TriggerBuilder** (for the trigger's main properties) and **WithSimpleSchedule** extension method (for the SimpleTrigger-specific properties).
 
-__One of SimpleTrigger's Constructors__
-
-```c#
-    public SimpleTrigger(
-        string name,
-        string group,
-        DateTime startTimeUtc,
-        NullableDateTime endTime endTimeUtc,
-        int repeatCount,
-        TimeSpan repeatInterval)
-```
-
-__SimpleTrigger Example 1 - Create a trigger that fires exactly once, ten seconds from now__
+__Build a trigger for a specific moment in time, with no repeats:__
 
 ```c#
-    SimpleTrigger trigger = new SimpleTrigger(
-        "myTrigger",
-        null,
-        DateTime.UtcNow.AddSeconds(10),
-        null,
-        0,
-        TimeSpan.Zero);
+// trigger builder creates simple trigger by default, actually an ITrigger is returned
+ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
+    .WithIdentity("trigger1", "group1")
+    .StartAt(myStartTime) // some Date 
+    .ForJob("job1", "group1") // identify job with name, group strings
+    .Build();
 ```
 
-__SimpleTrigger Example 2 - Create a trigger that fires immediately, then repeats every 60 seconds, forever__
+__Build a trigger for a specific moment in time, then repeating every ten seconds ten times:__
 
 ```c#
-   SimpleTrigger trigger2 = new SimpleTrigger(
-        "myTrigger",
-        null,
-        DateTime.UtcNow,
-        null,
-        SimpleTrigger.RepeatIndefinitely,
-        TimeSpan.FromSeconds(60));
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger3", "group1")
+    .StartAt(myTimeToStartFiring) // if a start time is not given (if this line were omitted), "now" is implied
+    .WithSimpleSchedule(x => x
+        .WithIntervalInSeconds(10)
+        .WithRepeatCount(10)) // note that 10 repeats will give a total of 11 firings
+    .ForJob(myJob) // identify job with handle to its JobDetail itself                   
+    .Build();
+
 ```
 
-__SimpleTrigger Example 3 - Create a trigger that fires immediately, then repeats every 10 seconds until 40 seconds from now__
+__Build a trigger that will fire once, five minutes in the future:__
 
 ```c#
-TimeSpan.FromSeconds(60));
-     SimpleTrigger trigger = new SimpleTrigger(
-         "myTrigger",
-         "myGroup",
-         DateTime.UtcNow,
-         DateTime.UtcNow.AddSeconds(40),
-         SimpleTrigger.RepeatIndefinitely,
-         TimeSpan.FromSeconds(10));
+trigger = (ISimpleTrigger) TriggerBuilder.Create()
+    .WithIdentity("trigger5", "group1")
+    .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute)) // use DateBuilder to create a date in the future
+    .ForJob(myJobKey) // identify job with its JobKey
+    .Build();
 ```
-__SimpleTrigger Example 4 - Create a trigger that fires on March 17 of the year 2002 at precisely 10:30 am, and repeats 5 times
-(for a total of 6 firings) - with a 30 second delay between each firing__
+
+__Build a trigger that will fire now, then repeat every five minutes, until the hour 22:00:__
 
 ```c#
-     DateTime startTime = new DateTime(2002, 3, 17, 10, 30, 0).ToUniversalTime();
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger7", "group1")
+    .WithSimpleSchedule(x => x
+        .WithIntervalInMinutes(5)
+        .RepeatForever())
+    .EndAt(DateBuilder.DateOf(22, 0, 0))
+    .Build();
+```
+__Build a trigger that will fire at the top of the next hour, then repeat every 2 hours, forever:__
 
-     SimpleTrigger trigger = new SimpleTrigger(
-          "myTrigger",
-          null,
-          startTime,
-          null,
-          5,
-          TimeSpan.FromSeconds(30));
+```c#
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger8") // because group is not specified, "trigger8" will be in the default group
+    .StartAt(DateBuilder.EvenHourDate(null)) // get the next even-hour (minutes and seconds zero ("00:00"))
+    .WithSimpleSchedule(x => x
+        .WithIntervalInHours(2)
+        .RepeatForever())
+    // note that in this example, 'forJob(..)' is not called 
+    //  - which is valid if the trigger is passed to the scheduler along with the job  
+    .Build();
+
+scheduler.scheduleJob(trigger, job);
 ```
 
-Spend some time looking at the other constructors (and property setters) available on SimpleTrigger, so that you can use the
-one most convenient to what you want to accomplish.
+Spend some time looking at all of the available methods in the language defined by **TriggerBuilder** and its extension method **WithSimpleSchedule** so that you can be familiar with options available to you that may not have been demonstrated in the examples above.
 
-### SimpleTrigger Misfire Instructions
+## SimpleTrigger Misfire Instructions
 
-SimpleTrigger has several instructions that can be used to inform Quartz what it should do when a misfire occurs.
+SimpleTrigger has several instructions that can be used to inform Quartz.NET what it should do when a misfire occurs.
 (Misfire situations were introduced in the More About Triggers section of this tutorial).
 These instructions are defined as constants on MisfirePolicy.SimpleTrigger (including API documentation describing their behavior).
 The instructions include:
 
-__Misfire Instruction Constants of SimpleTrigger__
+__Misfire Instruction Constants for SimpleTrigger__
 
+* MisfireInstruction.IgnoreMisfirePolicy
 * MisfirePolicy.SimpleTrigger.FireNow
 * MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount
 * MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount
@@ -114,5 +113,17 @@ and this instruction is also the default for all trigger types.
 If the 'smart policy' instruction is used, SimpleTrigger dynamically chooses between its various MISFIRE instructions, based on the configuration
 and state of the given SimpleTrigger instance. The documentation for the SimpleTrigger.UpdateAfterMisfire() method explains the exact details of
 this dynamic behavior.
+
+When building SimpleTriggers, you specify the misfire instruction as part of the simple schedule (via SimpleSchedulerBuilder):
+
+```c#
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger7", "group1")
+    .WithSimpleSchedule(x => x
+        .WithIntervalInMinutes(5)
+        .RepeatForever()
+        .WithMisfireHandlingInstructionNextWithExistingCount())
+    .Build();
+```
 
 [&laquo; Lesson 4](more-about-triggers.html) | [Lesson 6 &raquo;](crontriggers.html)

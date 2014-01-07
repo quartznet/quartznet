@@ -15,13 +15,13 @@ when you are building the trigger definition (examples of that will follow).
 
 Here is a listing of properties common to all trigger types:
 
-* The "JobKey" property indicates the identity of the job that should be executed when the trigger fires.
-* The "StartTimeUtc" property indicates when the trigger's schedule first comes into affect. 
+* The **JobKey** property indicates the identity of the job that should be executed when the trigger fires.
+* The **StartTimeUtc** property indicates when the trigger's schedule first comes into affect. 
 The value is a DateTimeOffset object that defines a moment in time on a given calendar date. 
 For some trigger types, the trigger will actually fire at the start time, for others it simply marks the time that the schedule should start being followed. 
 This means you can store a trigger with a schedule such as "every 5th day of the month" during January, and if the StartTimeUtc property is set to April 1st,
  it will be a few months before the first firing.
-* The "EndTimeUtc" property indicates when the trigger's schedule should no longer be in effect.
+* The **EndTimeUtc** property indicates when the trigger's schedule should no longer be in effect.
 In other words, a trigger with a schedule of "every 5th day of the month" and with an end time of July 1st will fire for it's last time on June 5th.
 
 Other properties, which take a bit more explanation are discussed in the following sub-sections.

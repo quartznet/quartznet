@@ -10,7 +10,7 @@ layout: default
 * [Lesson 3: More About Jobs & JobDetails](more-about-jobs.html)
 * [Lesson 4: More About Triggers](more-about-triggers.html)
 * [Lesson 5: SimpleTriggers](simpletriggers.html)
-* [Lesson 6: CronTriggers](/crontriggers.html)
+* [Lesson 6: CronTriggers](crontriggers.html)
 * [Lesson 7: TriggerListeners & JobListeners](trigger-and-job-listeners.html)
 * [Lesson 8: SchedulerListeners](scheduler-listeners.html)
 * [Lesson 9: JobStores](job-stores.html)

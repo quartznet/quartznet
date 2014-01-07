@@ -14,7 +14,7 @@ endTime that specifies when the schedule should be discontinued.
 
 ### Cron Expressions
 
-Cron-Expressions are used to configure instances of CronTrigger. Cron-Expressions are strings that are actually made up 
+_Cron-Expressions_ are used to configure instances of CronTrigger. Cron-Expressions are strings that are actually made up 
 of seven sub-expressions, that describe individual details of the schedule. These sub-expression are separated with white-space, and represent:
 
 * 1. Seconds
@@ -83,17 +83,88 @@ Note that some scheduling requirements are too complicated to express with a sin
 and every 20 minutes between 1:00 pm and 10:00 pm". The solution in this scenario is to simply create two triggers, and register both of them to run the same job.
 
 
-### CronTrigger Misfire Instructions
+## Building CronTriggers
+
+CronTrigger instances are built using **TriggerBuilder** (for the trigger's main properties) and **WithCronSchedule** extension method (for the CronTrigger-specific properties).
+
+You can also use CronScheduleBuilder's static methods to create schedules.
+
+**Build a trigger that will fire every other minute, between 8am and 5pm, every day:**
+
+```c#
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger3", "group1")
+    .WithCronSchedule("0 0/2 8-17 * * ?")
+    .ForJob("myJob", "group1")
+    .Build();
+```
+
+**Build a trigger that will fire daily at 10:42 am:**
+
+```c#
+// we use CronScheduleBuilder's static helper methods here
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger3", "group1")
+    .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(10, 42))
+    .ForJob(myJobKey)
+    .Build();
+```
+
+or -
+
+```c#
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger3", "group1")
+    .WithCronSchedule("0 42 10 * * ?")
+    .ForJob("myJob", "group1")
+    .Build();
+```
+	
+**Build a trigger that will fire on Wednesdays at 10:42 am, in a TimeZone other than the system's default:**
+
+```c#
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger3", "group1")
+    .WithSchedule(CronScheduleBuilder
+        .WeeklyOnDayAndHourAndMinute(DayOfWeek.Wednesday, 10, 42)
+        .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Central America Standard Time")))
+    .ForJob(myJobKey)
+    .Build();
+```
+or -
+
+```c#
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger3", "group1")
+    .WithCronSchedule("0 42 10 ? * WED", x => x
+        .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Central America Standard Time")))
+    .ForJob(myJobKey)
+    .Build();
+```
+
+## CronTrigger Misfire Instructions
 
 The following instructions can be used to inform Quartz what it should do when a misfire occurs for CronTrigger. 
-(Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in MisfireInstruction.CronTrigger as
+(Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in  as
 constants (and API documentation has description for their behavior). The instructions include:
 
-* DoNothing
-* FireOnceNow
+* MisfireInstruction.IgnoreMisfirePolicy
+* MisfireInstruction.CronTrigger.DoNothing
+* MisfireInstruction.CronTrigger.FireOnceNow
 
 All triggers have the MisfireInstrution.SmartPolicy instruction available for use, and this instruction is also the default for all trigger types. 
 The 'smart policy' instruction is interpreted by CronTrigger as MisfireInstruction.CronTrigger.FireOnceNow. The API documentation for the 
 CronTrigger.UpdateAfterMisfire() method explains the exact details of this behavior.
+
+When building CronTriggers, you specify the misfire instruction as part of the cron schedule (via WithCronSchedule extension method):
+
+```c#
+trigger = TriggerBuilder.Create()
+    .WithIdentity("trigger3", "group1")
+    .WithCronSchedule("0 0/2 8-17 * * ?", x => x
+        .WithMisfireHandlingInstructionFireAndProceed())
+    .ForJob("myJob", "group1")
+    .Build();
+```
 
 [&laquo; Lesson 5](simpletriggers.html) | [Lesson 7 &raquo;](trigger-and-job-listeners.html)

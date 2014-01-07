@@ -20,33 +20,33 @@ First lets take a look back at some of that snippet of code we saw in Lesson 1:
 __Using Quartz.NET__
 
 ```c#
-	// define the job and tie it to our HelloJob class
-	IJobDetail job = JobBuilder.Create<HelloJob>()
-		.WithIdentity("myJob", "group1")
-		.Build();
+// define the job and tie it to our HelloJob class
+IJobDetail job = JobBuilder.Create<HelloJob>()
+	.WithIdentity("myJob", "group1")
+	.Build();
 
-	// Trigger the job to run now, and then every 40 seconds
-	ITrigger trigger = TriggerBuilder.Create()
-      .WithIdentity("myTrigger", "group1")
-      .StartNow()
-      .WithSimpleSchedule(x => x
-          .WithIntervalInSeconds(40)
-          .RepeatForever())
-      .Build();
-	  
-    sched.ScheduleJob(jobDetail, trigger);
+// Trigger the job to run now, and then every 40 seconds
+ITrigger trigger = TriggerBuilder.Create()
+  .WithIdentity("myTrigger", "group1")
+  .StartNow()
+  .WithSimpleSchedule(x => x
+	  .WithIntervalInSeconds(40)
+	  .RepeatForever())
+  .Build();
+  
+sched.ScheduleJob(jobDetail, trigger);
 ```
 	
 Now consider the job class **HelloJob**  defined as such:
 
 ```c#
-    public class HelloJob : IJob
-    {
-        public void Execute(IJobExecutionContext context)
-        {
-            Console.WriteLine("HelloJob is executing.");
-        }
-    }
+public class HelloJob : IJob
+{
+	public void Execute(IJobExecutionContext context)
+	{
+		Console.WriteLine("HelloJob is executing.");
+	}
+}
 ```
 
 Notice that we give the scheduler a IJobDetail instance, and that it refers to the job to be executed by simply 
@@ -70,12 +70,12 @@ Here's some quick snippets of putting data into the JobDataMap prior to adding t
 __Setting Values in a JobDataMap__
 
 ```c#
-	// define the job and tie it to our DumbJob class
-	IJobDetail job = JobBuilder.Create<DumbJob>()
-		.WithIdentity("myJob", "group1") // name "myJob", group "group1"
-		.UsingJobData("jobSays", "Hello World!")
-		.UsingJobData("myFloatValue", 3.141f)
-		.Build();
+// define the job and tie it to our DumbJob class
+IJobDetail job = JobBuilder.Create<DumbJob>()
+	.WithIdentity("myJob", "group1") // name "myJob", group "group1"
+	.UsingJobData("jobSays", "Hello World!")
+	.UsingJobData("myFloatValue", 3.141f)
+	.Build();
 ```
 	
 Here's a quick example of getting data from the JobDataMap during the job's execution:
@@ -83,20 +83,20 @@ Here's a quick example of getting data from the JobDataMap during the job's exec
 __Getting Values from a JobDataMap__
 
 ```c#
-    public class DumbJob : IJob
-    {
-        public void Execute(JobExecutionContext context)
-        {
-		  JobKey key = context.JobDetail.Key;
+public class DumbJob : IJob
+{
+	public void Execute(JobExecutionContext context)
+	{
+	  JobKey key = context.JobDetail.Key;
 
-		  JobDataMap dataMap = context.JobDetail.JobDataMap;
+	  JobDataMap dataMap = context.JobDetail.JobDataMap;
 
-		  string jobSays = dataMap.GetString("jobSays");
-		  float myFloatValue = dataMap.GetFloat("myFloatValue");
+	  string jobSays = dataMap.GetString("jobSays");
+	  float myFloatValue = dataMap.GetFloat("myFloatValue");
 
-		  Console.Error.WriteLine("Instance " + key + " of DumbJob says: " + jobSays + ", and val is: " + myFloatValue);
-        }
-    } 
+	  Console.Error.WriteLine("Instance " + key + " of DumbJob says: " + jobSays + ", and val is: " + myFloatValue);
+	}
+} 
 ```
 
 If you use a persistent JobStore (discussed in the JobStore section of this tutorial) you should use some care
@@ -132,7 +132,7 @@ public class DumbJob : IJob
 		string jobSays = dataMap.GetString("jobSays");
 		float myFloatValue = dataMap.GetFloat("myFloatValue");
 		IList<DateTimeOffset> state = (IList<DateTimeOffset>) dataMap.Get("myStateData");
-		state.add(DateTimeOffset.UtcNow);
+		state.Add(DateTimeOffset.UtcNow);
 
 		Console.Error.WriteLine("Instance " + key + " of DumbJob says: " + jobSays + ", and val is: " + myFloatValue);
 	}
@@ -142,8 +142,8 @@ public class DumbJob : IJob
 Or if you wish to rely on the JobFactory "injecting" the data map values onto your class, it might look like this instead:
 
 ```c#
-public class DumbJob : IJob {
-
+public class DumbJob : IJob
+{
     public string JobSays { private get; set; }
     public float FloatValue { private get; set; }
       
@@ -154,7 +154,7 @@ public class DumbJob : IJob {
 		JobDataMap dataMap = context.MergedJobDataMap;  // Note the difference from the previous example
 
 		IList<DateTimeOffset> state = (IList<DateTimeOffset>) dataMap.Get("myStateData");
-		state.add(DateTimeOffset.UtcNow);
+		state.Add(DateTimeOffset.UtcNow);
 
 		Console.Error.WriteLine("Instance " + key + " of DumbJob says: " + JobSays + ", and val is: " + FloatValue);
     }
