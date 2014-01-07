@@ -11,6 +11,7 @@ category_dir: /
 baseurl: 
 
 url: http://www.quartz-scheduler.net/
+domain: www.quartz-scheduler.net
 
 #### Under the Hood Stuff #####
 

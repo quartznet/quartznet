@@ -5,7 +5,7 @@ layout: nil
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
   <url>
-    <loc>{{ site.url }}/</loc>
+    <loc>http://{{ site.domain }}/</loc>
     <lastmod>{{ site.time | date: "%Y-%m-%d" }}</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -13,7 +13,7 @@ layout: nil
 
   {% for page in site.posts %}
   <url>
-    <loc>{{ site.url }}{{ page.url }}</loc>
+    <loc>http://{{ site.domain }}{{ page.url }}</loc>
     {% if page.last_updated %}
     <lastmod>{{ page.last_updated | date: "%Y-%m-%d" }}</lastmod>
     {% elsif page.date %}
@@ -26,7 +26,7 @@ layout: nil
 
   {% for page in site.pages %}
   <url>
-    <loc>{{ site.url }}{{ page.url }}</loc>
+    <loc>http://{{ site.domain }}{{ page.url }}</loc>
     {% if page.last_updated %}
     <lastmod>{{ page.last_updated | date: "%Y-%m-%d" }}</lastmod>
     {% elsif page.date %}
