@@ -8,7 +8,9 @@
     <Flag Id="{46CEF21D-3301-4517-A875-A0906828390E}" HighlightColor="#FFA1FFD0">Exclude from Online</Flag>
     <Flag Id="{4AAE0FD4-7313-4FEE-A25F-0785B885F736}" HighlightColor="#FFFFFFA1">Exclude from Booklet</Flag>
   </Flags>
-  <PropertyDefinitions />
+  <PropertyDefinitions>
+    <PropertyDefinition Id="afcdfb66-9f4e-459f-bfe4-2a2aa36419bb" Name="Scripts" Description="" PropertyType="Html" />
+  </PropertyDefinitions>
   <PropertyDefinitionValues />
   <Title>Quartz.NET 2.2</Title>
   <ContentFiles>
@@ -332,6 +334,37 @@
         </PropertyDefinitionValue>
         <PropertyDefinitionValue PropertyDefinitionId="2f9f3fe0-f813-47cd-ba2e-ed8c50f24abc">
           <PropertyValue />
+        </PropertyDefinitionValue>
+        <PropertyDefinitionValue PropertyDefinitionId="afcdfb66-9f4e-459f-bfe4-2a2aa36419bb">
+          <PropertyValue m="2014-01-08T13:02:06.5466098Z">&lt;script type="text/javascript"&gt;
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-1433901-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+	var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+	ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+	var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+&lt;/script&gt;</PropertyValue>
+        </PropertyDefinitionValue>
+        <PropertyDefinitionValue PropertyDefinitionId="fb0b069e-0e70-4bdb-8fc3-6fdb9ef927b3">
+          <PropertyValue m="2014-01-08T13:17:32.8688171Z">&amp;copy; %%year%% All Rights Reserved.
+&lt;br&gt;
+
+&lt;div align="center"&gt;
+&lt;script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"&gt;&lt;/script&gt;
+&lt;!-- Documentation footer --&gt;
+&lt;ins class="adsbygoogle"
+     style="display:inline-block;width:728px;height:90px"
+     data-ad-client="ca-pub-2642923360660292"
+     data-ad-slot="5493492127"&gt;&lt;/ins&gt;
+&lt;script&gt;
+(adsbygoogle = window.adsbygoogle || []).push({});
+&lt;/script&gt;
+&lt;/div&gt;</PropertyValue>
         </PropertyDefinitionValue>
       </PropertyDefinitionValues>
       <IsTidyXhtmlEnabled>true</IsTidyXhtmlEnabled>
