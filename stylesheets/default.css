@@ -26,7 +26,7 @@ body
 {
 	background: #0094D6 url(../images/bg.gif) repeat-x;
 	color: #466;
-	font: normal 62.5% "Lucida Sans Unicode" ,sans-serif;
+	font: normal 90% "Lucida Sans Unicode" ,sans-serif;
 	margin: 0;
 }
 input
@@ -220,6 +220,7 @@ h1, h2, h3
 	text-decoration: underline;
 }
 
+/*
 .code
 {
 	word-wrap: break-word;
@@ -230,3 +231,4 @@ h1, h2, h3
 	font-family: Courier New;
 	font-size: 10pt;
 }
+*/
