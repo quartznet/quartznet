@@ -43,20 +43,6 @@ h1
 	font-size: 1.4em;
 	margin-bottom: 4px;
 }
-/*
-code
-{
-	background: url(../images/bgcode.gif);
-	border: 1px solid #F0F0F0;
-	border-left: 6px solid #39F;
-	color: #555;
-	display: block;
-	font: normal 1.1em "Lucida Sans Unicode" ,serif;
-	margin-bottom: 12px;
-	padding: 8px 10px;
-	white-space: pre;
-}
-*/
 code
 {
 	border: 1px solid #F0F0F0;
@@ -168,7 +154,7 @@ h1, h2, h3
 {
 	color: #777;
 	display: block;
-	font-size: 0.9em;
+	font-size: 1.2em;
 	padding: 3px 6px 3px 18px;
 	text-decoration: none;
 }
