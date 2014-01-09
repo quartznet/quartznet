@@ -47,12 +47,13 @@ ITrigger trigger = TriggerBuilder.Create()
 
 Methods from TriggerUtils related to easy construction of Dates have been moved to new DateBuilder class,
 that can be used with static imports to nicely create Date instances for trigger start and end times, etc.
-				
 
+```c#
 // build a date for 9:00 am on Halloween
 DateTimeOffset runDate = DateBuilder.DateOf(0, 0, 9, 31, 10);
 // build a date 2 hours in the future
 DateTimeOffset myDate = DateBuilder.FutureDate(2, IntervalUnit.HOURS);
+```
 
 The IStatefulJob interface has been deprecated in favor of new class-level attributes for IJob implementations 
 (using both attributes produces equivalent to that of the old IStatefulJob interface):
