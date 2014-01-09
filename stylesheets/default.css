@@ -36,7 +36,6 @@ input
 }
 p, cite, code, ul
 {
-	font-size: 1.2em;
 	padding-bottom: 1.2em;
 }
 h1
@@ -44,6 +43,7 @@ h1
 	font-size: 1.4em;
 	margin-bottom: 4px;
 }
+/*
 code
 {
 	background: url(../images/bgcode.gif);
@@ -52,6 +52,15 @@ code
 	color: #555;
 	display: block;
 	font: normal 1.1em "Lucida Sans Unicode" ,serif;
+	margin-bottom: 12px;
+	padding: 8px 10px;
+	white-space: pre;
+}
+*/
+code
+{
+	border: 1px solid #F0F0F0;
+	display: block;
 	margin-bottom: 12px;
 	padding: 8px 10px;
 	white-space: pre;
@@ -205,7 +214,6 @@ h1, h2, h3
 {
 	background: #0094D6 url(../images/bgfooter.gif) repeat-x;
 	color: #C1DEF0;
-	font-size: 1.1em;
 	line-height: 40px;
 	text-align: center;
 }
@@ -219,16 +227,3 @@ h1, h2, h3
 	color: #FFF;
 	text-decoration: underline;
 }
-
-/*
-.code
-{
-	word-wrap: break-word;
-	margin: 10px;
-	padding: 10px;
-	border: 2px ridge white;
-	background-color: #eeeeee;
-	font-family: Courier New;
-	font-size: 10pt;
-}
-*/
