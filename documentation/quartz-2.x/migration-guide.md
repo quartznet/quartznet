@@ -69,7 +69,7 @@ IJobDetail job = JobBuilder.Create<SimpleJob>()
 
 ITrigger trigger = TriggerBuilder.Create()
 	.WithIdentity("trigger1", "group1")
-	.StartAt(DateBuilder.FutureDate(2, IntervalUnit.HOURS))
+	.StartAt(DateBuilder.FutureDate(2, IntervalUnit.Hour))
 	.WithSimpleSchedule(x => x.RepeatHourlyForever())
 	.ModifiedByCalendar("holidays")
 	.Build();
