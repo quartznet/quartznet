@@ -10,9 +10,6 @@ Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect 
 * Configuring Quartz to your own particular needs
 * Starting a sample application
 
-After becoming familiar with the basic functioning of Quartz Scheduler, consider more advanced features such as Where, an Enterprise feature that allows jobs and triggers to run on specified Terracotta clients instead of randomly chosen
-ones.
-
 ## Download and Install
 
 You can either download the zip file or use the NuGet package. NuGet package contains only the binaries needed to run Quartz.NET, zip file comes with source code, samples and Quartz.NET server sample application.
