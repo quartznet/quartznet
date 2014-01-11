@@ -5,9 +5,9 @@ title: Version Migration Guide
 
 # Version Migration Guide
 
-*This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the change log](https://raw.github.com/quartznet/quartznet/master/changelog.txt).*
+*This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the complete change log](https://raw.github.com/quartznet/quartznet/master/changelog.txt).*
 
-**If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutoria/index.html)**
+**If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)**
 
 # Upgrading to 2.2 from 2.1
 
