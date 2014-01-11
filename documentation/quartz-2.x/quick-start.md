@@ -52,7 +52,7 @@ To get up and running quickly, a basic quartz.config looks something like this:
 
 	quartz.scheduler.instanceName = MyScheduler
 	quartz.threadPool.threadCount = 3
-	quartz.jobStore.type = org.quartz.simpl.RAMJobStore
+	quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
 
 Remember to set the **Copy to Output Directory** on Visual Studio's file property pages to have value **Copy always**. Otherwise the config will not be seen if it's not in build directory.
 	
