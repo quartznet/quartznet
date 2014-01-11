@@ -25,9 +25,12 @@ a:hover
 body
 {
 	background: #0094D6 url(../images/bg.gif) repeat-x;
-	color: #466;
-	font: normal 90% "Lucida Sans Unicode" ,sans-serif;
 	margin: 0;
+	box-sizing: border-box;
+	font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	color: #333;
+	line-height: 1.4;
+	font-size: 14px;
 }
 input
 {
@@ -184,12 +187,15 @@ h1, h2, h3
 .content .descr
 {
 	color: #C60;
-	margin-bottom: 6px;
+	margin-bottom: 10px;
+	margin-top: -10px;
+	margin-left: 10px;
+	font-style: italic;
 }
 .content li
 {
-	list-style: url(../images/li.gif);
-	margin-left: 18px;
+	margin-left: 24px;
+	margin-bottom: .5em;
 }
 
 /* search form */

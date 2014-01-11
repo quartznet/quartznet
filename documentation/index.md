@@ -6,6 +6,7 @@ layout: default
 
 ## Available Documents (Quartz 2.x):
 
+* [Quick Start Guide](quartz-2.x/quick-start.html)
 * [Tutorials for Developing with Quartz](quartz-2.x/tutorial/index.html)
 
 ## Available Documents (Quartz 1.x):
