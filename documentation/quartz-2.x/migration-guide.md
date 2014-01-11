@@ -5,9 +5,39 @@ title: Version Migration Guide
 
 # Version Migration Guide
 
-*This document outlines changes needed per version upgrade basis.*
+*This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the change log](https://raw.github.com/quartznet/quartznet/master/changelog.txt).*
 
-# Upgrading from 1.0 to 2.0
+**If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutoria/index.html)**
+
+# Upgrading to 2.2 from 2.1
+
+## Database schema changes
+
+Database schema has changed to include the scheduled time for fired triggers table. You need to run the migration script:
+
+	database\schema_20_to_22_upgrade.sql
+	
+## Other
+
+* SchedulerStarting() method was added to ISchedulerListener interface
+* dbFailureRetryInterval parameter was removed from DirectSchedulerFactory API
+	
+There are variations for different database server inside the script. Choose the one suiting you the best.
+
+# Upgrading to 2.1 from 2.0
+
+* NthIncludedDayTrigger was removed that was supposed to be removed in 2.0
+* There are no Visual Studio 2008 solutions and projects anymore, you need VS2010 or later
+
+# Upgrading to 2.0 from 1.0
+
+## Database schema changes
+
+Database has changed since 1.0 version. You need to run the database migration script:
+
+	database\sqlserver_schema_10_to_20_upgrade.sql
+	
+The script is made for SQL Server, but should work for others. You can adapt the script when needed for your specific database. **Always test the migration on non-production server before upgrading production**
 
 ## API Changes
 				
