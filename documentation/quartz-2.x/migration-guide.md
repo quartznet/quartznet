@@ -51,33 +51,39 @@ that can be used with static imports to nicely create Date instances for trigger
 ```c#
 // build a date for 9:00 am on Halloween
 DateTimeOffset runDate = DateBuilder.DateOf(0, 0, 9, 31, 10);
+
 // build a date 2 hours in the future
-DateTimeOffset myDate = DateBuilder.FutureDate(2, IntervalUnit.HOURS);
+DateTimeOffset myDate = DateBuilder.FutureDate(2, IntervalUnit.Hour);
 ```
 
 The IStatefulJob interface has been deprecated in favor of new class-level attributes for IJob implementations 
 (using both attributes produces equivalent to that of the old IStatefulJob interface):
 				
 ```c#
+// instructs the scheduler to re-store the Job's JobDataMap contents after execution completes
 [PersistJobDataAfterExecution]
+public class MyJob : IJob
+{
+}
 ```
 
-Instructs the scheduler to re-store the Job's JobDataMap contents after execution completes.
 
 ```c#
+// instructs the scheduler to block other instances of the same job (by JobKey) from executing when one already is
 [DisallowConcurrentExecution]
+public class MyJob : IJob
+{
+}
 ```
 
-Instructs the scheduler to block other instances of the same job (by JobKey) from executing when one already is.
-
-Significant changes to usage of JobListener and TriggerListener:
+**Significant changes to usage of JobListener and TriggerListener**
 					
 * Removal of distinction between "global" and "non-global" listeners
 * JobDetails and Triggers are no longer configured with a list of names of listeners to notify, instead listeners identify which jobs/triggers they're interested in.
 * Listeners are now assigned a set of Matcher instances - which provide matching rules for jobs/triggers they wish to receive events for.
 * Listeners are now managed through a ListenerManager API, rather than directly with the Scheduler API.
 					
-					
+**Other changes**
 					
 * The SchedulerException class and class hierarchy has been cleaned up.
 * DateIntervalTrigger was renamed to CalendarIntervalTrigger (or more exactly the concrete class is now CalendarIntervalTriggerImpl).
