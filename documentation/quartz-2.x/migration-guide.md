@@ -3,35 +3,33 @@ layout: default
 title: Version Migration Guide
 ---
 
-# Version Migration Guide
-
 *This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the complete change log](https://raw.github.com/quartznet/quartznet/master/changelog.txt).*
 
 **If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)**
 
-# Upgrading to 2.2 from 2.1
+## Upgrading to 2.2 from 2.1
 
-## Database schema changes
+### Database schema changes
 
 Database schema has changed to include the scheduled time for fired triggers table. You need to run the migration script:
 
 	database\schema_20_to_22_upgrade.sql
 	
-## Other
+### Other
 
 * SchedulerStarting() method was added to ISchedulerListener interface
 * dbFailureRetryInterval parameter was removed from DirectSchedulerFactory API
 	
 There are variations for different database server inside the script. Choose the one suiting you the best.
 
-# Upgrading to 2.1 from 2.0
+## Upgrading to 2.1 from 2.0
 
 * NthIncludedDayTrigger was removed that was supposed to be removed in 2.0
 * There are no Visual Studio 2008 solutions and projects anymore, you need VS2010 or later
 
-# Upgrading to 2.0 from 1.0
+## Upgrading to 2.0 from 1.0
 
-## Database schema changes
+### Database schema changes
 
 Database has changed since 1.0 version. You need to run the database migration script:
 
@@ -39,7 +37,7 @@ Database has changed since 1.0 version. You need to run the database migration s
 	
 The script is made for SQL Server, but should work for others. You can adapt the script when needed for your specific database. **Always test the migration on non-production server before upgrading production**
 
-## API Changes
+### API Changes
 				
 The most obvious differences with version 2.0 are the significant changes to the API. 
 These changes have aimed to: modernize the API to use collections and generics, remove ambiguities and redundancies,
