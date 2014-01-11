@@ -40,8 +40,18 @@ p, cite, code, ul
 }
 h1
 {
-	font-size: 1.4em;
-	margin-bottom: 4px;
+        font-size: 1.4em;
+        margin-bottom: 4px;
+}
+h2
+{
+        font-size: 1.2em;
+        margin-bottom: 4px;
+}
+h3
+{
+        font-size: 1.1em;
+        margin-bottom: 4px;
 }
 code
 {
