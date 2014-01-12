@@ -3,8 +3,6 @@ title: Quartz.NET Features
 layout: default
 ---
 
-# Quartz.NET Features
-		
 ## Runtime Environments
 
 * Quartz.NET can run embedded within another free standing application

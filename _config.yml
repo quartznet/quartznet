@@ -16,6 +16,9 @@ domain: www.quartz-scheduler.net
 #### Under the Hood Stuff #####
 
 markdown: redcarpet  
+redcarpet:
+  extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink", "tables", "with_toc_data"]
+  
 pygments: true
 
 exclude: [README.markdown, package.json, grunt.js, Gruntfile.js, node_modules, Gemfile, Gemfile.lock]

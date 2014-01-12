@@ -275,30 +275,8 @@ First, the obvious, but not-so-practical:
 * Buy a better (more powerful) machine to run your database on.
 * Buy a better RDBMS.
 
-Use driver delegate implementation that is specific to your database, like SQLServerDelegate, for best performance.
-					
-Now for something simple, but effective: Build indexes on the Quartz tables.
-					
-Most database systems will automatically put indexes on the primary-key 
-fields, many will also automatically do it for the foreign-key field. 
-Make sure yours does this, or make the indexes on all key fields 
-of every table manually.
-					
-Next, manually add some additional indexes: most important to index are 
-the TRIGGER table's "next_fire_time" and "state" fields. Last 
-(but not as important), add indexes to every column on the FIRED_TRIGGERS table.
-					
-**Create Table Indexes** 
+Sencondly, use driver delegate implementation that is specific to your database, like SQLServerDelegate, for best performance.
 
-```sql
-create index idx_qrtz_t_next_fire_time on qrtz_triggers(NEXT_FIRE_TIME);
-create index idx_qrtz_t_state on qrtz_triggers(TRIGGER_STATE);
-create index idx_qrtz_t_nf_st on qrtz_triggers(TRIGGER_STATE,NEXT_FIRE_TIME);
-create index idx_qrtz_ft_trig_name on qrtz_fired_triggers(TRIGGER_NAME);
-create index idx_qrtz_ft_trig_group on qrtz_fired_triggers(TRIGGER_GROUP);
-create index idx_qrtz_ft_trig_name on qrtz_fired_triggers(TRIGGER_NAME);
-create index idx_qrtz_ft_trig_n_g on qrtz_fired_triggers(TRIGGER_NAME,TRIGGER_GROUP);
-create index idx_qrtz_ft_trig_inst_name on qrtz_fired_triggers(INSTANCE_NAME);
-create index idx_qrtz_ft_job_name on qrtz_fired_triggers(JOB_NAME);
-create index idx_qrtz_ft_job_group on qrtz_fired_triggers(JOB_GROUP);
-```
+*You should also always prefer the latest version of the library. Quartz.NET 2.0 is much more efficient than 1.x series and 2.2.x line again has AdoJobStore related performance improvements over earlier 2.x releases*
+					
+

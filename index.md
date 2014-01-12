@@ -3,10 +3,7 @@ title: Quartz Enterprise Scheduler .NET
 layout: default
 ---
 
-
-# Welcome to the home of Quartz.NET!
-	
-<cite>
+<cite style="margin-top: 20px;">
 Quartz.NET is a full-featured, open source job scheduling system that can be used from smallest apps to large scale enterprise systems.
 </cite>
 
