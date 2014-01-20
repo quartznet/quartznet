@@ -77,6 +77,7 @@ namespace Quartz.Impl
     public class StdSchedulerFactory : ISchedulerFactory
     {
         private const string ConfigurationKeyPrefix = "quartz.";
+        public const string ConfigurationSectionName = "quartz";
         public const string PropertiesFile = "quartz.config";
         public const string PropertySchedulerInstanceName = "quartz.scheduler.instanceName";
         public const string PropertySchedulerInstanceId = "quartz.scheduler.instanceId";
@@ -202,7 +203,7 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            NameValueCollection props = (NameValueCollection) ConfigurationManager.GetSection("quartz");
+            NameValueCollection props = (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
 
             string requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
 

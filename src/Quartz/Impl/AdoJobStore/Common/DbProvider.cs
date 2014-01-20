@@ -21,9 +21,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 
@@ -38,29 +38,28 @@ namespace Quartz.Impl.AdoJobStore.Common
     public class DbProvider : IDbProvider
     {
         protected const string PropertyDbProvider = "quartz.dbprovider";
+        protected const string DbProviderSectionName = StdSchedulerFactory.ConfigurationSectionName;
         protected const string DbProviderResourceName = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
 
         private string connectionString;
         private readonly DbMetadata dbMetadata;
+        private readonly MethodInfo commandBindByNamePropertySetter;
 
+        private static readonly IList<DbMetadataFactory> dbMetadataFactories;
         private static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
-        private static readonly DbMetadata notInitializedMetadata = new DbMetadata();
-        private MethodInfo commandBindByNamePropertySetter;
 
         /// <summary>
         /// Parse metadata once in static constructor.
         /// </summary>
         static DbProvider()
         {
-            // parse metadata
-            PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(DbProviderResourceName);
-            IList<string> providers = pp.GetPropertyGroups(PropertyDbProvider);
-            foreach (string providerName in providers)
+            dbMetadataFactories = new List<DbMetadataFactory>
             {
-                dbMetadataLookup[providerName] = notInitializedMetadata;
-            }
+                new ConfigurationBasedDbMetadataFactory(DbProviderSectionName, PropertyDbProvider),
+                new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider),
+            };
         }
-
+        
         /// <summary>
         /// Initializes a new instance of the <see cref="DbProvider"/> class.
         /// </summary>
@@ -68,17 +67,6 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <param name="connectionString">The connection string.</param>
         public DbProvider(string dbProviderName, string connectionString)
         {
-            List<string> deprecatedProviders = new List<string>
-                                               {
-                                                   "Npgsql-10",
-                                                   "SqlServer-11"
-                                               };
-
-            if (deprecatedProviders.Contains(dbProviderName))
-            {
-                throw new InvalidConfigurationException(dbProviderName + " provider is no longer supported.");
-            }
-
             this.connectionString = connectionString;
             dbMetadata = GetDbMetadata(dbProviderName);
 
@@ -112,37 +100,37 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         protected virtual DbMetadata GetDbMetadata(string providerName)
         {
-            DbMetadata data;
-            dbMetadataLookup.TryGetValue(providerName, out data);
-
-            if (data == notInitializedMetadata)
+            DbMetadata result;
+            if (!dbMetadataLookup.TryGetValue(providerName, out result))
             {
-                try
+                foreach (var dbMetadataFactory in dbMetadataFactories)
                 {
-                    PropertiesParser pp =
-                        PropertiesParser.ReadFromEmbeddedAssemblyResource(DbProviderResourceName);
-                    DbMetadata metadata = new DbMetadata();
-                    NameValueCollection props =
-                        pp.GetPropertyGroup(PropertyDbProvider + "." + providerName, true);
-                    ObjectUtils.SetObjectProperties(metadata, props);
-                    metadata.Init();
-                    RegisterDbMetadata(providerName, metadata);
-                    return metadata;
+                    if (dbMetadataFactory.GetProviderNames().Contains(providerName))
+                    {
+                        result = dbMetadataFactory.GetDbMetadata(providerName);
+                        RegisterDbMetadata(providerName, result);
+                        return result;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    throw new Exception("Error while reading metadata information for provider '" + providerName + "'",
-                        ex);
-                }
+                throw new ArgumentOutOfRangeException("providerName", "There is no metadata information for provider '" + providerName + "'");
             }
 
-            return data;
+            return result;
         }
 
+        /// <summary>
+        /// Generates the valid provider names information.
+        /// </summary>
+        /// <returns></returns>
         protected static string GenerateValidProviderNamesInfo()
         {
+            var providerNames = dbMetadataFactories
+                .SelectMany(factory => factory.GetProviderNames())
+                .Distinct()
+                .OrderBy(name => name);
+
             StringBuilder sb = new StringBuilder("Valid DB Provider names are:").Append(Environment.NewLine);
-            foreach (string providerName in dbMetadataLookup.Keys)
+            foreach (string providerName in providerNames)
             {
                 sb.Append("\t").Append(providerName).Append(Environment.NewLine);
             }
