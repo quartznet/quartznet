@@ -151,13 +151,13 @@ Trigger referencing it).
 
 **Quartz.NET 2.x**
 
-Implement `IJob` and also decorate your job class with `[DisallowConcurrentExecution]` attribute. Read the API 
-documentation for `DisallowConcurrentExecutionAttribute` for more information.
+Implement **IJob** and also decorate your job class with **\[DisallowConcurrentExecution]** attribute. Read the API 
+documentation for **DisallowConcurrentExecutionAttribute** for more information.
 
 **Quartz.NET 1.x**
 
-Make the job class implement `IStatefulJob` rather than `IJob`. Read the API 
-documentation for `IStatefulJob` for more information.
+Make the job class implement **IStatefulJob** rather than **IJob**. Read the API 
+documentation for **IStatefulJob** for more information.
 
 ## How do I stop a Job that is currently executing?
 
