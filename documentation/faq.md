@@ -149,6 +149,13 @@ Trigger referencing it).
 
 ## How do I keep a Job from firing concurrently?
 
+**Quartz.NET 2.x**
+
+Implement IJob and also decorate your job class with **\[DisallowConcurrentExecution]** attribute. Read the API 
+documentation for DisallowConcurrentExecution for more information.
+
+**Quartz.NET 1.x**
+
 Make the job class implement IStatefulJob rather than Job. Read the API 
 documentation for IStatefulJob for more information.
 
