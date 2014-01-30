@@ -152,8 +152,6 @@ namespace Quartz
 
             if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
             {
-                t.StartTimeUtc = from;
-                t.EndTimeUtc = to;
                 t.ComputeFirstFireTimeUtc(cal);
             }
 
