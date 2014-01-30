@@ -38,7 +38,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>The properties parser</returns>
         protected virtual PropertiesParser GetPropertiesParser()
         {
-            NameValueCollection settings = (NameValueCollection)ConfigurationManager.GetSection(sectionName);
+            NameValueCollection settings = (NameValueCollection)ConfigurationManager.GetSection(sectionName) ?? new NameValueCollection();
             PropertiesParser result = new PropertiesParser(settings);
             return result;
         }
