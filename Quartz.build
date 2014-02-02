@@ -398,56 +398,49 @@
     </delete>
   </target>
 
-  <target name="doc" depends="build">
-
-    <mkdir dir="doc\apidoc" />
+  <target name="apidoc">
 
     <property name="dir.ndoc.target.binaries" value="${dir.build}\Quartz\" />
-    <echo message="Building documentation using binaries found from ${dir.ndoc.target.binaries}" />
+    <echo message="Building documentation...." />
+	
+	<exec
+		program="C:\Program Files (x86)\MSBuild\12.0\Bin\msbuild.exe"
+		commandline="/p:Configuration=Release Quartz.2010.sln" 
+	/>
+	
+	<exec
+		program="C:\Program Files (x86)\MSBuild\12.0\Bin\msbuild.exe"
+		commandline="/p:CleanIntermediates=True /p:Configuration=Release /p:CustomBeforeSHFBTargets=doc/quartznet-2.0.targets &quot;doc/quartznet.shfbproj&quot;" 
+	/>
 
-    <ndoc>
-      <assemblies basedir="${dir.ndoc.target.binaries}">
-        <include name="Quartz.dll" />
-      </assemblies>
+	<call target="apidoc-post-process" />
 
-      <summaries basedir="${dir.src}\">
-        <include name="NamespaceSummary.xml" />
-      </summaries>
-      <documenters>
-        <documenter name="MSDN">
-          <property name="OutputDirectory" value="doc\apidoc" />
-          <property name="HtmlHelpName" value="Quartz.NET" />
-          <property name="HtmlHelpCompilerFilename" value="hhc.exe" />
-          <property name="IncludeFavorites" value="False" />
-          <property name="Title" value="Quartz.NET Class Library" />
-          <property name="SplitTOCs" value="False" />
-          <property name="DefaulTOC" value="" />
-          <property name="ShowVisualBasic" value="False" />
-          <property name="ShowMissingSummaries" value="False" />
-          <property name="ShowMissingRemarks" value="False" />
-          <property name="ShowMissingParams" value="False" />
-          <property name="ShowMissingReturns" value="False" />
-          <property name="ShowMissingValues" value="False" />
-          <property name="DocumentInternals" value="False" />
-          <property name="DocumentProtected" value="True" />
-          <property name="DocumentPrivates" value="False" />
-          <property name="DocumentEmptyNamespaces" value="False" />
-          <property name="IncludeAssemblyVersion" value="True" />
-          <property name="CopyrightText" value="Copyright 2001-2009 Terracotta Inc. and partially Marko Lahma" />
-          <property name="CopyrightHref" value="" />
-        </documenter>
-      </documenters>
-    </ndoc>
-    <!-- clean unwanted items -->
-    <delete>
-      <fileset>
-        <include name="doc\apidoc\**\ndoc_msdn_temp" />
-        <include name="doc\apidoc\**\*.chm" />
-        <include name="doc\apidoc\**\*.hhc" />
-        <include name="doc\apidoc\**\*.hhk" />
-        <include name="doc\apidoc\**\*.hhp" />
-      </fileset>
-    </delete>
+  </target>
+  
+  <target name="apidoc-post-process">
+ 	
+	<!-- far easier just to post-process html files than try to get SHFB to work with html in footer -->
+	<loadfile file="doc/header.template" property="header.content" failonerror="true" />
+	<loadfile file="doc/footer.template" property="footer.content" failonerror="true" />
+	<foreach item="File" property="filename">
+		<in>
+			<items>
+				<include name="build/apidoc/**/*.htm" />
+				<include name="build/apidoc/**/*.html" />
+			</items>
+		</in>
+		<do>
+			<loadfile file="${filename}" property="file.to.process">
+				<filterchain>
+					<replacetokens>
+						<token key="FOOTER" value="${footer.content}" />
+						<token key="HEADER" value="${header.content}" />
+					</replacetokens>
+				</filterchain>
+			</loadfile>
+			<echo file="${filename}">${file.to.process}</echo>
+		</do>
+	</foreach>
   </target>
 
   <target name="package-release">
@@ -555,28 +548,5 @@
 	<property name="log4net-dll" value="packages/log4net.2.0.0/lib/${nuget-framework}-full/log4net.dll" unless="${client-profile}" />
 	<property name="log4net-dll" value="packages/log4net.2.0.0/lib/${nuget-framework}-client/log4net.dll" if="${client-profile}" />
   </target>
-  
-  <target name="build-website">
 
-    <loadtasks assembly="lib\other\Anakia.dll" verbose="true" />
-
-    <mkdir dir="website" failonerror="false" />
-	<property name="website.src" value="../website" />
-
-    <anakia
-            navigationfile="${website.src}/navigation.xml"
-            templatefile="${website.src}/site.vsl"
-            projectfile="${website.src}/project.xml"
-            targetdir="website\"
-            >
-
-      <source basedir="${website.src}">
-        <include name="**.*" />
-
-        <exclude name="**/project.xml" />
-        <exclude name="**/*.vsl" />
-        <exclude name="**/*.dtd" />
-      </source>
-    </anakia>
-  </target>
 </project>

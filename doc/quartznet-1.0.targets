@@ -1,0 +1,7 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <HelpTitle>Quartz.NET 1.0 API Documentation</HelpTitle>
+    <OutputPath>..\build\apidoc\1.0\</OutputPath>
+    <BuildLogFile>..\build\apidoc\log-1.0.txt</BuildLogFile>
+  </PropertyGroup>
+</Project>
