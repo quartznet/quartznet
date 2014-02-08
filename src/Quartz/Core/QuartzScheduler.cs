@@ -52,7 +52,7 @@ namespace Quartz.Core
     /// <seealso cref="IThreadPool" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler
+    public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler, IDisposable
     {
         private readonly ILog log;
         private static readonly Version version; 
@@ -2369,6 +2369,24 @@ namespace Quartz.Core
             // this basically means that remoting object will live as long
             // as the application lives
             return null;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                var executingJobCount = CurrentlyExecutingJobs.Count;
+                if (executingJobCount > 0)
+                {
+                    log.WarnFormat("diposing scheduler without waiting the currently running jobs (count = {0})", executingJobCount);
+                }
+                Shutdown(false);
+            }
         }
     }
 

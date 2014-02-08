@@ -83,6 +83,11 @@ namespace Quartz.Simpl
 	    /// </summary>
 	    public virtual void ReturnJob(IJob job)
 	    {
+	        var disposable = job as IDisposable;
+	        if (disposable != null)
+	        {
+	            disposable.Dispose();
+	        }
 	    }
 	}
 }

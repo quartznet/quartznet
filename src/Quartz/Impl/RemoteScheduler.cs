@@ -619,5 +619,9 @@ namespace Quartz.Impl
             SchedulerException ex = new SchedulerException(msg, cause);
             return ex;
         }
+
+        public void Dispose()
+        {
+        }
     }
 }

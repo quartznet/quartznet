@@ -39,7 +39,16 @@ namespace Quartz.Impl
     /// <author>Marko Lahma (.NET)</author>
     public class StdScheduler : IScheduler
     {
-        private readonly QuartzScheduler sched;
+        private QuartzScheduler sched;
+
+        /// <summary>
+        /// Construct a <see cref="StdScheduler" /> instance to proxy the given
+        /// <see cref="QuartzScheduler" /> instance.
+        /// </summary>
+        public StdScheduler(QuartzScheduler sched)
+        {
+            this.sched = sched;
+        }
 
         /// <summary>
         /// returns true if the given JobGroup
@@ -203,15 +212,6 @@ namespace Quartz.Impl
         public virtual IJobFactory JobFactory
         {
             set { sched.JobFactory = value; }
-        }
-
-        /// <summary>
-        /// Construct a <see cref="StdScheduler" /> instance to proxy the given
-        /// <see cref="QuartzScheduler" /> instance.
-        /// </summary>
-        public StdScheduler(QuartzScheduler sched)
-        {
-            this.sched = sched;
         }
 
         /// <summary>
@@ -562,6 +562,23 @@ namespace Quartz.Impl
         public bool Interrupt(string fireInstanceId)
         {
             return sched.Interrupt(fireInstanceId);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (sched != null)
+                {
+                    sched.Dispose();
+                    sched = null;
+                }
+            }
         }
     }
 }

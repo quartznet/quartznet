@@ -99,7 +99,7 @@ namespace Quartz
     /// <seealso cref="ITriggerListener"/>
     /// <seealso cref="ISchedulerListener"/>
     /// <author>Marko Lahma (.NET)</author>
-    public interface IScheduler
+    public interface IScheduler : IDisposable
     {
         /// <summary>
         /// returns true if the given JobGroup

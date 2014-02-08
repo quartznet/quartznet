@@ -39,7 +39,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             }
             catch (Exception ex)
             {
-                Assert.IsTrue(ex.Message.IndexOf("Invalid DB provider name") > -1);
+                Assert.That(ex.Message, Is.StringContaining("There is no metadata information for provider 'FooBar'"));
             }
         }
 
