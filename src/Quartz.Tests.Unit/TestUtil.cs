@@ -60,12 +60,12 @@ namespace Quartz.Tests.Unit
 
 		public static TriggerFiredBundle NewMinimalRecoveringTriggerFiredBundle()
 		{
-			return NewMinimalTriggerFiredBundle(isRecovering: true);
+			return NewMinimalTriggerFiredBundle(true);
 		}
 
         public static TriggerFiredBundle NewMinimalTriggerFiredBundle()
         {
-        	return NewMinimalTriggerFiredBundle(isRecovering: false);
+        	return NewMinimalTriggerFiredBundle(false);
         }
 
 		private static TriggerFiredBundle NewMinimalTriggerFiredBundle(bool isRecovering)
