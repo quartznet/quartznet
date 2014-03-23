@@ -34,7 +34,7 @@ ITrigger trigger = TriggerBuilder.Create()
 	  .RepeatForever())
   .Build();
   
-sched.ScheduleJob(jobDetail, trigger);
+sched.ScheduleJob(job, trigger);
 ```
 	
 Now consider the job class **HelloJob**  defined as such:
