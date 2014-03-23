@@ -37,7 +37,7 @@ __Using Quartz.NET__
           .RepeatForever())
       .Build();
 	  
-    sched.ScheduleJob(jobDetail, trigger);
+    sched.ScheduleJob(job, trigger);
 ```
 
 As you can see, working with Quartz.NET is rather simple. In [Lesson 2](jobs-and-triggers.html) we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
