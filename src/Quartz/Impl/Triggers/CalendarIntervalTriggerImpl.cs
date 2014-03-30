@@ -672,8 +672,6 @@ namespace Quartz.Impl.Triggers
                     }
 
                     // now baby-step the rest of the way there...
-                    sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
-
                     while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval);
@@ -717,8 +715,6 @@ namespace Quartz.Impl.Triggers
                         sTime = sTime.AddDays((int) (RepeatInterval*jumpCount*7));
                     }
 
-                    sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
-
                     while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval*7);
@@ -736,8 +732,6 @@ namespace Quartz.Impl.Triggers
                     // because months are already large blocks of time, we will
                     // just advance via brute-force iteration.
 
-                    sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
-
                     while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddMonths(RepeatInterval);
@@ -752,8 +746,6 @@ namespace Quartz.Impl.Triggers
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Year)
                 {
-                    sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone because we are comparing only the DateTime portions.
-
                     while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddYears(RepeatInterval);
