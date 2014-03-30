@@ -1,4 +1,5 @@
 ﻿#region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -48,7 +50,6 @@ namespace Quartz
         /// ("FAILED_OVER_JOBS") for thename of a <see cref="ITrigger" />'s group.
         /// </summary>
         public const string DefaultFailOverGroup = "FAILED_OVER_JOBS";
-
 
         /// <summary>
         ///  A constant <see cref="JobDataMap" /> key that can be used to retrieve the
@@ -91,6 +92,12 @@ namespace Quartz
         /// Note that this is the time the original firing was scheduled for, which may
         /// be different from the actual firing time - as a trigger doesn't always fire exactly on time.
         /// </remarks>
-        public const string FailedJobOriginalTriggerScheduledFiretime =  "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
+        public const string FailedJobOriginalTriggerScheduledFiretime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
+
+        /// <summary>
+        /// A special date time to check against when signaling scheduling change when the signaled fire date suggestion is actually irrelevant.
+        /// We only want to signal the change.
+        /// </summary>
+        internal static DateTimeOffset? SchedulingSignalDateTime = new DateTimeOffset(1982, 6, 28, 0, 0, 0, TimeSpan.FromSeconds(0));
     }
 }

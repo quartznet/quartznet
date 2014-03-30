@@ -2721,37 +2721,37 @@ namespace Quartz.Impl.AdoJobStore
                     else
                     {
                         RemoveTrigger(conn, trigger.Key, jobDetail);
-                        SignalSchedulingChangeOnTxCompletion(null);
+                        SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                     }
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     Delegate.UpdateTriggerState(conn, trigger.Key, StateComplete);
-                    SignalSchedulingChangeOnTxCompletion(null);
+                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     Log.Info("Trigger " + trigger.Key + " set to ERROR state.");
                     Delegate.UpdateTriggerState(conn, trigger.Key, StateError);
-                    SignalSchedulingChangeOnTxCompletion(null);
+                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateComplete);
-                    SignalSchedulingChangeOnTxCompletion(null);
+                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     Log.Info("All triggers of Job " + trigger.JobKey + " set to ERROR state.");
                     Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateError);
-                    SignalSchedulingChangeOnTxCompletion(null);
+                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
 
                 if (jobDetail.ConcurrentExecutionDisallowed)
                 {
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked);
                     Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked);
-                    SignalSchedulingChangeOnTxCompletion(null);
+                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 if (jobDetail.PersistJobDataAfterExecution)
                 {
@@ -3610,7 +3610,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (!shutdown && Manage())
                         {
-                            jobStoreSupport.SignalSchedulingChangeImmediately(null);
+                            jobStoreSupport.SignalSchedulingChangeImmediately(SchedulerConstants.SchedulingSignalDateTime);
                         }
                     } //while !Shutdown
                 }

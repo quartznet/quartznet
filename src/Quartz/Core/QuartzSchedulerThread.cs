@@ -142,7 +142,7 @@ namespace Quartz.Core
 
                 if (paused)
                 {
-                    SignalSchedulingChange(null);
+                    SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 else
                 {
@@ -166,7 +166,7 @@ namespace Quartz.Core
                 }
                 else
                 {
-                    SignalSchedulingChange(null);
+                    SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
                 }
             }
 
@@ -223,7 +223,7 @@ namespace Quartz.Core
             lock (sigLock) 
             {
                 signaled = false;
-                signaledNextFireTimeUtc = null;
+                signaledNextFireTimeUtc = SchedulerConstants.SchedulingSignalDateTime;
             }
         }
 
