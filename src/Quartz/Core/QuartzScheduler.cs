@@ -52,7 +52,7 @@ namespace Quartz.Core
     /// <seealso cref="IThreadPool" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler, IDisposable
+    public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler
     {
         private readonly ILog log;
         private static readonly Version version; 
@@ -2383,7 +2383,7 @@ namespace Quartz.Core
                 var executingJobCount = CurrentlyExecutingJobs.Count;
                 if (executingJobCount > 0)
                 {
-                    log.WarnFormat("diposing scheduler without waiting the currently running jobs (count = {0})", executingJobCount);
+                    log.WarnFormat("disposing scheduler without waiting the currently running jobs (count = {0})", executingJobCount);
                 }
                 Shutdown(false);
             }
