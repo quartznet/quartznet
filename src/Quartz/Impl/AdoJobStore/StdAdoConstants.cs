@@ -322,7 +322,7 @@ namespace Quartz.Impl.AdoJobStore
                 TablePrefixSubst, TableSchedulerState, ColumnSchedulerName, SchedulerNameSubst, ColumnInstanceName);
 
         public static readonly string SqlSelectSchedulerStates =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1}", TablePrefixSubst, TableSchedulerState);
+            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3}", TablePrefixSubst, TableSchedulerState, ColumnSchedulerName, SchedulerNameSubst);
 
         public static readonly string SqlSelectSimpleTrigger =
             string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup",
