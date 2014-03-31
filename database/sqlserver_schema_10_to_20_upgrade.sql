@@ -7,6 +7,12 @@
 -- !! FIRST RUN IN TEST ENVIRONMENT AGAINST COPY OF YOU PRODUCTION !!
 --
 
+--- 
+--- !!! The default value of sched_name column is TestScheduler !!!
+--- If you have existing data the scheduler name should correspond to your existing scheduler name
+--- in Quartz configuration (quartz.scheduler.instanceName)
+--- 
+
 -- 
 -- drop tables that are no longer used
 --
@@ -46,6 +52,7 @@ update qrtz_fired_triggers set IS_NONCONCURRENT = is_stateful;
 GO
 alter table qrtz_fired_triggers drop column is_stateful;
 GO
+
 --
 -- add new 'sched_name' column to all tables
 --
