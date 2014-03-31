@@ -14,6 +14,8 @@ title: Version Migration Guide
 Database schema has changed to include the scheduled time for fired triggers table. You need to run the migration script:
 
 	database\schema_20_to_22_upgrade.sql
+
+**Make sure you check the scheduler name in the script - the default value of sched_name column is TestScheduler! If you have existing data the scheduler name should correspond to your existing scheduler name in Quartz configuration (quartz.scheduler.instanceName).**
 	
 ### Other
 
