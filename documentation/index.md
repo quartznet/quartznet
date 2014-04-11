@@ -16,3 +16,8 @@ layout: default
 ## Available Documents (Quartz 1.x):
 
 * [Tutorials for Developing with Quartz](quartz-1.x/tutorial/index.html)
+
+
+Found a problem in the documentation? You can fork the documentation on GitHub and create pull requests!
+
+https://github.com/quartznet/quartznet/tree/gh-pages
