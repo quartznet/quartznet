@@ -131,7 +131,7 @@ public class DumbJob : IJob
 
 		string jobSays = dataMap.GetString("jobSays");
 		float myFloatValue = dataMap.GetFloat("myFloatValue");
-		IList<DateTimeOffset> state = (IList<DateTimeOffset>) dataMap.Get("myStateData");
+		IList<DateTimeOffset> state = (IList<DateTimeOffset>) dataMap["myStateData"];
 		state.Add(DateTimeOffset.UtcNow);
 
 		Console.Error.WriteLine("Instance " + key + " of DumbJob says: " + jobSays + ", and val is: " + myFloatValue);
@@ -153,7 +153,7 @@ public class DumbJob : IJob
 
 		JobDataMap dataMap = context.MergedJobDataMap;  // Note the difference from the previous example
 
-		IList<DateTimeOffset> state = (IList<DateTimeOffset>) dataMap.Get("myStateData");
+		IList<DateTimeOffset> state = (IList<DateTimeOffset>) dataMap["myStateData"];
 		state.Add(DateTimeOffset.UtcNow);
 
 		Console.Error.WriteLine("Instance " + key + " of DumbJob says: " + JobSays + ", and val is: " + FloatValue);
