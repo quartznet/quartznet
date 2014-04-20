@@ -21,6 +21,7 @@ using System;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -64,7 +65,7 @@ namespace Quartz.Impl.AdoJobStore
             string tzId = props.String2;
             if (tzId != null && tzId.Trim().Length != 0) // there could be null entries from previously released versions
             {
-                tz = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+                tz = TimeZoneUtil.FindTimeZoneById(tzId);
             }
 
             CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.Create()

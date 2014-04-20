@@ -26,6 +26,8 @@ using Quartz.Collection;
 
 using NUnit.Framework;
 
+using Quartz.Util;
+
 namespace Quartz.Tests.Unit
 {
     /// <author>Marko Lahma (.NET)</author>
@@ -527,7 +529,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestDaylightSavingsDoesNotMatchAnHourBefore()
         {
-            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
             CronExpression expression = new CronExpression("0 15 15 5 11 ?");
             expression.TimeZone = est;
 
@@ -543,7 +545,7 @@ namespace Quartz.Tests.Unit
         public void TestDaylightSavingsDoesNotMatchAnHourBefore2()
         {
             //another case
-            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
             CronExpression expression = new CronExpression("0 0 0 ? * THU");
             expression.TimeZone = est;
 

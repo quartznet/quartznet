@@ -192,7 +192,7 @@ namespace Quartz.Tests.Unit
 
             // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove time of day is not preserved without setPreserveHourOfDayAcrossDaylightSavings(true)
 
-            var cetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+            var cetTimeZone = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
             startCalendar = TimeZoneInfo.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
 
             dailyTrigger = new CalendarIntervalTriggerImpl();
@@ -322,7 +322,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestTimeZoneTransition()
         {
-            TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo timeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
             CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl("trigger", IntervalUnit.Day, 1);
             trigger.TimeZone = timeZone;
@@ -347,7 +347,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestSkipDayIfItDoesNotExists()
         {
-            TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo timeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
             //March 11, 2012, EST DST starts at 2am and jumps to 3.
             // 3/11/2012 2:00:00 AM is an invalid time
@@ -446,7 +446,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestSkipDayIfItDoesNotExistsIsFalse()
         {
-            TimeZoneInfo timeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo timeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
             //March 11, 2012, EST DST starts at 2am and jumps to 3.
             // 3/11/2012 2:00:00 AM is an invalid time
@@ -540,7 +540,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestStartTimeOnDayInDifferentOffset()
         {
-            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
             DateTimeOffset startDate = new DateTimeOffset(2012, 3, 11, 12, 0, 0, TimeSpan.FromHours(-5));
 
             CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
@@ -563,7 +563,7 @@ namespace Quartz.Tests.Unit
         [Timeout(5000)]
         public void TestMovingAcrossDSTAvoidsInfiniteLoop()
         {
-            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
             DateTimeOffset startDate = new DateTimeOffset(1990, 10, 27, 0, 0, 0, TimeSpan.FromHours(-4));
 
             CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl();
@@ -599,7 +599,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestCrossingDSTBoundry()
         {
-            TimeZoneInfo cetTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+            TimeZoneInfo cetTimeZone = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
             DateTimeOffset startCalendar = TimeZoneUtil.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
 
             CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
@@ -624,7 +624,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestPreserveHourOfDayAcrossDaylightSavingsNotHanging()
         {
-            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
             DateTimeOffset startTime = new DateTimeOffset(2013, 3, 1, 4, 0, 0, TimeSpan.FromHours(-5));
 

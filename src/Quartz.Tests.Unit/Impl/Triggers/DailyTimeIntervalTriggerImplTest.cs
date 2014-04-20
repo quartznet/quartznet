@@ -26,6 +26,7 @@ using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Triggers
 {
@@ -584,7 +585,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestFollowsTimeZone1()
         {
-            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
             DateTimeOffset startTime = new DateTimeOffset(2012, 3, 9, 23, 0, 0, TimeSpan.FromHours(-5));
 
@@ -625,7 +626,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestFollowsTimeZone2()
         {
-            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
             DateTimeOffset startTime = new DateTimeOffset(2012, 11, 2, 12, 0, 0, TimeSpan.FromHours(-4));
 

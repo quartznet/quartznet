@@ -21,6 +21,7 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
@@ -73,7 +74,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         [Test]
         public void TestTimeZone()
         {
-            TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
             MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
             monthlyCalendar.TimeZone = tz;
 

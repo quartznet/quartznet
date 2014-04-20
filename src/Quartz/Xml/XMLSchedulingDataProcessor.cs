@@ -466,7 +466,7 @@ namespace Quartz.Xml
                     string cronExpression = cronTrigger.cronexpression.TrimEmptyToNull();
                     string timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
-                    TimeZoneInfo tz = timezoneString != null ? TimeZoneInfo.FindSystemTimeZoneById(timezoneString) : null;
+                    TimeZoneInfo tz = timezoneString != null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
                     sched = CronScheduleBuilder.CronSchedule(cronExpression)
                         .InTimeZone(tz);
 

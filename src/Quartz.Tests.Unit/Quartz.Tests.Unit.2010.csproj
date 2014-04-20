@@ -198,6 +198,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Xml\TestData\delete-no-job-class.xml" />
     <EmbeddedResource Include="Xml\TestData\directives_overwrite_no-ignoredups.xml" />
+    <Compile Include="Utils\TimeZoneUtilTest.cs" />
     <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
   </ItemGroup>
   <ItemGroup>

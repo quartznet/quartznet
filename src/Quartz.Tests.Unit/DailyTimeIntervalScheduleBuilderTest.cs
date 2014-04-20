@@ -29,6 +29,8 @@ using Quartz.Impl.Triggers;
 
 using NUnit.Framework;
 
+using Quartz.Util;
+
 namespace Quartz.Tests.Unit
 {
     /// <summary>
@@ -286,7 +288,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestCanSetTimeZone()
         {
-            TimeZoneInfo est = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
             IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
                 .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(1)

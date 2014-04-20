@@ -102,7 +102,7 @@ namespace Quartz.Impl.AdoJobStore
   
                         if (timeZoneId != null)
                         {
-                            cb.InTimeZone(TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
+                            cb.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneId));
                         }
 
                         return new TriggerPropertyBundle(cb, null, null);

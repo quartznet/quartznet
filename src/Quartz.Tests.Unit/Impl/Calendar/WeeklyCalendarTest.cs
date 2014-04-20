@@ -22,6 +22,7 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
@@ -65,7 +66,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         [Test]
         public void TestDaylightSavingTransition()
         {
-            cal.TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            cal.TimeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
             cal.SetDayExcluded(DayOfWeek.Monday, false); //Monday only
             cal.SetDayExcluded(DayOfWeek.Tuesday, true);
             cal.SetDayExcluded(DayOfWeek.Wednesday, true);
