@@ -33,6 +33,22 @@ namespace Quartz.Util
         }
 
         /// <summary>
+        /// TimeZoneInfo.GetUtcOffset(DateTimeOffset) is not supported under mono
+        /// </summary>
+        /// <param name="dateTimeOffset"></param>
+        /// <param name="timeZoneInfo"></param>
+        /// <returns></returns>
+        public static TimeSpan GetUtcOffset(DateTimeOffset dateTimeOffset, TimeZoneInfo timeZoneInfo)
+        {
+            if (QuartzEnvironment.IsRunningOnMono)
+            {
+                return timeZoneInfo.GetUtcOffset(dateTimeOffset.UtcDateTime);
+            }
+
+            return timeZoneInfo.GetUtcOffset(dateTimeOffset);
+        }
+
+        /// <summary>
         /// Tries to find time zone with given id, has ability do some fallbacks when necessary.
         /// </summary>
         /// <param name="id">System id of the time zone.</param>
