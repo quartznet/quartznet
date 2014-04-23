@@ -649,7 +649,7 @@ namespace Quartz.Impl.Triggers
             }
 
             // apply timezone for this date & time
-            fireTime = new DateTimeOffset(fireTime.Value.DateTime, TimeZone.GetUtcOffset(fireTime.Value));
+            fireTime = new DateTimeOffset(fireTime.Value.DateTime, TimeZone.GetUtcOffset(fireTime.Value.DateTime));
 
             // d. Calculate and save fireTimeEndDate variable for later use
             DateTimeOffset fireTimeEndDate;
