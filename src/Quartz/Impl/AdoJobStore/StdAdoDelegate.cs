@@ -790,7 +790,7 @@ namespace Quartz.Impl.AdoJobStore
                         job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
                         job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
 
-                        IDictionary map = CanUseProperties ? GetMapFromProperties(rs, 6) : GetObjectFromBlob<IDictionary>(rs, 6);
+                        IDictionary map = ReadMapFromReader(rs, 6);
 
                         if (map != null)
                         {
@@ -799,6 +799,56 @@ namespace Quartz.Impl.AdoJobStore
                     }
 
                     return job;
+                }
+            }
+        }
+
+        private IDictionary ReadMapFromReader(IDataReader rs, int colIndex)
+        {
+            if (CanUseProperties)
+            {
+                try
+                {
+                    return GetMapFromProperties(rs, colIndex);
+                }
+                catch (InvalidCastException)
+                {
+                    // old data from user error?
+                    try
+                    {
+                        var blobData = GetObjectFromBlob<IDictionary>(rs, colIndex);
+                        // we use this then
+                        return blobData;
+                    }
+                    catch
+                    {
+                    }
+
+                    // throw original exception
+                    throw;
+                }
+            }
+            else
+            {
+                try
+                {
+                    return GetObjectFromBlob<IDictionary>(rs, colIndex);
+                }
+                catch (InvalidCastException)
+                {
+                    // old data from user error?
+                    try
+                    {
+                        var stringData = GetMapFromProperties(rs, colIndex);
+                        // we use this then
+                        return stringData;
+                    }
+                    catch
+                    {
+                    }
+
+                    // throw original exception
+                    throw;
                 }
             }
         }
@@ -1513,7 +1563,7 @@ namespace Quartz.Impl.AdoJobStore
                         int misFireInstr = rs.GetInt32(ColumnMifireInstruction);
                         int priority = rs.GetInt32(ColumnPriority);
 
-                        IDictionary map = CanUseProperties ? GetMapFromProperties(rs, 11) : GetObjectFromBlob<IDictionary>(rs, 11);
+                        IDictionary map = ReadMapFromReader(rs, 11); 
 
                         DateTimeOffset? nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
                         DateTimeOffset? previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
@@ -1631,16 +1681,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (rs.Read())
                     {
-                        IDictionary map;
-                        if (CanUseProperties)
-                        {
-                            map = GetMapFromProperties(rs, 0);
-                        }
-                        else
-                        {
-                            map = GetObjectFromBlob<IDictionary>(rs, 0);
-                        }
-
+                        IDictionary map = ReadMapFromReader(rs, 0);
                         if (map != null)
                         {
                             return map as JobDataMap ?? new JobDataMap(map);

@@ -306,6 +306,58 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             Assert.IsEmpty(FailFastLoggerFactoryAdapter.Errors, "Found error from logging output");
         }
 
+        [Test]
+        public void ShouldBeAbleToUseMixedProperties()
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
+            properties["quartz.jobStore.dataSource"] = "default";
+            properties["quartz.jobStore.useProperties"] = false.ToString();
+
+            string connectionString;
+            dbConnectionStrings.TryGetValue("SQLServer", out connectionString);
+            properties["quartz.dataSource.default.connectionString"] = connectionString;
+            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler sched = sf.GetScheduler();
+            sched.Clear();
+
+            JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof(NoOpJob));
+            jobWithData.JobDataMap["testkey"] = "testvalue";
+            IOperableTrigger triggerWithData = new SimpleTriggerImpl("datatrigger", "triggergroup", 20, TimeSpan.FromSeconds(5));
+            triggerWithData.JobDataMap.Add("testkey", "testvalue");
+            triggerWithData.EndTimeUtc = DateTime.UtcNow.AddYears(10);
+            triggerWithData.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
+            sched.ScheduleJob(jobWithData, triggerWithData);
+            sched.Shutdown();
+
+            // try again with changing the useproperties against same set of data
+            properties["quartz.jobStore.useProperties"] = true.ToString();
+            sf = new StdSchedulerFactory(properties);
+            sched = sf.GetScheduler();
+
+            var triggerWithDataFromDb = sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
+            var jobWithDataFromDb = sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
+            Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
+            Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
+
+            // once more
+            sched.DeleteJob(jobWithData.Key);
+            sched.ScheduleJob(jobWithData, triggerWithData);
+            sched.Shutdown();
+
+            properties["quartz.jobStore.useProperties"] = false.ToString();
+            sf = new StdSchedulerFactory(properties);
+            sched = sf.GetScheduler();
+
+            triggerWithDataFromDb = sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
+            jobWithDataFromDb = sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
+            Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
+            Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
+        }
+
 
         [Test]
         [Explicit]
