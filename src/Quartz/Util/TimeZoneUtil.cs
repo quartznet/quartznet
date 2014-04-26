@@ -7,13 +7,42 @@ namespace Quartz.Util
 {
     public static class TimeZoneUtil
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof(TimeZoneUtil));
+        private static readonly ILog logger = LogManager.GetLogger(typeof (TimeZoneUtil));
         private static readonly Dictionary<string, string> timeZoneIdAliases = new Dictionary<string, string>();
 
         static TimeZoneUtil()
         {
+            // Azure has had issues with having both formats
             timeZoneIdAliases["UTC"] = "Coordinated Universal Time";
             timeZoneIdAliases["Coordinated Universal Time"] = "UTC";
+
+            // Mono differs in naming too...
+            timeZoneIdAliases["Central European Standard Time"] = "CET";
+            timeZoneIdAliases["CET"] = "Central European Standard Time";
+
+            timeZoneIdAliases["Eastern Standard Time"] = "US/Eastern";
+            timeZoneIdAliases["US/Eastern"] = "Eastern Standard Time";
+
+            timeZoneIdAliases["Central Standard Time"] = "US/Central";
+            timeZoneIdAliases["US/Central"] = "Central Standard Time";
+
+            timeZoneIdAliases["US Central Standard Time"] = "US/Indiana-Stark";
+            timeZoneIdAliases["US/Indiana-Stark"] = "US Central Standard Time";
+
+            timeZoneIdAliases["Mountain Standard Time"] = "US/Mountain";
+            timeZoneIdAliases["US/Mountain"] = "Mountain Standard Time";
+
+            timeZoneIdAliases["US Mountain Standard Time"] = "US/Arizona";
+            timeZoneIdAliases["US/Arizona"] = "US Mountain Standard Time";
+
+            timeZoneIdAliases["Pacific Standard Time"] = "US/Pacific";
+            timeZoneIdAliases["US/Pacific"] = "Pacific Standard Time";
+
+            timeZoneIdAliases["Alaskan Standard Time"] = "US/Alaska";
+            timeZoneIdAliases["US/Alaska"] = "Alaskan Standard Time";
+
+            timeZoneIdAliases["Hawaiian Standard Time"] = "US/Hawaii";
+            timeZoneIdAliases["US/Hawaii"] = "Hawaiian Standard Time";
         }
 
         /// <summary>

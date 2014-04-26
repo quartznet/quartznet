@@ -6,6 +6,8 @@
   <property name="build.debug" value="Full" overwrite="false" />
   <property name="build.keyfile" value="quartz.net.snk" overwrite="false" />
 
+  <property name="nuget.location" value="tools/NuGet/NuGet.exe" />
+  
   <!-- whether to use C5 collection library -->
   <property name="c5-collections" value="true" overwrite="false" />
   <property name="build.defines" value="DEBUG,TRACE" />
@@ -26,11 +28,11 @@
     <property name="nant.settings.currentframework" value="net-3.5" />
 
     <!-- Set directories -->
-    <property name="dir.src" value="src\" />
-    <property name="dir.server.src" value="server\"/>
-    <property name="dir.doc" value="doc\" />
-    <property name="dir.build" value="build\${target.framework}\${build.configuration}" />
-    <property name="dir.deployment" value="deployment\${target.framework}" />
+    <property name="dir.src" value="src/" />
+    <property name="dir.server.src" value="server/"/>
+    <property name="dir.doc" value="doc/" />
+    <property name="dir.build" value="build/${target.framework}/${build.configuration}" />
+    <property name="dir.deployment" value="deployment/${target.framework}" />
 
     
     <mkdir dir="${dir.build}" />
@@ -38,8 +40,8 @@
   </target>
 
   <target name="restore-nuget-packages" unless="${target::has-executed('restore-nuget-packages')}">
-	<exec program=".nuget\nuget.exe" commandline="restore Quartz.2010.sln" />
-	<exec program=".nuget\nuget.exe" commandline="restore Quartz.Server.2010.sln" />
+	<exec program="${nuget.location}" commandline="restore Quartz.2010.sln" />
+	<exec program="${nuget.location}" commandline="restore Quartz.Server.2010.sln" />
   </target>
 
   <target name="build">
@@ -58,7 +60,7 @@
     <property name="build.defines" value="${build.defines}" />
 
     <property name="target.framework" value="3.5" />
-    <property name="buildoutputbasedir" value="build\${target.framework}\${build.configuration}\Quartz" />
+    <property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/Quartz" />
     <call target="build-all-csc" />
   </target>
 
@@ -66,7 +68,7 @@
     <property name="build.defines" value="${build.defines},NET_40" />
 
     <property name="target.framework" value="4.0" />
-    <property name="buildoutputbasedir" value="build\${target.framework}\${build.configuration}\Quartz" />
+    <property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/Quartz" />
     <property name="nant.settings.currentframework" value="net-4.0" />
     <call target="build-all-csc" />
   </target>
@@ -75,7 +77,7 @@
     <property name="build.defines" value="${build.defines},MONO" />
 
     <property name="target.framework" value="mono-2.0" />
-    <property name="buildoutputbasedir" value="build\${target.framework}\${build.configuration}\Quartz" />
+    <property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/Quartz" />
     <property name="nant.settings.currentframework" value="${target.framework}" />
     <call target="build-all-csc" />
 
@@ -94,17 +96,17 @@
     <!-- client profile -->
     <property name="original.build.defines" value="${build.defines}" />
     <property name="build.defines" value="${build.defines},ClientProfile" />
-    <property name="target.dir" value="${buildoutputbasedir}\ClientProfile" />
+    <property name="target.dir" value="${buildoutputbasedir}/ClientProfile" />
     <property name="client-profile" value="true" />
     <call target="compile-quartz" />
     <property name="build.defines" value="${original.build.defines}" />
 
-    <copy todir="${buildoutputbasedir}\" flatten="true" >
+    <copy todir="${buildoutputbasedir}/" flatten="true" >
       <fileset>
         <include name="${common-logging-dll}" />
       </fileset>
     </copy>
-    <copy todir="${buildoutputbasedir}\ClientProfile\" flatten="true" >
+    <copy todir="${buildoutputbasedir}/ClientProfile/" flatten="true" >
         <fileset>
             <include name="${common-logging-dll}" />
         </fileset>
@@ -114,16 +116,16 @@
     <property name="ilmerge.options" value="/targetplatform:&quot;v4,${net-40.reference.assembly.path}&quot;" if="${target.framework == '4.0'}" />
     <property name="ilmerge.options" value="/targetplatform:v2" unless="${target.framework == '4.0'}" />
 
-    <foreach item="String" in="Quartz,ClientProfile\Quartz" delim="," property="ilmergefile">
-		<mkdir dir="mergetemp\ClientProfile" />
+    <foreach item="String" in="Quartz,ClientProfile/Quartz" delim="," property="ilmergefile">
+		<mkdir dir="mergetemp/ClientProfile" />
         <exec
         verbose="true"
-        program="tools\ilmerge\ilmerge.exe"
-        commandline="${ilmerge.options} /target:library /keyfile:${build.keyfile} /internalize /out:mergetemp\${ilmergefile}.dll ${buildoutputbasedir}\${ilmergefile}.dll lib\2.0\C5.dll"  />
-        <delete file="${buildoutputbasedir}\${ilmergefile}.dll" />
-		<delete file="${buildoutputbasedir}\${ilmergefile}.pdb" />
-        <move file="mergetemp\${ilmergefile}.dll" tofile="${buildoutputbasedir}\${ilmergefile}.dll" /> 
-        <move file="mergetemp\${ilmergefile}.pdb" tofile="${buildoutputbasedir}\${ilmergefile}.pdb" /> 
+        program="tools/ilmerge/ilmerge.exe"
+        commandline="${ilmerge.options} /target:library /keyfile:${build.keyfile} /internalize /out:mergetemp/${ilmergefile}.dll ${buildoutputbasedir}/${ilmergefile}.dll lib/2.0/C5.dll"  />
+        <delete file="${buildoutputbasedir}/${ilmergefile}.dll" />
+		<delete file="${buildoutputbasedir}/${ilmergefile}.pdb" />
+        <move file="mergetemp/${ilmergefile}.dll" tofile="${buildoutputbasedir}/${ilmergefile}.dll" /> 
+        <move file="mergetemp/${ilmergefile}.pdb" tofile="${buildoutputbasedir}/${ilmergefile}.pdb" /> 
 		<delete dir="mergetemp" />
     </foreach>
       
@@ -133,8 +135,8 @@
   
     <csc
       target="library"
-      output="${target.dir}\Quartz.dll"
-      doc="${target.dir}\Quartz.xml"
+      output="${target.dir}/Quartz.dll"
+      doc="${target.dir}/Quartz.xml"
       debug="${build.debug}"
       define="${build.defines}"
       optimize="${build.optimize}"
@@ -173,7 +175,7 @@
         <include name="System.Web.dll" unless="${client-profile}" />
         <include name="System.Xml.dll" />
         <include name="${common-logging-dll}" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
+        <include name="lib/2.0/C5.dll" if="${c5-collections}" />
       </references>
     </csc>
      
@@ -182,11 +184,11 @@
 
   <target name="build-examples" depends="determine-lib-dirs">
 
-    <mkdir dir="${buildoutputbasedir}.Examples\" />
+    <mkdir dir="${buildoutputbasedir}.Examples" />
 
     <csc
       target="exe"
-      output="${buildoutputbasedir}.Examples\Quartz.Examples.exe"
+      output="${buildoutputbasedir}.Examples/Quartz.Examples.exe"
       debug="${build.debug}" 
       optimize="${build.optimize}" 
       define="${build.defines}"
@@ -210,18 +212,18 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
-        <include name="${buildoutputbasedir}\Quartz.dll" />
-        <include name="lib\2.0\C5.dll" if="${c5-collections}" />
+        <include name="${buildoutputbasedir}/Quartz.dll" />
+        <include name="lib/2.0/C5.dll" if="${c5-collections}" />
       </references>
     </csc>
 
-    <copy todir="${buildoutputbasedir}.Examples\" flatten="true" >
+    <copy todir="${buildoutputbasedir}.Examples/" flatten="true" >
       <fileset>
-        <include name="${buildoutputbasedir}\Quartz.*" />
+        <include name="${buildoutputbasedir}/Quartz.*" />
         <include name="${common-logging-dll}" />
       </fileset>
     </copy>
-    <copy file="src\Quartz.Examples\App.config" tofile="${buildoutputbasedir}.Examples\Quartz.Examples.exe.config" />
+    <copy file="src/Quartz.Examples/App.config" tofile="${buildoutputbasedir}.Examples/Quartz.Examples.exe.config" />
   </target>
 
   <target name="build-server">
@@ -251,13 +253,13 @@
 
   <target name="build-server-internal" depends="determine-lib-dirs">
 
-    <property name="buildoutputbasedir" value="build\${target.framework}\${build.configuration}\Quartz" />
+    <property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/Quartz" />
 
-    <mkdir dir="${buildoutputbasedir}.Server\" />
+    <mkdir dir="${buildoutputbasedir}.Server/" />
 
     <csc
       target="exe"
-      output="${buildoutputbasedir}.Server\Quartz.Server.exe"
+      output="${buildoutputbasedir}.Server/Quartz.Server.exe"
       debug="${build.debug}" 
       optimize="${build.optimize}" 
       define="${build.defines}"
@@ -278,13 +280,13 @@
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
         <include name="${topshelf-dll}" />
-        <include name="${buildoutputbasedir}\Quartz.dll" />
+        <include name="${buildoutputbasedir}/Quartz.dll" />
       </references>
     </csc>
-    <copy todir="${buildoutputbasedir}.Server\" flatten="true" >
+    <copy todir="${buildoutputbasedir}.Server/" flatten="true" >
       <fileset>
-        <include name="${buildoutputbasedir}\Quartz.dll" />
-        <include name="${buildoutputbasedir}\Quartz.pdb" />
+        <include name="${buildoutputbasedir}/Quartz.dll" />
+        <include name="${buildoutputbasedir}/Quartz.pdb" />
         <include name="${common-logging-dll}" />
         <include name="${common-logging-log4net-dll}" />
         <include name="${log4net-dll}" />
@@ -292,9 +294,9 @@
       </fileset>
     </copy>
     
-    <copy file="${dir.server.src}\Quartz.Server\App.config" tofile="${buildoutputbasedir}.Server\Quartz.Server.exe.config" />
-    <copy file="${dir.server.src}\Quartz.Server\quartz_jobs.xml" todir="${buildoutputbasedir}.Server" />
-    <copy file="${dir.server.src}\Quartz.Server\quartz.config" todir="${buildoutputbasedir}.Server" />
+    <copy file="${dir.server.src}/Quartz.Server/App.config" tofile="${buildoutputbasedir}.Server/Quartz.Server.exe.config" />
+    <copy file="${dir.server.src}/Quartz.Server/quartz_jobs.xml" todir="${buildoutputbasedir}.Server" />
+    <copy file="${dir.server.src}/Quartz.Server/quartz.config" todir="${buildoutputbasedir}.Server" />
 
   </target>
 
@@ -307,11 +309,11 @@
 
   <target name="build-tests-internal" depends="determine-lib-dirs">
 
-    <mkdir dir="${buildoutputbasedir}.Tests.${test.project}\" />
+    <mkdir dir="${buildoutputbasedir}.Tests.${test.project}/" />
 
     <csc 
       target="library" 
-      output="${buildoutputbasedir}.Tests.${test.project}\Quartz.Tests.${test.project}.dll" 
+      output="${buildoutputbasedir}.Tests.${test.project}/Quartz.Tests.${test.project}.dll" 
       debug="${build.debug}" 
       optimize="${build.optimize}" 
       define="${build.defines}"
@@ -343,14 +345,14 @@
         <include name="${common-logging-dll}" />
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
-        <include name="${buildoutputbasedir}\Quartz.dll" />
+        <include name="${buildoutputbasedir}/Quartz.dll" />
 		<include name="${oracle-odp-managed-dll}" />
       </references>
     </csc>
 
-    <copy todir="${buildoutputbasedir}.Tests.${test.project}\" flatten="true" >
+    <copy todir="${buildoutputbasedir}.Tests.${test.project}/" flatten="true" >
       <fileset>
-        <include name="${buildoutputbasedir}\Quartz.*" />
+        <include name="${buildoutputbasedir}/Quartz.*" />
         <include name="${common-logging-dll}" />
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
@@ -373,7 +375,7 @@
   </target>
 
   <target name="unit-internal" depends="build">
-    <property name="test.dll" value="${buildoutputbasedir}.Tests.Unit\Quartz.Tests.Unit.dll" />
+    <property name="test.dll" value="${buildoutputbasedir}.Tests.Unit/Quartz.Tests.Unit.dll" />
     <echo message="Testing dll: ${test.dll}"  />
     <nunit2 verbose="true" failonerror="false">
       <formatter type="Plain" />
@@ -392,15 +394,15 @@
     <echo message="Cleaning old temporary build files (obj and bin dirs)..." />
     <delete>
       <fileset>
-        <include name="${dir.src}\**\obj\**" />
-        <include name="${dir.src}\**\bin\**" />
+        <include name="${dir.src}/**/obj/**" />
+        <include name="${dir.src}/**/bin/**" />
       </fileset>
     </delete>
   </target>
 
   <target name="apidoc">
 
-    <property name="dir.ndoc.target.binaries" value="${dir.build}\Quartz\" />
+    <property name="dir.ndoc.target.binaries" value="${dir.build}/Quartz/" />
     <echo message="Building documentation...." />
 	
 	<exec
@@ -465,17 +467,17 @@
 
     <delete dir="package" failonerror="false" />
     <mkdir dir="package" />
-    <mkdir dir="package\database" />
-    <mkdir dir="package\src" />
-    <mkdir dir="package\server" />
+    <mkdir dir="package/database" />
+    <mkdir dir="package/src" />
+    <mkdir dir="package/server" />
 
     <copy todir="package">
       <fileset>
-        <include name="${dir.src}\**" />
-        <include name="${dir.server.src}\**" />
-        <include name="build\**\Quartz\**" />
-        <include name="database\**" />
-        <include name="lib\**" />
+        <include name="${dir.src}/**" />
+        <include name="${dir.server.src}/**" />
+        <include name="build/**/Quartz/**" />
+        <include name="database/**" />
+        <include name="lib/**" />
         <include name="*.sln" />
         <include name="*.txt" />
         <include name="*.build" />
@@ -489,25 +491,25 @@
       </fileset>
     </copy>
 
-    <copy todir="package\server\bin\4.0" flatten="true">
+    <copy todir="package/server/bin/4.0" flatten="true">
       <fileset>
-        <include name="build\4.0\${build.configuration}\Quartz.Server\**" />
+        <include name="build/4.0/${build.configuration}/Quartz.Server/**" />
       </fileset>
     </copy>
 
-    <copy todir="package\server\bin\3.5" flatten="true">
+    <copy todir="package/server/bin/3.5" flatten="true">
       <fileset>
-        <include name="build\3.5\${build.configuration}\Quartz.Server\**" />
+        <include name="build/3.5/${build.configuration}/Quartz.Server/**" />
       </fileset>
     </copy>
 
-    <copy todir="package\doc\xml" flatten="true">
+    <copy todir="package/doc/xml" flatten="true">
       <fileset>
-        <include name="src\**\job_scheduling_data*.xsd" />
+        <include name="src/**/job_scheduling_data*.xsd" />
       </fileset>
     </copy>
 
-    <copy file="src\Quartz.Tests.Unit\Xml\TestData\RichConfiguration.xml" tofile="package\doc\xml\quartz_sample.xml" />
+    <copy file="src/Quartz.Tests.Unit/Xml/TestData/RichConfiguration.xml" tofile="package/doc/xml/quartz_sample.xml" />
 
     <!-- sorry *nix folks, couldn't get move to work as expected.. -->
     <exec program="cmd" commandline="/c move package\build package\bin" />
@@ -518,7 +520,7 @@
       </fileset>
     </zip>
 	
-	<exec program="tools\NuGet\NuGet.exe" commandline="pack Quartz.nuspec" />
+	<exec program="${nuget.location}" commandline="pack Quartz.nuspec" />
 
   </target>
 

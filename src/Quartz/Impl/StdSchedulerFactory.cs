@@ -108,7 +108,8 @@ namespace Quartz.Impl
         public const string PropertySchedulerName = "schedName";
         public const string PropertyJobStoreType = "quartz.jobStore.type";
         public const string PropertyDataSourcePrefix = "quartz.dataSource";
-        public const string PropertyDbProviderType = "connectionProvider.type";
+		public const string PropertyDbProvider = "quartz.dbprovider";
+		public const string PropertyDbProviderType = "connectionProvider.type";
         public const string PropertyDataSourceProvider = "provider";
         public const string PropertyDataSourceConnectionString = "connectionString";
         public const string PropertyDataSourceConnectionStringName = "connectionStringName";

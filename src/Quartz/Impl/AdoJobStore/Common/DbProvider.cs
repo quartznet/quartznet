@@ -37,7 +37,7 @@ namespace Quartz.Impl.AdoJobStore.Common
     /// <author>Marko Lahma</author>
     public class DbProvider : IDbProvider
     {
-        protected const string PropertyDbProvider = "quartz.dbprovider";
+		protected const string PropertyDbProvider = StdSchedulerFactory.PropertyDbProvider;
         protected const string DbProviderSectionName = StdSchedulerFactory.ConfigurationSectionName;
         protected const string DbProviderResourceName = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
 

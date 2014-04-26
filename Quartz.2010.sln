@@ -1,5 +1,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30324.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{69B269BD-CB8C-438A-A32E-4CB7CEA47BB2}"
 	ProjectSection(SolutionItems) = preProject
 		src\AssemblyInfo.cs = src\AssemblyInfo.cs
@@ -33,13 +35,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Integration.20
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Unit.2010", "src\Quartz.Tests.Unit\Quartz.Tests.Unit.2010.csproj", "{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{64F321FE-E33A-48CC-A300-992AB768E21B}"
-	ProjectSection(SolutionItems) = preProject
-		.nuget\NuGet.Config = .nuget\NuGet.Config
-		.nuget\NuGet.exe = .nuget\NuGet.exe
-		.nuget\NuGet.targets = .nuget\NuGet.targets
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,9 +64,9 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{A4C0607E-7BEA-4A00-90ED-A3EFB812D045} = {69B269BD-CB8C-438A-A32E-4CB7CEA47BB2}
 		{E1A1F944-609E-400B-A7CC-EC5CE0F3BADC} = {A4C0607E-7BEA-4A00-90ED-A3EFB812D045}
-		{5587AF00-160F-4EC1-98A2-BEABA411256C} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
-		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
 		{AEF8823B-E45B-4B35-A4D0-C08C1196D017} = {6EBE10AB-07CE-4C04-AD4D-75660778D4C2}
 		{70A37974-17DE-474C-8A1C-19637622E75F} = {6EBE10AB-07CE-4C04-AD4D-75660778D4C2}
+		{5587AF00-160F-4EC1-98A2-BEABA411256C} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
+		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
 	EndGlobalSection
 EndGlobal
