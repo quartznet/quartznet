@@ -511,7 +511,7 @@ namespace Quartz.Impl.Triggers
         /// </returns>        
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
         {
-            nextFireTimeUtc  = GetFireTimeAfter(StartTimeUtc.AddSeconds(-1));
+            nextFireTimeUtc = GetFireTimeAfter(StartTimeUtc.AddSeconds(-1));
 
             // Check calendar for date-time exclusion
             while (nextFireTimeUtc != null && calendar != null
@@ -649,7 +649,7 @@ namespace Quartz.Impl.Triggers
             }
 
             // apply timezone for this date & time
-            fireTime = new DateTimeOffset(fireTime.Value.DateTime, TimeZone.GetUtcOffset(fireTime.Value));
+            fireTime = new DateTimeOffset(fireTime.Value.DateTime, TimeZoneUtil.GetUtcOffset(fireTime.Value, TimeZone));
 
             // d. Calculate and save fireTimeEndDate variable for later use
             DateTimeOffset fireTimeEndDate;
