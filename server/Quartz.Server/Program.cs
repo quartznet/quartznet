@@ -1,4 +1,5 @@
-﻿using Topshelf;
+﻿using System.IO;
+using Topshelf;
 
 namespace Quartz.Server
 {
@@ -12,6 +13,9 @@ namespace Quartz.Server
         /// </summary>
         public static void Main()
         {
+            // change from service account's dir to more logical one
+            Directory.SetCurrentDirectory(System.AppDomain.CurrentDomain.BaseDirectory);
+
             HostFactory.Run(x =>
                                 {
                                     x.RunAsLocalSystem();
