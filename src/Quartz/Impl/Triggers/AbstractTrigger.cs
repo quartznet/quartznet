@@ -700,11 +700,11 @@ namespace Quartz.Impl.Triggers
 	    /// <returns></returns>
         public virtual int CompareTo(ITrigger other)
         {
-	        if (other.Key == null && Key == null)
+	        if ((other == null || other.Key == null) && Key == null)
 	        {
 	            return 0;
 	        }
-	        if (other.Key == null)
+	        if (other == null || other.Key == null)
 	        {
 	            return -1;
 	        }
