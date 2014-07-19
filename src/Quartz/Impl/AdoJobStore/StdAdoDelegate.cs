@@ -82,22 +82,44 @@ namespace Quartz.Impl.AdoJobStore
 
                 foreach (string setting in settings)
                 {
-                    string[] parts = setting.Split('=');
-                    string name = parts[0];
-                    if (parts.Length == 1 || parts[1] == null || parts[1].Equals(""))
+                    var index = setting.IndexOf('=');
+                    if (index == -1 || index == setting.Length - 1)
                     {
                         continue;
                     }
 
-                    if (name.Equals("triggerPersistenceDelegateClasses"))
+                    string name = setting.Substring(0, index).Trim();
+                    string value = setting.Substring(index + 1).Trim();
+
+                    if (string.IsNullOrEmpty(value))
                     {
-                        string[] trigDelegates = parts[1].Split(',');
+                        continue;
+                    }
+
+                    // we support old *Classes and new *Types, latter has better support for assembly qualified names
+                    if (name.Equals("triggerPersistenceDelegateClasses") || name.Equals("triggerPersistenceDelegateTypes"))
+                    {
+                        var separator = ',';
+                        if (value.IndexOf(';') != -1 || name.Equals("triggerPersistenceDelegateTypes"))
+                        {
+                            // use separator that allows assembly qualified names
+                            separator = ';';
+                        }
+
+                        string[] trigDelegates = value.Split(separator);
 
                         foreach (string triggerTypeName in trigDelegates)
                         {
+                            var typeName = triggerTypeName.Trim();
+
+                            if (string.IsNullOrEmpty(typeName))
+                            {
+                                continue;
+                            }
+
                             try
                             {
-                                Type trigDelClass = typeLoadHelper.LoadType(triggerTypeName);
+                                Type trigDelClass = typeLoadHelper.LoadType(typeName);
                                 AddTriggerPersistenceDelegate((ITriggerPersistenceDelegate) Activator.CreateInstance(trigDelClass));
                             }
                             catch (Exception e)

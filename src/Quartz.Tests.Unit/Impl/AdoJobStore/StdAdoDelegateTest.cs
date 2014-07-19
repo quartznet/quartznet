@@ -235,6 +235,25 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             persistenceDelegate.AssertWasCalled(x => x.LoadExtendedTriggerProperties(Arg<ConnectionAndTransactionHolder>.Is.Anything, Arg<TriggerKey>.Is.Anything));
         }
 
+        [Test]
+        public void ShouldSupportAssemblyQualifiedTriggerPersistenceDelegates()
+        {
+            StdAdoDelegate adoDelegate = new TestStdAdoDelegate(new SimpleTriggerPersistenceDelegate());
+
+            var delegateInitializationArgs = new DelegateInitializationArgs
+            {
+                TablePrefix = "QRTZ_",
+                InstanceId = "TESTSCHED",
+                InstanceName = "INSTANCE",
+                TypeLoadHelper = new SimpleTypeLoadHelper(),
+                UseProperties = false,
+                InitString = "triggerPersistenceDelegateClasses=" + typeof(TestTriggerPersistenceDelegate).AssemblyQualifiedName + ";" + typeof(TestTriggerPersistenceDelegate).AssemblyQualifiedName,
+                Logger = LogManager.GetLogger(GetType()),
+                DbProvider = MockRepository.GenerateMock<IDbProvider>()
+            };
+            adoDelegate.Initialize(delegateInitializationArgs);
+        }
+
         private class TestStdAdoDelegate : StdAdoDelegate
         {
             private readonly ITriggerPersistenceDelegate testDelegate;
@@ -363,5 +382,10 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         public override void AddRange(Array values)
         {
         }
+    }
+
+    public class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate
+    {
+        
     }
 }
