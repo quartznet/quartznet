@@ -28,6 +28,61 @@ namespace Quartz.Collection
             throw new ReadOnlyException();
         }
 
+        public void UnionWith(IEnumerable<T> other)
+        {
+            internalSet.UnionWith(other);
+        }
+
+        public void IntersectWith(IEnumerable<T> other)
+        {
+            internalSet.IntersectWith(other);
+        }
+
+        public void ExceptWith(IEnumerable<T> other)
+        {
+            internalSet.ExceptWith(other);
+        }
+
+        public void SymmetricExceptWith(IEnumerable<T> other)
+        {
+            internalSet.SymmetricExceptWith(other);
+        }
+
+        public bool IsSubsetOf(IEnumerable<T> other)
+        {
+            return internalSet.IsSubsetOf(other);
+        }
+
+        public bool IsSupersetOf(IEnumerable<T> other)
+        {
+            return internalSet.IsSupersetOf(other);
+        }
+
+        public bool IsProperSupersetOf(IEnumerable<T> other)
+        {
+            return internalSet.IsProperSupersetOf(other);
+        }
+
+        public bool IsProperSubsetOf(IEnumerable<T> other)
+        {
+            return internalSet.IsProperSubsetOf(other);
+        }
+
+        public bool Overlaps(IEnumerable<T> other)
+        {
+            return internalSet.Overlaps(other);
+        }
+
+        public bool SetEquals(IEnumerable<T> other)
+        {
+            return internalSet.SetEquals(other);
+        }
+
+        bool ISet<T>.Add(T item)
+        {
+            return internalSet.Add(item);
+        }
+
         public void Clear()
         {
             throw new ReadOnlyException();

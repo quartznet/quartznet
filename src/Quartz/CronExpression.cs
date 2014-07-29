@@ -1167,7 +1167,7 @@ namespace Quartz
 		/// </summary>
 		/// <param name="data">The data.</param>
 		/// <returns></returns>
-        protected virtual string GetExpressionSetSummary(Collection.ISet<int> data)
+        protected virtual string GetExpressionSetSummary(ICollection<int> data)
         {
             if (data.Contains(NoSpec))
             {

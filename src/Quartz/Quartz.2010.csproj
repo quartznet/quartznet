@@ -162,9 +162,6 @@
     <Compile Include="Listener\BroadcastTriggerListener.cs" />
     <Compile Include="ScheduleBuilder.cs" />
     <Compile Include="SimpleScheduleBuilder.cs" />
-    <Compile Include="Collection\ISet.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Collection\ISortedSet.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -425,7 +422,6 @@
     <Compile Include="Listener\TriggerListenerSupport.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Collection\HashSet.cs" />
     <Compile Include="Impl\Triggers\CalendarIntervalTriggerImpl.cs" />
     <Compile Include="Impl\AdoJobStore\AdoConstants.cs" />
     <Compile Include="Impl\AdoJobStore\AdoUtil.cs" />

@@ -554,7 +554,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public virtual ICollection<TKey> KeySet()
         {
-            return new Collection.HashSet<TKey>(map.Keys);
+            return new HashSet<TKey>(map.Keys);
         }
 
         /// <summary>

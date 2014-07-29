@@ -191,7 +191,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             DateTimeOffset startTime = dateOf(0, 0, 0, 1, 1, 2011); // Jan 1, 2011 was a saturday...
             TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
             var trigger = new DailyTimeIntervalTriggerImpl();
-            var daysOfWeek = new Collection.HashSet<DayOfWeek>
+            var daysOfWeek = new HashSet<DayOfWeek>
             {
                 DayOfWeek.Monday,
                 DayOfWeek.Tuesday,
@@ -346,7 +346,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestAllDaysOfTheWeek()
         {
-            Collection.ISet<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek;
+            ISet<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek;
             DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011); // SAT
             TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
             TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
@@ -370,7 +370,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestMonThroughFri()
         {
-            Collection.ISet<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.MondayThroughFriday;
+            ISet<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.MondayThroughFriday;
             DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011); // SAT(7)
             TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
             TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
@@ -397,7 +397,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestSatAndSun()
         {
-            Collection.ISet<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.SaturdayAndSunday;
+            ISet<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.SaturdayAndSunday;
             DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011); // SAT(7)
             TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
             TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
@@ -424,7 +424,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestMonOnly()
         {
-            Collection.ISet<DayOfWeek> daysOfWeek = new Collection.HashSet<DayOfWeek>();
+            ISet<DayOfWeek> daysOfWeek = new HashSet<DayOfWeek>();
             daysOfWeek.Add(DayOfWeek.Monday);
             DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011); // SAT(7)
             TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);

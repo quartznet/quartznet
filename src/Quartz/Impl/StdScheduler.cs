@@ -178,7 +178,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public Collection.ISet<string> GetPausedTriggerGroups()
+        public ISet<string> GetPausedTriggerGroups()
         {
             return sched.GetPausedTriggerGroups();
         }
@@ -291,12 +291,12 @@ namespace Quartz.Impl
             return sched.DeleteJobs(jobKeys);
         }
 
-        public void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace)
+        public void ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
         {
             sched.ScheduleJobs(triggersAndJobs, replace);
         }
 
-        public void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace)
+        public void ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace)
         {
             sched.ScheduleJob(jobDetail, triggersForJob, replace);
         }
@@ -453,7 +453,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public virtual ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
             return sched.GetJobKeys(matcher);
         }
@@ -461,7 +461,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public virtual ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             return sched.GetTriggerKeys(matcher);
         }

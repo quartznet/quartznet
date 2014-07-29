@@ -931,7 +931,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="matcher"></param>
         /// <returns>An array of <see cref="String" /> job names.</returns>
-        public virtual Collection.ISet<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
+        public virtual ISet<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
         {
             string sql;
             string parameter;
@@ -952,7 +952,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    var list = new Collection.HashSet<JobKey>();
+                    var list = new HashSet<JobKey>();
                     while (rs.Read())
                     {
                         list.Add(new JobKey(rs.GetString(0), rs.GetString(1)));
@@ -1857,7 +1857,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// an array of <see cref="String" /> trigger names
         /// </returns>
-        public virtual Collection.ISet<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        public virtual ISet<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             string sql;
             string parameter;
@@ -1877,7 +1877,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerGroup", parameter);
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
-                    var keys = new Collection.HashSet<TriggerKey>();
+                    var keys = new HashSet<TriggerKey>();
                     while (rs.Read())
                     {
                         keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
@@ -2494,9 +2494,9 @@ namespace Quartz.Impl.AdoJobStore
         /// This is useful when trying to identify orphaned fired triggers (a
         /// fired trigger without a scheduler state record.)
         /// </remarks>
-        public virtual Collection.ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn)
+        public virtual ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn)
         {
-            Collection.HashSet<string> instanceNames = new Collection.HashSet<string>();
+            var instanceNames = new HashSet<string>();
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames)))
             {
                 using (IDataReader rs = cmd.ExecuteReader())
@@ -2863,9 +2863,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns></returns>
-        public virtual Collection.ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn)
+        public virtual ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn)
         {
-            Collection.HashSet<string> retValue = new Collection.HashSet<string>();
+            HashSet<string> retValue = new HashSet<string>();
 
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroups)))
             {

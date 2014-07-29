@@ -162,7 +162,7 @@ namespace Quartz.Impl
         /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
         /// <value></value>
-        public virtual Collection.ISet<string> GetPausedTriggerGroups()
+        public virtual ISet<string> GetPausedTriggerGroups()
         {
             return CallInGuard(x => x.GetPausedTriggerGroups());
         }
@@ -288,12 +288,12 @@ namespace Quartz.Impl
             return CallInGuard(x => x.DeleteJobs(jobKeys));
         }
 
-        public virtual void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace)
+        public virtual void ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
         {
             CallInGuard(x => x.ScheduleJobs(triggersAndJobs, replace));
         }
 
-        public void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace)
+        public void ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace)
         {
             CallInGuard(x => x.ScheduleJob(jobDetail, triggersForJob, replace));
         }
@@ -426,7 +426,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public virtual ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
             return CallInGuard(x => x.GetJobKeys(matcher));
         }
@@ -442,7 +442,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public virtual ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             return CallInGuard(x => x.GetTriggerKeys(matcher));
         }

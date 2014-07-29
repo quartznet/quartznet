@@ -376,7 +376,7 @@ namespace Quartz.Tests.Unit
             try
             {
                 SimpleCronExpression cronExpression = new SimpleCronExpression(expression);
-                Collection.ISet<int> set = cronExpression.GetSetPublic(constant);
+                ICollection<int> set = cronExpression.GetSetPublic(constant);
                 if (set.Count == 0)
                 {
                     Assert.Fail("Empty field [" + constant + "] returned for " + expression);

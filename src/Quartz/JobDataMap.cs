@@ -329,11 +329,7 @@ namespace Quartz
         public virtual TimeSpan GetTimeSpanValueFromString(string key)
         {
             object obj = Get(key);
-#if NET_40
             return TimeSpan.Parse((string) obj, CultureInfo.InvariantCulture);
-#else
-            return TimeSpan.Parse((string) obj);
-#endif
         }
 
         /// <summary>
