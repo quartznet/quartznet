@@ -23,8 +23,6 @@ using System;
 using System.Threading;
 
 using Common.Logging;
-#if !NET_20
-#endif
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example1

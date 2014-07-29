@@ -127,7 +127,7 @@ namespace Quartz.Spi
         /// </param>
 		void StoreJob(IJobDetail newJob, bool replaceExisting);
 
-	    void StoreJobsAndTriggers(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace); 
+	    void StoreJobsAndTriggers(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace); 
 
         /// <summary>
         /// Remove (delete) the <see cref="IJob" /> with the given
@@ -322,7 +322,7 @@ namespace Quartz.Spi
 	    /// </summary>
 	    /// <param name="matcher"></param>
 	    /// <returns></returns>
-	    Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
+	    ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="ITrigger" />s
@@ -332,7 +332,7 @@ namespace Quartz.Spi
 		/// zero-length array (not <see langword="null" />).
 		/// </para>
 		/// </summary>
-        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+        ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
 		/// <summary>
 		/// Get the names of all of the <see cref="IJob" />
@@ -399,7 +399,7 @@ namespace Quartz.Spi
 		/// pause on any new triggers that are added to the group while the group is
 		/// paused.
 		/// </remarks>
-        Collection.ISet<string> PauseTriggers(GroupMatcher<TriggerKey> matcher);
+        ISet<string> PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
 		/// <summary>
 		/// Pause the <see cref="IJob" /> with the given key - by
@@ -447,7 +447,7 @@ namespace Quartz.Spi
         /// Gets the paused trigger groups.
         /// </summary>
         /// <returns></returns>
-        Collection.ISet<string> GetPausedTriggerGroups();
+        ISet<string> GetPausedTriggerGroups();
 
 		/// <summary> 
 		/// Resume (un-pause) the <see cref="IJob" /> with the
@@ -469,7 +469,7 @@ namespace Quartz.Spi
 		/// misfire instruction will be applied.
 		/// </para> 
 		/// </summary>
-		Collection.ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher);
+		ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher);
 
 		/// <summary>
 		/// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />

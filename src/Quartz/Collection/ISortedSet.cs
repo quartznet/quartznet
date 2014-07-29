@@ -17,13 +17,15 @@
  */
 #endregion
 
+using System.Collections.Generic;
+
 namespace Quartz.Collection
 {
 	/// <summary>
 	/// A sorted set.
 	/// </summary>
 	/// <author>Marko Lahma (.NET)</author>
-	public interface ISortedSet<T> : ISet<T>
+	public interface ISortedSet<T> : ICollection<T>
 	{
 	    /// <summary>
 	    /// Returns a portion of the list whose elements are greater than the limit object parameter.

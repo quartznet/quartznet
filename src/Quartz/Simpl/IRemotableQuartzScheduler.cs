@@ -128,7 +128,7 @@ namespace Quartz.Simpl
 
         void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
-        Collection.ISet<string> GetPausedTriggerGroups();
+        ISet<string> GetPausedTriggerGroups();
 
         void ResumeJob(JobKey jobKey);
 
@@ -140,13 +140,13 @@ namespace Quartz.Simpl
 
         IList<string> GetJobGroupNames();
 
-        Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
+        ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
         IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
         IList<string> GetTriggerGroupNames();
 
-        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+        ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
         IJobDetail GetJobDetail(JobKey jobKey);
 
@@ -172,9 +172,9 @@ namespace Quartz.Simpl
 
         bool DeleteJobs(IList<JobKey> jobKeys);
 
-        void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace);
+        void ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
         
-        void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace);
+        void ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace);
 
         bool UnscheduleJobs(IList<TriggerKey> triggerKeys);
     }

@@ -210,7 +210,7 @@ namespace Quartz
         /// <summary> 
         /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
-        Collection.ISet<string> GetPausedTriggerGroups();
+        ISet<string> GetPausedTriggerGroups();
 
         /// <summary>
         /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s.
@@ -321,7 +321,7 @@ namespace Quartz
         /// specifically, if the keys are not unique) and the replace
         /// parameter is not set to true then an exception will be thrown.</para>
         /// </remarks>
-        void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace);
+        void ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
         
         /// <summary>
         /// Schedule the given job with the related set of triggers.
@@ -334,7 +334,7 @@ namespace Quartz
         /// <param name="jobDetail"></param>
         /// <param name="triggersForJob"></param>
         /// <param name="replace"></param>
-        void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace);
+        void ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace);
     
         /// <summary>
         /// Remove the indicated <see cref="ITrigger" /> from the scheduler.
@@ -575,7 +575,7 @@ namespace Quartz
         /// <summary>
         /// Get the keys of all the <see cref="IJobDetail" />s in the matching groups.
         /// </summary>
-        Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
+        ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
         /// <summary>
         /// Get all <see cref="ITrigger" /> s that are associated with the
@@ -592,7 +592,7 @@ namespace Quartz
         /// Get the names of all the <see cref="ITrigger" />s in the given
         /// groups.
         /// </summary>
-        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+        ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Get the <see cref="IJobDetail" /> for the <see cref="IJob" />

@@ -568,7 +568,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public virtual IList<string> GetPropertyGroups(string prefix)
 		{
-            var groups = new Collection.HashSet<string>();
+            var groups = new HashSet<string>();
 
 			if (!prefix.EndsWith("."))
 			{

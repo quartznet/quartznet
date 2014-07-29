@@ -213,7 +213,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection </param>
         /// <param name="matcher"></param>
         /// <returns> an array of <see cref="String" /> job names</returns>
-        Collection.ISet<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher);
+        ISet<JobKey> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher);
 
 		//---------------------------------------------------------------------------
 		// triggers
@@ -455,7 +455,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="matcher"></param>
         /// <returns>An array of <see cref="String" /> trigger names.</returns>
-        Collection.ISet<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher);
+        ISet<TriggerKey> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher);
 
 		/// <summary>
 		/// Select all of the triggers in a given state.
@@ -509,7 +509,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns></returns>
-        Collection.ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn);
+        ISet<string> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn);
 
         /// <summary>
         /// Determines whether given trigger group already exists.
@@ -722,7 +722,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="conn">The conn.</param>
         /// <returns></returns>
-        Collection.ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
+        ISet<string> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn);
 
         /// <summary>
         /// Counts the misfired triggers in states.

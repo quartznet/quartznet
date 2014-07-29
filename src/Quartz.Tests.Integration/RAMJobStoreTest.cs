@@ -31,7 +31,6 @@ namespace Quartz.Tests.Integration
 
         private static readonly TimeSpan testTimeout = TimeSpan.FromSeconds(125);
 
-#if NET_40
         public class TestJobWithSync : IJob
         {
             public void Execute(IJobExecutionContext context)
@@ -52,7 +51,6 @@ namespace Quartz.Tests.Integration
                 }
             }
         }
-#endif
 
         [DisallowConcurrentExecution]
         [PersistJobDataAfterExecution]
@@ -148,8 +146,8 @@ namespace Quartz.Tests.Integration
             Assert.That(jobGroups.Count, Is.EqualTo(2), "Job group list size expected to be = 2 ");
             Assert.That(triggerGroups.Count, Is.EqualTo(2), "Trigger group list size expected to be = 2 ");
 
-            Collection.ISet<JobKey> jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
-            Collection.ISet<TriggerKey> triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
+            ISet<JobKey> jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
+            ISet<TriggerKey> triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
 
             Assert.That(jobKeys.Count, Is.EqualTo(1), "Number of jobs expected in default group was 1 ");
             Assert.That(triggerKeys.Count, Is.EqualTo(1), "Number of triggers expected in default group was 1 ");
@@ -171,7 +169,7 @@ namespace Quartz.Tests.Integration
             s = sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.That(s.Equals(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
 
-            Collection.ISet<string> pausedGroups = sched.GetPausedTriggerGroups();
+            ISet<string> pausedGroups = sched.GetPausedTriggerGroups();
             Assert.That(pausedGroups, Is.Empty, "Size of paused trigger groups list expected to be 0 ");
 
             sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
@@ -227,8 +225,6 @@ namespace Quartz.Tests.Integration
 
             sched.Shutdown();
         }
-
-#if NET_40
 
         [Test]
         public void TestAbilityToFireImmediatelyWhenStartedBefore()
@@ -325,7 +321,6 @@ namespace Quartz.Tests.Integration
 
             Assert.That((fTime - sTime < TimeSpan.FromMilliseconds(7000)), "Immediate trigger did not fire within a reasonable amount of time."); // This is dangerously subjective!  but what else to do?
         }
-#endif
 
         [Test]
         public void TestScheduleMultipleTriggersForAJob()
@@ -342,7 +337,7 @@ namespace Quartz.Tests.Integration
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
                 .Build();
 
-            Collection.ISet<ITrigger> triggersForJob = new Collection.HashSet<ITrigger>();
+            ISet<ITrigger> triggersForJob = new HashSet<ITrigger>();
             triggersForJob.Add(trigger1);
             triggersForJob.Add(trigger2);
 
@@ -395,7 +390,6 @@ namespace Quartz.Tests.Integration
             Assert.That(sched.CheckExists(new JobKey("j2")), "Unexpected non-existence of job named 'j2'.");
         }
 
-#if NET_40
         [Test]
         public void TestShutdownWithoutWaitIsUnclean()
         {
@@ -466,6 +460,5 @@ namespace Quartz.Tests.Integration
                 t.Join();
             }
         }
-#endif
     }
 }

@@ -70,7 +70,7 @@ namespace Quartz.Plugin.Xml
 
         private ITypeLoadHelper typeLoadHelper;
 
-        private readonly Collection.HashSet<string> jobTriggerNameSet = new Collection.HashSet<string>();
+        private readonly HashSet<string> jobTriggerNameSet = new HashSet<string>();
         private IScheduler scheduler;
         private string name;
 

@@ -183,10 +183,10 @@ namespace Quartz.Tests.Integration.Impl
                     scheduler.ScheduleJob(intervalTrigger);
 
                     // bulk operations
-                    var info = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
+                    var info = new Dictionary<IJobDetail, ISet<ITrigger>>();
                     IJobDetail detail = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     ITrigger simple = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
-                    var triggers = new Collection.HashSet<ITrigger>();
+                    var triggers = new HashSet<ITrigger>();
                     triggers.Add(simple);
                     info[detail] = triggers;
 
@@ -302,7 +302,7 @@ namespace Quartz.Tests.Integration.Impl
             trigger = TriggerBuilder.Create().WithIdentity("trig2", "xxxyyyzzz").WithSchedule(schedule).ForJob(job).Build();
             scheduler.ScheduleJob(trigger);
 
-            Collection.ISet<JobKey> jkeys = scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
+            ISet<JobKey> jkeys = scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
             Assert.That(jkeys.Count, Is.EqualTo(3), "Wrong number of jobs found by anything matcher");
 
             jkeys = scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("xxxyyyzzz"));
@@ -329,7 +329,7 @@ namespace Quartz.Tests.Integration.Impl
             jkeys = scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupContains("yz"));
             Assert.That(jkeys.Count, Is.EqualTo(2), "Wrong number of jobs found by contains with matcher");
 
-            Collection.ISet<TriggerKey> tkeys = scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup());
+            ISet<TriggerKey> tkeys = scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup());
             Assert.That(tkeys.Count, Is.EqualTo(3), "Wrong number of triggers found by anything matcher");
 
             tkeys = scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("xxxyyyzzz"));

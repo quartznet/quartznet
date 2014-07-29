@@ -132,11 +132,7 @@ namespace Quartz.Job
 
             if (!string.IsNullOrEmpty(replyTo))
             {
-#if NET_40
                 mailMessage.ReplyToList.Add(new MailAddress(replyTo));
-#else
-                mailMessage.ReplyTo = new MailAddress(replyTo);
-#endif
             }
 
             mailMessage.Subject = subject;

@@ -148,12 +148,8 @@ namespace Quartz.Tests.Unit.Job
             }
             if (!string.IsNullOrEmpty(replyTo))
             {
-#if NET_40
                 Assert.AreEqual(1, actualMail.ReplyToList.Count);
                 Assert.AreEqual(new MailAddress(replyTo), actualMail.ReplyToList[0]);
-#else
-                Assert.AreEqual(new MailAddress(replyTo), actualMail.ReplyTo);
-#endif
             }
         }
     }

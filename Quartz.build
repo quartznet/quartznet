@@ -34,10 +34,10 @@
   <target name="init">
    
     <!-- Check target framework -->
-    <property name="target.framework" value="3.5" overwrite="false" />
+    <property name="target.framework" value="4.0" overwrite="false" />
 
-    <!-- set global target framework to 3.5 by default -->
-    <property name="nant.settings.currentframework" value="net-3.5" />
+    <!-- set global target framework to 4.0 by default -->
+    <property name="nant.settings.currentframework" value="net-4.0" />
 
     <!-- Set directories -->
     <property name="dir.src" value="src/" />
@@ -57,24 +57,13 @@
   </target>
 
   <target name="build">
-    <call target="build-3.5" />
     <call target="build-4.0" />
 	<call target="build-server" />
   </target>
 
   <target name="build-all">
     <call target="build-mono-2.0" />
-    <call target="build-3.5" />
     <call target="build-4.0" />
-  </target>
-
-  <target name="build-3.5" depends="restore-nuget-packages">
-    <property name="build.defines" value="${build.defines}" />
-
-    <property name="target.framework" value="3.5" />
-    <property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/Quartz" />
-    <call target="generate-assembly-info" />
-    <call target="build-all-csc" />
   </target>
 
   <target name="build-4.0" depends="restore-nuget-packages">
@@ -272,20 +261,9 @@
   </target>
 
   <target name="build-server">
-    <call target="build-server-3.5" />
-    <call target="build-server-4.0" />
+	<call target="build-server-4.0" />
   </target>
   
-  <target name="build-server-3.5">
-    <property name="lib-dir-version" value="2.0" />
-    <property name="build.defines" value="C5" />
-
-    <property name="target.framework" value="3.5" />
-    <property name="nant.settings.currentframework" value="net-${target.framework}" />
-
-    <call target="build-server-internal" />
-  </target>
-
   <target name="build-server-4.0">
     <property name="lib-dir-version" value="2.0" />
     <property name="build.defines" value="NET_40,C5" />
@@ -411,12 +389,7 @@
   </target>
 
   <target name="unit">
-    <call target="unit-3.5" />
     <call target="unit-4.0" />
-  </target>
-
-  <target name="unit-3.5" depends="build-3.5">
-    <call target="unit-internal" />
   </target>
 
   <target name="unit-4.0" depends="build-4.0">
@@ -509,8 +482,6 @@
     </if>
 
     <call target="clean" />
-    <call target="build-3.5" />
-    <call target="build-server-3.5" />
     <call target="build-4.0" />
     <call target="build-server-4.0" />
 
@@ -543,12 +514,6 @@
     <copy todir="package/server/bin/4.0" flatten="true">
       <fileset>
         <include name="build/4.0/${build.configuration}/Quartz.Server/**" />
-      </fileset>
-    </copy>
-
-    <copy todir="package/server/bin/3.5" flatten="true">
-      <fileset>
-        <include name="build/3.5/${build.configuration}/Quartz.Server/**" />
       </fileset>
     </copy>
 
@@ -585,7 +550,6 @@
 
   <target name="determine-lib-dirs">
 	<property name="nuget-framework" value="net40" />
-	<property name="nuget-framework" value="net35" if="${target.framework == '3.5'}" /> 
 	<property name="common-logging-dll" value="packages/Common.Logging.3.0.0/lib/${nuget-framework}/Common.Logging.dll" />
 	<property name="common-logging-core-dll" value="packages/Common.Logging.Core.3.0.0/lib/${nuget-framework}/Common.Logging.Core.dll" />
 	<property name="common-logging-log4net-dll" value="packages/Common.Logging.Log4Net1213.3.0.0/lib/${nuget-framework}/Common.Logging.Log4Net1213.dll" />
@@ -594,9 +558,6 @@
     <property name="topshelf-dll" value="packages/TopShelf.3.1.4/lib/net40-full/Topshelf.dll" />
 	<property name="oracle-odp-managed-dll" value="packages/Oracle.ManagedDataAccess.12.1.2400/lib/net40/Oracle.ManagedDataAccess.dll" />
 	
-	<if test="${target.framework == '3.5'}">
-		<property name="topshelf-dll" value="packages/TopShelf.3.1.4/lib/net35/Topshelf.dll" />
-	</if>
 	<property name="log4net-dll" value="packages/log4net.2.0.3/lib/${nuget-framework}-full/log4net.dll" unless="${client-profile}" />
 	<property name="log4net-dll" value="packages/log4net.2.0.3/lib/${nuget-framework}-client/log4net.dll" if="${client-profile}" />
   </target>
