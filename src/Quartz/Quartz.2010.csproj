@@ -412,6 +412,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Util\QuartzEnvironment.cs" />
+    <Compile Include="Util\SortedSetExtensions.cs" />
     <Compile Include="Util\StringExtensions.cs" />
   </ItemGroup>
   <ItemGroup>

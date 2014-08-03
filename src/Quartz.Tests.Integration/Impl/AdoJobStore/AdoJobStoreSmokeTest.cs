@@ -476,12 +476,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 .StartAt(now)
                 .Build();
 
-            var toSchedule = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
-            toSchedule.Add(badJob, new Collection.HashSet<ITrigger>()
+            var toSchedule = new Dictionary<IJobDetail, ISet<ITrigger>>();
+            toSchedule.Add(badJob, new HashSet<ITrigger>()
             {
                 badTrigger
             });
-            toSchedule.Add(goodJob, new Collection.HashSet<ITrigger>()
+            toSchedule.Add(goodJob, new HashSet<ITrigger>()
             {
                 goodTrigger
             });

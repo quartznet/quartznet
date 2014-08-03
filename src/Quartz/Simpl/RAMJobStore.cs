@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -29,6 +30,7 @@ using Quartz.Collection;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Simpl
 {
@@ -51,13 +53,13 @@ namespace Quartz.Simpl
         private readonly Dictionary<TriggerKey, TriggerWrapper> triggersByKey = new Dictionary<TriggerKey, TriggerWrapper>(1000);
         private readonly Dictionary<string, IDictionary<JobKey, JobWrapper>> jobsByGroup = new Dictionary<string, IDictionary<JobKey, JobWrapper>>(25);
         private readonly Dictionary<string, IDictionary<TriggerKey, TriggerWrapper>> triggersByGroup = new Dictionary<string, IDictionary<TriggerKey, TriggerWrapper>>(25);
-        private readonly TreeSet<TriggerWrapper> timeTriggers = new TreeSet<TriggerWrapper>(new TriggerWrapperComparator());
+        private readonly SortedSet<TriggerWrapper> timeTriggers = new SortedSet<TriggerWrapper>(new TriggerWrapperComparator());
         private readonly Dictionary<string, ICalendar> calendarsByName = new Dictionary<string, ICalendar>(5);
         private readonly List<TriggerWrapper> triggers = new List<TriggerWrapper>(1000);
         private readonly object lockObject = new object();
-        private readonly Collection.HashSet<string> pausedTriggerGroups = new Collection.HashSet<string>();
-        private readonly Collection.HashSet<string> pausedJobGroups = new Collection.HashSet<string>();
-        private readonly Collection.HashSet<JobKey> blockedJobs = new Collection.HashSet<JobKey>();
+        private readonly HashSet<string> pausedTriggerGroups = new HashSet<string>();
+        private readonly HashSet<string> pausedJobGroups = new HashSet<string>();
+        private readonly HashSet<JobKey> blockedJobs = new HashSet<JobKey>();
         private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
         private ISchedulerSignaler signaler;
 
@@ -171,7 +173,7 @@ namespace Quartz.Simpl
                 IList<string> lst = GetTriggerGroupNames();
                 foreach (string group in lst)
                 {
-                    Collection.ISet<TriggerKey> keys = GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group));
+                    ISet<TriggerKey> keys = GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group));
                     foreach (TriggerKey key in keys)
                     {
                         RemoveTrigger(key);
@@ -181,7 +183,7 @@ namespace Quartz.Simpl
                 lst = GetJobGroupNames();
                 foreach (string group in lst)
                 {
-                    Collection.ISet<JobKey> keys = GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group));
+                    ISet<JobKey> keys = GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group));
                     foreach (JobKey key in keys)
                     {
                         RemoveJob(key);
@@ -357,7 +359,7 @@ namespace Quartz.Simpl
             return allFound;
         }
 
-        public void StoreJobsAndTriggers(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace)
+        public void StoreJobsAndTriggers(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
         {
             lock (lockObject)
             {
@@ -872,9 +874,9 @@ namespace Quartz.Simpl
         /// Get the names of all of the <see cref="IJob" /> s that
         /// match the given group matcher.
         /// </summary>
-        public virtual Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public virtual ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
-            Collection.ISet<JobKey> outList = null;
+            ISet<JobKey> outList = null;
             lock (lockObject)
             {
                 StringOperator op = matcher.CompareWithOperator;
@@ -886,7 +888,7 @@ namespace Quartz.Simpl
                     jobsByGroup.TryGetValue(compareToValue, out grpMap);
                     if (grpMap != null)
                     {
-                        outList = new Collection.HashSet<JobKey>();
+                        outList = new HashSet<JobKey>();
 
                         foreach (JobWrapper jw in grpMap.Values)
                         {
@@ -905,7 +907,7 @@ namespace Quartz.Simpl
                         {
                             if (outList == null)
                             {
-                                outList = new Collection.HashSet<JobKey>();
+                                outList = new HashSet<JobKey>();
                             }
                             foreach (JobWrapper jobWrapper in entry.Value.Values)
                             {
@@ -919,7 +921,7 @@ namespace Quartz.Simpl
                 }
             }
 
-            return outList ?? new Collection.HashSet<JobKey>();
+            return outList ?? new HashSet<JobKey>();
         }
 
         /// <summary>
@@ -942,9 +944,9 @@ namespace Quartz.Simpl
         /// Get the names of all of the <see cref="ITrigger" /> s
         /// that have the given group name.
         /// </summary>
-        public virtual Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public virtual ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
-            Collection.ISet<TriggerKey> outList = null;
+            ISet<TriggerKey> outList = null;
             lock (lockObject)
             {
                 StringOperator op = matcher.CompareWithOperator;
@@ -956,7 +958,7 @@ namespace Quartz.Simpl
                     triggersByGroup.TryGetValue(compareToValue, out grpMap);
                     if (grpMap != null)
                     {
-                        outList = new Collection.HashSet<TriggerKey>();
+                        outList = new HashSet<TriggerKey>();
 
                         foreach (TriggerWrapper tw in grpMap.Values)
                         {
@@ -975,7 +977,7 @@ namespace Quartz.Simpl
                         {
                             if (outList == null)
                             {
-                                outList = new Collection.HashSet<TriggerKey>();
+                                outList = new HashSet<TriggerKey>();
                             }
                             foreach (TriggerWrapper triggerWrapper in entry.Value.Values)
                             {
@@ -989,7 +991,7 @@ namespace Quartz.Simpl
                 }
             }
 
-            return outList ?? new Collection.HashSet<TriggerKey>();
+            return outList ?? new HashSet<TriggerKey>();
         }
 
         /// <summary>
@@ -1127,7 +1129,7 @@ namespace Quartz.Simpl
         /// paused.
         /// </para>
         /// </summary>
-        public virtual Collection.ISet<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual ISet<string> PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
             IList<string> pausedGroups;
 
@@ -1159,7 +1161,7 @@ namespace Quartz.Simpl
 
                 foreach (string pausedGroup in pausedGroups)
                 {
-                    Collection.ISet<TriggerKey> keys = GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(pausedGroup));
+                    ISet<TriggerKey> keys = GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(pausedGroup));
 
                     foreach (TriggerKey key in keys)
                     {
@@ -1167,7 +1169,7 @@ namespace Quartz.Simpl
                     }
                 }
             }
-            return new Collection.HashSet<string>(pausedGroups);
+            return new HashSet<string>(pausedGroups);
         }
 
         /// <summary> 
@@ -1294,10 +1296,10 @@ namespace Quartz.Simpl
         /// </summary>
         public virtual IList<string> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            Collection.ISet<string> groups = new Collection.HashSet<string>();
+            ISet<string> groups = new HashSet<string>();
             lock (lockObject)
             {
-                Collection.ISet<TriggerKey> keys = GetTriggerKeys(matcher);
+                ISet<TriggerKey> keys = GetTriggerKeys(matcher);
 
                 foreach (TriggerKey triggerKey in keys)
                 {
@@ -1352,12 +1354,12 @@ namespace Quartz.Simpl
         /// misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual Collection.ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher)
+        public virtual ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher)
         {
-            Collection.ISet<string> resumedGroups = new Collection.HashSet<string>();
+            ISet<string> resumedGroups = new HashSet<string>();
             lock (lockObject)
             {
-                Collection.ISet<JobKey> keys = GetJobKeys(matcher);
+                ISet<JobKey> keys = GetJobKeys(matcher);
 
                 foreach (string pausedJobGroup in pausedJobGroups)
                 {
@@ -1488,8 +1490,8 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 List<IOperableTrigger> result = new List<IOperableTrigger>();
-                Collection.ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new Collection.HashSet<JobKey>();
-                Collection.ISet<TriggerWrapper> excludedTriggers = new Collection.HashSet<TriggerWrapper>();
+                ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
+                ISet<TriggerWrapper> excludedTriggers = new HashSet<TriggerWrapper>();
                 DateTimeOffset? firstAcquiredTriggerFireTime = null;
 
                 // return empty list if store has no triggers.
@@ -1566,7 +1568,10 @@ namespace Quartz.Simpl
                 // If we did excluded triggers to prevent ACQUIRE state due to DisallowConcurrentExecution, we need to add them back to store.
                 if (excludedTriggers.Count > 0)
                 {
-                    timeTriggers.AddAll(excludedTriggers);
+                    foreach (var excludedTrigger in excludedTriggers)
+                    {
+                        timeTriggers.Add(excludedTrigger);
+                    }
                 }
                 return result;
             }
@@ -1869,9 +1874,9 @@ namespace Quartz.Simpl
         }
 
         /// <seealso cref="IJobStore.GetPausedTriggerGroups()" />
-        public virtual Collection.ISet<string> GetPausedTriggerGroups()
+        public virtual ISet<string> GetPausedTriggerGroups()
         {
-            Collection.HashSet<string> data = new Collection.HashSet<string>(pausedTriggerGroups);
+            HashSet<string> data = new HashSet<string>(pausedTriggerGroups);
             return data;
         }
     }

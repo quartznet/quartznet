@@ -132,6 +132,7 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(clone.IsDayExcluded(DayOfWeek.Monday));
         }
 
+        /* TODO
         [Test]
         public void TestTreeSetDeserialization()
         {
@@ -143,6 +144,7 @@ namespace Quartz.Tests.Unit
         {
             new TreeSet<string>().DeepClone();
         }
+        */
 
         [Test]
         public void TestHashSetSerialization()

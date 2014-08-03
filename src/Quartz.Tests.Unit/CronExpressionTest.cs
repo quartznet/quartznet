@@ -22,8 +22,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Collection;
-
 using NUnit.Framework;
 
 using Quartz.Util;
@@ -563,7 +561,7 @@ namespace Quartz.Tests.Unit
             {
             }
 
-            public ISortedSet<int> GetSetPublic(int constant)
+            public ISet<int> GetSetPublic(int constant)
             {
                 return base.GetSet(constant);
             }

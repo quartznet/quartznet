@@ -873,7 +873,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             var endTimeOfDay = new TimeOfDay(3, 2, 1);
             var trigger = new DailyTimeIntervalTriggerImpl("name", "group", startTime, endTime, startTimeOfDay, endTimeOfDay, IntervalUnit.Hour, 10);
             trigger.RepeatCount = 12;
-            trigger.DaysOfWeek = new Collection.HashSet<DayOfWeek>
+            trigger.DaysOfWeek = new HashSet<DayOfWeek>
             {
                 DayOfWeek.Thursday
             };

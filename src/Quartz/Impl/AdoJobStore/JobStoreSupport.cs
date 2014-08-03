@@ -2154,10 +2154,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="PauseJobs" />
         public virtual ISet<string> ResumeJobs(GroupMatcher<JobKey> matcher)
         {
-            return ExecuteInLock(LockTriggerAccess, conn =>
+            return (ISet<string>)ExecuteInLock(LockTriggerAccess, conn =>
                 {
-                    Collection.ISet<JobKey> jobKeys = GetJobNames(conn, matcher);
-                    Collection.ISet<String> groupNames = new Collection.HashSet<string>();
+                    ISet<JobKey> jobKeys = GetJobNames(conn, matcher);
+                    ISet<String> groupNames = new HashSet<string>();
 
                     foreach (JobKey jobKey in jobKeys)
                     {
