@@ -390,7 +390,7 @@ namespace Quartz
             }
 
             cronExpressionString = cronExpression.ToUpper(CultureInfo.InvariantCulture);
-            BuildExpression(cronExpression);
+            BuildExpression(cronExpressionString);
         }
 
         /// <summary>
