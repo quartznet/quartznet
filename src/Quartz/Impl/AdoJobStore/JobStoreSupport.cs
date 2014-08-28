@@ -1691,6 +1691,32 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
+        /// Determine whether a <see cref="ICalendar" /> with the given identifier already
+        /// exists within the scheduler.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="calName">the identifier to check for</param>
+        /// <returns>true if a calendar exists with the given identifier</returns>
+        public bool CheckExists(string calName)
+{
+    return (bool)ExecuteWithoutLock( // no locks necessary for read...
+                      conn => CheckExists(conn, calName));
+}
+
+        protected bool CheckExists(ConnectionAndTransactionHolder conn, string calName)
+{
+            try
+            {
+                return Delegate.CalendarExists(conn, calName);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+            }
+}
+
+        /// <summary>
         /// Determine whether a <see cref="IJob"/> with the given identifier already
         /// exists within the scheduler.
         /// </summary>

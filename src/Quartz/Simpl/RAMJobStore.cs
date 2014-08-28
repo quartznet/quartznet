@@ -631,6 +631,22 @@ namespace Quartz.Simpl
             }
 		}
 
+        /// <summary>
+        /// Determine whether a <see cref="ICalendar" /> with the given identifier already
+        /// exists within the scheduler.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <param name="calName">the identifier to check for</param>
+        /// <returns>true if a calendar exists with the given identifier</returns>
+        public bool CheckExists(string calName)
+{
+	        lock (lockObject)
+	        {
+	            return calendarsByName.ContainsKey(calName);
+	        }
+}
+
 	    /// <summary>
 	    /// Determine whether a <see cref="IJob"/> with the given identifier already 
 	    /// exists within the scheduler.
