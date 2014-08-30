@@ -219,7 +219,7 @@ namespace Quartz.Spi
         /// </remarks>
         /// <param name="calName">the identifier to check for</param>
         /// <returns>true if a calendar exists with the given identifier</returns>
-        bool CheckExists(string calName);
+        bool CalendarExists(string calName);
 
         /// <summary>
         /// Determine whether a <see cref="IJob" /> with the given identifier already
