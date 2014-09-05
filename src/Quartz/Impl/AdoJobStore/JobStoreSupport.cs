@@ -1393,7 +1393,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (ts.Equals(StatePausedBlocked))
                 {
-                    return TriggerState.Blocked;
+                    return TriggerState.Paused;
                 }
 
                 if (ts.Equals(StateError))
