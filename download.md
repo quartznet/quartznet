@@ -3,8 +3,6 @@ title: Download Quartz.NET
 layout: default
 ---
 
-# Download
-
 Either grab it from NuGet
 
 ```
