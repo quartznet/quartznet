@@ -5,8 +5,6 @@ layout: default
 
 # Download
 
-Latest stable version of Quartz.NET is 2.2.3
-
 Either grab it from NuGet
 
 ```
