@@ -77,6 +77,7 @@ namespace Quartz.Impl
     public class StdSchedulerFactory : ISchedulerFactory
     {
         private const string ConfigurationKeyPrefix = "quartz.";
+        private const string ConfigurationKeyPrefixServer = "quartz.server";
         public const string ConfigurationSectionName = "quartz";
         public const string PropertiesFile = "quartz.config";
         public const string PropertySchedulerInstanceName = "quartz.scheduler.instanceName";
@@ -316,7 +317,7 @@ Please add configuration to your application config file to correctly initialize
             // now check against allowed))
             foreach (string configurationKey in cfg.UnderlyingProperties.AllKeys)
             {
-                if (!configurationKey.StartsWith(ConfigurationKeyPrefix))
+                if (!configurationKey.StartsWith(ConfigurationKeyPrefix) || configurationKey.StartsWith(ConfigurationKeyPrefixServer))
                 {
                     // don't bother if truly unknown property
                     continue;
