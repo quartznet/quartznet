@@ -11,7 +11,11 @@
   <property name="version.major" value="2" overwrite="false" />
   <property name="version.minor" value="2" overwrite="false" />
   <property name="version.revision" value="4" overwrite="false" />
-  <property name="version.build" value="0" overwrite="false" />
+  <property name="version.build" value="${environment::get-variable('BUILD_NUMBER')}" overwrite="false" if="${environment::variable-exists('BUILD_NUMBER')}" />
+  <property name="version.build" value="0" overwrite="false" unless="${environment::variable-exists('BUILD_NUMBER')}" />
+
+  <property name="version.readable" value="${version.major}.${version.minor}" />
+  <property name="version.readable" value="${version.readable}.${version.revision}" if="${version.revision != '0'}" />
   
   <!-- whether to use C5 collection library -->
   <property name="c5-collections" value="true" overwrite="false" />
@@ -149,7 +153,7 @@
         </imports>
         <attributes>
             <attribute type="AssemblyConfigurationAttribute" value="net-${target.framework}.win32; ${build.configuration}" />
-            <attribute type="AssemblyProductAttribute" value="Quarz.NET ${version.major}.${version.minor}.${version.revision} for .NET ${target.framework}" />
+            <attribute type="AssemblyProductAttribute" value="Quarz.NET ${version.readable} for .NET ${target.framework}" />
             <attribute type="AssemblyDescriptionAttribute" value="Quartz Scheduling Framework for .NET" />
             <attribute type="AssemblyCopyrightAttribute" value="Copyright 2001-2014 Marko Lahma" />
             <attribute type="AssemblyTrademarkAttribute" value="Apache License, Version 2.0" />
@@ -546,13 +550,13 @@
     <!-- sorry *nix folks, couldn't get move to work as expected.. -->
     <exec program="cmd" commandline="/c move package\build package\bin" />
 
-    <zip zipfile="Quartz.NET-x.x.zip">
+    <zip zipfile="Quartz.NET-${version.readable}.zip">
       <fileset basedir="package">
         <include name="**/*" />
       </fileset>
     </zip>
 	
-	<exec program="${nuget.location}" commandline="pack Quartz.nuspec" />
+	<exec program="${nuget.location}" commandline="pack Quartz.nuspec -Version ${version.readable}" />
 
   </target>
 
