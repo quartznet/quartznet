@@ -3313,7 +3313,8 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (cth == null)
             {
-                log.Warn("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
+                // db might be down or similar
+                log.Info("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
                 return;
             }
 
