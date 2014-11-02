@@ -7,6 +7,11 @@
   <property name="build.keyfile" value="quartz.net.snk" overwrite="false" />
 
   <property name="nuget.location" value="tools/NuGet/NuGet.exe" />
+
+  <property name="version.major" value="2" overwrite="false" />
+  <property name="version.minor" value="2" overwrite="false" />
+  <property name="version.revision" value="4" overwrite="false" />
+  <property name="version.build" value="0" overwrite="false" />
   
   <!-- whether to use C5 collection library -->
   <property name="c5-collections" value="true" overwrite="false" />
@@ -61,6 +66,7 @@
 
     <property name="target.framework" value="3.5" />
     <property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/Quartz" />
+    <call target="generate-assembly-info" />
     <call target="build-all-csc" />
   </target>
 
@@ -70,6 +76,7 @@
     <property name="target.framework" value="4.0" />
     <property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/Quartz" />
     <property name="nant.settings.currentframework" value="net-4.0" />
+    <call target="generate-assembly-info" />
     <call target="build-all-csc" />
   </target>
 
@@ -79,6 +86,7 @@
     <property name="target.framework" value="mono-2.0" />
     <property name="buildoutputbasedir" value="build/${target.framework}/${build.configuration}/Quartz" />
     <property name="nant.settings.currentframework" value="${target.framework}" />
+    <call target="generate-assembly-info" />
     <call target="build-all-csc" />
 
   </target>
@@ -114,6 +122,7 @@
       
     <!-- ILMerge Quartz with C5 -->
     <property name="ilmerge.options" value="/targetplatform:&quot;v4,${net-40.reference.assembly.path}&quot;" if="${target.framework == '4.0'}" />
+    <property name="ilmerge.options" value="/targetplatform:&quot;v4&quot;" if="${target.framework == '4.0' and net-40.reference.assembly.path == ''}" />
     <property name="ilmerge.options" value="/targetplatform:v2" unless="${target.framework == '4.0'}" />
 
     <foreach item="String" in="Quartz,ClientProfile/Quartz" delim="," property="ilmergefile">
@@ -131,6 +140,29 @@
       
   </target>
 
+  <target name="generate-assembly-info">
+    <asminfo output="src/AssemblyInfo.cs" language="CSharp">
+        <imports>
+            <import namespace="System" />
+            <import namespace="System.Reflection" />
+            <import namespace="System.Runtime.InteropServices" />
+        </imports>
+        <attributes>
+            <attribute type="AssemblyConfigurationAttribute" value="net-${target.framework}.win32; ${build.configuration}" />
+            <attribute type="AssemblyProductAttribute" value="Quarz.NET ${version.major}.${version.minor}.${version.revision} for .NET ${target.framework}" />
+            <attribute type="AssemblyDescriptionAttribute" value="Quartz Scheduling Framework for .NET" />
+            <attribute type="AssemblyCopyrightAttribute" value="Copyright 2001-2014 Marko Lahma" />
+            <attribute type="AssemblyTrademarkAttribute" value="Apache License, Version 2.0" />
+            <attribute type="AssemblyCultureAttribute" value="" />
+            <attribute type="ComVisibleAttribute" value="false" />
+            <attribute type="CLSCompliantAttribute" value="true" />
+            <attribute type="AssemblyVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.${version.build}" />
+            <attribute type="AssemblyDelaySignAttribute" value="false" />
+            <attribute type="System.Security.AllowPartiallyTrustedCallersAttribute" if="${target.framework == '3.5'}" />
+        </attributes>
+    </asminfo>  
+  </target>
+  
   <target name="compile-quartz" depends="determine-lib-dirs">
   
     <csc
