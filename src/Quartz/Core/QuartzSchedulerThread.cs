@@ -320,7 +320,7 @@ namespace Quartz.Core
                             DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc().Value;
                             TimeSpan timeUntilTrigger =  triggerTime - now;
 
-                            while (timeUntilTrigger > TimeSpan.FromMilliseconds(2)) 
+                            while (timeUntilTrigger > TimeSpan.Zero) 
                             {
                                 if (ReleaseIfScheduleChangedSignificantly(triggers, triggerTime))
                                 {
