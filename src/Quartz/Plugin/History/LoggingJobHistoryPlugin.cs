@@ -84,8 +84,7 @@ namespace Quartz.Plugin.History
     /// 				<td>The re-fire count from the JobExecutionContext.</td>
     /// 			</tr>
     /// 		</table>
-    /// The default message text is <i>"Job {1}.{0} fired (by trigger {4}.{3}) at:
-    /// {2, date, HH:mm:ss MM/dd/yyyy"</i>
+    /// The default message text is <i>"Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}"</i>
     /// 	</para>
     /// 	<para>
     /// JobSuccessMessage - available message data are: <table>
@@ -142,8 +141,7 @@ namespace Quartz.Plugin.History
     /// result was set.</td>
     /// 			</tr>
     /// 		</table>
-    /// The default message text is <i>"Job {1}.{0} execution complete at {2, date,
-    /// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
+    /// The default message text is <i>"Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}"</i>
     /// 	</para>
     /// 	<para>
     /// JobFailedMessage - available message data are: <table>
@@ -199,8 +197,7 @@ namespace Quartz.Plugin.History
     /// </td>
     /// 			</tr>
     /// 		</table>
-    /// The default message text is <i>"Job {1}.{0} execution failed at {2, date,
-    /// HH:mm:ss MM/dd/yyyy} and reports: {8"</i>
+    /// The default message text is <i>"Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}"</i>
     /// 	</para>
     /// 	<para>
     /// JobWasVetoedMessage - available message data are: <table>
@@ -251,7 +248,7 @@ namespace Quartz.Plugin.History
     /// 			</tr>
     /// 		</table>
     /// The default message text is <i>"Job {1}.{0} was vetoed.  It was to be fired 
-    /// (by trigger {4}.{3}) at: {2, date, HH:mm:ss MM/dd/yyyy"</i>
+    /// (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}"</i>
     /// 	</para>
     /// </remarks>
     /// <author>Marko Lahma (.NET)</author>
