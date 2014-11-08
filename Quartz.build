@@ -9,13 +9,16 @@
   <property name="nuget.location" value="tools/NuGet/NuGet.exe" />
 
   <property name="version.major" value="2" overwrite="false" />
-  <property name="version.minor" value="2" overwrite="false" />
-  <property name="version.revision" value="4" overwrite="false" />
+  <property name="version.minor" value="3" overwrite="false" />
+  <property name="version.revision" value="0" overwrite="false" />
   <property name="version.build" value="${environment::get-variable('BUILD_NUMBER')}" overwrite="false" if="${environment::variable-exists('BUILD_NUMBER')}" />
   <property name="version.build" value="0" overwrite="false" unless="${environment::variable-exists('BUILD_NUMBER')}" />
 
   <property name="version.readable" value="${version.major}.${version.minor}" />
   <property name="version.readable" value="${version.readable}.${version.revision}" if="${version.revision != '0'}" />
+  
+  <property name="git.hash" value="${environment::get-variable('GIT_COMMIT')}" overwrite="false" if="${environment::variable-exists('GIT_COMMIT')}" />
+  <property name="git.hash" value="" overwrite="false" unless="${environment::variable-exists('GIT_COMMIT')}" />
   
   <!-- whether to use C5 collection library -->
   <property name="c5-collections" value="true" overwrite="false" />
@@ -130,16 +133,16 @@
     <property name="ilmerge.options" value="/targetplatform:v2" unless="${target.framework == '4.0'}" />
 
     <foreach item="String" in="Quartz,ClientProfile/Quartz" delim="," property="ilmergefile">
-		<mkdir dir="mergetemp/ClientProfile" />
+    <mkdir dir="mergetemp/ClientProfile" />
         <exec
         verbose="true"
         program="tools/ilmerge/ilmerge.exe"
         commandline="${ilmerge.options} /target:library /keyfile:${build.keyfile} /internalize /out:mergetemp/${ilmergefile}.dll ${buildoutputbasedir}/${ilmergefile}.dll lib/2.0/C5.dll"  />
         <delete file="${buildoutputbasedir}/${ilmergefile}.dll" />
-		<delete file="${buildoutputbasedir}/${ilmergefile}.pdb" />
+        <delete file="${buildoutputbasedir}/${ilmergefile}.pdb" />
         <move file="mergetemp/${ilmergefile}.dll" tofile="${buildoutputbasedir}/${ilmergefile}.dll" /> 
         <move file="mergetemp/${ilmergefile}.pdb" tofile="${buildoutputbasedir}/${ilmergefile}.pdb" /> 
-		<delete dir="mergetemp" />
+        <delete dir="mergetemp" />
     </foreach>
       
   </target>
@@ -157,10 +160,12 @@
             <attribute type="AssemblyDescriptionAttribute" value="Quartz Scheduling Framework for .NET" />
             <attribute type="AssemblyCopyrightAttribute" value="Copyright 2001-2014 Marko Lahma" />
             <attribute type="AssemblyTrademarkAttribute" value="Apache License, Version 2.0" />
+            <attribute type="AssemblyCompanyAttribute" value="http://www.quartz-scheduler.net/" />
             <attribute type="AssemblyCultureAttribute" value="" />
             <attribute type="ComVisibleAttribute" value="false" />
             <attribute type="CLSCompliantAttribute" value="true" />
             <attribute type="AssemblyVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.${version.build}" />
+            <attribute type="AssemblyInformationalVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.${version.build} / ${git.hash}" />
             <attribute type="AssemblyDelaySignAttribute" value="false" />
             <attribute type="System.Security.AllowPartiallyTrustedCallersAttribute" if="${target.framework == '3.5'}" />
         </attributes>
@@ -199,10 +204,10 @@
         <include name="src/Quartz/Xml/job_scheduling_data_2_0.xsd" />
       </resources>
       <references>
-	    <include name="mscorlib.dll"/>
-		<include name="Microsoft.CSharp.dll"/>
-		<include name="System.Configuration.dll"/>
-		<include name="System.Core.dll"/>
+        <include name="mscorlib.dll"/>
+        <include name="Microsoft.CSharp.dll"/>
+        <include name="System.Configuration.dll"/>
+        <include name="System.Core.dll"/>
         <include name="System.dll" />
         <include name="System.Core.dll" />
         <include name="System.Configuration.dll" />
@@ -263,8 +268,8 @@
   </target>
 
   <target name="build-server">
-	<call target="build-server-3.5" />
-	<call target="build-server-4.0" />
+    <call target="build-server-3.5" />
+    <call target="build-server-4.0" />
   </target>
   
   <target name="build-server-3.5">
@@ -308,10 +313,10 @@
         <include name="${dir.server.src}/Quartz.Server.Core/**/*.cs" />
       </sources>
       <references>
-	    <include name="mscorlib.dll"/>
-		<include name="Microsoft.CSharp.dll"/>
-		<include name="System.Configuration.dll"/>
-		<include name="System.Core.dll"/>
+        <include name="mscorlib.dll"/>
+        <include name="Microsoft.CSharp.dll"/>
+        <include name="System.Configuration.dll"/>
+        <include name="System.Core.dll"/>
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
@@ -371,11 +376,11 @@
         <include name="src/Quartz.Tests.Unit/Xml/TestData/RichConfiguration_20.xml" />
       </resources>
       <references>
-		<include name="mscorlib.dll"/>
-		<include name="Microsoft.CSharp.dll"/>
-		<include name="System.Configuration.dll"/>
-		<include name="System.Core.dll"/>
-		<include name="System.dll" />
+        <include name="mscorlib.dll"/>
+        <include name="Microsoft.CSharp.dll"/>
+        <include name="System.Configuration.dll"/>
+        <include name="System.Core.dll"/>
+        <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="System.Transactions.dll" />
         <include name="${common-logging-dll}" />
