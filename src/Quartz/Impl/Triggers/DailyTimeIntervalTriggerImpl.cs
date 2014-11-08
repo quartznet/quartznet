@@ -214,7 +214,6 @@ namespace Quartz.Impl.Triggers
             EndTimeOfDay = endTimeOfDayUtc;
         }
 
-
         /// <summary>
         /// The time at which the <see cref="IDailyTimeIntervalTrigger" /> should occur.
         /// </summary>
@@ -244,7 +243,6 @@ namespace Quartz.Impl.Triggers
                 startTimeUtc = value;
             }
         }
-
 
         /// <summary>
         /// the time at which the <see cref="IDailyTimeIntervalTrigger" /> should quit repeating.
@@ -440,7 +438,6 @@ namespace Quartz.Impl.Triggers
                 }
             }
 
-
             if (nextFireTimeUtc == null)
             {
                 complete = true;
@@ -590,7 +587,6 @@ namespace Quartz.Impl.Triggers
             this.previousFireTimeUtc = previousFireTimeUtc;
         }
 
-
         /// <summary>
         /// Returns the next time at which the <see cref="IDailyTimeIntervalTrigger" /> will
         /// fire, after the given time. If the trigger will not fire after the given
@@ -663,17 +659,17 @@ namespace Quartz.Impl.Triggers
             }
 
             // apply the proper offset for the end date
-            fireTimeEndDate = new DateTimeOffset(fireTimeEndDate.DateTime, this.TimeZone.GetUtcOffset(fireTimeEndDate.DateTime));
+            fireTimeEndDate = new DateTimeOffset(fireTimeEndDate.DateTime, TimeZone.GetUtcOffset(fireTimeEndDate.DateTime));
 
             // e. Check fireTime against startTime or startTimeOfDay to see which go first.
             DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
 
             // apply the proper offset for the start date
-            fireTimeStartDate = new DateTimeOffset(fireTimeStartDate.DateTime, this.TimeZone.GetUtcOffset(fireTimeStartDate.DateTime));
+            fireTimeStartDate = new DateTimeOffset(fireTimeStartDate.DateTime, TimeZone.GetUtcOffset(fireTimeStartDate.DateTime));
 
             if (fireTime < fireTimeStartDate)
             {
-                return fireTimeStartDate;
+                return fireTimeStartDate.ToUniversalTime();
             }
 
             // f. Continue to calculate the fireTime by incremental unit of intervals.
@@ -730,7 +726,11 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            return fireTime.Value.ToUniversalTime();
+            // apply proper offset
+            var d = fireTime.Value;
+            d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, TimeZone.GetUtcOffset(d.DateTime));
+
+            return d.ToUniversalTime();
         }
 
         private bool IsSameDay(DateTimeOffset d1, DateTimeOffset d2)
@@ -786,7 +786,6 @@ namespace Quartz.Impl.Triggers
             return fireTime;
         }
 
-
         /// <summary>
         /// Returns the final time at which the <see cref="IDailyTimeIntervalTrigger" /> will
         /// fire, if there is no end time set, null will be returned.
@@ -815,7 +814,6 @@ namespace Quartz.Impl.Triggers
                 return endTime;
             }
         }
-
 
         /// <summary>
         /// Determines whether or not the <see cref="IDailyTimeIntervalTrigger" /> will occur
@@ -865,7 +863,6 @@ namespace Quartz.Impl.Triggers
                 throw new SchedulerException("StartTimeOfDay " + startTimeOfDay + " should not come after endTimeOfDay " + endTimeOfDay);
             }
         }
-
 
         /// <summary>
         /// The days of the week upon which to fire.
@@ -931,7 +928,6 @@ namespace Quartz.Impl.Triggers
             }
         }
 
-
         /// <summary>
         /// The time of day to complete firing at the given interval.
         /// </summary>
@@ -953,7 +949,6 @@ namespace Quartz.Impl.Triggers
                 endTimeOfDay = value;
             }
         }
-
 
         /// <summary>
         /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a 

@@ -15,6 +15,7 @@ NEW FEATURE
 
 FIXES
 
+* DailyTimeIntervalTriggerImpl fires twice during daylight saving time day
 * No wait time between db connection failures with AcquireNextTriggers causes excessive logging
 * Configure the quartz server in the <quartz> section fails
 * CronExpression ctor incorrectly uses the non-uppercased string
