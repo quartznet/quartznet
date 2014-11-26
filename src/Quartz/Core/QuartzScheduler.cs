@@ -583,11 +583,12 @@ namespace Quartz.Core
                 IList<IJobExecutionContext> jobs = CurrentlyExecutingJobs;
                 foreach (IJobExecutionContext job in jobs)
                 {
-                    if (job.JobInstance is IInterruptableJob)
+                    IInterruptableJob jobInstance = job.JobInstance as IInterruptableJob;
+                    if (jobInstance != null)
                     {
                         try
                         {
-                            ((IInterruptableJob) job.JobInstance).Interrupt();
+                            jobInstance.Interrupt();
                         }
                         catch (Exception ex)
                         {
@@ -2285,10 +2286,10 @@ namespace Quartz.Core
                 jobDetail = jec.JobDetail;
                 if (jobKey.Equals(jobDetail.Key))
                 {
-                    IJob job = jec.JobInstance;
-                    if (job is IInterruptableJob)
+                    IInterruptableJob jobInstance = jec.JobInstance as IInterruptableJob;
+                    if (jobInstance != null)
                     {
-                        ((IInterruptableJob) job).Interrupt();
+                        jobInstance.Interrupt();
                         interrupted = true;
                     }
                     else
@@ -2320,10 +2321,10 @@ namespace Quartz.Core
             {
                 if (jec.FireInstanceId.Equals(fireInstanceId))
                 {
-                    IJob job = jec.JobInstance;
-                    if (job is IInterruptableJob)
+                    IInterruptableJob jobInstance = jec.JobInstance as IInterruptableJob;
+                    if (jobInstance != null)
                     {
-                        ((IInterruptableJob) job).Interrupt();
+                        jobInstance.Interrupt();
                         return true;
                     }
                     throw new UnableToInterruptJobException("Job " + jec.JobDetail.Key + " can not be interrupted, since it does not implement " + typeof (IInterruptableJob).Name);

@@ -1934,10 +1934,10 @@ namespace Quartz.Simpl
 
         public override bool Equals(object obj)
         {
-            if (obj is JobWrapper)
+            JobWrapper jobWrapper = obj as JobWrapper;
+            if (jobWrapper != null)
             {
-                JobWrapper jw = (JobWrapper)obj;
-                if (jw.key.Equals(key))
+                if (jobWrapper.key.Equals(key))
                 {
                     return true;
                 }
