@@ -87,7 +87,7 @@ In this case, we're specifying that Quartz should use the data source name "myDS
 
 One last thing that is needed for the configuration is to set data source connection string information and database provider. Connection
 string is the standard ADO.NET connection which is driver specific. Database provider is an abstraction of database drivers to create
-loose coupling betweeb database drivers and Quartz.
+loose coupling between database drivers and Quartz.
 
 **Setting Data Source's Connection String And Database Provider**
 
@@ -108,7 +108,7 @@ Currently following database providers are supported:
 * Firebird-210 - Firebird ADO.NET 2.0 Provider v. 2.1.0 (.NET 2.0)
 * Npgsql-20 - PostgreSQL Npgsql
 
-**You can and should use latest version of driver if newer is available, jsut create an assembly binding redirect**
+**You can and should use latest version of driver if newer is available, just create an assembly binding redirect**
 
 If your Scheduler is very busy (i.e. nearly always executing the same number of jobs as the size of the thread pool, then you should 
 probably set the number of connections in the data source to be the about the size of the thread pool + 1.This is commonly configured
