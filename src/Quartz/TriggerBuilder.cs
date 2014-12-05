@@ -472,12 +472,11 @@ namespace Quartz
         /// <seealso cref="ITrigger.JobDataMap" />
         public TriggerBuilder UsingJobData(JobDataMap newJobDataMap)
         {
-            // add any existing data to this new map
-            foreach (string k in jobDataMap.Keys)
+            // add data from new map to existing map (overrides old values)
+            foreach (string k in newJobDataMap.Keys)
             {
-                newJobDataMap.Put(k, jobDataMap.Get(k));
+                jobDataMap.Put(k, newJobDataMap.Get(k));
             }
-            jobDataMap = newJobDataMap; // set new map as the map to use
             return this;
         }
     }
