@@ -3342,7 +3342,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (cth == null)
             {
-                log.Error("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
+                log.Debug("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
                 return;
             }
 
