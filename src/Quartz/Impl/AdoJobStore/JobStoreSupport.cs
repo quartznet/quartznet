@@ -80,6 +80,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected JobStoreSupport()
         {
+            this.RetryableActionErrorLogThreshold = 4;
             DoubleCheckLockMisfireHandler = true;
             ClusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
             MaxMisfiresToHandleAtATime = 20;
@@ -171,6 +172,12 @@ namespace Quartz.Impl.AdoJobStore
         {
             set { }
         }
+
+        /// <summary>
+        /// Gets or sets the number of retries before an error is logged for recovery operations.
+        /// </summary>
+        public int RetryableActionErrorLogThreshold { get; set; }
+
 
         public IThreadExecutor ThreadExecutor
         {
@@ -3422,7 +3429,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (JobPersistenceException jpe)
                 {
-                    if (retry % 4 == 0)
+                    if (retry % this.RetryableActionErrorLogThreshold == 0)
                     {
                         schedSignaler.NotifySchedulerListenersError("An error occurred while " + txCallback, jpe);
                     }
@@ -3598,7 +3605,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    if (numFails % 4 == 0)
+                    if (numFails % this.jobStoreSupport.RetryableActionErrorLogThreshold == 0)
                     {
                         jobStoreSupport.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
                     }
@@ -3686,7 +3693,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    if (numFails % 4 == 0)
+                    if (numFails % this.jobStoreSupport.RetryableActionErrorLogThreshold == 0)
                     {
                         jobStoreSupport.Log.Error(
                             "MisfireHandler: Error handling misfires: "
