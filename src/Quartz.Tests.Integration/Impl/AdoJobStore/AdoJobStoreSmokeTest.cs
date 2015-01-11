@@ -13,6 +13,7 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Simpl;
 using Quartz.Spi;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
@@ -26,6 +27,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         private bool scheduleJobs = true;
         private bool clustered = true;
         private ILoggerFactoryAdapter oldAdapter;
+
+        private const string KeyResetEvent = "ResetEvent";
 
         static AdoJobStoreSmokeTest()
         {
@@ -43,7 +46,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             // set Adapter to report problems
             oldAdapter = LogManager.Adapter;
-            LogManager.Adapter = new FailFastLoggerFactoryAdapter();  
+            LogManager.Adapter = new FailFastLoggerFactoryAdapter();
         }
 
         [TestFixtureTearDown]
@@ -102,7 +105,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 Assert.IsNotNull(ex.InnerException);
                 Assert.AreEqual("SqlServer-11 provider is no longer supported.", ex.InnerException.Message);
             }
-
         }
 
         [Test]
@@ -112,7 +114,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
         }
-
 
         [Test]
         public void TestSqlServerCe351()
@@ -189,7 +190,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             RunAdoJobStoreTest("OracleODP-20", "Oracle", properties);
         }
 
-
         [Test]
         public void TestMySql50()
         {
@@ -252,14 +252,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
         }
 
-
         private void RunAdoJobStoreTest(string dbProvider, string connectionStringId)
         {
             RunAdoJobStoreTest(dbProvider, connectionStringId, null);
         }
 
         private void RunAdoJobStoreTest(string dbProvider, string connectionStringId,
-                                        NameValueCollection extraProperties)
+            NameValueCollection extraProperties)
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -326,7 +325,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             IScheduler sched = sf.GetScheduler();
             sched.Clear();
 
-            JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof(NoOpJob));
+            JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof (NoOpJob));
             jobWithData.JobDataMap["testkey"] = "testvalue";
             IOperableTrigger triggerWithData = new SimpleTriggerImpl("datatrigger", "triggergroup", 20, TimeSpan.FromSeconds(5));
             triggerWithData.JobDataMap.Add("testkey", "testvalue");
@@ -359,7 +358,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
             Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
         }
-
 
         [Test]
         [Explicit]
@@ -407,7 +405,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     for (int i = 0; i < 100000; ++i)
                     {
                         ITrigger trigger = new SimpleTriggerImpl("calendarsTrigger", "test", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
-                        JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof(NoOpJob));
+                        JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof (NoOpJob));
                         sched.ScheduleJob(jd, trigger);
                     }
                 }
@@ -418,10 +416,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                 sched.Shutdown(false);
             }
-
         }
 
-        
         [Test]
         public void TestGetTriggerKeysWithLike()
         {
@@ -454,9 +450,51 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("bar"));
         }
 
-        private static IScheduler CreateScheduler()
+        [Test]
+        public void JobTypeNotFoundShouldNotBlock()
         {
             NameValueCollection properties = new NameValueCollection();
+            properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof (SpecialClassLoadHelper).AssemblyQualifiedName);
+            var scheduler = CreateScheduler(properties);
+
+            scheduler.DeleteJobs(new[] {JobKey.Create("bad"), JobKey.Create("good")});
+
+            scheduler.Start();
+
+            var manualResetEvent = new ManualResetEvent(false);
+            scheduler.Context.Put(KeyResetEvent, manualResetEvent);
+
+            IJobDetail goodJob = JobBuilder.Create<GoodJob>().WithIdentity("good").Build();
+            IJobDetail badJob = JobBuilder.Create<BadJob>().WithIdentity("bad").Build();
+
+            var now = DateTimeOffset.UtcNow;
+            ITrigger goodTrigger = TriggerBuilder.Create().WithIdentity("good").ForJob(goodJob)
+                .StartAt(now.AddMilliseconds(1))
+                .Build();
+
+            ITrigger badTrigger = TriggerBuilder.Create().WithIdentity("bad").ForJob(badJob)
+                .StartAt(now)
+                .Build();
+
+            var toSchedule = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
+            toSchedule.Add(badJob, new Collection.HashSet<ITrigger>()
+            {
+                badTrigger
+            });
+            toSchedule.Add(goodJob, new Collection.HashSet<ITrigger>()
+            {
+                goodTrigger
+            });
+            scheduler.ScheduleJobs(toSchedule, true);
+
+            manualResetEvent.WaitOne(TimeSpan.FromSeconds(20));
+
+            Assert.That(scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
+        }
+
+        private static IScheduler CreateScheduler(NameValueCollection properties = null)
+        {
+            properties = properties ?? new NameValueCollection();
 
             properties["quartz.scheduler.instanceName"] = "TestScheduler";
             properties["quartz.scheduler.instanceId"] = "instance_one";
@@ -512,38 +550,38 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             try
             {
-                    sched.Clear();
+                sched.Clear();
 
-                    JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
-                    lonelyJob.Durable = true;
-                    lonelyJob.RequestsRecovery = true;
-                    sched.AddJob(lonelyJob, false);
-                    sched.AddJob(lonelyJob, true);
+                JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof (SimpleRecoveryJob));
+                lonelyJob.Durable = true;
+                lonelyJob.RequestsRecovery = true;
+                sched.AddJob(lonelyJob, false);
+                sched.AddJob(lonelyJob, true);
 
-                    string schedId = sched.SchedulerInstanceId;
+                string schedId = sched.SchedulerInstanceId;
 
-                    JobDetailImpl job = new JobDetailImpl("job_to_use", schedId, typeof(SimpleRecoveryJob));
+                JobDetailImpl job = new JobDetailImpl("job_to_use", schedId, typeof (SimpleRecoveryJob));
 
-                    for (int i = 0; i < 100000; ++i)
-                    {
-                        IOperableTrigger trigger = new SimpleTriggerImpl("stressing_simple", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
-                        trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
-                        sched.ScheduleJob(job, trigger);
-                    }
+                for (int i = 0; i < 100000; ++i)
+                {
+                    IOperableTrigger trigger = new SimpleTriggerImpl("stressing_simple", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
+                    trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
+                    sched.ScheduleJob(job, trigger);
+                }
 
-                    for (int i = 0; i < 100000; ++i)
-                    {
-                        IOperableTrigger ct = new CronTriggerImpl("stressing_cron", "0/1 * * * * ?");
-                        ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
-                        sched.ScheduleJob(job, ct);
-                    }
-    
-                    Stopwatch stopwatch = new Stopwatch();
-                    stopwatch.Start();
-                    sched.Start();
-                    Thread.Sleep(TimeSpan.FromMinutes(3));
-                    stopwatch.Stop();
-                    Console.WriteLine("Took: " + stopwatch.Elapsed);
+                for (int i = 0; i < 100000; ++i)
+                {
+                    IOperableTrigger ct = new CronTriggerImpl("stressing_cron", "0/1 * * * * ?");
+                    ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
+                    sched.ScheduleJob(job, ct);
+                }
+
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
+                sched.Start();
+                Thread.Sleep(TimeSpan.FromMinutes(3));
+                stopwatch.Stop();
+                Console.WriteLine("Took: " + stopwatch.Elapsed);
             }
             finally
             {
@@ -551,6 +589,48 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
         }
 
+        public class BadJob : IJob
+        {
+            public void Execute(IJobExecutionContext context)
+            {
+                //no-op
+            }
+        }
+
+        public class GoodJob : IJob
+        {
+            public void Execute(IJobExecutionContext context)
+            {
+                try
+                {
+                    ((ManualResetEvent) context.Scheduler.Context.Get(KeyResetEvent)).WaitOne(TimeSpan.FromSeconds(20));
+                }
+                catch (SchedulerException ex)
+                {
+                    throw new JobExecutionException(ex);
+                }
+                catch (ThreadInterruptedException ex)
+                {
+                    throw new JobExecutionException(ex);
+                }
+                catch (TimeoutException ex)
+                {
+                    throw new JobExecutionException(ex);
+                }
+            }
+        }
+
+        public class SpecialClassLoadHelper : SimpleTypeLoadHelper
+        {
+            public override Type LoadType(string name)
+            {
+                if (!string.IsNullOrEmpty(name) && typeof (BadJob) == Type.GetType(name))
+                {
+                    throw new TypeLoadException();
+                }
+                return base.LoadType(name);
+            }
+        }
     }
 
     internal class DummyTriggerListener : ITriggerListener
@@ -574,14 +654,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         public void TriggerComplete(ITrigger trigger, IJobExecutionContext context,
-                                    SchedulerInstruction triggerInstructionCode)
+            SchedulerInstruction triggerInstructionCode)
         {
         }
     }
 
     internal class DummyJobListener : IJobListener
     {
-
         public string Name
         {
             get { return GetType().FullName; }
@@ -589,17 +668,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         public void JobToBeExecuted(IJobExecutionContext context)
         {
-            
         }
 
         public void JobExecutionVetoed(IJobExecutionContext context)
         {
-            
         }
 
         public void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
-            
         }
     }
 

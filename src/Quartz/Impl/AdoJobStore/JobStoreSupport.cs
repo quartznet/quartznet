@@ -1003,7 +1003,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (job == null)
                 {
-                    job = Delegate.SelectJobDetail(conn, newTrigger.JobKey, TypeLoadHelper);
+                    job = RetrieveJob(conn, newTrigger.JobKey);
                 }
                 if (job == null)
                 {
@@ -2479,7 +2479,25 @@ namespace Quartz.Impl.AdoJobStore
                         // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
                         // put it back into the timeTriggers set and continue to search for next trigger.
                         JobKey jobKey = nextTrigger.JobKey;
-                        IJobDetail job = Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper);
+                        IJobDetail job;
+                        try
+                        {
+                            job = RetrieveJob(conn, jobKey);
+                        }
+                        catch (JobPersistenceException jpe)
+                        {
+                            try
+                            {
+                                Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
+                                Delegate.UpdateTriggerState(conn, triggerKey, StateError);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error("Unable to set trigger state to ERROR.", ex);
+                            }
+                            continue;
+                        }
+
                         if (job.ConcurrentExecutionDisallowed)
                         {
                             if (acquiredJobKeysForNoConcurrentExec.Contains(jobKey))
