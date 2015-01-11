@@ -2689,7 +2689,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't insert fired trigger: " + e.Message, e);
+                throw new JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
             }
 
             DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
