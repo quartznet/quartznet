@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -299,15 +301,15 @@ namespace Quartz.Impl
         /// <summary>
         /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> attribute.
         /// </summary>
-        public bool PersistJobDataAfterExecution
+        public virtual bool PersistJobDataAfterExecution
         {
-            get { return ObjectUtils.IsAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute)); }
+            get { return ObjectUtils.IsAttributePresent(jobType, typeof (PersistJobDataAfterExecutionAttribute)); }
         }
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
         /// </summary>
-        public bool ConcurrentExecutionDisallowed
+        public virtual bool ConcurrentExecutionDisallowed
         {
             get { return ObjectUtils.IsAttributePresent(jobType, typeof (DisallowConcurrentExecutionAttribute)); }
         }
@@ -371,7 +373,6 @@ namespace Quartz.Impl
             return copy;
         }
 
-
         /// <summary>
         /// Determines whether the specified detail is equal to this instance.
         /// </summary>
@@ -411,7 +412,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="detail">The detail to compare this instance with.</param>
         /// <returns></returns>
-        public bool Equals(JobDetailImpl detail)
+        public virtual bool Equals(JobDetailImpl detail)
         {
             return IsEqual(detail);
         }
@@ -428,7 +429,7 @@ namespace Quartz.Impl
             return FullName.GetHashCode();
         }
 
-        public JobBuilder GetJobBuilder()
+        public virtual JobBuilder GetJobBuilder()
         {
             JobBuilder b = JobBuilder.Create()
                 .OfType(JobType)
@@ -437,6 +438,7 @@ namespace Quartz.Impl
                 .UsingJobData(JobDataMap)
                 .WithDescription(description)
                 .WithIdentity(Key);
+
             return b;
         }
     }
