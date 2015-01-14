@@ -48,7 +48,7 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(trigger.JobKey == null, "Unexpected job key: " + trigger.JobKey);
             Assert.IsTrue(trigger.Description == null, "Unexpected job description: " + trigger.Description);
             Assert.IsTrue(trigger.Priority == TriggerConstants.DefaultPriority, "Unexpected trigger priority: " + trigger.Priority);
-            Assert.IsTrue(trigger.StartTimeUtc != null, "Unexpected start-time: " + trigger.StartTimeUtc);
+            Assert.That(trigger.StartTimeUtc.DateTime, Is.EqualTo(DateTimeOffset.UtcNow.DateTime).Within(TimeSpan.FromSeconds(1)), "Unexpected start-time: " + trigger.StartTimeUtc);
             Assert.IsTrue(trigger.EndTimeUtc == null, "Unexpected end-time: " + trigger.EndTimeUtc);
 
             DateTimeOffset stime = DateBuilder.EvenSecondDateAfterNow();

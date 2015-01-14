@@ -128,7 +128,7 @@ namespace Quartz.Impl.AdoJobStore
         /// enclosing transaction.
         /// </summary>
         /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
-        /// <seealso cref="JobStoreTX.ExecuteInLock" />
+        /// <seealso cref="JobStoreSupport.ExecuteInLock" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
         /// <param name="lockName">
