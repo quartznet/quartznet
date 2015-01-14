@@ -10,6 +10,8 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
+using Quartz.Job;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit
 {
@@ -270,6 +272,37 @@ namespace Quartz.Tests.Unit
             Assert.NotNull(before.InnerException);
             Assert.NotNull(after.InnerException);
             Assert.AreEqual(before.ToString(), after.ToString());
+        }
+
+        [Test]
+        public void ReschedulingTriggerShouldKeepOriginalNextFireTime()
+        {
+           ISchedulerFactory factory = new StdSchedulerFactory();
+            IScheduler scheduler = factory.GetScheduler();
+            scheduler.Start();
+
+            var job = JobBuilder.Create<NoOpJob>().Build();
+            var trigger = TriggerBuilder.Create()
+                .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+                .ForJob(job)
+                .StartNow()
+                .Build();
+
+            scheduler.ScheduleJob(job, trigger);
+
+            trigger = (IOperableTrigger) scheduler.GetTrigger(trigger.Key);
+            Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(null));
+
+            var previousFireTimeUtc = DateTimeOffset.UtcNow.AddDays(1);
+            ((IOperableTrigger)trigger).SetPreviousFireTimeUtc(previousFireTimeUtc);
+            ((IOperableTrigger)trigger).SetNextFireTimeUtc(trigger.GetFireTimeAfter(previousFireTimeUtc));
+
+            scheduler.RescheduleJob(trigger.Key, trigger);
+
+            trigger = (IOperableTrigger)scheduler.GetTrigger(trigger.Key);
+            Assert.That(trigger.GetNextFireTimeUtc().Value.UtcDateTime, Is.EqualTo(previousFireTimeUtc.AddHours(1).UtcDateTime).Within(TimeSpan.FromSeconds(5)));
+
+            scheduler.Shutdown(true);
         }
     }
 }

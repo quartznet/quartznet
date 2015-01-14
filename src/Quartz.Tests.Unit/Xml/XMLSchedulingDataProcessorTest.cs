@@ -275,11 +275,11 @@ namespace Quartz.Tests.Unit.Xml
             IScheduler scheduler = CreateDbBackedScheduler();
             try
             {
-                processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("SimpleTriggerNoRepeat.xml"), mockScheduler);
+                processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("SimpleTriggerNoRepeat.xml"), scheduler);
                 Assert.That(scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT")).Count, Is.EqualTo(1));
                 Assert.That(scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT")).Count, Is.EqualTo(1));
             }
-            finally 
+            finally
             {
                 if (scheduler != null)
                 {
@@ -358,6 +358,9 @@ namespace Quartz.Tests.Unit.Xml
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler scheduler = sf.GetScheduler();
+
+            scheduler.Clear();
+
             return scheduler;
         }
 
@@ -376,6 +379,7 @@ namespace Quartz.Tests.Unit.Xml
                     .WithIdentity(jobName, "DEFAULT")
                     .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                     .Build();
+
                 scheduler.ScheduleJob(jobDetail, trigger);
 
                 IJobDetail jobDetail2 = scheduler.GetJobDetail(jobDetail.Key);

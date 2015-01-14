@@ -973,7 +973,9 @@ namespace Quartz.Core
                 cal = resources.JobStore.RetrieveCalendar(newTrigger.CalendarName);
             }
 
-            DateTimeOffset? ft = trigger.ComputeFirstFireTimeUtc(cal);
+            // use a cloned trigger so that we don't lose possible forcefully set next fire time
+            var clonedTrigger = (IOperableTrigger) trigger.Clone();
+            DateTimeOffset? ft = clonedTrigger.ComputeFirstFireTimeUtc(cal);
 
             if (!ft.HasValue)
             {
