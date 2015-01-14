@@ -10,7 +10,7 @@
 
   <property name="version.major" value="2" overwrite="false" />
   <property name="version.minor" value="3" overwrite="false" />
-  <property name="version.revision" value="0" overwrite="false" />
+  <property name="version.revision" value="1" overwrite="false" />
   <property name="version.build" value="${environment::get-variable('BUILD_NUMBER')}" overwrite="false" if="${environment::variable-exists('BUILD_NUMBER')}" />
   <property name="version.build" value="0" overwrite="false" unless="${environment::variable-exists('BUILD_NUMBER')}" />
 
@@ -119,11 +119,13 @@
     <copy todir="${buildoutputbasedir}/" flatten="true" >
       <fileset>
         <include name="${common-logging-dll}" />
+        <include name="${common-logging-core-dll}" />
       </fileset>
     </copy>
     <copy todir="${buildoutputbasedir}/ClientProfile/" flatten="true" >
         <fileset>
             <include name="${common-logging-dll}" />
+            <include name="${common-logging-core-dll}" />
         </fileset>
     </copy>
       
@@ -209,13 +211,13 @@
         <include name="System.Configuration.dll"/>
         <include name="System.Core.dll"/>
         <include name="System.dll" />
-        <include name="System.Core.dll" />
         <include name="System.Configuration.dll" />
         <include name="System.Data.dll" />
         <include name="System.Runtime.Remoting.dll" />
         <include name="System.Web.dll" unless="${client-profile}" />
         <include name="System.Xml.dll" />
         <include name="${common-logging-dll}" />
+        <include name="${common-logging-core-dll}" />
         <include name="lib/2.0/C5.dll" if="${c5-collections}" />
       </references>
     </csc>
@@ -246,13 +248,14 @@
         <include name="src/Quartz.Examples/**/*.cs" />
       </sources>
       <references>
-	    <include name="mscorlib.dll"/>
-		<include name="Microsoft.CSharp.dll"/>
-		<include name="System.Configuration.dll"/>
-		<include name="System.Core.dll"/>
+        <include name="mscorlib.dll"/>
+        <include name="Microsoft.CSharp.dll"/>
+        <include name="System.Configuration.dll"/>
+        <include name="System.Core.dll"/>
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
+        <include name="${common-logging-core-dll}" />
         <include name="${buildoutputbasedir}/Quartz.dll" />
         <include name="lib/2.0/C5.dll" if="${c5-collections}" />
       </references>
@@ -262,6 +265,7 @@
       <fileset>
         <include name="${buildoutputbasedir}/Quartz.*" />
         <include name="${common-logging-dll}" />
+        <include name="${common-logging-core-dll}" />
       </fileset>
     </copy>
     <copy file="src/Quartz.Examples/App.config" tofile="${buildoutputbasedir}.Examples/Quartz.Examples.exe.config" />
@@ -320,6 +324,7 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="${common-logging-dll}" />
+        <include name="${common-logging-core-dll}" />
         <include name="${topshelf-dll}" />
         <include name="${buildoutputbasedir}/Quartz.dll" />
       </references>
@@ -329,6 +334,7 @@
         <include name="${buildoutputbasedir}/Quartz.dll" />
         <include name="${buildoutputbasedir}/Quartz.pdb" />
         <include name="${common-logging-dll}" />
+        <include name="${common-logging-core-dll}" />
         <include name="${common-logging-log4net-dll}" />
         <include name="${log4net-dll}" />
         <include name="${topshelf-dll}" />
@@ -384,6 +390,7 @@
         <include name="System.Data.dll" />
         <include name="System.Transactions.dll" />
         <include name="${common-logging-dll}" />
+        <include name="${common-logging-core-dll}" />
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
         <include name="${buildoutputbasedir}/Quartz.dll" />
@@ -395,6 +402,7 @@
       <fileset>
         <include name="${buildoutputbasedir}/Quartz.*" />
         <include name="${common-logging-dll}" />
+        <include name="${common-logging-core-dll}" />
         <include name="${nunit-dll}" />
         <include name="${rhino-mocks-dll}" />
       </fileset>
@@ -578,8 +586,9 @@
   <target name="determine-lib-dirs">
 	<property name="nuget-framework" value="net40" />
 	<property name="nuget-framework" value="net35" if="${target.framework == '3.5'}" /> 
-	<property name="common-logging-dll" value="packages/Common.Logging.2.3.1/lib/${nuget-framework}/Common.Logging.dll" />
-	<property name="common-logging-log4net-dll" value="packages/Common.Logging.Log4Net1213.2.3.1/lib/${nuget-framework}/Common.Logging.Log4Net1213.dll" />
+	<property name="common-logging-dll" value="packages/Common.Logging.3.0.0/lib/${nuget-framework}/Common.Logging.dll" />
+	<property name="common-logging-core-dll" value="packages/Common.Logging.Core.3.0.0/lib/${nuget-framework}/Common.Logging.Core.dll" />
+	<property name="common-logging-log4net-dll" value="packages/Common.Logging.Log4Net1213.3.0.0/lib/${nuget-framework}/Common.Logging.Log4Net1213.dll" />
 	<property name="nunit-dll" value="packages/NUnit.2.6.3/lib/nunit.framework.dll" />
 	<property name="rhino-mocks-dll" value="packages/RhinoMocks.3.6.1/lib/net/Rhino.Mocks.dll" />
     <property name="topshelf-dll" value="packages/TopShelf.3.1.4/lib/net40-full/Topshelf.dll" />

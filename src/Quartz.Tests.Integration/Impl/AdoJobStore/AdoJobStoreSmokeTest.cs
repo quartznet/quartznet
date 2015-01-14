@@ -421,7 +421,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [Test]
         public void TestGetTriggerKeysWithLike()
         {
-            var sched = CreateScheduler();
+            var sched = CreateScheduler(null);
 
             sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("foo"));
         }
@@ -429,7 +429,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [Test]
         public void TestGetTriggerKeysWithEquals()
         {
-            var sched = CreateScheduler();
+            var sched = CreateScheduler(null);
 
             sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("bar"));
         }
@@ -437,7 +437,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [Test]
         public void TestGetJobKeysWithLike()
         {
-            var sched = CreateScheduler();
+            var sched = CreateScheduler(null);
 
             sched.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("foo"));
         }
@@ -445,7 +445,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [Test]
         public void TestGetJobKeysWithEquals()
         {
-            var sched = CreateScheduler();
+            var sched = CreateScheduler(null);
 
             sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("bar"));
         }
@@ -492,7 +492,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             Assert.That(scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
         }
 
-        private static IScheduler CreateScheduler(NameValueCollection properties = null)
+        private static IScheduler CreateScheduler(NameValueCollection properties)
         {
             properties = properties ?? new NameValueCollection();
 

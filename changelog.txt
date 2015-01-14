@@ -2,6 +2,19 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.3.1, Jan XX, 2015
+--------------------------------
+
+This is a bug fix release with upgraded Common.Logging dependency.
+
+NEW FEATURE
+
+* Upgrade to Common.Logging 3.0.0
+
+FIXES
+
+*
+
 Release 2.3, Nov 8, 2014
 --------------------------------
 
