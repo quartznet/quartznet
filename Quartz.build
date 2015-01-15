@@ -166,7 +166,7 @@
             <attribute type="AssemblyCultureAttribute" value="" />
             <attribute type="ComVisibleAttribute" value="false" />
             <attribute type="CLSCompliantAttribute" value="true" />
-            <attribute type="AssemblyVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.${version.build}" />
+            <attribute type="AssemblyVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.0" />
             <attribute type="AssemblyInformationalVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.${version.build} / ${git.hash}" />
             <attribute type="AssemblyDelaySignAttribute" value="false" />
             <attribute type="System.Security.AllowPartiallyTrustedCallersAttribute" if="${target.framework == '3.5'}" />

@@ -2,10 +2,11 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
-Release 2.3.1, Jan XX, 2015
+Release 2.3.1, Jan 15, 2015
 --------------------------------
 
-This is a bug fix release with upgraded Common.Logging dependency.
+This is a bug fix release with upgraded Common.Logging dependency, also problems running
+under .NET 4.0 should now be finally fixed.
 
 NEW FEATURE
 
@@ -13,7 +14,12 @@ NEW FEATURE
 
 FIXES
 
-*
+* JobDetailImpl members should be virtual
+* Triggers do not transition to error state in AdoJobStore when job retrieval fails during trigger acquisition
+* Quartz.Server.exe.config refers to wrong Common.Logging.Log4Net assembly
+* Incorrect NextFireTime when 'schedule-trigger-relative-to-replaced-trigger' = 'true'
+* Could not load type 'System.Runtime.CompilerServices.ExtensionAttribute' from assembly mscorlib
+* TriggerBuilder.UsingJobData(JobDataMap newJobDataMap) should ovewrite existing data
 
 Release 2.3, Nov 8, 2014
 --------------------------------
