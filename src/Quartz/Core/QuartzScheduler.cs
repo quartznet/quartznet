@@ -55,7 +55,7 @@ namespace Quartz.Core
     public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler
     {
         private readonly ILog log;
-        private static readonly Version version; 
+        private static readonly Version version;
 
         private readonly QuartzSchedulerResources resources;
 
@@ -79,13 +79,13 @@ namespace Quartz.Core
         private volatile bool shuttingDown;
         private DateTimeOffset? initialStart;
         private bool boundRemotely;
-        
+
         /// <summary>
         /// Initializes the <see cref="QuartzScheduler"/> class.
         /// </summary>
         static QuartzScheduler()
         {
-            var asm = Assembly.GetAssembly(typeof(QuartzScheduler));
+            var asm = Assembly.GetAssembly(typeof (QuartzScheduler));
 
             if (asm != null)
             {
@@ -100,7 +100,7 @@ namespace Quartz.Core
         public string Version
         {
             get { return version.ToString(); }
-        } 
+        }
 
         /// <summary>
         /// Gets the version major.
@@ -109,7 +109,7 @@ namespace Quartz.Core
         public static string VersionMajor
         {
             get { return version.Major.ToString(CultureInfo.InvariantCulture); }
-        } 
+        }
 
         /// <summary>
         /// Gets the version minor.
@@ -153,7 +153,6 @@ namespace Quartz.Core
         {
             get { return resources.InstanceId; }
         }
-
 
         /// <summary>
         /// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
@@ -218,7 +217,6 @@ namespace Quartz.Core
             get { return closed; }
         }
 
-
         public virtual bool IsShuttingDown
         {
             get { return shuttingDown; }
@@ -246,7 +244,6 @@ namespace Quartz.Core
         {
             get { return jobMgr.ExecutingJobs; }
         }
-
 
         /// <summary>
         /// Register the given <see cref="ISchedulerListener" /> with the
@@ -310,7 +307,6 @@ namespace Quartz.Core
             }
         }
 
-
         /// <summary>
         /// Create a <see cref="QuartzScheduler" /> with the given configuration
         /// properties.
@@ -359,10 +355,10 @@ namespace Quartz.Core
 
             log.Info("Scheduler meta-data: " +
                      (new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,
-                                            InStandbyMode, IsShutdown, RunningSince,
-                                            NumJobsExecuted, JobStoreClass,
-                                            SupportsPersistence, Clustered, ThreadPoolClass,
-                                            ThreadPoolSize, Version)));
+                         InStandbyMode, IsShutdown, RunningSince,
+                         NumJobsExecuted, JobStoreClass,
+                         SupportsPersistence, Clustered, ThreadPoolClass,
+                         ThreadPoolSize, Version)));
         }
 
         /// <summary>
@@ -892,7 +888,7 @@ namespace Quartz.Core
 
         public void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace)
         {
-            var  triggersAndJobs = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
+            var triggersAndJobs = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
             triggersAndJobs.Add(jobDetail, triggersForJob);
             ScheduleJobs(triggersAndJobs, replace);
         }
@@ -931,7 +927,6 @@ namespace Quartz.Core
             return true;
         }
 
-
         /// <summary>
         /// Remove (delete) the <see cref="ITrigger" /> with the
         /// given name, and store the new given one - which must be associated
@@ -963,7 +958,7 @@ namespace Quartz.Core
             {
                 return null;
             }
-            
+
             trigger.JobKey = oldTrigger.JobKey;
             trigger.Validate();
 
@@ -973,9 +968,17 @@ namespace Quartz.Core
                 cal = resources.JobStore.RetrieveCalendar(newTrigger.CalendarName);
             }
 
-            // use a cloned trigger so that we don't lose possible forcefully set next fire time
-            var clonedTrigger = (IOperableTrigger) trigger.Clone();
-            DateTimeOffset? ft = clonedTrigger.ComputeFirstFireTimeUtc(cal);
+            DateTimeOffset? ft;
+            if (trigger.GetNextFireTimeUtc() != null)
+            {
+                // use a cloned trigger so that we don't lose possible forcefully set next fire time
+                var clonedTrigger = (IOperableTrigger) trigger.Clone();
+                ft = clonedTrigger.ComputeFirstFireTimeUtc(cal);
+            }
+            else
+            {
+                ft = trigger.ComputeFirstFireTimeUtc(cal);
+            }
 
             if (!ft.HasValue)
             {
@@ -996,7 +999,6 @@ namespace Quartz.Core
 
             return ft;
         }
-
 
         private string NewTriggerId()
         {
@@ -1435,7 +1437,7 @@ namespace Quartz.Core
         /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
         /// </summary>
         public virtual void AddCalendar(string calName, ICalendar calendar, bool replace,
-                                        bool updateTriggers)
+            bool updateTriggers)
         {
             ValidateState();
             resources.JobStore.StoreCalendar(calName, calendar, replace, updateTriggers);
@@ -1601,7 +1603,6 @@ namespace Quartz.Core
             }
         }
 
-
         protected internal void NotifyJobStoreJobVetoed(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
         {
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
@@ -1644,7 +1645,6 @@ namespace Quartz.Core
             listeners.AddRange(InternalJobListeners);
             return listeners;
         }
-
 
         private IList<ISchedulerListener> BuildSchedulerListenerList()
         {
@@ -1718,7 +1718,6 @@ namespace Quartz.Core
 
             return vetoedExecution;
         }
-
 
         /// <summary>
         /// Notifies the trigger listeners about misfired trigger.
@@ -2219,7 +2218,6 @@ namespace Quartz.Core
             }
         }
 
-
         public virtual void NotifySchedulerListenersShuttingdown()
         {
             // build a list of all job listeners that are to be notified...
@@ -2238,7 +2236,6 @@ namespace Quartz.Core
                 }
             }
         }
-
 
         public virtual void NotifySchedulerListenersJobAdded(IJobDetail jobDetail)
         {
@@ -2296,7 +2293,7 @@ namespace Quartz.Core
                     }
                     else
                     {
-                        throw new UnableToInterruptJobException(string.Format(CultureInfo.InvariantCulture, "Job '{0}' can not be interrupted, since it does not implement {1}", jobDetail.Key, typeof(IInterruptableJob).FullName));
+                        throw new UnableToInterruptJobException(string.Format(CultureInfo.InvariantCulture, "Job '{0}' can not be interrupted, since it does not implement {1}", jobDetail.Key, typeof (IInterruptableJob).FullName));
                     }
                 }
             }
