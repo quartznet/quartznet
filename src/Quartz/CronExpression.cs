@@ -1578,15 +1578,14 @@ namespace Quartz
             // loop until we've computed the next time, or we've past the endTime
             while (!gotOne)
             {
-                ISortedSet<int> st;
+                int st;
                 int t;
                 int sec = d.Second;
 
                 // get second.................................................
-                st = seconds.TailSet(sec);
-                if (st != null && st.Count != 0)
+                if (seconds.TryWeakSuccessor(sec, out st))
                 {
-                    sec = st.First();
+                    sec = st;
                 }
                 else
                 {
@@ -1600,11 +1599,10 @@ namespace Quartz
                 t = -1;
 
                 // get minute.................................................
-                st = minutes.TailSet(min);
-                if (st != null && st.Count != 0)
+                if (minutes.TryWeakSuccessor(min, out st))
                 {
                     t = min;
-                    min = st.First();
+                    min = st;
                 }
                 else
                 {
@@ -1624,11 +1622,10 @@ namespace Quartz
                 t = -1;
 
                 // get hour...................................................
-                st = hours.TailSet(hr);
-                if (st != null && st.Count != 0)
+                if (hours.TryWeakSuccessor(hr, out st))
                 {
                     t = hr;
-                    hr = st.First();
+                    hr = st;
                 }
                 else
                 {
@@ -1662,7 +1659,7 @@ namespace Quartz
                 if (dayOfMSpec && !dayOfWSpec)
                 {
                     // get day by day of month rule
-                    st = daysOfMonth.TailSet(day);
+                    bool found = daysOfMonth.TryWeakSuccessor(day, out st);
                     if (lastdayOfMonth)
                     {
                         if (!nearestWeekday)
@@ -1753,10 +1750,10 @@ namespace Quartz
                             mon++;
                         }
                     }
-                    else if (st != null && st.Count != 0)
+                    else if (found)
                     {
                         t = day;
-                        day = st.First();
+                        day = st;
 
                         // make sure we don't over-run a short month, such as february
                         int lastDay = GetLastDayOfMonth(mon, d.Year);
@@ -1903,10 +1900,9 @@ namespace Quartz
                         int cDow = ((int) d.DayOfWeek) + 1; // current d-o-w
                         int dow = daysOfWeek.First(); // desired
                         // d-o-w
-                        st = daysOfWeek.TailSet(cDow);
-                        if (st != null && st.Count > 0)
+                        if (daysOfWeek.TryWeakSuccessor(cDow, out st))
                         {
-                            dow = st.First();
+                            dow = st;
                         }
 
                         int daysToAdd = 0;
@@ -1965,11 +1961,10 @@ namespace Quartz
                 }
 
                 // get month...................................................
-                st = months.TailSet((mon));
-                if (st != null && st.Count != 0)
+                if (months.TryWeakSuccessor(mon, out st))
                 {
                     t = mon;
-                    mon = st.First();
+                    mon = st;
                 }
                 else
                 {
@@ -1986,11 +1981,10 @@ namespace Quartz
                 t = -1;
 
                 // get year...................................................
-                st = years.TailSet((year));
-                if (st != null && st.Count != 0)
+                if (years.TryWeakSuccessor(year, out st))
                 {
                     t = year;
-                    year = st.First();
+                    year = st;
                 }
                 else
                 {
