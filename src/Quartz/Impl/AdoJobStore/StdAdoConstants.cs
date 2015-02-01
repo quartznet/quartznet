@@ -118,12 +118,12 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlInsertFiredTrigger =
             string.Format(CultureInfo.InvariantCulture,
-                "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}) VALUES({15}, @triggerEntryId, @triggerName, @triggerGroup, @triggerInstanceName, @triggerFireTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority, @triggerScheduledTime)",
+                "INSERT INTO {0}{1} ({2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}) VALUES({15}, @triggerEntryId, @triggerName, @triggerGroup, @triggerInstanceName, @triggerFireTime, @triggerScheduledTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority)",
                 TablePrefixSubst, TableFiredTriggers, ColumnSchedulerName, ColumnEntryId,
                 ColumnTriggerName, ColumnTriggerGroup,
-                ColumnInstanceName, ColumnFiredTime, ColumnEntryState,
+                ColumnInstanceName, ColumnFiredTime, ColumnScheduledTime, ColumnEntryState,
                 ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent,
-                ColumnRequestsRecovery, ColumnPriority, ColumnScheduledTime, SchedulerNameSubst);
+                ColumnRequestsRecovery, ColumnPriority, SchedulerNameSubst);
 
         public static readonly string SqlInsertJobDetail =
             string.Format(CultureInfo.InvariantCulture,
@@ -448,7 +448,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlUpdateFiredTrigger = string.Format(
             CultureInfo.InvariantCulture,
-            "UPDATE {0}{1} SET {2} = @instanceName, {3} = @firedTime, {4} = @entryState, {5} = @jobName, {6} = @jobGroup, {7} = @isNonConcurrent, {8} = @requestsRecover, {12} = @scheduledTime WHERE {9} = {10} AND {11} = @entryId", 
+            "UPDATE {0}{1} SET {2} = @instanceName, {3} = @firedTime, {12} = @scheduledTime, {4} = @entryState, {5} = @jobName, {6} = @jobGroup, {7} = @isNonConcurrent, {8} = @requestsRecover WHERE {9} = {10} AND {11} = @entryId", 
             TablePrefixSubst, TableFiredTriggers, ColumnInstanceName, ColumnFiredTime, ColumnEntryState, 
             ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent, ColumnRequestsRecovery, ColumnSchedulerName, SchedulerNameSubst, ColumnEntryId, ColumnScheduledTime);
 
