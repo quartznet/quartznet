@@ -166,7 +166,7 @@ namespace Quartz.Core
         /// Gets or sets a value indicating whether to signal on scheduling change.
         /// </summary>
         /// <value>
-        /// 	<c>true</c> if schduler should signal on scheduling change; otherwise, <c>false</c>.
+        /// 	<c>true</c> if scheduler should signal on scheduling change; otherwise, <c>false</c>.
         /// </value>
         public virtual bool SignalOnSchedulingChange
         {
@@ -395,7 +395,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Removes the object from garbae collection protected list.
+        /// Removes the object from garbage collection protected list.
         /// </summary>
         /// <param name="obj">The obj.</param>
         /// <returns></returns>
@@ -1750,7 +1750,7 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the trigger listeners of completion.
         /// </summary>
-        /// <param name="jec">The job executution context.</param>
+        /// <param name="jec">The job execution context.</param>
         /// <param name="instCode">The instruction code to report to triggers.</param>
         public virtual void NotifyTriggerListenersComplete(IJobExecutionContext jec, SchedulerInstruction instCode)
         {
@@ -1805,7 +1805,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Notifies the job listeners that job exucution was vetoed.
+        /// Notifies the job listeners that job execution was vetoed.
         /// </summary>
         /// <param name="jec">The job execution context.</param>
         public virtual void NotifyJobListenersWasVetoed(IJobExecutionContext jec)

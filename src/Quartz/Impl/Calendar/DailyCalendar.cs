@@ -822,7 +822,7 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Gets the end of day, pratically sets time parts to maximum allowed values.
+        /// Gets the end of day, practically sets time parts to maximum allowed values.
         /// </summary>
         /// <param name="time">The time.</param>
         /// <returns></returns>

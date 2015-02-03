@@ -2246,7 +2246,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount)
         {
-            // by default we don't support limits, this is db sepecivef
+            // by default we don't support limits, this is db specific
             return SqlSelectNextTriggerToAcquire;
         }
 
@@ -2653,7 +2653,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Replace the table prefix in a query by replacing any occurrences of
         /// "{0}" with the table prefix.
         /// </summary>
-        /// <param name="query">The unsubstitued query</param>
+        /// <param name="query">The unsubstituted query</param>
         /// <returns>The query, with proper table prefix substituted</returns>
         protected string ReplaceTablePrefix(string query)
         {

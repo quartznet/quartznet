@@ -27,7 +27,7 @@ namespace Quartz.Spi
 	/// <remarks>
 	/// This interface may be of use to those wishing to have their application
 	/// produce <see cref="IJob" /> instances via some special mechanism, such as to
-	/// give the opertunity for dependency injection.
+	/// give the opportunity for dependency injection.
     /// </remarks>
 	/// <seealso cref="IScheduler.JobFactory" />
 	/// <seealso cref="SimpleJobFactory" />
@@ -47,7 +47,7 @@ namespace Quartz.Spi
 	    /// Scheduler will move all triggers associated with the Job into the
 	    /// <see cref="TriggerState.Error" /> state, which will require human
 	    /// intervention (e.g. an application restart after fixing whatever 
-	    /// configuration problem led to the issue wih instantiating the Job. 
+	    /// configuration problem led to the issue with instantiating the Job. 
 	    /// </remarks>
 	    /// <param name="bundle">
 	    ///   The TriggerFiredBundle from which the <see cref="IJobDetail" />

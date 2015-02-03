@@ -40,14 +40,14 @@ namespace Quartz
         /// <summary>
         /// A constant <see cref="ITrigger" /> group name used internally by the
         /// scheduler - clients should not use the value of this constant
-        /// ("RECOVERING_JOBS") for thename of a <see cref="ITrigger" />'s group.
+        /// ("RECOVERING_JOBS") for the name of a <see cref="ITrigger" />'s group.
         /// </summary>
         public const string DefaultRecoveryGroup = "RECOVERING_JOBS";
 
         /// <summary>
         /// A constant <see cref="ITrigger" /> group name used internally by the
         /// scheduler - clients should not use the value of this constant
-        /// ("FAILED_OVER_JOBS") for thename of a <see cref="ITrigger" />'s group.
+        /// ("FAILED_OVER_JOBS") for the name of a <see cref="ITrigger" />'s group.
         /// </summary>
         public const string DefaultFailOverGroup = "FAILED_OVER_JOBS";
 

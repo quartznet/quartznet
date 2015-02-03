@@ -29,7 +29,7 @@ namespace Quartz.Job
 	public interface IFileScanListener
 	{
 		/// <summary>
-		/// Ïnforms that certain file has been updated.
+		/// Informs that certain file has been updated.
 		/// </summary>
 		/// <param name="fileName">Name of the file.</param>
 		void FileUpdated(string fileName);

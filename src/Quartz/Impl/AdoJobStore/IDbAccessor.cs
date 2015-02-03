@@ -12,7 +12,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Prepares a <see cref="IDbCommand" /> to be used to access database.
         /// </summary>
-        /// <param name="cth">Connection and tranasction pair</param>
+        /// <param name="cth">Connection and transaction pair</param>
         /// <param name="commandText">SQL to run</param>
         /// <returns></returns>
         IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);

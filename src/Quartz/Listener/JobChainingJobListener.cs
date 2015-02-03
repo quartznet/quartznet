@@ -38,7 +38,7 @@ namespace Quartz.Listener
     /// If for some reason there is a failure creating the trigger for the
     /// follow-up job (which would generally only be caused by a rare serious
     /// failure in the system, or the non-existence of the follow-up job), an error
-    /// messsage is logged, but no other action is taken. If you need more rigorous
+    /// message is logged, but no other action is taken. If you need more rigorous
     /// handling of the error, consider scheduling the triggering of the flow-up
     /// job within your job itself.
     /// </para>

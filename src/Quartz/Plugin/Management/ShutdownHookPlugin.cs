@@ -28,7 +28,7 @@ namespace Quartz.Plugin.Management
 {
     /// <summary> 
     /// This plugin catches the event of the VM terminating (such as upon a CRTL-C)
-    /// and tells the scheuler to Shutdown.
+    /// and tells the scheduler to Shutdown.
     /// </summary>
     /// <seealso cref="IScheduler.Shutdown(bool)" />
     /// <author>James House</author>

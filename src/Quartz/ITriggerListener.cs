@@ -61,7 +61,7 @@ namespace Quartz
         /// is about to be executed.
         /// <para>
         /// It is called after the <see cref="TriggerFired"/> method of this
-        /// interface.  If the implementation vetos the execution (via
+        /// interface.  If the implementation vetoes the execution (via
         /// returning <see langword="true" />), the job's execute method will not be called.
         /// </para>
         /// </summary>

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Quartz.Impl.AdoJobStore.Common
 {
     /// <summary>
-    /// Base class for the DbMetadata Factory implentations
+    /// Base class for the DbMetadata Factory implementations
     /// </summary>
     public abstract class DbMetadataFactory
     {
@@ -15,7 +15,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         public abstract IEnumerable<string> GetProviderNames();
 
         /// <summary>
-        /// Gets the database metadata assotiated to the specified provider name.
+        /// Gets the database metadata associated to the specified provider name.
         /// </summary>
         /// <param name="providerName">Name of the provider.</param>
         /// <returns>The metadata instance for the requested provider</returns>

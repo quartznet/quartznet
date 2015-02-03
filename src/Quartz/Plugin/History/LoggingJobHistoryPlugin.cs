@@ -28,7 +28,7 @@ using Quartz.Spi;
 namespace Quartz.Plugin.History
 {
     /// <summary>
-    /// Logs a history of all job executions (and execution vetos) via common
+    /// Logs a history of all job executions (and execution vetoes) via common
     /// logging.
     /// </summary>
     /// <remarks>
@@ -433,7 +433,7 @@ namespace Quartz.Plugin.History
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// was about to be executed (an associated <see cref="ITrigger" />
-        /// has occured), but a <see cref="ITriggerListener" /> vetoed it's
+        /// has occurred), but a <see cref="ITriggerListener" /> vetoed it's
         /// execution.
         /// </summary>
         /// <param name="context"></param>

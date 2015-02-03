@@ -29,7 +29,7 @@ namespace Quartz.Util
 	/// <summary>
 	/// Wrapper class to access thread local data.
 	/// Data is either accessed from thread or HTTP Context's 
-	/// data if HTTP Context is avaiable.
+	/// data if HTTP Context is available.
 	/// </summary>
 	/// <author>Marko Lahma .NET</author>
 	[SecurityCritical]

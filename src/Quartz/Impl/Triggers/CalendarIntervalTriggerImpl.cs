@@ -571,7 +571,7 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            // increment afterTme by a second, so that we are 
+            // increment afterTime by a second, so that we are 
             // comparing against a time after it!
             if (afterTime == null)
             {
@@ -787,7 +787,7 @@ namespace Quartz.Impl.Triggers
                 }
                 else 
                 {
-                    //don't skip this day, instead find cloest valid time by adding minutes.
+                    //don't skip this day, instead find closest valid time by adding minutes.
                     while (this.TimeZone.IsInvalidTime(newTime.DateTime))
                     {
                         newTime = newTime.AddMinutes(1);
@@ -803,7 +803,7 @@ namespace Quartz.Impl.Triggers
         private void MakeHourAdjustmentIfNeeded(ref DateTimeOffset sTime, int initialHourOfDay)
         {
             //this method was made to adjust the time if a DST occurred, this is to stay consistent with the time
-            //we are checking against, which is the afterTime. There were problems the occurred when the DST adjusment
+            //we are checking against, which is the afterTime. There were problems the occurred when the DST adjustment
             //took the time an hour back, leading to the times were not being adjusted properly.
             
             //avoid shifts in day, otherwise this will cause an infinite loop in the code.

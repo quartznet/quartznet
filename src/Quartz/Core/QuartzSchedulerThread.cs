@@ -200,7 +200,7 @@ namespace Quartz.Core
 
         /// <summary>
         /// Signals the main processing loop that a change in scheduling has been
-        /// made - in order to interrupt any sleeping that may be occuring while
+        /// made - in order to interrupt any sleeping that may be occurring while
         /// waiting for the fire time to arrive.
         /// </summary>
         /// <param name="candidateNewNextFireTimeUtc">

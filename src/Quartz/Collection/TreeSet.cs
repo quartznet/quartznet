@@ -49,7 +49,7 @@ namespace Quartz.Collection
         }
 
         /// <summary>
-        /// Constructor that prepolutates.
+        /// Constructor that prepopulates.
         /// </summary>
         /// <param name="items"></param>
         public TreeSet(IEnumerable<T> items)

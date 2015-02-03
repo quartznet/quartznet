@@ -134,7 +134,7 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary> 
-        /// Return true, if wday is defined to be exluded. E. g.
+        /// Return true, if wday is defined to be excluded. E. g.
         /// saturday and sunday.
         /// </summary>
         public virtual bool IsDayExcluded(DayOfWeek wday)

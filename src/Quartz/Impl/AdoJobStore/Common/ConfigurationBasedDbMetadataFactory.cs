@@ -55,7 +55,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         }
 
         /// <summary>
-        /// Gets the database metadata assotiated to the specified provider name.
+        /// Gets the database metadata associated to the specified provider name.
         /// </summary>
         /// <param name="providerName">Name of the provider.</param>
         /// <returns>The metadata instance for the specified name</returns>

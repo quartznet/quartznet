@@ -3424,7 +3424,7 @@ namespace Quartz.Impl.AdoJobStore
         /// lockCallback is still executed in a transaction. 
         /// </param>
         /// <param name="txCallback">
-        /// The callback to excute after having acquired the given lock.
+        /// The callback to execute after having acquired the given lock.
         /// </param>
         protected abstract T ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback);
 
@@ -3494,7 +3494,7 @@ namespace Quartz.Impl.AdoJobStore
         /// lockCallback is still executed in a non-managed transaction. 
         /// </param>
         /// <param name="txCallback">
-        /// The callback to excute after having acquired the given lock.
+        /// The callback to execute after having acquired the given lock.
         /// </param>
         /// <param name="txValidator"></param>
         protected T ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback, Func<ConnectionAndTransactionHolder, T, bool> txValidator)

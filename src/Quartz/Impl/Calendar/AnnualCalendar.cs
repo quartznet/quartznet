@@ -138,7 +138,7 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Return true, if day is defined to be exluded.
+        /// Return true, if day is defined to be excluded.
         /// </summary>
         public virtual bool IsDayExcluded(DateTimeOffset day)
         {

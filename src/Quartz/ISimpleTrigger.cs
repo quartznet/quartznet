@@ -16,7 +16,7 @@ namespace Quartz
     public interface ISimpleTrigger : ITrigger
     {
         /// <summary>
-        /// Get or set thhe number of times the <see cref="ISimpleTrigger" /> should
+        /// Get or set the number of times the <see cref="ISimpleTrigger" /> should
         /// repeat, after which it will be automatically deleted.
         /// </summary>
         /// <seealso cref="SimpleTriggerImpl.RepeatIndefinitely" />

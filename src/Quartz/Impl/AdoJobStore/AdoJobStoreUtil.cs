@@ -33,7 +33,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// Replace the table prefix in a query by replacing any occurrences of
 		/// "{0}" with the table prefix.
 		/// </summary>
-		/// <param name="query">The unsubstitued query</param>
+		/// <param name="query">The unsubstituted query</param>
 		/// <param name="tablePrefix">The table prefix</param>
 		/// <param name="schedNameLiteral">the scheduler name</param>
 		/// <returns>The query, with proper table prefix substituted</returns>

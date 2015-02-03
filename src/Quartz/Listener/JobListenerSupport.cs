@@ -69,7 +69,7 @@ namespace Quartz.Listener
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
         /// is about to be executed (an associated <see cref="ITrigger"/>
-        /// has occured).
+        /// has occurred).
         /// <para>
         /// This method will not be invoked if the execution of the Job was vetoed
         /// by a <see cref="ITriggerListener"/>.
@@ -84,7 +84,7 @@ namespace Quartz.Listener
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
         /// was about to be executed (an associated <see cref="ITrigger"/>
-        /// has occured), but a <see cref="ITriggerListener"/> vetoed it's
+        /// has occurred), but a <see cref="ITriggerListener"/> vetoed it's
         /// execution.
         /// </summary>
         /// <param name="context"></param>

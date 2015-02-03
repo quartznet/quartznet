@@ -28,7 +28,7 @@ namespace Quartz.Tests.Unit
 {
 	/// <summary>
 	/// Base class for unit tests that wish to verify 
-	/// backwards compatibily of serialization with earlier versions
+	/// backwards compatibility of serialization with earlier versions
 	/// of Quartz.
 	/// </summary>
     /// <author>Marko Lahma (.NET)</author>

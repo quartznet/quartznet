@@ -35,7 +35,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         void Initialize();
 
         /// <summary>
-        /// Returns a new command object for executing SQL statments/Stored Procedures
+        /// Returns a new command object for executing SQL statements/Stored Procedures
         /// against the database.
         /// </summary>
         /// <returns>An new <see cref="IDbCommand"/></returns>

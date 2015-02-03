@@ -178,7 +178,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get or set thhe number of times the <see cref="SimpleTriggerImpl" /> should
+        /// Get or set the number of times the <see cref="SimpleTriggerImpl" /> should
         /// repeat, after which it will be automatically deleted.
         /// </summary>
         /// <seealso cref="RepeatIndefinitely" />

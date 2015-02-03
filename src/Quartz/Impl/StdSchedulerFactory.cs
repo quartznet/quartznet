@@ -46,7 +46,7 @@ namespace Quartz.Impl
     /// <para>
     /// By default a properties are loaded from App.config's quartz section. 
     /// If that fails, then the file is loaded "quartz.properties". If file does not exist,
-    /// default configration located (as a embedded resource) in Quartz.dll is loaded. If you
+    /// default configuration located (as a embedded resource) in Quartz.dll is loaded. If you
     /// wish to use a file other than these defaults, you must define the system
     /// property 'quartz.properties' to point to the file you want.
     /// </para>
@@ -55,7 +55,7 @@ namespace Quartz.Impl
     /// information about the various settings available within the file.
     /// </para>
     /// <para>
-    /// Alternativly, you can explicitly Initialize the factory by calling one of
+    /// Alternatively, you can explicitly Initialize the factory by calling one of
     /// the <see cref="Initialize()" /> methods before calling <see cref="GetScheduler()" />.
     /// </para>
     /// <para>

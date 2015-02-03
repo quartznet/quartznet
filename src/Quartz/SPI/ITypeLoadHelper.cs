@@ -32,7 +32,7 @@ namespace Quartz.Spi
 	{
 		/// <summary> 
 		/// Called to give the ClassLoadHelper a chance to Initialize itself,
-		/// including the oportunity to "steal" the class loader off of the calling
+		/// including the opportunity to "steal" the class loader off of the calling
 		/// thread, which is the thread that is initializing Quartz.
 		/// </summary>
 		void Initialize();
