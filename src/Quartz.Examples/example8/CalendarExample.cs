@@ -95,7 +95,7 @@ namespace Quartz.Examples.Example8
 
             // print out the first execution date.
             // Note:  Since Halloween (Oct 31) is a holiday, then
-            // we will not run unti the next day! (Nov 1)
+            // we will not run until the next day! (Nov 1)
             log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, firstRunTime.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
 
             // All of the jobs have been added to the scheduler, but none of the jobs

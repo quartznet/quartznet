@@ -36,7 +36,7 @@ namespace Quartz.Simpl
     /// This class implements a <see cref="IJobStore" /> that
     /// utilizes RAM as its storage device.
     /// <para>
-    /// As you should know, the ramification of this is that access is extrememly
+    /// As you should know, the ramification of this is that access is extremely
     /// fast, but the data is completely volatile - therefore this <see cref="IJobStore" />
     /// should not be used if true persistence between program shutdowns is
     /// required.
@@ -481,7 +481,7 @@ namespace Quartz.Simpl
         /// name and group was found and removed from the store.
         /// </returns>
         /// <param name="key">The <see cref="ITrigger" /> to be removed.</param>
-        /// <param name="removeOrphanedJob">Whether to delete orpahaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
+        /// <param name="removeOrphanedJob">Whether to delete orphaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
         public virtual bool RemoveTrigger(TriggerKey key, bool removeOrphanedJob)
         {
             bool found;

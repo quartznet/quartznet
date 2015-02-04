@@ -8,7 +8,7 @@ using Quartz.Spi;
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
-    /// Initialization argumens holder for <see cref="IDriverDelegate" /> implementations.
+    /// Initialization arguments holder for <see cref="IDriverDelegate" /> implementations.
     /// </summary>
     public class DelegateInitializationArgs
     {

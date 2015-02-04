@@ -35,7 +35,7 @@ namespace Quartz.Spi
     /// method  <see cref="RunInThread(IThreadRunnable)"/> is called a few moments (or
     /// many moments) later.  If this assumption does not hold true, it may
     /// result in extra JobStore queries and updates, and if clustering features
-    /// are being used, it may result in greater imballance of load.
+    /// are being used, it may result in greater imbalance of load.
     /// </remarks>
     /// <seealso cref="QuartzScheduler" />
     /// <author>James House</author>

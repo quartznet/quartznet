@@ -2043,7 +2043,7 @@ namespace Quartz
             DateTimeOffset d = new DateTimeOffset(date.Year, date.Month, date.Day, hourToSet, date.Minute, date.Second, date.Millisecond, date.Offset);
             if (hour == 24)
             {
-                // inrement day
+                // increment day
                 d = d.AddDays(1);
             }
             return d;

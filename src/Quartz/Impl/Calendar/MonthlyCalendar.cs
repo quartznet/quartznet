@@ -135,7 +135,7 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Return true, if mday is defined to be exluded.
+        /// Return true, if mday is defined to be excluded.
         /// </summary>
         public virtual bool IsDayExcluded(int day)
         {

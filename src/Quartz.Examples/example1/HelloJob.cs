@@ -33,7 +33,7 @@ namespace Quartz.Examples.Example1
 		private static ILog _log = LogManager.GetLogger(typeof(HelloJob));
 		
 		/// <summary> 
-		/// Empty constructor for job initilization
+		/// Empty constructor for job initialization
 		/// <para>
 		/// Quartz requires a public empty constructor so that the
 		/// scheduler can instantiate the class whenever it needs.

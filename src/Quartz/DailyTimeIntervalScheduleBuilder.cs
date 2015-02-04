@@ -376,7 +376,7 @@ namespace Quartz
             DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today).Value;
             DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today).Value;
 
-            //apply proper offsets accroding to timezone
+            //apply proper offsets according to timezone
             TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;
             startTimeOfDayDate = new DateTimeOffset(startTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(startTimeOfDayDate.DateTime));
             maxEndTimeOfDayDate = new DateTimeOffset(maxEndTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(maxEndTimeOfDayDate.DateTime));

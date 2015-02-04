@@ -343,7 +343,7 @@ namespace Quartz.Impl.Triggers
 	    /// Create a <see cref="CronTriggerImpl" /> with fire time dictated by the
 	    /// <param name="cronExpression" /> resolved with respect to the specified
 	    /// <param name="timeZone" /> occurring from the <see cref="startTimeUtc" /> until
-	    /// the given <paran name="endTimeUtc" />.
+	    /// the given <param name="endTimeUtc" />.
 	    /// </summary>
 	    /// <param name="name">The name of the <see cref="ITrigger" /></param>
 	    /// <param name="group">The group of the <see cref="ITrigger" /></param>
@@ -448,7 +448,7 @@ namespace Quartz.Impl.Triggers
 
 		/// <summary>
 		/// Get or sets the time at which the <c>CronTrigger</c> should quit
-		/// repeating - even if repeastCount isn't yet satisfied. 
+		/// repeating - even if repeatCount isn't yet satisfied. 
 		/// </summary>
         public override DateTimeOffset? EndTimeUtc
 		{

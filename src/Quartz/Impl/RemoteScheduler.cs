@@ -95,7 +95,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Get a <see cref="SchedulerMetaData"/> object describiing the settings
+        /// Get a <see cref="SchedulerMetaData"/> object describing the settings
         /// and capabilities of the scheduler instance.
         /// <para>
         /// Note that the data returned is an 'instantaneous' snap-shot, and that as
@@ -173,7 +173,7 @@ namespace Quartz.Impl
         /// <para>
         /// JobFactories may be of use to those wishing to have their application
         /// produce <see cref="IJob" /> instances via some special mechanism, such as to
-        /// give the opertunity for dependency injection.
+        /// give the opportunity for dependency injection.
         /// </para>
         /// </summary>
         /// <value></value>

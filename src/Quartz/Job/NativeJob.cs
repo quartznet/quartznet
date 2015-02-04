@@ -80,7 +80,7 @@ namespace Quartz.Job
 		public const string PropertyConsumeStreams = "consumeStreams";
 
         /// <summary> 
-        /// Optional parameter that specifies the workling directory to be used by 
+        /// Optional parameter that specifies the working directory to be used by 
         /// the executed command.
         /// </summary>
         public const string PropertyWorkingDirectory = "workingDirectory";
@@ -154,7 +154,7 @@ namespace Quartz.Job
 
 			try
 			{
-				//with this variable will be done the swithcing
+				//with this variable will be done the switching
 				string osName = Environment.GetEnvironmentVariable("OS");
                 if (osName == null)
                 {

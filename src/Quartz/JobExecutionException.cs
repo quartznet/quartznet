@@ -72,7 +72,7 @@ namespace Quartz
 
 
 		/// <summary>
-		/// Create a JobExcecutionException, with the 're-fire immediately' flag set
+		/// Create a JobExecutionException, with the 're-fire immediately' flag set
 		/// to <see langword="false" />.
 		/// </summary>
 		public JobExecutionException()
@@ -80,7 +80,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a JobExcecutionException, with the given cause.
+		/// Create a JobExecutionException, with the given cause.
 		/// </summary>
 		/// <param name="cause">The cause.</param>
 		public JobExecutionException(Exception cause) : base(cause)
@@ -88,7 +88,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a JobExcecutionException, with the given message.
+		/// Create a JobExecutionException, with the given message.
 		/// </summary>
 		public JobExecutionException(string msg) : base(msg)
 		{
@@ -104,7 +104,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a JobExcecutionException with the 're-fire immediately' flag set
+		/// Create a JobExecutionException with the 're-fire immediately' flag set
 		/// to the given value.
 		/// </summary>
 		public JobExecutionException(bool refireImmediately)
@@ -113,7 +113,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a JobExcecutionException with the given underlying exception, and
+		/// Create a JobExecutionException with the given underlying exception, and
 		/// the 're-fire immediately' flag set to the given value.
 		/// </summary>
 		public JobExecutionException(Exception cause, bool refireImmediately) : base(cause)
@@ -122,7 +122,7 @@ namespace Quartz
 		}
 
 		/// <summary>
-		/// Create a JobExcecutionException with the given message, and underlying
+		/// Create a JobExecutionException with the given message, and underlying
 		/// exception, and the 're-fire immediately' flag set to the given value.
 		/// </summary>
 		public JobExecutionException(string msg, Exception cause, bool refireImmediately) : base(msg, cause)

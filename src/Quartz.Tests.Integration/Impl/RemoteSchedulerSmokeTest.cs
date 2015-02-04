@@ -21,7 +21,7 @@ namespace Quartz.Tests.Integration.Impl
             properties["quartz.threadPool.threadCount"] = "5";
             properties["quartz.threadPool.threadPriority"] = "Normal";
 
-            // set remoting expoter
+            // set remoting exporter
             properties["quartz.scheduler.proxy"] = "true";
             properties["quartz.scheduler.proxy.address"] = "tcp://127.0.0.1:555/QuartzScheduler";
 

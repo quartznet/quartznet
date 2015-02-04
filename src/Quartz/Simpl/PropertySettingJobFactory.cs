@@ -59,14 +59,14 @@ namespace Quartz.Simpl
 	    /// <summary> 
 	    /// Whether the JobInstantiation should fail and throw and exception if
 	    /// a key (name) and value (type) found in the JobDataMap does not 
-	    /// correspond to a proptery setter on the Job class.
+	    /// correspond to a property setter on the Job class.
 	    /// </summary>
 	    public virtual bool ThrowIfPropertyNotFound { get; set; }
 
 	    /// <summary> 
 	    /// Get or set whether a warning should be logged if
 	    /// a key (name) and value (type) found in the JobDataMap does not 
-	    /// correspond to a proptery setter on the Job class.
+	    /// correspond to a property setter on the Job class.
 	    /// </summary>
 	    public virtual bool WarnIfPropertyNotFound { get; set; }
 
@@ -82,7 +82,7 @@ namespace Quartz.Simpl
 	    /// Scheduler will move all triggers associated with the Job into the
 	    /// <see cref="TriggerState.Error" /> state, which will require human
 	    /// intervention (e.g. an application restart after fixing whatever
-	    /// configuration problem led to the issue wih instantiating the Job.
+	    /// configuration problem led to the issue with instantiating the Job.
 	    /// </para>
 	    /// </remarks>
 	    /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />

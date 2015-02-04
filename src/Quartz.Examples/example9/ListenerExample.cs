@@ -32,7 +32,7 @@ namespace Quartz.Examples.Example9
     /// <summary> 
     /// Demonstrates the behavior of <see cref="IJobListener" />s.  In particular, 
     /// this example will use a job listener to trigger another job after one
-    /// job succesfully executes.
+    /// job successfully executes.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     public class ListenerExample : IExample
