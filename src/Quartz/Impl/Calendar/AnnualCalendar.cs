@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -82,7 +84,7 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                     // 1.x
-                    object o = info.GetValue("excludeDays", typeof(object));
+                    object o = info.GetValue("excludeDays", typeof (object));
                     ArrayList oldFormat = o as ArrayList;
                     if (oldFormat != null)
                     {
@@ -98,12 +100,11 @@ namespace Quartz.Impl.Calendar
                     }
                     break;
                 case 1:
-                    excludeDays = (List<DateTimeOffset>)info.GetValue("excludeDays", typeof(List<DateTimeOffset>));
+                    excludeDays = (List<DateTimeOffset>) info.GetValue("excludeDays", typeof (List<DateTimeOffset>));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
-
         }
 
         [SecurityCritical]
@@ -142,17 +143,17 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual bool IsDayExcluded(DateTimeOffset day)
         {
-            return IsDateTimeExcluded(day);
+            return IsDateTimeExcluded(day, true);
         }
 
-        protected virtual bool IsDateTimeExcluded(DateTimeOffset day)
+        private bool IsDateTimeExcluded(DateTimeOffset day, bool checkBaseCalendar)
         {
             // Check baseCalendar first
-            if (!base.IsTimeIncluded(day))
+            if (checkBaseCalendar && !base.IsTimeIncluded(day))
             {
                 return true;
             }
-            
+
             int dmonth = day.Month;
             int dday = day.Day;
 
@@ -196,7 +197,7 @@ namespace Quartz.Impl.Calendar
 
             if (exclude)
             {
-                if (!IsDayExcluded(day))
+                if (!IsDateTimeExcluded(day, false))
                 {
                     excludeDays.Add(d);
                 }
@@ -204,7 +205,7 @@ namespace Quartz.Impl.Calendar
             else
             {
                 // include
-                if (IsDayExcluded(day))
+                if (IsDateTimeExcluded(day, false))
                 {
                     excludeDays.Remove(d);
                 }
@@ -229,7 +230,7 @@ namespace Quartz.Impl.Calendar
             }
 
             //apply the timezone
-            dateUtc = TimeZoneUtil.ConvertTime(dateUtc, this.TimeZone);
+            dateUtc = TimeZoneUtil.ConvertTime(dateUtc, TimeZone);
 
             return !(IsDayExcluded(dateUtc));
         }
@@ -252,7 +253,7 @@ namespace Quartz.Impl.Calendar
             }
 
             //apply the timezone
-            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, this.TimeZone);
+            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone);
 
             // Get timestamp for 00:00:00, in the correct timezone offset
             DateTimeOffset day = new DateTimeOffset(timeStampUtc.Date, timeStampUtc.Offset);
@@ -271,7 +272,6 @@ namespace Quartz.Impl.Calendar
             return day;
         }
 
-
         public override int GetHashCode()
         {
             int baseHash = 13;
@@ -280,10 +280,8 @@ namespace Quartz.Impl.Calendar
                 baseHash = GetBaseCalendar().GetHashCode();
             }
 
-            return excludeDays.GetHashCode() + 5 * baseHash;
+            return excludeDays.GetHashCode() + 5*baseHash;
         }
-
-
 
         public bool Equals(AnnualCalendar obj)
         {
@@ -305,7 +303,6 @@ namespace Quartz.Impl.Calendar
             return toReturn;
         }
 
-
         public override bool Equals(object obj)
         {
             if ((obj == null) || !(obj is AnnualCalendar))
@@ -313,7 +310,7 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            return Equals((AnnualCalendar)obj);
+            return Equals((AnnualCalendar) obj);
         }
 
         public override object Clone()

@@ -145,8 +145,6 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
         /// information on base calendar functionality.</param>
-        /// <param name="rangeStartingTime">The starting time of the day.</param>
-        /// <param name="rangeEndingTime">The ending time of the day.</param>
         public DailyCalendar(ICalendar baseCalendar, string rangeStartingTime, string rangeEndingTime) : base(baseCalendar)
         {
             SetTimeRange(rangeStartingTime, rangeEndingTime);
@@ -217,8 +215,6 @@ namespace Quartz.Impl.Calendar
         /// </li>
         /// 	</ul>
         /// </summary>
-        /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
-        /// information on base calendar functionality.</param>
         /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
         /// <param name="rangeStartingMinute">The range starting minute.</param>
         /// <param name="rangeStartingSecond">The range starting second.</param>
@@ -296,8 +292,6 @@ namespace Quartz.Impl.Calendar
         /// 		</li>
         /// 	</ul>
         /// </summary>
-        /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
-        /// information on base calendar functionality.</param>
         /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
         /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
         public DailyCalendar(ICalendar baseCalendar,
@@ -350,8 +344,6 @@ namespace Quartz.Impl.Calendar
         /// 		</li>
         /// 	</ul>
         /// </summary>
-        /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
-        /// information on base calendar functionality.</param>
         /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
         /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
         public DailyCalendar(ICalendar baseCalendar,

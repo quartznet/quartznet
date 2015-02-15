@@ -197,7 +197,7 @@ namespace Quartz.Impl.Calendar
 
 			if (baseCalendar != null)
 			{
-				if (baseCalendar.IsTimeIncluded(timeStampUtc) == false)
+				if (!baseCalendar.IsTimeIncluded(timeStampUtc))
 				{
 					return false;
 				}

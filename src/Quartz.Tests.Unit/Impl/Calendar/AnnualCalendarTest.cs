@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -32,14 +34,14 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     {
         private AnnualCalendar cal;
 
-        private static readonly string[] Versions = new string[] { "0.6.0" };
+        private static readonly string[] Versions = new string[] {"0.6.0"};
 
         [SetUp]
         public void Setup()
         {
             cal = new AnnualCalendar();
         }
-    
+
         [Test]
         public void TestDayExclusion()
         {
@@ -62,7 +64,6 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             cal.SetDayExcluded(d, false);
             Assert.IsTrue(cal.IsTimeIncluded(d), "Time was not included when it was supposed to be");
             Assert.IsFalse(cal.IsDayExcluded(d), "Day was excluded when it was supposed to be included");
-            
         }
 
         [Test]
@@ -76,7 +77,6 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.IsTrue(cal.IsDayExcluded(d.AddYears(2)), errMessage);
             Assert.IsTrue(cal.IsDayExcluded(d.AddYears(100)), errMessage);
         }
-
 
         [Test]
         public void TestExclusionAndNextIncludedTime()
@@ -93,31 +93,31 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// QUARTZ-679 Test if the annualCalendar works over years.
         /// </summary>
         [Test]
-        public void TestDaysExcludedOverTime() 
+        public void TestDaysExcludedOverTime()
         {
             AnnualCalendar annualCalendar = new AnnualCalendar();
 
             DateTime day = new DateTime(2005, 6, 23);
             annualCalendar.SetDayExcluded(day, true);
-            
-            day = new DateTime(2008, 2, 1);
-    	    annualCalendar.SetDayExcluded(day, true);
 
-            Assert.IsTrue(annualCalendar.IsDayExcluded(day), "The day 1 February is expected to be excluded but it is not");    	
+            day = new DateTime(2008, 2, 1);
+            annualCalendar.SetDayExcluded(day, true);
+
+            Assert.IsTrue(annualCalendar.IsDayExcluded(day), "The day 1 February is expected to be excluded but it is not");
         }
 
         /// <summary>
         /// Part 2 of the tests of QUARTZ-679
         /// </summary>
         [Test]
-        public void TestRemoveInTheFuture() 
+        public void TestRemoveInTheFuture()
         {
             AnnualCalendar annualCalendar = new AnnualCalendar();
 
             DateTime day = new DateTime(2005, 6, 23);
             annualCalendar.SetDayExcluded(day, true);
 
-    	    // Trying to remove the 23th of June
+            // Trying to remove the 23th of June
             day = new DateTime(2008, 6, 23);
             annualCalendar.SetDayExcluded(day, false);
 
@@ -145,6 +145,21 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.AreEqual(expectedNextAvailable, actualNextAvailable);
         }
 
+        [Test]
+        public void BaseCalendarShouldNotAffectSettingInternalDataStructures()
+        {
+            var dayToExclude = new DateTime(2015, 1, 1);
+
+            AnnualCalendar a = new AnnualCalendar();
+            a.SetDayExcluded(dayToExclude, true);
+
+            AnnualCalendar b = new AnnualCalendar(a);
+            b.SetDayExcluded(dayToExclude, true);
+
+            b.CalendarBase = null;
+
+            Assert.That(b.IsDayExcluded(dayToExclude), "day was no longer excluded after base calendar was detached");
+        }
 
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
@@ -178,8 +193,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// <param name="deserialized"></param>
         protected override void VerifyMatch(object target, object deserialized)
         {
-            AnnualCalendar targetCalendar = (AnnualCalendar)target;
-            AnnualCalendar deserializedCalendar = (AnnualCalendar)deserialized;
+            AnnualCalendar targetCalendar = (AnnualCalendar) target;
+            AnnualCalendar deserializedCalendar = (AnnualCalendar) deserialized;
 
             Assert.IsNotNull(deserializedCalendar);
             Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);

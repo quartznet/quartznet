@@ -350,9 +350,6 @@ namespace Quartz.Impl.Triggers
 	    /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
 	    /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
 	    /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="ITrigger" /> to start firing.</param>
-	    /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
-        /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
-		/// <param name="timeZone">A time zone for which the <see cref="ICronTrigger" /> will be resolved.</param>
 		public CronTriggerImpl(string name, string group, string jobName,
             string jobGroup, DateTimeOffset startTimeUtc, 
             DateTimeOffset? endTime,
