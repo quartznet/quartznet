@@ -389,11 +389,11 @@ namespace Quartz
             }
             else if (intervalUnit == IntervalUnit.Minute)
             {
-                intervalInMillis = TimeSpan.FromSeconds(interval * 60);
+                intervalInMillis = TimeSpan.FromMinutes(interval);
             }
             else if (intervalUnit == IntervalUnit.Hour)
             {
-                intervalInMillis = TimeSpan.FromSeconds(interval * 60 * 24);
+                intervalInMillis = TimeSpan.FromHours(interval);
             }
             else
             {

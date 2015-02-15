@@ -330,5 +330,22 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(trigger2.DaysOfWeek.Contains(DayOfWeek.Saturday));
             Assert.IsFalse(trigger2.DaysOfWeek.Contains(DayOfWeek.Sunday));
         }
+
+        [Test]
+        public void TestEndingDailyAfterCount()
+        {
+            var startDate = new DateTime(2015, 1, 1).ToUniversalTime();
+            DailyTimeIntervalTriggerImpl trigger = (DailyTimeIntervalTriggerImpl) TriggerBuilder.Create()
+                .WithDailyTimeIntervalSchedule(x => x
+                    .StartingDailyAt(new TimeOfDay(9, 0, 0))
+                    .WithIntervalInHours(1)
+                    .EndingDailyAfterCount(2))
+                .StartAt(startDate)
+                .Build();
+
+            var times = TriggerUtils.ComputeFireTimesBetween(trigger, null, startDate, new DateTime(2015, 1, 2));
+            Assert.That(times.Count, Is.EqualTo(2), "wrong occurrancy count");
+            Assert.That(times[1].ToLocalTime().DateTime, Is.EqualTo(new DateTime(2015, 1, 1, 10, 0, 0)), "wrong occurrancy count");
+        }
     }
 }
