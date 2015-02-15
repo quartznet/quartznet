@@ -27,6 +27,7 @@ using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Triggers
@@ -842,6 +843,53 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             var third = trigger.GetFireTimeAfter(second);
             Assert.That(third, Is.EqualTo(new DateTimeOffset(2014, 10, 27, 22, 15, 0, TimeSpan.FromHours(0))));
+        }
+
+        [Test]
+        public void TestPassingMidnight()
+        {
+            IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(16, 00))
+                .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(00, 00))
+                .OnEveryDay()
+                .WithIntervalInMinutes(30)
+                .Build();
+
+            trigger.StartTimeUtc = new DateTimeOffset(2015, 1, 11, 23, 57, 0, 0, TimeSpan.Zero);
+
+            var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 100);
+            foreach (var fireTime in fireTimes)
+            {
+                Console.WriteLine(fireTime.LocalDateTime);
+            }
+        }
+
+        [Test]
+        public void ShouldGetScheduleBuilderWithSameSettingsAsTrigger()
+        {
+            var startTime = DateTimeOffset.UtcNow;
+            var endTime = DateTimeOffset.UtcNow.AddDays(1);
+            var startTimeOfDay = new TimeOfDay(1, 2, 3);
+            var endTimeOfDay = new TimeOfDay(3, 2, 1);
+            var trigger = new DailyTimeIntervalTriggerImpl("name", "group", startTime, endTime, startTimeOfDay, endTimeOfDay, IntervalUnit.Hour, 10);
+            trigger.RepeatCount = 12;
+            trigger.DaysOfWeek = new Collection.HashSet<DayOfWeek>
+            {
+                DayOfWeek.Thursday
+            };
+            trigger.MisfireInstruction = MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow;
+            trigger.TimeZone = TimeZoneInfo.Utc;
+
+            var scheduleBuilder = trigger.GetScheduleBuilder();
+
+            var cloned = (DailyTimeIntervalTriggerImpl) scheduleBuilder.Build();
+            CollectionAssert.AreEqual(cloned.DaysOfWeek, trigger.DaysOfWeek);
+            Assert.That(cloned.RepeatCount, Is.EqualTo(trigger.RepeatCount));
+            Assert.That(cloned.RepeatInterval, Is.EqualTo(trigger.RepeatInterval));
+            Assert.That(cloned.RepeatIntervalUnit, Is.EqualTo(trigger.RepeatIntervalUnit));
+            Assert.That(cloned.StartTimeOfDay, Is.EqualTo(trigger.StartTimeOfDay));
+            Assert.That(cloned.EndTimeOfDay, Is.EqualTo(trigger.EndTimeOfDay));
+            Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
         }
     }
 }

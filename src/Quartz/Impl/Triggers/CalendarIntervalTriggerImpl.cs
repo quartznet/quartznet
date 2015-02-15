@@ -66,7 +66,7 @@ namespace Quartz.Impl.Triggers
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
         private TimeZoneInfo timeZone;
         private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
-        private bool skipDayIfHourDoesNotExist = false;
+        private bool skipDayIfHourDoesNotExist;
         private int timesTriggered;
         private bool complete = false;
 
@@ -98,7 +98,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, string group, IntervalUnit intervalUnit,
-                                           int repeatInterval)
+            int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, intervalUnit, repeatInterval)
         {
         }
@@ -113,7 +113,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, DateTimeOffset startTimeUtc,
-                                           DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
+            DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, null, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval)
         {
         }
@@ -129,7 +129,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
-                                           DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
+            DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
         {
             StartTimeUtc = startTimeUtc;
@@ -151,8 +151,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public CalendarIntervalTriggerImpl(string name, string group, string jobName,
-                                           string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
-                                           IntervalUnit intervalUnit, int repeatInterval)
+            string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
+            IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group, jobName, jobGroup)
         {
             StartTimeUtc = startTimeUtc;
@@ -227,7 +227,6 @@ namespace Quartz.Impl.Triggers
             get { return repeatIntervalUnit; }
             set { this.repeatIntervalUnit = value; }
         }
-
 
         /// <summary>
         /// Get the the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
@@ -681,7 +680,7 @@ namespace Quartz.Impl.Triggers
                     {
                         sTime = sTime.AddDays(RepeatInterval);
                     }
-                    
+
                     time = sTime;
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Week)
@@ -785,7 +784,7 @@ namespace Quartz.Impl.Triggers
                 {
                     return skipDayIfHourDoesNotExist;
                 }
-                else 
+                else
                 {
                     //don't skip this day, instead find closest valid time by adding minutes.
                     while (this.TimeZone.IsInvalidTime(newTime.DateTime))
@@ -799,13 +798,13 @@ namespace Quartz.Impl.Triggers
             }
             return false;
         }
-        
+
         private void MakeHourAdjustmentIfNeeded(ref DateTimeOffset sTime, int initialHourOfDay)
         {
             //this method was made to adjust the time if a DST occurred, this is to stay consistent with the time
             //we are checking against, which is the afterTime. There were problems the occurred when the DST adjustment
             //took the time an hour back, leading to the times were not being adjusted properly.
-            
+
             //avoid shifts in day, otherwise this will cause an infinite loop in the code.
             int initalYear = sTime.Year;
             int initalMonth = sTime.Month;
@@ -916,7 +915,10 @@ namespace Quartz.Impl.Triggers
         public override IScheduleBuilder GetScheduleBuilder()
         {
             CalendarIntervalScheduleBuilder cb = CalendarIntervalScheduleBuilder.Create()
-                .WithInterval(RepeatInterval, RepeatIntervalUnit);
+                .WithInterval(RepeatInterval, RepeatIntervalUnit)
+                .InTimeZone(TimeZone)
+                .PreserveHourOfDayAcrossDaylightSavings(PreserveHourOfDayAcrossDaylightSavings)
+                .SkipDayIfHourDoesNotExist(SkipDayIfHourDoesNotExist);
 
             switch (MisfireInstruction)
             {

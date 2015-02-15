@@ -962,7 +962,9 @@ namespace Quartz.Impl.Triggers
                 .WithInterval(RepeatInterval, RepeatIntervalUnit)
                 .OnDaysOfTheWeek(DaysOfWeek)
                 .StartingDailyAt(StartTimeOfDay)
-                .EndingDailyAt(EndTimeOfDay);
+                .EndingDailyAt(EndTimeOfDay)
+                .WithRepeatCount(RepeatCount)
+                .InTimeZone(TimeZone);
 
             switch (MisfireInstruction)
             {

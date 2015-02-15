@@ -154,5 +154,20 @@ namespace Quartz.Tests.Unit
             Assert.That(trigger.EndTimeUtc, Is.EqualTo(trigger2.EndTimeUtc));
             Assert.That(trigger.Priority, Is.EqualTo(trigger2.Priority));
         }
+
+        [Test]
+        public void ShouldGetScheduleBuilderWithSameSettingsAsTrigger()
+        {
+            var startTime = DateTimeOffset.UtcNow;
+            var endTime = DateTimeOffset.UtcNow.AddDays(1);
+            var trigger = new CronTriggerImpl("name", "group", "jobname", "jobgroup", startTime, endTime, "0 0 12 * * ?", TimeZoneInfo.Utc);
+            trigger.MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
+            var scheduleBuilder = trigger.GetScheduleBuilder();
+
+            var cloned = (CronTriggerImpl)scheduleBuilder.Build();
+            Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
+            Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
+            Assert.That(cloned.CronExpressionString, Is.EqualTo(trigger.CronExpressionString));
+        }
     }
 }

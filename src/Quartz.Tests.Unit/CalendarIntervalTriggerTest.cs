@@ -684,6 +684,27 @@ namespace Quartz.Tests.Unit
             }
         }
 
+        [Test]
+        public void ShouldGetScheduleBuilderWithSameSettingsAsTrigger()
+        {
+            var startTime = DateTimeOffset.UtcNow;
+            var endTime = DateTimeOffset.UtcNow.AddDays(1);
+            var trigger = new CalendarIntervalTriggerImpl("name", "group", startTime, endTime, IntervalUnit.Hour, 10);
+            trigger.PreserveHourOfDayAcrossDaylightSavings = true;
+            trigger.SkipDayIfHourDoesNotExist = true;
+            trigger.TimeZone = TimeZoneInfo.Utc;
+            trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
+            var scheduleBuilder = trigger.GetScheduleBuilder();
+
+            var cloned = (CalendarIntervalTriggerImpl)scheduleBuilder.Build();
+            Assert.That(cloned.PreserveHourOfDayAcrossDaylightSavings, Is.EqualTo(trigger.PreserveHourOfDayAcrossDaylightSavings));
+            Assert.That(cloned.SkipDayIfHourDoesNotExist, Is.EqualTo(trigger.SkipDayIfHourDoesNotExist));
+            Assert.That(cloned.RepeatInterval, Is.EqualTo(trigger.RepeatInterval));
+            Assert.That(cloned.RepeatIntervalUnit, Is.EqualTo(trigger.RepeatIntervalUnit));
+            Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
+            Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
+        }
+
         protected override object GetTargetObject()
         {
             var jobDataMap = new JobDataMap();
