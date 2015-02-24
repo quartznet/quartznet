@@ -216,7 +216,7 @@ namespace Quartz
 			str.Append("'");
 			if (SchedulerRemote)
 			{
-                str.Append(" - access via remote incovation.");
+                str.Append(" - access via remote invocation.");
 			}
 			else
 			{
@@ -336,7 +336,7 @@ namespace Quartz
 			}
 			catch (SchedulerException)
 			{
-				return "SchedulerMetaData: undeterminable.";
+                return "SchedulerMetaData: indeterminable.";
 			}
 		}
 	}
