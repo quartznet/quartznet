@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using NUnit.Framework;
 
@@ -15,7 +15,7 @@ namespace Quartz.Tests.Unit.Core
 {
     public class MissSchedulingChangeSignalTest
     {
-        private static readonly ILog log = LogManager.GetLogger<MissSchedulingChangeSignalTest>();
+        private static readonly ILog log = LogProvider.GetLogger(typeof(MissSchedulingChangeSignalTest));
 
         [Test]
         [Explicit]
@@ -82,7 +82,7 @@ namespace Quartz.Tests.Unit.Core
     {
         private static DateTime? lastFireTime = null;
         private static List<TimeSpan> durationBetweenFireTimes = new List<TimeSpan>();
-        private static readonly ILog log = LogManager.GetLogger<CollectDurationBetweenFireTimesJob>();
+        private static readonly ILog log = LogProvider.GetLogger(typeof(CollectDurationBetweenFireTimesJob));
 
         public void Execute(IJobExecutionContext context)
         {

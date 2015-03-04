@@ -21,7 +21,7 @@ using System;
 using System.Globalization;
 using System.IO;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Job
 {
@@ -81,7 +81,7 @@ namespace Quartz.Job
         /// </summary>
 	    public FileScanJob()
 	    {
-	        log = LogManager.GetLogger(typeof (FileScanJob));
+	        log = LogProvider.GetLogger(typeof (FileScanJob));
 	    }
 
 	    /// <summary>

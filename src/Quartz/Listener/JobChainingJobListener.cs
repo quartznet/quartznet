@@ -21,6 +21,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
+using Quartz.Logging;
+
 namespace Quartz.Listener
 {
     /// <summary>
@@ -107,7 +109,7 @@ namespace Quartz.Listener
             }
             catch (SchedulerException se)
             {
-                Log.Error(string.Format(CultureInfo.InvariantCulture, "Error encountered during chaining to Job '{0}'", sj), se);
+                Log.ErrorException(string.Format(CultureInfo.InvariantCulture, "Error encountered during chaining to Job '{0}'", sj), se);
             }
         }
     }

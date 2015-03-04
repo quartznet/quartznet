@@ -20,7 +20,7 @@
 using System;
 using System.Globalization;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
@@ -262,7 +262,7 @@ namespace Quartz.Plugin.History
         private string jobWasVetoedMessage =
             "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
 
-        private ILog log = LogManager.GetLogger(typeof (LoggingJobHistoryPlugin));
+        private ILog log = LogProvider.GetLogger(typeof (LoggingJobHistoryPlugin));
 
         /// <summary>
         /// Logger instance to use. Defaults to common logging.
@@ -363,7 +363,7 @@ namespace Quartz.Plugin.History
         /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
         public virtual void JobToBeExecuted(IJobExecutionContext context)
         {
-            if (!Log.IsInfoEnabled)
+            if (!Log.IsInfoEnabled())
             {
                 return;
             }
@@ -396,7 +396,7 @@ namespace Quartz.Plugin.History
 
             if (jobException != null)
             {
-                if (!Log.IsWarnEnabled)
+                if (!Log.IsWarnEnabled())
                 {
                     return;
                 }
@@ -409,11 +409,11 @@ namespace Quartz.Plugin.History
                             trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
                         };
 
-                Log.Warn(String.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
+                Log.WarnException(String.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
             }
             else
             {
-                if (!Log.IsInfoEnabled)
+                if (!Log.IsInfoEnabled())
                 {
                     return;
                 }
@@ -440,7 +440,7 @@ namespace Quartz.Plugin.History
         /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
         public virtual void JobExecutionVetoed(IJobExecutionContext context)
         {
-            if (!Log.IsInfoEnabled)
+            if (!Log.IsInfoEnabled())
             {
                 return;
             }

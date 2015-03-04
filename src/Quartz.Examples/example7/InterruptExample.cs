@@ -22,7 +22,7 @@
 using System;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl;
 
@@ -35,7 +35,7 @@ namespace Quartz.Examples.Example7
     /// <author>Marko Lahma (.NET)</author>
     public class InterruptExample : IExample
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (InterruptExample));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (InterruptExample));
 
         public string Name
         {

@@ -20,7 +20,7 @@
 using System;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Spi;
 
@@ -49,7 +49,7 @@ namespace Quartz.Simpl
         /// </summary>
         public ZeroSizeThreadPool()
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>

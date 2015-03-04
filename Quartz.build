@@ -137,7 +137,8 @@
             <attribute type="AssemblyVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.0" />
             <attribute type="AssemblyInformationalVersionAttribute" value="${version.major}.${version.minor}.${version.revision}.${version.build} / ${git.hash}" />
             <attribute type="AssemblyDelaySignAttribute" value="false" />
-            <attribute type="System.Security.AllowPartiallyTrustedCallersAttribute" if="${target.framework == '3.5'}" />
+            <attribute type="System.Security.AllowPartiallyTrustedCallersAttribute" />
+            <attribute type="System.Security.SecurityRulesAttribute" value="System.Security.SecurityRuleSet.Level1" asis="true" if="${target.framework != '3.5'}" />
         </attributes>
     </asminfo>  
   </target>
@@ -152,7 +153,7 @@
       define="${build.defines}"
       optimize="${build.optimize}"
       keyfile="${build.keyfile}"
-	  nostdlib="true" noconfig="true">
+      nostdlib="true" noconfig="true">
       <nowarn>
         <!-- do not report warnings for missing XML comments -->
         <warning number="0162" />

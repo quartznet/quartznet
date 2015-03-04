@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example6
 {
@@ -32,7 +32,7 @@ namespace Quartz.Examples.Example6
     public class BadJob2 : IJob
 	{
 		// Logging
-		private static readonly ILog log = LogManager.GetLogger(typeof(BadJob2));
+		private static readonly ILog log = LogProvider.GetLogger(typeof(BadJob2));
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />

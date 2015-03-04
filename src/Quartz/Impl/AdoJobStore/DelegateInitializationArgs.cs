@@ -1,6 +1,6 @@
 using System.Collections.Specialized;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Spi;

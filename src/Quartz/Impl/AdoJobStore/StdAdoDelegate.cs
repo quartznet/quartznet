@@ -27,7 +27,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
@@ -708,7 +708,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteJobDetail)))
             {
-                if (logger.IsDebugEnabled)
+                if (logger.IsDebugEnabled())
                 {
                     logger.Debug("Deleting job: " + jobKey);
                 }
@@ -1483,7 +1483,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         return job;
                     }
-                    if (logger.IsDebugEnabled)
+                    if (logger.IsDebugEnabled())
                     {
                         logger.Debug("No job for trigger '" +triggerKey + "'.");
                     }

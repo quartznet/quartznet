@@ -1,6 +1,6 @@
 using System;
 using System.Threading;
-using Common.Logging;
+using log4net;
 
 namespace Quartz.Server
 {
@@ -9,7 +9,7 @@ namespace Quartz.Server
     /// </summary>
     public class SampleJob : IJob
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof(SampleJob));
+        private static readonly ILog logger = LogManager.GetLogger(typeof (SampleJob));
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />

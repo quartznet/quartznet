@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Job
 {
@@ -46,7 +46,7 @@ namespace Quartz.Job
 
         public DirectoryScanJob()
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
         }
 
        /// <summary>
@@ -127,7 +127,7 @@ namespace Quartz.Job
                 log.Info("Directory '" + dirName + "' contents updated, notifying listener.");
                 listener.FilesUpdatedOrAdded(updatedFiles);
             }
-            else if (log.IsDebugEnabled)
+            else if (log.IsDebugEnabled())
             {
                 log.Debug("Directory '" + dirName + "' contents unchanged.");
             }

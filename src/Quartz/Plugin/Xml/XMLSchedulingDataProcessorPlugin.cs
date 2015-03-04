@@ -28,7 +28,7 @@ using System.Net;
 #if !ClientProfile
 using System.Web;
 #endif
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
@@ -79,7 +79,7 @@ namespace Quartz.Plugin.Xml
         /// </summary>
         public XMLSchedulingDataProcessorPlugin()
         {
-            log = LogManager.GetLogger(typeof (XMLSchedulingDataProcessorPlugin));
+            log = LogProvider.GetLogger(typeof (XMLSchedulingDataProcessorPlugin));
         }
 
         /// <summary>
@@ -238,7 +238,7 @@ namespace Quartz.Plugin.Xml
             }
             catch (SchedulerException se)
             {
-                Log.Error("Error starting background-task for watching jobs file.", se);
+                Log.ErrorException("Error starting background-task for watching jobs file.", se);
             }
             finally
             {
@@ -323,7 +323,7 @@ namespace Quartz.Plugin.Xml
             }
             catch (Exception e)
             {
-                Log.Error("Error scheduling jobs: " + e.Message, e);
+                Log.ErrorException("Error scheduling jobs: " + e.Message, e);
             }
         }
 
@@ -454,7 +454,7 @@ namespace Quartz.Plugin.Xml
                     }
                     catch (IOException ioe)
                     {
-                        plugin.Log.Warn("Error closing jobs file " + FileName, ioe);
+                        plugin.Log.WarnException("Error closing jobs file " + FileName, ioe);
                     }
                 }
             }

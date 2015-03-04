@@ -20,7 +20,7 @@
 using System;
 using System.Net;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Spi;
 
@@ -38,7 +38,7 @@ namespace Quartz.Simpl
 
         protected HostNameBasedIdGenerator()
         {
-            logger = LogManager.GetLogger(GetType());
+            logger = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>

@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Spi;
 
@@ -117,7 +117,7 @@ namespace Quartz.Core
         internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, 
                                        bool setDaemon, int threadPrio) : base(qsRsrcs.ThreadName)
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
             //ThreadGroup generatedAux = qs.SchedulerThreadGroup;
             this.qs = qs;
             this.qsRsrcs = qsRsrcs;
@@ -290,7 +290,7 @@ namespace Quartz.Core
                             triggers = qsRsrcs.JobStore.AcquireNextTriggers(
                                 now + idleWaitTime, Math.Min(availThreadCount, qsRsrcs.MaxBatchSize), qsRsrcs.BatchTimeWindow);
                             lastAcquireFailed = false;
-                            if (log.IsDebugEnabled)
+                            if (log.IsDebugEnabled())
                             {
                                 log.DebugFormat("Batch acquisition of {0} triggers", (triggers == null ? 0 : triggers.Count));
                             }
@@ -308,7 +308,7 @@ namespace Quartz.Core
                         {
                             if (!lastAcquireFailed)
                             {
-                                Log.Error("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
+                                Log.ErrorException("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
                             }
                             lastAcquireFailed = true;
                             continue;
@@ -408,7 +408,7 @@ namespace Quartz.Core
                             // TODO SQL exception?
                             if (exception != null &&  (exception is DbException || exception.InnerException is DbException))
                             {
-                                Log.Error("DbException while firing trigger " + trigger, exception);
+                                Log.ErrorException("DbException while firing trigger " + trigger, exception);
                                 qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
                                 continue;
                             }
@@ -490,7 +490,7 @@ namespace Quartz.Core
                 {
                     if (Log != null)
                     {
-                        Log.Error("Runtime error occurred in main trigger firing loop.", re);
+                        Log.ErrorException("Runtime error occurred in main trigger firing loop.", re);
                     }
                 }
             } // while (!halted)

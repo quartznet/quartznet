@@ -21,10 +21,9 @@ using System;
 using System.Globalization;
 using System.Threading;
 
-using Common.Logging;
-
 using Quartz.Impl;
 using Quartz.Listener;
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Core
@@ -67,7 +66,7 @@ namespace Quartz.Core
 		{
 			this.scheduler = scheduler;
             firedTriggerBundle = bundle;
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
 		}
 
         public override void SchedulerShuttingdown()
@@ -179,7 +178,7 @@ namespace Quartz.Core
                     // Execute the job
                     try
                     {
-                        if (log.IsDebugEnabled)
+                        if (log.IsDebugEnabled())
                         {
                             log.Debug("Calling Execute on job " + jobDetail.Key);
                         }
@@ -190,12 +189,12 @@ namespace Quartz.Core
                     {
                         endTime = SystemTime.UtcNow();
                         jobExEx = jee;
-                        log.Info(string.Format(CultureInfo.InvariantCulture, "Job {0} threw a JobExecutionException: ", jobDetail.Key), jobExEx);
+                        log.ErrorException(string.Format(CultureInfo.InvariantCulture, "Job {0} threw a JobExecutionException: ", jobDetail.Key), jobExEx);
                     }
                     catch (Exception e)
                     {
                         endTime = SystemTime.UtcNow();
-                        log.Error(string.Format(CultureInfo.InvariantCulture, "Job {0} threw an unhandled Exception: ", jobDetail.Key), e);
+                        log.ErrorException(string.Format(CultureInfo.InvariantCulture, "Job {0} threw an unhandled Exception: ", jobDetail.Key), e);
                         SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
                         qs.NotifySchedulerListenersError(
                             string.Format(CultureInfo.InvariantCulture, "Job {0} threw an exception.", jec.JobDetail.Key), se);
@@ -216,7 +215,7 @@ namespace Quartz.Core
                     try
                     {
                         instCode = trigger.ExecutionComplete(jec, jobExEx);
-                        if (log.IsDebugEnabled)
+                        if (log.IsDebugEnabled())
                         {
                             log.Debug(string.Format(CultureInfo.InvariantCulture, "Trigger instruction : {0}", instCode));
                         }
@@ -236,7 +235,7 @@ namespace Quartz.Core
                     // update job/trigger or re-Execute job
                     if (instCode == SchedulerInstruction.ReExecuteJob)
                     {
-                        if (log.IsDebugEnabled)
+                        if (log.IsDebugEnabled())
                         {
                             log.Debug("Rescheduling trigger to reexecute");
                         }

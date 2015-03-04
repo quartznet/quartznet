@@ -97,13 +97,7 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>../../lib/2.0/C5.dll</HintPath>
     </Reference>
-    <Reference Include="Common.Logging, Version=3.0.0.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\packages\Common.Logging.3.0.0\lib\net40\Common.Logging.dll</HintPath>
-    </Reference>
-    <Reference Include="Common.Logging.Core">
-      <HintPath>..\..\packages\Common.Logging.Core.3.0.0\lib\net40\Common.Logging.Core.dll</HintPath>
-    </Reference>
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System">
       <Name>System</Name>
     </Reference>
@@ -124,6 +118,7 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="App_Packages\LibLog.3.1\LibLog.cs" />
     <Compile Include="CalendarIntervalScheduleBuilder.cs" />
     <Compile Include="Collection\ReadOnlySet.cs" />
     <Compile Include="Impl\AdoJobStore\FirebirdDelegate.cs" />

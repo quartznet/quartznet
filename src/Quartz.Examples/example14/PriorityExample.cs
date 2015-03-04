@@ -21,7 +21,7 @@ using System;
 using System.Collections.Specialized;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl;
 
@@ -42,7 +42,7 @@ namespace Quartz.Examples.Example14
 
         public void Run()
         {
-            ILog log = LogManager.GetLogger(typeof (PriorityExample));
+            ILog log = LogProvider.GetLogger(typeof (PriorityExample));
 
             log.Info("------- Initializing ----------------------");
 

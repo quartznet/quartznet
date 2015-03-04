@@ -19,7 +19,7 @@
 
 using System;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using NUnit.Framework;
 
@@ -52,53 +52,53 @@ namespace Quartz.Tests.Unit.Plugin.History
         public void TestJobFailedMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsWarnEnabled).Return(true);
+            mockLog.Stub(log => log.IsWarnEnabled()).Return(true);
 
             // act
             JobExecutionException ex = new JobExecutionException("test error");
             plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
             
             // assert
-            mockLog.AssertWasCalled(log => log.Warn(Arg<string>.Is.Anything, Arg<Exception>.Is.Anything));
+            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Warn), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.NotNull, Arg<object[]>.Is.NotNull));
         }
 
         [Test]
         public void TestJobSuccessMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
 
             // act
             plugin.JobWasExecuted(CreateJobExecutionContext(), null);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
+            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
         }
 
         [Test]
         public void TestJobToBeFiredMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
 
             // act
             plugin.JobToBeExecuted(CreateJobExecutionContext());
         
             // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
+            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
         }
 
         [Test]
         public void TestJobWasVetoedMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
 
             // act
             plugin.JobExecutionVetoed(CreateJobExecutionContext());
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
+            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
         }
 
         protected virtual IJobExecutionContext CreateJobExecutionContext()

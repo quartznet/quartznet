@@ -25,7 +25,7 @@ using System.IO;
 using System.Reflection;
 using System.Security;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
@@ -132,7 +132,7 @@ namespace Quartz.Impl
 
         private PropertiesParser cfg;
 
-        private static readonly ILog log = LogManager.GetLogger(typeof (StdSchedulerFactory));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (StdSchedulerFactory));
 
         private string SchedulerName
         {
@@ -233,7 +233,7 @@ namespace Quartz.Impl
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("Could not load properties for Quartz from file {0}: {1}".FormatInvariant(propFileName, ex.Message), ex);
+                    Log.ErrorException("Could not load properties for Quartz from file {0}: {1}".FormatInvariant(propFileName, ex.Message), ex);
                 }
 
             }
@@ -248,7 +248,7 @@ namespace Quartz.Impl
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("Could not load default properties for Quartz from Quartz assembly: {0}".FormatInvariant(ex.Message), ex);
+                    Log.ErrorException("Could not load default properties for Quartz from Quartz assembly: {0}".FormatInvariant(ex.Message), ex);
                 }
             }
             if (props == null)
@@ -929,7 +929,7 @@ Please add configuration to your application config file to correctly initialize
                     }
                     catch (Exception e)
                     {
-                        Log.Error("Couldn't generate instance Id!", e);
+                        Log.ErrorException("Couldn't generate instance Id!", e);
                         throw new SystemException("Cannot run without an instance id.");
                     }
                 }
@@ -1061,7 +1061,7 @@ Please add configuration to your application config file to correctly initialize
             }
             catch (Exception e)
             {
-                Log.Error("Got another exception while shutting down after instantiation exception", e);
+                Log.ErrorException("Got another exception while shutting down after instantiation exception", e);
             }
         }
 

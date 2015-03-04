@@ -18,7 +18,7 @@
 #endregion
 
 using System;
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example4
 {
@@ -33,7 +33,7 @@ namespace Quartz.Examples.Example4
     [DisallowConcurrentExecution]
     public class ColorJob : IJob
 	{
-		private static readonly ILog log = LogManager.GetLogger(typeof(ColorJob));
+		private static readonly ILog log = LogProvider.GetLogger(typeof(ColorJob));
 		
 		// parameter names specific to this job
 		public const string FavoriteColor = "favorite color";

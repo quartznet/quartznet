@@ -28,7 +28,7 @@ using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Serialization.Formatters;
 using System.Security;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Spi;
 
@@ -54,7 +54,7 @@ namespace Quartz.Simpl
             TypeFilterLevel = TypeFilterLevel.Full;
             ChannelName = DefaultChannelName;
             BindName = DefaultBindName;
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
         }
 
         public virtual void Bind(IRemotableQuartzScheduler scheduler)
@@ -77,15 +77,15 @@ namespace Quartz.Simpl
             }
             catch (RemotingException ex)
             {
-                Log.Error("RemotingException during Bind", ex);
+                Log.ErrorException("RemotingException during Bind", ex);
             }
             catch (SecurityException ex)
             {
-                Log.Error("SecurityException during Bind", ex);
+                Log.ErrorException("SecurityException during Bind", ex);
             }
             catch (Exception ex)
             {
-                Log.Error("Exception during Bind", ex);
+                Log.ErrorException("Exception during Bind", ex);
             }
         }
 
@@ -176,15 +176,15 @@ namespace Quartz.Simpl
             }
             catch (ArgumentException ex)
             {
-                Log.Error("ArgumentException during Unbind", ex);
+                Log.ErrorException("ArgumentException during Unbind", ex);
             }
             catch (SecurityException ex)
             {
-                Log.Error("SecurityException during Unbind", ex);
+                Log.ErrorException("SecurityException during Unbind", ex);
             }
             catch (Exception ex)
             {
-                Log.Error("Exception during Unbind", ex);
+                Log.ErrorException("Exception during Unbind", ex);
             }
         }
 

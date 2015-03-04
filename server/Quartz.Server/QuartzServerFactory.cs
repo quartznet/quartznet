@@ -1,5 +1,5 @@
 using System;
-using Common.Logging;
+using log4net;
 
 namespace Quartz.Server
 {

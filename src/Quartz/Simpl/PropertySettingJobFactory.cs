@@ -21,7 +21,7 @@ using System;
 using System.Globalization;
 using System.Reflection;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Spi;
 using Quartz.Util;
@@ -54,7 +54,7 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class PropertySettingJobFactory : SimpleJobFactory
 	{
-	    private static readonly ILog log = LogManager.GetLogger(typeof(PropertySettingJobFactory));
+	    private static readonly ILog log = LogProvider.GetLogger(typeof(PropertySettingJobFactory));
 
 	    /// <summary> 
 	    /// Whether the JobInstantiation should fail and throw and exception if
@@ -205,7 +205,7 @@ namespace Quartz.Simpl
 				}
 				else
 				{
-					log.Warn(message, e);
+					log.WarnException(message, e);
 				}
 			}
 		}

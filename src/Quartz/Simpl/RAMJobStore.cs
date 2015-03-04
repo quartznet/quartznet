@@ -24,7 +24,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Collection;
 using Quartz.Impl;
@@ -70,7 +70,7 @@ namespace Quartz.Simpl
         /// </summary>
         public RAMJobStore()
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary> 

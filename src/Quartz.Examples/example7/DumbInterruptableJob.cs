@@ -19,7 +19,7 @@
 
 using System;
 using System.Threading;
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example7
 {
@@ -32,7 +32,7 @@ namespace Quartz.Examples.Example7
     public class DumbInterruptableJob : IInterruptableJob
 	{
 		// logging services
-		private static readonly ILog log = LogManager.GetLogger(typeof(DumbInterruptableJob));
+		private static readonly ILog log = LogProvider.GetLogger(typeof(DumbInterruptableJob));
 		// has the job been interrupted?
 		private bool interrupted;
 		// job name 

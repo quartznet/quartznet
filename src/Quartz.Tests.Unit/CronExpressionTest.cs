@@ -21,6 +21,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+
+using C5;
 
 using NUnit.Framework;
 
@@ -236,7 +239,7 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(calendar.IsSatisfiedBy(DateTime.Now.AddMinutes(2)), "Time was included");
         }
 
-        private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList<int> correctFireDays)
+        private static void TestCorrectWeekFireDays(CronExpression cronExpression, System.Collections.Generic.IList<int> correctFireDays)
         {
             List<int> fireDays = new List<int>();
 
@@ -565,6 +568,27 @@ namespace Quartz.Tests.Unit
             {
                 return base.GetSet(constant);
             }
+        }
+
+        [Test]
+        public void PerformanceTest()
+        {
+            var quartz = new CronExpression("* * * * * ?");
+
+            var sw = new Stopwatch();
+            sw.Start();
+
+            DateTimeOffset? next = new DateTimeOffset(2012, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+            for (int i = 0; i < 1000000; i++)
+            {
+                next = quartz.GetNextValidTimeAfter(next.Value);
+
+                if (next == null)
+                    break;
+            }
+
+            Console.WriteLine("{0}ms", sw.ElapsedMilliseconds);
         }
     }
 }

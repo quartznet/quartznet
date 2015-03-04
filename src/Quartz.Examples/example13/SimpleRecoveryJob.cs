@@ -22,7 +22,7 @@
 using System;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example13
 {
@@ -33,7 +33,7 @@ namespace Quartz.Examples.Example13
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleRecoveryJob : IJob
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (SimpleRecoveryJob));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleRecoveryJob));
         private const string Count = "count";
 
         /// <summary> 

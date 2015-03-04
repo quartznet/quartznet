@@ -19,7 +19,7 @@
 
 using System;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example3
 {
@@ -31,7 +31,7 @@ namespace Quartz.Examples.Example3
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob : IJob
 	{
-		private static readonly ILog log = LogManager.GetLogger(typeof(SimpleJob));
+		private static readonly ILog log = LogProvider.GetLogger(typeof(SimpleJob));
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a
