@@ -21,7 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Core;
 using Quartz.Simpl;
@@ -115,7 +115,7 @@ namespace Quartz.Impl
         /// </summary>
 		protected DirectSchedulerFactory()
 		{
-		    log = LogManager.GetLogger(GetType());
+		    log = LogProvider.GetLogger(GetType());
 		}
 
 		/// <summary>

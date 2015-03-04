@@ -25,7 +25,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Text;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using System.Linq;
 
@@ -39,7 +39,7 @@ namespace Quartz.Job
     /// <author>Marko Lahma (.NET)</author>
     public class SendMailJob : IJob
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (SendMailJob));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (SendMailJob));
 
         /// <summary> The host name of the smtp server. REQUIRED.</summary>
         public const string PropertySmtpHost = "smtp_host";

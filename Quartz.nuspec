@@ -10,7 +10,6 @@
     <projectUrl>http://www.quartz-scheduler.net/</projectUrl>
     <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
     <dependencies>
-      <dependency id="Common.Logging" version="3.0.0" />
     </dependencies>
   </metadata>
   <files>

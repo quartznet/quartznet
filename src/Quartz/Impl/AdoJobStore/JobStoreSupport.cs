@@ -28,7 +28,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
@@ -86,7 +86,7 @@ namespace Quartz.Impl.AdoJobStore
             ClusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
             MaxMisfiresToHandleAtATime = 20;
             DbRetryInterval = TimeSpan.FromSeconds(15);
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
             delegateType = typeof(StdAdoDelegate);
         }
 
@@ -625,7 +625,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception sqle)
             {
-                Log.Warn("Database connection Shutdown unsuccessful.", sqle);
+                Log.WarnException("Database connection Shutdown unsuccessful.", sqle);
             }
         }
 
@@ -650,7 +650,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (LockException le)
                 {
-                    Log.Error("Error returning lock: " + le.Message, le);
+                    Log.ErrorException("Error returning lock: " + le.Message, le);
                 }
             }
         }
@@ -2491,12 +2491,12 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             try
                             {
-                                Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
+                                Log.ErrorException("Error retrieving job, setting trigger state to ERROR.", jpe);
                                 Delegate.UpdateTriggerState(conn, triggerKey, StateError);
                             }
                             catch (Exception ex)
                             {
-                                Log.Error("Unable to set trigger state to ERROR.", ex);
+                                Log.ErrorException("Unable to set trigger state to ERROR.", ex);
                             }
                             continue;
                         }
@@ -2667,12 +2667,12 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    Log.Error("Error retrieving job, setting trigger state to ERROR.", jpe);
+                    Log.ErrorException("Error retrieving job, setting trigger state to ERROR.", jpe);
                     Delegate.UpdateTriggerState(conn, trigger.Key, StateError);
                 }
                 catch (Exception sqle)
                 {
-                    Log.Error("Unable to set trigger state to ERROR.", sqle);
+                    Log.ErrorException("Unable to set trigger state to ERROR.", sqle);
                 }
                 throw;
             }
@@ -3322,7 +3322,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    Log.Error(
+                    Log.ErrorException(
                         "Unexpected exception closing Connection." +
                         "  This is often due to a Connection being returned after or during shutdown.", e);
                 }
@@ -3355,7 +3355,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    Log.Error("Couldn't rollback ADO.NET connection. " + e.Message, e);
+                    Log.ErrorException("Couldn't rollback ADO.NET connection. " + e.Message, e);
                 }
             }
         }
@@ -3450,14 +3450,14 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (JobPersistenceException jpe)
                 {
-                    if (retry % this.RetryableActionErrorLogThreshold == 0)
+                    if (retry % RetryableActionErrorLogThreshold == 0)
                     {
                         schedSignaler.NotifySchedulerListenersError("An error occurred while " + txCallback, jpe);
                     }
                 }
                 catch (Exception e)
                 {
-                    Log.Error("retryExecuteInNonManagedTXLock: RuntimeException " + e.Message, e);
+                    Log.ErrorException("retryExecuteInNonManagedTXLock: RuntimeException " + e.Message, e);
                 }
                 try
                 {
@@ -3628,7 +3628,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (numFails % this.jobStoreSupport.RetryableActionErrorLogThreshold == 0)
                     {
-                        jobStoreSupport.Log.Error("ClusterManager: Error managing cluster: " + e.Message, e);
+                        jobStoreSupport.Log.ErrorException("ClusterManager: Error managing cluster: " + e.Message, e);
                     }
                     numFails++;
                 }
@@ -3716,7 +3716,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (numFails % this.jobStoreSupport.RetryableActionErrorLogThreshold == 0)
                     {
-                        jobStoreSupport.Log.Error(
+                        jobStoreSupport.Log.ErrorException(
                             "MisfireHandler: Error handling misfires: "
                             + e.Message, e);
                     }

@@ -25,7 +25,7 @@ using System.Data;
 using System.Data.Common;
 using System.Runtime.Serialization;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using NUnit.Framework;
 
@@ -46,7 +46,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         public void TestSerializeJobData()
         {
             var args = new DelegateInitializationArgs();
-            args.Logger = LogManager.GetLogger(GetType());
+            args.Logger = LogProvider.GetLogger(GetType());
             args.TablePrefix = "QRTZ_";
             args.InstanceName = "TESTSCHED";
             args.InstanceId = "INSTANCE";
@@ -113,7 +113,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                                                  TypeLoadHelper = new SimpleTypeLoadHelper(),
                                                  UseProperties = false,
                                                  InitString = "",
-                                                 Logger = LogManager.GetLogger(GetType()),
+                                                 Logger = LogProvider.GetLogger(GetType()),
                                                  DbProvider = dbProvider
                                              };
             adoDelegate.Initialize(delegateInitializationArgs);
@@ -162,7 +162,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                                                  TypeLoadHelper = new SimpleTypeLoadHelper(),
                                                  UseProperties = false,
                                                  InitString = "",
-                                                 Logger = LogManager.GetLogger(GetType()),
+                                                 Logger = LogProvider.GetLogger(GetType()),
                                                  DbProvider = dbProvider
                                              };
             adoDelegate.Initialize(delegateInitializationArgs);
@@ -218,7 +218,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 TypeLoadHelper = new SimpleTypeLoadHelper(),
                 UseProperties = false,
                 InitString = "",
-                Logger = LogManager.GetLogger(GetType()),
+                Logger = LogProvider.GetLogger(GetType()),
                 DbProvider = dbProvider
             };
             adoDelegate.Initialize(delegateInitializationArgs);
@@ -248,7 +248,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 TypeLoadHelper = new SimpleTypeLoadHelper(),
                 UseProperties = false,
                 InitString = "triggerPersistenceDelegateClasses=" + typeof(TestTriggerPersistenceDelegate).AssemblyQualifiedName + ";" + typeof(TestTriggerPersistenceDelegate).AssemblyQualifiedName,
-                Logger = LogManager.GetLogger(GetType()),
+                Logger = LogProvider.GetLogger(GetType()),
                 DbProvider = MockRepository.GenerateMock<IDbProvider>()
             };
             adoDelegate.Initialize(delegateInitializationArgs);

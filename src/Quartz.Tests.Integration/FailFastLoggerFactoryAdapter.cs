@@ -1,23 +1,27 @@
 using System;
 using System.Collections.Generic;
 
-using Common.Logging;
-using Common.Logging.Factory;
+using Quartz.Logging;
 
 namespace Quartz.Tests.Integration
 {
-    internal class FailFastLoggerFactoryAdapter : ILoggerFactoryAdapter
+    internal class FailFastLoggerFactoryAdapter : ILogProvider
     {
         private static readonly List<string> errors = new List<string>();
-
-        public ILog GetLogger(Type type)
-        {
-            return new FailFastLogger(this);
-        }
 
         public ILog GetLogger(string name)
         {
             return new FailFastLogger(this);
+        }
+
+        public IDisposable OpenNestedContext(string message)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IDisposable OpenMappedContext(string key, string value)
+        {
+            throw new NotImplementedException();
         }
 
         private void ReportError(string error)
@@ -30,7 +34,7 @@ namespace Quartz.Tests.Integration
             get { return errors; }
         }
 
-        private class FailFastLogger : AbstractLogger
+        private class FailFastLogger : ILog
         {
             private readonly FailFastLoggerFactoryAdapter parent;
 
@@ -39,39 +43,14 @@ namespace Quartz.Tests.Integration
                 this.parent = parent;
             }
 
-            protected override void WriteInternal(LogLevel level, object message, Exception exception)
+            public bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception = null, params object[] formatParameters)
             {
-                parent.ReportError("" + message);
-            }
+                if (logLevel == LogLevel.Error || logLevel == LogLevel.Fatal)
+                {
+                    parent.ReportError(messageFunc());
+                }
 
-            public override bool IsTraceEnabled
-            {
-                get { return false; }
-            }
-
-            public override bool IsDebugEnabled
-            {
-                get { return false; }
-            }
-
-            public override bool IsErrorEnabled
-            {
-                get { return true; }
-            }
-
-            public override bool IsFatalEnabled
-            {
-                get { return true; }
-            }
-
-            public override bool IsInfoEnabled
-            {
-                get { return false; }
-            }
-
-            public override bool IsWarnEnabled
-            {
-                get { return true; }
+                return true;
             }
         }
     }

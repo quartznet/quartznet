@@ -1,6 +1,5 @@
 using System;
-
-using Common.Logging;
+using log4net;
 using Quartz.Impl;
 using Topshelf;
 

@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Listener
 {
@@ -37,7 +37,7 @@ namespace Quartz.Listener
 
         protected SchedulerListenerSupport()
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>

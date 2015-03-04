@@ -17,7 +17,9 @@
  */
 #endregion
 
-using Common.Logging;
+using System;
+
+using Quartz.Logging;
 
 using NUnit.Framework;
 
@@ -49,7 +51,7 @@ namespace Quartz.Tests.Unit.Plugin.History
         public void TestTriggerFiredMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
 
             ITrigger t = TriggerBuilder.Create()
                                         .WithSchedule(SimpleScheduleBuilder.Create())
@@ -64,7 +66,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.TriggerFired(t, ctx);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
+            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
         }
 
 
@@ -72,7 +74,7 @@ namespace Quartz.Tests.Unit.Plugin.History
         public void TestTriggerMisfiredMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
             IOperableTrigger t = (IOperableTrigger) TriggerBuilder.Create()
                                                         .WithSchedule(SimpleScheduleBuilder.Create())
                                                         .Build();
@@ -83,14 +85,14 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.TriggerMisfired(t);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
+            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
         }
 
         [Test]
         public void TestTriggerCompleteMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
 
             ITrigger t = TriggerBuilder.Create()
                                         .WithSchedule(SimpleScheduleBuilder.Create())
@@ -105,8 +107,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
-        }
-        
+            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
+        }        
     }
 }

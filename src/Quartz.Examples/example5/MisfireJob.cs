@@ -19,7 +19,7 @@
 
 using System;
 using System.Threading;
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example5
 {
@@ -34,7 +34,7 @@ namespace Quartz.Examples.Example5
     public class MisfireJob : IJob
 	{
 		// Logging
-		private static readonly ILog log = LogManager.GetLogger(typeof(MisfireJob));
+		private static readonly ILog log = LogProvider.GetLogger(typeof(MisfireJob));
 		
 		// Constants
 		public const string NumExecutions = "NumExecutions";

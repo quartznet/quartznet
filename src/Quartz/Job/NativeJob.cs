@@ -22,7 +22,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Job
 {
@@ -103,7 +103,7 @@ namespace Quartz.Job
         /// </summary>
 	    public NativeJob()
 	    {
-            log = LogManager.GetLogger(typeof(NativeJob));
+            log = LogProvider.GetLogger(typeof(NativeJob));
 	    }
 
 		/// <summary>
@@ -290,7 +290,7 @@ namespace Quartz.Job
 			    }
 				catch (IOException ioe)
 				{
-					enclosingInstance.Log.Error(string.Format(CultureInfo.InvariantCulture, "Error consuming {0} stream of spawned process.", type), ioe);
+                    enclosingInstance.Log.ErrorException(string.Format(CultureInfo.InvariantCulture, "Error consuming {0} stream of spawned process.", type), ioe);
 				}
 			}
 		}

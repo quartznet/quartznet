@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices.ComTypes;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using NUnit.Framework;
 
@@ -26,7 +28,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         private bool clearJobs = true;
         private bool scheduleJobs = true;
         private bool clustered = true;
-        private ILoggerFactoryAdapter oldAdapter;
+        private ILogProvider oldProvider;
 
         private const string KeyResetEvent = "ResetEvent";
 
@@ -45,15 +47,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         public void FixtureSetUp()
         {
             // set Adapter to report problems
-            oldAdapter = LogManager.Adapter;
-            LogManager.Adapter = new FailFastLoggerFactoryAdapter();
+            oldProvider = (ILogProvider) typeof(LogProvider).GetField("_currentLogProvider", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            LogProvider.SetCurrentLogProvider(new FailFastLoggerFactoryAdapter());
         }
 
         [TestFixtureTearDown]
         public void FixtureTearDown()
         {
             // default back to old
-            LogManager.Adapter = oldAdapter;
+            LogProvider.SetCurrentLogProvider(oldProvider);
         }
 
         [Test]

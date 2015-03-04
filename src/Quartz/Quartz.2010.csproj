@@ -105,6 +105,7 @@
       <HintPath>..\..\packages\Common.Logging.Core.3.3.1\lib\net40\Common.Logging.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System">
       <Name>System</Name>
     </Reference>
@@ -125,6 +126,7 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="App_Packages\LibLog.3.1\LibLog.cs" />
     <Compile Include="CalendarIntervalScheduleBuilder.cs" />
     <Compile Include="Collection\ReadOnlySet.cs" />
     <Compile Include="Impl\AdoJobStore\FirebirdDelegate.cs" />

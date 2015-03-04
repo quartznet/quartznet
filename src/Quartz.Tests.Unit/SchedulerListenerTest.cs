@@ -1,7 +1,7 @@
 ﻿using System.Collections.Specialized;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using NUnit.Framework;
 
@@ -17,7 +17,7 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class SchedulerListenerTest
     {
-        private static readonly ILog logger = LogManager.GetLogger<SchedulerListenerTest>();
+        private static readonly ILog logger = LogProvider.GetLogger(typeof(SchedulerListenerTest));
         private static int jobExecutionCount;
 
         public class Qtz205Job : IJob

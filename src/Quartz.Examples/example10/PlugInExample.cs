@@ -23,7 +23,7 @@ using System;
 using System.Collections.Specialized;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl;
 
@@ -43,7 +43,7 @@ namespace Quartz.Examples.Example10
 
         public virtual void Run()
         {
-            ILog log = LogManager.GetLogger(typeof (PlugInExample));
+            ILog log = LogProvider.GetLogger(typeof (PlugInExample));
 
             // our properties that enable XML configuration plugin
             // and makes it watch for changes every two minutes (120 seconds)

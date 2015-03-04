@@ -23,7 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 using Quartz.Collection;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
@@ -62,7 +62,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="dbProvider">The db provider.</param>
         protected DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
             this.schedName = schedName;
             this.tablePrefix = tablePrefix;
             SQL = defaultSQL;
@@ -122,7 +122,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>true if the lock was obtained.</returns>
         public bool ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
         {
-            if (Log.IsDebugEnabled)
+            if (log.IsDebugEnabled())
             {
                 Log.DebugFormat("Lock '{0}' is desired by: {1}", lockName, Thread.CurrentThread.Name);
             }
@@ -130,7 +130,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 ExecuteSQL(conn, lockName, expandedSQL, expandedInsertSQL);
 
-                if (Log.IsDebugEnabled)
+                if (log.IsDebugEnabled())
                 {
                     Log.DebugFormat("Lock '{0}' given to: {1}", lockName, Thread.CurrentThread.Name);
                 }
@@ -138,7 +138,7 @@ namespace Quartz.Impl.AdoJobStore
                 //getThreadLocksObtainer().put(lockName, new
                 // Exception("Obtainer..."));
             }
-            else if (log.IsDebugEnabled)
+            else if (log.IsDebugEnabled())
             {
                 Log.DebugFormat("Lock '{0}' Is already owned by: {1}", lockName, Thread.CurrentThread.Name);
             }
@@ -156,14 +156,14 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (IsLockOwner(lockName))
             {
-                if (Log.IsDebugEnabled)
+                if (log.IsDebugEnabled())
                 {
                     Log.DebugFormat("Lock '{0}' returned by: {1}", lockName, Thread.CurrentThread.Name);
                 }
                 ThreadLocks.Remove(lockName);
                 //getThreadLocksObtainer().remove(lockName);
             }
-            else if (Log.IsDebugEnabled)
+            else if (log.IsDebugEnabled())
             {
                 Log.WarnFormat("Lock '{0}' attempt to return by: {1} -- but not owner!",
                     new Exception("stack-trace of wrongful returner"),

@@ -19,7 +19,7 @@
 
 using System;
 using System.Threading;
-using Common.Logging;
+using Quartz.Logging;
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example11
@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example11
 
 		public virtual void Run()
 		{
-			ILog log = LogManager.GetLogger(typeof (LoadExample));
+			ILog log = LogProvider.GetLogger(typeof (LoadExample));
 
 			// First we must get a reference to a scheduler
 			ISchedulerFactory sf = new StdSchedulerFactory();

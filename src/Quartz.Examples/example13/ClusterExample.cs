@@ -24,7 +24,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl;
 
@@ -72,7 +72,7 @@ namespace Quartz.Examples.Example13
     /// <author>Marko Lahma (.NET)</author>
     public class ClusterExample : IExample
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (ClusterExample));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (ClusterExample));
 
         public virtual void Run(bool inClearJobs, bool inScheduleJobs)
         {

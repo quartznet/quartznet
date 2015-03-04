@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Common.Logging;
+using Quartz.Logging;
 
 using NUnit.Framework;
 
@@ -38,7 +38,7 @@ namespace Quartz.Tests.Integration
         /// </summary>
         protected IntegrationTest()
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>

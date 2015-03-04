@@ -21,7 +21,7 @@
 
 using System;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example9
 {
@@ -29,7 +29,7 @@ namespace Quartz.Examples.Example9
     /// <author>Marko Lahma (.NET)</author>
     public class Job1Listener : IJobListener
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (Job1Listener));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (Job1Listener));
 
         public virtual string Name
         {

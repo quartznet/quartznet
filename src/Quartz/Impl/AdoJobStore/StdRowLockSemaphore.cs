@@ -25,6 +25,7 @@ using System.Globalization;
 using System.Threading;
 
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -86,7 +87,7 @@ namespace Quartz.Impl.AdoJobStore
                         bool found;
                         using (IDataReader rs = cmd.ExecuteReader())
                         {
-                            if (Log.IsDebugEnabled)
+                            if (Log.IsDebugEnabled())
                             {
                                 Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, Thread.CurrentThread.Name);
                             }
@@ -96,7 +97,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (!found)
                         {
-                            if (Log.IsDebugEnabled)
+                            if (Log.IsDebugEnabled())
                             {
                                 Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, Thread.CurrentThread.Name);
                             }
@@ -140,7 +141,7 @@ namespace Quartz.Impl.AdoJobStore
                         initCause = sqle;
                     }
 
-                    if (Log.IsDebugEnabled)
+                    if (Log.IsDebugEnabled())
                     {
                         Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, Thread.CurrentThread.Name, (count < 3 ? " - will try again." : ""));
                     }

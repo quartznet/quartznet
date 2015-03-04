@@ -19,6 +19,7 @@
 
 using System;
 
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore

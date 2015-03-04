@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Spi;
 
@@ -44,7 +44,7 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleThreadPool : IThreadPool
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof(SimpleThreadPool));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(SimpleThreadPool));
         private const int DefaultThreadPoolSize = 10;
 
         private readonly object nextRunnableLock = new object();
@@ -222,7 +222,7 @@ namespace Quartz.Simpl
                             LinkedListNode<WorkerThread> wt = busyWorkers.First;
                             try
                             {
-                                log.DebugFormat(CultureInfo.InvariantCulture, "Waiting for thread {0} to shut down", wt.Value.Name);
+                                log.DebugFormat("Waiting for thread {0} to shut down", wt.Value.Name);
 
                                 // note: with waiting infinite time the
                                 // application may appear to 'hang'.
@@ -489,7 +489,7 @@ namespace Quartz.Simpl
                     }
                     catch (Exception exceptionInRunnable)
                     {
-                        log.Error("Error while executing the Runnable: ", exceptionInRunnable);
+                        log.ErrorException("Error while executing the Runnable: " + exceptionInRunnable.Message, exceptionInRunnable);
                     }
                     finally
                     {

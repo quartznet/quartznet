@@ -21,7 +21,7 @@
 
 using System.Collections.Specialized;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl;
 
@@ -41,7 +41,7 @@ namespace Quartz.Examples.Example12
     {
         public virtual void Run()
         {
-            ILog log = LogManager.GetLogger(typeof (RemoteClientExample));
+            ILog log = LogProvider.GetLogger(typeof (RemoteClientExample));
 
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.scheduler.instanceName"] = "RemoteClient";

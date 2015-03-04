@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Spi;
 
@@ -48,7 +48,7 @@ namespace Quartz.Listener
         /// </summary>
         protected JobListenerSupport()
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>

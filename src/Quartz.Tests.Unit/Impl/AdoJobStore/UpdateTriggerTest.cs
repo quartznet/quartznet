@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using Common.Logging;
+using Quartz.Logging;
 using NUnit.Framework;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -132,7 +132,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             metaData.Stub(m => m.GetParameterName(Arg<string>.Is.Anything)).Do(paramFunc);
 
             DelegateInitializationArgs args = new DelegateInitializationArgs();
-            args.Logger = LogManager.GetLogger(GetType());
+            args.Logger = LogProvider.GetLogger(GetType());
             args.TablePrefix = "QRTZ_";
             args.InstanceName = "TESTSCHED";
             args.InstanceId = "INSTANCE";

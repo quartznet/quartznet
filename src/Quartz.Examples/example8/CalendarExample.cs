@@ -22,7 +22,7 @@
 using System;
 using System.Threading;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
@@ -44,7 +44,7 @@ namespace Quartz.Examples.Example8
 
         public virtual void Run()
         {
-            ILog log = LogManager.GetLogger(typeof (CalendarExample));
+            ILog log = LogProvider.GetLogger(typeof (CalendarExample));
 
             log.Info("------- Initializing ----------------------");
 

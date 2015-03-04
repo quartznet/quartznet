@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -40,7 +40,7 @@ namespace Quartz.Util
     public class DBConnectionManager : IDbConnectionManager
 	{        
         private static readonly DBConnectionManager instance = new DBConnectionManager();
-	    private static readonly ILog log = LogManager.GetLogger(typeof (DBConnectionManager));
+	    private static readonly ILog log = LogProvider.GetLogger(typeof (DBConnectionManager));
 
         private readonly Dictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
 

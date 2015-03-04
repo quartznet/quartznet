@@ -24,7 +24,7 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
@@ -95,7 +95,7 @@ namespace Quartz.Xml
         {
             OverWriteExistingData = true;
             IgnoreDuplicates = false;
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
             this.typeLoadHelper = typeLoadHelper;
         }
 
@@ -176,7 +176,7 @@ namespace Quartz.Xml
             // resolve file name first
             fileName = FileUtil.ResolveFile(fileName);
 
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Parsing XML file: {0} with systemId: {1}", fileName, systemId);
+            Log.InfoFormat("Parsing XML file: {0} with systemId: {1}", fileName, systemId);
 
             using (StreamReader sr = new StreamReader(fileName))
             {
@@ -192,7 +192,7 @@ namespace Quartz.Xml
         /// <param name="systemId">The system id.</param>
         public virtual void ProcessStream(Stream stream, string systemId)
         {
-            Log.InfoFormat(CultureInfo.InvariantCulture, "Parsing XML from stream with systemId: {0}", systemId);
+            Log.InfoFormat("Parsing XML from stream with systemId: {0}", systemId);
             using (StreamReader sr = new StreamReader(stream))
             {
                 ProcessInternal(sr.ReadToEnd());
@@ -291,7 +291,7 @@ namespace Quartz.Xml
                 }
             }
 
-            if (log.IsDebugEnabled)
+            if (log.IsDebugEnabled())
             {
                 log.Debug("Found " + jobGroupsToDelete.Count + " delete job group commands.");
                 log.Debug("Found " + triggerGroupsToDelete.Count + " delete trigger group commands.");
@@ -384,7 +384,7 @@ namespace Quartz.Xml
                     }
                 }
 
-                if (log.IsDebugEnabled)
+                if (log.IsDebugEnabled())
                 {
                     log.Debug("Parsed job definition: " + jobDetail);
                 }
@@ -517,7 +517,7 @@ namespace Quartz.Xml
                     }
                 }
 
-                if (log.IsDebugEnabled)
+                if (log.IsDebugEnabled())
                 {
                     log.Debug("Parsed trigger definition: " + trigger);
                 }
@@ -605,7 +605,7 @@ namespace Quartz.Xml
             }
             catch (Exception ex)
             {
-                log.Warn("Unable to validate XML with schema: " + ex.Message, ex);
+                log.WarnException("Unable to validate XML with schema: " + ex.Message, ex);
             }
         }
 
@@ -815,7 +815,7 @@ namespace Quartz.Xml
                         {
                             if (OverWriteExistingData)
                             {
-                                if (log.IsDebugEnabled)
+                                if (log.IsDebugEnabled())
                                 {
                                     log.DebugFormat("Rescheduling job: {0} with updated trigger: {1}", trigger.JobKey, trigger.Key);
                                 }
@@ -839,7 +839,7 @@ namespace Quartz.Xml
                         }
                         else
                         {
-                            if (log.IsDebugEnabled)
+                            if (log.IsDebugEnabled())
                             {
                                 log.DebugFormat("Scheduling job: {0} with trigger: {1}", trigger.JobKey, trigger.Key);
                             }
@@ -858,7 +858,7 @@ namespace Quartz.Xml
                             }
                             catch (ObjectAlreadyExistsException)
                             {
-                                if (log.IsDebugEnabled)
+                                if (log.IsDebugEnabled())
                                 {
                                     log.DebugFormat("Adding trigger: {0} for job: {1} failed because the trigger already existed.  " 
                                         + "This is likely due to a race condition between multiple instances " 
@@ -880,7 +880,7 @@ namespace Quartz.Xml
                 {
                     if (OverWriteExistingData)
                     {
-                        if (log.IsDebugEnabled)
+                        if (log.IsDebugEnabled())
                         {
                             log.DebugFormat("Rescheduling job: " + trigger.JobKey + " with updated trigger: " + trigger.Key);
                         }
@@ -904,7 +904,7 @@ namespace Quartz.Xml
                 }
                 else
                 {
-                    if (log.IsDebugEnabled)
+                    if (log.IsDebugEnabled())
                     {
                         log.DebugFormat("Scheduling job: {0} with trigger: {1}", trigger.JobKey, trigger.Key);
                     }
@@ -915,7 +915,7 @@ namespace Quartz.Xml
                     }
                     catch (ObjectAlreadyExistsException)
                     {
-                        if (log.IsDebugEnabled)
+                        if (log.IsDebugEnabled())
                         {
                             log.Debug(
                                 "Adding trigger: " + trigger.Key + " for job: " + trigger.JobKey +

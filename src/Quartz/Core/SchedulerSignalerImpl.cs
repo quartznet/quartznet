@@ -19,7 +19,7 @@
 
 using System;
 
-using Common.Logging;
+using Quartz.Logging;
 
 using Quartz.Spi;
 
@@ -33,7 +33,7 @@ namespace Quartz.Core
 	/// <author>Marko Lahma (.NET)</author>
 	public class SchedulerSignalerImpl : ISchedulerSignaler
 	{
-		private readonly ILog log = LogManager.GetLogger(typeof (SchedulerSignalerImpl));
+		private readonly ILog log = LogProvider.GetLogger(typeof (SchedulerSignalerImpl));
         protected readonly QuartzScheduler sched;
         protected readonly QuartzSchedulerThread schedThread;
 
@@ -58,7 +58,7 @@ namespace Quartz.Core
 			}
 			catch (SchedulerException se)
 			{
-				log.Error("Error notifying listeners of trigger misfire.", se);
+                log.ErrorException("Error notifying listeners of trigger misfire.", se);
 				sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se);
 			}
 		}
