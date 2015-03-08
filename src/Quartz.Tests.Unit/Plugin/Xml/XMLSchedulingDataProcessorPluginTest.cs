@@ -6,7 +6,7 @@ using NUnit.Framework;
 using Quartz.Plugin.Xml;
 using Quartz.Util;
 
-using Rhino.Mocks;
+using FakeItEasy;
 
 namespace Quartz.Tests.Unit.Plugin.Xml
 {
@@ -23,7 +23,7 @@ namespace Quartz.Tests.Unit.Plugin.Xml
 
             var dataProcessor = new XMLSchedulingDataProcessorPlugin();
             dataProcessor.FileNames = fp1 + ", " + fp2;
-            var mockScheduler = MockRepository.GenerateMock<IScheduler>();
+            var mockScheduler = A.Fake<IScheduler>();
 
             dataProcessor.Initialize("something", mockScheduler);
 
@@ -50,7 +50,7 @@ namespace Quartz.Tests.Unit.Plugin.Xml
 
             var dataProcessor = new XMLSchedulingDataProcessorPlugin();
             dataProcessor.FileNames = configuredFileName1 + ", " + configuredFileName2;
-            var mockScheduler = MockRepository.GenerateMock<IScheduler>();
+            var mockScheduler = A.Fake<IScheduler>();
 
             dataProcessor.Initialize("something", mockScheduler);
 

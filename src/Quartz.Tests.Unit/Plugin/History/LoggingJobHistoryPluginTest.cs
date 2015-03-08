@@ -29,7 +29,7 @@ using Quartz.Job;
 using Quartz.Plugin.History;
 using Quartz.Spi;
 
-using Rhino.Mocks;
+using FakeItEasy;
 
 namespace Quartz.Tests.Unit.Plugin.History
 {
@@ -43,7 +43,7 @@ namespace Quartz.Tests.Unit.Plugin.History
         [SetUp]
         public void SetUp()
         {
-            mockLog = MockRepository.GenerateMock<ILog>();           
+            mockLog = A.Fake<ILog>();           
             plugin = new LoggingJobHistoryPlugin();
             plugin.Log = mockLog;
         }
@@ -52,53 +52,53 @@ namespace Quartz.Tests.Unit.Plugin.History
         public void TestJobFailedMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsWarnEnabled()).Return(true);
+            A.CallTo(() => mockLog.IsWarnEnabled()).Returns(true);
 
             // act
             JobExecutionException ex = new JobExecutionException("test error");
             plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
-            
+
             // assert
-            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Warn), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.NotNull, Arg<object[]>.Is.NotNull));
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Warn), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.Not.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
         public void TestJobSuccessMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
+            A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
 
             // act
             plugin.JobWasExecuted(CreateJobExecutionContext(), null);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
         public void TestJobToBeFiredMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
+            A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
 
             // act
             plugin.JobToBeExecuted(CreateJobExecutionContext());
-        
+
             // assert
-            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
         public void TestJobWasVetoedMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled()).Return(true);
+            A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
 
             // act
             plugin.JobExecutionVetoed(CreateJobExecutionContext());
 
             // assert
-            mockLog.AssertWasCalled(log => log.Log(Arg<LogLevel>.Is.Equal(LogLevel.Info), Arg<Func<string>>.Is.NotNull, Arg<Exception>.Is.Null, Arg<object[]>.Is.NotNull));
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         protected virtual IJobExecutionContext CreateJobExecutionContext()

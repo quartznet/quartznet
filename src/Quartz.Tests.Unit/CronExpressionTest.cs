@@ -23,8 +23,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-using C5;
-
 using NUnit.Framework;
 
 using Quartz.Util;

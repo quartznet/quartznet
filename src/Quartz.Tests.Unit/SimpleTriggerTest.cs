@@ -18,14 +18,14 @@
 #endregion
 
 using System;
+
+using FakeItEasy;
+
 using NUnit.Framework;
 
-using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
-
-using Rhino.Mocks;
 
 namespace Quartz.Tests.Unit
 {
@@ -239,7 +239,7 @@ namespace Quartz.Tests.Unit
                 .EndAt(DateTime.UtcNow.AddDays(-1))
                 .Build();
 
-            var instruction = trigger.ExecutionComplete(MockRepository.GenerateMock<IJobExecutionContext>(), new JobExecutionException());
+            var instruction = trigger.ExecutionComplete(A.Fake<IJobExecutionContext>(), new JobExecutionException());
             Assert.That(instruction, Is.EqualTo(SchedulerInstruction.DeleteTrigger));
         }
 	}
