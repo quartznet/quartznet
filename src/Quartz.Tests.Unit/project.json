@@ -1,0 +1,19 @@
+{
+	"version": "1.0.0-*",
+	"dependencies": {
+		"Quartz": "1.0.0-*",
+		"NUnit": "2.6.4",
+		"FakeItEasy": "1.25.2",
+		"odp.net.managed": "121.1.2"
+	},
+
+	"frameworks": {
+		"net45": {
+			"dependencies": {
+			},
+			"frameworkAssemblies": {
+				"System.Transactions": "4.0.0.0"
+			}
+		}
+	}
+}

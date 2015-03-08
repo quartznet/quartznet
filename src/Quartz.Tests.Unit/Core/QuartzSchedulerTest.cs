@@ -27,7 +27,7 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
 
-using Rhino.Mocks;
+using FakeItEasy;
 
 namespace Quartz.Tests.Unit.Core
 {
@@ -111,7 +111,7 @@ namespace Quartz.Tests.Unit.Core
             JobDetailImpl jobDetail = new JobDetailImpl(JobName, JobGroup, typeof(NoOpJob));
             SimpleTriggerImpl jobTrigger = new SimpleTriggerImpl(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
 
-            ISchedulerListener listener = MockRepository.GenerateMock<ISchedulerListener>();
+            ISchedulerListener listener = A.Fake<ISchedulerListener>();
 
             scheduler.ScheduleJob(jobDetail, jobTrigger);
             // add listener after scheduled
@@ -122,8 +122,8 @@ namespace Quartz.Tests.Unit.Core
 
             // assert
             // expect unschedule and schedule
-            listener.AssertWasCalled(l => l.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup)));
-            listener.AssertWasCalled(l => l.JobScheduled(jobTrigger));
+            A.CallTo(() => listener.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup))).MustHaveHappened();
+            A.CallTo(() => listener.JobScheduled(jobTrigger)).MustHaveHappened();
 
         }
     }

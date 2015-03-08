@@ -69,7 +69,7 @@ namespace Quartz.Simpl
 
         protected virtual IPHostEntry GetHostAddress()
         {
-            return Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString());
+            return Dns.GetHostEntry(Dns.GetHostEntry(Dns.GetHostName()).AddressList[0].ToString());
         }
     }
 }

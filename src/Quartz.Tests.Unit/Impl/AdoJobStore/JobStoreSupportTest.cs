@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 
+using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
-
-using Rhino.Mocks;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
@@ -20,7 +20,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         public void SetUp()
         {
             jobStoreSupport = new TestJobStoreSupport();
-            driverDelegate = MockRepository.GenerateMock<IDriverDelegate>();
+            driverDelegate = A.Fake<IDriverDelegate>();
             jobStoreSupport.DirectDelegate = driverDelegate;
         }
 
@@ -29,12 +29,12 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         {
             jobStoreSupport.RecoverMisfiredJobs(null, false);
 
-            driverDelegate.AssertWasCalled(x => x.HasMisfiredTriggersInState(
-                Arg<ConnectionAndTransactionHolder>.Is.Anything,
-                Arg<string>.Is.Equal(AdoConstants.StateWaiting),
-                Arg<DateTimeOffset>.Is.Anything,
-                Arg<int>.Is.Anything,
-                Arg<IList<TriggerKey>>.Is.Anything));
+            A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.That.IsEqualTo(AdoConstants.StateWaiting),
+                A<DateTimeOffset>.Ignored,
+                A<int>.Ignored,
+                A<IList<TriggerKey>>.Ignored)).MustHaveHappened();
         }
 
         public class TestJobStoreSupport : JobStoreSupport

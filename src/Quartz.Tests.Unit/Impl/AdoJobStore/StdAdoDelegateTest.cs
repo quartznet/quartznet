@@ -25,6 +25,8 @@ using System.Data;
 using System.Data.Common;
 using System.Runtime.Serialization;
 
+using FakeItEasy;
+
 using Quartz.Logging;
 
 using NUnit.Framework;
@@ -33,8 +35,6 @@ using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Simpl;
 using Quartz.Spi;
-
-using Rhino.Mocks;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
@@ -88,20 +88,20 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public void TestSelectBlobTriggerWithNoBlobContent()
         {
-            var dbProvider = MockRepository.GenerateMock<IDbProvider>();
-            var connection = MockRepository.GenerateMock<IDbConnection>();
-            var transaction = MockRepository.GenerateMock<IDbTransaction>();
-            var command = (IDbCommand) MockRepository.GenerateMock<StubCommand>();
+            var dbProvider = A.Fake<IDbProvider>();
+            var connection = A.Fake<IDbConnection>();
+            var transaction = A.Fake<IDbTransaction>();
+            var command = (IDbCommand) A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
-            dbProvider.Stub(x => x.Metadata).Repeat.Any().Return(dbMetadata);
+            A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
-            dbProvider.Stub(x => x.CreateCommand()).Return(command);
+            A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-            var dataReader = MockRepository.GenerateMock<IDataReader>();
-            command.Stub(x => x.ExecuteReader()).Return(dataReader);
-            command.Stub(x => x.Parameters).Repeat.Any().Return(new StubParameterCollection());
-            command.Stub(x => x.CommandText).Return("").Repeat.Any();
-            command.Stub(x => x.CreateParameter()).Repeat.Any().Return(new StubDataParameter());
+            var dataReader = A.Fake<IDataReader>();
+            A.CallTo(() => command.ExecuteReader()).Returns(dataReader);
+            A.CallTo(() => command.Parameters).Returns(new StubParameterCollection());
+            A.CallTo(() => command.CommandText).Returns("");
+            A.CallTo(() => command.CreateParameter()).Returns(new StubDataParameter());
 
             var adoDelegate = new StdAdoDelegate();
 
@@ -121,9 +121,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var conn = new ConnectionAndTransactionHolder(connection, transaction);
 
             // First result set has results, second has none
-            dataReader.Stub(x => x.Read()).Return(true).Repeat.Once();
-            dataReader.Stub(x => x.Read()).Return(false);
-            dataReader.Stub(x => x[AdoConstants.ColumnTriggerType]).Return(AdoConstants.TriggerTypeBlob);
+            A.CallTo(() => dataReader.Read()).Returns(true).Once();
+            A.CallTo(() => dataReader.Read()).Returns(false);
+            A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeBlob);
 
             IOperableTrigger trigger = adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
             Assert.That(trigger, Is.Null);
@@ -132,24 +132,24 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public void TestSelectSimpleTriggerWithExceptionWithExtendedProps()
         {
-            var dbProvider = MockRepository.GenerateMock<IDbProvider>();
-            var connection = MockRepository.GenerateMock<IDbConnection>();
-            var transaction = MockRepository.GenerateMock<IDbTransaction>();
-            var command = (IDbCommand)MockRepository.GenerateMock<StubCommand>();
+            var dbProvider = A.Fake<IDbProvider>();
+            var connection = A.Fake<IDbConnection>();
+            var transaction = A.Fake<IDbTransaction>();
+            var command = (IDbCommand)A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
-            dbProvider.Stub(x => x.Metadata).Repeat.Any().Return(dbMetadata);
+            A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
-            dbProvider.Stub(x => x.CreateCommand()).Return(command);
+            A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-            var dataReader = MockRepository.GenerateMock<IDataReader>();
-            command.Stub(x => x.ExecuteReader()).Return(dataReader);
-            command.Stub(x => x.Parameters).Repeat.Any().Return(new StubParameterCollection());
-            command.Stub(x => x.CommandText).Return("").Repeat.Any();
-            command.Stub(x => x.CreateParameter()).Repeat.Any().Return(new StubDataParameter());
+            var dataReader = A.Fake<IDataReader>();
+            A.CallTo(() => command.ExecuteReader()).Returns(dataReader);
+            A.CallTo(() => command.Parameters).Returns(new StubParameterCollection());
+            A.CallTo(() => command.CommandText).Returns("");
+            A.CallTo(() => command.CreateParameter()).Returns(new StubDataParameter());
 
-            var persistenceDelegate = MockRepository.GenerateMock<ITriggerPersistenceDelegate>();
+            var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
             var exception = new InvalidOperationException();
-            persistenceDelegate.Stub(x => x.LoadExtendedTriggerProperties(Arg<ConnectionAndTransactionHolder>.Is.Anything, Arg<TriggerKey>.Is.Anything)).Throw(exception);
+            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).Throws(exception);
             
 
             StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
@@ -168,8 +168,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             adoDelegate.Initialize(delegateInitializationArgs);
 
             // Mock basic trigger data
-            dataReader.Stub(x => x.Read()).Return(true).Repeat.Any();
-            dataReader.Stub(x => x[AdoConstants.ColumnTriggerType]).Return(AdoConstants.TriggerTypeSimple);
+            A.CallTo(() => dataReader.Read()).Returns(true);
+            A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeSimple);
 
             try
             {
@@ -182,30 +182,30 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 Assert.That(e, Is.SameAs(exception));
             }
             
-            persistenceDelegate.AssertWasCalled(x => x.LoadExtendedTriggerProperties(Arg<ConnectionAndTransactionHolder>.Is.Anything, Arg<TriggerKey>.Is.Anything));
+            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).MustHaveHappened();
         }
 
         [Test]
         public void TestSelectSimpleTriggerWithDeleteBeforeSelectExtendedProps()
         {
-            var dbProvider = MockRepository.GenerateMock<IDbProvider>();
-            var connection = MockRepository.GenerateMock<IDbConnection>();
-            var transaction = MockRepository.GenerateMock<IDbTransaction>();
-            var command = (IDbCommand)MockRepository.GenerateMock<StubCommand>();
+            var dbProvider = A.Fake<IDbProvider>();
+            var connection = A.Fake<IDbConnection>();
+            var transaction = A.Fake<IDbTransaction>();
+            var command = (IDbCommand)A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
-            dbProvider.Stub(x => x.Metadata).Repeat.Any().Return(dbMetadata);
+            A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
-            dbProvider.Stub(x => x.CreateCommand()).Return(command);
+            A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-            var dataReader = MockRepository.GenerateMock<IDataReader>();
-            command.Stub(x => x.ExecuteReader()).Return(dataReader);
-            command.Stub(x => x.Parameters).Repeat.Any().Return(new StubParameterCollection());
-            command.Stub(x => x.CommandText).Return("").Repeat.Any();
-            command.Stub(x => x.CreateParameter()).Repeat.Any().Return(new StubDataParameter());
+            var dataReader = A.Fake<IDataReader>();
+            A.CallTo(() => command.ExecuteReader()).Returns(dataReader);
+            A.CallTo(() => command.Parameters).Returns(new StubParameterCollection());
+            A.CallTo(() => command.CommandText).Returns("");
+            A.CallTo(() => command.CreateParameter()).Returns(new StubDataParameter());
 
-            var persistenceDelegate = MockRepository.GenerateMock<ITriggerPersistenceDelegate>();
+            var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
             var exception = new InvalidOperationException();
-            persistenceDelegate.Stub(x => x.LoadExtendedTriggerProperties(Arg<ConnectionAndTransactionHolder>.Is.Anything, Arg<TriggerKey>.Is.Anything)).Throw(exception);
+            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).Throws(exception);
 
 
             StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
@@ -224,15 +224,15 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             adoDelegate.Initialize(delegateInitializationArgs);
 
             // First result set has results, second has none
-            dataReader.Stub(x => x.Read()).Return(true).Repeat.Once();
-            dataReader.Stub(x => x.Read()).Return(false);
-            dataReader.Stub(x => x[AdoConstants.ColumnTriggerType]).Return(AdoConstants.TriggerTypeSimple);
+            A.CallTo(() => dataReader.Read()).Returns(true).Once();
+            A.CallTo(() => dataReader.Read()).Returns(false);
+            A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeSimple);
 
             var conn = new ConnectionAndTransactionHolder(connection, transaction);
             IOperableTrigger trigger = adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
             Assert.That(trigger, Is.Null);
 
-            persistenceDelegate.AssertWasCalled(x => x.LoadExtendedTriggerProperties(Arg<ConnectionAndTransactionHolder>.Is.Anything, Arg<TriggerKey>.Is.Anything));
+            A.CallTo(()=> persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).MustHaveHappened();
         }
 
         [Test]
@@ -249,7 +249,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 UseProperties = false,
                 InitString = "triggerPersistenceDelegateClasses=" + typeof(TestTriggerPersistenceDelegate).AssemblyQualifiedName + ";" + typeof(TestTriggerPersistenceDelegate).AssemblyQualifiedName,
                 Logger = LogProvider.GetLogger(GetType()),
-                DbProvider = MockRepository.GenerateMock<IDbProvider>()
+                DbProvider = A.Fake<IDbProvider>()
             };
             adoDelegate.Initialize(delegateInitializationArgs);
         }

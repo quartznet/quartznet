@@ -1,11 +1,11 @@
 ﻿using System.Data;
 
+using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Util;
-
-using Rhino.Mocks;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
@@ -19,7 +19,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         public void SetUp()
         {
             jobStore = new TestJobStoreCMT();
-            connectionManager = MockRepository.GenerateMock<IDbConnectionManager>();
+            connectionManager = A.Fake<IDbConnectionManager>();
             jobStore.ConnectionManager = connectionManager;
         }
 
@@ -34,24 +34,24 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public void ShouldNotAutomaticallyOpenConnection()
         {
-            var mock = MockRepository.GenerateMock<IDbConnection>();
-            connectionManager.Stub(x => x.GetConnection(Arg<string>.Is.Anything)).Return(mock);
+            var mock = A.Fake<IDbConnection>();
+            A.CallTo(() => connectionManager.GetConnection(A<string>.Ignored)).Returns(mock);
 
             jobStore.ExecuteGetNonManagedConnection();
 
-            mock.AssertWasNotCalled(x => x.Open());
+            A.CallTo(() => mock.Open()).MustNotHaveHappened();
         }
 
         [Test]
         public void ShouldOpenConnectionIfRequested()
         {
             jobStore.OpenConnection = true;
-            var mock = MockRepository.GenerateMock<IDbConnection>();
-            connectionManager.Stub(x => x.GetConnection(Arg<string>.Is.Anything)).Return(mock);
+            var mock = A.Fake<IDbConnection>();
+            A.CallTo(() => connectionManager.GetConnection(A<string>.Ignored)).Returns(mock);
 
             jobStore.ExecuteGetNonManagedConnection();
 
-            mock.AssertWasCalled(x => x.Open());
+            A.CallTo(() => mock.Open()).MustHaveHappened();
         }
     }
 }

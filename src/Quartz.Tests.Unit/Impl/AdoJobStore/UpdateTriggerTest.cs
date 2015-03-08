@@ -9,7 +9,7 @@ using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;
-using Rhino.Mocks;
+using FakeItEasy;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
@@ -106,13 +106,13 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             cronTriggerImpl.JobKey = new JobKey("JobKey","JobKeyGroup");
             cronTriggerImpl.Priority = 1;
 
-            var dbProvider = MockRepository.GenerateStub<IDbProvider>();
-            var dbCommand = MockRepository.GenerateStub<IDbCommand>();
-            var dataParameterCollection = MockRepository.GenerateStub<IDataParameterCollection>();
-            dbProvider.Stub(d => d.CreateCommand()).Return(dbCommand).Repeat.Any();
+            var dbProvider = A.Fake<IDbProvider>();
+            var dbCommand = A.Fake<IDbCommand>();
+            var dataParameterCollection = A.Fake<IDataParameterCollection>();
+            A.CallTo(() => dbProvider.CreateCommand()).Returns(dbCommand);
             Func<StubDataParameter> dataParam = () => new StubDataParameter();
-            dbProvider.Stub(d => d.CreateParameter()).Do(dataParam);
-            dbCommand.Stub(c => c.CreateParameter()).Do(dataParam);
+            A.CallTo(() => dbProvider.CreateParameter()).ReturnsLazily(dataParam);
+            A.CallTo(() => dbCommand.CreateParameter()).ReturnsLazily(dataParam);
 
             var dataParameterCollectionOutputs = new List<object>();
 
@@ -122,14 +122,14 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                                                           return 1;
                                                       };
 
-            dataParameterCollection.Stub(d => d.Add(Arg<object>.Is.Anything)).Do(dataParameterFunc);
+            A.CallTo(() => dataParameterCollection.Add(A<object>.Ignored)).ReturnsLazily(dataParameterFunc);
 
-            dbCommand.Stub(c => c.Parameters).Return(dataParameterCollection);
-            var metaData = MockRepository.GenerateStub<DbMetadata>();
-            dbProvider.Stub(d => d.Metadata).Return(metaData);
+            A.CallTo(() => dbCommand.Parameters).Returns(dataParameterCollection);
+            var metaData = A.Fake<DbMetadata>();
+            A.CallTo(() => dbProvider.Metadata).Returns(metaData);
             
             Func<string, string> paramFunc = x => x;
-            metaData.Stub(m => m.GetParameterName(Arg<string>.Is.Anything)).Do(paramFunc);
+            A.CallTo(() => metaData.GetParameterName(A<string>.Ignored)).ReturnsLazily(paramFunc);
 
             DelegateInitializationArgs args = new DelegateInitializationArgs();
             args.Logger = LogProvider.GetLogger(GetType());
@@ -144,7 +144,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
             var dbConnection = new StubConnection();
             var conn = new ConnectionAndTransactionHolder(dbConnection, null);
-            var jobDetail = MockRepository.GenerateMock<IJobDetail>();
+            var jobDetail = A.Fake<IJobDetail>();
             var jobDataMap = new JobDataMap();
             jobDataMap.ClearDirtyFlag();
             cronTriggerImpl.JobDataMap = jobDataMap;

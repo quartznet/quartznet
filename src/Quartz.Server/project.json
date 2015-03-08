@@ -1,0 +1,14 @@
+{
+	"version": "1.0.0-*",
+	"dependencies": {
+		"Quartz": "1.0.0-*",
+		"log4net": "2.0.3",
+		"Topshelf": "3.1.4"
+	},
+	"commands": {
+		"Quartz.Server": "run"
+	},
+	"frameworks": {
+		"net45": { }
+	}
+}

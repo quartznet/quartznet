@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 
 namespace Quartz.Collection
 {
@@ -25,7 +24,7 @@ namespace Quartz.Collection
 
         public void Add(T item)
         {
-            throw new ReadOnlyException();
+            throw new InvalidOperationException();
         }
 
         public void UnionWith(IEnumerable<T> other)
@@ -85,7 +84,7 @@ namespace Quartz.Collection
 
         public void Clear()
         {
-            throw new ReadOnlyException();
+            throw new InvalidOperationException();
         }
 
         public bool Contains(T item)
@@ -110,7 +109,7 @@ namespace Quartz.Collection
 
         public bool Remove(T item)
         {
-            throw new ReadOnlyException();
+            throw new InvalidOperationException();
         }
 
         public IEnumerator<T> GetEnumerator()

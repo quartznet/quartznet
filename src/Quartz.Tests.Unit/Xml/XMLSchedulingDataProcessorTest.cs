@@ -36,7 +36,7 @@ using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
 
-using Rhino.Mocks;
+using FakeItEasy;
 
 using Is = NUnit.Framework.Is;
 
@@ -57,7 +57,7 @@ namespace Quartz.Tests.Unit.Xml
         public void SetUp()
         {
             processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
-            mockScheduler = MockRepository.GenerateMock<IScheduler>();
+            mockScheduler = A.Fake<IScheduler>();
             scope = new TransactionScope();
         }
 
@@ -80,7 +80,7 @@ namespace Quartz.Tests.Unit.Xml
 
             processor.ScheduleJobs(mockScheduler);
 
-            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Is.NotNull), options => options.Repeat.Times(5));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull())).MustHaveHappened(Repeated.Exactly.Times(5));
         }
 
         [Test]
@@ -98,8 +98,8 @@ namespace Quartz.Tests.Unit.Xml
         {
             Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
             processor.ProcessStreamAndScheduleJobs(s, mockScheduler);
-            mockScheduler.AssertWasCalled(x => x.AddJob(Arg<IJobDetail>.Is.NotNull, Arg<bool>.Is.Anything, Arg<bool>.Is.Equal(true)), constraints => constraints.Repeat.Twice());
-            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Is.NotNull), constraints => constraints.Repeat.Twice());
+            A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true))).MustHaveHappened(Repeated.Exactly.Twice);
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull())).MustHaveHappened(Repeated.Exactly.Twice); ;
         }
 
         [Test]
@@ -112,21 +112,23 @@ namespace Quartz.Tests.Unit.Xml
             existing.SetPreviousFireTimeUtc(previousFireTime);
             existing.GetNextFireTimeUtc();
 
-            mockScheduler.Stub(x => x.GetTrigger(existing.Key)).Return(existing);
+            A.CallTo(() => mockScheduler.GetTrigger(existing.Key)).Returns(existing);
 
             Stream s = ReadJobXmlFromEmbeddedResource("ScheduleRelativeToOldTrigger.xml");
             processor.ProcessStream(s, null);
             processor.ScheduleJobs(mockScheduler);
 
             // check that last fire time was taken from existing trigger
-            mockScheduler.Stub(x => x.RescheduleJob(null, null)).IgnoreArguments();
-            var args = mockScheduler.GetArgumentsForCallsMadeOn(x => x.RescheduleJob(null, null));
-            ITrigger argumentTrigger = (ITrigger) args[0][1];
+            A.CallTo(() => mockScheduler.RescheduleJob(null, null)).WhenArgumentsMatch(args =>
+            {
+                ITrigger argumentTrigger = (ITrigger)args[1];
 
-            // replacement trigger should have same start time and next fire relative to old trigger's last fire time 
-            Assert.That(argumentTrigger, Is.Not.Null);
-            Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
-            Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
+                // replacement trigger should have same start time and next fire relative to old trigger's last fire time 
+                Assert.That(argumentTrigger, Is.Not.Null);
+                Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
+                Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
+                return true;
+            }).MustHaveHappened();
         }
 
         /// <summary>
@@ -265,8 +267,8 @@ namespace Quartz.Tests.Unit.Xml
 
             processor.ScheduleJobs(mockScheduler);
 
-            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<IJobDetail>.Matches(p => p.Key.Name == "sched2_job"), Arg<ITrigger>.Is.Anything));
-            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Matches(p => p.Key.Name == "sched2_trig")));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"), A<ITrigger>.Ignored));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"))).MustHaveHappened();
         }
 
         [Test]
