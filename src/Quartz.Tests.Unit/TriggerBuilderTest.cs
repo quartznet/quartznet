@@ -65,13 +65,13 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(trigger.Key.Group.Equals(JobKey.DefaultGroup), "Unexpected trigger group: " + trigger.Key.Group);
             Assert.IsTrue(trigger.JobKey == null, "Unexpected job key: " + trigger.JobKey);
             Assert.IsTrue(trigger.Description.Equals("my description"), "Unexpected job description: " + trigger.Description);
-            Assert.IsTrue(trigger.Priority == 2, "Unexpected trigger priortiy: " + trigger);
+            Assert.IsTrue(trigger.Priority == 2, "Unexpected trigger priority: " + trigger);
             Assert.IsTrue(trigger.StartTimeUtc.Equals(stime), "Unexpected start-time: " + trigger.StartTimeUtc);
             Assert.IsTrue(trigger.EndTimeUtc != null, "Unexpected end-time: " + trigger.EndTimeUtc);
         }
 
         [Test]
-        public void TestTriggerBuilderWithEndTimePriorCurrrentTime()
+        public void TestTriggerBuilderWithEndTimePriorCurrentTime()
         {
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("some trigger name", "some trigger group")

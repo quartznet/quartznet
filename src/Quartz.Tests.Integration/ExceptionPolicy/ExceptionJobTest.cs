@@ -19,15 +19,15 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
 		}
 
         [Test]
-        public void ExceptionJobUnscheduleFirinigTrigger()
+        public void ExceptionJobUnscheduleFiringTrigger()
         {
             sched.Start();
-            string jobName = "ExceptionPolicyUnscheduleFrinigTrigger";
-            string jobGroup = "ExceptionPolicyUnscheduleFrinigTriggerGroup";
+            string jobName = "ExceptionPolicyUnscheduleFiringTrigger";
+            string jobGroup = "ExceptionPolicyUnscheduleFiringTriggerGroup";
             JobDetailImpl myDesc = new JobDetailImpl(jobName, jobGroup, typeof (ExceptionJob));
             myDesc.Durable = true;
             sched.AddJob(myDesc, false);
-            string trigGroup = "ExceptionPolicyFrinigTriggerGroup";
+            string trigGroup = "ExceptionPolicyFiringTriggerGroup";
             IOperableTrigger trigger = new CronTriggerImpl("trigName", trigGroup, "0/2 * * * * ?");
             trigger.JobKey = new JobKey(jobName, jobGroup);
 

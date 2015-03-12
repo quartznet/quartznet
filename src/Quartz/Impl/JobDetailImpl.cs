@@ -344,7 +344,7 @@ namespace Quartz.Impl
             return
                 string.Format(
                     CultureInfo.InvariantCulture,
-                    "JobDetail '{0}':  jobType: '{1} persistJobDataAfterExecution: {2} concurrentExectionDisallowed: {3} isDurable: {4} requestsRecovers: {5}",
+                    "JobDetail '{0}':  jobType: '{1} persistJobDataAfterExecution: {2} concurrentExecutionDisallowed: {3} isDurable: {4} requestsRecovers: {5}",
                     FullName, ((JobType == null) ? null : JobType.FullName), PersistJobDataAfterExecution, ConcurrentExecutionDisallowed, Durable, RequestsRecovery);
         }
 

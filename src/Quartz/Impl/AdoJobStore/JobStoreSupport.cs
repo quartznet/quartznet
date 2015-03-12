@@ -3569,7 +3569,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (cth == null)
             {
-                throw new ArgumentNullException("cth", "Connnection-transaction pair cannot be null");
+                throw new ArgumentNullException("cth", "Connection-transaction pair cannot be null");
             }
 
             if (cth.Transaction != null && cth.Transaction.Connection == null)

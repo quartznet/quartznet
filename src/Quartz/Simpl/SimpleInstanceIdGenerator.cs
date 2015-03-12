@@ -33,7 +33,7 @@ namespace Quartz.Simpl
     public class SimpleInstanceIdGenerator : HostNameBasedIdGenerator
     {
         // assume ticks to be at most 20 chars long
-        private const int HostNameMaxLength = IdMaxLengh - 20;
+        private const int HostNameMaxLength = IdMaxLength - 20;
 
         /// <summary>
         /// Generate the instance id for a <see cref="IScheduler" />

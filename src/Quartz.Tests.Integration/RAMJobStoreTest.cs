@@ -454,7 +454,7 @@ namespace Quartz.Tests.Integration
                                               }
                                               catch (SchedulerException ex)
                                               {
-                                                  throw new Exception("exeception: " + ex.Message, ex);
+                                                  throw new Exception("exception: " + ex.Message, ex);
                                               }
                                           };
 

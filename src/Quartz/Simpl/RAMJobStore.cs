@@ -84,7 +84,7 @@ namespace Quartz.Simpl
             {
                 if (value.TotalMilliseconds < 1)
                 {
-                    throw new ArgumentException("Misfirethreashold must be larger than 0");
+                    throw new ArgumentException("MisfireThreshold must be larger than 0");
                 }
                 misfireThreshold = value;
             }

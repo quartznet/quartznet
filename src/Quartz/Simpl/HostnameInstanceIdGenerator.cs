@@ -42,7 +42,7 @@ namespace Quartz.Simpl
 		/// <returns>The clusterwide unique instance id.</returns>
 		public override string GenerateInstanceId()
 		{
-		    return GetHostName(IdMaxLengh);
+		    return GetHostName(IdMaxLength);
 		}
 	}
 }

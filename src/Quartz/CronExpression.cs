@@ -1935,7 +1935,7 @@ namespace Quartz
                         }
                         else if (daysToAdd > 0)
                         {
-                            // are we swithing days?
+                            // are we switching days?
                             d = new DateTimeOffset(d.Year, mon, day + daysToAdd, 0, 0, 0, d.Offset);
                             continue;
                         }
