@@ -92,13 +92,13 @@ namespace Quartz.Core
 			}
 			catch (SchedulerException se)
 			{
-				sched.NotifySchedulerListenersError(string.Format(CultureInfo.InvariantCulture, "An error occured instantiating job to be executed. job= '{0}'", jobDetail.Key), se);
+				sched.NotifySchedulerListenersError(string.Format(CultureInfo.InvariantCulture, "An error occurred instantiating job to be executed. job= '{0}'", jobDetail.Key), se);
 				throw;
 			}
 			catch (Exception e)
 			{
 				SchedulerException se = new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Problem instantiating type '{0}'", jobDetail.JobType.FullName), e);
-				sched.NotifySchedulerListenersError(string.Format(CultureInfo.InvariantCulture, "An error occured instantiating job to be executed. job= '{0}'", jobDetail.Key), se);
+				sched.NotifySchedulerListenersError(string.Format(CultureInfo.InvariantCulture, "An error occurred instantiating job to be executed. job= '{0}'", jobDetail.Key), se);
 				throw se;
 			}
 

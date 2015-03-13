@@ -41,7 +41,7 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void NotConvertableDataShouldTrhowNotSupportedException()
+        public void NotConvertableDataShouldThrowNotSupportedException()
         {
             Assert.Throws<NotSupportedException>(() => ObjectUtils.ConvertValueIfNecessary(typeof(int), new DirtyFlagMap<int, string>()));
         }
