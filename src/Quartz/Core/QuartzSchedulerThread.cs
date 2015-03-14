@@ -56,7 +56,7 @@ namespace Quartz.Core
         private static readonly TimeSpan DefaultIdleWaitTime = TimeSpan.FromSeconds(30);
 
         private TimeSpan idleWaitTime = DefaultIdleWaitTime;
-        private int idleWaitVariablness = 7*1000;
+        private int idleWaitVariableness = 7*1000;
 
         /// <summary>
         /// Gets the log.
@@ -77,7 +77,7 @@ namespace Quartz.Core
             set
             {
                 idleWaitTime = value;
-                idleWaitVariablness = (int) (value.TotalMilliseconds*0.2);
+                idleWaitVariableness = (int) (value.TotalMilliseconds*0.2);
             }
         }
 
@@ -87,7 +87,7 @@ namespace Quartz.Core
         /// <value>The randomized idle wait time.</value>
         private TimeSpan GetRandomizedIdleWaitTime()
         {
-            return idleWaitTime - TimeSpan.FromMilliseconds(random.Next(idleWaitVariablness));
+            return idleWaitTime - TimeSpan.FromMilliseconds(random.Next(idleWaitVariableness));
         }
 
         /// <summary>

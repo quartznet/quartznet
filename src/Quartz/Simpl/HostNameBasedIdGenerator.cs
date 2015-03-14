@@ -32,7 +32,7 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma</author>
     public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
     {
-        protected const int IdMaxLengh = 50;
+        protected const int IdMaxLength = 50;
 
         private readonly ILog logger;
 
@@ -48,14 +48,14 @@ namespace Quartz.Simpl
         /// </returns>
         public abstract string GenerateInstanceId();
 
-        protected string GetHostName(int maxLenght)
+        protected string GetHostName(int maxLength)
         {
             try
             {
                 string hostName = GetHostAddress().HostName;
-                if (hostName != null && hostName.Length > maxLenght)
+                if (hostName != null && hostName.Length > maxLength)
                 {
-                    string newName = hostName.Substring(0, maxLenght);
+                    string newName = hostName.Substring(0, maxLength);
                     logger.WarnFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
                     hostName = newName;
                 }

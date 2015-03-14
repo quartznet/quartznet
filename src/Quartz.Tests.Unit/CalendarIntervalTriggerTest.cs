@@ -597,7 +597,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void TestCrossingDSTBoundry()
+        public void TestCrossingDSTBoundary()
         {
             TimeZoneInfo cetTimeZone = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
             DateTimeOffset startCalendar = TimeZoneUtil.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);

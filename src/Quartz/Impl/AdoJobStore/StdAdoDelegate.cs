@@ -2674,7 +2674,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <summary>
-        /// Create a serialized <see lanword="byte[]"/> version of an Object.
+        /// Create a serialized <see langword="byte[]"/> version of an Object.
         /// </summary>
         /// <param name="obj">the object to serialize</param>
         /// <returns>Serialized object as byte array.</returns>

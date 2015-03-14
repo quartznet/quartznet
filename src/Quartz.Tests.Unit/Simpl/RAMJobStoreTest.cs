@@ -231,16 +231,16 @@ namespace Quartz.Tests.Unit.Simpl
             Assert.AreEqual(tr, fJobStore.RetrieveTrigger(new TriggerKey(trName, trGroup)));
             Assert.AreEqual(tr.CalendarName, fJobStore.RetrieveTrigger(new TriggerKey(trName, trGroup)).CalendarName, "StoreJob doesn't replace triggers");
 
-            bool exeptionRaised = false;
+            bool exceptionRaised = false;
             try
             {
                 fJobStore.StoreTrigger(tr, false);
             }
             catch (ObjectAlreadyExistsException)
             {
-                exeptionRaised = true;
+                exceptionRaised = true;
             }
-            Assert.IsTrue(exeptionRaised, "an attempt to store duplicate trigger succeeded");
+            Assert.IsTrue(exceptionRaised, "an attempt to store duplicate trigger succeeded");
         }
 
         [Test]
@@ -303,7 +303,7 @@ namespace Quartz.Tests.Unit.Simpl
         }
 
         [Test]
-        public void TestStoreAndRetriveTriggers()
+        public void TestStoreAndRetrieveTriggers()
         {
             RAMJobStore store = new RAMJobStore();
 

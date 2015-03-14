@@ -73,7 +73,7 @@ namespace Quartz.Simpl
             try
             {
                 RemotingServices.Marshal((MarshalByRefObject)scheduler, BindName);
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "Successfully marhalled remotable scheduler under name '{0}'", BindName));
+                Log.Info(string.Format(CultureInfo.InvariantCulture, "Successfully marshalled remotable scheduler under name '{0}'", BindName));
             }
             catch (RemotingException ex)
             {

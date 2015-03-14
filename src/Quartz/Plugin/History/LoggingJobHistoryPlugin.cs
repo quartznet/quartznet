@@ -66,7 +66,7 @@ namespace Quartz.Plugin.History
     /// 			<tr>
     /// 				<td>4</td>
     /// 				<td>String</td>
-    /// 				<td>The Triggers's group.</td>
+    /// 				<td>The Trigger's group.</td>
     /// 			</tr>
     /// 			<tr>
     /// 				<td>5</td>
@@ -116,7 +116,7 @@ namespace Quartz.Plugin.History
     /// 			<tr>
     /// 				<td>4</td>
     /// 				<td>String</td>
-    /// 				<td>The Triggers's group.</td>
+    /// 				<td>The Trigger's group.</td>
     /// 			</tr>
     /// 			<tr>
     /// 				<td>5</td>
@@ -173,7 +173,7 @@ namespace Quartz.Plugin.History
     /// 			<tr>
     /// 				<td>4</td>
     /// 				<td>String</td>
-    /// 				<td>The Triggers's group.</td>
+    /// 				<td>The Trigger's group.</td>
     /// 			</tr>
     /// 			<tr>
     /// 				<td>5</td>
@@ -229,7 +229,7 @@ namespace Quartz.Plugin.History
     /// 			<tr>
     /// 				<td>4</td>
     /// 				<td>String</td>
-    /// 				<td>The Triggers's group.</td>
+    /// 				<td>The Trigger's group.</td>
     /// 			</tr>
     /// 			<tr>
     /// 				<td>5</td>

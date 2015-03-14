@@ -30,7 +30,7 @@ namespace Quartz.Tests.Integration.Core
 
             log.Info("------- Scheduling Job  -------------------");
 
-            IJobDetail job = JobBuilder.Create<CollectDuractionBetweenFireTimesJob>().WithIdentity("job", "group").Build();
+            IJobDetail job = JobBuilder.Create<CollectDurationBetweenFireTimesJob>().WithIdentity("job", "group").Build();
 
             ITrigger trigger = TriggerBuilder.Create()
                                              .WithIdentity("trigger1", "group1")
@@ -60,7 +60,7 @@ namespace Quartz.Tests.Integration.Core
                 Console.WriteLine(e);
             }
 
-            List<TimeSpan> durationBetweenFireTimesInMillis = CollectDuractionBetweenFireTimesJob.Durations;
+            List<TimeSpan> durationBetweenFireTimesInMillis = CollectDurationBetweenFireTimesJob.Durations;
 
             Assert.False(durationBetweenFireTimesInMillis.Count == 0, "Job was not executed once!");
 
@@ -78,11 +78,11 @@ namespace Quartz.Tests.Integration.Core
     /// A simple job for collecting fire times in order to check that we did not miss one call, for having the race
     ///  condition the job must be real quick and not allowing concurrent executions.
     /// </summary>
-    public class CollectDuractionBetweenFireTimesJob : IJob
+    public class CollectDurationBetweenFireTimesJob : IJob
     {
         private static DateTime? lastFireTime = null;
         private static List<TimeSpan> durationBetweenFireTimes = new List<TimeSpan>();
-        private static readonly ILog log = LogManager.GetLogger<CollectDuractionBetweenFireTimesJob>();
+        private static readonly ILog log = LogManager.GetLogger<CollectDurationBetweenFireTimesJob>();
 
         public void Execute(IJobExecutionContext context)
         {

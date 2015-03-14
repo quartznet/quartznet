@@ -100,7 +100,7 @@ namespace Quartz.Tests.Unit.Simpl
 
         [Test]
         [Ignore("Work in progress")]
-        public void TestGeneratorThroughSchedulerInstatiation()
+        public void TestGeneratorThroughSchedulerInstantiation()
         {
             // TODO
             //JdbcQuartzTestUtilities.createDatabase("MeSchedulerDatabase");

@@ -482,7 +482,7 @@ namespace Quartz.Core
                 }
                 catch (SchedulerException se)
                 {
-                    logger.Error("Unable to start secheduler after startup delay.", se);
+                    logger.Error("Unable to start scheduler after startup delay.", se);
                 }
             }
         }
@@ -2365,7 +2365,7 @@ namespace Quartz.Core
         [SecurityCritical]
         public override object InitializeLifetimeService()
         {
-            // overriden to initialize null life time service,
+            // overridden to initialize null life time service,
             // this basically means that remoting object will live as long
             // as the application lives
             return null;
