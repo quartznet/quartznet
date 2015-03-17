@@ -308,6 +308,15 @@ namespace Quartz.Core
         }
 
         /// <summary>
+        /// Create a <see cref="QuartzScheduler" />.
+        /// </summary>
+        /// <seealso cref="QuartzSchedulerResources" />
+        public QuartzScheduler()
+        {
+            log = LogManager.GetLogger(GetType());
+        }
+
+        /// <summary>
         /// Create a <see cref="QuartzScheduler" /> with the given configuration
         /// properties.
         /// </summary>
