@@ -1603,7 +1603,7 @@ namespace Quartz.Core
             }
         }
 
-        protected internal void NotifyJobStoreJobVetoed(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
+        public virtual void NotifyJobStoreJobVetoed(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
         {
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
         }
@@ -1614,7 +1614,7 @@ namespace Quartz.Core
         /// <param name="trigger">The trigger.</param>
         /// <param name="detail">The detail.</param>
         /// <param name="instCode">The instruction code.</param>
-        protected internal virtual void NotifyJobStoreJobComplete(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
+        public virtual void NotifyJobStoreJobComplete(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
         {
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
         }
@@ -2145,7 +2145,7 @@ namespace Quartz.Core
             }
         }
 
-        public void NotifySchedulerListenersInStandbyMode()
+        public virtual void NotifySchedulerListenersInStandbyMode()
         {
             // notify all scheduler listeners
             foreach (ISchedulerListener listener in BuildSchedulerListenerList())
