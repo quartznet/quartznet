@@ -317,14 +317,13 @@ namespace Quartz.Impl
 
             // Fire everything u
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            SchedulerDetailsSetter.SetDetails(threadPool, schedulerName, schedulerInstanceId);
             threadPool.Initialize();
 
             QuartzSchedulerResources qrs = new QuartzSchedulerResources();
 
             qrs.Name = schedulerName;
             qrs.InstanceId = schedulerInstanceId;
-
-            SchedulerDetailsSetter.SetDetails(threadPool, schedulerName, schedulerInstanceId);
 
             qrs.JobRunShellFactory = jrsf;
             qrs.ThreadPool = threadPool;
