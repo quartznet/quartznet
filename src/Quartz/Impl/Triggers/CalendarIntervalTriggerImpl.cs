@@ -676,7 +676,7 @@ namespace Quartz.Impl.Triggers
                         sTime = sTime.AddDays(RepeatInterval);
                         MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
-                    while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                    while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval);
                     }
@@ -719,7 +719,7 @@ namespace Quartz.Impl.Triggers
                         sTime = sTime.AddDays(RepeatInterval*7);
                         MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
-                    while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                    while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddDays(RepeatInterval*7);
                     }
@@ -736,7 +736,7 @@ namespace Quartz.Impl.Triggers
                         sTime = sTime.AddMonths(RepeatInterval);
                         MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
-                    while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay)
+                    while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay)
                            && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddMonths(RepeatInterval);
@@ -750,7 +750,7 @@ namespace Quartz.Impl.Triggers
                         sTime = sTime.AddYears(RepeatInterval);
                         MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                     }
-                    while (DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                    while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                     {
                         sTime = sTime.AddYears(RepeatInterval);
                     }
@@ -766,7 +766,7 @@ namespace Quartz.Impl.Triggers
             return time;
         }
 
-        private bool DaylightSavingHourShiftOccuredAndAdvanceNeeded(ref DateTimeOffset newTime, int initialHourOfDay)
+        private bool DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref DateTimeOffset newTime, int initialHourOfDay)
         {
             //need to apply timezone again to properly check if initialHourOfDay has changed.
             DateTimeOffset toCheck = TimeZoneUtil.ConvertTime(newTime, this.TimeZone);

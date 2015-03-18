@@ -273,7 +273,7 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary> 
         /// Don't call set autocommit(false) on connections obtained from the
-        /// DataSource. This can be helpfull in a few situations, such as if you
+        /// DataSource. This can be helpful in a few situations, such as if you
         /// have a driver that complains if it is called when it is already off.
         /// </summary>
         public virtual bool DontSetAutoCommitFalse { get; set; }
@@ -558,7 +558,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (SchedulerException se)
                 {
-                    throw new SchedulerConfigException("Failure occured during job recovery.", se);
+                    throw new SchedulerConfigException("Failure occurred during job recovery.", se);
                 }
             }
 
