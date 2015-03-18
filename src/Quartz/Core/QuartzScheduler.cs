@@ -308,6 +308,15 @@ namespace Quartz.Core
         }
 
         /// <summary>
+        /// Create a <see cref="QuartzScheduler" />.
+        /// </summary>
+        /// <seealso cref="QuartzSchedulerResources" />
+        public QuartzScheduler()
+        {
+            log = LogManager.GetLogger(GetType());
+        }
+
+        /// <summary>
         /// Create a <see cref="QuartzScheduler" /> with the given configuration
         /// properties.
         /// </summary>
@@ -1603,7 +1612,7 @@ namespace Quartz.Core
             }
         }
 
-        protected internal void NotifyJobStoreJobVetoed(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
+        public virtual void NotifyJobStoreJobVetoed(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
         {
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
         }
@@ -1614,7 +1623,7 @@ namespace Quartz.Core
         /// <param name="trigger">The trigger.</param>
         /// <param name="detail">The detail.</param>
         /// <param name="instCode">The instruction code.</param>
-        protected internal virtual void NotifyJobStoreJobComplete(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
+        public virtual void NotifyJobStoreJobComplete(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
         {
             resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
         }
@@ -2145,7 +2154,7 @@ namespace Quartz.Core
             }
         }
 
-        public void NotifySchedulerListenersInStandbyMode()
+        public virtual void NotifySchedulerListenersInStandbyMode()
         {
             // notify all scheduler listeners
             foreach (ISchedulerListener listener in BuildSchedulerListenerList())
