@@ -315,16 +315,16 @@ namespace Quartz.Impl
             // Currently only one run-shell factory is available...
             IJobRunShellFactory jrsf = new StdJobRunShellFactory();
 
-            // Fire everything u
+            // Fire everything up
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            SchedulerDetailsSetter.SetDetails(threadPool, schedulerName, schedulerInstanceId);
+           
             threadPool.Initialize();
 
             QuartzSchedulerResources qrs = new QuartzSchedulerResources();
 
             qrs.Name = schedulerName;
             qrs.InstanceId = schedulerInstanceId;
-
-            SchedulerDetailsSetter.SetDetails(threadPool, schedulerName, schedulerInstanceId);
 
             qrs.JobRunShellFactory = jrsf;
             qrs.ThreadPool = threadPool;
