@@ -20,7 +20,6 @@
 using System;
 
 using Quartz.Logging;
-
 using Quartz.Util;
 
 namespace Quartz.Impl

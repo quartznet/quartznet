@@ -21,18 +21,17 @@
 
 using System;
 using System.Collections;
-using System.Data;
 using System.Data.Common;
+using System.Data.SqlClient;
 using System.Runtime.Serialization;
 
 using FakeItEasy;
-
-using Quartz.Logging;
 
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -88,20 +87,20 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public void TestSelectBlobTriggerWithNoBlobContent()
         {
-            var dbProvider = A.Fake<IDbProvider>();
-            var connection = A.Fake<IDbConnection>();
-            var transaction = A.Fake<IDbTransaction>();
-            var command = (IDbCommand) A.Fake<StubCommand>();
+            var dbProvider = A.Fake<DbProvider>();
+            var connection = A.Fake<DbConnection>();
+            var transaction = A.Fake<DbTransaction>();
+            var command = (DbCommand) A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
             A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
             A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-            var dataReader = A.Fake<IDataReader>();
+            var dataReader = A.Fake<DbDataReader>();
             A.CallTo(() => command.ExecuteReader()).Returns(dataReader);
             A.CallTo(() => command.Parameters).Returns(new StubParameterCollection());
             A.CallTo(() => command.CommandText).Returns("");
-            A.CallTo(() => command.CreateParameter()).Returns(new StubDataParameter());
+            A.CallTo(() => command.CreateParameter()).Returns(new SqlParameter());
 
             var adoDelegate = new StdAdoDelegate();
 
@@ -132,20 +131,20 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public void TestSelectSimpleTriggerWithExceptionWithExtendedProps()
         {
-            var dbProvider = A.Fake<IDbProvider>();
-            var connection = A.Fake<IDbConnection>();
-            var transaction = A.Fake<IDbTransaction>();
-            var command = (IDbCommand)A.Fake<StubCommand>();
+            var dbProvider = A.Fake<DbProvider>();
+            var connection = A.Fake<DbConnection>();
+            var transaction = A.Fake<DbTransaction>();
+            var command = (DbCommand)A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
             A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
             A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-            var dataReader = A.Fake<IDataReader>();
+            var dataReader = A.Fake<DbDataReader>();
             A.CallTo(() => command.ExecuteReader()).Returns(dataReader);
             A.CallTo(() => command.Parameters).Returns(new StubParameterCollection());
             A.CallTo(() => command.CommandText).Returns("");
-            A.CallTo(() => command.CreateParameter()).Returns(new StubDataParameter());
+            A.CallTo(() => command.CreateParameter()).Returns(new SqlParameter());
 
             var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
             var exception = new InvalidOperationException();
@@ -188,20 +187,20 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public void TestSelectSimpleTriggerWithDeleteBeforeSelectExtendedProps()
         {
-            var dbProvider = A.Fake<IDbProvider>();
-            var connection = A.Fake<IDbConnection>();
-            var transaction = A.Fake<IDbTransaction>();
-            var command = (IDbCommand)A.Fake<StubCommand>();
+            var dbProvider = A.Fake<DbProvider>();
+            var connection = A.Fake<DbConnection>();
+            var transaction = A.Fake<DbTransaction>();
+            var command = (DbCommand)A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
             A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
             A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-            var dataReader = A.Fake<IDataReader>();
+            var dataReader = A.Fake<DbDataReader>();
             A.CallTo(() => command.ExecuteReader()).Returns(dataReader);
             A.CallTo(() => command.Parameters).Returns(new StubParameterCollection());
             A.CallTo(() => command.CommandText).Returns("");
-            A.CallTo(() => command.CreateParameter()).Returns(new StubDataParameter());
+            A.CallTo(() => command.CreateParameter()).Returns(new SqlParameter());
 
             var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
             var exception = new InvalidOperationException();

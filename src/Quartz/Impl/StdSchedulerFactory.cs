@@ -25,12 +25,11 @@ using System.IO;
 using System.Reflection;
 using System.Security;
 
-using Quartz.Logging;
-
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -161,7 +160,7 @@ namespace Quartz.Impl
         /// StdSchedulerFactory instance.).
         /// </para>
         /// </summary>
-        public virtual ICollection<IScheduler> AllSchedulers
+        public virtual IReadOnlyList<IScheduler> AllSchedulers
         {
             get { return SchedulerRepository.Instance.LookupAll(); }
         }
@@ -760,6 +759,7 @@ Please add configuration to your application config file to correctly initialize
                     initException = new SchedulerException("JobStore SchedulerPlugin '{0}' props could not be configured.".FormatInvariant(plugInType), e);
                     throw initException;
                 }
+
                 plugins[i] = plugin;
             }
 

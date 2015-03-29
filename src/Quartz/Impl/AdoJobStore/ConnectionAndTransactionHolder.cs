@@ -1,4 +1,5 @@
 ﻿#region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,9 +16,11 @@
  * under the License.
  * 
  */
+
 #endregion
 
-using System.Data;
+using System;
+using System.Data.Common;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -26,14 +29,14 @@ namespace Quartz.Impl.AdoJobStore
     /// and connection.
     /// </summary>
     /// <author>Marko Lahma</author>
-    public class ConnectionAndTransactionHolder
+    public class ConnectionAndTransactionHolder : IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class.
         /// </summary>
         /// <param name="connection">The connection.</param>
         /// <param name="transaction">The transaction.</param>
-        public ConnectionAndTransactionHolder(IDbConnection connection, IDbTransaction transaction)
+        public ConnectionAndTransactionHolder(DbConnection connection, DbTransaction transaction)
         {
             Connection = connection;
             Transaction = transaction;
@@ -43,12 +46,37 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the connection.
         /// </summary>
         /// <value>The connection.</value>
-        public IDbConnection Connection { get; private set; }
+        public DbConnection Connection { get; private set; }
 
         /// <summary>
         /// Gets or sets the transaction.
         /// </summary>
         /// <value>The transaction.</value>
-        public IDbTransaction Transaction { get; set; }
+        public DbTransaction Transaction { get; set; }
+
+        public void Commit()
+        {
+            Transaction.Commit();
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                Connection?.Dispose();
+            }
+            catch
+            {
+                // ignored
+            }
+            try
+            {
+                Transaction?.Dispose();
+            }
+            catch
+            {
+                // ignored
+            }
+        }
     }
 }

@@ -25,18 +25,18 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-#if !ClientProfile
-using System.Web;
-#endif
-using Quartz.Logging;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
+#if !ClientProfile
+using System.Web;
+#endif
 
 namespace Quartz.Plugin.Xml
 {
@@ -160,12 +160,12 @@ namespace Quartz.Plugin.Xml
         /// the <see cref="ISchedulerPlugin"/> a chance to initialize.
         /// </summary>
         /// <param name="pluginName">The name.</param>
-        /// <param name="sched">The scheduler.</param>
+        /// <param name="scheduler">The scheduler.</param>
         /// <throws>SchedulerConfigException </throws>
-        public virtual void Initialize(string pluginName, IScheduler sched)
+        public virtual void Initialize(string pluginName, IScheduler scheduler)
         {
             name = pluginName;
-            scheduler = sched;
+            this.scheduler = scheduler;
             typeLoadHelper = new SimpleTypeLoadHelper();
             typeLoadHelper.Initialize();
 

@@ -18,7 +18,6 @@
 #endregion
 
 using Quartz.Logging;
-
 using Quartz.Spi;
 
 namespace Quartz.Listener

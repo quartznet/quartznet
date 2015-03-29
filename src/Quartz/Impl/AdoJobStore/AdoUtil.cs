@@ -19,6 +19,7 @@
 
 using System;
 using System.Data;
+using System.Data.Common;
 
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -69,9 +70,9 @@ namespace Quartz.Impl.AdoJobStore
             dbProvider.Metadata.ParameterDbTypeProperty.GetSetMethod().Invoke(param, new object[] { parameterType });
         }
 
-        public IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
+        public DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
         {
-            IDbCommand cmd = dbProvider.CreateCommand();
+            DbCommand cmd = dbProvider.CreateCommand();
             cmd.CommandText = commandText;
             cmd.Connection = cth.Connection;
             cmd.Transaction = cth.Transaction;

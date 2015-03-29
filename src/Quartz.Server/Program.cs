@@ -1,4 +1,8 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+
+using log4net.Config;
+
 using Topshelf;
 
 namespace Quartz.Server
@@ -14,23 +18,25 @@ namespace Quartz.Server
         public static void Main()
         {
             // change from service account's dir to more logical one
-            Directory.SetCurrentDirectory(System.AppDomain.CurrentDomain.BaseDirectory);
+            Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+
+            XmlConfigurator.Configure();
 
             HostFactory.Run(x =>
-                                {
-                                    x.RunAsLocalSystem();
+            {
+                x.RunAsLocalSystem();
 
-                                    x.SetDescription(Configuration.ServiceDescription);
-                                    x.SetDisplayName(Configuration.ServiceDisplayName);
-                                    x.SetServiceName(Configuration.ServiceName);
+                x.SetDescription(Configuration.ServiceDescription);
+                x.SetDisplayName(Configuration.ServiceDisplayName);
+                x.SetServiceName(Configuration.ServiceName);
 
-                                    x.Service(factory =>
-                                                  {
-                                                      QuartzServer server = QuartzServerFactory.CreateServer();
-                                                      server.Initialize();
-                                                      return server;
-                                                  });
-                                });
+                x.Service(factory =>
+                {
+                    QuartzServer server = QuartzServerFactory.CreateServer();
+                    server.Initialize();
+                    return server;
+                });
+            });
         }
     }
 }

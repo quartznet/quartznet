@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>Quartz Web Console</title>
+
+    <link rel="stylesheet" type="text/css" href="styles/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="jspm_packages/npm/font-awesome@4.3.0/css/font-awesome.min.css">
+    <link href="styles/styles.css" rel="stylesheet"/>
+</head>
+
+<body aurelia-app="views/main">
+<div class="splash">
+    <div class="message">Quartz Web Console</div>
+    <i class="fa fa-spinner fa-spin"></i>
+</div>
+
+<script src="jspm_packages/system.js"></script>
+<script src="config.js"></script>
+<script src="scripts/signalr/jquery-2.1.3.min.js"></script>
+<script src="scripts/signalr/jquery.signalR-2.2.0.min.js"></script>
+<script>
+    $.connection.hub.url = "/signalr";
+
+    var origin = window.location.origin;
+    var pathname = window.location.pathname;
+    var baseUrl = origin + pathname.toLowerCase().replace("index.html", "");
+
+    System.config({
+    });
+</script>
+<script>
+    System.import('aurelia-bootstrapper');
+    System.import('moment');
+</script>
+</body>
+</html>

@@ -27,7 +27,6 @@ using System.Text;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
-using Quartz.Collection;
 
 namespace Quartz.Impl.AdoJobStore
 {

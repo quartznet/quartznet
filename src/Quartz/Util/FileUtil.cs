@@ -20,11 +20,11 @@
 using System;
 using System.IO;
 using System.Security;
+
+using Quartz.Logging;
 #if !ClientProfile
 using System.Web;
 #endif
-
-using Quartz.Logging;
 
 namespace Quartz.Util
 {

@@ -22,7 +22,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Collection;
 using Quartz.Util;
 
 namespace Quartz.Impl.Triggers

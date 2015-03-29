@@ -60,3 +60,9 @@ website
 /packages
 /buildlog.txt
 /src/AssemblyInfo.cs
+
+jspm_packages
+node_modules
+*.lock.json
+/src/Quartz.Web/App/views/*.map
+/src/Quartz.Web/App/views/*.js

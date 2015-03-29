@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30324.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.22823.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{69B269BD-CB8C-438A-A32E-4CB7CEA47BB2}"
 	ProjectSection(SolutionItems) = preProject
@@ -35,6 +35,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Integration.20
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Unit.2010", "src\Quartz.Tests.Unit\Quartz.Tests.Unit.2010.csproj", "{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Server", "Server", "{39DC81E9-C9CC-46E5-97EE-E8EC74A1B8D4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server.2010", "src\Quartz.Server\Quartz.Server.2010.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Web", "src\Quartz.Web\Quartz.Web.csproj", "{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +63,14 @@ Global
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -68,5 +82,7 @@ Global
 		{70A37974-17DE-474C-8A1C-19637622E75F} = {6EBE10AB-07CE-4C04-AD4D-75660778D4C2}
 		{5587AF00-160F-4EC1-98A2-BEABA411256C} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
+		{09082B9A-906C-4A17-A2E5-6C947DAC7C85} = {39DC81E9-C9CC-46E5-97EE-E8EC74A1B8D4}
+		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6} = {39DC81E9-C9CC-46E5-97EE-E8EC74A1B8D4}
 	EndGlobalSection
 EndGlobal

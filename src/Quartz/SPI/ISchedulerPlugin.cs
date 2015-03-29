@@ -61,10 +61,10 @@ namespace Quartz.Spi
         /// <param name="pluginName">
         /// The name by which the plugin is identified.
         /// </param>
-        /// <param name="sched">
+        /// <param name="scheduler">
         /// The scheduler to which the plugin is registered.
         /// </param>
-        void Initialize(string pluginName, IScheduler sched);
+        void Initialize(string pluginName, IScheduler scheduler);
 
         /// <summary>
         /// Called when the associated <see cref="IScheduler" /> is started, in order

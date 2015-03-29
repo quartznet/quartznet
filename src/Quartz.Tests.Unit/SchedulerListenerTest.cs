@@ -1,11 +1,10 @@
 ﻿using System.Collections.Specialized;
 using System.Threading;
 
-using Quartz.Logging;
-
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Tests.Unit
 {

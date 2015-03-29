@@ -1,4 +1,5 @@
 using System;
+
 using Quartz.Util;
 
 namespace Quartz

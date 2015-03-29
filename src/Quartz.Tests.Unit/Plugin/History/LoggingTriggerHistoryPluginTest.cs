@@ -19,16 +19,15 @@
 
 using System;
 
-using Quartz.Logging;
+using FakeItEasy;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Job;
+using Quartz.Logging;
 using Quartz.Plugin.History;
 using Quartz.Spi;
-
-using FakeItEasy;
 
 namespace Quartz.Tests.Unit.Plugin.History
 {

@@ -19,12 +19,12 @@
 
 #endregion
 
-using Quartz.Util;
-
 using System;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Security;
+
+using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
 {

@@ -20,9 +20,8 @@
 using System;
 using System.Globalization;
 
-using Quartz.Logging;
-
 using Quartz.Impl.Matchers;
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Plugin.History
@@ -34,7 +33,7 @@ namespace Quartz.Plugin.History
     /// <remarks>
     /// <para>
     /// The logged message is customizable by setting one of the following message
-    /// properties to a string that conforms to the syntax of <see cref="String.Format(string, object[])" />.
+    /// properties to a string that conforms to the syntax of <see cref="string.Format(string, object[])" />.
     /// </para>
     /// 
     /// <para>
@@ -265,10 +264,10 @@ namespace Quartz.Plugin.History
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual void Initialize(string pluginName, IScheduler sched)
+        public virtual void Initialize(string pluginName, IScheduler scheduler)
         {
             name = pluginName;
-            sched.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.AllTriggers());
+            scheduler.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.AllTriggers());
         }
 
         /// <summary>

@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -142,13 +143,10 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// against the database.
         /// </summary>
         /// <returns>An new <see cref="IDbCommand"/></returns>
-        public virtual IDbCommand CreateCommand()
+        public virtual DbCommand CreateCommand()
         {
-            var command = ObjectUtils.InstantiateType<IDbCommand>(dbMetadata.CommandType);
-            if (commandBindByNamePropertySetter != null)
-            {
-                commandBindByNamePropertySetter.Invoke(command, new object[] { Metadata.BindByName });
-            }
+            var command = ObjectUtils.InstantiateType<DbCommand>(dbMetadata.CommandType);
+            commandBindByNamePropertySetter?.Invoke(command, new object[] { Metadata.BindByName });
             return command;
         }
 
@@ -168,9 +166,9 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Returns a new connection object to communicate with the database.
         /// </summary>
         /// <returns>A new <see cref="IDbConnection"/></returns>
-        public virtual IDbConnection CreateConnection()
+        public virtual DbConnection CreateConnection()
         {
-            IDbConnection conn = ObjectUtils.InstantiateType<IDbConnection>(dbMetadata.ConnectionType);
+            var conn = ObjectUtils.InstantiateType<DbConnection>(dbMetadata.ConnectionType);
             conn.ConnectionString = ConnectionString;
             return conn;
         }
@@ -180,9 +178,9 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// placeholders in SQL statements or Stored Procedure variables.
         /// </summary>
         /// <returns>A new <see cref="IDbDataParameter"/></returns>
-        public virtual IDbDataParameter CreateParameter()
+        public virtual DbParameter CreateParameter()
         {
-            return ObjectUtils.InstantiateType<IDbDataParameter>(dbMetadata.ParameterType);
+            return ObjectUtils.InstantiateType<DbParameter>(dbMetadata.ParameterType);
         }
 
         /// <summary>

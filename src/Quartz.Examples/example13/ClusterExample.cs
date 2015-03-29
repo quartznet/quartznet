@@ -20,13 +20,11 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading;
 
-using Quartz.Logging;
-
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example13
 {

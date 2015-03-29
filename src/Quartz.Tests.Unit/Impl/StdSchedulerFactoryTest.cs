@@ -19,13 +19,12 @@
 
 #endregion
 
+using System;
 using System.Collections.Specialized;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
-
-using System;
 
 namespace Quartz.Tests.Unit.Impl
 {

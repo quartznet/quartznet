@@ -24,13 +24,9 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-using Quartz.Logging;
-
-using Quartz.Collection;
-using Quartz.Impl;
 using Quartz.Impl.Matchers;
+using Quartz.Logging;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Simpl
 {

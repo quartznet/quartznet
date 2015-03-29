@@ -29,12 +29,11 @@ using System.Security;
 using System.Text;
 using System.Threading;
 
-using Quartz.Logging;
-
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Listener;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;

@@ -21,7 +21,6 @@ using System;
 using System.Threading;
 
 using Quartz.Logging;
-
 using Quartz.Spi;
 
 namespace Quartz.Simpl

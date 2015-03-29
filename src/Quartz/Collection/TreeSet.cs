@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Quartz.Collection
@@ -39,7 +40,7 @@ namespace Quartz.Collection
     /// Only for backwards compatibility with serialization!
     /// </summary>
     [Serializable]
-    internal class TreeSet : System.Collections.ArrayList
+    internal class TreeSet : ArrayList
     {
     }
 }

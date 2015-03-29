@@ -46,7 +46,7 @@ namespace Quartz.Impl.Calendar
     public class HolidayCalendar : BaseCalendar
     {
         /// <summary>
-        /// Returns a <see cref="ISortedSet&lt;DateTime&gt;" /> of Dates representing the excluded
+        /// Returns a <see cref="ISortedSet{T}" /> of Dates representing the excluded
         /// days. Only the month, day and year of the returned dates are
         /// significant.
         /// </summary>

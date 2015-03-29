@@ -1,12 +1,12 @@
 using System.IO;
 using System.Linq;
 
+using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Plugin.Xml;
 using Quartz.Util;
-
-using FakeItEasy;
 
 namespace Quartz.Tests.Unit.Plugin.Xml
 {

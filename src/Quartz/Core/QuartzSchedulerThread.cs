@@ -23,7 +23,6 @@ using System.Data.Common;
 using System.Threading;
 
 using Quartz.Logging;
-
 using Quartz.Spi;
 
 namespace Quartz.Core
