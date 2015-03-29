@@ -2,40 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Data.SqlClient;
 using System.Linq;
-using Quartz.Logging;
+
+using FakeItEasy;
+
 using NUnit.Framework;
+
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
+using Quartz.Logging;
 using Quartz.Simpl;
-using FakeItEasy;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
-    public class StubDataParameter : IDbDataParameter
-    {
-        public DbType DbType { get; set; }
-
-        public ParameterDirection Direction { get; set; }
-
-        public bool IsNullable { get; set; }
-
-        public string ParameterName { get; set; }
-
-        public string SourceColumn { get; set; }
-
-        public DataRowVersion SourceVersion { get; set; }
-
-        public object Value { get; set; }
-
-        public byte Precision { get; set; }
-
-        public byte Scale { get; set; }
-
-        public int Size { get; set; }
-    }
-
     public class StubConnection : DbConnection
     {
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
@@ -106,11 +87,11 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             cronTriggerImpl.JobKey = new JobKey("JobKey","JobKeyGroup");
             cronTriggerImpl.Priority = 1;
 
-            var dbProvider = A.Fake<IDbProvider>();
-            var dbCommand = A.Fake<IDbCommand>();
-            var dataParameterCollection = A.Fake<IDataParameterCollection>();
+            var dbProvider = A.Fake<DbProvider>();
+            var dbCommand = A.Fake<DbCommand>();
+            var dataParameterCollection = A.Fake<DbParameterCollection>();
             A.CallTo(() => dbProvider.CreateCommand()).Returns(dbCommand);
-            Func<StubDataParameter> dataParam = () => new StubDataParameter();
+            Func<DbParameter> dataParam = () => new SqlParameter();
             A.CallTo(() => dbProvider.CreateParameter()).ReturnsLazily(dataParam);
             A.CallTo(() => dbCommand.CreateParameter()).ReturnsLazily(dataParam);
 

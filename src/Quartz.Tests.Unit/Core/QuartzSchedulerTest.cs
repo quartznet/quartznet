@@ -18,16 +18,20 @@
 #endregion
 
 using System;
+using System.Diagnostics;
+using System.Globalization;
+using System.Reflection;
 using System.Threading;
+
+using FakeItEasy;
 
 using NUnit.Framework;
 
+using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
-
-using FakeItEasy;
 
 namespace Quartz.Tests.Unit.Core
 {
@@ -38,10 +42,10 @@ namespace Quartz.Tests.Unit.Core
         [Test]
         public void TestVersionInfo()
         {
-            var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(System.Reflection.Assembly.GetAssembly(typeof(Quartz.Core.QuartzScheduler)).Location);
-            Assert.AreEqual(versionInfo.FileMajorPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionMajor);
-            Assert.AreEqual(versionInfo.FileMinorPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionMinor);
-            Assert.AreEqual(versionInfo.FileBuildPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionIteration);
+            var versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetAssembly(typeof(QuartzScheduler)).Location);
+            Assert.AreEqual(versionInfo.FileMajorPart.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMajor);
+            Assert.AreEqual(versionInfo.FileMinorPart.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMinor);
+            Assert.AreEqual(versionInfo.FileBuildPart.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionIteration);
         }
 
         [Test]

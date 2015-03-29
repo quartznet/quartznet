@@ -21,9 +21,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
-using Quartz.Logging;
 
 using Quartz.Core;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -105,7 +105,7 @@ namespace Quartz.Impl
 		/// StdSchedulerFactory instance.).
 		/// </para>
 		/// </summary>
-		public virtual ICollection<IScheduler> AllSchedulers
+		public virtual IReadOnlyList<IScheduler> AllSchedulers
 		{
 			get { return SchedulerRepository.Instance.LookupAll(); }
 		}

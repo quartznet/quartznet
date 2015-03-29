@@ -65,4 +65,7 @@ project.lock.json
 /.idea
 /.fake
 /*.iml
-jspm_packages
+jspm_packagesnode_modules
+
+/src/Quartz.Web/App/views/*.map
+/src/Quartz.Web/App/views/*.js

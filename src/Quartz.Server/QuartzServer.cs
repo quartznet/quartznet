@@ -1,6 +1,9 @@
 using System;
+
 using log4net;
+
 using Quartz.Impl;
+
 using Topshelf;
 
 namespace Quartz.Server

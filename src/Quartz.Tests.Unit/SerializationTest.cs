@@ -5,7 +5,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 using NUnit.Framework;
 
-using Quartz.Collection;
 using Quartz.Impl.Calendar;
 using Quartz.Util;
 

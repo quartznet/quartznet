@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 
@@ -45,7 +46,7 @@ namespace Quartz.Impl
 
 		private SchedulerRepository()
 		{
-			schedulers = new Dictionary<string, IScheduler>();
+			schedulers = new Dictionary<string, IScheduler>(StringComparer.OrdinalIgnoreCase);
 		}
 
         /// <summary>
@@ -97,7 +98,7 @@ namespace Quartz.Impl
         /// Lookups all.
         /// </summary>
         /// <returns></returns>
-		public virtual ICollection<IScheduler> LookupAll()
+		public virtual IReadOnlyList<IScheduler> LookupAll()
 		{
 			lock (syncRoot)
 			{

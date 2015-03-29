@@ -2,56 +2,32 @@ using System;
 using System.Collections.Generic;
 
 using Quartz.Logging;
+using Quartz.Logging.LogProviders;
 
 namespace Quartz.Tests.Integration
 {
-    internal class FailFastLoggerFactoryAdapter : ILogProvider
+    internal class FailFastLoggerFactoryAdapter : LogProviderBase
     {
         private static readonly List<string> errors = new List<string>();
 
-        public ILog GetLogger(string name)
+        public override Logger GetLogger(string name)
         {
-            return new FailFastLogger(this);
+            return Log;
         }
 
-        public IDisposable OpenNestedContext(string message)
+        private static bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception, object[] formatparameters)
         {
-            throw new NotImplementedException();
-        }
+            if (logLevel == LogLevel.Error || logLevel == LogLevel.Fatal)
+            {
+                errors.Add(messageFunc());
+            }
 
-        public IDisposable OpenMappedContext(string key, string value)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void ReportError(string error)
-        {
-            errors.Add(error);
+            return true;
         }
 
         public static List<string> Errors
         {
             get { return errors; }
-        }
-
-        private class FailFastLogger : ILog
-        {
-            private readonly FailFastLoggerFactoryAdapter parent;
-
-            public FailFastLogger(FailFastLoggerFactoryAdapter parent)
-            {
-                this.parent = parent;
-            }
-
-            public bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception = null, params object[] formatParameters)
-            {
-                if (logLevel == LogLevel.Error || logLevel == LogLevel.Fatal)
-                {
-                    parent.ReportError(messageFunc());
-                }
-
-                return true;
-            }
         }
     }
 }

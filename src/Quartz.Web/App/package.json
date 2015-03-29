@@ -1,0 +1,19 @@
+{
+  "jspm": {
+    "directories": {},
+    "dependencies": {
+      "aurelia-bootstrapper": "github:aurelia/bootstrapper@^0.14.0",
+      "aurelia-framework": "github:aurelia/framework@^0.13.2",
+      "aurelia-history": "github:aurelia/history@^0.6.0",
+      "aurelia-http-client": "github:aurelia/http-client@^0.10.0",
+      "aurelia-logging-console": "github:aurelia/logging-console@^0.6.0",
+      "core-js": "npm:core-js@^0.9.18",
+      "font-awesome": "npm:font-awesome@^4.3.0",
+      "moment": "github:moment/moment@^2.10.3"
+    },
+    "devDependencies": {
+      "traceur": "github:jmcriffey/bower-traceur@0.0.87",
+      "traceur-runtime": "github:jmcriffey/bower-traceur-runtime@0.0.87"
+    }
+  }
+}

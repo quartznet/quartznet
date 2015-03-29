@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.InteropServices.ComTypes;
 using System.Threading;
 
 using Quartz.Logging;

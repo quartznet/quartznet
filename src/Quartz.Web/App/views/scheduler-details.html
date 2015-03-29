@@ -1,0 +1,53 @@
+<template>
+    <section>
+
+        <div class="pull-right">
+            <button click.delegate="start()">Start</button>
+            <button click.delegate="standby()">Standby</button>
+            <button click.delegate="shutdown()">Shutdown</button>
+        </div>
+
+        <div class="row">
+            <h4>Basic Information</h4>
+            <div class="col-xs-4">Name</div>
+            <div class="col-xs-8">${details.name}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Instance ID</div>
+            <div class="col-xs-8">${details.schedulerInstanceId}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Status</div>
+            <div class="col-xs-8">${details.status}</div>
+        </div>
+        <div class="row">
+            <h4>Job Store</h4>
+            <div class="col-xs-4">Type</div>
+            <div class="col-xs-8">${details.jobStore.type}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Clustered</div>
+            <div class="col-xs-8">${details.jobStore.clustered}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Persistent</div>
+            <div class="col-xs-8">${details.jobStore.persistent}</div>
+        </div>
+
+        <div class="row">
+            <h4>Thread Pool</h4>
+            <div class="col-xs-4">Type</div>
+            <div class="col-xs-8">${details.threadPool.type}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Size</div>
+            <div class="col-xs-8">${details.threadPool.size}</div>
+        </div>
+
+        <div class="row">
+            <h4>Statistics</h4>
+            <div class="col-xs-4">Number of Jobs Executed</div>
+            <div class="col-xs-8">${details.statistics.numberOfJobsExecuted}</div>
+        </div>
+    </section>
+</template>

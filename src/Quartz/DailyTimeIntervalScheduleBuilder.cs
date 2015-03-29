@@ -22,10 +22,9 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Collection;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
-using Quartz.Collection;
-
 
 namespace Quartz
 {

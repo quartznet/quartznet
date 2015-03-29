@@ -25,6 +25,8 @@ using System.Data;
 using System.IO;
 using System.Transactions;
 
+using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -35,10 +37,6 @@ using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
-
-using FakeItEasy;
-
-using Is = NUnit.Framework.Is;
 
 namespace Quartz.Tests.Unit.Xml
 {

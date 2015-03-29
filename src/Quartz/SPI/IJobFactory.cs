@@ -16,6 +16,7 @@
  * 
  */
 #endregion
+
 using Quartz.Simpl;
 
 namespace Quartz.Spi

@@ -1,4 +1,4 @@
-﻿using System.Data;
+﻿using System.Data.Common;
 
 using FakeItEasy;
 
@@ -34,7 +34,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public void ShouldNotAutomaticallyOpenConnection()
         {
-            var mock = A.Fake<IDbConnection>();
+            var mock = A.Fake<DbConnection>();
             A.CallTo(() => connectionManager.GetConnection(A<string>.Ignored)).Returns(mock);
 
             jobStore.ExecuteGetNonManagedConnection();
@@ -46,7 +46,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         public void ShouldOpenConnectionIfRequested()
         {
             jobStore.OpenConnection = true;
-            var mock = A.Fake<IDbConnection>();
+            var mock = A.Fake<DbConnection>();
             A.CallTo(() => connectionManager.GetConnection(A<string>.Ignored)).Returns(mock);
 
             jobStore.ExecuteGetNonManagedConnection();

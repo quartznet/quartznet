@@ -1,0 +1,39 @@
+<template>
+    <section>
+        <div class="pull-right">
+            <button click.delegate="pause()">Pause</button>
+            <button click.delegate="resume()">Resume</button>
+            <button click.delegate="trigger()">Trigger</button>
+        </div>
+
+        <div class="row">
+            <h4>Basic Information</h4>
+            <div class="col-xs-4">Type</div>
+            <div class="col-xs-8">${details.jobType}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Key</div>
+            <div class="col-xs-8">${details.name}.${details.group}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Description</div>
+            <div class="col-xs-8">${details.description}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Durable</div>
+            <div class="col-xs-8">${details.durable}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Requests Recovery</div>
+            <div class="col-xs-8">${details.requestsRecovery}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Concurrent Execution Disallowed</div>
+            <div class="col-xs-8">${details.concurrentExecutionDisallowed}</div>
+        </div>
+        <div class="row">
+            <div class="col-xs-4">Persist Job Data After Execution</div>
+            <div class="col-xs-8">${details.persistJobDataAfterExecution}</div>
+        </div>
+    </section>
+</template>

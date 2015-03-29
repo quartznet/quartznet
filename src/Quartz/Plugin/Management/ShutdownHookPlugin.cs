@@ -18,10 +18,8 @@
 #endregion
 
 using System;
-using System.Globalization;
 
 using Quartz.Logging;
-
 using Quartz.Spi;
 
 namespace Quartz.Plugin.Management

@@ -23,9 +23,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-using Quartz.Logging;
-using Quartz.Collection;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore

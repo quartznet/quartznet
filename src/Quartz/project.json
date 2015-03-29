@@ -1,32 +1,30 @@
-{
-	"version": "1.0.0-*",
-	"dependencies": {
-	},
-	"frameworks": {
-		"net45": {
-			"frameworkAssemblies": {
-				"System.Data": "4.0.0.0",
-				"System.Configuration": "4.0.0.0",
-				"System.Runtime.Remoting": "4.0.0.0",
-				"System.Xml": "4.0.0.0",
-				"System.Web": "4.0.0.0"
-			}
-		},
-		"aspnet50": {
-			"dependencies": {
-			},
-			"frameworkAssemblies": {
-				"System.Data": "4.0.0.0",
-				"System.Configuration": "4.0.0.0",
-				"System.Globalization": "4.0.0.0",
-				"System.Linq": "4.0.0.0",
-				"System.Runtime.Remoting": "4.0.0.0",
-				"System.Runtime.Serialization": "4.0.0.0",
-				"System.Threading": "4.0.0.0",
-				"System.Xml": "4.0.0.0",
-				"System.Xml.Serialization": "4.0.0.0",
-				"System.Web": "4.0.0.0"
-			}
-		}
-	}
+﻿{
+  "version": "1.0.0-*",
+  "dependencies": {},
+  "frameworks": {
+    "net45": {
+      "frameworkAssemblies": {
+        "System.Data": "4.0.0.0",
+        "System.Configuration": "4.0.0.0",
+        "System.Runtime.Remoting": "4.0.0.0",
+        "System.Xml": "4.0.0.0",
+        "System.Web": "4.0.0.0"
+      }
+    },
+    "aspnet50": {
+      "dependencies": {},
+      "frameworkAssemblies": {
+        "System.Data": "4.0.0.0",
+        "System.Configuration": "4.0.0.0",
+        "System.Globalization": "4.0.0.0",
+        "System.Linq": "4.0.0.0",
+        "System.Runtime.Remoting": "4.0.0.0",
+        "System.Runtime.Serialization": "4.0.0.0",
+        "System.Threading": "4.0.0.0",
+        "System.Xml": "4.0.0.0",
+        "System.Xml.Serialization": "4.0.0.0",
+        "System.Web": "4.0.0.0"
+      }
+    }
+  }
 }

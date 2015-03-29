@@ -1,0 +1,22 @@
+<template>
+    <h2>${heading}</h2>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Group</th>
+                <th>Name</th>
+                <th>&nbsp;</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr repeat.for="job of jobs">
+                <td>${job.group}</td>
+                <td>${job.name}</td>
+                <td>
+                    <a route-href="route: job-details; params.bind: { id: id, group: job.group, name: job.name }">Details</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</template>

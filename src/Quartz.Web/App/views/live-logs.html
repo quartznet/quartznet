@@ -1,0 +1,17 @@
+<template>
+    <h2>Live Logs</h2>
+
+    <label for="scheduler">Scheduler</label>
+
+    <select id="scheduler" value.bind="scheduler">
+        <option>Select scheduler</option>
+        <option repeat.for="scheduler of schedulers" value.bind="scheduler.name">${scheduler.name}</option>
+    </select>
+
+    <div class="row">
+        <textarea cols="120" rows="20" disabled="disabled">
+            [XX:XX] TODO Not implemented at the moment
+        </textarea>
+    </div>
+
+</template>

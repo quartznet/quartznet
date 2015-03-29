@@ -19,8 +19,9 @@
 
 #endregion
 
-using Quartz.Util;
 using System;
+
+using Quartz.Util;
 
 namespace Quartz
 {

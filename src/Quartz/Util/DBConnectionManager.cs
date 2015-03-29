@@ -19,12 +19,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data;
+using System.Data.Common;
 using System.Globalization;
 
-using Quartz.Logging;
-
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 
 namespace Quartz.Util
 {
@@ -82,10 +81,9 @@ namespace Quartz.Util
 		/// Get a database connection from the DataSource with the given name.
 		/// </summary>
 		/// <returns> a database connection </returns>
-        public virtual IDbConnection GetConnection(string dataSourceName)
+        public virtual DbConnection GetConnection(string dataSourceName)
 		{
-            IDbProvider provider = GetDbProvider(dataSourceName);
-
+            var provider = GetDbProvider(dataSourceName);
 			return provider.CreateConnection();
 		}
 
@@ -111,7 +109,7 @@ namespace Quartz.Util
         /// <returns></returns>
 	    public IDbProvider GetDbProvider(string dsName)
 	    {
-            if (String.IsNullOrEmpty(dsName))
+            if (string.IsNullOrEmpty(dsName))
             {
                 throw new ArgumentException("DataSource name cannot be null or empty", "dsName");
             }

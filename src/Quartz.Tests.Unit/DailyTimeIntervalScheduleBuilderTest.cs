@@ -22,13 +22,12 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Spi;
-using Quartz.Job;
-using Quartz.Impl;
-using Quartz.Impl.Triggers;
-
 using NUnit.Framework;
 
+using Quartz.Impl;
+using Quartz.Impl.Triggers;
+using Quartz.Job;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit

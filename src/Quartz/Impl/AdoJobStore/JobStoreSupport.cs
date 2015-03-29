@@ -22,18 +22,18 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Threading;
 
-using Quartz.Logging;
-
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -81,7 +81,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected JobStoreSupport()
         {
-            this.RetryableActionErrorLogThreshold = 4;
+            RetryableActionErrorLogThreshold = 4;
             DoubleCheckLockMisfireHandler = true;
             ClusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
             MaxMisfiresToHandleAtATime = 20;
@@ -359,8 +359,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         protected virtual ConnectionAndTransactionHolder GetConnection()
         {
-            IDbConnection conn;
-            IDbTransaction tx;
+            DbConnection conn;
+            DbTransaction tx;
             try
             {
                 conn = ConnectionManager.GetConnection(DataSource);

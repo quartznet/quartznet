@@ -237,7 +237,7 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(calendar.IsSatisfiedBy(DateTime.Now.AddMinutes(2)), "Time was included");
         }
 
-        private static void TestCorrectWeekFireDays(CronExpression cronExpression, System.Collections.Generic.IList<int> correctFireDays)
+        private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList<int> correctFireDays)
         {
             List<int> fireDays = new List<int>();
 

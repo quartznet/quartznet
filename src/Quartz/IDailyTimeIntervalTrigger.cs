@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Collection;
 using Quartz.Impl.Triggers;
 
 namespace Quartz

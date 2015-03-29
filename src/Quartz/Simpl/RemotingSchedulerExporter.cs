@@ -29,7 +29,6 @@ using System.Runtime.Serialization.Formatters;
 using System.Security;
 
 using Quartz.Logging;
-
 using Quartz.Spi;
 
 namespace Quartz.Simpl

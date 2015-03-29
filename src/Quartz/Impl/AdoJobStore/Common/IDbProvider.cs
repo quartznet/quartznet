@@ -20,6 +20,7 @@
 #endregion
 
 using System.Data;
+using System.Data.Common;
 
 namespace Quartz.Impl.AdoJobStore.Common
 {
@@ -39,7 +40,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// against the database.
         /// </summary>
         /// <returns>An new <see cref="IDbCommand"/></returns>
-        IDbCommand CreateCommand();
+        DbCommand CreateCommand();
 
         /// <summary>
         /// Returns a new instance of the providers CommandBuilder class.
@@ -54,14 +55,14 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Returns a new connection object to communicate with the database.
         /// </summary>
         /// <returns>A new <see cref="IDbConnection"/></returns>
-        IDbConnection CreateConnection();
+        DbConnection CreateConnection();
 
         /// <summary>
         /// Returns a new parameter object for binding values to parameter
         /// placeholders in SQL statements or Stored Procedure variables.
         /// </summary> 
         /// <returns>A new <see cref="IDbDataParameter"/></returns>
-        IDbDataParameter CreateParameter();
+        DbParameter CreateParameter();
 
         /// <summary>
         /// Connection string used to create connections.

@@ -18,12 +18,11 @@
 #endregion
 
 using System;
-using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
 
 using Quartz.Logging;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -93,7 +92,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
         {
-            IDbConnection conn;
+            DbConnection conn;
             try
             {
                 conn = ConnectionManager.GetConnection(DataSource);

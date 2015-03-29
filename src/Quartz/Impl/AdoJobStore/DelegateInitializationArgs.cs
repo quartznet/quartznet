@@ -1,8 +1,7 @@
 using System.Collections.Specialized;
 
-using Quartz.Logging;
-
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
