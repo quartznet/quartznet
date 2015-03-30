@@ -2,6 +2,24 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.3.2, Mar 30, 2015
+--------------------------------
+
+This is a minor release containing mostly bug fixes.
+
+NEW FEATURE
+
+* Add mysql 6.9.5 provider support 
+
+FIXES
+
+* Avoid unnecessary object allocations in CronExpression
+* CalendarIntervalTrigger and DailyTimeIntervalTrigger produce incorrect schedule builders
+* Incorrect multiplication factor in DailyTimeIntervalScheduleBuilder.EndingDailyAfterCount()
+* AnnualCalendar SetDayExcluded does not update internal data structures if base calendar excludes date
+* Ensure IDriverDelegate members in StdAdoDelegate are virtual
+* Several XML documentation spelling error fixes
+
 Release 2.3.1, Jan 15, 2015
 --------------------------------
 
