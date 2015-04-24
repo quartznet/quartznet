@@ -321,7 +321,7 @@ namespace Quartz.Simpl
         {
             lock (nextRunnableLock)
             {
-                while ((availWorkers.Count < 1 || handoffPending) && !isShutdown)
+                if ((availWorkers.Count < 1 || handoffPending) && !isShutdown)
                 {
                     try
                     {
