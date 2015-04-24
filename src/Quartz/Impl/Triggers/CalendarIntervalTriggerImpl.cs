@@ -68,7 +68,6 @@ namespace Quartz.Impl.Triggers
         private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
         private bool skipDayIfHourDoesNotExist;
         private int timesTriggered;
-        private bool complete = false;
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
@@ -565,11 +564,6 @@ namespace Quartz.Impl.Triggers
 
         protected DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime)
         {
-            if (complete)
-            {
-                return null;
-            }
-
             // increment afterTime by a second, so that we are 
             // comparing against a time after it!
             if (afterTime == null)
@@ -830,7 +824,7 @@ namespace Quartz.Impl.Triggers
         {
             get
             {
-                if (complete || EndTimeUtc == null)
+                if (EndTimeUtc == null)
                 {
                     return null;
                 }

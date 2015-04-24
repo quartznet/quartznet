@@ -1500,9 +1500,7 @@ namespace Quartz.Simpl
 
                 while (true)
                 {
-                    TriggerWrapper tw;
-
-                    tw = timeTriggers.First();
+                    var tw = timeTriggers.First();
                     if (tw == null)
                     {
                         break;

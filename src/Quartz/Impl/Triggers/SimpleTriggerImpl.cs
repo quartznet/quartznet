@@ -47,7 +47,6 @@ namespace Quartz.Impl.Triggers
         private int repeatCount;
         private TimeSpan repeatInterval = TimeSpan.Zero;
         private int timesTriggered;
-        private bool complete = false;
 
         /// <summary>
         /// Create a <see cref="SimpleTriggerImpl" /> with no settings.
@@ -618,11 +617,6 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
         public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTimeUtc)
 		{
-			if (complete)
-			{
-				return null;
-			}
-
 			if ((timesTriggered > repeatCount) && (repeatCount != RepeatIndefinitely))
 			{
 				return null;

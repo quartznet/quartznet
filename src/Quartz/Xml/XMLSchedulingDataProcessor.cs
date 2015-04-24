@@ -567,7 +567,7 @@ namespace Quartz.Xml
         protected virtual bool TryParseEnum<T>(string str, out T value) where T : struct
         {
             var names = Enum.GetNames(typeof (T));
-            value = (Enum.GetValues(typeof (T)) as T[])[0];
+            value = (T) Enum.GetValues(typeof (T)).GetValue(0);
             foreach (var name in names)
             {
                 if (name == str)

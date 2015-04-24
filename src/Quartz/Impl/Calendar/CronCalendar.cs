@@ -274,7 +274,7 @@ namespace Quartz.Impl.Calendar
 
         public override bool Equals(object obj)
         {
-            if ((obj == null) || !(obj is CronCalendar))
+            if (!(obj is CronCalendar))
             {
                 return false;
             }

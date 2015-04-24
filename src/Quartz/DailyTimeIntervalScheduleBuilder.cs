@@ -382,7 +382,7 @@ namespace Quartz
             maxEndTimeOfDayDate = new DateTimeOffset(maxEndTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(maxEndTimeOfDayDate.DateTime));
 
             TimeSpan remainingMillisInDay = maxEndTimeOfDayDate - startTimeOfDayDate;
-            TimeSpan intervalInMillis = TimeSpan.Zero;
+            TimeSpan intervalInMillis;
             if (intervalUnit == IntervalUnit.Second)
             {
                 intervalInMillis = TimeSpan.FromSeconds(interval);
@@ -487,7 +487,7 @@ namespace Quartz
             return this;
         }
 
-        private void ValidateInterval(int interval)
+        private static void ValidateInterval(int interval)
         {
             if (interval <= 0)
             {

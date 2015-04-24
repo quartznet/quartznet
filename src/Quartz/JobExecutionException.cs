@@ -42,9 +42,9 @@ namespace Quartz
     [Serializable]
 	public class JobExecutionException : SchedulerException
 	{
-		private bool refire = false;
-		private bool unscheduleTrigg = false;
-		private bool unscheduleAllTriggs = false;
+		private bool refire;
+		private bool unscheduleTrigg;
+		private bool unscheduleAllTriggs;
 
 		/// <summary>
 		/// Gets or sets a value indicating whether to unschedule firing trigger.

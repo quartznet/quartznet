@@ -70,7 +70,6 @@ namespace Quartz.Core
 
         private IJobFactory jobFactory = new PropertySettingJobFactory();
         private readonly ExecutingJobsManager jobMgr;
-        private readonly ErrorLogger errLogger;
         private readonly ISchedulerSignaler signaler;
         private readonly Random random = new Random();
         private readonly List<object> holdToPreventGc = new List<object>(5);
@@ -338,7 +337,7 @@ namespace Quartz.Core
 
             jobMgr = new ExecutingJobsManager();
             AddInternalJobListener(jobMgr);
-            errLogger = new ErrorLogger();
+            var errLogger = new ErrorLogger();
             AddInternalSchedulerListener(errLogger);
 
             signaler = new SchedulerSignalerImpl(this, schedThread);
@@ -2281,13 +2280,11 @@ namespace Quartz.Core
         {
             IList<IJobExecutionContext> jobs = CurrentlyExecutingJobs;
 
-            IJobDetail jobDetail;
-
             bool interrupted = false;
 
             foreach (IJobExecutionContext jec in jobs)
             {
-                jobDetail = jec.JobDetail;
+                var jobDetail = jec.JobDetail;
                 if (jobKey.Equals(jobDetail.Key))
                 {
                     IInterruptableJob jobInstance = jec.JobInstance as IInterruptableJob;
