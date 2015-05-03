@@ -136,7 +136,7 @@ namespace Quartz.Simpl
 						// cannot set null to these
 						HandleError(string.Format(CultureInfo.InvariantCulture, "Cannot set null to property on Job class {0} for property '{1}'", obj.GetType(), name));
 					}
-					if (paramType == typeof(char) && o!= null && o is string && ((string) o).Length != 1)
+					if (paramType == typeof(char) && o is string && ((string) o).Length != 1)
 					{
 						// handle special case
 						HandleError(string.Format(CultureInfo.InvariantCulture, "Cannot set empty string to char property on Job class {0} for property '{1}'", obj.GetType(), name));
@@ -152,41 +152,30 @@ namespace Quartz.Simpl
 				{
 					HandleError(
 							string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' expects a {2} but was given {3}", obj.GetType(), name, paramType, o), nfe);
-
-					continue;
 				}
 				catch (MethodAccessException)
 				{
                     HandleError(string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' expects a {2} but was given a {3}", obj.GetType(), name, paramType, o.GetType()));
-
-					continue;
 				}
 				catch (ArgumentException e)
 				{
 					HandleError(
 							string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' expects a {2} but was given {3}", obj.GetType(), name, paramType, o.GetType()), e);
-
-					continue;
 				}
 				catch (UnauthorizedAccessException e)
 				{
 					HandleError(
 							string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' could not be accessed.", obj.GetType(), name), e);
-					continue;
 				}
 				catch (TargetInvocationException e)
 				{
 					HandleError(
 							string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' could not be accessed.", obj.GetType(), name), e);
-					
-					continue;
 				}
                 catch (Exception e)
                 {
                     HandleError(
                             string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' threw exception when processing.", obj.GetType(), name), e);
-
-                    continue;
                 }
 			}
 		}

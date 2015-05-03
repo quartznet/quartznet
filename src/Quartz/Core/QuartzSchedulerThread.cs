@@ -280,7 +280,7 @@ namespace Quartz.Core
                     int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
                     if (availThreadCount > 0) // will always be true, due to semantics of blockForAvailableThreads...
                     {
-                        IList<IOperableTrigger> triggers = null;
+                        IList<IOperableTrigger> triggers;
 
                         DateTimeOffset now = SystemTime.UtcNow();
 
@@ -367,7 +367,7 @@ namespace Quartz.Core
                             // set triggers to 'executing'
                             IList<TriggerFiredResult> bndles = new List<TriggerFiredResult>();
 
-                            bool goAhead = true;
+                            bool goAhead;
                             lock (sigLock) 
                             {
                         	    goAhead = !halted;
@@ -429,7 +429,7 @@ namespace Quartz.Core
                             //   but the signature says it can).
                             // 3- acquire more triggers at a time (based on num threads available?)
 
-                            JobRunShell shell = null;
+                            JobRunShell shell;
                             try
                             {
                                 shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);

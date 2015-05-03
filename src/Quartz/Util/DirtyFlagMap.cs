@@ -497,7 +497,7 @@ namespace Quartz.Util
         /// </returns>
         public override bool Equals(object obj)
         {
-            if (obj == null || !(obj is DirtyFlagMap<TKey, TValue>))
+            if (!(obj is DirtyFlagMap<TKey, TValue>))
             {
                 return false;
             }

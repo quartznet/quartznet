@@ -71,7 +71,7 @@ namespace Quartz.Impl.Calendar
         private int rangeEndingSecond;
         private int rangeEndingMillis;
 
-        private bool invertTimeRange = false;
+        private bool invertTimeRange;
 
 
         /// <summary>
@@ -655,15 +655,13 @@ namespace Quartz.Impl.Calendar
         public void SetTimeRange(string rangeStartingTimeString,
                                   string rangeEndingTimeString)
         {
-            string[] rangeStartingTime;
             int rangeStartingSecond;
             int rangeStartingMillis;
 
-            string[] rangeEndingTime;
             int rangeEndingSecond;
             int rangeEndingMillis;
 
-            rangeStartingTime = rangeStartingTimeString.Split(Colon);
+            var rangeStartingTime = rangeStartingTimeString.Split(Colon);
 
             if ((rangeStartingTime.Length < 2) || (rangeStartingTime.Length > 4))
             {
@@ -690,7 +688,7 @@ namespace Quartz.Impl.Calendar
                 rangeStartingMillis = 0;
             }
 
-            rangeEndingTime = rangeEndingTimeString.Split(Colon);
+            var rangeEndingTime = rangeEndingTimeString.Split(Colon);
 
             if ((rangeEndingTime.Length < 2) || (rangeEndingTime.Length > 4))
             {
@@ -907,7 +905,7 @@ namespace Quartz.Impl.Calendar
 
         public override bool Equals(object obj)
         {
-            if ((obj == null) || !(obj is DailyCalendar))
+            if (!(obj is DailyCalendar))
                 return false;
             else
                 return Equals((DailyCalendar)obj);

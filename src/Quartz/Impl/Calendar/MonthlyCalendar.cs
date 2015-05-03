@@ -47,7 +47,7 @@ namespace Quartz.Impl.Calendar
         private bool[] excludeDays = new bool[MaxDaysInMonth];
 
         // Will be set to true, if all week days are excluded
-        private bool excludeAll = false;
+        private bool excludeAll;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MonthlyCalendar"/> class.
@@ -291,7 +291,7 @@ namespace Quartz.Impl.Calendar
 
         public override bool Equals(object obj)
         {
-            if ((obj == null) || !(obj is MonthlyCalendar))
+            if (!(obj is MonthlyCalendar))
             {
                 return false;
             }

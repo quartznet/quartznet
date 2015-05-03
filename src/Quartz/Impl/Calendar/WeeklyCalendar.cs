@@ -44,7 +44,7 @@ namespace Quartz.Impl.Calendar
         private bool[] excludeDays = new bool[7];
 
         // Will be set to true, if all week days are excluded
-        private bool excludeAll = false;
+        private bool excludeAll;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
@@ -294,7 +294,7 @@ namespace Quartz.Impl.Calendar
 
         public override bool Equals(object obj)
         {
-            if ((obj == null) || !(obj is WeeklyCalendar))
+            if (!(obj is WeeklyCalendar))
             {
                 return false;
             }

@@ -231,7 +231,7 @@ namespace Quartz.Impl.Calendar
 
         public override bool Equals(object obj)
         {
-            if ((obj == null) || !(obj is HolidayCalendar))
+            if (!(obj is HolidayCalendar))
             {
                 return false;
             }

@@ -211,14 +211,13 @@ namespace Quartz.Plugin.Xml
                             Scheduler.UnscheduleJob(tKey);
 
                             // TODO: convert to use builder
-                            SimpleTriggerImpl trig = (SimpleTriggerImpl) Scheduler.GetTrigger(tKey);
-                            trig = new SimpleTriggerImpl();
-                            trig.Name = (jobTriggerName);
-                            trig.Group = (JobInitializationPluginName);
+                            var trig = new SimpleTriggerImpl();
+                            trig.Name = jobTriggerName;
+                            trig.Group = JobInitializationPluginName;
                             trig.StartTimeUtc = SystemTime.UtcNow();
-                            trig.EndTimeUtc = (null);
-                            trig.RepeatCount = (SimpleTriggerImpl.RepeatIndefinitely);
-                            trig.RepeatInterval = (scanInterval);
+                            trig.EndTimeUtc = null;
+                            trig.RepeatCount = SimpleTriggerImpl.RepeatIndefinitely;
+                            trig.RepeatInterval = scanInterval;
 
                             // TODO: convert to use builder
                             JobDetailImpl job = new JobDetailImpl(

@@ -376,7 +376,7 @@ namespace Quartz.Impl.Triggers
 			}
 			if (timeZone == null)
 			{
-                timeZone = TimeZoneInfo.Local;
+                TimeZone = TimeZoneInfo.Local;
 			}
 			else
 			{
@@ -850,7 +850,6 @@ namespace Quartz.Impl.Triggers
 				    if (diff >= misfireThreshold)
 				    {
 					    nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
-					    continue;
 				    }
 			    }
             }
