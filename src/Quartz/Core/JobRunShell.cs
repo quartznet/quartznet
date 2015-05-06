@@ -198,7 +198,7 @@ namespace Quartz.Core
                         log.Error(string.Format(CultureInfo.InvariantCulture, "Job {0} threw an unhandled Exception: ", jobDetail.Key), e);
                         SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
                         qs.NotifySchedulerListenersError(
-                            string.Format(CultureInfo.InvariantCulture, "Job ({0} threw an exception.", jec.JobDetail.Key), se);
+                            string.Format(CultureInfo.InvariantCulture, "Job {0} threw an exception.", jec.JobDetail.Key), se);
                         jobExEx = new JobExecutionException(se, false);
                     }
 
