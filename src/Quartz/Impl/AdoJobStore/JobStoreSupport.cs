@@ -1485,7 +1485,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (!Clustered)
                 {
-                    calendarCache[calName] = calendar; // lazy-cache}
+                    calendarCache[calName] = calendar; // lazy-cache
                 }
             }
             catch (IOException e)

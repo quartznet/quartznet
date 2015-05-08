@@ -47,7 +47,7 @@ namespace Quartz.Spi
 	    /// Scheduler will move all triggers associated with the Job into the
 	    /// <see cref="TriggerState.Error" /> state, which will require human
 	    /// intervention (e.g. an application restart after fixing whatever 
-	    /// configuration problem led to the issue with instantiating the Job. 
+	    /// configuration problem led to the issue with instantiating the Job). 
 	    /// </remarks>
 	    /// <param name="bundle">
 	    ///   The TriggerFiredBundle from which the <see cref="IJobDetail" />

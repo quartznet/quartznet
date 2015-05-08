@@ -275,7 +275,7 @@ namespace Quartz.Impl.Calendar
             //a little trick here : Monthly calendar knows nothing
             //about the precise month it is dealing with, so
             //FebruaryCalendars will be only equal if their
-            // 31st days are equally included ))
+            //31st days are equally included
             //but that's not going to be a problem since 
             //there's no need to redefine default value of false
             //for such days

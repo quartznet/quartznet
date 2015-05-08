@@ -709,7 +709,7 @@ namespace Quartz
         /// <seealso cref="IJobExecutionContext.FireInstanceId" />
         /// <seealso cref="Interrupt(JobKey)" />
         /// <param name="fireInstanceId">
-        /// the unique identifier of the job instance to  be interrupted (see <see cref="IJobExecutionContext.FireInstanceId" />
+        /// the unique identifier of the job instance to  be interrupted (see <see cref="IJobExecutionContext.FireInstanceId" />)
         /// </param>
         /// <returns>true if the identified job instance was found and interrupted.</returns>
         bool Interrupt(string fireInstanceId);

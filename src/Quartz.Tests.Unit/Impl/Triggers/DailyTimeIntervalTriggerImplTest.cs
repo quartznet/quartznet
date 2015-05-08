@@ -123,7 +123,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             Assert.Throws<SchedulerException>(trigger.Validate, "repeatInterval can not exceed 24 hours (86400 seconds). Given 90000");
 
-            Assert.Throws<ArgumentException>(delegate { trigger.RepeatIntervalUnit = IntervalUnit.Day; }, "Invalid repeat IntervalUnit (must be Second, Minute or Hour");
+            Assert.Throws<ArgumentException>(delegate { trigger.RepeatIntervalUnit = IntervalUnit.Day; }, "Invalid repeat IntervalUnit (must be Second, Minute or Hour)");
 
             trigger.RepeatIntervalUnit = IntervalUnit.Second;
             trigger.RepeatInterval = 0;

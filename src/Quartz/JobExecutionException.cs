@@ -27,7 +27,7 @@ namespace Quartz
 	/// An exception that can be thrown by a <see cref="IJob" />
 	/// to indicate to the Quartz <see cref="IScheduler" /> that an error
 	/// occurred while executing, and whether or not the <see cref="IJob" /> requests
-	/// to be re-fired immediately (using the same <see cref="IJobExecutionContext" />,
+	/// to be re-fired immediately (using the same <see cref="IJobExecutionContext" />),
 	/// or whether it wants to be unscheduled.
     /// </summary>
 	/// <remarks>

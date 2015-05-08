@@ -24,7 +24,7 @@ namespace Quartz
     /// <summary>
     /// An attribute that marks a <see cref="IJob" /> class as one that must not have multiple
     /// instances executed concurrently (where instance is based-upon a <see cref="IJobDetail" /> 
-    /// definition - or in other words based upon a <see cref="JobKey" />. 
+    /// definition - or in other words based upon a <see cref="JobKey" />). 
     /// </summary>
     /// <remarks>
     /// <para>This can be used in lieu of implementing the StatefulJob marker interface that 

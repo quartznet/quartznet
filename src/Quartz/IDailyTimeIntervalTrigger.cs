@@ -30,7 +30,7 @@ namespace Quartz
     /// </summary>
     /// <remarks>
     /// <para>The trigger will fire every N (see <see cref="RepeatInterval"/> ) seconds, minutes or hours
-    /// (see <see cref="RepeatIntervalUnit"/> during a given time window on specified days of the week.</para>
+    /// (see <see cref="RepeatIntervalUnit"/>) during a given time window on specified days of the week.</para>
     /// 
     /// <para>For example#1, a trigger can be set to fire every 72 minutes between 8:00 and 11:00 everyday. It's fire times 
     /// be 8:00, 9:12, 10:24, then next day would repeat: 8:00, 9:12, 10:24 again.</para>

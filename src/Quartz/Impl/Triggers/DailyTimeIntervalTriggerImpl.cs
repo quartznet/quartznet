@@ -297,7 +297,7 @@ namespace Quartz.Impl.Triggers
                       (value == IntervalUnit.Minute) ||
                       (value == IntervalUnit.Hour)))
                 {
-                    throw new ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour");
+                    throw new ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour)");
                 }
 
                 repeatIntervalUnit = value;

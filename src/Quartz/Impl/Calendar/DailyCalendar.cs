@@ -641,7 +641,7 @@ namespace Quartz.Impl.Calendar
             buffer.Append(rangeEndingSecond.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
             buffer.Append(":");
             buffer.Append(rangeEndingMillis.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture));
-            buffer.AppendFormat("', inverted: {0}]", invertTimeRange);
+            buffer.AppendFormat("', inverted: {0}", invertTimeRange);
             return buffer.ToString();
         }
 

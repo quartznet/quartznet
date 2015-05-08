@@ -288,7 +288,7 @@ namespace Quartz
 
         /// <summary>
         /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on
-        /// today's date (equivalent to <see cref="DateOf(int,int,int)" />.
+        /// today's date (equivalent to <see cref="DateOf(int,int,int)" />).
         /// </summary>
         /// <param name="hour"></param>
         /// <param name="minute"></param>
@@ -748,7 +748,7 @@ namespace Quartz
         {
             if (month < 1 || month > 12)
             {
-                throw new ArgumentException("Invalid month (must be >= 1 and <= 12.");
+                throw new ArgumentException("Invalid month (must be >= 1 and <= 12).");
             }
         }
 
@@ -756,7 +756,7 @@ namespace Quartz
         {
             if (year < 1970 || year > 2099)
             {
-                throw new ArgumentException("Invalid year (must be >= 1970 and <= 2099.");
+                throw new ArgumentException("Invalid year (must be >= 1970 and <= 2099).");
             }
         }
     }

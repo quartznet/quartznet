@@ -739,7 +739,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(targetCalTrigger.Group, deserializedCalTrigger.Group);
             Assert.AreEqual(targetCalTrigger.JobName, deserializedCalTrigger.JobName);
             Assert.AreEqual(targetCalTrigger.JobGroup, deserializedCalTrigger.JobGroup);
-//        assertEquals(targetCronTrigger.getStartTime), deserializedCronTrigger.getStartTime());
+//        assertEquals((targetCronTrigger.getStartTime), deserializedCronTrigger.getStartTime());
             Assert.AreEqual(targetCalTrigger.EndTimeUtc, deserializedCalTrigger.EndTimeUtc);
             Assert.AreEqual(targetCalTrigger.CalendarName, deserializedCalTrigger.CalendarName);
             Assert.AreEqual(targetCalTrigger.Description, deserializedCalTrigger.Description);
