@@ -55,7 +55,7 @@ namespace Quartz
     public interface IDailyTimeIntervalTrigger : ITrigger
     {
         /// <summary>
-        /// Get the the number of times for interval this trigger should repeat, 
+        /// Get the number of times for interval this trigger should repeat, 
         /// after which it will be automatically deleted.
         /// </summary>
         int RepeatCount { get; }
@@ -68,7 +68,7 @@ namespace Quartz
         IntervalUnit RepeatIntervalUnit { get; }
 
         /// <summary>
-        /// Get the the time interval that will be added to the <see cref="IDailyTimeIntervalTrigger" />'s
+        /// Get the time interval that will be added to the <see cref="IDailyTimeIntervalTrigger" />'s
         /// fire time (in the set repeat interval unit) in order to calculate the time of the
         /// next trigger repeat.
         /// </summary>

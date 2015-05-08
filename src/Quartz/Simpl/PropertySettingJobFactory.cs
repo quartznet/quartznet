@@ -77,7 +77,7 @@ namespace Quartz.Simpl
 	    /// <remarks>
 	    /// <para>
 	    /// It should be extremely rare for this method to throw an exception -
-	    /// basically only the the case where there is no way at all to instantiate
+	    /// basically only the case where there is no way at all to instantiate
 	    /// and prepare the Job for execution.  When the exception is thrown, the
 	    /// Scheduler will move all triggers associated with the Job into the
 	    /// <see cref="TriggerState.Error" /> state, which will require human

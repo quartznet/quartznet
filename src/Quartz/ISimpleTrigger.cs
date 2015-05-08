@@ -23,7 +23,7 @@ namespace Quartz
         int RepeatCount { get; set; }
 
         /// <summary>
-        /// Get or set the the time interval at which the <see cref="ISimpleTrigger" /> should repeat.
+        /// Get or set the time interval at which the <see cref="ISimpleTrigger" /> should repeat.
         /// </summary>
         TimeSpan RepeatInterval { get; set; }
 

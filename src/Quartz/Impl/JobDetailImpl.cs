@@ -267,7 +267,7 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Set whether or not the the <see cref="IScheduler" /> should re-Execute
+        /// Set whether or not the <see cref="IScheduler" /> should re-Execute
         /// the <see cref="IJob" /> if a 'recovery' or 'fail-over' situation is
         /// encountered.
         /// <para>

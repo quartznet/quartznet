@@ -188,7 +188,7 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
 		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
-		/// will be set the the system's default time zone.
+		/// will be set to the system's default time zone.
         /// </remarks>
 		public CronTriggerImpl()
 		{
@@ -201,7 +201,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <remarks>
         /// The start-time will also be set to the current time, and the time zone
-        /// will be set the the system's default time zone.
+        /// will be set to the system's default time zone.
         /// </remarks>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
         public CronTriggerImpl(string name) : this(name, null)
@@ -213,7 +213,7 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
 		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
-		/// will be set the the system's default time zone.
+		/// will be set to the system's default time zone.
         /// </remarks>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
@@ -230,7 +230,7 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
 		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
-		/// will be set the the system's default time zone.
+		/// will be set to the system's default time zone.
         /// </remarks>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
@@ -249,7 +249,7 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
 		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
-		/// will be set the the system's default time zone.
+		/// will be set to the system's default time zone.
 		/// </remarks>
         /// <param name="name">The name of the <see cref="ITrigger" />.</param>
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
@@ -269,7 +269,7 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
 		/// <remarks>
 		/// The start-time will also be set to the current time, and the time zone
-		/// will be set the the system's default time zone.
+		/// will be set to the system's default time zone.
         /// </remarks>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
@@ -309,7 +309,7 @@ namespace Quartz.Impl.Triggers
 		/// until the given end time.
 		/// <para>
 		/// If null, the start-time will also be set to the current time, the time
-		/// zone will be set the the system's default.
+		/// zone will be set to the system's default.
 		/// </para>
 		/// </summary>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
