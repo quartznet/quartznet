@@ -42,12 +42,12 @@ namespace Quartz.Spi
 	    /// </summary>
 	    /// <remarks>
 	    /// It should be extremely rare for this method to throw an exception -
-	    /// basically only the the case where there is no way at all to instantiate
+	    /// basically only the case where there is no way at all to instantiate
 	    /// and prepare the Job for execution.  When the exception is thrown, the
 	    /// Scheduler will move all triggers associated with the Job into the
 	    /// <see cref="TriggerState.Error" /> state, which will require human
 	    /// intervention (e.g. an application restart after fixing whatever 
-	    /// configuration problem led to the issue with instantiating the Job. 
+	    /// configuration problem led to the issue with instantiating the Job). 
 	    /// </remarks>
 	    /// <param name="bundle">
 	    ///   The TriggerFiredBundle from which the <see cref="IJobDetail" />
@@ -60,7 +60,7 @@ namespace Quartz.Spi
 	    IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler);
 
         /// <summary>
-        /// Allows the the job factory to destroy/cleanup the job if needed.
+        /// Allows the job factory to destroy/cleanup the job if needed.
         /// </summary>
 	    void ReturnJob(IJob job);
 	}

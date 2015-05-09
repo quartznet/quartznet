@@ -30,7 +30,7 @@ namespace Quartz
     /// </summary>
     /// <remarks>
     /// <para>The trigger will fire every N (see <see cref="RepeatInterval"/> ) seconds, minutes or hours
-    /// (see <see cref="RepeatIntervalUnit"/> during a given time window on specified days of the week.</para>
+    /// (see <see cref="RepeatIntervalUnit"/>) during a given time window on specified days of the week.</para>
     /// 
     /// <para>For example#1, a trigger can be set to fire every 72 minutes between 8:00 and 11:00 everyday. It's fire times 
     /// be 8:00, 9:12, 10:24, then next day would repeat: 8:00, 9:12, 10:24 again.</para>
@@ -55,7 +55,7 @@ namespace Quartz
     public interface IDailyTimeIntervalTrigger : ITrigger
     {
         /// <summary>
-        /// Get the the number of times for interval this trigger should repeat, 
+        /// Get the number of times for interval this trigger should repeat, 
         /// after which it will be automatically deleted.
         /// </summary>
         int RepeatCount { get; }
@@ -68,7 +68,7 @@ namespace Quartz
         IntervalUnit RepeatIntervalUnit { get; }
 
         /// <summary>
-        /// Get the the time interval that will be added to the <see cref="IDailyTimeIntervalTrigger" />'s
+        /// Get the time interval that will be added to the <see cref="IDailyTimeIntervalTrigger" />'s
         /// fire time (in the set repeat interval unit) in order to calculate the time of the
         /// next trigger repeat.
         /// </summary>

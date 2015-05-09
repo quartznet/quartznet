@@ -14,7 +14,7 @@ namespace Quartz
         IntervalUnit RepeatIntervalUnit { get; set; }
 
         /// <summary>
-        /// Get the the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
+        /// Get the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
         /// fire time (in the set repeat interval unit) in order to calculate the time of the 
         /// next trigger repeat.
         /// </summary>

@@ -1054,7 +1054,7 @@ namespace Quartz.Xml
         }
 
         /// <summary>
-        /// Resets the the number of detected validation exceptions.
+        /// Resets the number of detected validation exceptions.
         /// </summary>
         protected virtual void ClearValidationExceptions()
         {

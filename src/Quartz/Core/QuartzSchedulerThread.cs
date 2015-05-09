@@ -535,7 +535,7 @@ namespace Quartz.Core
 		    // implementation to tell us the amount of time in which it "thinks"
 		    // it can abandon the acquired trigger and acquire a new one.  However
 		    // we have no current facility for having it tell us that, so we make
-		    // a somewhat educated but arbitrary guess ;-).
+		    // a somewhat educated but arbitrary guess.
 
     	    lock (sigLock) 
             {

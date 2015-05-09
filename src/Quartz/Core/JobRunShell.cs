@@ -136,7 +136,7 @@ namespace Quartz.Core
                     catch (SchedulerException se)
                     {
                         qs.NotifySchedulerListenersError(
-                            string.Format(CultureInfo.InvariantCulture, "Error executing Job ({0}: couldn't begin execution.", jec.JobDetail.Key),
+                            string.Format(CultureInfo.InvariantCulture, "Error executing Job {0}: couldn't begin execution.", jec.JobDetail.Key),
                             se);
                         break;
                     }
@@ -167,7 +167,7 @@ namespace Quartz.Core
                         catch (SchedulerException se)
                         {
                             qs.NotifySchedulerListenersError(
-                                string.Format(CultureInfo.InvariantCulture, "Error during veto of Job ({0}: couldn't finalize execution.",
+                                string.Format(CultureInfo.InvariantCulture, "Error during veto of Job {0}: couldn't finalize execution.",
                                               jec.JobDetail.Key), se);
                         }
                         break;
@@ -248,7 +248,7 @@ namespace Quartz.Core
                         catch (SchedulerException se)
                         {
                             qs.NotifySchedulerListenersError(
-                                string.Format(CultureInfo.InvariantCulture, "Error executing Job ({0}: couldn't finalize execution.",
+                                string.Format(CultureInfo.InvariantCulture, "Error executing Job {0}: couldn't finalize execution.",
                                               jec.JobDetail.Key), se);
                         }
                         continue;
@@ -261,7 +261,7 @@ namespace Quartz.Core
                     catch (SchedulerException se)
                     {
                         qs.NotifySchedulerListenersError(
-                            string.Format(CultureInfo.InvariantCulture, "Error executing Job ({0}: couldn't finalize execution.",
+                            string.Format(CultureInfo.InvariantCulture, "Error executing Job {0}: couldn't finalize execution.",
                                           jec.JobDetail.Key), se);
                         continue;
                     }

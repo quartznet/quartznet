@@ -55,7 +55,7 @@ namespace Quartz.Spi
         bool RunInThread(IThreadRunnable runnable);
 
         /// <summary>
-        /// Determines the number of threads that are currently available in in
+        /// Determines the number of threads that are currently available in
         /// the pool.  Useful for determining the number of times
         /// <see cref="RunInThread(IThreadRunnable)"/>  can be called before returning
         /// false.

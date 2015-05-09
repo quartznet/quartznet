@@ -61,7 +61,7 @@ namespace Quartz
     ///             .WithIdentity(triggerKey("myTrigger", "myTriggerGroup"))
     ///             .WithDailyTimeIntervalSchedule(x => 
     ///                        x.WithIntervalInMinutes(15)
-    ///                        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+    ///                        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0)))
     ///             .Build();
     ///         
     ///         scheduler.scheduleJob(job, trigger);

@@ -78,7 +78,7 @@ namespace Quartz.Impl.Triggers
 
         /// <summary>
         /// Create a <see cref="CalendarIntervalTriggerImpl" /> that will occur immediately, and
-        /// repeat at the the given interval.
+        /// repeat at the given interval.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
@@ -90,7 +90,7 @@ namespace Quartz.Impl.Triggers
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur immediately, and
-        /// repeat at the the given interval
+        /// repeat at the given interval
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
         /// <param name="group">Group for the trigger instance.</param>
@@ -104,7 +104,7 @@ namespace Quartz.Impl.Triggers
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
-        /// and repeat at the the given interval until the given end time.
+        /// and repeat at the given interval until the given end time.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
         /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
@@ -119,7 +119,7 @@ namespace Quartz.Impl.Triggers
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
-        /// and repeat at the the given interval until the given end time.
+        /// and repeat at the given interval until the given end time.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
         /// <param name="group">Group for the trigger instance.</param>
@@ -139,7 +139,7 @@ namespace Quartz.Impl.Triggers
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
-        /// and repeat at the the given interval until the given end time.
+        /// and repeat at the given interval until the given end time.
         /// </summary>
         /// <param name="name">Name for the trigger instance.</param>
         /// <param name="group">Group for the trigger instance.</param>
@@ -228,7 +228,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get the the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
+        /// Get the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
         /// fire time (in the set repeat interval unit) in order to calculate the time of the 
         /// next trigger repeat.
         /// </summary>
@@ -834,7 +834,7 @@ namespace Quartz.Impl.Triggers
                 // find the next fire time after that
                 fTime = GetFireTimeAfter(fTime, true);
 
-                // the the trigger fires at the end time, that's it!
+                // the trigger fires at the end time, that's it!
                 if (fTime == EndTimeUtc)
                 {
                     return fTime;

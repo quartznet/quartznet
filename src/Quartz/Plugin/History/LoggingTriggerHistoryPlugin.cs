@@ -87,7 +87,7 @@ namespace Quartz.Plugin.History
     /// </table>
     /// 
     /// The default message text is <i>"Trigger {1}.{0} fired job {6}.{5} at: {4,
-    /// date, HH:mm:ss MM/dd/yyyy"</i>
+    /// date, HH:mm:ss MM/dd/yyyy}"</i>
     /// </para>
     /// 
     /// <para>
@@ -136,7 +136,7 @@ namespace Quartz.Plugin.History
     /// 
     /// The default message text is <i>"Trigger {1}.{0} misfired job {6}.{5} at:
     /// {4, date, HH:mm:ss MM/dd/yyyy}. Should have fired at: {3, date, HH:mm:ss
-    /// MM/dd/yyyy"</i>
+    /// MM/dd/yyyy}"</i>
     /// </para>
     /// 
     /// <para>
@@ -201,7 +201,7 @@ namespace Quartz.Plugin.History
     /// 
     /// The default message text is <i>"Trigger {1}.{0} completed firing job
     /// {6}.{5} at {4, date, HH:mm:ss MM/dd/yyyy} with resulting trigger instruction
-    /// code: {9"</i>
+    /// code: {9}"</i>
     /// </para>
     /// </remarks>
     /// <author>James House</author>
@@ -209,8 +209,8 @@ namespace Quartz.Plugin.History
     public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     {
         private string name;
-        private string triggerFiredMessage = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy} ";
-        private string triggerMisfiredMessage = "Trigger {1}.{0} misfired job {6}.{5}  at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
+        private string triggerFiredMessage = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
+        private string triggerMisfiredMessage = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
         private string triggerCompleteMessage = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
         
         private ILog log = LogManager.GetLogger(typeof (LoggingTriggerHistoryPlugin));

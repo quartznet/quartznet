@@ -314,7 +314,7 @@ Please add configuration to your application config file to correctly initialize
                 }
             }
 
-            // now check against allowed))
+            // now check against allowed
             foreach (string configurationKey in cfg.UnderlyingProperties.AllKeys)
             {
                 if (!configurationKey.StartsWith(ConfigurationKeyPrefix) || configurationKey.StartsWith(ConfigurationKeyPrefixServer))

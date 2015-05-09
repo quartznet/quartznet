@@ -55,7 +55,7 @@ namespace Quartz
 	/// sure that you fully understand what <see cref="Thread.Interrupt" /> 
 	/// does and doesn't do.  Also make sure that you clear the Job's member 
 	/// reference to the Thread when the Execute(..) method exits (preferably in a
-	/// <see langword="finally" /> block.
+	/// <see langword="finally" /> block).
 	/// </para>
     /// </remarks>
 	/// <seealso cref="IJob" />
