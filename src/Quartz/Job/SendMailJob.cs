@@ -178,7 +178,8 @@ namespace Quartz.Job
         {
             log.Info(string.Format(CultureInfo.InvariantCulture, "Sending message {0}", GetMessageDescription(mailInfo.MailMessage)));
 
-            using (var client = new SmtpClient(mailInfo.SmtpHost))
+            var client = new SmtpClient(mailInfo.SmtpHost);
+            try
             {
                 if (mailInfo.SmtpUserName != null)
                 {
@@ -192,6 +193,16 @@ namespace Quartz.Job
 
                 client.Send(mailInfo.MailMessage);
             }
+            finally
+            {
+                // .NET 3.5
+                var disposable = client as IDisposable;
+                if (disposable != null)
+                {
+                    disposable.Dispose();
+                }
+            }
+
         }
 
         private static string GetMessageDescription(MailMessage message)
