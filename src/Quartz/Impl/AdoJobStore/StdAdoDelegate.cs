@@ -515,7 +515,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>Number of rows inserted.</returns>
         public virtual int InsertJobDetail(ConnectionAndTransactionHolder conn, IJobDetail job)
         {
-            byte[] baos = SerializeJobData(job.JobDataMap);
+            byte[] baos = null;
+            if (job.JobDataMap.Count > 0)
+            {
+                baos = SerializeJobData(job.JobDataMap);
+            }
 
             int insertResult;
 
@@ -529,7 +533,16 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
                 AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
                 AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
-                AddCommandParameter(cmd, "jobDataMap", baos, dbProvider.Metadata.DbBinaryType);
+
+                string paramName = "jobDataMap";
+                if (baos != null)
+                {
+                    AddCommandParameter(cmd, paramName, baos, dbProvider.Metadata.DbBinaryType);
+                }
+                else
+                {
+                    AddCommandParameter(cmd, paramName, null, dbProvider.Metadata.DbBinaryType);
+                }
 
                 insertResult = cmd.ExecuteNonQuery();
             }
