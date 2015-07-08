@@ -334,7 +334,7 @@ namespace Quartz.Impl.Triggers
 		/// <li>If the Repeat Count is 0, then the instruction will
         /// be interpreted as <see cref="MisfireInstruction.SimpleTrigger.FireNow" />.</li>
 		/// <li>If the Repeat Count is <see cref="RepeatIndefinitely" />, then
-        /// the instruction will be interpreted as <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount" />.
+        /// the instruction will be interpreted as <see cref="MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount" />.
         /// <b>WARNING:</b> using MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount 
 		/// with a trigger that has a non-null end-time may cause the trigger to 
 		/// never fire again if the end-time arrived during the misfire time span. 
