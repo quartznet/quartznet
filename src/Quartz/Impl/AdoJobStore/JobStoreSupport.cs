@@ -1256,7 +1256,10 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         // Don't call RemoveJob() because we don't want to check for
                         // triggers again.
-                        DeleteJobAndChildren(conn, job.Key);
+                        if (DeleteJobAndChildren(conn, job.Key))
+                        {
+                            schedSignaler.NotifySchedulerListenersJobDeleted(job.Key);
+                        }
                     }
                 }
             }
