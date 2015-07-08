@@ -640,17 +640,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected virtual string GetStorableJobTypeName(Type jobType)
         {
-            if (jobType.AssemblyQualifiedName == null)
-            {
-                throw new ArgumentException("Cannot determine job type name when type's AssemblyQualifiedName is null");
-            }
-
-            int idx = jobType.AssemblyQualifiedName.IndexOf(',');
-            // find next
-            idx = jobType.AssemblyQualifiedName.IndexOf(',', idx + 1);
-
-            string retValue = jobType.AssemblyQualifiedName.Substring(0, idx);
-
+            string retValue = jobType.FullName + ", " + jobType.Assembly.GetName().Name;
             return retValue;
         }
 

@@ -239,8 +239,21 @@ namespace Quartz.Tests.Integration.Impl
                     Assert.IsNotNull(scheduler.GetMetaData());
                     Assert.IsNotNull(scheduler.GetCalendar("weeklyCalendar"));
 
+                    var genericjobKey = new JobKey("genericJob", "genericGroup");
+                    var genericJob = JobBuilder.Create<GenericJobType<string>>()
+                        .WithIdentity(genericjobKey)
+                        .StoreDurably()
+                        .Build();
+
+                    scheduler.AddJob(genericJob, false);
+
+                    genericJob = scheduler.GetJobDetail(genericjobKey);
+                    Assert.That(genericJob, Is.Not.Null);
+                    scheduler.TriggerJob(genericjobKey);
+
                     Thread.Sleep(TimeSpan.FromSeconds(20));
 
+                    Assert.That(GenericJobType<string>.TriggeredCount, Is.EqualTo(1));
                     scheduler.Standby();
 
                     CollectionAssert.IsNotEmpty(scheduler.GetCalendarNames());
@@ -343,5 +356,15 @@ namespace Quartz.Tests.Integration.Impl
             tkeys = scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupContains("yz"));
             Assert.That(tkeys.Count, Is.EqualTo(2), "Wrong number of triggers found by contains with matcher");
         }
+    }
+
+    public class GenericJobType<T> : IJob
+    {
+        public void Execute(IJobExecutionContext context)
+        {
+            TriggeredCount++;
+        }
+
+        public static int TriggeredCount { get; private set; }
     }
 }
