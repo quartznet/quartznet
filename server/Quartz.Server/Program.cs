@@ -26,7 +26,7 @@ namespace Quartz.Server
 
                                     x.Service(factory =>
                                                   {
-                                                      QuartzServer server = new QuartzServer();
+                                                      QuartzServer server = QuartzServerFactory.CreateServer();
                                                       server.Initialize();
                                                       return server;
                                                   });

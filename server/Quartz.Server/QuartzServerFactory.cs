@@ -14,14 +14,14 @@ namespace Quartz.Server
         /// Creates a new instance of an Quartz.NET server core.
         /// </summary>
         /// <returns></returns>
-        public static IQuartzServer CreateServer()
+        public static QuartzServer CreateServer()
         {
             string typeName = Configuration.ServerImplementationType;
 
             Type t = Type.GetType(typeName, true);
 
             logger.Debug("Creating new instance of server type '" + typeName + "'");
-            IQuartzServer retValue = (IQuartzServer) Activator.CreateInstance(t);
+            QuartzServer retValue = (QuartzServer) Activator.CreateInstance(t);
             logger.Debug("Instance successfully created");
             return retValue;
         }
