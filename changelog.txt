@@ -2,6 +2,22 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.3.3, Jul 9, 2015
+--------------------------------
+
+This is a minor release containing mostly bug fixes.
+
+NEW FEATURE
+
+* Support generic job types with AdoJobStore
+
+FIXES
+
+* AdoJobStore doesn't notify about removing orphaned job
+* Store null JobData in JobDetails if it's empty
+* Documentation error in SimpleTriggerImpl UpdateAfterMisfire
+* Ensure IDriverDelegate members in StdAdoDelegate are virtual
+
 Release 2.3.2, Mar 30, 2015
 --------------------------------
 
