@@ -20,7 +20,7 @@
 #endregion
 
 using System;
-using System.Data;
+using System.Threading.Tasks;
 
 using Quartz.Spi;
 using Quartz.Util;
@@ -112,18 +112,18 @@ namespace Quartz.Impl.AdoJobStore
 
         protected IDbAccessor DbAccessor { get; private set; }
 
-        public int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public async Task<int> DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(DeleteSimplePropsTrigger, TablePrefix, SchedNameLiteral)))
             {
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                return cmd.ExecuteNonQuery();
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public int InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public async Task<int> InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
@@ -144,20 +144,20 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
                 DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
 
-                return cmd.ExecuteNonQuery();
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, TablePrefix, SchedNameLiteral)))
             {
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                using (IDataReader rs = cmd.ExecuteReader())
+                using (var rs = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    if (rs.Read())
+                    if (await rs.ReadAsync().ConfigureAwait(false))
                     {
                         SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
 
@@ -181,7 +181,7 @@ namespace Quartz.Impl.AdoJobStore
             throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral));
         }
 
-        public int UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public async Task<int> UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
@@ -201,7 +201,7 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
-                return cmd.ExecuteNonQuery();
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
     }

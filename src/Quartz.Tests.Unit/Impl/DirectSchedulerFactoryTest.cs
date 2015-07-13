@@ -21,12 +21,14 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl
 {
@@ -35,7 +37,7 @@ namespace Quartz.Tests.Unit.Impl
 	public class DirectSchedulerFactoryTest
 	{
 		[Test]
-		public void TestPlugins()
+		public async Task TestPlugins()
 		{
 			StringBuilder result = new StringBuilder();
 
@@ -50,9 +52,9 @@ namespace Quartz.Tests.Unit.Impl
 				TimeSpan.Zero);
             
 
-			IScheduler scheduler = DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");
-			scheduler.Start();
-			scheduler.Shutdown();
+			IScheduler scheduler = await DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");
+			await scheduler.Start();
+			await scheduler.Shutdown();
 
 			Assert.AreEqual("TestPlugin|MyScheduler|Start|Shutdown", result.ToString());
 		}
@@ -71,14 +73,16 @@ namespace Quartz.Tests.Unit.Impl
 				result.Append(name).Append("|").Append(scheduler.SchedulerName);
 			}
 
-			public void Start()
-			{
-				result.Append("|Start");
-			}
+		    Task ISchedulerPlugin.Start()
+		    {
+		        result.Append("|Start");
+                return TaskUtil.CompletedTask;
+		    }
 
-			public void Shutdown()
+			public Task Shutdown()
 			{
 				result.Append("|Shutdown");
+                return TaskUtil.CompletedTask;
 			}
 		}
 	}

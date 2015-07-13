@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 using System.Web.Http;
 
 using Quartz.Impl;
@@ -17,62 +18,63 @@ namespace Quartz.Web.Api
     {
         [HttpGet]
         [Route("")]
-        public IList<SchedulerHeaderDto> AllSchedulers()
+        public async Task<IReadOnlyList<SchedulerHeaderDto>> AllSchedulers()
         {
-            var schedulers = SchedulerRepository.Instance.LookupAll();
+            var schedulers = await SchedulerRepository.Instance.LookupAll().ConfigureAwait(false);
             return schedulers.Select(x => new SchedulerHeaderDto(x)).ToList();
         }
 
         [HttpGet]
         [Route("{schedulerName}")]
-        public SchedulerDto SchedulerDetails(string schedulerName)
+        public async Task<SchedulerDto> SchedulerDetails(string schedulerName)
         {
-            var scheduler = GetScheduler(schedulerName);
-            return new SchedulerDto(scheduler);
+            var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
+            var metaData = await scheduler.GetMetaData().ConfigureAwait(false);
+            return new SchedulerDto(scheduler, metaData);
         }
 
         [HttpPost]
         [Route("{schedulerName}/start")]
-        public void Start(string schedulerName, int? delayMilliseconds = null)
+        public async Task Start(string schedulerName, int? delayMilliseconds = null)
         {
-            var scheduler = GetScheduler(schedulerName);
+            var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             if (delayMilliseconds == null)
             {
-                scheduler.Start();
+                await scheduler.Start().ConfigureAwait(false);
             }
             else
             {
-                scheduler.StartDelayed(TimeSpan.FromMilliseconds(delayMilliseconds.Value));
+                await scheduler.StartDelayed(TimeSpan.FromMilliseconds(delayMilliseconds.Value)).ConfigureAwait(false);
             }
         }
 
         [HttpPost]
         [Route("{schedulerName}/standby")]
-        public void Standby(string schedulerName)
+        public async Task Standby(string schedulerName)
         {
-            var scheduler = GetScheduler(schedulerName);
-            scheduler.Standby();
+            var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
+            await scheduler.Standby().ConfigureAwait(false);
         }
 
         [HttpPost]
         [Route("{schedulerName}/shutdown")]
-        public void Shutdown(string schedulerName, bool waitForJobsToComplete = false)
+        public async Task Shutdown(string schedulerName, bool waitForJobsToComplete = false)
         {
-            var scheduler = GetScheduler(schedulerName);
-            scheduler.Shutdown(waitForJobsToComplete);
+            var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
+            await scheduler.Shutdown(waitForJobsToComplete).ConfigureAwait(false);
         }
 
         [HttpPost]
         [Route("{schedulerName}/clear")]
-        public void Clear(string schedulerName)
+        public async Task Clear(string schedulerName)
         {
-            var scheduler = GetScheduler(schedulerName);
-            scheduler.Clear();
+            var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
+            await scheduler.Clear().ConfigureAwait(false);
         }
 
-        private static IScheduler GetScheduler(string schedulerName)
+        private static async Task<IScheduler> GetScheduler(string schedulerName)
         {
-            var scheduler = SchedulerRepository.Instance.Lookup(schedulerName);
+            var scheduler = await SchedulerRepository.Instance.Lookup(schedulerName).ConfigureAwait(false);
             if (scheduler == null)
             {
                 throw new HttpResponseException(HttpStatusCode.NotFound);

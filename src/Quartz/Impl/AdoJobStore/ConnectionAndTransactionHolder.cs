@@ -46,7 +46,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the connection.
         /// </summary>
         /// <value>The connection.</value>
-        public DbConnection Connection { get; private set; }
+        public DbConnection Connection { get; }
 
         /// <summary>
         /// Gets or sets the transaction.

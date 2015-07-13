@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Web.Http;
 
+using Quartz.Impl;
 using Quartz.Web.Api.Dto;
 
 namespace Quartz.Web.Api
@@ -22,9 +24,10 @@ namespace Quartz.Web.Api
 
         [HttpGet]
         [Route("api/server/{serverName}/details")]
-        public ServerDetailsDto ServerDetails(string serverName)
+        public async Task<ServerDetailsDto> ServerDetails(string serverName)
         {
-            return new ServerDetailsDto();
+            var schedulers = await SchedulerRepository.Instance.LookupAll().ConfigureAwait(false);
+            return new ServerDetailsDto(schedulers);
         }
     }
 }

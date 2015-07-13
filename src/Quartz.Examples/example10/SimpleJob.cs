@@ -47,13 +47,12 @@ namespace Quartz.Examples.Example10
             JobKey jobKey = context.JobDetail.Key;
             log.InfoFormat("Executing job: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
 
-
             if (context.MergedJobDataMap.Count > 0)
             {
                 ICollection<string> keys = context.MergedJobDataMap.Keys;
                 foreach (string key in keys)
                 {
-                    String val = context.MergedJobDataMap.GetString(key);
+                    string val = context.MergedJobDataMap.GetString(key);
                     log.InfoFormat(" - jobDataMap entry: {0} = {1}", key, val);
                 }
             }

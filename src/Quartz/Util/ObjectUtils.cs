@@ -125,7 +125,7 @@ namespace Quartz.Util
 				}
 				catch (Exception nfe)
 				{
-				    throw new SchedulerConfigException(string.Format(CultureInfo.InvariantCulture, "Could not parse property '{0}' into correct data type: {1}", name, nfe.Message), nfe);
+				    throw new SchedulerConfigException($"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
 				}
 			}
 		}
@@ -151,7 +151,7 @@ namespace Quartz.Util
 				}
 				catch (Exception nfe)
 				{
-					throw new SchedulerConfigException(string.Format(CultureInfo.InvariantCulture, "Could not parse property '{0}' into correct data type: {1}", name, nfe.Message    ), nfe);
+					throw new SchedulerConfigException($"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
 				}
 			}
 		}
@@ -179,14 +179,14 @@ namespace Quartz.Util
             if (pi == null)
             {
                 // not match from anywhere
-                throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "No writable property '{0}' found", propertyName));
+                throw new MemberAccessException($"No writable property '{propertyName}' found");
             }
 
 			MethodInfo mi = pi.GetSetMethod();
 
             if (mi == null)
             {
-                throw new MemberAccessException(string.Format(CultureInfo.InvariantCulture, "Property '{0}' has no setter", propertyName));
+                throw new MemberAccessException($"Property '{propertyName}' has no setter");
             }
 
 		    if (mi.GetParameters()[0].ParameterType == typeof(TimeSpan))

@@ -1,4 +1,5 @@
 ﻿using System.Threading;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -13,7 +14,7 @@ namespace Quartz.Tests.Integration
     [TestFixture]
     public class AdoSchedulerTest : AbstractSchedulerTest
     {
-        protected override IScheduler CreateScheduler(string name, int threadPoolSize)
+        protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
             DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("SqlServer-20", "Server=(local);Database=quartz;Trusted_Connection=True;"));
 

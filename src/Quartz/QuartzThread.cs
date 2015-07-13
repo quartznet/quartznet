@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,32 +16,18 @@
  * under the License.
  * 
  */
+
 #endregion
 
-using System.Globalization;
 using System.Threading;
 
 namespace Quartz
 {
     /// <summary>
-    /// This interface should be implemented by any class whose instances are intended 
-    /// to be executed by a thread.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    public interface IThreadRunnable
-    {
-        /// <summary>
-        /// This method has to be implemented in order that starting of the thread causes the object's 
-        /// run method to be called in that separately executing thread.
-        /// </summary>
-        void Run();
-    }
-
-    /// <summary>
     /// Support class used to handle threads
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
-    public abstract class QuartzThread : IThreadRunnable
+    public abstract class QuartzThread
     {
         /// <summary>
         /// The instance of System.Threading.Thread
@@ -50,9 +37,8 @@ namespace Quartz
         /// <summary>
         /// Initializes a new instance of the QuartzThread class
         /// </summary>
-        protected QuartzThread()
+        protected QuartzThread() : this(null)
         {
-            thread = new Thread(Run);
         }
 
         /// <summary>
@@ -94,10 +80,7 @@ namespace Quartz
         public string Name
         {
             get { return thread.Name; }
-            protected set
-            {
-                thread.Name = value;
-            }
+            protected set { thread.Name = value; }
         }
 
         /// <summary>
@@ -131,7 +114,7 @@ namespace Quartz
         /// <returns>A string that represents the current object</returns>
         public override string ToString()
         {
-            return string.Format(CultureInfo.InvariantCulture, "Thread[{0},{1},]", Name, Priority);
+            return $"Thread[{Name},{Priority},]";
         }
     }
 }

@@ -87,7 +87,7 @@ namespace Quartz.Tests.Unit
 		{
 			// should load from assembly
             Stream s = GetType().Assembly.GetManifestResourceStream("SQM.Tests.Unit." + GetSerializedFileName(version, type));
-            Assert.IsNotNull(s, string.Format("Could not load serialized object data for version {0} of type {1}", version, type));
+            Assert.IsNotNull(s, $"Could not load serialized object data for version {version} of type {type}");
 			using (s)
 			{
 				BinaryFormatter bf = new BinaryFormatter();
@@ -129,7 +129,7 @@ namespace Quartz.Tests.Unit
 			int index = className.LastIndexOf(".");
 			index = (index < 0) ? 0 : index + 1;
 
-			return string.Format("{0}-{1}.ser", className.Substring(index), version);
+			return $"{className.Substring(index)}-{version}.ser";
 		}
 	}
 }

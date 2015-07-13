@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,15 +16,15 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
 using System.Collections.Specialized;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example14
 {
@@ -33,14 +34,9 @@ namespace Quartz.Examples.Example14
     /// <author>Marko Lahma (.NET)</author>
     public class PriorityExample : IExample
     {
-        #region IExample Members
+        public string Name => GetType().Name;
 
-        public string Name
-        {
-            get { return GetType().Name; }
-        }
-
-        public void Run()
+        public async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (PriorityExample));
 
@@ -55,7 +51,7 @@ namespace Quartz.Examples.Example14
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz";
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
 
@@ -107,33 +103,25 @@ namespace Quartz.Examples.Example14
                 .Build();
 
             // Tell quartz to schedule the job using our trigger
-            sched.ScheduleJob(job, trigger1);
-            sched.ScheduleJob(trigger2);
-            sched.ScheduleJob(trigger3);
+            await sched.ScheduleJob(job, trigger1);
+            await sched.ScheduleJob(trigger2);
+            await sched.ScheduleJob(trigger3);
 
             // Start up the scheduler (nothing can actually run until the 
             // scheduler has been started)
-            sched.Start();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
             // wait long enough so that the scheduler as an opportunity to 
             // fire the triggers
             log.Info("------- Waiting 30 seconds... -------------");
 
-            try
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            await Task.Delay(TimeSpan.FromSeconds(30));
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
         }
-
-        #endregion
     }
 }

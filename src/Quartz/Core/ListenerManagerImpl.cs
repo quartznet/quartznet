@@ -31,7 +31,7 @@ namespace Quartz.Core
 
         public void AddJobListener(IJobListener jobListener, IList<IMatcher<JobKey>> matchers)
         {
-            if (String.IsNullOrEmpty(jobListener.Name))
+            if (string.IsNullOrEmpty(jobListener.Name))
             {
                 throw new ArgumentException(
                     "JobListener name cannot be empty.");
@@ -162,7 +162,7 @@ namespace Quartz.Core
 
         public void AddTriggerListener(ITriggerListener triggerListener, IList<IMatcher<TriggerKey>> matchers)
         {
-            if (String.IsNullOrEmpty(triggerListener.Name))
+            if (string.IsNullOrEmpty(triggerListener.Name))
             {
                 throw new ArgumentException("TriggerListener name cannot be empty.");
             }
@@ -192,7 +192,7 @@ namespace Quartz.Core
                 throw new ArgumentException("Non-null value not acceptable for matcher.");
             }
 
-            if (String.IsNullOrEmpty(triggerListener.Name))
+            if (string.IsNullOrEmpty(triggerListener.Name))
             {
                 throw new ArgumentException("TriggerListener name cannot be empty.");
             }

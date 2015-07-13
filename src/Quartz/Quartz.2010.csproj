@@ -99,12 +99,6 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>../../lib/2.0/C5.dll</HintPath>
     </Reference>
-    <Reference Include="Common.Logging, Version=3.3.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Common.Logging.3.3.1\lib\net40\Common.Logging.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Common.Logging.Core, Version=3.3.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Common.Logging.Core.3.3.1\lib\net40\Common.Logging.Core.dll</HintPath>
     <Reference Include="log4net, Version=1.2.13.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <HintPath>..\..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
       <Private>True</Private>
@@ -134,11 +128,17 @@
     <Compile Include="AssemblyInfoExtras.cs" />
     <Compile Include="CalendarIntervalScheduleBuilder.cs" />
     <Compile Include="Collection\ReadOnlySet.cs" />
+    <Compile Include="Core\ErrorLogger.cs" />
+    <Compile Include="Core\ExecutingJobsManager.cs" />
+    <Compile Include="IInterruptableJob.cs" />
+    <Compile Include="Impl\AdoJobStore\RecoverMisfiredJobsResult.cs" />
+    <Compile Include="Impl\AdoJobStore\ClusterManager.cs" />
     <Compile Include="Impl\AdoJobStore\FirebirdDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\Common\ConfigurationBasedDbMetadataFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbMetadataFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\EmbeddedAssemblyResourceDbMetadataFactory.cs" />
     <Compile Include="Impl\AdoJobStore\IDbAccessor.cs" />
+    <Compile Include="Impl\AdoJobStore\MisfireHandler.cs" />
     <Compile Include="IntervalUnit.cs" />
     <Compile Include="Core\ListenerManagerImpl.cs" />
     <Compile Include="CronScheduleBuilder.cs" />
@@ -159,7 +159,6 @@
     <Compile Include="Impl\AdoJobStore\SQLiteDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\TriggerPropertyBundle.cs" />
     <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImpl.cs" />
-    <Compile Include="Impl\DefaultThreadExecutor.cs" />
     <Compile Include="ICalendarIntervalTrigger.cs" />
     <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
@@ -203,9 +202,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="ICalendar.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="IInterruptableJob.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="IJob.cs">
@@ -332,6 +328,8 @@
     </Compile>
     <Compile Include="Simpl\DefaultObjectSerializer.cs" />
     <Compile Include="Simpl\HostNameBasedIdGenerator.cs" />
+    <Compile Include="Simpl\InternalTriggerState.cs" />
+    <Compile Include="Simpl\JobWrapper.cs" />
     <Compile Include="Simpl\RemotingSchedulerProxyFactory.cs" />
     <Compile Include="Simpl\SystemPropertyInstanceIdGenerator.cs" />
     <Compile Include="Simpl\HostnameInstanceIdGenerator.cs">
@@ -358,11 +356,12 @@
     <Compile Include="Simpl\SimpleThreadPool.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Simpl\TriggerWrapper.cs" />
+    <Compile Include="Simpl\TriggerWrapperComparator.cs" />
     <Compile Include="SPI\IMutableTrigger.cs" />
     <Compile Include="SPI\IObjectSerializer.cs" />
     <Compile Include="SPI\IOperableTrigger.cs" />
     <Compile Include="SPI\IRemotableSchedulerProxyFactory.cs" />
-    <Compile Include="SPI\IThreadExecutor.cs" />
     <Compile Include="SPI\ITypeLoadHelper.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -400,6 +399,7 @@
     <Compile Include="UnableToInterruptJobException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\QueuedTaskScheduler.cs" />
     <Compile Include="Util\CollectionExtensions.cs" />
     <Compile Include="Util\DataReaderExtensions.cs" />
     <Compile Include="Util\DBConnectionManager.cs">
@@ -471,6 +471,7 @@
     <Compile Include="Util\FileUtil.cs" />
     <Compile Include="Util\LogicalThreadContext.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
+    <Compile Include="Util\TaskUtil.cs" />
     <Compile Include="Util\TimeZoneUtil.cs" />
     <Compile Include="Xml\job_scheduling_data_2_0.cs">
       <DependentUpon>job_scheduling_data_2_0.xsd</DependentUpon>

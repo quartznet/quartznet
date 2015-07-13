@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Threading.Tasks;
 
 using FakeItEasy;
 
@@ -48,40 +49,40 @@ namespace Quartz.Tests.Unit.Plugin.History
         }
 
         [Test]
-        public void TestJobFailedMessage()
+        public async Task TestJobFailedMessage()
         {
             // arrange
             A.CallTo(() => mockLog.IsWarnEnabled()).Returns(true);
 
             // act
             JobExecutionException ex = new JobExecutionException("test error");
-            plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
+            await plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Warn), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.Not.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
-        public void TestJobSuccessMessage()
+        public async Task TestJobSuccessMessage()
         {
             // arrange
             A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
 
             // act
-            plugin.JobWasExecuted(CreateJobExecutionContext(), null);
+            await plugin.JobWasExecuted(CreateJobExecutionContext(), null);
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
-        public void TestJobToBeFiredMessage()
+        public async Task TestJobToBeFiredMessage()
         {
             // arrange
             A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
 
             // act
-            plugin.JobToBeExecuted(CreateJobExecutionContext());
+            await plugin.JobToBeExecuted(CreateJobExecutionContext());
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();

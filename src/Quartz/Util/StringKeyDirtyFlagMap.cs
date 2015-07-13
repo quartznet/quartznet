@@ -68,7 +68,7 @@ namespace Quartz.Util
         /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
         /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
         /// </returns>
-        public override bool Equals(Object obj)
+        public override bool Equals(object obj)
         {
             return base.Equals(obj);
         }

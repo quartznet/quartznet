@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Specialized;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -36,17 +37,17 @@ namespace Quartz.Tests.Unit.Impl
     public class StdSchedulerFactoryTest
     {
         [Test]
-        public void TestFactoryCanBeUsedWithNoProperties()
+        public async Task TestFactoryCanBeUsedWithNoProperties()
         {
             StdSchedulerFactory factory = new StdSchedulerFactory();
-            factory.GetScheduler();
+            await factory.GetScheduler();
         }
 
         [Test]
-        public void TestFactoryCanBeUsedWithEmptyProperties()
+        public async Task TestFactoryCanBeUsedWithEmptyProperties()
         {
             StdSchedulerFactory factory = new StdSchedulerFactory(new NameValueCollection());
-            factory.GetScheduler();
+            await factory.GetScheduler();
         }
 
         [Test]
@@ -89,17 +90,17 @@ namespace Quartz.Tests.Unit.Impl
         }
 
         [Test]
-        public void TestFactoryShouldOverrideConfigurationWithSysProperties()
+        public async Task TestFactoryShouldOverrideConfigurationWithSysProperties()
         {
             NameValueCollection properties = new NameValueCollection();
             var factory = new StdSchedulerFactory();
             factory.Initialize();
-            var scheduler = factory.GetScheduler();
+            var scheduler = await factory.GetScheduler();
             Assert.AreEqual("DefaultQuartzScheduler", scheduler.SchedulerName);
 
             Environment.SetEnvironmentVariable("quartz.scheduler.instanceName", "fromSystemProperties");
             factory = new StdSchedulerFactory();
-            scheduler = factory.GetScheduler();
+            scheduler = await factory.GetScheduler();
             Assert.AreEqual("fromSystemProperties", scheduler.SchedulerName);
         }
 

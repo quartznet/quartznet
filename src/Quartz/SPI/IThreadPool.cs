@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,8 +16,10 @@
  * under the License.
  * 
  */
+
 #endregion
 
+using System;
 using System.Threading;
 
 using Quartz.Core;
@@ -32,7 +35,7 @@ namespace Quartz.Spi
     /// for the sole use of Quartz.  Most importantly, when the method
     ///  <see cref="BlockForAvailableThreads()" /> returns a value of 1 or greater,
     /// there must still be at least one available thread in the pool when the
-    /// method  <see cref="RunInThread(IThreadRunnable)"/> is called a few moments (or
+    /// method  <see cref="RunInThread(Action)"/> is called a few moments (or
     /// many moments) later.  If this assumption does not hold true, it may
     /// result in extra JobStore queries and updates, and if clustering features
     /// are being used, it may result in greater imbalance of load.
@@ -43,7 +46,7 @@ namespace Quartz.Spi
     public interface IThreadPool
     {
         /// <summary>
-        /// Execute the given <see cref="IThreadRunnable" /> in the next
+        /// Execute the given <see cref="Action" /> in the next
         /// available <see cref="Thread" />.
         /// </summary>
         /// <remarks>
@@ -52,12 +55,12 @@ namespace Quartz.Spi
         /// are no available threads, rather it should either queue the Runnable, or
         /// block until a thread is available, depending on the desired strategy.
         /// </remarks>
-        bool RunInThread(IThreadRunnable runnable);
+        bool RunInThread(Action runnable);
 
         /// <summary>
         /// Determines the number of threads that are currently available in
         /// the pool.  Useful for determining the number of times
-        /// <see cref="RunInThread(IThreadRunnable)"/>  can be called before returning
+        /// <see cref="RunInThread(Action)"/>  can be called before returning
         /// false.
         /// </summary>
         ///<remarks>
@@ -81,7 +84,7 @@ namespace Quartz.Spi
         /// that it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        void Shutdown(bool waitForJobsToComplete);
+        void Shutdown(bool waitForJobsToComplete = true);
 
         /// <summary>
         /// Get the current number of threads in the <see cref="IThreadPool" />.
@@ -92,12 +95,14 @@ namespace Quartz.Spi
         /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id, 
         /// prior to initialize being invoked.
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
         string InstanceId { set; }
 
         /// <summary>
         /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name, 
         /// prior to initialize being invoked.
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
         string InstanceName { set; }
     }
 }

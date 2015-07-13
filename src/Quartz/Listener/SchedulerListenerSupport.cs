@@ -17,7 +17,10 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 using Quartz.Logging;
+using Quartz.Util;
 
 namespace Quartz.Listener
 {
@@ -49,84 +52,104 @@ namespace Quartz.Listener
             get { return log; }
         }
 
-        public virtual void JobScheduled(ITrigger trigger)
+        public virtual Task JobScheduled(ITrigger trigger)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobUnscheduled(TriggerKey triggerKey)
+        public virtual Task JobUnscheduled(TriggerKey triggerKey)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void TriggerFinalized(ITrigger trigger)
+        public virtual Task TriggerFinalized(ITrigger trigger)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void TriggersPaused(string triggerGroup)
+        public virtual Task TriggersPaused(string triggerGroup)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void TriggerPaused(TriggerKey triggerKey)
+        public virtual Task TriggerPaused(TriggerKey triggerKey)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void TriggersResumed(string triggerGroup)
+        public virtual Task TriggersResumed(string triggerGroup)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void TriggerResumed(TriggerKey triggerKey)
+        public virtual Task TriggerResumed(TriggerKey triggerKey)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobAdded(IJobDetail jobDetail)
+        public virtual Task JobAdded(IJobDetail jobDetail)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobDeleted(JobKey jobKey)
+        public virtual Task JobDeleted(JobKey jobKey)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobsPaused(string jobGroup)
+        public virtual Task JobsPaused(string jobGroup)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobPaused(JobKey jobKey)
+        public virtual Task JobPaused(JobKey jobKey)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobsResumed(string jobGroup)
+        public virtual Task JobsResumed(string jobGroup)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobResumed(JobKey jobKey)
+        public virtual Task JobResumed(JobKey jobKey)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void SchedulerError(string msg, SchedulerException cause)
+        public virtual Task SchedulerError(string msg, SchedulerException cause)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void SchedulerInStandbyMode()
+        public virtual Task SchedulerInStandbyMode()
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void SchedulerStarted()
+        public virtual Task SchedulerStarted()
         {
-        }
-        
-        public void SchedulerStarting()
-        {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void SchedulerShutdown()
+        public virtual Task SchedulerStarting()
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void SchedulerShuttingdown()
+        public virtual Task SchedulerShutdown()
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void SchedulingDataCleared()
+        public virtual Task SchedulerShuttingdown()
         {
+            return TaskUtil.CompletedTask;
+        }
+
+        public virtual Task SchedulingDataCleared()
+        {
+            return TaskUtil.CompletedTask;
         }
     }
 }

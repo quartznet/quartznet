@@ -18,9 +18,11 @@
 #endregion
 
 using System;
+using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Plugin.Management
 {
@@ -77,9 +79,10 @@ namespace Quartz.Plugin.Management
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual void Start()
+        public virtual Task Start()
         {
             // do nothing.
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -87,10 +90,11 @@ namespace Quartz.Plugin.Management
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual Task Shutdown()
         {
             // nothing to do in this case (since the scheduler is already shutting
             // down)
+            return TaskUtil.CompletedTask;
         }
     }
 }

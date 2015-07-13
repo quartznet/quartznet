@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,59 +16,61 @@
  * under the License.
  * 
  */
+
 #endregion
+
+using System.Threading.Tasks;
 
 using Quartz.Spi;
 
 namespace Quartz
 {
-	/// <summary>
-	/// The interface to be implemented by classes that want to be informed when a
+    /// <summary>
+    /// The interface to be implemented by classes that want to be informed when a
     /// <see cref="IJobDetail" /> executes. In general,  applications that use a 
-	/// <see cref="IScheduler" /> will not have use for this mechanism.
-	/// </summary>
+    /// <see cref="IScheduler" /> will not have use for this mechanism.
+    /// </summary>
     /// <seealso cref="IListenerManager.AddJobListener(Quartz.IJobListener,System.Collections.Generic.IList{Quartz.IMatcher{Quartz.JobKey}})" />
     /// <seealso cref="IMatcher{T}" />
-	/// <seealso cref="IJob" />
-	/// <seealso cref="IJobExecutionContext" />
-	/// <seealso cref="JobExecutionException" />
-	/// <seealso cref="ITriggerListener" />
-	/// <author>James House</author>
+    /// <seealso cref="IJob" />
+    /// <seealso cref="IJobExecutionContext" />
+    /// <seealso cref="JobExecutionException" />
+    /// <seealso cref="ITriggerListener" />
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface IJobListener
-	{
-		/// <summary>
-		/// Get the name of the <see cref="IJobListener" />.
-		/// </summary>
-		string Name { get; }
+    {
+        /// <summary>
+        /// Get the name of the <see cref="IJobListener" />.
+        /// </summary>
+        string Name { get; }
 
-		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
-		/// is about to be executed (an associated <see cref="ITrigger" />
-		/// has occurred).
-		/// <para>
-		/// This method will not be invoked if the execution of the Job was vetoed
-		/// by a <see cref="ITriggerListener" />.
-		/// </para>
-		/// </summary>
-		/// <seealso cref="JobExecutionVetoed(IJobExecutionContext)" />
-		void JobToBeExecuted(IJobExecutionContext context);
-
-		/// <summary>
+        /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
-		/// was about to be executed (an associated <see cref="ITrigger" />
-		/// has occurred), but a <see cref="ITriggerListener" /> vetoed it's 
-		/// execution.
-		/// </summary>
+        /// is about to be executed (an associated <see cref="ITrigger" />
+        /// has occurred).
+        /// <para>
+        /// This method will not be invoked if the execution of the Job was vetoed
+        /// by a <see cref="ITriggerListener" />.
+        /// </para>
+        /// </summary>
+        /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)" />
+        Task JobToBeExecuted(IJobExecutionContext context);
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
+        /// was about to be executed (an associated <see cref="ITrigger" />
+        /// has occurred), but a <see cref="ITriggerListener" /> vetoed it's 
+        /// execution.
+        /// </summary>
         /// <seealso cref="JobToBeExecuted(IJobExecutionContext)" />
-        void JobExecutionVetoed(IJobExecutionContext context);
+        Task JobExecutionVetoed(IJobExecutionContext context);
 
-
-		/// <summary>
+        /// <summary>
         /// Called by the <see cref="IScheduler" /> after a <see cref="IJobDetail" />
         /// has been executed, and be for the associated <see cref="IOperableTrigger" />'s
-		/// <see cref="IOperableTrigger.Triggered" /> method has been called.
-		/// </summary>
-        void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
-	}
+        /// <see cref="IOperableTrigger.Triggered" /> method has been called.
+        /// </summary>
+        Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
+    }
 }

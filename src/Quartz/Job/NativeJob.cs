@@ -19,7 +19,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 
 using Quartz.Logging;
@@ -173,7 +172,7 @@ namespace Quartz.Job
 				}
                 else if (osName.ToLower().IndexOf("linux") > -1) 
                 {
-                    cmd = new String[3];
+                    cmd = new string[3];
                     cmd[0] = "/bin/sh";
                     cmd[1] = "-c";
                     cmd[2] = args[0] + " " + args[1];
@@ -193,7 +192,7 @@ namespace Quartz.Job
 
                 temp = temp.Trim();
 
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "About to run {0} {1}...", cmd[0], temp));
+                Log.Info($"About to run {cmd[0]} {temp}...");
 
 				Process proc = new Process();
 			    
@@ -205,7 +204,7 @@ namespace Quartz.Job
 			    proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
 
-                if (!String.IsNullOrEmpty(workingDirectory))
+                if (!string.IsNullOrEmpty(workingDirectory))
                 {
                     proc.StartInfo.WorkingDirectory = workingDirectory;
                 }
@@ -278,11 +277,11 @@ namespace Quartz.Job
                         {
                             if (type == StreamTypeError)
                             {
-                                enclosingInstance.Log.Warn(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
+                                enclosingInstance.Log.Warn($"{type}>{line}");
                             }
                             else
                             {
-                                enclosingInstance.Log.Info(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
+                                enclosingInstance.Log.Info($"{type}>{line}");
                             }
                         }
                     }
@@ -290,7 +289,7 @@ namespace Quartz.Job
 			    }
 				catch (IOException ioe)
 				{
-                    enclosingInstance.Log.ErrorException(string.Format(CultureInfo.InvariantCulture, "Error consuming {0} stream of spawned process.", type), ioe);
+                    enclosingInstance.Log.ErrorException($"Error consuming {type} stream of spawned process.", ioe);
 				}
 			}
 		}

@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+
 using Quartz.Util;
 
 namespace Quartz.Examples
@@ -56,7 +57,7 @@ namespace Quartz.Examples
 
 			    foreach (Type t in typeList)
 			    {
-                    string counterString = string.Format("[{0}]", counter).PadRight(4);
+                    string counterString = $"[{counter}]".PadRight(4);
                     Console.WriteLine("{0} {1} {2}", counterString, t.Namespace.Substring(t.Namespace.LastIndexOf(".") + 1), t.Name);
                     typeMap.Add(counter++, t);
                 }
@@ -66,7 +67,7 @@ namespace Quartz.Examples
 				int num = Convert.ToInt32(Console.ReadLine());
 				Type eType = typeMap[num];
 				IExample example = ObjectUtils.InstantiateType<IExample>(eType);
-				example.Run();
+				example.Run().Wait();
 				Console.WriteLine("Example run successfully.");
 			}
 			catch (Exception ex)

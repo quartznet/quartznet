@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 using log4net;
 
@@ -25,28 +26,28 @@ namespace Quartz.Server
 	        logger = LogManager.GetLogger(GetType());
 	    }
 
-	    /// <summary>
-		/// Initializes the instance of the <see cref="QuartzServer"/> class.
-		/// </summary>
-		public virtual void Initialize()
-		{
-			try
-			{				
-				schedulerFactory = CreateSchedulerFactory();
-				scheduler = GetScheduler();
-			}
-			catch (Exception e)
-			{
-				logger.Error("Server initialization failed:" + e.Message, e);
-				throw;
-			}
-		}
+        /// <summary>
+        /// Initializes the instance of the <see cref="QuartzServer"/> class.
+        /// </summary>
+        public virtual async Task Initialize()
+        {
+            try
+            {
+                schedulerFactory = CreateSchedulerFactory();
+                scheduler = await GetScheduler().ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                logger.Error("Server initialization failed:" + e.Message, e);
+                throw;
+            }
+        }
 
         /// <summary>
         /// Gets the scheduler with which this server should operate with.
         /// </summary>
         /// <returns></returns>
-	    protected virtual IScheduler GetScheduler()
+	    protected virtual Task<IScheduler> GetScheduler()
 	    {
 	        return schedulerFactory.GetScheduler();
 	    }
@@ -81,7 +82,7 @@ namespace Quartz.Server
 	        }
 	        catch (Exception ex)
 	        {
-	            logger.Fatal(string.Format("Scheduler start failed: {0}", ex.Message), ex);
+	            logger.Fatal($"Scheduler start failed: {ex.Message}", ex);
 	            throw;
 	        }
 
@@ -99,7 +100,7 @@ namespace Quartz.Server
             }
             catch (Exception ex)
             {
-                logger.Error(string.Format("Scheduler stop failed: {0}", ex.Message), ex);
+                logger.Error($"Scheduler stop failed: {ex.Message}", ex);
                 throw;
             }
 

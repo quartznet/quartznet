@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 namespace Quartz.Job
 {
 	/// <summary> 
@@ -28,10 +30,10 @@ namespace Quartz.Job
     /// <seealso cref="FileScanJob" />
 	public interface IFileScanListener
 	{
-		/// <summary>
-		/// Informs that certain file has been updated.
-		/// </summary>
-		/// <param name="fileName">Name of the file.</param>
-		void FileUpdated(string fileName);
+	    /// <summary>
+	    /// Informs that certain file has been updated.
+	    /// </summary>
+	    /// <param name="fileName">Name of the file.</param>
+	    Task FileUpdated(string fileName);
 	}
 }

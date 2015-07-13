@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Globalization;
 using System.Reflection;
 
 namespace Quartz.Impl.AdoJobStore.Common
@@ -51,7 +50,7 @@ namespace Quartz.Impl.AdoJobStore.Common
                 ParameterDbTypeProperty = ParameterType.GetProperty(parameterDbTypePropertyName);
                 if (ParameterDbTypeProperty == null)
                 {
-                    throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Couldn't parse parameter db type for database type '{0}'", ProductName));
+                    throw new ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
                 }
             }
         }

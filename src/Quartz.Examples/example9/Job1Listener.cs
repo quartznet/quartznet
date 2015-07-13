@@ -20,8 +20,10 @@
 #endregion
 
 using System;
+using System.Threading.Tasks;
 
 using Quartz.Logging;
+using Quartz.Util;
 
 namespace Quartz.Examples.Example9
 {
@@ -36,17 +38,19 @@ namespace Quartz.Examples.Example9
             get { return "job1_to_job2"; }
         }
 
-        public virtual void JobToBeExecuted(IJobExecutionContext inContext)
+        public virtual Task JobToBeExecuted(IJobExecutionContext inContext)
         {
             log.Info("Job1Listener says: Job Is about to be executed.");
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobExecutionVetoed(IJobExecutionContext inContext)
+        public virtual Task JobExecutionVetoed(IJobExecutionContext inContext)
         {
             log.Info("Job1Listener says: Job Execution was vetoed.");
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void JobWasExecuted(IJobExecutionContext inContext, JobExecutionException inException)
+        public virtual async Task JobWasExecuted(IJobExecutionContext inContext, JobExecutionException inException)
         {
             log.Info("Job1Listener says: Job was executed.");
 
@@ -63,7 +67,7 @@ namespace Quartz.Examples.Example9
             try
             {
                 // schedule the job to run!
-                inContext.Scheduler.ScheduleJob(job2, trigger);
+                await inContext.Scheduler.ScheduleJob(job2, trigger);
             }
             catch (SchedulerException e)
             {

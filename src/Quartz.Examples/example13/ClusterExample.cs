@@ -21,7 +21,7 @@
 
 using System;
 using System.Collections.Specialized;
-using System.Threading;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Logging;
@@ -72,7 +72,9 @@ namespace Quartz.Examples.Example13
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof (ClusterExample));
 
-        public virtual void Run(bool inClearJobs, bool inScheduleJobs)
+        public string Name => GetType().Name;
+
+        public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -96,12 +98,12 @@ namespace Quartz.Examples.Example13
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             if (inClearJobs)
             {
                 log.Warn("***** Deleting existing jobs/triggers *****");
-                sched.Clear();
+                await sched.Clear();
             }
 
             log.Info("------- Initialization Complete -----------");
@@ -114,23 +116,20 @@ namespace Quartz.Examples.Example13
 
                 int count = 1;
 
-
                 IJobDetail job = JobBuilder.Create<SimpleRecoveryJob>()
                     .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
                     .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
                     .Build();
 
-
                 ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                                              .WithIdentity("triger_" + count, schedId)
-                                                              .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-                                                              .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
-                                                              .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
+                    .Build();
 
                 log.InfoFormat("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
 
                 count++;
-
 
                 job = JobBuilder.Create<SimpleRecoveryJob>()
                     .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
@@ -138,16 +137,15 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                               .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Second))
-                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
-                                               .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
+                    .Build();
 
-                log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
-                sched.ScheduleJob(job, trigger);
+                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
-
 
                 job = JobBuilder.Create<SimpleRecoveryStatefulJob>()
                     .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
@@ -155,13 +153,13 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                               .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
-                                               .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
+                    .Build();
 
-                log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
-                sched.ScheduleJob(job, trigger);
+                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
 
@@ -171,16 +169,15 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                               .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
-                                               .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
+                    .Build();
 
-                log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval));
-                sched.ScheduleJob(job, trigger);
+                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
-
 
                 job = JobBuilder.Create<SimpleRecoveryJob>()
                     .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
@@ -188,36 +185,30 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                               .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
-                                               .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
+                    .Build();
 
-                log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval));
-                sched.ScheduleJob(job, trigger);
+                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+                await sched.ScheduleJob(job, trigger);
             }
 
             // jobs don't start firing until start() has been called...
             log.Info("------- Starting Scheduler ---------------");
-            sched.Start();
+            await sched.Start();
             log.Info("------- Started Scheduler ----------------");
 
             log.Info("------- Waiting for one hour... ----------");
 
-            Thread.Sleep(TimeSpan.FromHours(1));
-
+            await Task.Delay(TimeSpan.FromHours(1));
 
             log.Info("------- Shutting Down --------------------");
-            sched.Shutdown();
+            await sched.Shutdown();
             log.Info("------- Shutdown Complete ----------------");
         }
 
-        public string Name
-        {
-            get { throw new NotImplementedException(); }
-        }
-
-        public void Run()
+        public Task Run()
         {
             bool clearJobs = true;
             bool scheduleJobs = true;
@@ -235,7 +226,7 @@ namespace Quartz.Examples.Example13
 			}
 			*/
             ClusterExample example = new ClusterExample();
-            example.Run(clearJobs, scheduleJobs);
+            return example.Run(clearJobs, scheduleJobs);
         }
     }
 }

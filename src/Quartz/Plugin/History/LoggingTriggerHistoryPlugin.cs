@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,14 +16,16 @@
  * under the License.
  * 
  */
+
 #endregion
 
-using System;
 using System.Globalization;
+using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
 using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Plugin.History
 {
@@ -211,7 +214,7 @@ namespace Quartz.Plugin.History
         private string triggerFiredMessage = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
         private string triggerMisfiredMessage = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
         private string triggerCompleteMessage = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
-        
+
         private ILog log = LogProvider.GetLogger(typeof (LoggingTriggerHistoryPlugin));
 
         /// <summary>
@@ -275,9 +278,10 @@ namespace Quartz.Plugin.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual void Start()
+        public virtual Task Start()
         {
             // do nothing...
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -285,9 +289,10 @@ namespace Quartz.Plugin.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual Task Shutdown()
         {
             // nothing to do...
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -301,21 +306,27 @@ namespace Quartz.Plugin.History
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has fired.</param>
         /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
-        public virtual void TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
             if (!Log.IsInfoEnabled())
             {
-                return;
+                return TaskUtil.CompletedTask;
             }
 
             object[] args =
-                new object[]
-                    {
-                        trigger.Key.Name, trigger.Key.Group, trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
-                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, context.RefireCount
-                    };
+            {
+                trigger.Key.Name,
+                trigger.Key.Group,
+                trigger.GetPreviousFireTimeUtc(),
+                trigger.GetNextFireTimeUtc(),
+                SystemTime.UtcNow(),
+                context.JobDetail.Key.Name,
+                context.JobDetail.Key.Group,
+                context.RefireCount
+            };
 
-            Log.Info(String.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -329,21 +340,26 @@ namespace Quartz.Plugin.History
         /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
-        public virtual void TriggerMisfired(ITrigger trigger)
+        public virtual Task TriggerMisfired(ITrigger trigger)
         {
             if (!Log.IsInfoEnabled())
             {
-                return;
+                return TaskUtil.CompletedTask;
             }
 
             object[] args =
-                new object[]
-                    {
-                        trigger.Key.Name, trigger.Key.Group, trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
-                        trigger.JobKey.Name, trigger.JobKey.Group
-                    };
+            {
+                trigger.Key.Name,
+                trigger.Key.Group,
+                trigger.GetPreviousFireTimeUtc(),
+                trigger.GetNextFireTimeUtc(),
+                SystemTime.UtcNow(),
+                trigger.JobKey.Name,
+                trigger.JobKey.Group
+            };
 
-            Log.Info(String.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -356,11 +372,11 @@ namespace Quartz.Plugin.History
         /// <param name="context">The <see cref="IJobExecutionContext" /> that was passed to the
         /// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
         /// <param name="triggerInstructionCode">The result of the call on the <see cref="IOperableTrigger" />'s <see cref="IOperableTrigger.Triggered" />  method.</param>
-        public virtual void TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public virtual Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
             if (!Log.IsInfoEnabled())
             {
-                return;
+                return TaskUtil.CompletedTask;
             }
 
             string instrCode = "UNKNOWN";
@@ -376,7 +392,7 @@ namespace Quartz.Plugin.History
             {
                 instrCode = "RE-EXECUTE JOB";
             }
-            else if (triggerInstructionCode ==SchedulerInstruction.SetAllJobTriggersComplete)
+            else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
             {
                 instrCode = "SET ALL OF JOB'S TRIGGERS COMPLETE";
             }
@@ -386,13 +402,21 @@ namespace Quartz.Plugin.History
             }
 
             object[] args =
-                new object[]
-                    {
-                        trigger.Key.Name, trigger.Key.Group, trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), SystemTime.UtcNow(),
-                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, context.RefireCount, triggerInstructionCode, instrCode
-                    };
+            {
+                trigger.Key.Name,
+                trigger.Key.Group,
+                trigger.GetPreviousFireTimeUtc(),
+                trigger.GetNextFireTimeUtc(),
+                SystemTime.UtcNow(),
+                context.JobDetail.Key.Name,
+                context.JobDetail.Key.Group,
+                context.RefireCount,
+                triggerInstructionCode,
+                instrCode
+            };
 
-            Log.Info(String.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -408,9 +432,9 @@ namespace Quartz.Plugin.History
         /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to
         /// the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
         /// <returns></returns>
-        public virtual bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
-            return false;
+            return Task.FromResult(false);
         }
     }
 }

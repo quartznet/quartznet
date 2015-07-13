@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Globalization;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -64,14 +63,14 @@ namespace Quartz.Simpl
 			{
 				if (log.IsDebugEnabled())
 				{
-					log.Debug(string.Format(CultureInfo.InvariantCulture, "Producing instance of Job '{0}', class={1}", jobDetail.Key, jobType.FullName));
+					log.Debug($"Producing instance of Job '{jobDetail.Key}', class={jobType.FullName}");
 				}
 
 				return ObjectUtils.InstantiateType<IJob>(jobType);
 			}
 			catch (Exception e)
 			{
-				SchedulerException se = new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Problem instantiating class '{0}'", jobDetail.JobType.FullName), e);
+				SchedulerException se = new SchedulerException($"Problem instantiating class '{jobDetail.JobType.FullName}'", e);
 				throw se;
 			}
 		}

@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Threading.Tasks;
 
 using FakeItEasy;
 
@@ -47,7 +48,7 @@ namespace Quartz.Tests.Unit.Plugin.History
         }
 
         [Test]
-        public void TestTriggerFiredMessage()
+        public async Task TestTriggerFiredMessage()
         {
             // arrange
             A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
@@ -62,7 +63,7 @@ namespace Quartz.Tests.Unit.Plugin.History
                 null);
 
             // act
-            plugin.TriggerFired(t, ctx);
+            await plugin.TriggerFired(t, ctx);
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
@@ -70,7 +71,7 @@ namespace Quartz.Tests.Unit.Plugin.History
 
 
         [Test]
-        public void TestTriggerMisfiredMessage()
+        public async Task TestTriggerMisfiredMessage()
         {
             // arrange
             A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
@@ -81,14 +82,14 @@ namespace Quartz.Tests.Unit.Plugin.History
             t.JobKey = new JobKey("name", "group");
             
             // act
-            plugin.TriggerMisfired(t);
+            await plugin.TriggerMisfired(t);
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
-        public void TestTriggerCompleteMessage()
+        public async Task TestTriggerCompleteMessage()
         {
             // arrange
             A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
@@ -103,7 +104,7 @@ namespace Quartz.Tests.Unit.Plugin.History
                 null);
 
             // act
-            plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
+            await plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();

@@ -13,10 +13,10 @@ namespace Quartz.Web.History
     {
         [HttpGet]
         [Route("api/schedulers/{schedulerName}/jobs/history")]
-        public async Task<IList<JobHistoryEntryDto>> SchedulerHistory(string schedulerName)
+        public Task<IReadOnlyList<JobHistoryEntryDto>> SchedulerHistory(string schedulerName)
         {
             var jobHistoryDelegate = DatabaseExecutionHistoryPlugin.Delegate;
-            return await jobHistoryDelegate.SelectJobHistoryEntries(schedulerName);
+            return jobHistoryDelegate.SelectJobHistoryEntries(schedulerName);
         }
     }
 }

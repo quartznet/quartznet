@@ -1,15 +1,17 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 using Microsoft.Owin.Hosting;
 
 using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Web
 {
     public class WebConsolePlugin : ISchedulerPlugin
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(WebConsolePlugin));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (WebConsolePlugin));
         private IDisposable host;
 
         public string HostName { get; set; }
@@ -19,20 +21,22 @@ namespace Quartz.Web
         {
         }
 
-        public void Start()
+        public Task Start()
         {
-            string baseAddress = string.Format("http://{0}:{1}/", HostName ?? "localhost", Port ?? 28682);
+            string baseAddress = $"http://{HostName ?? "localhost"}:{Port ?? 28682}/";
 
             host = WebApp.Start<Startup>(url: baseAddress);
             log.InfoFormat("Quartz Web Console bound to address {0}", baseAddress);
+            return TaskUtil.CompletedTask;
         }
 
-        public void Shutdown()
+        public Task Shutdown()
         {
             if (host != null)
             {
                 host.Dispose();
             }
+            return TaskUtil.CompletedTask;
         }
     }
 }

@@ -99,13 +99,13 @@ namespace Quartz.Web.History
                     Delegate.AddCommandParameter(command, "error", Delegate.GetDbBooleanValue(jobException != null));
                     Delegate.AddCommandParameter(command, "errorMessage", jobException?.ToString());
 
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                     connection.Commit();
                 }
             }
         }
 
-        public async Task<IList<JobHistoryEntryDto>> SelectJobHistoryEntries(string schedulerName)
+        public async Task<IReadOnlyList<JobHistoryEntryDto>> SelectJobHistoryEntries(string schedulerName)
         {
             var sql = AdoJobStoreUtil.ReplaceTablePrefix(SqlSelectHistoryEntry, tablePrefix, null);
             List<JobHistoryEntryDto> entries = new List<JobHistoryEntryDto>();
@@ -114,9 +114,9 @@ namespace Quartz.Web.History
                 using (var dbCommand = Delegate.PrepareCommand(dbConnection, sql))
                 {
                     Delegate.AddCommandParameter(dbCommand, "schedulerName", schedulerName);
-                    using (var reader = await dbCommand.ExecuteReaderAsync())
+                    using (var reader = await dbCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     {
-                        while (await reader.ReadAsync())
+                        while (await reader.ReadAsync().ConfigureAwait(false))
                         {
                             JobHistoryEntryDto entry = new JobHistoryEntryDto
                             {
@@ -155,11 +155,11 @@ namespace Quartz.Web.History
             catch (Exception e)
             {
                 throw new JobPersistenceException(
-                    string.Format("Failed to obtain DB connection from data source '{0}': {1}", dataSource, e), e);
+                    $"Failed to obtain DB connection from data source '{dataSource}': {e}", e);
             }
             if (conn == null)
             {
-                throw new JobPersistenceException(string.Format("Could not get connection from DataSource '{0}'", dataSource));
+                throw new JobPersistenceException($"Could not get connection from DataSource '{dataSource}'");
             }
 
             try

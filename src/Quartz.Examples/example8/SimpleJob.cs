@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System;
+
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example8
@@ -48,7 +50,7 @@ namespace Quartz.Examples.Example8
 			// This job simply prints out its job name and the
 			// date and time that it is running
 			JobKey jobKey = context.JobDetail.Key;
-			log.InfoFormat("SimpleJob says: {0} executing at {1}", jobKey, System.DateTime.Now.ToString("r"));
+			log.InfoFormat("SimpleJob says: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
 		}
 	}
 }

@@ -111,6 +111,10 @@
       <Name>System.Data</Name>
     </Reference>
     <Reference Include="System.Transactions" />
+    <Reference Include="System.Web.Http, Version=5.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\packages\Microsoft.AspNet.WebApi.Core.5.2.3\lib\net45\System.Web.Http.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs">
@@ -120,6 +124,7 @@
     <Compile Include="CalendarIntervalTriggerTest.cs" />
     <Compile Include="Core\ListenerManagerTest .cs" />
     <Compile Include="Core\MissSchedulingChangeSignalTest.cs" />
+    <Compile Include="Core\SlowRAMJobStore.cs" />
     <Compile Include="CronScheduleBuilderTest.cs" />
     <Compile Include="CronTriggerTest.cs" />
     <Compile Include="DailyTimeIntervalScheduleBuilderTest.cs" />
@@ -139,6 +144,7 @@
     <Compile Include="JobBuilderTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
     <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPluginTest.cs" />
+    <Compile Include="QualityTest.cs" />
     <Compile Include="SchedulerListenerTest.cs" />
     <Compile Include="SchedulerTest.cs" />
     <Compile Include="SerializationTest.cs" />
@@ -209,7 +215,6 @@
     <EmbeddedResource Include="Xml\TestData\MinimalConfiguration.xml" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
     <None Include="packages.config" />
     <None Include="Serialized\AnnualCalendar_10.ser">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -251,6 +256,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Quartz.Web\Quartz.Web.csproj">
+      <Project>{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}</Project>
+      <Name>Quartz.Web</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Quartz\Quartz.2010.csproj">
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
       <Name>Quartz.2010</Name>

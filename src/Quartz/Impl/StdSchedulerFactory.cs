@@ -24,6 +24,7 @@ using System.Configuration;
 using System.IO;
 using System.Reflection;
 using System.Security;
+using System.Threading.Tasks;
 
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
@@ -149,7 +150,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <seealso cref="Initialize()">
         /// </seealso>
-        public static IScheduler GetDefaultScheduler()
+        public static Task<IScheduler> GetDefaultScheduler()
         {
             StdSchedulerFactory fact = new StdSchedulerFactory();
             return fact.GetScheduler();
@@ -160,7 +161,7 @@ namespace Quartz.Impl
         /// StdSchedulerFactory instance.).
         /// </para>
         /// </summary>
-        public virtual IReadOnlyList<IScheduler> AllSchedulers
+        public virtual Task<IReadOnlyList<IScheduler>> AllSchedulers
         {
             get { return SchedulerRepository.Instance.LookupAll(); }
         }
@@ -228,7 +229,7 @@ namespace Quartz.Impl
                 {
                     PropertiesParser pp = PropertiesParser.ReadFromFileResource(propFileName);
                     props = pp.UnderlyingProperties;
-                    Log.Info(string.Format("Quartz.NET properties loaded from configuration file '{0}'", propFileName));
+                    Log.Info($"Quartz.NET properties loaded from configuration file '{propFileName}'");
                 }
                 catch (Exception ex)
                 {
@@ -340,7 +341,7 @@ Please add configuration to your application config file to correctly initialize
         }
 
         /// <summary>  </summary>
-        private IScheduler Instantiate()
+        private async Task<IScheduler> Instantiate()
         {
             if (cfg == null)
             {
@@ -362,7 +363,6 @@ Please add configuration to your application config file to correctly initialize
             bool autoId = false;
             TimeSpan idleWaitTime = TimeSpan.Zero;
             TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
-            IThreadExecutor threadExecutor;
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 
@@ -577,7 +577,7 @@ Please add configuration to your application config file to correctly initialize
                     string dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
                     string dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
 
-                    if (dsConnectionString == null && !String.IsNullOrEmpty(dsConnectionStringName))
+                    if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName))
                     {
 
                         ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
@@ -882,33 +882,6 @@ Please add configuration to your application config file to correctly initialize
             bool qsInited = false;
 
 
-            // Get ThreadExecutor Properties
-            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-            string threadExecutorClass = cfg.GetStringProperty(PropertyThreadExecutorType);
-            if (threadExecutorClass != null)
-            {
-                tProps = cfg.GetPropertyGroup(PropertyThreadExecutor, true);
-                try
-                {
-                    threadExecutor = ObjectUtils.InstantiateType<IThreadExecutor>(loadHelper.LoadType(threadExecutorClass));
-                    log.Info("Using custom implementation for ThreadExecutor: " + threadExecutorClass);
-
-                    ObjectUtils.SetObjectProperties(threadExecutor, tProps);
-                }
-                catch (Exception e)
-                {
-                    initException = new SchedulerException(
-                            "ThreadExecutor class '" + threadExecutorClass + "' could not be instantiated.", e);
-                    throw initException;
-                }
-            }
-            else
-            {
-                log.Info("Using default implementation for ThreadExecutor");
-                threadExecutor = new DefaultThreadExecutor();
-            }
-
             // Fire everything up
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -938,8 +911,6 @@ Please add configuration to your application config file to correctly initialize
                 if (jobStoreSupport != null)
                 {
                     jobStoreSupport.DbRetryInterval = dbFailureRetry;
-                    jobStoreSupport.ThreadExecutor = threadExecutor;
-                    // object serializer
                     jobStoreSupport.ObjectSerializer = objectSerializer; 
                 }
 
@@ -956,9 +927,6 @@ Please add configuration to your application config file to correctly initialize
                 rsrcs.SchedulerExporter = exporter;
 
                 SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId);
-
-                rsrcs.ThreadExecutor = threadExecutor;
-                threadExecutor.Initialize();
 
                 rsrcs.ThreadPool = tp;
 
@@ -1013,7 +981,7 @@ Please add configuration to your application config file to correctly initialize
                 js.InstanceId = schedInstId;
                 js.InstanceName = schedName;
                 js.ThreadPoolSize = tp.PoolSize;
-                js.Initialize(loadHelper, qs.SchedulerSignaler);
+                await js.Initialize(loadHelper, qs.SchedulerSignaler).ConfigureAwait(false);
 
                 jrsf.Initialize(sched);
                 qs.Initialize();
@@ -1036,23 +1004,23 @@ Please add configuration to your application config file to correctly initialize
             }
             catch (SchedulerException)
             {
-                ShutdownFromInstantiateException(tp, qs, tpInited, qsInited);
+                await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
                 throw;
             }
             catch
             {
-                ShutdownFromInstantiateException(tp, qs, tpInited, qsInited);
+                await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
                 throw;
             }
         }
 
-        private void ShutdownFromInstantiateException(IThreadPool tp, QuartzScheduler qs, bool tpInited, bool qsInited)
+        private async Task ShutdownFromInstantiateException(IThreadPool tp, QuartzScheduler qs, bool tpInited, bool qsInited)
         {
             try
             {
                 if (qsInited)
                 {
-                    qs.Shutdown(false);
+                    await qs.Shutdown(false).ConfigureAwait(false);
                 }
                 else if (tpInited)
                 {
@@ -1095,7 +1063,7 @@ Please add configuration to your application config file to correctly initialize
         /// called, then the default (no-arg) <see cref="Initialize()" /> method
         /// will be called by this method.
         /// </remarks>
-        public virtual IScheduler GetScheduler()
+        public virtual async Task<IScheduler> GetScheduler()
         {
             if (cfg == null)
             {
@@ -1104,7 +1072,7 @@ Please add configuration to your application config file to correctly initialize
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-            IScheduler sched = schedRep.Lookup(SchedulerName);
+            IScheduler sched = await schedRep.Lookup(SchedulerName).ConfigureAwait(false);
 
             if (sched != null)
             {
@@ -1118,7 +1086,7 @@ Please add configuration to your application config file to correctly initialize
                 }
             }
 
-            sched = Instantiate();
+            sched = await Instantiate().ConfigureAwait(false);
 
             return sched;
         }
@@ -1128,7 +1096,7 @@ Please add configuration to your application config file to correctly initialize
         /// it has already been instantiated).
         /// </para>
         /// </summary>
-        public virtual IScheduler GetScheduler(string schedName)
+        public virtual Task<IScheduler> GetScheduler(string schedName)
         {
             return SchedulerRepository.Instance.Lookup(schedName);
         }

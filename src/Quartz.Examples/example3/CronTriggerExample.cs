@@ -20,11 +20,10 @@
 #endregion
 
 using System;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example3
 {
@@ -41,7 +40,7 @@ namespace Quartz.Examples.Example3
             get { throw new NotImplementedException(); }
         }
 
-        public virtual void Run()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (CronTriggerExample));
 
@@ -49,7 +48,7 @@ namespace Quartz.Examples.Example3
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete --------");
 
@@ -64,11 +63,11 @@ namespace Quartz.Examples.Example3
                 .Build();
 
             ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
-                                                      .WithIdentity("trigger1", "group1")
-                                                      .WithCronSchedule("0/20 * * * * ?")
-                                                      .Build();
+                .WithIdentity("trigger1", "group1")
+                .WithCronSchedule("0/20 * * * * ?")
+                .Build();
 
-            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
+            DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -79,11 +78,11 @@ namespace Quartz.Examples.Example3
                 .Build();
 
             trigger = (ICronTrigger) TriggerBuilder.Create()
-                                         .WithIdentity("trigger2", "group1")
-                                         .WithCronSchedule("15 0/2 * * * ?")
-                                         .Build();
+                .WithIdentity("trigger2", "group1")
+                .WithCronSchedule("15 0/2 * * * ?")
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -94,11 +93,11 @@ namespace Quartz.Examples.Example3
                 .Build();
 
             trigger = (ICronTrigger) TriggerBuilder.Create()
-                                         .WithIdentity("trigger3", "group1")
-                                         .WithCronSchedule("0 0/2 8-17 * * ?")
-                                         .Build();
+                .WithIdentity("trigger3", "group1")
+                .WithCronSchedule("0 0/2 8-17 * * ?")
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -109,11 +108,11 @@ namespace Quartz.Examples.Example3
                 .Build();
 
             trigger = (ICronTrigger) TriggerBuilder.Create()
-                                         .WithIdentity("trigger4", "group1")
-                                         .WithCronSchedule("0 0/3 17-23 * * ?")
-                                         .Build();
+                .WithIdentity("trigger4", "group1")
+                .WithCronSchedule("0 0/3 17-23 * * ?")
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -124,11 +123,11 @@ namespace Quartz.Examples.Example3
                 .Build();
 
             trigger = (ICronTrigger) TriggerBuilder.Create()
-                                         .WithIdentity("trigger5", "group1")
-                                         .WithCronSchedule("0 0 10am 1,15 * ?")
-                                         .Build();
+                .WithIdentity("trigger5", "group1")
+                .WithCronSchedule("0 0 10am 1,15 * ?")
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -139,11 +138,11 @@ namespace Quartz.Examples.Example3
                 .Build();
 
             trigger = (ICronTrigger) TriggerBuilder.Create()
-                                         .WithIdentity("trigger6", "group1")
-                                         .WithCronSchedule("0,30 * * ? * MON-FRI")
-                                         .Build();
+                .WithIdentity("trigger6", "group1")
+                .WithCronSchedule("0,30 * * ? * MON-FRI")
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -154,11 +153,11 @@ namespace Quartz.Examples.Example3
                 .Build();
 
             trigger = (ICronTrigger) TriggerBuilder.Create()
-                                         .WithIdentity("trigger7", "group1")
-                                         .WithCronSchedule("0,30 * * ? * SAT,SUN")
-                                         .Build();
+                .WithIdentity("trigger7", "group1")
+                .WithCronSchedule("0,30 * * ? * SAT,SUN")
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -168,29 +167,24 @@ namespace Quartz.Examples.Example3
             // All of the jobs have been added to the scheduler, but none of the
             // jobs
             // will run until the scheduler has been started
-            sched.Start();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
             log.Info("------- Waiting five minutes... ------------");
-            try
-            {
-                // wait five minutes to show jobs
-                Thread.Sleep(300*1000);
-                // executing...
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+
+            // wait five minutes to show jobs
+            await Task.Delay(TimeSpan.FromMinutes(5));
+            // executing...
 
             log.Info("------- Shutting Down ---------------------");
 
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
 
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

@@ -23,10 +23,8 @@ using System.Runtime.Serialization;
 namespace Quartz
 {
 	/// <summary>
-	/// An exception that is thrown to indicate that a call to 
-	/// <see cref="IInterruptableJob.Interrupt" /> failed without interrupting the Job.
+	/// An exception that is thrown to indicate that cancellation failed.
 	/// </summary>
-	/// <seealso cref="IInterruptableJob" />
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]

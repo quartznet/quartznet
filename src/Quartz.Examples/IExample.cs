@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * Copyright 2009- Marko Lahma
  * 
@@ -15,21 +16,21 @@
  * under the License.
  * 
  */
+
 #endregion
+
+using System.Threading.Tasks;
 
 namespace Quartz.Examples
 {
-	/// <summary>
-	/// Interface for examples.
-	/// </summary>
+    /// <summary>
+    /// Interface for examples.
+    /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     public interface IExample
-	{
-		string Name
-		{
-			get;
-		}
-		
-		void Run();
-	}
+    {
+        string Name { get; }
+
+        Task Run();
+    }
 }

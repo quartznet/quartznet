@@ -20,7 +20,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
@@ -72,7 +71,7 @@ namespace Quartz.Simpl
             try
             {
                 RemotingServices.Marshal((MarshalByRefObject)scheduler, BindName);
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "Successfully marshalled remotable scheduler under name '{0}'", BindName));
+                Log.Info($"Successfully marshalled remotable scheduler under name '{BindName}'");
             }
             catch (RemotingException ex)
             {
@@ -106,7 +105,7 @@ namespace Quartz.Simpl
                 string channelRegistrationKey = ChannelType + "_" + Port;
                 if (registeredChannels.ContainsKey(channelRegistrationKey))
                 {
-                    Log.Warn(string.Format("Channel '{0}' already registered for port {1}, not registering again", ChannelType, Port));
+                    Log.Warn($"Channel '{ChannelType}' already registered for port {Port}, not registering again");
                     return;
                 }
                 IChannel chan;
@@ -132,7 +131,7 @@ namespace Quartz.Simpl
                     Log.Info("Remoting is allowing remote calls");
                 }
 
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1}) with name ({2})", chan.GetType(), Port, chan.ChannelName));
+                Log.Info($"Registering remoting channel of type '{chan.GetType()}' to port ({Port}) with name ({chan.ChannelName})");
 
                 ChannelServices.RegisterChannel(chan, false);
 

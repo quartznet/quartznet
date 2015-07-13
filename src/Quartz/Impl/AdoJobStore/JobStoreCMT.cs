@@ -20,9 +20,11 @@
 using System;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -52,7 +54,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="loadHelper"></param>
         /// <param name="signaler"></param>
-        public override void Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
+        public override Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
         {
             if (LockHandler == null)
             {
@@ -64,6 +66,7 @@ namespace Quartz.Impl.AdoJobStore
             base.Initialize(loadHelper, signaler);
 
             Log.Info("JobStoreCMT initialized.");
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -71,10 +74,10 @@ namespace Quartz.Impl.AdoJobStore
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public override void Shutdown()
+        public override async Task Shutdown()
         {
 
-            base.Shutdown();
+            await base.Shutdown().ConfigureAwait(false);
 
             try
             {
@@ -104,18 +107,18 @@ namespace Quartz.Impl.AdoJobStore
             catch (SqlException sqle)
             {
                 throw new JobPersistenceException(
-                    string.Format("Failed to obtain DB connection from data source '{0}': {1}", DataSource, sqle), sqle);
+                    $"Failed to obtain DB connection from data source '{DataSource}': {sqle}", sqle);
             }
             catch (Exception e)
             {
                 throw new JobPersistenceException(
-                    string.Format("Failed to obtain DB connection from data source '{0}': {1}", DataSource, e), e);
+                    $"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
             }
 
             if (conn == null)
             {
                 throw new JobPersistenceException(
-                    string.Format("Could not get connection from DataSource '{0}'", DataSource));
+                    $"Could not get connection from DataSource '{DataSource}'");
             }
 
             return new ConnectionAndTransactionHolder(conn, null);
@@ -137,9 +140,9 @@ namespace Quartz.Impl.AdoJobStore
         /// txCallback is still executed in a transaction.
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
-        protected override T ExecuteInLock<T>(
+        protected override async Task<T> ExecuteInLock<T>(
                 string lockName,
-                Func<ConnectionAndTransactionHolder, T> txCallback)
+                Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
@@ -154,7 +157,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = LockHandler.ObtainLock(DbMetadata, conn, lockName);
+                    transOwner = await LockHandler.ObtainLock(DbMetadata, conn, lockName).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -162,13 +165,13 @@ namespace Quartz.Impl.AdoJobStore
                     conn = GetNonManagedTXConnection();
                 }
 
-                return txCallback(conn);
+                return await txCallback(conn).ConfigureAwait(false);
             }
             finally
             {
                 try
                 {
-                    ReleaseLock(LockTriggerAccess, transOwner);
+                    await ReleaseLock(LockTriggerAccess, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {

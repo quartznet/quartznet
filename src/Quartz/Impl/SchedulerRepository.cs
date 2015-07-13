@@ -19,7 +19,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Threading.Tasks;
 
 namespace Quartz.Impl
 {
@@ -59,7 +59,7 @@ namespace Quartz.Impl
 			{
 				if (schedulers.ContainsKey(sched.SchedulerName))
 				{
-					throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Scheduler with name '{0}' already exists.", sched.SchedulerName));
+					throw new SchedulerException($"Scheduler with name '{sched.SchedulerName}' already exists.");
 				}
 
 				schedulers[sched.SchedulerName] = sched;
@@ -79,30 +79,31 @@ namespace Quartz.Impl
 			}
 		}
 
-        /// <summary>
-        /// Lookups the specified sched name.
-        /// </summary>
-        /// <param name="schedName">Name of the sched.</param>
-        /// <returns></returns>
-		public virtual IScheduler Lookup(string schedName)
+	    /// <summary>
+	    /// Lookups the specified sched name.
+	    /// </summary>
+	    /// <param name="schedName">Name of the sched.</param>
+	    /// <returns></returns>
+	    public virtual Task<IScheduler> Lookup(string schedName)
 		{
 			lock (syncRoot)
 			{
 			    IScheduler retValue;
 			    schedulers.TryGetValue(schedName, out retValue);
-				return retValue;
+				return Task.FromResult(retValue);
 			}
 		}
 
-        /// <summary>
-        /// Lookups all.
-        /// </summary>
-        /// <returns></returns>
-		public virtual IReadOnlyList<IScheduler> LookupAll()
+	    /// <summary>
+	    /// Lookups all.
+	    /// </summary>
+	    /// <returns></returns>
+	    public virtual Task<IReadOnlyList<IScheduler>> LookupAll()
 		{
 			lock (syncRoot)
 			{
-				return new List<IScheduler>(schedulers.Values).AsReadOnly();
+			    IReadOnlyList<IScheduler> result = new List<IScheduler>(schedulers.Values);
+			    return Task.FromResult(result);
 			}
 		}
 	}

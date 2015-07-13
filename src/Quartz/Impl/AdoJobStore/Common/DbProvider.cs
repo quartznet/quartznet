@@ -23,7 +23,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -73,7 +72,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
             if (dbMetadata == null)
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid DB provider name: {0}{1}{2}", dbProviderName, Environment.NewLine, GenerateValidProviderNamesInfo()));
+                throw new ArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
             }
             
             // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
@@ -197,10 +196,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the metadata.
         /// </summary>
         /// <value>The metadata.</value>
-        public virtual DbMetadata Metadata
-        {
-            get { return dbMetadata; }
-        }
+        public virtual DbMetadata Metadata => dbMetadata;
 
         /// <summary>
         /// Shutdowns this instance.

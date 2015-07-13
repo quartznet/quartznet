@@ -21,7 +21,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
-using System.Threading;
+using System.Threading.Tasks;
 
 using FakeItEasy;
 
@@ -49,12 +49,12 @@ namespace Quartz.Tests.Unit.Core
         }
 
         [Test]
-        public void TestInvalidCalendarScheduling()
+        public async Task TestInvalidCalendarScheduling()
         {
             const string ExpectedError = "Calendar not found: FOOBAR";
 
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             DateTime runTime = DateTime.Now.AddMinutes(10);
 
@@ -69,7 +69,7 @@ namespace Quartz.Tests.Unit.Core
 
             try
             {
-                sched.ScheduleJob(job, trigger);
+                await sched.ScheduleJob(job, trigger);
                 Assert.Fail("No error for non-existing calendar");
             }
             catch (SchedulerException ex)
@@ -79,7 +79,7 @@ namespace Quartz.Tests.Unit.Core
 
             try
             {
-                sched.ScheduleJob(trigger);
+                await sched.ScheduleJob(trigger);
                 Assert.Fail("No error for non-existing calendar");
             }
             catch (SchedulerException ex)
@@ -87,22 +87,22 @@ namespace Quartz.Tests.Unit.Core
                 Assert.AreEqual(ExpectedError, ex.Message);
             }
             
-            sched.Shutdown(false);
+            await sched.Shutdown(false);
         }
 
         [Test]
-        public void TestStartDelayed()
+        public async Task TestStartDelayed()
         {
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
-            sched.StartDelayed(TimeSpan.FromSeconds(2));
+            IScheduler sched = await sf.GetScheduler();
+            var task = sched.StartDelayed(TimeSpan.FromSeconds(2));
             Assert.IsFalse(sched.IsStarted);
-            Thread.Sleep(TimeSpan.FromSeconds(3));
+            await Task.Delay(TimeSpan.FromSeconds(3));
             Assert.IsTrue(sched.IsStarted);
         }
 
         [Test]
-        public void TestRescheduleJob_SchedulerListenersCalledOnReschedule()
+        public async Task TestRescheduleJob_SchedulerListenersCalledOnReschedule()
         {
             const string TriggerName = "triggerName";
             const string TriggerGroup = "triggerGroup";
@@ -110,19 +110,19 @@ namespace Quartz.Tests.Unit.Core
             const string JobGroup = "jobGroup";
 
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler scheduler = sf.GetScheduler();
+            IScheduler scheduler = await sf.GetScheduler();
             DateTime startTimeUtc = DateTime.UtcNow.AddSeconds(2);
             JobDetailImpl jobDetail = new JobDetailImpl(JobName, JobGroup, typeof(NoOpJob));
             SimpleTriggerImpl jobTrigger = new SimpleTriggerImpl(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
 
             ISchedulerListener listener = A.Fake<ISchedulerListener>();
 
-            scheduler.ScheduleJob(jobDetail, jobTrigger);
+            await scheduler.ScheduleJob(jobDetail, jobTrigger);
             // add listener after scheduled
             scheduler.ListenerManager.AddSchedulerListener(listener);
 
             // act
-            scheduler.RescheduleJob(new TriggerKey(TriggerName, TriggerGroup), jobTrigger);
+            await scheduler.RescheduleJob(new TriggerKey(TriggerName, TriggerGroup), jobTrigger);
 
             // assert
             // expect unschedule and schedule

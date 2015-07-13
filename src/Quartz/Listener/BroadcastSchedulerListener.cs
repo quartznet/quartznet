@@ -20,6 +20,8 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Quartz.Listener
 {
@@ -64,169 +66,109 @@ namespace Quartz.Listener
             return listeners.Remove(listener);
         }
 
-        public IList<ISchedulerListener> GetListeners()
+        public IReadOnlyList<ISchedulerListener> GetListeners()
         {
-            return listeners.AsReadOnly();
-        }
-        
-        public void JobAdded(IJobDetail jobDetail)
-        {
-            foreach (ISchedulerListener listener in listeners)
-            {
-                listener.JobAdded(jobDetail);
-            }
+            return listeners;
         }
 
-        public void JobDeleted(JobKey jobKey)
+        public Task JobAdded(IJobDetail jobDetail)
         {
-            foreach (ISchedulerListener listener in listeners)
-            {
-                listener.JobDeleted(jobKey);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobAdded(jobDetail)));
         }
 
-        public void JobScheduled(ITrigger trigger)
+        public Task JobDeleted(JobKey jobKey)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.JobScheduled(trigger);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobDeleted(jobKey)));
         }
 
-        public void JobUnscheduled(TriggerKey triggerKey)
+        public Task JobScheduled(ITrigger trigger)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.JobUnscheduled(triggerKey);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobScheduled(trigger)));
         }
 
-        public void TriggerFinalized(ITrigger trigger)
+        public Task JobUnscheduled(TriggerKey triggerKey)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.TriggerFinalized(trigger);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobUnscheduled(triggerKey)));
         }
 
-        public void TriggersPaused(string triggerGroup)
+        public Task TriggerFinalized(ITrigger trigger)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.TriggersPaused(triggerGroup);
-            }
+            return Task.WhenAll(listeners.Select(l => l.TriggerFinalized(trigger)));
         }
 
-        public void TriggerPaused(TriggerKey triggerKey)
+        public Task TriggersPaused(string triggerGroup)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.TriggerPaused(triggerKey);
-            }
+            return Task.WhenAll(listeners.Select(l => l.TriggersPaused(triggerGroup)));
         }
 
-        public void TriggersResumed(string triggerGroup)
+        public Task TriggerPaused(TriggerKey triggerKey)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.TriggersResumed(triggerGroup);
-            }
+            return Task.WhenAll(listeners.Select(l => l.TriggerPaused(triggerKey)));
         }
 
-        public void SchedulingDataCleared()
+        public Task TriggersResumed(string triggerGroup)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.SchedulingDataCleared();
-            }
+            return Task.WhenAll(listeners.Select(l => l.TriggersResumed(triggerGroup)));
         }
 
-        public void TriggerResumed(TriggerKey triggerKey)
+        public Task SchedulingDataCleared()
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.TriggerResumed(triggerKey);
-            }
+            return Task.WhenAll(listeners.Select(l => l.SchedulingDataCleared()));
         }
 
-        public void JobsPaused(string jobGroup)
+        public Task TriggerResumed(TriggerKey triggerKey)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.JobsPaused(jobGroup);
-            }
+            return Task.WhenAll(listeners.Select(l => l.TriggerResumed(triggerKey)));
         }
 
-        public void JobPaused(JobKey jobKey)
+        public Task JobsPaused(string jobGroup)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.JobPaused(jobKey);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobsPaused(jobGroup)));
         }
 
-        public void JobsResumed(string jobGroup)
+        public Task JobPaused(JobKey jobKey)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.JobsResumed(jobGroup);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobPaused(jobKey)));
         }
 
-        public void JobResumed(JobKey jobKey)
+        public Task JobsResumed(string jobGroup)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.JobResumed(jobKey);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobsResumed(jobGroup)));
         }
 
-        public void SchedulerError(string msg, SchedulerException cause)
+        public Task JobResumed(JobKey jobKey)
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.SchedulerError(msg, cause);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobResumed(jobKey)));
         }
 
-        public void SchedulerStarted()
+        public Task SchedulerError(string msg, SchedulerException cause)
         {
-            foreach (ISchedulerListener listener in listeners)
-            {
-                listener.SchedulerStarted();
-            }
+            return Task.WhenAll(listeners.Select(l => l.SchedulerError(msg, cause)));
         }
 
-        public void SchedulerStarting()
+        public Task SchedulerStarted()
         {
-            foreach (ISchedulerListener listener in listeners)
-            {
-                listener.SchedulerStarting();
-            }
+            return Task.WhenAll(listeners.Select(l => l.SchedulerStarted()));
         }
 
-        public void SchedulerInStandbyMode()
+        public Task SchedulerStarting()
         {
-            foreach (ISchedulerListener listener in listeners)
-            {
-                listener.SchedulerInStandbyMode();
-            }
+            return Task.WhenAll(listeners.Select(l => l.SchedulerStarting()));
         }
 
-        public void SchedulerShutdown()
+        public Task SchedulerInStandbyMode()
         {
-            foreach (ISchedulerListener l in listeners)
-            {
-                l.SchedulerShutdown();
-            }
+            return Task.WhenAll(listeners.Select(l => l.SchedulerInStandbyMode()));
         }
 
-        public void SchedulerShuttingdown()
+        public Task SchedulerShutdown()
         {
-            foreach (ISchedulerListener listener in listeners)
-            {
-                listener.SchedulerShuttingdown();
-            }
+            return Task.WhenAll(listeners.Select(l => l.SchedulerShutdown()));
+        }
+
+        public Task SchedulerShuttingdown()
+        {
+            return Task.WhenAll(listeners.Select(l => l.SchedulerShuttingdown()));
         }
     }
 }

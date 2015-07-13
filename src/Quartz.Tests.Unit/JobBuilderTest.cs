@@ -52,8 +52,8 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(job.RequestsRecovery, "Expected requestsRecovery == false ");
             Assert.IsFalse(job.ConcurrentExecutionDisallowed, "Expected isConcurrentExecutionDisallowed == false ");
             Assert.IsFalse(job.PersistJobDataAfterExecution, "Expected isPersistJobDataAfterExecution == false ");
-            Assert.IsTrue(job.JobType.Equals(typeof(TestJob)), "Unexpected job class: " + job.JobType)
-            ;
+            Assert.IsTrue(job.JobType.Equals(typeof (TestJob)), "Unexpected job class: " + job.JobType)
+                ;
 
             job = JobBuilder.Create()
                 .OfType<TestAnnotatedJob>()
@@ -71,8 +71,8 @@ namespace Quartz.Tests.Unit
 
             job = JobBuilder.Create()
                 .OfType<TestStatefulJob>()
-                    .
-            WithIdentity("j1", "g1")
+                .
+                WithIdentity("j1", "g1")
                 .RequestRecovery(false)
                 .Build();
 

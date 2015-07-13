@@ -19,9 +19,11 @@
 
 #endregion
 
+using System.Threading.Tasks;
+
 using Quartz.Impl.Matchers;
-using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Web.History
 {
@@ -31,7 +33,6 @@ namespace Quartz.Web.History
     /// <author>Marko Lahma</author>
     public class DatabaseExecutionHistoryPlugin : ISchedulerPlugin, IJobListener
     {
-        private static readonly ILog log = LogProvider.For<DatabaseExecutionHistoryPlugin>();
         public static JobHistoryDelegate Delegate { get; private set; }
 
         /// <summary>
@@ -60,9 +61,10 @@ namespace Quartz.Web.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual void Start()
+        public virtual Task Start()
         {
             // do nothing...
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary> 
@@ -70,9 +72,10 @@ namespace Quartz.Web.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual Task Shutdown()
         {
             // nothing to do...
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -84,8 +87,9 @@ namespace Quartz.Web.History
         ///     </para>
         /// </summary>
         /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
-        public virtual void JobToBeExecuted(IJobExecutionContext context)
+        public virtual Task JobToBeExecuted(IJobExecutionContext context)
         {
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -95,9 +99,9 @@ namespace Quartz.Web.History
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>
-        public virtual void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public virtual Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
-            Delegate.InsertJobHistoryEntry(context, jobException).GetAwaiter().GetResult();
+            return Delegate.InsertJobHistoryEntry(context, jobException);
         }
 
         /// <summary>
@@ -108,8 +112,9 @@ namespace Quartz.Web.History
         /// </summary>
         /// <param name="context"></param>
         /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
-        public virtual void JobExecutionVetoed(IJobExecutionContext context)
+        public virtual Task JobExecutionVetoed(IJobExecutionContext context)
         {
+            return TaskUtil.CompletedTask;
         }
     }
 }

@@ -20,7 +20,6 @@
 #endregion
 
 using System;
-using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
@@ -89,7 +88,7 @@ namespace Quartz.Job
                 int? port = null;
                 if (!string.IsNullOrEmpty(portString))
                 {
-                    port = Int32.Parse(portString);
+                    port = int.Parse(portString);
                 }
 
                 var info = new MailInfo
@@ -104,7 +103,7 @@ namespace Quartz.Job
             }
             catch (Exception ex)
             {
-                throw new JobExecutionException(string.Format(CultureInfo.InvariantCulture, "Unable to send mail: {0}", GetMessageDescription(message)), ex, false);
+                throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
             }
         }
 
@@ -171,7 +170,7 @@ namespace Quartz.Job
 
         protected virtual void Send(MailInfo mailInfo)
         {
-            log.Info(string.Format(CultureInfo.InvariantCulture, "Sending message {0}", GetMessageDescription(mailInfo.MailMessage)));
+            log.Info($"Sending message {GetMessageDescription(mailInfo.MailMessage)}");
 
             var client = new SmtpClient(mailInfo.SmtpHost);
             try
@@ -202,7 +201,7 @@ namespace Quartz.Job
 
         private static string GetMessageDescription(MailMessage message)
         {
-            string mailDesc = string.Format(CultureInfo.InvariantCulture, "'{0}' to: {1}", message.Subject, string.Join(", ", message.To.Select(x => x.Address).ToArray()));
+            string mailDesc = $"'{message.Subject}' to: {string.Join(", ", message.To.Select(x => x.Address).ToArray())}";
             return mailDesc;
         }
 

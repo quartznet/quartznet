@@ -20,6 +20,7 @@
 #endregion
 
 using System.Collections.Specialized;
+using System.Threading.Tasks;
 
 using Quartz.Logging;
 
@@ -39,7 +40,7 @@ namespace Quartz.Examples.Example12
     /// <author>Marko Lahma (.NET)</author>
     public class RemoteClientExample : IExample
     {
-        public virtual void Run()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (RemoteClientExample));
 
@@ -57,7 +58,7 @@ namespace Quartz.Examples.Example12
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             // define the job and ask it to run
 
@@ -75,14 +76,11 @@ namespace Quartz.Examples.Example12
                 .Build();
 
             // schedule the job
-            sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
             log.Info("Remote job scheduled.");
         }
 
-        public string Name
-        {
-            get { return null; }
-        }
+        public string Name => null;
     }
 }
