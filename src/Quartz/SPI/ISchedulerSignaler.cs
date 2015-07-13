@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Threading.Tasks;
 
 using Quartz.Core;
 
@@ -35,24 +36,24 @@ namespace Quartz.Spi
 		/// Notifies the scheduler about misfired trigger.
 		/// </summary>
 		/// <param name="trigger">The trigger that misfired.</param>
-        void NotifyTriggerListenersMisfired(ITrigger trigger);
+        Task NotifyTriggerListenersMisfired(ITrigger trigger);
 
         /// <summary>
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        void NotifySchedulerListenersFinalized(ITrigger trigger);
+        Task NotifySchedulerListenersFinalized(ITrigger trigger);
 
-        void NotifySchedulerListenersJobDeleted(JobKey jobKey);
+        Task NotifySchedulerListenersJobDeleted(JobKey jobKey);
 
-		/// <summary>
-		/// Signals the scheduling change.
-		/// </summary>
+        /// <summary>
+        /// Signals the scheduling change.
+        /// </summary>
         void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc);
 
         /// <summary>
         /// Informs scheduler listeners about an exception that has occurred.
         /// </summary>
-        void NotifySchedulerListenersError(string message, SchedulerException jpe);
+        Task NotifySchedulerListenersError(string message, SchedulerException jpe);
 	}
 }

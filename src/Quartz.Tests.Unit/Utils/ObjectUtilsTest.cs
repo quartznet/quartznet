@@ -36,14 +36,14 @@ namespace Quartz.Tests.Unit.Utils
         [Test]
         public void NullObjectForValueTypeShouldReturnDefaultforValueType()
         {
-            object value = ObjectUtils.ConvertValueIfNecessary(typeof(int), null);
+            object value = ObjectUtils.ConvertValueIfNecessary(typeof (int), null);
             Assert.AreEqual(0, value);
         }
 
         [Test]
         public void NotConvertableDataShouldThrowNotSupportedException()
         {
-            Assert.Throws<NotSupportedException>(() => ObjectUtils.ConvertValueIfNecessary(typeof(int), new DirtyFlagMap<int, string>()));
+            Assert.Throws<NotSupportedException>(() => ObjectUtils.ConvertValueIfNecessary(typeof (int), new DirtyFlagMap<int, string>()));
         }
 
         [Test]
@@ -53,7 +53,7 @@ namespace Quartz.Tests.Unit.Utils
             Assert.AreEqual(1, ts.TotalDays);
         }
 
-                [Test]
+        [Test]
         public void TestConvertAssignable()
         {
             ICloneable val = (ICloneable) ObjectUtils.ConvertValueIfNecessary(typeof (ICloneable), "test");
@@ -101,7 +101,6 @@ namespace Quartz.Tests.Unit.Utils
             string val = (string) ObjectUtils.ConvertValueIfNecessary(typeof (string), typeof (string));
             Assert.AreEqual("System.String", val);
         }
-
 
         [Test]
         public void TestSetObjectTimeSpanProperties()
@@ -205,9 +204,7 @@ namespace Quartz.Tests.Unit.Utils
 
     internal class ExplicitImplementor : IThreadPool
     {
-        private string instanceName;
-
-        bool IThreadPool.RunInThread(IThreadRunnable runnable)
+        bool IThreadPool.RunInThread(Action action)
         {
             throw new NotImplementedException();
         }
@@ -232,19 +229,7 @@ namespace Quartz.Tests.Unit.Utils
             get { throw new NotImplementedException(); }
         }
 
-        string IThreadPool.InstanceId
-        {
-            set { throw new NotImplementedException(); }
-        }
-
-        string IThreadPool.InstanceName
-        {
-            set { instanceName = value; }
-        }
-
-        public string InstanceName
-        {
-            get { return instanceName; }
-        }
+        public string InstanceId { get; set; }
+        public string InstanceName { get; set; }
     }
 }

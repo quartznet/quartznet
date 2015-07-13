@@ -20,12 +20,11 @@
 #endregion
 
 using System;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example9
 {
@@ -42,7 +41,7 @@ namespace Quartz.Examples.Example9
             get { return GetType().Name; }
         }
 
-        public virtual void Run()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (ListenerExample));
 
@@ -50,7 +49,7 @@ namespace Quartz.Examples.Example9
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
 
@@ -72,34 +71,28 @@ namespace Quartz.Examples.Example9
             sched.ListenerManager.AddJobListener(listener, matcher);
 
             // schedule the job to run
-            sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
             log.Info("------- Starting Scheduler ----------------");
-            sched.Start();
+            await sched.Start();
 
             // wait 30 seconds:
             // note:  nothing will run
             log.Info("------- Waiting 30 seconds... --------------");
-            try
-            {
-                // wait 30 seconds to show jobs
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-                // executing...
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
 
+            // wait 30 seconds to show jobs
+            await Task.Delay(TimeSpan.FromSeconds(30));
+            // executing...
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

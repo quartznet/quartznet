@@ -31,7 +31,6 @@ namespace Quartz.Tests.Unit.Simpl
 
             public void Execute(IJobExecutionContext context)
             {
-                
             }
 
             public void Dispose()

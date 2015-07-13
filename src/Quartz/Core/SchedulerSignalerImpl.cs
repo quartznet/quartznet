@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -49,45 +50,45 @@ namespace Quartz.Core
         /// Notifies the scheduler about misfired trigger.
         /// </summary>
         /// <param name="trigger">The trigger that misfired.</param>
-        public virtual void NotifyTriggerListenersMisfired(ITrigger trigger)
-		{
-			try
-			{
-				sched.NotifyTriggerListenersMisfired(trigger);
-			}
-			catch (SchedulerException se)
-			{
+        public virtual async Task NotifyTriggerListenersMisfired(ITrigger trigger)
+        {
+            try
+            {
+                await sched.NotifyTriggerListenersMisfired(trigger).ConfigureAwait(false);
+            }
+            catch (SchedulerException se)
+            {
                 log.ErrorException("Error notifying listeners of trigger misfire.", se);
-				sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se);
-			}
-		}
+                await sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se).ConfigureAwait(false);
+            }
+        }
 
 
         /// <summary>
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        public void NotifySchedulerListenersFinalized(ITrigger trigger)
+        public async Task NotifySchedulerListenersFinalized(ITrigger trigger)
         {
-            sched.NotifySchedulerListenersFinalized(trigger);
+            await sched.NotifySchedulerListenersFinalized(trigger).ConfigureAwait(false);
         }
 
-		/// <summary>
-		/// Signals the scheduling change.
-		/// </summary>
+        /// <summary>
+        /// Signals the scheduling change.
+        /// </summary>
         public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTime)
         {
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
         }
 
-	    public void NotifySchedulerListenersJobDeleted(JobKey jobKey)
-	    {
-	        sched.NotifySchedulerListenersJobDeleted(jobKey);
-	    }
+        public async Task NotifySchedulerListenersJobDeleted(JobKey jobKey)
+        {
+            await sched.NotifySchedulerListenersJobDeleted(jobKey).ConfigureAwait(false);
+        }
 
-	    public void NotifySchedulerListenersError(string message, SchedulerException jpe)
-	    {
-	        sched.NotifySchedulerListenersError(message, jpe);
-	    }
-	}
+        public async Task NotifySchedulerListenersError(string message, SchedulerException jpe)
+        {
+            await sched.NotifySchedulerListenersError(message, jpe).ConfigureAwait(false);
+        }
+    }
 }

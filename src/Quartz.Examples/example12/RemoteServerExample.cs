@@ -19,10 +19,10 @@
 
 using System;
 using System.Collections.Specialized;
-using System.Threading;
+using System.Threading.Tasks;
 
-using Quartz.Logging;
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example12
 {
@@ -41,7 +41,7 @@ namespace Quartz.Examples.Example12
 		/// </summary>
 		/// <author>  James House, Bill Kratzer
 		/// </author>
-		public virtual void Run()
+		public virtual async Task Run()
 		{
 			ILog log = LogProvider.GetLogger(typeof(RemoteServerExample));
 			
@@ -63,7 +63,7 @@ namespace Quartz.Examples.Example12
             properties["quartz.scheduler.exporter.rejectRemoteRequests"] = "true";
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 			
 			log.Info("------- Initialization Complete -----------");
 			
@@ -72,27 +72,21 @@ namespace Quartz.Examples.Example12
 			log.Info("------- Starting Scheduler ----------------");
 			
 			// start the schedule
-			sched.Start();
+			await sched.Start();
 			
 			log.Info("------- Started Scheduler -----------------");
 			
 			log.Info("------- Waiting 5 minutes... ------------");
-			
-			// wait to give our jobs a chance to run
-			try
-			{
-				Thread.Sleep(TimeSpan.FromMinutes(5));
-			}
-            catch (ThreadInterruptedException)
-			{
-			}
-			
-			// shut down the scheduler
-			log.Info("------- Shutting Down ---------------------");
-			sched.Shutdown(true);
+
+            // wait to give our jobs a chance to run
+            await Task.Delay(TimeSpan.FromMinutes(5));
+
+            // shut down the scheduler
+            log.Info("------- Shutting Down ---------------------");
+			await sched.Shutdown(true);
 			log.Info("------- Shutdown Complete -----------------");
 			
-			SchedulerMetaData metaData = sched.GetMetaData();
+			SchedulerMetaData metaData = await sched.GetMetaData();
 			log.Info("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
 		}
 

@@ -644,7 +644,7 @@ namespace Quartz
             }
             catch (Exception e)
             {
-                throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Illegal cron expression format ({0})", e.Message), e);
+                throw new FormatException($"Illegal cron expression format ({e.Message})", e);
             }
         }
 
@@ -674,7 +674,7 @@ namespace Quartz
                     sval = GetMonthNumber(sub) + 1;
                     if (sval <= 0)
                     {
-                        throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Invalid Month value: '{0}'", sub));
+                        throw new FormatException($"Invalid Month value: '{sub}'");
                     }
                     if (s.Length > i + 3)
                     {
@@ -687,7 +687,7 @@ namespace Quartz
                             if (eval <= 0)
                             {
                                 throw new FormatException(
-                                    string.Format(CultureInfo.InvariantCulture, "Invalid Month value: '{0}'", sub));
+                                    $"Invalid Month value: '{sub}'");
                             }
                         }
                     }
@@ -697,7 +697,7 @@ namespace Quartz
                     sval = GetDayOfWeekNumber(sub);
                     if (sval < 0)
                     {
-                        throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Invalid Day-of-Week value: '{0}'", sub));
+                        throw new FormatException($"Invalid Day-of-Week value: '{sub}'");
                     }
                     if (s.Length > i + 3)
                     {
@@ -710,7 +710,7 @@ namespace Quartz
                             if (eval < 0)
                             {
                                 throw new FormatException(
-                                    string.Format(CultureInfo.InvariantCulture, "Invalid Day-of-Week value: '{0}'", sub));
+                                    $"Invalid Day-of-Week value: '{sub}'");
                             }
                         }
                         else if (c == '#')
@@ -740,7 +740,7 @@ namespace Quartz
                 else
                 {
                     throw new FormatException(
-                        string.Format(CultureInfo.InvariantCulture, "Illegal characters for this position: '{0}'", sub));
+                        $"Illegal characters for this position: '{sub}'");
                 }
                 if (eval != -1)
                 {
@@ -814,26 +814,26 @@ namespace Quartz
                     if (incr > 59 && (type == Second || type == Minute))
                     {
                         throw new FormatException(
-                            string.Format(CultureInfo.InvariantCulture, "Increment > 60 : {0}", incr));
+                            $"Increment > 60 : {incr}");
                     }
                     else if (incr > 23 && (type == Hour))
                     {
                         throw new FormatException(
-                            string.Format(CultureInfo.InvariantCulture, "Increment > 24 : {0}", incr));
+                            $"Increment > 24 : {incr}");
                     }
                     else if (incr > 31 && (type == DayOfMonth))
                     {
                         throw new FormatException(
-                            string.Format(CultureInfo.InvariantCulture, "Increment > 31 : {0}", incr));
+                            $"Increment > 31 : {incr}");
                     }
                     else if (incr > 7 && (type == DayOfWeek))
                     {
                         throw new FormatException(
-                            string.Format(CultureInfo.InvariantCulture, "Increment > 7 : {0}", incr));
+                            $"Increment > 7 : {incr}");
                     }
                     else if (incr > 12 && (type == Month))
                     {
-                        throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Increment > 12 : {0}", incr));
+                        throw new FormatException($"Increment > 12 : {incr}");
                     }
                 }
                 else
@@ -903,7 +903,7 @@ namespace Quartz
             }
             else
             {
-                throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Unexpected character: {0}", c));
+                throw new FormatException($"Unexpected character: {c}");
             }
 
             return i;
@@ -942,7 +942,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'L' option is not valid here. (pos={0})", i));
+                    throw new FormatException($"'L' option is not valid here. (pos={i})");
                 }
                 ISet<int> data = GetSet(type);
                 data.Add(val);
@@ -958,7 +958,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'W' option is not valid here. (pos={0})", i));
+                    throw new FormatException($"'W' option is not valid here. (pos={i})");
                 }
                 if (val > 31)
                 {
@@ -976,7 +976,7 @@ namespace Quartz
                 if (type != DayOfWeek)
                 {
                     throw new FormatException(
-                        string.Format(CultureInfo.InvariantCulture, "'#' option is not valid here. (pos={0})", i));
+                        $"'#' option is not valid here. (pos={i})");
                 }
                 i++;
                 try
@@ -1011,7 +1011,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException(string.Format(CultureInfo.InvariantCulture, "'C' option is not valid here. (pos={0})", i));
+                    throw new FormatException($"'C' option is not valid here. (pos={i})");
                 }
                 ISet<int> data = GetSet(type);
                 data.Add(val);
@@ -1094,7 +1094,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException(string.Format(CultureInfo.InvariantCulture, "Unexpected character '{0}' after '/'", c));
+                    throw new FormatException($"Unexpected character '{c}' after '/'");
                 }
             }
 

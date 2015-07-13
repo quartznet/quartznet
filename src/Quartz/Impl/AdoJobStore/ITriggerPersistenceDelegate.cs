@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Threading.Tasks;
+
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
@@ -48,21 +50,21 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Inserts trigger's special properties.
         /// </summary>
-        int InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
+        Task<int> InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
 
         /// <summary>
         /// Updates trigger's special properties.
         /// </summary>
-        int UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
+        Task<int> UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
 
         /// <summary>
         /// Deletes trigger's special properties.
         /// </summary>
-        int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
+        Task<int> DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
         
         /// <summary>
         /// Loads trigger's special properties.
         /// </summary>
-        TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
+        Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
     }
 }

@@ -56,14 +56,7 @@ namespace Quartz.Examples.Example13
             }
 
             // delay for ten seconds
-            int delay = 10*1000;
-            try
-            {
-                Thread.Sleep(delay);
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            Thread.Sleep(TimeSpan.FromSeconds(10));
 
             JobDataMap data = context.JobDetail.JobDataMap;
             int count;

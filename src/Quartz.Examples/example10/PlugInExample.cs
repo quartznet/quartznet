@@ -21,11 +21,10 @@
 
 using System;
 using System.Collections.Specialized;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example10
 {
@@ -41,7 +40,7 @@ namespace Quartz.Examples.Example10
             get { throw new NotImplementedException(); }
         }
 
-        public virtual void Run()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (PlugInExample));
 
@@ -57,7 +56,7 @@ namespace Quartz.Examples.Example10
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
 
@@ -66,27 +65,21 @@ namespace Quartz.Examples.Example10
             log.Info("------- Starting Scheduler ----------------");
 
             // start the schedule 
-            sched.Start();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
             log.Info("------- Waiting five minutes... -----------");
 
             // wait five minutes to give our jobs a chance to run
-            try
-            {
-                Thread.Sleep(TimeSpan.FromMinutes(5));
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            await Task.Delay(TimeSpan.FromMinutes(5));
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = sched.GetMetaData();
+            SchedulerMetaData metaData = await sched.GetMetaData();
             log.Info("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
         }
     }

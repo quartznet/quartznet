@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace Quartz
@@ -91,7 +90,7 @@ namespace Quartz
             {
                 return base.ToString();
             }
-            return string.Format(CultureInfo.InvariantCulture, "{0} [See nested exception: {1}]", base.ToString(), InnerException);
+            return $"{base.ToString()} [See nested exception: {InnerException}]";
         }
     }
 }

@@ -194,7 +194,7 @@ namespace Quartz
         public virtual int GetIntValueFromString(string key)
         {
             object obj = Get(key);
-            return Int32.Parse((string) obj, CultureInfo.InvariantCulture);
+            return int.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -254,7 +254,7 @@ namespace Quartz
         public virtual double GetDoubleValueFromString(string key)
         {
             object obj = Get(key);
-            return Double.Parse((string) obj, CultureInfo.InvariantCulture);
+            return double.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -278,7 +278,7 @@ namespace Quartz
         public virtual float GetFloatValueFromString(string key)
         {
             object obj = Get(key);
-            return Single.Parse((string) obj, CultureInfo.InvariantCulture);
+            return float.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -302,7 +302,7 @@ namespace Quartz
         public virtual long GetLongValueFromString(string key)
         {
             object obj = Get(key);
-            return Int64.Parse((string) obj, CultureInfo.InvariantCulture);
+            return long.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>

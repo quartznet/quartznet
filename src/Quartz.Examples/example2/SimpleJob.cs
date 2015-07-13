@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example2

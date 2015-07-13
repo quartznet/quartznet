@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 using Quartz.Impl;
 
 namespace Quartz.Spi
@@ -71,13 +73,13 @@ namespace Quartz.Spi
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        void Start();
+        Task Start();
 
         /// <summary>
         /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        void Shutdown();
+        Task Shutdown();
     }
 }

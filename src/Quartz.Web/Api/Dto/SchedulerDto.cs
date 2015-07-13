@@ -2,13 +2,12 @@
 {
     public class SchedulerDto
     {
-        public SchedulerDto(IScheduler scheduler)
+        public SchedulerDto(IScheduler scheduler, SchedulerMetaData metaData)
         {
             Name = scheduler.SchedulerName;
             SchedulerInstanceId = scheduler.SchedulerInstanceId;
             Status = SchedulerHeaderDto.TranslateStatus(scheduler);
 
-            var metaData = scheduler.GetMetaData();
             ThreadPool = new SchedulerThreadPoolDto(metaData);
             JobStore = new SchedulerJobStoreDto(metaData);
             Statistics = new SchedulerStatisticsDto(metaData);

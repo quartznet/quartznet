@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Threading;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -48,21 +48,21 @@ namespace Quartz.Tests.Unit
         protected void SetUp()
         {
             string input = "0 0 03-07 ? * MON-FRI | 0 35/15 07 ? * MON-FRI | 0 05/15 08-14 ? * MON-FRI | 0 0/10 15-16 ? * MON-FRI | 0 05/15 17-23 ? * MON-FRI";
-            IScheduler scheduler = null;
+            IScheduler scheduler = new StdSchedulerFactory().GetScheduler().GetAwaiter().GetResult();
             var job = JobBuilder.Create<NoOpJob>().Build();
             var crontTriggers = input.Split('|').Select(x => x.Trim()).Select(cronExpression => TriggerBuilder.Create().WithCronSchedule(cronExpression).Build());
             scheduler.ScheduleJob(job, new HashSet<ITrigger>(crontTriggers), replace: false);
         }
 
         [Test]
-        public void TestBasicStorageFunctions()
+        public async Task TestBasicStorageFunctions()
         {
             NameValueCollection config = new NameValueCollection();
             config["quartz.scheduler.instanceName"] = "SchedulerTest_Scheduler";
             config["quartz.scheduler.instanceId"] = "AUTO";
             config["quartz.threadPool.threadCount"] = "2";
             config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            IScheduler sched = new StdSchedulerFactory(config).GetScheduler();
+            IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 
             // test basic storage functions of scheduler...
 
@@ -72,17 +72,19 @@ namespace Quartz.Tests.Unit
                 .StoreDurably()
                 .Build();
 
-            Assert.IsFalse(sched.CheckExists(new JobKey("j1")), "Unexpected existence of job named 'j1'.");
+            var exists = await sched.CheckExists(new JobKey("j1"));
+            Assert.IsFalse(exists, "Unexpected existence of job named 'j1'.");
 
-            sched.AddJob(job, false);
+            await sched.AddJob(job, false);
 
-            Assert.IsTrue(sched.CheckExists(new JobKey("j1")), "Expected existence of job named 'j1' but checkExists return false.");
+            exists = await sched.CheckExists(new JobKey("j1"));
+            Assert.IsTrue(exists, "Expected existence of job named 'j1' but checkExists return false.");
 
-            job = sched.GetJobDetail(new JobKey("j1"));
+            job = await sched.GetJobDetail(new JobKey("j1"));
 
             Assert.IsNotNull(job, "Stored job not found!");
 
-            sched.DeleteJob(new JobKey("j1"));
+            await sched.DeleteJob(new JobKey("j1"));
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("t1")
@@ -91,17 +93,19 @@ namespace Quartz.Tests.Unit
                 .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
                 .Build();
 
-            Assert.IsFalse(sched.CheckExists(new TriggerKey("t1")), "Unexpected existence of trigger named '11'.");
+            exists = await sched.CheckExists(new TriggerKey("t1"));
+            Assert.IsFalse(exists, "Unexpected existence of trigger named '11'.");
 
-            sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
-            Assert.IsTrue(sched.CheckExists(new TriggerKey("t1")), "Expected existence of trigger named 't1' but checkExists return false.");
+            exists = await sched.CheckExists(new TriggerKey("t1"));
+            Assert.IsTrue(exists, "Expected existence of trigger named 't1' but checkExists return false.");
 
-            job = sched.GetJobDetail(new JobKey("j1"));
+            job = await sched.GetJobDetail(new JobKey("j1"));
 
             Assert.IsNotNull(job, "Stored job not found!");
 
-            trigger = sched.GetTrigger(new TriggerKey("t1"));
+            trigger = await sched.GetTrigger(new TriggerKey("t1"));
 
             Assert.IsNotNull(trigger, "Stored trigger not found!");
 
@@ -117,7 +121,7 @@ namespace Quartz.Tests.Unit
                 .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
                 .Build();
 
-            sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
             job = JobBuilder.Create()
                 .OfType<TestJob>()
@@ -131,41 +135,41 @@ namespace Quartz.Tests.Unit
                 .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
                 .Build();
 
-            sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
-            IList<string> jobGroups = sched.GetJobGroupNames();
-            IList<string> triggerGroups = sched.GetTriggerGroupNames();
+            var jobGroups = await sched.GetJobGroupNames();
+            var triggerGroups = await sched.GetTriggerGroupNames();
 
             Assert.AreEqual(2, jobGroups.Count, "Job group list size expected to be = 2 ");
             Assert.AreEqual(2, triggerGroups.Count, "Trigger group list size expected to be = 2 ");
 
-            ISet<JobKey> jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
-            ISet<TriggerKey> triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
+            ISet<JobKey> jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
+            ISet<TriggerKey> triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
 
             Assert.AreEqual(1, jobKeys.Count, "Number of jobs expected in default group was 1 ");
             Assert.AreEqual(1, triggerKeys.Count, "Number of triggers expected in default group was 1 ");
 
-            jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
-            triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+            jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
+            triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
             Assert.AreEqual(2, jobKeys.Count, "Number of jobs expected in 'g1' group was 2 ");
             Assert.AreEqual(2, triggerKeys.Count, "Number of triggers expected in 'g1' group was 2 ");
 
-            TriggerState s = sched.GetTriggerState(new TriggerKey("t2", "g1"));
+            TriggerState s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.AreEqual(TriggerState.Normal, s, "State of trigger t2 expected to be NORMAL ");
 
-            sched.PauseTrigger(new TriggerKey("t2", "g1"));
-            s = sched.GetTriggerState(new TriggerKey("t2", "g1"));
+            await sched.PauseTrigger(new TriggerKey("t2", "g1"));
+            s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.AreEqual(TriggerState.Paused, s, "State of trigger t2 expected to be PAUSED ");
 
-            sched.ResumeTrigger(new TriggerKey("t2", "g1"));
-            s = sched.GetTriggerState(new TriggerKey("t2", "g1"));
+            await sched.ResumeTrigger(new TriggerKey("t2", "g1"));
+            s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.AreEqual(TriggerState.Normal, s, "State of trigger t2 expected to be NORMAL ");
 
-            ISet<string> pausedGroups = sched.GetPausedTriggerGroups();
+            ISet<string> pausedGroups = await sched.GetPausedTriggerGroups();
             Assert.AreEqual(0, pausedGroups.Count, "Size of paused trigger groups list expected to be 0 ");
 
-            sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+            await sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
             // test that adding a trigger to a paused group causes the new trigger to be paused also... 
             job = JobBuilder.Create()
@@ -180,63 +184,63 @@ namespace Quartz.Tests.Unit
                 .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
                 .Build();
 
-            sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
-            pausedGroups = sched.GetPausedTriggerGroups();
+            pausedGroups = await sched.GetPausedTriggerGroups();
             Assert.AreEqual(1, pausedGroups.Count, "Size of paused trigger groups list expected to be 1 ");
 
-            s = sched.GetTriggerState(new TriggerKey("t2", "g1"));
+            s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.AreEqual(TriggerState.Paused, s, "State of trigger t2 expected to be PAUSED ");
 
-            s = sched.GetTriggerState(new TriggerKey("t4", "g1"));
+            s = await sched.GetTriggerState(new TriggerKey("t4", "g1"));
             Assert.AreEqual(TriggerState.Paused, s, "State of trigger t4 expected to be PAUSED");
 
-            sched.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+            await sched.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
-            s = sched.GetTriggerState(new TriggerKey("t2", "g1"));
+            s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.AreEqual(TriggerState.Normal, s, "State of trigger t2 expected to be NORMAL ");
 
-            s = sched.GetTriggerState(new TriggerKey("t4", "g1"));
+            s = await sched.GetTriggerState(new TriggerKey("t4", "g1"));
             Assert.AreEqual(TriggerState.Normal, s, "State of trigger t2 expected to be NORMAL ");
 
-            pausedGroups = sched.GetPausedTriggerGroups();
+            pausedGroups = await sched.GetPausedTriggerGroups();
             Assert.AreEqual(0, pausedGroups.Count, "Size of paused trigger groups list expected to be 0 ");
 
-            Assert.IsFalse(sched.UnscheduleJob(new TriggerKey("foasldfksajdflk")), "Scheduler should have returned 'false' from attempt to unschedule non-existing trigger. ");
+            Assert.IsFalse(await sched.UnscheduleJob(new TriggerKey("foasldfksajdflk")), "Scheduler should have returned 'false' from attempt to unschedule non-existing trigger. ");
 
-            Assert.IsTrue(sched.UnscheduleJob(new TriggerKey("t3", "g1")), "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
+            Assert.IsTrue(await sched.UnscheduleJob(new TriggerKey("t3", "g1")), "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
 
-            jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
-            triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+            jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
+            triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
             Assert.AreEqual(2, jobKeys.Count, "Number of jobs expected in 'g1' group was 1 "); // job should have been deleted also, because it is non-durable
             Assert.AreEqual(2, triggerKeys.Count, "Number of triggers expected in 'g1' group was 1 ");
 
-            Assert.IsTrue(sched.UnscheduleJob(new TriggerKey("t1")), "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
+            Assert.IsTrue(await sched.UnscheduleJob(new TriggerKey("t1")), "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
 
-            jobKeys = sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
-            triggerKeys = sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
+            jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
+            triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
 
             Assert.AreEqual(1, jobKeys.Count, "Number of jobs expected in default group was 1 "); // job should have been left in place, because it is non-durable
             Assert.AreEqual(0, triggerKeys.Count, "Number of triggers expected in default group was 0 ");
 
-            sched.Shutdown();
+            await sched.Shutdown();
         }
 
         [Test]
-        public void TestShutdownWithSleepReturnsAfterAllThreadsAreStopped()
+        public async Task TestShutdownWithSleepReturnsAfterAllThreadsAreStopped()
         {
             int activeThreads = Process.GetCurrentProcess().Threads.Count;
             int threadPoolSize = 5;
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.threadPool.threadCount"] = threadPoolSize.ToString();
             ISchedulerFactory factory = new StdSchedulerFactory(properties);
-            IScheduler scheduler = factory.GetScheduler();
-            scheduler.Start();
+            IScheduler scheduler = await factory.GetScheduler();
+            await scheduler.Start();
 
-            Thread.Sleep(500);
+            await Task.Delay(500);
 
-            scheduler.Shutdown(true);
+            await scheduler.Shutdown(true);
 
             Assert.True(Process.GetCurrentProcess().Threads.Count <= activeThreads);
         }
@@ -277,34 +281,34 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void ReschedulingTriggerShouldKeepOriginalNextFireTime()
+        public async Task ReschedulingTriggerShouldKeepOriginalNextFireTime()
         {
             ISchedulerFactory factory = new StdSchedulerFactory();
-            IScheduler scheduler = factory.GetScheduler();
-            scheduler.Start();
+            IScheduler scheduler = await factory.GetScheduler();
+            await scheduler.Start();
 
             var job = JobBuilder.Create<NoOpJob>().Build();
-            var trigger = TriggerBuilder.Create()
+            IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
                 .ForJob(job)
                 .StartNow()
                 .Build();
 
-            scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
 
-            trigger = (IOperableTrigger) scheduler.GetTrigger(trigger.Key);
+            trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
             Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(null));
 
             var previousFireTimeUtc = DateTimeOffset.UtcNow.AddDays(1);
-            ((IOperableTrigger) trigger).SetPreviousFireTimeUtc(previousFireTimeUtc);
-            ((IOperableTrigger) trigger).SetNextFireTimeUtc(trigger.GetFireTimeAfter(previousFireTimeUtc));
+            trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
+            trigger.SetNextFireTimeUtc(trigger.GetFireTimeAfter(previousFireTimeUtc));
 
-            scheduler.RescheduleJob(trigger.Key, trigger);
+            await scheduler.RescheduleJob(trigger.Key, trigger);
 
-            trigger = (IOperableTrigger) scheduler.GetTrigger(trigger.Key);
+            trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
             Assert.That(trigger.GetNextFireTimeUtc().Value.UtcDateTime, Is.EqualTo(previousFireTimeUtc.AddHours(1).UtcDateTime).Within(TimeSpan.FromSeconds(5)));
 
-            scheduler.Shutdown(true);
+            await scheduler.Shutdown(true);
         }
     }
 }

@@ -217,7 +217,7 @@ namespace Quartz.Tests.Unit
             // test failed before because of improper trimming
             try
             {
-                string expr = string.Format(" * * * * * {0}", DateTime.Now.Year);
+                string expr = $" * * * * * {DateTime.Now.Year}";
                 CronExpression ce = new CronExpression(expr);
                 ce.IsSatisfiedBy(DateTime.UtcNow.AddMinutes(2));
                 Assert.Fail("Accepted wrong format");
@@ -256,13 +256,12 @@ namespace Quartz.Tests.Unit
             for (int i = 0; i < fireDays.Count; ++i)
             {
                 int idx = correctFireDays.IndexOf(fireDays[i]);
-                Assert.Greater(idx, -1,
-                               string.Format("CronExpression evaluated true for {0} even when it shouldn't have", fireDays[i]));
+                Assert.Greater(idx, -1, $"CronExpression evaluated true for {fireDays[i]} even when it shouldn't have");
                 correctFireDays.RemoveAt(idx);
             }
 
             // check that all fired
-            Assert.IsTrue(correctFireDays.Count == 0, string.Format("CronExpression did not evaluate true for all expected days (count: {0}).", correctFireDays.Count));
+            Assert.IsTrue(correctFireDays.Count == 0, $"CronExpression did not evaluate true for all expected days (count: {correctFireDays.Count}).");
         }
 
         [Test]

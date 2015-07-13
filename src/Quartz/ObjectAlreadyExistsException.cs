@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace Quartz
@@ -65,7 +64,7 @@ namespace Quartz
 		/// </para>
 		/// </summary>
         public ObjectAlreadyExistsException(IJobDetail offendingJob)
-			: base(string.Format(CultureInfo.InvariantCulture, "Unable to store Job: '{0}', because one already exists with this identification.", offendingJob.Key))
+			: base($"Unable to store Job: '{offendingJob.Key}', because one already exists with this identification.")
 		{
 		}
 
@@ -80,7 +79,7 @@ namespace Quartz
 		/// </para>
 		/// </summary>
 		public ObjectAlreadyExistsException(ITrigger offendingTrigger)
-			: base(string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger: '{0}', because one already exists with this identification.", offendingTrigger.Key))
+			: base($"Unable to store Trigger: '{offendingTrigger.Key}', because one already exists with this identification.")
 		{
 		}
 	}

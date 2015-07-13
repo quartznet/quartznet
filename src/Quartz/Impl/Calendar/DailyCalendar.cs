@@ -666,7 +666,7 @@ namespace Quartz.Impl.Calendar
 
             if ((rangeStartingTime.Length < 2) || (rangeStartingTime.Length > 4))
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid time string '{0}'", rangeStartingTimeString));
+                throw new ArgumentException($"Invalid time string '{rangeStartingTimeString}'");
             }
 
             int rangeStartingHourOfDay = Convert.ToInt32(rangeStartingTime[0], CultureInfo.InvariantCulture);
@@ -693,7 +693,7 @@ namespace Quartz.Impl.Calendar
 
             if ((rangeEndingTime.Length < 2) || (rangeEndingTime.Length > 4))
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid time string '{0}'", rangeEndingTimeString));
+                throw new ArgumentException($"Invalid time string '{rangeEndingTimeString}'");
             }
 
             int rangeEndingHourOfDay = Convert.ToInt32(rangeEndingTime[0], CultureInfo.InvariantCulture);
@@ -770,11 +770,7 @@ namespace Quartz.Impl.Calendar
 
             if (! (startCal < endCal))
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "{0}{1}:{2}:{3}:{4}{5}{6}:{7}:{8}:{9}",
-                                                          InvalidTimeRange, rangeStartingHourOfDay, rangeStartingMinute,
-                                                          rangeStartingSecond, rangeStartingMillis, Separator,
-                                                          rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond,
-                                                          rangeEndingMillis));
+                throw new ArgumentException($"{InvalidTimeRange}{rangeStartingHourOfDay}:{rangeStartingMinute}:{rangeStartingSecond}:{rangeStartingMillis}{Separator}{rangeEndingHourOfDay}:{rangeEndingMinute}:{rangeEndingSecond}:{rangeEndingMillis}");
             }
 
             this.rangeStartingHourOfDay = rangeStartingHourOfDay;

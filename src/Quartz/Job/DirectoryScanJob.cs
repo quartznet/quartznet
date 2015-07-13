@@ -31,13 +31,13 @@ namespace Quartz.Job
         /// notified when the directory contents change.  
         public const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
 
-       /// <see cref="JobDataMap"/> key with which to specify a <see cref="long"/>
-       /// value that represents the minimum number of milliseconds that must have
-       /// passed since the file's last modified time in order to consider the file
-       /// new/altered.  This is necessary because another process may still be
-       /// in the middle of writing to the file when the scan occurs, and the
-       ///  file may therefore not yet be ready for processing.
-       /// <para>If this parameter is not specified, a default value of 5000 (five seconds) will be used.</para>
+        /// <see cref="JobDataMap"/> key with which to specify a <see cref="long"/>
+        /// value that represents the minimum number of milliseconds that must have
+        /// passed since the file's last modified time in order to consider the file
+        /// new/altered.  This is necessary because another process may still be
+        /// in the middle of writing to the file when the scan occurs, and the
+        ///  file may therefore not yet be ready for processing.
+        /// <para>If this parameter is not specified, a default value of 5000 (five seconds) will be used.</para>
         public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
 
         private const string LastModifiedTime = "LAST_MODIFIED_TIME";
@@ -49,10 +49,10 @@ namespace Quartz.Job
             log = LogProvider.GetLogger(GetType());
         }
 
-       /// <summary>
-       /// This is the main entry point for job execution. The scheduler will call this method on the 
-       /// job once it is triggered.
-       /// </summary>
+        /// <summary>
+        /// This is the main entry point for job execution. The scheduler will call this method on the 
+        /// job once it is triggered.
+        /// </summary>
         /// <param name="context">The <see cref="IJobExecutionContext"/> that 
         /// the job will use during execution.</param>
         public void Execute(IJobExecutionContext context)
@@ -111,7 +111,6 @@ namespace Quartz.Job
             if (updatedFiles == null)
             {
                 log.Warn("Directory '" + dirName + "' does not exist.");
-                return;
             }
 
             DateTime latestMod = lastDate;

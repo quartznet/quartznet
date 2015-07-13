@@ -32,7 +32,7 @@ namespace Quartz.Web.Api.Dto
     }
     public class TriggerDetailDto
     {
-        public TriggerDetailDto(IScheduler scheduler, ITrigger trigger)
+        public TriggerDetailDto(ITrigger trigger, ICalendar calendar)
         {
             Description = trigger.Description;
             TriggerType = trigger.GetType().AssemblyQualifiedNameWithoutVersion();
@@ -42,7 +42,6 @@ namespace Quartz.Web.Api.Dto
             Priority = trigger.Priority;
             StartTimeUtc = trigger.StartTimeUtc;
             EndTimeUtc = trigger.EndTimeUtc;
-            var calendar = CalendarName != null ? scheduler.GetCalendar(CalendarName) : null;
             NextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, calendar, 10);
         }
         public string Name { get; set; }

@@ -20,7 +20,6 @@
 #endregion
 
 using System;
-using System.Globalization;
 using System.Runtime.Serialization;
 using System.Security;
 
@@ -142,7 +141,7 @@ namespace Quartz.Impl.Calendar
             if ((day < 1) || (day > MaxDaysInMonth))
             {
                 throw new ArgumentException(
-                    string.Format(CultureInfo.InvariantCulture, "The day parameter must be in the range of 1 to {0}", MaxDaysInMonth));
+                    $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
             }
             return excludeDays[day - 1];
         }

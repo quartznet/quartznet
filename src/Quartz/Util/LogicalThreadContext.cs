@@ -47,7 +47,7 @@ namespace Quartz.Util
                 return (T)HttpContext.Current.Items[name];
             }
 #endif
-            return (T)CallContext.GetData(name);
+            return (T)CallContext.LogicalGetData(name);
 		}
 
 		/// <summary>
@@ -65,7 +65,7 @@ namespace Quartz.Util
 			else
 #endif
 			{
-                CallContext.SetData(name, value);
+                CallContext.LogicalSetData(name, value);
             }
 		}
 

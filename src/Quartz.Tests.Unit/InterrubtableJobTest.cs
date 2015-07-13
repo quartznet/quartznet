@@ -18,9 +18,9 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -58,13 +58,7 @@ namespace Quartz.Tests.Unit
                     {
                         break;
                     }
-                    try
-                    {
-                        Thread.Sleep(50); // simulate being busy for a while, then checking interrupted flag...
-                    }
-                    catch (ThreadInterruptedException)
-                    {
-                    }
+                    Thread.Sleep(50); // simulate being busy for a while, then checking interrupted flag...
                 }
                 try
                 {
@@ -84,7 +78,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void TestJobInterruption()
+        public async Task TestJobInterruption()
         {
             // create a simple scheduler
 
@@ -93,8 +87,8 @@ namespace Quartz.Tests.Unit
             config["quartz.scheduler.instanceId"] = "AUTO";
             config["quartz.threadPool.threadCount"] = "2";
             config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool";
-            IScheduler sched = new StdSchedulerFactory(config).GetScheduler();
-            sched.Start();
+            IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+            await sched.Start();
 
             // add a job with a trigger that will fire immediately
 
@@ -108,25 +102,25 @@ namespace Quartz.Tests.Unit
                 .StartNow()
                 .Build();
 
-            sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
             sync.WaitOne(); // make sure the job starts running...
 
-            IList<IJobExecutionContext> executingJobs = sched.GetCurrentlyExecutingJobs();
+            var executingJobs = await sched.GetCurrentlyExecutingJobs();
 
             Assert.AreEqual(1, executingJobs.Count, "Number of executing jobs should be 1 ");
 
             IJobExecutionContext jec = executingJobs[0];
 
-            bool interruptResult = sched.Interrupt(jec.FireInstanceId);
+            bool interruptResult = await sched.Interrupt(jec.FireInstanceId);
 
             sync.WaitOne(); // wait for the job to terminate
 
             Assert.IsTrue(interruptResult, "Expected successful result from interruption of job ");
             Assert.IsTrue(TestInterruptableJob.interrupted, "Expected interrupted flag to be set on job class ");
 
-            sched.Clear();
-            sched.Shutdown();
+            await sched.Clear();
+            await sched.Shutdown();
         }
     }
 }

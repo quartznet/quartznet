@@ -1,17 +1,16 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-
-using Quartz.Impl;
 
 namespace Quartz.Web.Api.Dto
 {
     public class ServerDetailsDto
     {
-        public ServerDetailsDto()
+        public ServerDetailsDto(IEnumerable<IScheduler> schedulers)
         {
-            Name = System.Environment.MachineName;
+            Name = Environment.MachineName;
             Address = "localhost";
-            Schedulers = SchedulerRepository.Instance.LookupAll().Select(x => x.SchedulerName).ToList();
+            Schedulers = schedulers.Select(x => x.SchedulerName).ToList();
         }
 
         public string Name { get; private set; }

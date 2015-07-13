@@ -20,11 +20,10 @@
 #endregion
 
 using System;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example6
 {
@@ -36,7 +35,7 @@ namespace Quartz.Examples.Example6
     /// <author>Marko Lahma (.NET)</author>
     public class JobExceptionExample : IExample
     {
-        public virtual void Run()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (JobExceptionExample));
 
@@ -44,7 +43,7 @@ namespace Quartz.Examples.Example6
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete ------------");
 
@@ -64,12 +63,12 @@ namespace Quartz.Examples.Example6
                 .Build();
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                                          .WithIdentity("trigger1", "group1")
-                                                          .StartAt(startTime)
-                                                          .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever())
-                                                          .Build();
+                .WithIdentity("trigger1", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever())
+                .Build();
 
-            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
+            DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " will run at: " + ft + " and repeat: "
                      + trigger.RepeatCount + " times, every "
                      + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -82,37 +81,31 @@ namespace Quartz.Examples.Example6
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger2", "group1")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
-                                           .Build();
-            ft = sched.ScheduleJob(job, trigger);
-            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
+                .WithIdentity("trigger2", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
+                .Build();
+            ft = await sched.ScheduleJob(job, trigger);
+            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 
             // jobs don't start firing until start() has been called...
-            sched.Start();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
             // sleep for 30 seconds
-            try
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            await Task.Delay(TimeSpan.FromSeconds(30));
 
             log.Info("------- Shutting Down ---------------------");
 
-            sched.Shutdown(false);
+            await sched.Shutdown(false);
 
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
 
         public string Name

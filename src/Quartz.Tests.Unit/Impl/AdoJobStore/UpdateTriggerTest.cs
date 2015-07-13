@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Threading.Tasks;
 
 using FakeItEasy;
 
@@ -75,16 +76,16 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
     public class UpdateTriggerTest
     {
         [Test]
-        public void CronTrigger_AfterTriggerUpdate_Retains_Cron_Type()
+        public async Task CronTrigger_AfterTriggerUpdate_Retains_Cron_Type()
         {
             //Arrange
             var cronTriggerImpl = new CronTriggerImpl("Trigger", "Trigger.Group", "JobName", "JobGroup", "0 15 23 * * ?");
             cronTriggerImpl.CalendarName = "calName";
             cronTriggerImpl.MisfireInstruction = 1;
             cronTriggerImpl.Description = "Description";
-            cronTriggerImpl.SetPreviousFireTimeUtc(new DateTimeOffset(new DateTime(2010,1,1)));
+            cronTriggerImpl.SetPreviousFireTimeUtc(new DateTimeOffset(new DateTime(2010, 1, 1)));
             cronTriggerImpl.SetNextFireTimeUtc(new DateTimeOffset(new DateTime(2010, 2, 1)));
-            cronTriggerImpl.JobKey = new JobKey("JobKey","JobKeyGroup");
+            cronTriggerImpl.JobKey = new JobKey("JobKey", "JobKeyGroup");
             cronTriggerImpl.Priority = 1;
 
             var dbProvider = A.Fake<DbProvider>();
@@ -108,7 +109,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             A.CallTo(() => dbCommand.Parameters).Returns(dataParameterCollection);
             var metaData = A.Fake<DbMetadata>();
             A.CallTo(() => dbProvider.Metadata).Returns(metaData);
-            
+
             Func<string, string> paramFunc = x => x;
             A.CallTo(() => metaData.GetParameterName(A<string>.Ignored)).ReturnsLazily(paramFunc);
 
@@ -129,13 +130,13 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var jobDataMap = new JobDataMap();
             jobDataMap.ClearDirtyFlag();
             cronTriggerImpl.JobDataMap = jobDataMap;
-            
+
             //Act
-            adoDelegate.UpdateTrigger(conn, cronTriggerImpl, "state", jobDetail);
+            await adoDelegate.UpdateTrigger(conn, cronTriggerImpl, "state", jobDetail);
 
             //Assert
             var resultDataParameters = dataParameterCollectionOutputs.Select(x => x as IDataParameter).Where(x => x.ParameterName == "triggerType").FirstOrDefault();
-            Assert.AreEqual("CRON",resultDataParameters.Value);
+            Assert.AreEqual("CRON", resultDataParameters.Value);
         }
     }
 }

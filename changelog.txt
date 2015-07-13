@@ -2,6 +2,17 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 3.0, xxx xx 2015
+--------------------------------
+
+BREAKING CHANGES
+
+* .NET 4.5 required
+* Many methods have been changed to be Task based, remember to await them
+* IJob and IInterruptableJob now return tasks, you can return TaskUtil.CompletedTask if you don't have async work inside your jobs
+* Some IList properties have been changed to IReadOnlyList to properly reflect intent
+
+
 Release 2.3.3, Jul 9, 2015
 --------------------------------
 

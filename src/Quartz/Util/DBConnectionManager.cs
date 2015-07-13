@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Globalization;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Logging;
@@ -73,7 +72,7 @@ namespace Quartz.Util
         /// <param name="provider">The provider.</param>
         public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
 		{
-            log.Info(string.Format("Registering datasource '{0}' with db provider: '{1}'", dataSourceName, provider));
+            log.Info($"Registering datasource '{dataSourceName}' with db provider: '{provider}'");
 			providers[dataSourceName] = provider;
 		}
 
@@ -118,7 +117,7 @@ namespace Quartz.Util
             providers.TryGetValue(dsName, out provider);
             if (provider == null)
             {
-                throw new Exception(string.Format(CultureInfo.InvariantCulture, "There is no DataSource named '{0}'", dsName));
+                throw new Exception($"There is no DataSource named '{dsName}'");
             }
             return provider;
         }

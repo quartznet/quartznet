@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using Quartz.Logging;
@@ -48,6 +50,5 @@ namespace Quartz.Examples.Example14
         {
             log.Info("TRIGGER: " + context.Trigger.Key);
         }
-
     }
 }

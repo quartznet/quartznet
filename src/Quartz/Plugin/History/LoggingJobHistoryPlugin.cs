@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,14 +16,17 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
 using System.Globalization;
+using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
 using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Plugin.History
 {
@@ -253,73 +257,39 @@ namespace Quartz.Plugin.History
     /// <author>Marko Lahma (.NET)</author>
     public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     {
-        private string name;
-        private string jobToBeFiredMessage = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
-        private string jobSuccessMessage = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
-        private string jobFailedMessage = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
-
-        private string jobWasVetoedMessage =
-            "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
-
-        private ILog log = LogProvider.GetLogger(typeof (LoggingJobHistoryPlugin));
-
         /// <summary>
         /// Logger instance to use. Defaults to common logging.
         /// </summary>
-        public ILog Log
-        {
-            get { return log; }
-            set { log = value; }
-        }
+        public ILog Log { get; set; } = LogProvider.GetLogger(typeof (LoggingJobHistoryPlugin));
 
         /// <summary> 
         /// Get or sets the message that is logged when a Job successfully completes its 
         /// execution.
         /// </summary>
-        public virtual string JobSuccessMessage
-        {
-            get { return jobSuccessMessage; }
-            set { jobSuccessMessage = value; }
-        }
+        public virtual string JobSuccessMessage { get; set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
         /// <summary> 
         /// Get or sets the message that is logged when a Job fails its 
         /// execution.
         /// </summary>
-        public virtual string JobFailedMessage
-        {
-            get { return jobFailedMessage; }
-            set { jobFailedMessage = value; }
-        }
+        public virtual string JobFailedMessage { get; set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
         /// <summary> 
         /// Gets or sets the message that is logged when a Job is about to Execute.
         /// </summary>
-        public virtual string JobToBeFiredMessage
-        {
-            get { return jobToBeFiredMessage; }
-            set { jobToBeFiredMessage = value; }
-        }
+        public virtual string JobToBeFiredMessage { get; set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
 
         /// <summary> 
         /// Gets or sets the message that is logged when a Job execution is vetoed by a
         /// trigger listener.
         /// </summary>
-        public virtual string JobWasVetoedMessage
-        {
-            get { return jobWasVetoedMessage; }
-            set { jobWasVetoedMessage = value; }
-        }
+        public virtual string JobWasVetoedMessage { get; set; } = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
 
         /// <summary>
         /// Get the name of the <see cref="IJobListener" />.
         /// </summary>
         /// <value></value>
-        public virtual string Name
-        {
-            get { return name; }
-			set { name = value; }
-        }
+        public string Name { get; set; }
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
@@ -327,7 +297,7 @@ namespace Quartz.Plugin.History
         /// </summary>
         public virtual void Initialize(string pluginName, IScheduler scheduler)
         {
-            name = pluginName;
+            Name = pluginName;
             scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
         }
 
@@ -336,9 +306,10 @@ namespace Quartz.Plugin.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual void Start()
+        public virtual Task Start()
         {
             // do nothing...
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary> 
@@ -346,9 +317,10 @@ namespace Quartz.Plugin.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual Task Shutdown()
         {
             // nothing to do...
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -360,25 +332,30 @@ namespace Quartz.Plugin.History
         ///     </para>
         /// </summary>
         /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
-        public virtual void JobToBeExecuted(IJobExecutionContext context)
+        public virtual Task JobToBeExecuted(IJobExecutionContext context)
         {
             if (!Log.IsInfoEnabled())
             {
-                return;
+                return TaskUtil.CompletedTask;
             }
 
             ITrigger trigger = context.Trigger;
 
             object[] args =
-                new object[]
-                    {
-                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
-                    };
+            {
+                context.JobDetail.Key.Name,
+                context.JobDetail.Key.Group,
+                SystemTime.UtcNow(),
+                trigger.Key.Name,
+                trigger.Key.Group,
+                trigger.GetPreviousFireTimeUtc(),
+                trigger.GetNextFireTimeUtc(),
+                context.RefireCount
+            };
 
-            Log.Info(String.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
+            return TaskUtil.CompletedTask;
         }
-
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> after a <see cref="IJobDetail" />
@@ -387,7 +364,7 @@ namespace Quartz.Plugin.History
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>
-        public virtual void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public virtual Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
             ITrigger trigger = context.Trigger;
 
@@ -397,36 +374,37 @@ namespace Quartz.Plugin.History
             {
                 if (!Log.IsWarnEnabled())
                 {
-                    return;
+                    return TaskUtil.CompletedTask;
                 }
 
                 string errMsg = jobException.Message;
                 args =
                     new object[]
-                        {
-                            context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                            trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
-                        };
+                    {
+                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
+                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
+                    };
 
-                Log.WarnException(String.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
+                Log.WarnException(string.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
             }
             else
             {
                 if (!Log.IsInfoEnabled())
                 {
-                    return;
+                    return TaskUtil.CompletedTask;
                 }
 
                 string result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
                 args =
                     new object[]
-                        {
-                            context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                            trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
-                        };
+                    {
+                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
+                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
+                    };
 
-                Log.Info(String.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
+                Log.Info(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
             }
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -437,23 +415,29 @@ namespace Quartz.Plugin.History
         /// </summary>
         /// <param name="context"></param>
         /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
-        public virtual void JobExecutionVetoed(IJobExecutionContext context)
+        public virtual Task JobExecutionVetoed(IJobExecutionContext context)
         {
             if (!Log.IsInfoEnabled())
             {
-                return;
+                return TaskUtil.CompletedTask;
             }
 
             ITrigger trigger = context.Trigger;
 
             object[] args =
-                new object[]
-                    {
-                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount
-                    };
+            {
+                context.JobDetail.Key.Name,
+                context.JobDetail.Key.Group,
+                SystemTime.UtcNow(),
+                trigger.Key.Name,
+                trigger.Key.Group,
+                trigger.GetPreviousFireTimeUtc(),
+                trigger.GetNextFireTimeUtc(),
+                context.RefireCount
+            };
 
-            Log.Info(String.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
+            Log.Info(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
+            return TaskUtil.CompletedTask;
         }
     }
 }

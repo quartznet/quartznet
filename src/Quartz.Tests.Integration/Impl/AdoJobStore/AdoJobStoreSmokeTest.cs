@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 
 using Quartz.Logging;
 
@@ -16,6 +17,7 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
@@ -46,7 +48,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         public void FixtureSetUp()
         {
             // set Adapter to report problems
-            oldProvider = (ILogProvider) typeof(LogProvider).GetField("_currentLogProvider", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            oldProvider = (ILogProvider) typeof (LogProvider).GetField("_currentLogProvider", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
             LogProvider.SetCurrentLogProvider(new FailFastLoggerFactoryAdapter());
         }
 
@@ -58,22 +60,22 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestFirebird()
+        public async Task TestFirebird()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.FirebirdDelegate, Quartz";
-            RunAdoJobStoreTest("Firebird-450", "Firebird", properties);
+            await RunAdoJobStoreTest("Firebird-450", "Firebird", properties);
         }
 
         [Test]
-        public void TestPostgreSQL10()
+        public async Task TestPostgreSQL10()
         {
             // we don't support Npgsql-10 anymore
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
             try
             {
-                RunAdoJobStoreTest("Npgsql-10", "PostgreSQL", properties);
+                await RunAdoJobStoreTest("Npgsql-10", "PostgreSQL", properties);
                 Assert.Fail("No error from using Npgsql-10");
             }
             catch (SchedulerException ex)
@@ -84,21 +86,21 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestPostgreSQL20()
+        public async Task TestPostgreSQL20()
         {
             NameValueCollection properties = new NameValueCollection();
-            RunAdoJobStoreTest("Npgsql-20", "PostgreSQL", properties);
+            await RunAdoJobStoreTest("Npgsql-20", "PostgreSQL", properties);
         }
 
         [Test]
-        public void TestSqlServer11()
+        public async Task TestSqlServer11()
         {
             // we don't support SQL Server 1.1
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             try
             {
-                RunAdoJobStoreTest("SqlServer-11", "SQLServer", properties);
+                await RunAdoJobStoreTest("SqlServer-11", "SQLServer", properties);
                 Assert.Fail("No error from using SqlServer-11");
             }
             catch (SchedulerException ex)
@@ -109,15 +111,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestSqlServer20()
+        public async Task TestSqlServer20()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
+            await RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
         }
 
         [Test]
-        public void TestSqlServerCe351()
+        public async Task TestSqlServerCe351()
         {
             bool previousClustered = clustered;
             clustered = false;
@@ -125,7 +127,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             try
             {
-                RunAdoJobStoreTest("SqlServerCe-351", "SQLServerCe", properties);
+                await RunAdoJobStoreTest("SqlServerCe-351", "SQLServerCe", properties);
             }
             finally
             {
@@ -134,7 +136,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestSqlServerCe352()
+        public async Task TestSqlServerCe352()
         {
             bool previousClustered = clustered;
             clustered = false;
@@ -142,7 +144,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             try
             {
-                RunAdoJobStoreTest("SqlServerCe-352", "SQLServerCe", properties);
+                await RunAdoJobStoreTest("SqlServerCe-352", "SQLServerCe", properties);
             }
             finally
             {
@@ -151,7 +153,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestSqlServerCe400()
+        public async Task TestSqlServerCe400()
         {
             bool previousClustered = clustered;
             clustered = false;
@@ -159,7 +161,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             try
             {
-                RunAdoJobStoreTest("SqlServerCe-400", "SQLServerCe", properties);
+                await RunAdoJobStoreTest("SqlServerCe-400", "SQLServerCe", properties);
             }
             finally
             {
@@ -168,84 +170,84 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestOracleODPManaged4011()
+        public async Task TestOracleODPManaged4011()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            RunAdoJobStoreTest("OracleODPManaged-1123-40", "Oracle", properties);
+            await RunAdoJobStoreTest("OracleODPManaged-1123-40", "Oracle", properties);
         }
 
         [Test]
-        public void TestOracleODPManaged4012()
+        public async Task TestOracleODPManaged4012()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            RunAdoJobStoreTest("OracleODPManaged-1211-40", "Oracle", properties);
+            await RunAdoJobStoreTest("OracleODPManaged-1211-40", "Oracle", properties);
         }
 
         [Test]
-        public void TestOracleODP20()
+        public async Task TestOracleODP20()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            RunAdoJobStoreTest("OracleODP-20", "Oracle", properties);
+            await RunAdoJobStoreTest("OracleODP-20", "Oracle", properties);
         }
 
         [Test]
-        public void TestMySql50()
+        public async Task TestMySql50()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            RunAdoJobStoreTest("MySql-50", "MySQL", properties);
+            await RunAdoJobStoreTest("MySql-50", "MySQL", properties);
         }
 
         [Test]
-        public void TestMySql51()
+        public async Task TestMySql51()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            RunAdoJobStoreTest("MySql-51", "MySQL", properties);
+            await RunAdoJobStoreTest("MySql-51", "MySQL", properties);
         }
 
         [Test]
-        public void TestMySql65()
+        public async Task TestMySql65()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            RunAdoJobStoreTest("MySql-65", "MySQL", properties);
+            await RunAdoJobStoreTest("MySql-65", "MySQL", properties);
         }
 
         [Test]
-        public void TestMySql10()
+        public async Task TestMySql10()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            RunAdoJobStoreTest("MySql-10", "MySQL", properties);
+            await RunAdoJobStoreTest("MySql-10", "MySQL", properties);
         }
 
         [Test]
-        public void TestMySql109()
+        public async Task TestMySql109()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            RunAdoJobStoreTest("MySql-109", "MySQL", properties);
+            await RunAdoJobStoreTest("MySql-109", "MySQL", properties);
         }
 
         [Test]
-        public void TestSQLite10()
+        public async Task TestSQLite10()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
-            RunAdoJobStoreTest("SQLite-10", "SQLite", properties);
+            await RunAdoJobStoreTest("SQLite-10", "SQLite", properties);
         }
 
         [Test]
-        public void TestSQLite10Clustered()
+        public async Task TestSQLite10Clustered()
         {
             clustered = true;
             try
             {
-                TestSQLite10();
+                await TestSQLite10();
             }
             finally
             {
@@ -253,12 +255,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
         }
 
-        private void RunAdoJobStoreTest(string dbProvider, string connectionStringId)
+        private async Task RunAdoJobStoreTest(string dbProvider, string connectionStringId)
         {
-            RunAdoJobStoreTest(dbProvider, connectionStringId, null);
+            await RunAdoJobStoreTest(dbProvider, connectionStringId, null);
         }
 
-        private void RunAdoJobStoreTest(string dbProvider, string connectionStringId,
+        private async Task RunAdoJobStoreTest(string dbProvider, string connectionStringId,
             NameValueCollection extraProperties)
         {
             NameValueCollection properties = new NameValueCollection();
@@ -301,15 +303,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
-            performer.Test(sched, clearJobs, scheduleJobs);
+            await performer.Test(sched, clearJobs, scheduleJobs);
 
             Assert.IsEmpty(FailFastLoggerFactoryAdapter.Errors, "Found error from logging output");
         }
 
         [Test]
-        public void ShouldBeAbleToUseMixedProperties()
+        public async Task ShouldBeAbleToUseMixedProperties()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
@@ -323,8 +325,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.dataSource.default.provider"] = "SqlServer-20";
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
-            sched.Clear();
+            IScheduler sched = await sf.GetScheduler();
+            await sched.Clear();
 
             JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof (NoOpJob));
             jobWithData.JobDataMap["testkey"] = "testvalue";
@@ -332,37 +334,37 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             triggerWithData.JobDataMap.Add("testkey", "testvalue");
             triggerWithData.EndTimeUtc = DateTime.UtcNow.AddYears(10);
             triggerWithData.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
-            sched.ScheduleJob(jobWithData, triggerWithData);
-            sched.Shutdown();
+            await sched.ScheduleJob(jobWithData, triggerWithData);
+            await sched.Shutdown();
 
             // try again with changing the useproperties against same set of data
             properties["quartz.jobStore.useProperties"] = true.ToString();
             sf = new StdSchedulerFactory(properties);
-            sched = sf.GetScheduler();
+            sched = await sf.GetScheduler();
 
-            var triggerWithDataFromDb = sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
-            var jobWithDataFromDb = sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
+            var triggerWithDataFromDb = await sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
+            var jobWithDataFromDb = await sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
             Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
             Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
 
             // once more
-            sched.DeleteJob(jobWithData.Key);
-            sched.ScheduleJob(jobWithData, triggerWithData);
-            sched.Shutdown();
+            await sched.DeleteJob(jobWithData.Key);
+            await sched.ScheduleJob(jobWithData, triggerWithData);
+            await sched.Shutdown();
 
             properties["quartz.jobStore.useProperties"] = false.ToString();
             sf = new StdSchedulerFactory(properties);
-            sched = sf.GetScheduler();
+            sched = await sf.GetScheduler();
 
-            triggerWithDataFromDb = sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
-            jobWithDataFromDb = sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
+            triggerWithDataFromDb = await sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
+            jobWithDataFromDb = await sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
             Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
             Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
         }
 
         [Test]
         [Explicit]
-        public void TestSqlServerStress()
+        public async Task TestSqlServerStress()
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -380,7 +382,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.clustered"] = clustered.ToString();
 
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
+            await RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
 
             string connectionString;
             if (!dbConnectionStrings.TryGetValue("SQLServer", out connectionString))
@@ -392,11 +394,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             try
             {
-                sched.Clear();
+                await sched.Clear();
 
                 if (scheduleJobs)
                 {
@@ -407,60 +409,60 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     {
                         ITrigger trigger = new SimpleTriggerImpl("calendarsTrigger", "test", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
                         JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof (NoOpJob));
-                        sched.ScheduleJob(jd, trigger);
+                        await sched.ScheduleJob(jd, trigger);
                     }
                 }
-                sched.Start();
-                Thread.Sleep(TimeSpan.FromSeconds(30));
+                await sched.Start();
+                await Task.Delay(TimeSpan.FromSeconds(30));
             }
             finally
             {
-                sched.Shutdown(false);
+                await sched.Shutdown(false);
             }
         }
 
         [Test]
-        public void TestGetTriggerKeysWithLike()
+        public async Task TestGetTriggerKeysWithLike()
         {
-            var sched = CreateScheduler(null);
+            var sched = await CreateScheduler(null);
 
-            sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("foo"));
+            await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("foo"));
         }
 
         [Test]
-        public void TestGetTriggerKeysWithEquals()
+        public async Task TestGetTriggerKeysWithEquals()
         {
-            var sched = CreateScheduler(null);
+            var sched = await CreateScheduler(null);
 
-            sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("bar"));
+            await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("bar"));
         }
 
         [Test]
-        public void TestGetJobKeysWithLike()
+        public async Task TestGetJobKeysWithLike()
         {
-            var sched = CreateScheduler(null);
+            var sched = await CreateScheduler(null);
 
-            sched.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("foo"));
+            await sched.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("foo"));
         }
 
         [Test]
-        public void TestGetJobKeysWithEquals()
+        public async Task TestGetJobKeysWithEquals()
         {
-            var sched = CreateScheduler(null);
+            var sched = await CreateScheduler(null);
 
-            sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("bar"));
+            await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("bar"));
         }
 
         [Test]
-        public void JobTypeNotFoundShouldNotBlock()
+        public async Task JobTypeNotFoundShouldNotBlock()
         {
             NameValueCollection properties = new NameValueCollection();
             properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof (SpecialClassLoadHelper).AssemblyQualifiedName);
-            var scheduler = CreateScheduler(properties);
+            var scheduler = await CreateScheduler(properties);
 
-            scheduler.DeleteJobs(new[] {JobKey.Create("bad"), JobKey.Create("good")});
+            await scheduler.DeleteJobs(new[] {JobKey.Create("bad"), JobKey.Create("good")});
 
-            scheduler.Start();
+            await scheduler.Start();
 
             var manualResetEvent = new ManualResetEvent(false);
             scheduler.Context.Put(KeyResetEvent, manualResetEvent);
@@ -486,14 +488,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                 goodTrigger
             });
-            scheduler.ScheduleJobs(toSchedule, true);
+            await scheduler.ScheduleJobs(toSchedule, true);
 
             manualResetEvent.WaitOne(TimeSpan.FromSeconds(20));
 
             Assert.That(scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
         }
 
-        private static IScheduler CreateScheduler(NameValueCollection properties)
+        private static async Task<IScheduler> CreateScheduler(NameValueCollection properties)
         {
             properties = properties ?? new NameValueCollection();
 
@@ -517,13 +519,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
             return sched;
         }
 
         [Test]
         [Explicit]
-        public void StressTest()
+        public async Task StressTest()
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -547,17 +549,17 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             try
             {
-                sched.Clear();
+                await sched.Clear();
 
                 JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof (SimpleRecoveryJob));
                 lonelyJob.Durable = true;
                 lonelyJob.RequestsRecovery = true;
-                sched.AddJob(lonelyJob, false);
-                sched.AddJob(lonelyJob, true);
+                await sched.AddJob(lonelyJob, false);
+                await sched.AddJob(lonelyJob, true);
 
                 string schedId = sched.SchedulerInstanceId;
 
@@ -567,26 +569,26 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 {
                     IOperableTrigger trigger = new SimpleTriggerImpl("stressing_simple", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
-                    sched.ScheduleJob(job, trigger);
+                    await sched.ScheduleJob(job, trigger);
                 }
 
                 for (int i = 0; i < 100000; ++i)
                 {
                     IOperableTrigger ct = new CronTriggerImpl("stressing_cron", "0/1 * * * * ?");
                     ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
-                    sched.ScheduleJob(job, ct);
+                    await sched.ScheduleJob(job, ct);
                 }
 
                 Stopwatch stopwatch = new Stopwatch();
                 stopwatch.Start();
-                sched.Start();
-                Thread.Sleep(TimeSpan.FromMinutes(3));
+                await sched.Start();
+                await Task.Delay(TimeSpan.FromMinutes(3));
                 stopwatch.Stop();
                 Console.WriteLine("Took: " + stopwatch.Elapsed);
             }
             finally
             {
-                sched.Shutdown(false);
+                await sched.Shutdown(false);
             }
         }
 
@@ -594,7 +596,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             public void Execute(IJobExecutionContext context)
             {
-                //no-op
             }
         }
 
@@ -636,47 +637,47 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
     internal class DummyTriggerListener : ITriggerListener
     {
-        public string Name
+        public string Name => GetType().FullName;
+
+        public Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
-            get { return GetType().FullName; }
+            return TaskUtil.CompletedTask;
         }
 
-        public void TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
+            return Task.FromResult(false);
         }
 
-        public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public Task TriggerMisfired(ITrigger trigger)
         {
-            return false;
+            return TaskUtil.CompletedTask;
         }
 
-        public void TriggerMisfired(ITrigger trigger)
-        {
-        }
-
-        public void TriggerComplete(ITrigger trigger, IJobExecutionContext context,
+        public Task TriggerComplete(ITrigger trigger, IJobExecutionContext context,
             SchedulerInstruction triggerInstructionCode)
         {
+            return TaskUtil.CompletedTask;
         }
     }
 
     internal class DummyJobListener : IJobListener
     {
-        public string Name
+        public string Name => GetType().FullName;
+
+        public Task JobToBeExecuted(IJobExecutionContext context)
         {
-            get { return GetType().FullName; }
+            return TaskUtil.CompletedTask;
         }
 
-        public void JobToBeExecuted(IJobExecutionContext context)
+        public Task JobExecutionVetoed(IJobExecutionContext context)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public void JobExecutionVetoed(IJobExecutionContext context)
+        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
-        }
-
-        public void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
-        {
+            return TaskUtil.CompletedTask;
         }
     }
 
@@ -692,13 +693,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         public virtual void Execute(IJobExecutionContext context)
         {
             // delay for ten seconds
-            try
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(10));
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            Thread.Sleep(TimeSpan.FromSeconds(10));
 
             JobDataMap data = context.JobDetail.JobDataMap;
             int count;

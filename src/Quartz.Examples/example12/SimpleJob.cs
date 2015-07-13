@@ -35,7 +35,6 @@ namespace Quartz.Examples.Example12
         public const string Message = "msg";
         private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleJob));
 
-
         /// <summary> 
         /// Called by the <see cref="IScheduler" /> when a
         /// <see cref="ITrigger" /> fires that is associated with

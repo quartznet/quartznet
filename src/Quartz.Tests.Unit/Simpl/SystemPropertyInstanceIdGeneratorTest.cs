@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Specialized;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -100,7 +101,7 @@ namespace Quartz.Tests.Unit.Simpl
 
         [Test]
         [Ignore("Work in progress")]
-        public void TestGeneratorThroughSchedulerInstantiation()
+        public async Task TestGeneratorThroughSchedulerInstantiation()
         {
             // TODO
             //JdbcQuartzTestUtilities.createDatabase("MeSchedulerDatabase");
@@ -118,7 +119,7 @@ namespace Quartz.Tests.Unit.Simpl
             config["quartz.jobStore.clustered"] = "true";
             config["quartz.jobStore.dataSource"] = "MeSchedulerDatabase";
 
-            IScheduler sched = new StdSchedulerFactory(config).GetScheduler();
+            IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 
             Assert.AreEqual("1goo2", sched.SchedulerInstanceId);
         }

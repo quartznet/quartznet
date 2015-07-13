@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,15 +16,15 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System.Collections.Specialized;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example15
 {
@@ -39,16 +40,16 @@ namespace Quartz.Examples.Example15
             get { return GetType().Name; }
         }
 
-        public void Run()
+        public async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof(XmlConfigurationExample));
+            ILog log = LogProvider.GetLogger(typeof (XmlConfigurationExample));
 
             log.Info("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.scheduler.instanceName"] = "XmlConfiguredInstance";
-            
+
             // set thread pool info
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "5";
@@ -58,40 +59,32 @@ namespace Quartz.Examples.Example15
             properties["quartz.plugin.xml.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz";
             properties["quartz.plugin.xml.fileNames"] = "~/quartz_jobs.xml";
 
-
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
-            
+            IScheduler sched = await sf.GetScheduler();
+
             // we need to add calendars manually, lets create a silly sample calendar
             var dailyCalendar = new DailyCalendar("00:01", "23:59");
             dailyCalendar.InvertTimeRange = true;
-            sched.AddCalendar("cal1", dailyCalendar, false, false);
+            await sched.AddCalendar("cal1", dailyCalendar, false, false);
 
             log.Info("------- Initialization Complete -----------");
 
             // all jobs and triggers are now in scheduler
 
-
             // Start up the scheduler (nothing can actually run until the 
             // scheduler has been started)
-            sched.Start();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
             // wait long enough so that the scheduler as an opportunity to 
             // fire the triggers
             log.Info("------- Waiting 30 seconds... -------------");
 
-            try
-            {
-                Thread.Sleep(30*1000);
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            await Task.Delay(30*1000);
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
         }
     }

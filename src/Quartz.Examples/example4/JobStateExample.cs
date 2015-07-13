@@ -20,11 +20,10 @@
 #endregion
 
 using System;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example4
 {
@@ -41,7 +40,7 @@ namespace Quartz.Examples.Example4
             get { return GetType().Name; }
         }
 
-        public virtual void Run()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (JobStateExample));
 
@@ -49,7 +48,7 @@ namespace Quartz.Examples.Example4
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete --------");
 
@@ -64,18 +63,18 @@ namespace Quartz.Examples.Example4
                 .Build();
 
             ISimpleTrigger trigger1 = (ISimpleTrigger) TriggerBuilder.Create()
-                                                           .WithIdentity("trigger1", "group1")
-                                                           .StartAt(startTime)
-                                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(4))
-                                                           .Build();
+                .WithIdentity("trigger1", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(4))
+                .Build();
 
             // pass initialization parameters into the job
             job1.JobDataMap.Put(ColorJob.FavoriteColor, "Green");
             job1.JobDataMap.Put(ColorJob.ExecutionCount, 1);
 
             // schedule the job to run
-            DateTimeOffset scheduleTime1 = sched.ScheduleJob(job1, trigger1);
-            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job1.Key, scheduleTime1.ToString("r"), trigger1.RepeatCount, trigger1.RepeatInterval.TotalSeconds));
+            DateTimeOffset scheduleTime1 = await sched.ScheduleJob(job1, trigger1);
+            log.Info($"{job1.Key} will run at: {scheduleTime1.ToString("r")} and repeat: {trigger1.RepeatCount} times, every {trigger1.RepeatInterval.TotalSeconds} seconds");
 
             // job2 will also run 5 times, every 10 seconds
 
@@ -84,10 +83,10 @@ namespace Quartz.Examples.Example4
                 .Build();
 
             ISimpleTrigger trigger2 = (ISimpleTrigger) TriggerBuilder.Create()
-                                                           .WithIdentity("trigger2", "group1")
-                                                           .StartAt(startTime)
-                                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(4))
-                                                           .Build();
+                .WithIdentity("trigger2", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(4))
+                .Build();
 
             // pass initialization parameters into the job
             // this job has a different favorite color!
@@ -95,37 +94,31 @@ namespace Quartz.Examples.Example4
             job2.JobDataMap.Put(ColorJob.ExecutionCount, 1);
 
             // schedule the job to run
-            DateTimeOffset scheduleTime2 = sched.ScheduleJob(job2, trigger2);
-            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job2.Key, scheduleTime2.ToString("r"), trigger2.RepeatCount, trigger2.RepeatInterval.TotalSeconds));
-
+            DateTimeOffset scheduleTime2 = await sched.ScheduleJob(job2, trigger2);
+            log.Info($"{job2.Key} will run at: {scheduleTime2.ToString("r")} and repeat: {trigger2.RepeatCount} times, every {trigger2.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
-            sched.Start();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
             log.Info("------- Waiting 60 seconds... -------------");
-            try
-            {
-                // wait five minutes to show jobs
-                Thread.Sleep(300*1000);
-                // executing...
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+
+            // wait five minutes to show jobs
+            await Task.Delay(TimeSpan.FromMinutes(5));
+            // executing...
 
             log.Info("------- Shutting Down ---------------------");
 
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
 
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

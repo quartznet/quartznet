@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Logging;
@@ -40,11 +41,11 @@ namespace Quartz.Impl.AdoJobStore
         private readonly ILog log;
         private const string ThreadContextKeyLockOwners = "qrtz_dbs_lck_owners";
         private string sql;
-        private String insertSql;
+        private string insertSql;
 
         private string tablePrefix;
 
-        private string schedName; 
+        private string schedName;
 
         private string expandedSQL;
         private string expandedInsertSQL;
@@ -79,7 +80,6 @@ namespace Quartz.Impl.AdoJobStore
             set { LogicalThreadContext.SetData(ThreadContextKeyLockOwners, value); }
         }
 
-
         /// <summary>
         /// Gets the log.
         /// </summary>
@@ -106,10 +106,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
-        /// <param name="expandedSQL"></param>
-        /// <param name="expandedInsertSQL"></param>
-        protected abstract void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL);
-
+        /// <param name="expandedSql"></param>
+        /// <param name="expandedInsertSql"></param>
+        protected abstract Task ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql);
 
         /// <summary>
         /// Grants a lock on the identified resource to the calling thread (blocking
@@ -119,7 +118,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
         /// <returns>true if the lock was obtained.</returns>
-        public bool ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
+        public async Task<bool> ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
         {
             if (log.IsDebugEnabled())
             {
@@ -127,7 +126,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             if (!IsLockOwner(lockName))
             {
-                ExecuteSQL(conn, lockName, expandedSQL, expandedInsertSQL);
+                await ExecuteSQL(conn, lockName, expandedSQL, expandedInsertSQL).ConfigureAwait(false);
 
                 if (log.IsDebugEnabled())
                 {
@@ -145,13 +144,12 @@ namespace Quartz.Impl.AdoJobStore
             return true;
         }
 
-
         /// <summary>
         /// Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
         /// <param name="lockName"></param>
-        public void ReleaseLock(string lockName)
+        public Task ReleaseLock(string lockName)
         {
             if (IsLockOwner(lockName))
             {
@@ -166,9 +164,11 @@ namespace Quartz.Impl.AdoJobStore
             {
                 Log.WarnFormat("Lock '{0}' attempt to return by: {1} -- but not owner!",
                     new Exception("stack-trace of wrongful returner"),
-                    lockName, 
+                    lockName,
                     Thread.CurrentThread.Name);
             }
+
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -203,7 +203,6 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-
         protected string InsertSQL
         {
             set
@@ -217,8 +216,6 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-
-
         private void SetExpandedSql()
         {
             if (TablePrefix != null && SchedName != null && sql != null && insertSql != null)
@@ -228,7 +225,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private String schedNameLiteral;
+        private string schedNameLiteral;
 
         protected string SchedulerNameLiteral
         {
@@ -245,7 +242,7 @@ namespace Quartz.Impl.AdoJobStore
         public string SchedName
         {
             get { return schedName; }
-            set 
+            set
             {
                 schedName = value;
                 SetExpandedSql();

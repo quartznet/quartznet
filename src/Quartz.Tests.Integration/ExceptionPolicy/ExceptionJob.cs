@@ -33,6 +33,6 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
                
                 throw toThrow;
             }
-        }
+       }
     }
 }

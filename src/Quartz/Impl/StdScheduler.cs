@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 using Quartz.Core;
 using Quartz.Impl.Matchers;
@@ -39,7 +40,7 @@ namespace Quartz.Impl
     /// <author>Marko Lahma (.NET)</author>
     public class StdScheduler : IScheduler
     {
-        private QuartzScheduler sched;
+        private readonly QuartzScheduler sched;
 
         /// <summary>
         /// Construct a <see cref="StdScheduler" /> instance to proxy the given
@@ -56,7 +57,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public bool IsJobGroupPaused(string groupName)
+        public Task<bool> IsJobGroupPaused(string groupName)
         {
             return sched.IsJobGroupPaused(groupName);
         }
@@ -67,7 +68,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public bool IsTriggerGroupPaused(string groupName)
+        public Task<bool> IsTriggerGroupPaused(string groupName)
         {
             return sched.IsTriggerGroupPaused(groupName);
         }
@@ -75,18 +76,12 @@ namespace Quartz.Impl
         /// <summary>
         /// Returns the name of the <see cref="IScheduler" />.
         /// </summary>
-        public virtual string SchedulerName
-        {
-            get { return sched.SchedulerName; }
-        }
+        public virtual string SchedulerName => sched.SchedulerName;
 
         /// <summary>
         /// Returns the instance Id of the <see cref="IScheduler" />.
         /// </summary>
-        public virtual string SchedulerInstanceId
-        {
-            get { return sched.SchedulerInstanceId; }
-        }
+        public virtual string SchedulerInstanceId => sched.SchedulerInstanceId;
 
         /// <summary>
         /// Get a <see cref="SchedulerMetaData"/> object describing the settings
@@ -97,9 +92,9 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <returns></returns>
-        public SchedulerMetaData GetMetaData()
+        public Task<SchedulerMetaData> GetMetaData()
         {
-            return new SchedulerMetaData(
+            return Task.FromResult(new SchedulerMetaData(
                 SchedulerName,
                 SchedulerInstanceId,
                 GetType(),
@@ -114,16 +109,13 @@ namespace Quartz.Impl
                 sched.Clustered,
                 sched.ThreadPoolClass,
                 sched.ThreadPoolSize,
-                sched.Version);
+                sched.Version));
         }
 
         /// <summary>
         /// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
         /// </summary>
-        public virtual SchedulerContext Context
-        {
-            get { return sched.SchedulerContext; }
-        }
+        public virtual SchedulerContext Context => sched.SchedulerContext;
 
         /// <summary>
         /// Whether the scheduler has been started.
@@ -138,47 +130,38 @@ namespace Quartz.Impl
         /// <seealso cref="Start"/>
         /// <seealso cref="IsShutdown"/>
         /// <seealso cref="InStandbyMode"/>
-        public bool IsStarted
+        public bool IsStarted => sched.RunningSince.HasValue;
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual bool InStandbyMode => sched.InStandbyMode;
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual bool IsShutdown => sched.IsShutdown;
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public Task<IReadOnlyList<IJobExecutionContext>> GetCurrentlyExecutingJobs()
         {
-            get { return sched.RunningSince.HasValue; }
+            return Task.FromResult(sched.CurrentlyExecutingJobs);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual bool InStandbyMode
+        public Task Clear()
         {
-            get { return sched.InStandbyMode; }
+            return sched.Clear();
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual bool IsShutdown
-        {
-            get { return sched.IsShutdown; }
-        }
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public IList<IJobExecutionContext> GetCurrentlyExecutingJobs()
-        {
-            return sched.CurrentlyExecutingJobs;
-        }
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public void Clear()
-        {
-            sched.Clear();
-        }
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public ISet<string> GetPausedTriggerGroups()
+        public Task<ISet<string>> GetPausedTriggerGroups()
         {
             return sched.GetPausedTriggerGroups();
         }
@@ -186,15 +169,12 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public IListenerManager ListenerManager
-        {
-            get { return sched.ListenerManager; }
-        }
+        public IListenerManager ListenerManager => sched.ListenerManager;
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> GetJobGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetJobGroupNames()
         {
             return sched.GetJobGroupNames();
         }
@@ -202,7 +182,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<string> GetTriggerGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames()
         {
             return sched.GetTriggerGroupNames();
         }
@@ -217,47 +197,47 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void Start()
+        public virtual Task Start()
         {
-            sched.Start();
+            return sched.Start();
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public void StartDelayed(TimeSpan delay)
+        public Task StartDelayed(TimeSpan delay)
         {
-            sched.StartDelayed(delay);
+            return sched.StartDelayed(delay);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void Standby()
+        public virtual Task Standby()
         {
-            sched.Standby();
+            return sched.Standby();
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual Task Shutdown()
         {
-            sched.Shutdown();
+            return sched.Shutdown();
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void Shutdown(bool waitForJobsToComplete)
+        public virtual Task Shutdown(bool waitForJobsToComplete)
         {
-            sched.Shutdown(waitForJobsToComplete);
+            return sched.Shutdown(waitForJobsToComplete);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
+        public virtual Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
         {
             return sched.ScheduleJob(jobDetail, trigger);
         }
@@ -265,7 +245,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset ScheduleJob(ITrigger trigger)
+        public virtual Task<DateTimeOffset> ScheduleJob(ITrigger trigger)
         {
             return sched.ScheduleJob(trigger);
         }
@@ -273,43 +253,43 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
+        public virtual Task AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
         {
-            sched.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling);
+            return sched.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void AddJob(IJobDetail jobDetail, bool replace)
+        public virtual Task AddJob(IJobDetail jobDetail, bool replace)
         {
-            sched.AddJob(jobDetail, replace);
+            return sched.AddJob(jobDetail, replace);
         }
 
-        public bool DeleteJobs(IList<JobKey> jobKeys)
+        public Task<bool> DeleteJobs(IList<JobKey> jobKeys)
         {
             return sched.DeleteJobs(jobKeys);
         }
 
-        public void ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
+        public Task ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
         {
-            sched.ScheduleJobs(triggersAndJobs, replace);
+            return sched.ScheduleJobs(triggersAndJobs, replace);
         }
 
-        public void ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace)
+        public Task ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace)
         {
-            sched.ScheduleJob(jobDetail, triggersForJob, replace);
+            return sched.ScheduleJob(jobDetail, triggersForJob, replace);
         }
 
-        public bool UnscheduleJobs(IList<TriggerKey> triggerKeys)
+        public Task<bool> UnscheduleJobs(IList<TriggerKey> triggerKeys)
         {
             return sched.UnscheduleJobs(triggerKeys);
-        } 
+        }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual bool DeleteJob(JobKey jobKey)
+        public virtual Task<bool> DeleteJob(JobKey jobKey)
         {
             return sched.DeleteJob(jobKey);
         }
@@ -317,7 +297,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual bool UnscheduleJob(TriggerKey triggerKey)
+        public virtual Task<bool> UnscheduleJob(TriggerKey triggerKey)
         {
             return sched.UnscheduleJob(triggerKey);
         }
@@ -325,7 +305,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger)
+        public virtual Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger)
         {
             return sched.RescheduleJob(triggerKey, newTrigger);
         }
@@ -333,23 +313,23 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void TriggerJob(JobKey jobKey)
+        public virtual Task TriggerJob(JobKey jobKey)
         {
-            TriggerJob(jobKey, null);
+            return TriggerJob(jobKey, null);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void TriggerJob(JobKey jobKey, JobDataMap data)
+        public virtual Task TriggerJob(JobKey jobKey, JobDataMap data)
         {
-            sched.TriggerJob(jobKey, data);
+            return sched.TriggerJob(jobKey, data);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public bool CheckExists(JobKey jobKey)
+        public Task<bool> CheckExists(JobKey jobKey)
         {
             return sched.CheckExists(jobKey);
         }
@@ -357,7 +337,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public bool CheckExists(TriggerKey triggerKey)
+        public Task<bool> CheckExists(TriggerKey triggerKey)
         {
             return sched.CheckExists(triggerKey);
         }
@@ -365,87 +345,87 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseTrigger(TriggerKey triggerKey)
+        public virtual Task PauseTrigger(TriggerKey triggerKey)
         {
-            sched.PauseTrigger(triggerKey);
+            return sched.PauseTrigger(triggerKey);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            sched.PauseTriggers(matcher);
+            return sched.PauseTriggers(matcher);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseJob(JobKey jobKey)
+        public virtual Task PauseJob(JobKey jobKey)
         {
-            sched.PauseJob(jobKey);
+            return sched.PauseJob(jobKey);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseJobs(GroupMatcher<JobKey> matcher)
+        public virtual Task PauseJobs(GroupMatcher<JobKey> matcher)
         {
-            sched.PauseJobs(matcher);
+            return sched.PauseJobs(matcher);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeTrigger(TriggerKey triggerKey)
+        public virtual Task ResumeTrigger(TriggerKey triggerKey)
         {
-            sched.ResumeTrigger(triggerKey);
+            return sched.ResumeTrigger(triggerKey);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            sched.ResumeTriggers(matcher);
+            return sched.ResumeTriggers(matcher);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeJob(JobKey jobKey)
+        public virtual Task ResumeJob(JobKey jobKey)
         {
-            sched.ResumeJob(jobKey);
+            return sched.ResumeJob(jobKey);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeJobs(GroupMatcher<JobKey> matcher)
+        public virtual Task ResumeJobs(GroupMatcher<JobKey> matcher)
         {
-            sched.ResumeJobs(matcher);
+            return sched.ResumeJobs(matcher);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void PauseAll()
+        public virtual Task PauseAll()
         {
-            sched.PauseAll();
+            return sched.PauseAll();
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void ResumeAll()
+        public virtual Task ResumeAll()
         {
-            sched.ResumeAll();
+            return sched.ResumeAll();
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IList<ITrigger> GetTriggersOfJob(JobKey jobKey)
+        public virtual Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(JobKey jobKey)
         {
             return sched.GetTriggersOfJob(jobKey);
         }
@@ -453,7 +433,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public virtual Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
             return sched.GetJobKeys(matcher);
         }
@@ -461,7 +441,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             return sched.GetTriggerKeys(matcher);
         }
@@ -469,7 +449,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual IJobDetail GetJobDetail(JobKey jobKey)
+        public virtual Task<IJobDetail> GetJobDetail(JobKey jobKey)
         {
             return sched.GetJobDetail(jobKey);
         }
@@ -477,7 +457,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual ITrigger GetTrigger(TriggerKey triggerKey)
+        public virtual Task<ITrigger> GetTrigger(TriggerKey triggerKey)
         {
             return sched.GetTrigger(triggerKey);
         }
@@ -485,7 +465,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual TriggerState GetTriggerState(TriggerKey triggerKey)
+        public virtual Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
         {
             return sched.GetTriggerState(triggerKey);
         }
@@ -493,15 +473,15 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
+        public virtual Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
         {
-            sched.AddCalendar(calName, calendar, replace, updateTriggers);
+            return sched.AddCalendar(calName, calendar, replace, updateTriggers);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual bool DeleteCalendar(string calName)
+        public virtual Task<bool> DeleteCalendar(string calName)
         {
             return sched.DeleteCalendar(calName);
         }
@@ -509,7 +489,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual ICalendar GetCalendar(string calName)
+        public virtual Task<ICalendar> GetCalendar(string calName)
         {
             return sched.GetCalendar(calName);
         }
@@ -518,21 +498,20 @@ namespace Quartz.Impl
         /// Get the names of all registered <see cref="ICalendar"/>.
         /// </summary>
         /// <returns></returns>
-        public IList<string> GetCalendarNames()
+        public Task<IReadOnlyList<string>> GetCalendarNames()
         {
             return sched.GetCalendarNames();
         }
 
         /// <summary>
         /// Request the interruption, within this Scheduler instance, of all
-        /// currently executing instances of the identified <see cref="IJob" />, which
-        /// must be an implementor of the <see cref="IInterruptableJob"/> interface.
+        /// currently executing instances of the identified <see cref="IJob" />.
         /// </summary>
         /// <remarks>
         /// <para>
         /// If more than one instance of the identified job is currently executing,
-        /// the <see cref="IInterruptableJob.Interrupt"/> method will be called on
-        /// each instance.  However, there is a limitation that in the case that
+        /// the cancellation token will be set on each instance.
+        /// However, there is a limitation that in the case that
         /// <see cref="Interrupt(JobKey)"/> on one instances throws an exception, all
         /// remaining  instances (that have not yet been interrupted) will not have
         /// their <see cref="Interrupt(JobKey)"/> method called.
@@ -552,33 +531,15 @@ namespace Quartz.Impl
         /// </remarks>
         /// <returns>true is at least one instance of the identified job was found and interrupted.</returns>
         /// <throws>  UnableToInterruptJobException if the job does not implement </throws>
-        /// <seealso cref="IInterruptableJob"/>
         /// <seealso cref="GetCurrentlyExecutingJobs"/>
-        public virtual bool Interrupt(JobKey jobKey)
+        public virtual Task<bool> Interrupt(JobKey jobKey)
         {
             return sched.Interrupt(jobKey);
         }
 
-        public bool Interrupt(string fireInstanceId)
+        public Task<bool> Interrupt(string fireInstanceId)
         {
             return sched.Interrupt(fireInstanceId);
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                if (sched != null)
-                {
-                    sched.Dispose();
-                    sched = null;
-                }
-            }
         }
     }
 }

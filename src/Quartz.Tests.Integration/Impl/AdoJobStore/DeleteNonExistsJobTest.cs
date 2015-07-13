@@ -1,11 +1,10 @@
 ﻿using System.Collections.Specialized;
 using System.Data;
 
-using Quartz.Logging;
-
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
@@ -13,7 +12,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
     [TestFixture]
     public class DeleteNonExistsJobTest
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(DeleteNonExistsJobTest));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (DeleteNonExistsJobTest));
         private const string DBName = "default";
         private const string SchedulerName = "DeleteNonExistsJobTestScheduler";
         private static IScheduler scheduler;
@@ -34,7 +33,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            scheduler = sf.GetScheduler();
+            scheduler = sf.GetScheduler().GetAwaiter().GetResult();
 
             ResetDatabaseData();
         }

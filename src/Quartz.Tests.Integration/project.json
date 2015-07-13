@@ -1,14 +1,12 @@
-{
-    "version": "1.0.0-*",
-    "dependencies": {
-        "Quartz": "1.0.0-*",
-        "NUnit": "2.6.4"
-    },
-
-    "frameworks": {
-        "net45": {
-            "dependencies": {
-            }
-        }
+﻿{
+  "version": "1.0.0-*",
+  "dependencies": {
+    "NUnit": "3.0.0-beta-3",
+    "Quartz": "1.0.0-*"
+  },
+  "frameworks": {
+    "net45": {
+      "dependencies": {}
     }
+  }
 }

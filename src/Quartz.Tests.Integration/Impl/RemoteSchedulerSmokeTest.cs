@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -11,7 +12,7 @@ namespace Quartz.Tests.Integration.Impl
     {
         [Test]
         [Explicit("Needs server from example 13 running to work")]
-        public void Test()
+        public async Task Test()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.scheduler.instanceName"] = "RemoteClient";
@@ -27,10 +28,10 @@ namespace Quartz.Tests.Integration.Impl
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             SmokeTestPerformer performer = new SmokeTestPerformer();
-            performer.Test(sched, true, true);
+            await performer.Test(sched, true, true);
         }
     }
 }

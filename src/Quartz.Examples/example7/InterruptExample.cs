@@ -20,11 +20,10 @@
 #endregion
 
 using System;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example7
 {
@@ -37,18 +36,15 @@ namespace Quartz.Examples.Example7
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof (InterruptExample));
 
-        public string Name
-        {
-            get { return GetType().Name; }
-        }
+        public string Name => GetType().Name;
 
-        public virtual void Run()
+        public virtual async Task Run()
         {
             log.Info("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
 
@@ -68,12 +64,12 @@ namespace Quartz.Examples.Example7
                                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
                                                           .Build();
 
-            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
-            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
+            DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
+            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // start up the scheduler (jobs do not start to fire until
             // the scheduler has been started)
-            sched.Start();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
 
@@ -82,9 +78,9 @@ namespace Quartz.Examples.Example7
             {
                 try
                 {
-                    Thread.Sleep(TimeSpan.FromSeconds(7));
+                    await Task.Delay(TimeSpan.FromSeconds(7));
                     // tell the scheduler to interrupt our job
-                    sched.Interrupt(job.Key);
+                    await sched.Interrupt(job.Key);
                 }
                 catch (Exception ex)
                 {
@@ -94,11 +90,11 @@ namespace Quartz.Examples.Example7
 
             log.Info("------- Shutting Down ---------------------");
 
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
 
             log.Info("------- Shutdown Complete -----------------");
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

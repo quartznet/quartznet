@@ -171,7 +171,7 @@ namespace Quartz
             return false; // must be equal...        
         }
 
-        public override bool Equals(Object obj)
+        public override bool Equals(object obj)
         {
             if (!(obj is TimeOfDay))
             {

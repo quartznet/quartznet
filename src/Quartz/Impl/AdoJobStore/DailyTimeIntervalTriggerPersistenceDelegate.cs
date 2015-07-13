@@ -116,9 +116,9 @@ namespace Quartz.Impl.AdoJobStore
                 string[] nums = daysOfWeekStr.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
                 if (nums.Length > 0)
                 {
-                    foreach (String num in nums)
+                    foreach (string num in nums)
                     {
-                        daysOfWeek.Add((DayOfWeek) Int32.Parse(num));
+                        daysOfWeek.Add((DayOfWeek) int.Parse(num));
                     }
                     scheduleBuilder.OnDaysOfTheWeek(daysOfWeek);
                 }
@@ -134,9 +134,9 @@ namespace Quartz.Impl.AdoJobStore
                 TimeOfDay startTimeOfDay;
                 if (nums.Length >= 3)
                 {
-                    int hour = Int32.Parse(nums[0]);
-                    int min = Int32.Parse(nums[1]);
-                    int sec = Int32.Parse(nums[2]);
+                    int hour = int.Parse(nums[0]);
+                    int min = int.Parse(nums[1]);
+                    int sec = int.Parse(nums[2]);
                     startTimeOfDay = new TimeOfDay(hour, min, sec);
                 }
                 else
@@ -148,9 +148,9 @@ namespace Quartz.Impl.AdoJobStore
                 TimeOfDay endTimeOfDay;
                 if (nums.Length >= 6)
                 {
-                    int hour = Int32.Parse(nums[3]);
-                    int min = Int32.Parse(nums[4]);
-                    int sec = Int32.Parse(nums[5]);
+                    int hour = int.Parse(nums[3]);
+                    int min = int.Parse(nums[4]);
+                    int sec = int.Parse(nums[5]);
                     endTimeOfDay = new TimeOfDay(hour, min, sec);
                 }
                 else

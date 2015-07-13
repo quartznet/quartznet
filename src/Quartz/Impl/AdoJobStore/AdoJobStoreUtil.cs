@@ -17,7 +17,6 @@
  */
 #endregion
 
-using System;
 using System.Globalization;
 
 namespace Quartz.Impl.AdoJobStore
@@ -39,7 +38,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns>The query, with proper table prefix substituted</returns>
 		public static string ReplaceTablePrefix(string query, string tablePrefix, string schedNameLiteral)
 		{
-			return String.Format(CultureInfo.InvariantCulture, query, tablePrefix, schedNameLiteral);
+			return string.Format(CultureInfo.InvariantCulture, query, tablePrefix, schedNameLiteral);
 		}
 	}
 }

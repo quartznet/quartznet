@@ -20,10 +20,10 @@
 #endregion
 
 using System;
-using System.Threading;
+using System.Threading.Tasks;
 
-using Quartz.Logging;
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example1
 {
@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example1
             get { throw new NotImplementedException(); }
         }
 
-        public virtual void Run()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (SimpleExample));
 
@@ -48,7 +48,7 @@ namespace Quartz.Examples.Example1
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
 
@@ -70,12 +70,12 @@ namespace Quartz.Examples.Example1
                 .Build();
 
             // Tell quartz to schedule the job using our trigger
-            sched.ScheduleJob(job, trigger);
-            log.Info(string.Format("{0} will run at: {1}", job.Key, runTime.ToString("r")));
+            await sched.ScheduleJob(job, trigger);
+            log.Info($"{job.Key} will run at: {runTime.ToString("r")}");
 
             // Start up the scheduler (nothing can actually run until the 
             // scheduler has been started)
-            sched.Start();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
             // wait long enough so that the scheduler as an opportunity to 
@@ -83,11 +83,11 @@ namespace Quartz.Examples.Example1
             log.Info("------- Waiting 65 seconds... -------------");
 
             // wait 65 seconds to show jobs
-            Thread.Sleep(TimeSpan.FromSeconds(65));
+            await Task.Delay(TimeSpan.FromSeconds(65));
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
         }
     }

@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -41,33 +43,27 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma (.NET)</author>
     public class ZeroSizeThreadPool : IThreadPool
     {
-        private readonly ILog log;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="ZeroSizeThreadPool"/> class.
         /// </summary>
         public ZeroSizeThreadPool()
         {
-            log = LogProvider.GetLogger(GetType());
+            Log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected virtual ILog Log
-        {
-            get { return log; }
-        }
+        protected virtual ILog Log { get; }
 
         /// <summary>
         /// Gets the size of the pool.
         /// </summary>
         /// <value>The size of the pool.</value>
-        public virtual int PoolSize
-        {
-            get { return 0; }
-        }
+        public virtual int PoolSize => 0;
+
+        public int AvailableThreadCount => 0;
 
         /// <summary>
         /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id, 
@@ -96,14 +92,6 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Shutdowns this instance.
-        /// </summary>
-        public virtual void Shutdown()
-        {
-            Shutdown(true);
-        }
-
-        /// <summary>
         /// Called by the QuartzScheduler to inform the <see cref="ThreadPool"/>
         /// that it should free up all of it's resources because the scheduler is
         /// shutting down.
@@ -115,7 +103,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Execute the given <see cref="IThreadRunnable"/> in the next
+        /// Execute the given <see cref="Action"/> in the next
         /// available <see cref="Thread"/>.
         /// </summary>
         /// <param name="runnable"></param>
@@ -126,7 +114,7 @@ namespace Quartz.Simpl
         /// are no available threads, rather it should either queue the Runnable, or
         /// block until a thread is available, depending on the desired strategy.
         /// </remarks>
-        public virtual bool RunInThread(IThreadRunnable runnable)
+        public virtual bool RunInThread(Action runnable)
         {
             throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are start()ed.");
         }
@@ -134,7 +122,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Determines the number of threads that are currently available in
         /// the pool.  Useful for determining the number of times
-        /// <see cref="RunInThread(IThreadRunnable)"/>  can be called before returning
+        /// <see cref="RunInThread(Action)"/>  can be called before returning
         /// false.
         /// </summary>
         /// <returns>

@@ -24,6 +24,7 @@ using System.Collections;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Runtime.Serialization;
+using System.Threading.Tasks;
 
 using FakeItEasy;
 
@@ -85,7 +86,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestSelectBlobTriggerWithNoBlobContent()
+        public async Task TestSelectBlobTriggerWithNoBlobContent()
         {
             var dbProvider = A.Fake<DbProvider>();
             var connection = A.Fake<DbConnection>();
@@ -124,12 +125,12 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             A.CallTo(() => dataReader.Read()).Returns(false);
             A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeBlob);
 
-            IOperableTrigger trigger = adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
+            IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
             Assert.That(trigger, Is.Null);
         }
 
         [Test]
-        public void TestSelectSimpleTriggerWithExceptionWithExtendedProps()
+        public async Task TestSelectSimpleTriggerWithExceptionWithExtendedProps()
         {
             var dbProvider = A.Fake<DbProvider>();
             var connection = A.Fake<DbConnection>();
@@ -173,7 +174,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             try
             {
                 var conn = new ConnectionAndTransactionHolder(connection, transaction);
-                adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
+                await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
                 Assert.Fail("Trigger selection should result in exception");
             }
             catch (InvalidOperationException e)
@@ -185,7 +186,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestSelectSimpleTriggerWithDeleteBeforeSelectExtendedProps()
+        public async Task TestSelectSimpleTriggerWithDeleteBeforeSelectExtendedProps()
         {
             var dbProvider = A.Fake<DbProvider>();
             var connection = A.Fake<DbConnection>();
@@ -228,7 +229,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeSimple);
 
             var conn = new ConnectionAndTransactionHolder(connection, transaction);
-            IOperableTrigger trigger = adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
+            IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
             Assert.That(trigger, Is.Null);
 
             A.CallTo(()=> persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).MustHaveHappened();

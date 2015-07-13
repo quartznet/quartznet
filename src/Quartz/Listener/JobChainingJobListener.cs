@@ -19,7 +19,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Threading.Tasks;
 
 using Quartz.Logging;
 
@@ -91,7 +91,7 @@ namespace Quartz.Listener
             chainLinks.Add(firstJob, secondJob);
         }
 
-        public override void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public override async Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
             JobKey sj;
             chainLinks.TryGetValue(context.JobDetail.Key, out sj);
@@ -101,15 +101,15 @@ namespace Quartz.Listener
                 return;
             }
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Job '{0}' will now chain to Job '{1}'", context.JobDetail.Key, sj));
+            Log.Info($"Job '{context.JobDetail.Key}' will now chain to Job '{sj}'");
 
             try
             {
-                context.Scheduler.TriggerJob(sj);
+                await context.Scheduler.TriggerJob(sj).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
-                Log.ErrorException(string.Format(CultureInfo.InvariantCulture, "Error encountered during chaining to Job '{0}'", sj), se);
+                Log.ErrorException($"Error encountered during chaining to Job '{sj}'", se);
             }
         }
     }

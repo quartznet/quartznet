@@ -117,7 +117,7 @@ namespace Quartz
         /// <param name="presumedValidCronExpression">the cron expression string to base the schedule on</param>
         /// <returns>the new CronScheduleBuilder</returns>
         /// <seealso cref="CronExpression" /> 
-        private static CronScheduleBuilder CronScheduleNoParseException(String presumedValidCronExpression)
+        private static CronScheduleBuilder CronScheduleNoParseException(string presumedValidCronExpression)
         {
             try
             {
@@ -157,7 +157,7 @@ namespace Quartz
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = String.Format("0 {0} {1} ? * *", minute, hour);
+            string cronExpression = $"0 {minute} {hour} ? * *";
 
             return CronScheduleNoParseException(cronExpression);
         }
@@ -181,7 +181,7 @@ namespace Quartz
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) daysOfWeek[0]) + 1);
+            string cronExpression = $"0 {minute} {hour} ? * {((int) daysOfWeek[0]) + 1}";
 
             for (int i = 1; i < daysOfWeek.Length; i++)
             {
@@ -208,7 +208,7 @@ namespace Quartz
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) dayOfWeek) + 1);
+            string cronExpression = $"0 {minute} {hour} ? * {((int) dayOfWeek) + 1}";
 
             return CronScheduleNoParseException(cronExpression);
         }
@@ -231,7 +231,7 @@ namespace Quartz
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = String.Format("0 {0} {1} {2} * ?", minute, hour, dayOfMonth);
+            string cronExpression = $"0 {minute} {hour} {dayOfMonth} * ?";
 
             return CronScheduleNoParseException(cronExpression);
         }

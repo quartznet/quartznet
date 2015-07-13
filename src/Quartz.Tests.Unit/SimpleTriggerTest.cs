@@ -76,7 +76,7 @@ namespace Quartz.Tests.Unit
 		/// serialization backwards compatibility.
 		/// </summary>
 		/// <returns></returns>
-		protected override String[] GetVersions()
+		protected override string[] GetVersions()
 		{
 			return Versions;
 		}
@@ -87,7 +87,7 @@ namespace Quartz.Tests.Unit
 		/// </summary>
 		/// <param name="target"></param>
 		/// <param name="deserialized"></param>
-		protected override void VerifyMatch(Object target, Object deserialized)
+		protected override void VerifyMatch(object target, object deserialized)
 		{
 			SimpleTriggerImpl targetSimpleTrigger = (SimpleTriggerImpl) target;
 			SimpleTriggerImpl deserializedSimpleTrigger = (SimpleTriggerImpl) deserialized;

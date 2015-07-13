@@ -184,8 +184,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInWeeks(int intervalInWeeks)
         {
             ValidateInterval(intervalInWeeks);
-            this.interval = intervalInWeeks;
-            this.intervalUnit = IntervalUnit.Week;
+            interval = intervalInWeeks;
+            intervalUnit = IntervalUnit.Week;
             return this;
         }
 

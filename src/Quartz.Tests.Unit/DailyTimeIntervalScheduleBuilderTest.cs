@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -41,9 +42,9 @@ namespace Quartz.Tests.Unit
     public class DailyTimeIntervalScheduleBuilderTest
     {
         [Test]
-        public void TestScheduleActualTrigger()
+        public async Task TestScheduleActualTrigger()
         {
-            IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
+            IScheduler scheduler = await StdSchedulerFactory.GetDefaultScheduler();
             IJobDetail job = JobBuilder.Create(typeof (NoOpJob)).Build();
 
             ITrigger trigger = TriggerBuilder.Create()
@@ -51,12 +52,12 @@ namespace Quartz.Tests.Unit
                 .WithDailyTimeIntervalSchedule(x => x.WithIntervalInSeconds(3))
                 .Build();
 
-            scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
-            scheduler.Shutdown();
+            await scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
+            await scheduler.Shutdown();
         }
 
         [Test]
-        public void TestScheduleInMiddleOfDailyInterval()
+        public async Task TestScheduleInMiddleOfDailyInterval()
         {
             DateTimeOffset currTime = DateTimeOffset.UtcNow;
 
@@ -67,7 +68,7 @@ namespace Quartz.Tests.Unit
                 return;
             }
 
-            IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
+            IScheduler scheduler = await StdSchedulerFactory.GetDefaultScheduler();
             IJobDetail job = JobBuilder.Create<NoOpJob>().Build();
             ITrigger trigger = TriggerBuilder.Create().WithIdentity("test")
                 .WithDailyTimeIntervalSchedule(x => x
@@ -76,9 +77,9 @@ namespace Quartz.Tests.Unit
                 .StartAt(currTime)
                 .Build();
 
-            scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
 
-            trigger = scheduler.GetTrigger(trigger.Key);
+            trigger = await scheduler.GetTrigger(trigger.Key);
 
             Console.WriteLine("testScheduleInMiddleOfDailyInterval: currTime = " + currTime);
             Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
@@ -95,16 +96,16 @@ namespace Quartz.Tests.Unit
                     .WithIntervalInMinutes(5))
                 .StartAt(startTime)
                 .Build();
-            scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
 
-            trigger = scheduler.GetTrigger(trigger.Key);
+            trigger = await scheduler.GetTrigger(trigger.Key);
 
             Console.WriteLine("testScheduleInMiddleOfDailyInterval: startTime = " + startTime);
             Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
 
             Assert.That(trigger.GetNextFireTimeUtc() == startTime);
 
-            scheduler.Shutdown();
+            await scheduler.Shutdown();
         }
 
         [Test]

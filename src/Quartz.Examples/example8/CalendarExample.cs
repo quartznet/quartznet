@@ -20,12 +20,11 @@
 #endregion
 
 using System;
-using System.Threading;
-
-using Quartz.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example8
 {
@@ -37,12 +36,9 @@ namespace Quartz.Examples.Example8
     /// <author>Marko Lahma (.NET)</author>
     public class CalendarExample : IExample
     {
-        public string Name
-        {
-            get { return GetType().Name; }
-        }
+        public string Name => GetType().Name;
 
-        public virtual void Run()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (CalendarExample));
 
@@ -50,7 +46,7 @@ namespace Quartz.Examples.Example8
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
 
@@ -72,7 +68,7 @@ namespace Quartz.Examples.Example8
             holidays.SetDayExcluded(christmas, true);
 
             // tell the schedule about our holiday calendar
-            sched.AddCalendar("holidays", holidays, false, false);
+            await sched.AddCalendar("holidays", holidays, false, false);
 
             // schedule a job to run hourly, starting on halloween
             // at 10 am
@@ -84,45 +80,40 @@ namespace Quartz.Examples.Example8
                 .Build();
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                                          .WithIdentity("trigger1", "group1")
-                                                          .StartAt(runDate)
-                                                          .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
-                                                          .ModifiedByCalendar("holidays")
-                                                          .Build();
+                .WithIdentity("trigger1", "group1")
+                .StartAt(runDate)
+                .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+                .ModifiedByCalendar("holidays")
+                .Build();
 
             // schedule the job and print the first run date
-            DateTimeOffset firstRunTime = sched.ScheduleJob(job, trigger);
+            DateTimeOffset firstRunTime = await sched.ScheduleJob(job, trigger);
 
             // print out the first execution date.
             // Note:  Since Halloween (Oct 31) is a holiday, then
             // we will not run until the next day! (Nov 1)
-            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, firstRunTime.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
+            log.Info($"{job.Key} will run at: {firstRunTime.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
             log.Info("------- Starting Scheduler ----------------");
-            sched.Start();
+            await sched.Start();
 
             // wait 30 seconds:
             // note:  nothing will run
             log.Info("------- Waiting 30 seconds... --------------");
-            try
-            {
-                // wait 30 seconds to show jobs
-                Thread.Sleep(30*1000);
-                // executing...
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+
+            // wait 30 seconds to show jobs
+            await Task.Delay(TimeSpan.FromSeconds(30));
+            // executing...
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

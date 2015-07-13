@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading.Tasks;
 
 using FakeItEasy;
 
@@ -25,9 +26,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         }
 
         [Test]
-        public void TestRecoverMisfiredJobs_ShouldCheckForMisfiredTriggersInStateWaiting()
+        public async Task TestRecoverMisfiredJobs_ShouldCheckForMisfiredTriggersInStateWaiting()
         {
-            jobStoreSupport.RecoverMisfiredJobs(null, false);
+            await jobStoreSupport.RecoverMisfiredJobs(null, false);
 
             A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
                 A<ConnectionAndTransactionHolder>.Ignored,
@@ -44,9 +45,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 return new ConnectionAndTransactionHolder(null, null);
             }
 
-            protected override T ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback)
+            protected override Task<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
             {
-                return default(T);
+                return Task.FromResult(default(T));
             }
 
             /// <summary>

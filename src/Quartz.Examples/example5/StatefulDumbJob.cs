@@ -62,13 +62,7 @@ namespace Quartz.Examples.Example5
                 delay = map.GetInt(ExecutionDelay);
             }
 
-            try
-            {
-                Thread.Sleep(delay);
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            Thread.Sleep(delay);
 
             Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
         }

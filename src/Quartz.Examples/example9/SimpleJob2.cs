@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,27 +16,30 @@
  * under the License.
  * 
  */
+
 #endregion
+
+using System;
 
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example9
 {
-	/// <summary>
-	/// This is just a simple job that gets fired off by example 9.
-	/// </summary>
-	/// <author>Bill Kratzer</author>
+    /// <summary>
+    /// This is just a simple job that gets fired off by example 9.
+    /// </summary>
+    /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob2 : IJob
-	{
-		private static readonly ILog log = LogProvider.GetLogger(typeof(SimpleJob2));
-		
-		public virtual void Execute(IJobExecutionContext context)
-		{
-			// This job simply prints out its job name and the
-			// date and time that it is running
-			JobKey jobKey = context.JobDetail.Key;
-			log.InfoFormat("SimpleJob2 says: {0} executing at {1}", jobKey, System.DateTime.Now.ToString("r"));
-		}
-	}
+    {
+        private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleJob2));
+
+        public virtual void Execute(IJobExecutionContext context)
+        {
+            // This job simply prints out its job name and the
+            // date and time that it is running
+            JobKey jobKey = context.JobDetail.Key;
+            log.InfoFormat("SimpleJob2 says: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
+        }
+    }
 }

@@ -20,7 +20,7 @@
 #endregion
 
 using System;
-using System.Data;
+using System.Threading.Tasks;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
@@ -53,18 +53,18 @@ namespace Quartz.Impl.AdoJobStore
             return ((trigger is SimpleTriggerImpl) && !((SimpleTriggerImpl) trigger).HasAdditionalProperties);
         }
 
-        public int DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public async Task<int> DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                return cmd.ExecuteNonQuery();
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public int InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public async Task<int> InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
@@ -76,20 +76,20 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
                 DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
 
-                return cmd.ExecuteNonQuery();
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public TriggerPropertyBundle LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                using (IDataReader rs = cmd.ExecuteReader())
+                using (var rs = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    if (rs.Read())
+                    if (await rs.ReadAsync().ConfigureAwait(false))
                     {
                         int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
                         TimeSpan repeatInterval = DbAccessor.GetTimeSpanFromDbValue(rs[AdoConstants.ColumnRepeatInterval]) ?? TimeSpan.Zero;
@@ -109,7 +109,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public int UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public async Task<int> UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
@@ -121,7 +121,7 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
-                return cmd.ExecuteNonQuery();
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
     }
