@@ -21,6 +21,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 
+using log4net.Config;
+
 using Quartz.Util;
 
 namespace Quartz.Examples
@@ -29,14 +31,16 @@ namespace Quartz.Examples
 	/// Console main runner.
 	/// </summary>
     /// <author>Marko Lahma</author>
-    public class ConsoleMain
+    public class Program
 	{
 		[STAThread]
 		public static void Main()
 		{
 			try
 			{
-				Assembly asm = Assembly.GetExecutingAssembly();
+                XmlConfigurator.Configure();
+
+                Assembly asm = Assembly.GetExecutingAssembly();
 				Type[] types = asm.GetTypes();
 			
 				IDictionary<int, Type> typeMap = new Dictionary<int, Type>();

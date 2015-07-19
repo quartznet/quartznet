@@ -110,8 +110,6 @@ namespace Quartz.Util
         /// <summary>The collection of tasks to be executed on our custom threads.</summary>
         private readonly BlockingCollection<Task> _blockingTaskQueue;
 
-        private int runningTaskCount;
-
         // ***
 
         /// <summary>Initializes the scheduler.</summary>
@@ -251,15 +249,7 @@ namespace Quartz.Util
                                 // Run it.
                                 if (task != null)
                                 {
-                                    Interlocked.Increment(ref runningTaskCount);
-                                    try
-                                    {
-                                        TryExecuteTask(task);
-                                    }
-                                    finally
-                                    {
-                                        Interlocked.Decrement(ref runningTaskCount);
-                                    }
+                                    TryExecuteTask(task);
                                 }
                                 // If the task is null, that means it's just a placeholder for a task
                                 // queued to one of the subschedulers.  Find the next task based on
@@ -274,15 +264,7 @@ namespace Quartz.Util
                                     // ... and if we found one, run it
                                     if (targetTask != null)
                                     {
-                                        Interlocked.Increment(ref runningTaskCount);
-                                        try
-                                        {
-                                            queueForTargetTask.ExecuteTask(targetTask);
-                                        }
-                                        finally
-                                        {
-                                            Interlocked.Decrement(ref runningTaskCount);
-                                        }
+                                        queueForTargetTask.ExecuteTask(targetTask);
                                     }
                                 }
                             }
@@ -531,27 +513,6 @@ namespace Quartz.Util
         public override int MaximumConcurrencyLevel
         {
             get { return _concurrencyLevel; }
-        }
-
-        internal int AvailableThreadCount
-        {
-            get
-            {
-                if (_targetScheduler != null)
-                {
-                    throw new InvalidOperationException("cannot query available thread count when not using own threads");
-                }
-                return Math.Max(0, _threads.Length - runningTaskCount);
-            }
-        }
-
-        internal int RunningTaskCount
-        {
-            get
-            {
-                int temp = _delegatesQueuedOrRunning;
-                return runningTaskCount;
-            }
         }
 
         /// <summary>Initiates shutdown of the scheduler.</summary>
