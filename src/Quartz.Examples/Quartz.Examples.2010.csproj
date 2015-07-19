@@ -82,6 +82,10 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="log4net, Version=1.2.13.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System">
       <Name>System</Name>
     </Reference>
@@ -94,7 +98,7 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="ConsoleMain.cs">
+    <Compile Include="Program.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="example10\PlugInExample.cs" />
@@ -177,6 +181,9 @@
     <Compile Include="IExample.cs">
       <SubType>Code</SubType>
     </Compile>
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="example15\XmlConfigurationExample.cs" />
