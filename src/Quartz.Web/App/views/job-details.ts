@@ -32,8 +32,24 @@ export class JobDetailsView {
         this.postCommand("trigger");
     }
 
+    delete() {
+        bootbox.confirm({
+            size: "small",
+            message: `Delete ${this.name}?`,
+            callback: (result: boolean) => {
+                if (result) {
+                    return this.http.delete(`/api/schedulers/${this.schedulerName}/jobs/${this.group}/${this.name}`).then(() => {
+                        toastr.success(`Job ${this.group}.${this.name} deleted successfully`);
+                        return this.router.navigate("jobs");
+                    });
+                }
+                return $.when();
+            }
+        });
+    }
+
     postCommand(command: string) {
-        return this.http.post(`/api/schedulers/${this.schedulerName}/jobs/${this.group}/${this.name}/${command}`, null).then(() => {
+        return this.http.post(`/schedulers/${this.schedulerName}/jobs/${this.group}/${this.name}/${command}`, null).then(() => {
             return this.loadDetails();
         });
     }

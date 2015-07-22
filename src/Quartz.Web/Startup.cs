@@ -1,19 +1,15 @@
 ﻿using System.IO;
 using System.Net.Http.Formatting;
 using System.Web.Http;
-
+using Microsoft.AspNet.SignalR;
 using Microsoft.Owin.Cors;
 using Microsoft.Owin.FileSystems;
 using Microsoft.Owin.StaticFiles;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
-
 using Owin;
-
 using Quartz.Logging;
-
 using Swashbuckle.Application;
 
 namespace Quartz.Web
@@ -68,6 +64,7 @@ namespace Quartz.Web
 
         private static void ConfigureJson(HttpConfiguration config)
         {
+            // Web API
             config.Formatters.Clear();
             config.Formatters.Add(new JsonMediaTypeFormatter());
             var serializerSettings = new JsonSerializerSettings
@@ -78,8 +75,7 @@ namespace Quartz.Web
             {
                 CamelCaseText = true
             });
-            config.Formatters.JsonFormatter.SerializerSettings =
-                serializerSettings;
+            config.Formatters.JsonFormatter.SerializerSettings = serializerSettings;
         }
     }
 }

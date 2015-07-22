@@ -26,3 +26,14 @@ declare module moment {
         dateTimeString(): string;
     }
 }
+
+declare var bootbox: BootboxStatic;
+declare module "bootbox" {
+    export = bootbox;
+}
+
+declare var boostrap;
+declare module "boostrap" {
+    export = boostrap;
+}
+

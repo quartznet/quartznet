@@ -39,4 +39,20 @@ export class TriggerDetailsView {
             this.details = response.content;
         });
     }
+
+    isSimpleTrigger() {
+        return this.details && this.details.triggerType.indexOf("SimpleTrigger") > -1;
+    }
+
+    isCronTrigger() {
+        return this.details && this.details.triggerType.indexOf("CronTrigger") > -1;
+    }
+
+    isCalendarIntervalTrigger() {
+        return this.details && this.details.triggerType.indexOf("CalendarIntervalTrigger") > -1;
+    }
+
+    isDailyTimeIntervalTrigger() {
+        return this.details && this.details.triggerType.indexOf("DailyTimeIntervalTrigger") > -1;
+    }
 }

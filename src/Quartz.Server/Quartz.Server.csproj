@@ -220,7 +220,7 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Quartz\Quartz.2010.csproj">
+    <ProjectReference Include="..\Quartz\Quartz.csproj">
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
       <Name>Quartz.2010</Name>
     </ProjectReference>
@@ -228,9 +228,6 @@
       <Project>{85e583b5-2d1e-4d08-8677-0d0851cbe2b6}</Project>
       <Name>Quartz.Web</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

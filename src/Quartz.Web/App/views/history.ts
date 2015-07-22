@@ -7,13 +7,16 @@ import {HttpClient} from "aurelia-http-client";
 export class JobHistoryView {
 
     public entries: any[];
+    public errorMessage: string;
 
     constructor(private router: Router, private http: HttpClient) {
     }
 
     activate(params: any) {
         return this.http.get(`/api/schedulers/${params.schedulerName}/jobs/history`).then(response => {
-            this.entries = <any[]>response.content;
+            let model = response.content;
+            this.entries = model.historyEntries;
+            this.errorMessage = model.errorMessage;
         });
     }
 }

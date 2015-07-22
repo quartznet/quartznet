@@ -202,7 +202,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz\Quartz.2010.csproj">
+    <ProjectReference Include="..\Quartz\Quartz.csproj">
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
       <Name>Quartz.2010</Name>
     </ProjectReference>

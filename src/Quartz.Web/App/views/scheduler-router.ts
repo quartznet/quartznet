@@ -12,7 +12,10 @@ export class SchedulerRouter {
             { route: "triggers/:group/:name/details", name: "trigger-details", moduleId: "./trigger-details", nav: false },
             { route: "jobs", moduleId: "./jobs", nav: true, title: "Jobs" },
             { route: "jobs/:group/:name", name: "job-details", moduleId: "./job-details", nav: false },
-            { route: "history", moduleId: "./history", nav: true, title: "History" }
+            { route: "calendars", moduleId: "./calendars", nav: true, title: "Calendars" },
+            { route: "calendars/:name", name: "calendar-details", moduleId: "./calendar-details", nav: false },
+            { route: "history", moduleId: "./history", nav: true, title: "History" },
+            { route: "live-logs", moduleId: "views/live-logs", nav: true, title: "Live Logs" }
         ]);
         this.router = router;
     }

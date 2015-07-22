@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web.Http;
-
 using Quartz.Impl;
 using Quartz.Web.Api.Dto;
 
@@ -32,8 +32,8 @@ namespace Quartz.Web.Api
         }
 
         [HttpGet]
-        [Route("currently-executing/{bar}")]
-        public async Task<List<CurrentlyExecutingJobDto>> CurrentlyExecutingJobs(string schedulerName)
+        [Route("currently-executing")]
+        public async Task<IReadOnlyList<CurrentlyExecutingJobDto>> CurrentlyExecutingJobs(string schedulerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var currentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobs().ConfigureAwait(false);
@@ -82,8 +82,8 @@ namespace Quartz.Web.Api
             await scheduler.TriggerJob(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
         }
 
-        [HttpPost]
-        [Route("{jobGroup}/{jobName}/delete")]
+        [HttpDelete]
+        [Route("{jobGroup}/{jobName}")]
         public async Task DeleteJob(string schedulerName, string jobGroup, string jobName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
@@ -96,6 +96,15 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             await scheduler.Interrupt(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
+        }
+
+        [HttpPut]
+        [Route("{jobGroup}/{jobName}")]
+        public async Task AddJob(string schedulerName, string jobGroup, string jobName, string jobType, bool durable, bool requestsRecovery, bool replace = false)
+        {
+            var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
+            var jobDetail = new JobDetailImpl(jobName, jobGroup, Type.GetType(jobType), durable, requestsRecovery);
+            await scheduler.AddJob(jobDetail, replace).ConfigureAwait(false);
         }
 
         private static async Task<IScheduler> GetScheduler(string schedulerName)

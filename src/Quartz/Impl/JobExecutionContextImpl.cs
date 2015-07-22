@@ -259,7 +259,16 @@ namespace Quartz.Impl
         /// </summary>
         public virtual TimeSpan JobRunTime
         {
-            get { return jobRunTime; }
+            get
+            {
+                if (jobRunTime == TimeSpan.MinValue && FireTimeUtc != null)
+                {
+                    // we are still in progress, calculate dynamically
+                    return DateTimeOffset.UtcNow - FireTimeUtc.Value;
+                }
+
+                return jobRunTime;
+            }
             set { jobRunTime = value; }
         }
 

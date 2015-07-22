@@ -1,6 +1,4 @@
 <template>
-    <require from='./moment-datetime'></require>
-    <require from='./moment-duration'></require>
     <h2>${heading}</h2>
 
     <table class="table table-striped">
@@ -17,9 +15,9 @@
             <tr repeat.for="entry of entries">
                 <td>${entry.jobName}.${entry.jobGroup}</td>
                 <td>${entry.triggerName}.${entry.triggerGroup}</td>
-                <td moment-datetime.bind="entry.scheduledTime"></td>
-                <td moment-datetime.bind="entry.firedTime"></td>
-                <td><span moment-duration.bind="entry.runTime"></span>s</td>
+                <td>${entry.scheduledTime | dateFormat}</td>
+                <td>${entry.firedTime | dateFormat}</td>
+                <td>${entry.runTime | durationFormat}</td>
             </tr>
         </tbody>
     </table>

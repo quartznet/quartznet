@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Web.Http;
-
+using Quartz.Logging;
 using Quartz.Web.Api.Dto;
 
 namespace Quartz.Web.History
@@ -11,12 +12,27 @@ namespace Quartz.Web.History
     /// </summary>
     public class JobExecutionHistoryController : ApiController
     {
+        private static readonly ILog log = LogProvider.GetLogger(typeof (JobExecutionHistoryController));
+
         [HttpGet]
         [Route("api/schedulers/{schedulerName}/jobs/history")]
-        public Task<IReadOnlyList<JobHistoryEntryDto>> SchedulerHistory(string schedulerName)
+        public async Task<JobHistoryViewModel> SchedulerHistory(string schedulerName)
         {
             var jobHistoryDelegate = DatabaseExecutionHistoryPlugin.Delegate;
-            return jobHistoryDelegate.SelectJobHistoryEntries(schedulerName);
+            IReadOnlyList<JobHistoryEntryDto> entries = new List<JobHistoryEntryDto>();
+            string errorMessage = null;
+
+            try
+            {
+                entries = await jobHistoryDelegate.SelectJobHistoryEntries(schedulerName).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                log.ErrorException("Error while retrieving history entries",  e);
+                errorMessage = e.Message;
+            }
+            var model = new JobHistoryViewModel(entries, errorMessage);
+            return model;
         }
     }
 }

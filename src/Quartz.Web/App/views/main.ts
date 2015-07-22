@@ -1,7 +1,8 @@
 ﻿export function configure(aurelia) {
     aurelia.use
         .standardConfiguration()
-        .developmentLogging();
+        .developmentLogging()
+        .plugin("./resources/index");
 
-    aurelia.start().then(a => a.setRoot('views/app'));
+    aurelia.start().then(a => a.setRoot("views/app"));
 }

@@ -1,17 +1,24 @@
 <template>
-    <h2>Live Logs</h2>
-
-    <label for="scheduler">Scheduler</label>
-
-    <select id="scheduler" value.bind="scheduler">
-        <option>Select scheduler</option>
-        <option repeat.for="scheduler of schedulers" value.bind="scheduler.name">${scheduler.name}</option>
-    </select>
 
     <div class="row">
-        <textarea cols="120" rows="20" disabled="disabled">
-            [XX:XX] TODO Not implemented at the moment
-        </textarea>
+        <div class="col-md-4">
+            Number of entries to show
+            <select value.bind="numberOfEntriesToShow">
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="showTriggerInfo">Show trigger info</label> <input checked.bind="showJobInfo" type="checkbox" id="showTriggerInfo"/>
+            <label for="showTriggerInfo">Show job info</label> <input checked.bind="showTriggerInfo" type="checkbox" id="showTriggerInfo"/>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-sm-12">
+            <pre style="word-wrap: normal; overflow: auto; height: 100%"><code repeat.for="entry of entries">[${entry.date | dateFormat:'YYYY-MM-DD HH:mm:ss'}] <span innerHtml.bind="entry.message"    ></span> <br/></code></pre>
+        </div>
     </div>
 
 </template>
