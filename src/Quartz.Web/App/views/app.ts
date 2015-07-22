@@ -7,8 +7,7 @@ export class App {
         config.title = "Quartz Web Console";
         config.map([
             { route: ["", "dashboard"], moduleId: "views/dashboard", nav: true, title: "Dashboard" },
-            { route: ["schedulers/:schedulerName"], name: "scheduler-details", moduleId: "views/scheduler-router", nav: false, title: "Scheduler Details" },
-            { route: ["live-logs"], moduleId: "views/live-logs", nav: true, title: "Live Logs" }
+            { route: ["schedulers/:schedulerName"], name: "scheduler-details", moduleId: "views/scheduler-router", nav: false, title: "Scheduler Details" }
         ]);
         this.router = router;
     }

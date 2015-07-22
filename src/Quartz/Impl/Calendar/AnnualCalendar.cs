@@ -120,7 +120,7 @@ namespace Quartz.Impl.Calendar
         /// Setting will redefine the array of days excluded. The array must of size greater or
         /// equal 31.
         /// </summary>
-        public virtual IList<DateTimeOffset> DaysExcluded
+        public virtual IReadOnlyList<DateTimeOffset> DaysExcluded
         {
             get { return excludeDays; }
 
@@ -297,7 +297,7 @@ namespace Quartz.Impl.Calendar
             {
                 foreach (DateTimeOffset date in DaysExcluded)
                 {
-                    toReturn = toReturn && obj.DaysExcluded.Contains(date);
+                    toReturn = toReturn && obj.excludeDays.Contains(date);
                 }
             }
             return toReturn;

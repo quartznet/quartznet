@@ -1,5 +1,5 @@
 <template>
-    <require from='./moment-datetime'></require>
+
     <section>
 
         <div class="pull-right">
@@ -28,22 +28,58 @@
         <div class="row">
             <h4>Scheduling Configuration</h4>
             <div class="col-xs-4">Start</div>
-            <div class="col-xs-8" moment-datetime.bind="details.startTimeUtc"></div>
+            <div class="col-xs-8">${details.startTimeUtc | dateFormat}</div>
         </div>
         <div class="row">
             <div class="col-xs-4">End</div>
-            <div class="col-xs-8" moment-datetime.bind="details.endTimeUtc"></div>
+            <div class="col-xs-8">${details.endTimeUtc | dateFormat}</div>
+        </div>
+        <div if.bind="isSimpleTrigger()">
+            <div class="row">
+                <div class="col-xs-4">Repeat Interval</div>
+                <div class="col-xs-8">${details.repeatInterval | durationFormat}</div>
+            </div>
+            <div class="row">
+                <div class="col-xs-4">Repeat Count</div>
+                <div class="col-xs-8">${details.repeatCount === -1 ? 'Infinite' : details.repeatCount}</div>
+            </div>
+        </div>
+        <div if.bind="isCronTrigger()">
+            <div class="row">
+                <div class="col-xs-4">Cron Expression</div>
+                <div class="col-xs-8">${details.cronExpression}</div>
+            </div>
+            <div class="row">
+                <div class="col-xs-4">Time Zone</div>
+                <div class="col-xs-8">${details.timeZone.displayName}</div>
+            </div>  
+        </div>
+        <div if.bind="isCalendarIntervalTrigger()">
+            <div class="row">
+                <div class="col-xs-4">Repeat Interval</div>
+                <div class="col-xs-8">${details.repeatInterval} / ${details.repeatIntervalUnit}</div>
+            </div>
+            <div class="row">
+                <div class="col-xs-4">Time Zone</div>
+                <div class="col-xs-8">${details.timeZone.displayName}</div>
+            </div>
+            <div class="row">
+                <div class="col-xs-4">Preserve Hour of Day Across Daylight Savings</div>
+                <div class="col-xs-8">${details.preserveHourOfDayAcrossDaylightSavings}</div>
+            </div>
+            <div class="row">
+                <div class="col-xs-4">Skip Day If Hour Doesn't Exist</div>
+                <div class="col-xs-8">${details.skipDayIfHourDoesNotExist}</div>
+            </div>
         </div>
         <div class="row">
             <div class="col-xs-4">Calendar</div>
-            <div class="col-xs-8">${details.calendar}</div>
+            <div class="col-xs-8"><a if.bind="details.calendar" route-href="route: calendar-details; params.bind: { schedulerName: scheduler.name, name: details.calendar }">${details.calendar}</a></div>
         </div>
 
         <div class="row">
             <h4>Next 10 Fire Times</h4>
-            <ul repeat.for="fireTime of details.nextFireTimes">
-                <li moment-datetime.bind="fireTime"></li>
-            </ul>
+            <pre><code repeat.for="fireTime of details.nextFireTimes">${fireTime | dateFormat}<br /></code></pre>
         </div>
 
     </section>

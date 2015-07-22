@@ -41,14 +41,14 @@
     <TypeScriptSourceMap>false</TypeScriptSourceMap>
     <TypeScriptModuleKind>amd</TypeScriptModuleKind>
     <TypeScriptNoImplicitAny>False</TypeScriptNoImplicitAny>
-    <TypeScriptAdditionalFlags> $(TypeScriptAdditionalFlags) --emitDecoratorMetadata </TypeScriptAdditionalFlags>
+    <TypeScriptAdditionalFlags> $(TypeScriptAdditionalFlags) --emitDecoratorMetadata --experimentalDecorators </TypeScriptAdditionalFlags>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <TypeScriptTarget>ES5</TypeScriptTarget>
     <TypeScriptIncludeComments>false</TypeScriptIncludeComments>
     <TypeScriptSourceMap>false</TypeScriptSourceMap>
     <TypeScriptModuleKind>amd</TypeScriptModuleKind>
-    <TypeScriptAdditionalFlags> $(TypeScriptAdditionalFlags) --emitDecoratorMetadata </TypeScriptAdditionalFlags>
+    <TypeScriptAdditionalFlags> $(TypeScriptAdditionalFlags) --emitDecoratorMetadata --experimentalDecorators </TypeScriptAdditionalFlags>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.AspNet.SignalR.Core">
@@ -124,10 +124,14 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Api\CalendarsController.cs" />
+    <Compile Include="Api\Dto\CalendarDetailDto.cs" />
+    <Compile Include="Api\Dto\TimeZoneDto.cs" />
     <Compile Include="Api\Dto\CurrentlyExecutingJobDto.cs" />
     <Compile Include="Api\Dto\GroupMatcherDto.cs" />
     <Compile Include="Api\Dto\JobDetailDto.cs" />
     <Compile Include="Api\Dto\JobHistoryEntryDto.cs" />
+    <Compile Include="Api\Dto\JobHistoryViewModel.cs" />
     <Compile Include="Api\Dto\KeyDto.cs" />
     <Compile Include="Api\Dto\SchedulerDto.cs" />
     <Compile Include="Api\Dto\SchedulerHeaderDto.cs" />
@@ -137,6 +141,7 @@
     <Compile Include="Api\Dto\SchedulerThreadPoolDto.cs" />
     <Compile Include="Api\Dto\ServerDetailsDto.cs" />
     <Compile Include="Api\Dto\ServerHeaderDto.cs" />
+    <Compile Include="Api\Dto\TriggerDetailDto.cs" />
     <Compile Include="Api\JobsController.cs" />
     <Compile Include="Api\TriggersController.cs" />
     <Compile Include="History\JobExecutionHistoryController.cs" />
@@ -145,13 +150,14 @@
     <Compile Include="Api\ServerRepository.cs" />
     <Compile Include="History\DatabaseExecutionHistoryPlugin.cs" />
     <Compile Include="History\JobHistoryDelegate.cs" />
-    <Compile Include="Hubs\SchedulerHub.cs" />
+    <Compile Include="LiveLog\LiveLogPlugin.cs" />
+    <Compile Include="LiveLog\LiveLogHub.cs" />
     <Compile Include="Startup.cs" />
     <Compile Include="WebConsolePlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz\Quartz.2010.csproj">
+    <ProjectReference Include="..\Quartz\Quartz.csproj">
       <Project>{aef8823b-e45b-4b35-a4d0-c08c1196d017}</Project>
       <Name>Quartz.2010</Name>
     </ProjectReference>
@@ -159,49 +165,6 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="App\jspm_packages\.loaderversions" />
-    <None Include="App\jspm_packages\es6-module-loader.js.map" />
-    <None Include="App\jspm_packages\github\aurelia\binding%400.8.1\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\binding%400.8.1\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\bootstrapper%400.14.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\bootstrapper%400.14.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\dependency-injection%400.9.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\dependency-injection%400.9.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\event-aggregator%400.6.1\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\event-aggregator%400.6.1\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\framework%400.13.2\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\framework%400.13.2\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\history%400.6.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\history%400.6.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\history-browser%400.6.1\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\history-browser%400.6.1\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\html-template-element%400.2.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\html-template-element%400.2.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\http-client%400.10.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\http-client%400.10.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\loader%400.8.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\loader%400.8.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\loader-default%400.9.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\loader-default%400.9.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\logging%400.6.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\logging%400.6.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\metadata%400.7.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\metadata%400.7.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\path%400.8.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\path%400.8.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\route-recognizer%400.6.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\route-recognizer%400.6.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\router%400.10.1\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\router%400.10.1\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\task-queue%400.6.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\task-queue%400.6.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\templating%400.13.2\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\templating%400.13.2\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\templating-binding%400.13.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\templating-binding%400.13.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\.jspm.json" />
-    <None Include="App\jspm_packages\github\aurelia\templating-router%400.14.0\.jspm-hash" />
-    <None Include="App\jspm_packages\github\aurelia\templating-router%400.14.0\.jspm.json" />
     <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\.gitignore" />
     <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\.jspm-hash" />
     <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\.jspm.json" />
@@ -306,7 +269,6 @@
     <None Include="App\jspm_packages\npm\process%400.10.1\LICENSE" />
     <None Include="App\jspm_packages\npm\process%400.10.1\package.json" />
     <None Include="App\jspm_packages\npm\process%400.10.1\README.md" />
-    <None Include="App\jspm_packages\system.js.map" />
     <None Include="App\package.json" />
     <None Include="App\scripts\core-js\client\core.min.js.map">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -359,10 +321,13 @@
     <None Include="App\styles\fontawesome\fonts\FontAwesome.otf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="App\styles\toastr.less" />
+    <None Include="App\styles\toastr.scss" />
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
     <None Include="App\scripts\signalr\jquery-2.1.3.min.map" />
+    <None Include="tsconfig.json" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="App\config.js" />
@@ -370,60 +335,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="App\jspm_packages\es6-module-loader.js" />
-    <Content Include="App\jspm_packages\es6-module-loader.src.js" />
-    <Content Include="App\jspm_packages\github\aurelia\binding%400.8.1.js" />
-    <Content Include="App\jspm_packages\github\aurelia\binding%400.8.1\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\bootstrapper%400.14.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\bootstrapper%400.14.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\dependency-injection%400.9.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\dependency-injection%400.9.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\event-aggregator%400.6.1.js" />
-    <Content Include="App\jspm_packages\github\aurelia\event-aggregator%400.6.1\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\framework%400.13.2.js" />
-    <Content Include="App\jspm_packages\github\aurelia\framework%400.13.2\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\history%400.6.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\history-browser%400.6.1.js" />
-    <Content Include="App\jspm_packages\github\aurelia\history-browser%400.6.1\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\html-template-element%400.2.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\html-template-element%400.2.0\HTMLTemplateElement.js" />
-    <Content Include="App\jspm_packages\github\aurelia\html-template-element%400.2.0\HTMLTemplateElement.min.js" />
-    <Content Include="App\jspm_packages\github\aurelia\http-client%400.10.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\loader%400.8.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\loader%400.8.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\loader-default%400.9.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\loader-default%400.9.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\logging%400.6.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\logging%400.6.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\metadata%400.7.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\metadata%400.7.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\path%400.8.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\path%400.8.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\route-recognizer%400.6.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\route-recognizer%400.6.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\router%400.10.1.js" />
-    <Content Include="App\jspm_packages\github\aurelia\router%400.10.1\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\task-queue%400.6.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\task-queue%400.6.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating%400.13.2.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating%400.13.2\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-binding%400.13.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-binding%400.13.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\compose.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\focus.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\global-behavior.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\if.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\repeat.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\replaceable.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\sanitize-html.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\show.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-resources%400.13.0\with.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-router%400.14.0.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-router%400.14.0\index.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-router%400.14.0\route-href.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-router%400.14.0\route-loader.js" />
-    <Content Include="App\jspm_packages\github\aurelia\templating-router%400.14.0\router-view.js" />
     <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87.js" />
     <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\Gruntfile.js" />
     <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\traceur.js" />
@@ -531,6 +442,7 @@
     <Content Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0.js" />
     <Content Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\json.js" />
     <Content Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\test.html" />
+    <Content Include="App\jspm_packages\github\twbs\bootstrap%403.3.5\js\bootstrap.js" />
     <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3.js" />
     <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\CustomElements.js" />
     <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\CustomElements.min.js" />
@@ -542,6 +454,8 @@
     <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\webcomponents-lite.min.js" />
     <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\webcomponents.js" />
     <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\webcomponents.min.js" />
+    <Content Include="App\jspm_packages\npm\bootbox%404.4.0\bootbox.js" />
+    <Content Include="App\jspm_packages\npm\bootbox%404.4.0\bootbox.min.js" />
     <Content Include="App\jspm_packages\npm\core-js%400.9.18.js" />
     <Content Include="App\jspm_packages\npm\core-js%400.9.18\build.js" />
     <Content Include="App\jspm_packages\npm\core-js%400.9.18\build\config.js" />
@@ -1222,7 +1136,6 @@
     <Content Include="App\jspm_packages\npm\process%400.10.1\browser.js" />
     <Content Include="App\jspm_packages\npm\process%400.10.1\index.js" />
     <Content Include="App\jspm_packages\system.js" />
-    <Content Include="App\jspm_packages\system.src.js" />
     <Content Include="App\scripts\core-js\client\core.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -1301,6 +1214,12 @@
     <Content Include="App\views\history.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="App\views\cron-trigger-details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\calendar-details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="App\views\trigger-details.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -1308,6 +1227,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="App\views\job-details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\calendars.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="App\views\triggers.html">
@@ -1339,35 +1261,42 @@
     <Content Include="App\scripts\require.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="App\styles\toastr.css" />
+    <Content Include="App\styles\toastr.min.css" />
     <Content Include="History\tables_sqlServer.sql" />
+    <Content Include="App\scripts\toastr.js" />
+    <Content Include="App\scripts\toastr.min.js" />
   </ItemGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\binding%400.8.1\aurelia-binding.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\binding%400.8.2\aurelia-binding.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\dependency-injection%400.9.0\aurelia-dependency-injection.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\event-aggregator%400.6.1\aurelia-event-aggregator.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\framework%400.13.2\aurelia-framework.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\framework%400.13.3\aurelia-framework.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\history%400.6.0\aurelia-history.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\history-browser%400.6.1\aurelia-history-browser.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\http-client%400.10.0\aurelia-http-client.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\loader%400.8.0\aurelia-loader.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\loader-default%400.9.0\aurelia-loader-default.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging%400.6.0\aurelia-logging.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\loader%400.8.2\aurelia-loader.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging%400.6.1\aurelia-logging.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging-console%400.6.0\aurelia-logging-console.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\metadata%400.7.0\aurelia-metadata.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\path%400.8.0\aurelia-path.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\route-recognizer%400.6.0\aurelia-route-recognizer.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\router%400.10.1\aurelia-router.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\router%400.10.2\aurelia-router.d.ts" />
     <TypeScriptCompile Include="App\jspm_packages\github\aurelia\task-queue%400.6.0\aurelia-task-queue.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating%400.13.2\aurelia-templating.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating-binding%400.13.0\aurelia-templating-binding.d.ts" />
-    <TypeScriptCompile Include="App\typings\aurelia-amd\aurelia-amd.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating%400.13.11\aurelia-templating.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating-binding%400.13.1\aurelia-templating-binding.d.ts" />
+    <TypeScriptCompile Include="App\resources\index.ts" />
     <TypeScriptCompile Include="App\views\app.ts" />
     <TypeScriptCompile Include="App\views\history.ts" />
-    <TypeScriptCompile Include="App\views\moment-duration.ts" />
-    <TypeScriptCompile Include="App\views\moment-datetime.ts" />
+    <TypeScriptCompile Include="App\resources\duration-format.ts" />
+    <TypeScriptCompile Include="App\resources\date-format.ts" />
+    <TypeScriptCompile Include="App\views\cron-trigger-details.ts" />
+    <TypeScriptCompile Include="App\views\calendar-details.ts" />
     <TypeScriptCompile Include="App\views\trigger-details.ts" />
     <TypeScriptCompile Include="App\views\live-logs.ts" />
     <TypeScriptCompile Include="App\views\main.ts" />
     <TypeScriptCompile Include="App\views\job-details.ts" />
+    <TypeScriptCompile Include="App\views\calendars.ts" />
     <TypeScriptCompile Include="App\views\triggers.ts" />
     <TypeScriptCompile Include="App\views\jobs.ts" />
     <TypeScriptCompile Include="App\views\scheduler-router.ts">
@@ -1376,10 +1305,15 @@
     <TypeScriptCompile Include="App\views\scheduler-details.ts" />
     <TypeScriptCompile Include="App\views\nav-bar.ts" />
     <TypeScriptCompile Include="App\views\dashboard.ts" />
+    <TypeScriptCompile Include="Scripts\typings\bootbox\bootbox.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\bootstrap\bootstrap.d.ts" />
     <TypeScriptCompile Include="Scripts\typings\custom.d.ts" />
     <TypeScriptCompile Include="Scripts\typings\es6-promise\es6-promise.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\jquery\jquery.d.ts" />
     <TypeScriptCompile Include="Scripts\typings\moment\moment-node.d.ts" />
     <TypeScriptCompile Include="Scripts\typings\moment\moment.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\signalr\signalr.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\toastr\toastr.d.ts" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\benchmarks\" />
@@ -1402,6 +1336,30 @@
     <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\templates\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|Any CPU'">
+    <TypeScriptTarget>ES5</TypeScriptTarget>
+    <TypeScriptCompileOnSaveEnabled>True</TypeScriptCompileOnSaveEnabled>
+    <TypeScriptRemoveComments>False</TypeScriptRemoveComments>
+    <TypeScriptOutFile />
+    <TypeScriptOutDir />
+    <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
+    <TypeScriptNoEmitOnError>True</TypeScriptNoEmitOnError>
+    <TypeScriptMapRoot />
+    <TypeScriptSourceRoot />
+    <TypeScriptModuleKind>System</TypeScriptModuleKind>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|Any CPU'">
+    <TypeScriptCompileOnSaveEnabled>True</TypeScriptCompileOnSaveEnabled>
+    <TypeScriptNoImplicitAny>False</TypeScriptNoImplicitAny>
+    <TypeScriptModuleKind>System</TypeScriptModuleKind>
+    <TypeScriptRemoveComments>False</TypeScriptRemoveComments>
+    <TypeScriptOutFile />
+    <TypeScriptOutDir />
+    <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
+    <TypeScriptNoEmitOnError>True</TypeScriptNoEmitOnError>
+    <TypeScriptMapRoot />
+    <TypeScriptSourceRoot />
+  </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

@@ -3,7 +3,6 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web.Http;
-
 using Quartz.Impl;
 using Quartz.Web.Api.Dto;
 
@@ -29,8 +28,10 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var trigger = await scheduler.GetTrigger(new TriggerKey(triggerName, triggerGroup)).ConfigureAwait(false);
-            var calendar = trigger.CalendarName != null ? await scheduler.GetCalendar(trigger.CalendarName).ConfigureAwait(false) : null;
-            return new TriggerDetailDto(trigger, calendar);
+            var calendar = trigger.CalendarName != null
+                ? await scheduler.GetCalendar(trigger.CalendarName).ConfigureAwait(false)
+                : null;
+            return TriggerDetailDto.Create(trigger, calendar);
         }
 
         [HttpPost]

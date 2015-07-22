@@ -14,8 +14,11 @@ System.config({
     "aurelia-history": "github:aurelia/history@0.6.0",
     "aurelia-http-client": "github:aurelia/http-client@0.10.0",
     "aurelia-logging-console": "github:aurelia/logging-console@0.6.0",
+    "bootbox": "npm:bootbox@4.4.0",
+    "bootstrap": "github:twbs/bootstrap@3.3.5",
     "core-js": "npm:core-js@0.9.18",
     "font-awesome": "npm:font-awesome@4.3.0",
+    "jquery": "github:components/jquery@2.1.4",
     "moment": "github:moment/moment@2.10.3",
     "traceur": "github:jmcriffey/bower-traceur@0.0.87",
     "traceur-runtime": "github:jmcriffey/bower-traceur-runtime@0.0.87",
@@ -125,6 +128,12 @@ System.config({
     },
     "github:jspm/nodelibs-process@0.1.1": {
       "process": "npm:process@0.10.1"
+    },
+    "github:twbs/bootstrap@3.3.5": {
+      "jquery": "github:components/jquery@2.1.4"
+    },
+    "npm:bootbox@4.4.0": {
+      "process": "github:jspm/nodelibs-process@0.1.1"
     },
     "npm:core-js@0.9.18": {
       "fs": "github:jspm/nodelibs-fs@0.1.2",
