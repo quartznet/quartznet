@@ -104,6 +104,8 @@
     <Compile Include="..\AssemblyInfo.cs">
       <Link>AssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="example16\AsyncExample.cs" />
+    <Compile Include="example16\AsyncJob.cs" />
     <Compile Include="Program.cs">
       <SubType>Code</SubType>
     </Compile>

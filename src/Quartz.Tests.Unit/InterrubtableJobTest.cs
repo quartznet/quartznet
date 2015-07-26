@@ -36,7 +36,9 @@ namespace Quartz.Tests.Unit
     {
         private static readonly ManualResetEvent sync = new ManualResetEvent(false);
 
+#pragma warning disable 618
         public class TestInterruptableJob : IInterruptableJob
+#pragma warning restore 618
         {
             public static bool interrupted;
 

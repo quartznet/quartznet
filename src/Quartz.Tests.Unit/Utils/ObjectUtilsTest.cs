@@ -21,7 +21,7 @@
 
 using System;
 using System.Collections.Specialized;
-
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Spi;
@@ -160,51 +160,30 @@ namespace Quartz.Tests.Unit.Utils
 
         public class TimeSpanPropertyTest
         {
-            private TimeSpan timeMinutes;
-            private TimeSpan timeSeconds;
-            private TimeSpan timeMilliseconds;
-            private TimeSpan timeHours;
-            private TimeSpan timeDefault;
-
             [TimeSpanParseRule(TimeSpanParseRule.Hours)]
-            public TimeSpan TimeHours
-            {
-                get { return timeHours; }
-                set { timeHours = value; }
-            }
+            public TimeSpan TimeHours { get; set; }
 
             [TimeSpanParseRule(TimeSpanParseRule.Minutes)]
-            public TimeSpan TimeMinutes
-            {
-                get { return timeMinutes; }
-                set { timeMinutes = value; }
-            }
+            public TimeSpan TimeMinutes { get; set; }
 
             [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
-            public TimeSpan TimeSeconds
-            {
-                get { return timeSeconds; }
-                set { timeSeconds = value; }
-            }
+            public TimeSpan TimeSeconds { get; set; }
 
             [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-            public TimeSpan TimeMilliseconds
-            {
-                get { return timeMilliseconds; }
-                set { timeMilliseconds = value; }
-            }
+            public TimeSpan TimeMilliseconds { get; set; }
 
-            public TimeSpan TimeDefault
-            {
-                get { return timeDefault; }
-                set { timeDefault = value; }
-            }
+            public TimeSpan TimeDefault { get; set; }
         }
     }
 
     internal class ExplicitImplementor : IThreadPool
     {
         bool IThreadPool.RunInThread(Action action)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool RunInThread(Func<Task> runnable)
         {
             throw new NotImplementedException();
         }

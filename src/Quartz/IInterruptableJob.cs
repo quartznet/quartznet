@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System;
 using System.Threading;
 
 namespace Quartz
@@ -61,8 +62,8 @@ namespace Quartz
 	/// <seealso cref="IJob" />
 	/// <seealso cref="IScheduler.Interrupt(JobKey)"/>
     /// <seealso cref="IScheduler.Interrupt(string)"/>
-    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+    [Obsolete("You should check for JobExecutionContext.IsCancellationRequested or call JobExecutionContext.ThrowIfCancellationRequested()")]
     public interface IInterruptableJob : IJob
 	{
 		/// <summary>

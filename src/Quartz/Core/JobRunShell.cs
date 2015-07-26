@@ -86,7 +86,7 @@ namespace Quartz.Core
         {
             qs = sched;
 
-            IJob job;
+            IQuartzJob job;
             IJobDetail jobDetail = firedTriggerBundle.JobDetail;
 
             try
@@ -119,7 +119,7 @@ namespace Quartz.Core
         /// This method has to be implemented in order that starting of the thread causes the object's
         /// run method to be called in that separately executing thread.
         /// </summary>
-        public virtual void Run()
+        public virtual async Task Run()
         {
             qs.AddInternalSchedulerListener(this);
 
@@ -130,7 +130,7 @@ namespace Quartz.Core
                 do
                 {
                     JobExecutionException jobExEx = null;
-                    IJob job = jec.JobInstance;
+                    IQuartzJob job = jec.JobInstance;
 
                     try
                     {
@@ -185,9 +185,20 @@ namespace Quartz.Core
                             log.Debug("Calling Execute on job " + jobDetail.Key);
                         }
 
-                        job.Execute(jec);
+                        var syncJob = job as IJob;
+                        syncJob?.Execute(jec);
+                        if (syncJob == null)
+                        {
+                            var asyncJob = job as IAsyncJob;
+                            await asyncJob.Execute(jec);
+                        }
 
                         endTime = SystemTime.UtcNow();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        endTime = SystemTime.UtcNow();
+                        log.InfoFormat($"Job {jobDetail.Key} was cancelled");
                     }
                     catch (JobExecutionException jee)
                     {

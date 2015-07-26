@@ -22,7 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -33,7 +33,7 @@ namespace Quartz.Simpl
     /// <see cref="IThreadPool" /> interface.
     /// </summary>
     /// <remarks>
-    /// <see cref="Action" /> objects are sent to the pool with the <see cref="RunInThread" />
+    /// <see cref="Action" /> objects are sent to the pool with the <see cref="RunInThread(Action)" />
     /// method, which blocks until a <see cref="Thread" /> becomes available.
     /// 
     /// The pool has a fixed number of <see cref="Thread" />s, and does not grow or
@@ -298,6 +298,11 @@ namespace Quartz.Simpl
             }
 
             return true;
+        }
+
+        public bool RunInThread(Func<Task> runnable)
+        {
+            throw new NotSupportedException("This ThreadPool should not be used for running async jobs");
         }
 
         public int BlockForAvailableThreads()

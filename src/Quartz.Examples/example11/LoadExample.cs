@@ -21,7 +21,6 @@
 
 using System;
 using System.Threading.Tasks;
-
 using Quartz.Impl;
 using Quartz.Logging;
 
@@ -34,12 +33,9 @@ namespace Quartz.Examples.Example11
     /// <author>Marko Lahma (.NET)</author>
     public class LoadExample : IExample
     {
-        private readonly int numberOfJobs = 500;
+        private const int NumberOfJobs = 500;
 
-        public string Name
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public string Name => GetType().Name;
 
         public virtual async Task Run()
         {
@@ -55,7 +51,7 @@ namespace Quartz.Examples.Example11
 
             Random r = new Random();
             // schedule 500 jobs to run
-            for (int count = 1; count <= numberOfJobs; count++)
+            for (int count = 1; count <= NumberOfJobs; count++)
             {
                 IJobDetail job = JobBuilder
                     .Create<SimpleJob>()

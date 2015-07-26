@@ -21,7 +21,7 @@
 
 using System;
 using System.Threading;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -115,6 +115,21 @@ namespace Quartz.Simpl
         /// block until a thread is available, depending on the desired strategy.
         /// </remarks>
         public virtual bool RunInThread(Action runnable)
+        {
+            throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are start()ed.");
+        }
+
+        /// <summary>
+        /// Execute the given <see cref="Task" /> in the next
+        /// available <see cref="Thread" />.
+        /// </summary>
+        /// <remarks>
+        /// The implementation of this interface should not throw exceptions unless
+        /// there is a serious problem (i.e. a serious misconfiguration). If there
+        /// are no available threads, rather it should either queue the Runnable, or
+        /// block until a thread is available, depending on the desired strategy.
+        /// </remarks>
+        public bool RunInThread(Func<Task> runnable)
         {
             throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are start()ed.");
         }

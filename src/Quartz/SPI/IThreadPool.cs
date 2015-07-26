@@ -21,7 +21,7 @@
 
 using System;
 using System.Threading;
-
+using System.Threading.Tasks;
 using Quartz.Core;
 
 namespace Quartz.Spi
@@ -56,6 +56,18 @@ namespace Quartz.Spi
         /// block until a thread is available, depending on the desired strategy.
         /// </remarks>
         bool RunInThread(Action runnable);
+
+        /// <summary>
+        /// Execute the given <see cref="Task" /> in the next
+        /// available <see cref="Thread" />.
+        /// </summary>
+        /// <remarks>
+        /// The implementation of this interface should not throw exceptions unless
+        /// there is a serious problem (i.e. a serious misconfiguration). If there
+        /// are no available threads, rather it should either queue the Runnable, or
+        /// block until a thread is available, depending on the desired strategy.
+        /// </remarks>
+        bool RunInThread(Func<Task> runnable);
 
         /// <summary>
         /// Determines the number of threads that are currently available in

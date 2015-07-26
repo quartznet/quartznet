@@ -425,13 +425,22 @@ namespace Quartz.Core
                                     continue;
                                 }
 
-                                if (qsRsrcs.ThreadPool.RunInThread(shell.Run) == false)
+                                bool threadPoolRunResult;
+                                if (typeof (IAsyncJob).IsAssignableFrom(bndle.JobDetail.JobType))
+                                {
+                                    threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run());
+                                }
+                                else
+                                {
+                                    threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run().GetAwaiter().GetResult());
+                                }
+                                if (threadPoolRunResult == false)
                                 {
                                     // this case should never happen, as it is indicative of the
                                     // scheduler being shutdown or a bug in the thread pool or
                                     // a thread pool being used concurrently - which the docs
                                     // say not to do...
-                                    Log.Error("ThreadPool.runInThread() return false!");
+                                    Log.Error("ThreadPool.RunInThread() returned false!");
                                     await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError).ConfigureAwait(false);
                                 }
                             }
