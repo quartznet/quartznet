@@ -2008,21 +2008,17 @@ namespace Quartz.Core
 
             bool interrupted = false;
 
-            foreach (IJobExecutionContext jec in jobs)
+            foreach (var jobExecutionContext in jobs)
             {
+                var jec = (JobExecutionContextImpl) jobExecutionContext;
                 var jobDetail = jec.JobDetail;
                 if (jobKey.Equals(jobDetail.Key))
                 {
+                    // set botch cancellation token and interrupt if interface is implemented
+                    jec.Cancel();
                     IInterruptableJob jobInstance = jec.JobInstance as IInterruptableJob;
-                    if (jobInstance != null)
-                    {
-                        jobInstance.Interrupt();
-                        interrupted = true;
-                    }
-                    else
-                    {
-                        throw new UnableToInterruptJobException($"Job '{jobDetail.Key}' can not be interrupted, since it does not implement {typeof (IInterruptableJob).FullName}");
-                    }
+                    jobInstance?.Interrupt();
+                    interrupted = true;
                 }
             }
 
@@ -2044,17 +2040,16 @@ namespace Quartz.Core
         {
             var jobs = CurrentlyExecutingJobs;
 
-            foreach (IJobExecutionContext jec in jobs)
+            foreach (var jobExecutionContext in jobs)
             {
+                var jec = (JobExecutionContextImpl) jobExecutionContext;
                 if (jec.FireInstanceId.Equals(fireInstanceId))
                 {
+                    // set botch cancellation token and interrupt if interface is implemented
+                    jec.Cancel();
                     IInterruptableJob jobInstance = jec.JobInstance as IInterruptableJob;
-                    if (jobInstance != null)
-                    {
-                        jobInstance.Interrupt();
-                        return Task.FromResult(true);
-                    }
-                    throw new UnableToInterruptJobException("Job " + jec.JobDetail.Key + " can not be interrupted, since it does not implement " + typeof (IInterruptableJob).Name);
+                    jobInstance?.Interrupt();
+                    return Task.FromResult(true);
                 }
             }
 

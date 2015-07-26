@@ -35,10 +35,7 @@ namespace Quartz.Examples.Example15
     /// <author>Marko Lahma (.NET)</author>
     public class XmlConfigurationExample : IExample
     {
-        public string Name
-        {
-            get { return GetType().Name; }
-        }
+        public string Name => GetType().Name;
 
         public async Task Run()
         {

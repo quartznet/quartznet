@@ -22,7 +22,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-
 using Quartz.Spi;
 
 namespace Quartz.Impl
@@ -75,7 +74,7 @@ namespace Quartz.Impl
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;
-        [NonSerialized] private readonly IJob job;
+        [NonSerialized] private readonly IQuartzJob job;
 
         private readonly ICalendar calendar;
         private readonly bool recovering;
@@ -91,7 +90,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Create a JobExecutionContext with the given context data.
         /// </summary>
-        public JobExecutionContextImpl(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
+        public JobExecutionContextImpl(IScheduler scheduler, TriggerFiredBundle firedBundle, IQuartzJob job)
         {
             this.scheduler = scheduler;
             trigger = firedBundle.Trigger;
@@ -190,7 +189,7 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IJob JobInstance => job;
+        public virtual IQuartzJob JobInstance => job;
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
@@ -326,5 +325,17 @@ namespace Quartz.Impl
         /// Returns the fire instance id.
         /// </summary>
         public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId;
+
+        public bool IsCancellationRequested => cancellationTokenSource.Token.IsCancellationRequested;
+
+        public void ThrowIfCancellationRequested()
+        {
+            cancellationTokenSource.Token.ThrowIfCancellationRequested();
+        }
+
+        public void Cancel()
+        {
+            cancellationTokenSource.Cancel();
+        }
     }
 }

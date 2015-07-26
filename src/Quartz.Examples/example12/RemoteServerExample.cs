@@ -31,12 +31,9 @@ namespace Quartz.Examples.Example12
     /// <author>Marko Lahma (.NET)</author>
     public class RemoteServerExample : IExample
 	{
-		public string Name
-		{
-			get { return GetType().Name; }
-		}
+		public string Name => GetType().Name;
 
-		/// <summary>
+	    /// <summary>
 		/// This example will start a server that will allow clients to remotely schedule jobs.
 		/// </summary>
 		/// <author>  James House, Bill Kratzer

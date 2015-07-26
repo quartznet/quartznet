@@ -17,10 +17,12 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 namespace Quartz
 {
 	/// <summary> 
-	/// The interface to be implemented by classes which represent a 'job' to be
+	/// The interface to be implemented by classes which represent an async Task-based 'job' to be
 	/// performed.
 	/// </summary>
 	/// <remarks>
@@ -34,13 +36,12 @@ namespace Quartz
     /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
 	/// <seealso cref="ITrigger" />
 	/// <seealso cref="IScheduler" />
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	public interface IJob : IQuartzJob
+	/// <author>Marko Lahma</author>
+	public interface IAsyncJob : IQuartzJob
 	{
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
-		/// fires that is associated with the <see cref="IJob" />.
+		/// fires that is associated with the <see cref="IAsyncJob" />.
         /// </summary>
 		/// <remarks>
 		/// The implementation may wish to set a  result object on the 
@@ -51,6 +52,6 @@ namespace Quartz
 		/// execution.
 		/// </remarks>
 		/// <param name="context">The execution context.</param>
-        void Execute(IJobExecutionContext context);
+        Task Execute(IJobExecutionContext context);
 	}
 }

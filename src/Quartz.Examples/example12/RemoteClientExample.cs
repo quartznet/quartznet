@@ -81,6 +81,6 @@ namespace Quartz.Examples.Example12
             log.Info("Remote job scheduled.");
         }
 
-        public string Name => null;
+        public string Name => GetType().Name;
     }
 }

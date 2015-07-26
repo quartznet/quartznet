@@ -8,8 +8,8 @@ Release 3.0, xxx xx 2015
 BREAKING CHANGES
 
 * .NET 4.5 required
-* Many methods have been changed to be Task based, remember to await them
-* IJob and IInterruptableJob now return tasks, you can return TaskUtil.CompletedTask if you don't have async work inside your jobs
+* Many scheduler methods have been changed to be Task based, remember to await them
+* There's now IQuartzJob that the new IAsyncJob and old IJob inherit from, job factories operate with new IQuartzJob interface
 * Some IList properties have been changed to IReadOnlyList to properly reflect intent
 
 
