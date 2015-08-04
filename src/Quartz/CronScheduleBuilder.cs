@@ -154,10 +154,12 @@ namespace Quartz
         /// <seealso cref="CronExpression" />
         public static CronScheduleBuilder DailyAtHourAndMinute(int hour, int minute)
         {
-            DateBuilder.ValidateHour(hour);
-            DateBuilder.ValidateMinute(minute);
-
-            string cronExpression = String.Format("0 {0} {1} ? * *", minute, hour);
+			var cronExpressionBuilder = new CronExpressionBuilder();
+	        string cronExpression = cronExpressionBuilder
+		        .Second(0)
+		        .Minute(minute)
+		        .Hour(hour)
+		        .CronExpression;
 
             return CronScheduleNoParseException(cronExpression);
         }
@@ -173,20 +175,13 @@ namespace Quartz
         /// <seealso cref="CronExpression" />
         public static CronScheduleBuilder AtHourAndMinuteOnGivenDaysOfWeek(int hour, int minute, params DayOfWeek[] daysOfWeek)
         {
-            if (daysOfWeek == null || daysOfWeek.Length == 0)
-            {
-                throw new ArgumentException("You must specify at least one day of week.");
-            }
-
-            DateBuilder.ValidateHour(hour);
-            DateBuilder.ValidateMinute(minute);
-
-            string cronExpression = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) daysOfWeek[0]) + 1);
-
-            for (int i = 1; i < daysOfWeek.Length; i++)
-            {
-                cronExpression = cronExpression + "," + (((int) daysOfWeek[i]) + 1);
-            }
+            var cronExpressionBuilder = new CronExpressionBuilder();
+	        string cronExpression = cronExpressionBuilder
+		        .Second(0)
+		        .Minute(minute)
+		        .Hour(hour)
+		        .DayOfWeek(daysOfWeek)
+		        .CronExpression;
 
             return CronScheduleNoParseException(cronExpression);
         }
@@ -205,10 +200,13 @@ namespace Quartz
         /// <seealso cref="CronExpression" />
         public static CronScheduleBuilder WeeklyOnDayAndHourAndMinute(DayOfWeek dayOfWeek, int hour, int minute)
         {
-            DateBuilder.ValidateHour(hour);
-            DateBuilder.ValidateMinute(minute);
-
-            string cronExpression = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) dayOfWeek) + 1);
+			var cronExpressionBuilder = new CronExpressionBuilder();
+			string cronExpression = cronExpressionBuilder
+				.Second(0)
+				.Minute(minute)
+				.Hour(hour)
+				.DayOfWeek(dayOfWeek)
+				.CronExpression;
 
             return CronScheduleNoParseException(cronExpression);
         }
@@ -227,11 +225,13 @@ namespace Quartz
         /// <seealso cref="CronExpression" />
         public static CronScheduleBuilder MonthlyOnDayAndHourAndMinute(int dayOfMonth, int hour, int minute)
         {
-            DateBuilder.ValidateDayOfMonth(dayOfMonth);
-            DateBuilder.ValidateHour(hour);
-            DateBuilder.ValidateMinute(minute);
-
-            string cronExpression = String.Format("0 {0} {1} {2} * ?", minute, hour, dayOfMonth);
+			var cronExpressionBuilder = new CronExpressionBuilder();
+			string cronExpression = cronExpressionBuilder
+				.Second(0)
+				.Minute(minute)
+				.Hour(hour)
+				.DayOfMonth(dayOfMonth)
+				.CronExpression;
 
             return CronScheduleNoParseException(cronExpression);
         }
