@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30324.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{69B269BD-CB8C-438A-A32E-4CB7CEA47BB2}"
 	ProjectSection(SolutionItems) = preProject
@@ -35,6 +35,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Integration.20
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Tests.Unit.2010", "src\Quartz.Tests.Unit\Quartz.Tests.Unit.2010.csproj", "{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Integration", "Integration", "{23126C84-DF16-432F-9054-1150818C43E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.StructureMap", "src\Quartz.StructureMap\Quartz.StructureMap.csproj", "{04FA0734-9B4B-4653-8EE2-FF88022D9754}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +61,10 @@ Global
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04FA0734-9B4B-4653-8EE2-FF88022D9754}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04FA0734-9B4B-4653-8EE2-FF88022D9754}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04FA0734-9B4B-4653-8EE2-FF88022D9754}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04FA0734-9B4B-4653-8EE2-FF88022D9754}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -68,5 +76,6 @@ Global
 		{70A37974-17DE-474C-8A1C-19637622E75F} = {6EBE10AB-07CE-4C04-AD4D-75660778D4C2}
 		{5587AF00-160F-4EC1-98A2-BEABA411256C} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
+		{04FA0734-9B4B-4653-8EE2-FF88022D9754} = {23126C84-DF16-432F-9054-1150818C43E6}
 	EndGlobalSection
 EndGlobal
