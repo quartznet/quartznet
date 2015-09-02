@@ -1,5 +1,6 @@
 QUARTZ JOB SCHEDULER .NET, 2.3.3, Jul 9, 2015
 -----------------------------------------------------------------
+[![Build status](https://ci.appveyor.com/api/projects/status/27d25fjxf1c9wix4?svg=true)](https://ci.appveyor.com/project/huoxudong125/quartznet)    
 
 http://www.quartz-scheduler.net/
 
