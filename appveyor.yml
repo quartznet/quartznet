@@ -1,0 +1,5 @@
+version: 1.0.{build}
+build:
+  project: Quartz.2010.sln
+  parallel: true
+  verbosity: minimal
