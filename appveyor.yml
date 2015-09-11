@@ -1,6 +1,6 @@
 version: 1.0.{build}
-script:
-nuget -restore
+build_script:
+-nuget restore
 build:
   project: Quartz.2010.sln
   parallel: true
