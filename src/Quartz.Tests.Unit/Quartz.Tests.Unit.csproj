@@ -215,6 +215,7 @@
     <EmbeddedResource Include="Xml\TestData\MinimalConfiguration.xml" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="packages.config" />
     <None Include="Serialized\AnnualCalendar_10.ser">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
