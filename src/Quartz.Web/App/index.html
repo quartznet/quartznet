@@ -21,9 +21,6 @@
 <script src="config.js"></script>
 <script>
     System.config({
-        map: {
-            "toastr": "scripts/toastr"
-        },
         meta: {
             'signalr/hubs?': {
                 deps: ['scripts/signalr/jquery.signalR-2.2.0']
@@ -37,6 +34,7 @@
     System.import("signalr/hubs?");
     System.import("bootstrap");
     System.import("moment");
+    System.import("toastr");
 </script>
 <script>
 

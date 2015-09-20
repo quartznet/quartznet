@@ -41,11 +41,13 @@ export class SchedulerIndexView {
     }
 
     loadDetails() {
-        return $.when(
-            this.http.get(`/api/schedulers/${this.schedulerName}`).then(response => {
-                this.details = response.content;
-            }),
-            this.refreshCurrentlyExecutingJobs()
+        return Promise.all(
+            [
+                this.http.get(`/api/schedulers/${this.schedulerName}`).then(response => {
+                    this.details = response.content;
+                }),
+                this.refreshCurrentlyExecutingJobs()
+            ]
         );
     }
 

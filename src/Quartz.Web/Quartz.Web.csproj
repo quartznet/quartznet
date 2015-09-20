@@ -12,7 +12,7 @@
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
-    <TypeScriptToolsVersion>1.5</TypeScriptToolsVersion>
+    <TypeScriptToolsVersion>1.6</TypeScriptToolsVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -83,9 +83,9 @@
     <Reference Include="Microsoft.Owin.StaticFiles">
       <HintPath>..\..\packages\Microsoft.Owin.StaticFiles.3.0.1\lib\net45\Microsoft.Owin.StaticFiles.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\packages\Newtonsoft.Json.6.0.8\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Owin">
       <HintPath>..\..\packages\Owin.1.0\lib\net40\Owin.dll</HintPath>
@@ -1268,23 +1268,26 @@
     <Content Include="App\scripts\toastr.min.js" />
   </ItemGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\binding%400.8.2\aurelia-binding.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\dependency-injection%400.9.0\aurelia-dependency-injection.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\event-aggregator%400.6.1\aurelia-event-aggregator.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\framework%400.13.3\aurelia-framework.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\history%400.6.0\aurelia-history.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\history-browser%400.6.1\aurelia-history-browser.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\http-client%400.10.0\aurelia-http-client.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\loader%400.8.2\aurelia-loader.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging%400.6.1\aurelia-logging.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging-console%400.6.0\aurelia-logging-console.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\metadata%400.7.0\aurelia-metadata.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\path%400.8.0\aurelia-path.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\route-recognizer%400.6.0\aurelia-route-recognizer.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\router%400.10.2\aurelia-router.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\task-queue%400.6.0\aurelia-task-queue.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating%400.13.11\aurelia-templating.d.ts" />
-    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating-binding%400.13.1\aurelia-templating-binding.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\animator-css%400.16.0\aurelia-animator-css.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\binding%400.9.1\aurelia-binding.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\bootstrapper%400.17.0\aurelia-bootstrapper.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\dependency-injection%400.10.1\aurelia-dependency-injection.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\event-aggregator%400.8.0\aurelia-event-aggregator.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\framework%400.16.0\aurelia-framework.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\history%400.7.0\aurelia-history.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\history-browser%400.8.0\aurelia-history-browser.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\http-client%400.11.0\aurelia-http-client.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\loader%400.9.0\aurelia-loader.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\loader-default%400.10.0\aurelia-loader-default.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging%400.7.0\aurelia-logging.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging-console%400.7.1\aurelia-logging-console.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\metadata%400.8.0\aurelia-metadata.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\path%400.9.0\aurelia-path.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\route-recognizer%400.7.0\aurelia-route-recognizer.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\router%400.12.0\aurelia-router.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\task-queue%400.7.0\aurelia-task-queue.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating%400.15.3\aurelia-templating.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating-binding%400.15.0\aurelia-templating-binding.d.ts" />
     <TypeScriptCompile Include="App\resources\index.ts" />
     <TypeScriptCompile Include="App\views\app.ts" />
     <TypeScriptCompile Include="App\views\history.ts" />

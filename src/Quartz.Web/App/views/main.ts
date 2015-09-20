@@ -2,7 +2,8 @@
     aurelia.use
         .standardConfiguration()
         .developmentLogging()
-        .plugin("./resources/index");
+        .feature("resources");
+
 
     aurelia.start().then(a => a.setRoot("views/app"));
 }
