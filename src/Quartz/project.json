@@ -1,0 +1,167 @@
+﻿{
+    "version": "1.0.0-*",
+    "description": "Quartz.NET",
+    "authors": [ "marko.lahma" ],
+    "tags": [ "" ],
+    "projectUrl": "",
+    "licenseUrl": "",
+
+    "dependencies": {
+        "LibLog": "4.2.3"
+    },
+    "compilationOptions": {
+        "warningsAsErrors": true,
+        "define": [ "LIBLOG_PUBLIC" ]
+    },
+    "frameworks": {
+        "net45": {
+            "frameworkAssemblies": {
+                "System.Collections": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                                "System.Collections.Concurrent": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.ComponentModel.DataAnnotations": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Configuration": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Data": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Diagnostics.Debug": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Diagnostics.Tools": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Globalization": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Linq": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Linq.Expressions": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Linq.Queryable": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.ObjectModel": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Reflection": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Reflection.Extensions": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Runtime": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Runtime.Remoting": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Runtime.Extensions": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Threading": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Xml": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                },
+                "System.Web": {
+                    "version": "4.0.0.0",
+                    "type": "build"
+                }
+            }
+        },
+        "dnx451": {
+            "frameworkAssemblies": {
+                "System.Collections": "4.0.0.0",
+                "System.Collections.Concurrent": "4.0.0.0",
+                "System.ComponentModel.DataAnnotations": "4.0.0.0",
+                "System.Data": "4.0.0.0",
+                "System.Diagnostics.Debug": "4.0.0.0",
+                "System.Diagnostics.Tools": "4.0.0.0",
+                "System.Globalization": "4.0.0.0",
+                "System.Linq": "4.0.0.0",
+                "System.Linq.Expressions": "4.0.0.0",
+                "System.Linq.Queryable": "4.0.0.0",
+                "System.ObjectModel": "4.0.0.0",
+                "System.Reflection": "4.0.0.0",
+                "System.Runtime": "4.0.0.0",
+                "System.Runtime.Extensions": "4.0.0.0",
+                "System.Threading": "4.0.0.0",
+                "System.Web": "4.0.0.0"
+            }
+        },
+        "dnxcore50": {
+            "dependencies": {
+                "System.Collections": "4.0.11-beta-*",
+                "System.Collections.Concurrent": "4.0.11-beta-*",
+                "System.ComponentModel": "4.0.1-beta-*",
+                "System.ComponentModel.Annotations": "4.0.11-beta-*",
+                "System.Data.Common": "4.0.1-beta-23409",
+                "System.Diagnostics.Debug": "4.0.11-beta-*",
+                "System.Diagnostics.Tools": "4.0.1-beta-*",
+                "System.Linq": "4.0.1-beta-*",
+                "System.Linq.Queryable": "4.0.1-beta-*",
+                "System.ObjectModel": "4.0.11-beta-*",
+                "System.Reflection": "4.0.10-*",
+                "System.Reflection.Extensions": "4.0.1-beta-*",
+                "System.Runtime": "4.0.21-beta-*",
+                "System.Runtime.Extensions": "4.0.11-beta-*",
+                "System.Runtime.InteropServices": "4.0.21-beta-*",
+                "System.Runtime.Serialization.Primitives": "4.0.11-beta-*",
+                "System.Threading": "4.0.11-beta-*",
+                "System.Threading.Tasks": "4.0.11-beta-*",
+                "System.Xml.XDocument": "4.0.11-beta-*"
+            }
+        },
+        "dotnet": {
+            "dependencies": {
+                "System.ComponentModel": "4.0.0",
+                "System.ComponentModel.Annotations": "4.0.10",
+                "System.Data.Common": "4.0.1-beta-23409",
+                "System.Diagnostics.Debug": "4.0.10",
+                "System.Globalization": "4.0.10",
+                "System.IO": "4.0.10",
+                "System.Linq": "4.0.0",
+                "System.Linq.Expressions": "4.0.10",
+                "System.Linq.Queryable": "4.0.0",
+                "System.ObjectModel": "4.0.10",
+                "System.Reflection": "4.0.10",
+                "System.Reflection.Extensions": "4.0.0",
+                "System.Reflection.TypeExtensions": "4.0.0",
+                "System.Resources.ResourceManager": "4.0.0",
+                "System.Runtime": "4.0.20",
+                "System.Runtime.Extensions": "4.0.10",
+                "System.Threading": "4.0.10",
+                "System.Threading.Tasks": "4.0.10"
+            }
+        }
+    }
+}
