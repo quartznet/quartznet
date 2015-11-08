@@ -37,7 +37,7 @@ namespace Quartz.Examples.example16
     {
         public string Name => GetType().Name;
 
-        public virtual async Task Run()
+        public virtual async Task RunAsync()
         {
             ILog log = LogProvider.GetLogger(typeof (AsyncExample));
 
@@ -65,18 +65,18 @@ namespace Quartz.Examples.example16
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(20).RepeatForever())
                 .Build();
 
-            await sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJobAsync(job, trigger);
 
             log.Info("------- Starting Scheduler ----------------");
 
             // start the schedule 
-            await sched.Start();
+            await sched.StartAsync();
 
             log.Info("------- Started Scheduler -----------------");
 
             await Task.Delay(TimeSpan.FromSeconds(5));
             log.Info("------- Cancelling job via scheduler.Interrupt() -----------------");
-            await sched.Interrupt(job.Key);
+            await sched.InterruptAsync(job.Key);
 
             log.Info("------- Waiting five minutes... -----------");
 
@@ -85,7 +85,7 @@ namespace Quartz.Examples.example16
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
+            await sched.ShutdownAsync(true);
             log.Info("------- Shutdown Complete -----------------");
         }
     }

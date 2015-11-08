@@ -42,7 +42,7 @@ namespace Quartz.Examples.Example2
             get { return GetType().Name; }
         }
 
-        public virtual async Task Run()
+        public virtual async Task RunAsync()
         {
             ILog log = LogProvider.GetLogger(typeof (SimpleTriggerExample));
 
@@ -72,7 +72,7 @@ namespace Quartz.Examples.Example2
                 .Build();
 
             // schedule it to run!
-            DateTimeOffset? ft = await sched.ScheduleJob(job, trigger);
+            DateTimeOffset? ft = await sched.ScheduleJobAsync(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -88,7 +88,7 @@ namespace Quartz.Examples.Example2
                 .StartAt(startTime)
                 .Build();
 
-            ft = await sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJobAsync(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -106,7 +106,7 @@ namespace Quartz.Examples.Example2
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(10))
                 .Build();
 
-            ft = await sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJobAsync(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -122,7 +122,7 @@ namespace Quartz.Examples.Example2
                 .ForJob(job)
                 .Build();
 
-            ft = await sched.ScheduleJob(trigger);
+            ft = await sched.ScheduleJobAsync(trigger);
             log.Info(job.Key +
                      " will [also] run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -140,7 +140,7 @@ namespace Quartz.Examples.Example2
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(5))
                 .Build();
 
-            ft = await sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJobAsync(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -156,7 +156,7 @@ namespace Quartz.Examples.Example2
                 .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute))
                 .Build();
 
-            ft = await sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJobAsync(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -173,7 +173,7 @@ namespace Quartz.Examples.Example2
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(40).RepeatForever())
                 .Build();
 
-            ft = await sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJobAsync(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -183,7 +183,7 @@ namespace Quartz.Examples.Example2
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
-            await sched.Start();
+            await sched.StartAsync();
 
             log.Info("------- Started Scheduler -----------------");
 
@@ -199,7 +199,7 @@ namespace Quartz.Examples.Example2
                 .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
                 .Build();
 
-            ft = await sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJobAsync(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -211,10 +211,10 @@ namespace Quartz.Examples.Example2
                 .StoreDurably()
                 .Build();
 
-            await sched.AddJob(job, true);
+            await sched.AddJobAsync(job, true);
 
             log.Info("'Manually' triggering job8...");
-            await sched.TriggerJob(new JobKey("job8", "group1"));
+            await sched.TriggerJobAsync(new JobKey("job8", "group1"));
 
             log.Info("------- Waiting 30 seconds... --------------");
 
@@ -237,7 +237,7 @@ namespace Quartz.Examples.Example2
                 .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
                 .Build();
 
-            ft = await sched.RescheduleJob(trigger.Key, trigger);
+            ft = await sched.RescheduleJobAsync(trigger.Key, trigger);
             log.Info("job7 rescheduled to run at: " + ft);
 
             log.Info("------- Waiting five minutes... ------------");
@@ -247,12 +247,12 @@ namespace Quartz.Examples.Example2
 
             log.Info("------- Shutting Down ---------------------");
 
-            await sched.Shutdown(true);
+            await sched.ShutdownAsync(true);
 
             log.Info("------- Shutdown Complete -----------------");
 
             // display some stats about the schedule that just ran
-            SchedulerMetaData metaData = await sched.GetMetaData();
+            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
             log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }

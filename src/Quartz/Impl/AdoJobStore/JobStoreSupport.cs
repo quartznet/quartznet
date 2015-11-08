@@ -470,7 +470,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
         /// used, in order to give it a chance to Initialize.
         /// </summary>
-        public virtual Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler s)
+        public virtual Task InitializeAsync(ITypeLoadHelper loadHelper, ISchedulerSignaler s)
         {
             if (dataSource == null)
             {
@@ -528,19 +528,19 @@ namespace Quartz.Impl.AdoJobStore
             return TaskUtil.CompletedTask;
         }
 
-        /// <seealso cref="IJobStore.SchedulerStarted()" />
-        public virtual async Task SchedulerStarted()
+        /// <seealso cref="IJobStore.SchedulerStartedAsync" />
+        public virtual async Task SchedulerStartedAsync()
         {
             if (Clustered)
             {
                 clusterManager = new ClusterManager(this);
-                await clusterManager.Initialize().ConfigureAwait(false);
+                await clusterManager.InitializeAsync().ConfigureAwait(false);
             }
             else
             {
                 try
                 {
-                    await RecoverJobs().ConfigureAwait(false);
+                    await RecoverJobsAsync().ConfigureAwait(false);
                 }
                 catch (SchedulerException se)
                 {
@@ -557,7 +557,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has been paused.
         /// </summary>
-        public Task SchedulerPaused()
+        public Task SchedulerPausedAsync()
         {
             schedulerRunning = false;
             return TaskUtil.CompletedTask;
@@ -567,7 +567,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has resumed after being paused.
         /// </summary>
-        public Task SchedulerResumed()
+        public Task SchedulerResumedAsync()
         {
             schedulerRunning = true;
             return TaskUtil.CompletedTask;
@@ -578,18 +578,18 @@ namespace Quartz.Impl.AdoJobStore
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public virtual async Task Shutdown()
+        public virtual async Task ShutdownAsync()
         {
             shutdown = true;
 
             if (misfireHandler != null)
             {
-                await misfireHandler.Shutdown().ConfigureAwait(false);
+                await misfireHandler.ShutdownAsync().ConfigureAwait(false);
             }
 
             if (clusterManager != null)
             {
-                await clusterManager.Shutdown().ConfigureAwait(false);
+                await clusterManager.ShutdownAsync().ConfigureAwait(false);
             }
 
             try
@@ -609,13 +609,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         public virtual bool SupportsPersistence => true;
 
-        protected virtual async Task ReleaseLock(string lockName, bool doIt)
+        protected virtual async Task ReleaseLockAsync(string lockName, bool doIt)
         {
             if (doIt)
             {
                 try
                 {
-                    await LockHandler.ReleaseLock(lockName).ConfigureAwait(false);
+                    await LockHandler.ReleaseLockAsync(lockName).ConfigureAwait(false);
                 }
                 catch (LockException le)
                 {
@@ -628,48 +628,48 @@ namespace Quartz.Impl.AdoJobStore
         /// Will recover any failed or misfired jobs and clean up the data store as
         /// appropriate.
         /// </summary>
-        protected virtual Task RecoverJobs()
+        protected virtual Task RecoverJobsAsync()
         {
-            return ExecuteInNonManagedTXLock(LockTriggerAccess, conn => RecoverJobs(conn));
+            return ExecuteInNonManagedTXLockAsync(LockTriggerAccess, conn => RecoverJobsAsync(conn));
         }
 
         /// <summary>
         /// Will recover any failed or misfired jobs and clean up the data store as
         /// appropriate.
         /// </summary>
-        protected virtual async Task RecoverJobs(ConnectionAndTransactionHolder conn)
+        protected virtual async Task RecoverJobsAsync(ConnectionAndTransactionHolder conn)
         {
             try
             {
                 // update inconsistent job states
-                int rows = await Delegate.UpdateTriggerStatesFromOtherStates(conn, StateWaiting, StateAcquired, StateBlocked).ConfigureAwait(false);
+                int rows = await Delegate.UpdateTriggerStatesFromOtherStatesAsync(conn, StateWaiting, StateAcquired, StateBlocked).ConfigureAwait(false);
 
-                rows += await Delegate.UpdateTriggerStatesFromOtherStates(conn, StatePaused,
+                rows += await Delegate.UpdateTriggerStatesFromOtherStatesAsync(conn, StatePaused,
                     StatePausedBlocked,
                     StatePausedBlocked).ConfigureAwait(false);
 
                 Log.Info("Freed " + rows + " triggers from 'acquired' / 'blocked' state.");
 
                 // clean up misfired jobs
-                await RecoverMisfiredJobs(conn, true).ConfigureAwait(false);
+                await RecoverMisfiredJobsAsync(conn, true).ConfigureAwait(false);
 
                 // recover jobs marked for recovery that were not fully executed
-                var recoveringJobTriggers = await Delegate.SelectTriggersForRecoveringJobs(conn).ConfigureAwait(false);
+                var recoveringJobTriggers = await Delegate.SelectTriggersForRecoveringJobsAsync(conn).ConfigureAwait(false);
                 Log.Info("Recovering " + recoveringJobTriggers.Count +
                          " jobs that were in-progress at the time of the last shut-down.");
 
                 foreach (IOperableTrigger trigger in recoveringJobTriggers)
                 {
-                    if (await JobExists(conn, trigger.JobKey).ConfigureAwait(false))
+                    if (await JobExistsAsync(conn, trigger.JobKey).ConfigureAwait(false))
                     {
                         trigger.ComputeFirstFireTimeUtc(null);
-                        await StoreTrigger(conn, trigger, null, false, StateWaiting, false, true).ConfigureAwait(false);
+                        await StoreTriggerAsync(conn, trigger, null, false, StateWaiting, false, true).ConfigureAwait(false);
                     }
                 }
                 Log.Info("Recovery complete.");
 
                 // remove lingering 'complete' triggers...
-                var triggersInState = await Delegate.SelectTriggersInState(conn, StateComplete).ConfigureAwait(false);
+                var triggersInState = await Delegate.SelectTriggersInStateAsync(conn, StateComplete).ConfigureAwait(false);
                 for (int i = 0; triggersInState != null && i < triggersInState.Count; i++)
                 {
                     await RemoveTrigger(conn, triggersInState[i]).ConfigureAwait(false);
@@ -680,7 +680,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
 
                 // clean up any fired trigger entries
-                int n = await Delegate.DeleteFiredTriggers(conn).ConfigureAwait(false);
+                int n = await Delegate.DeleteFiredTriggersAsync(conn).ConfigureAwait(false);
                 Log.Info("Removed " + n + " stale fired job entries.");
             }
             catch (JobPersistenceException)
@@ -695,7 +695,7 @@ namespace Quartz.Impl.AdoJobStore
 
         //private int lastRecoverCount = 0;
 
-        public virtual async Task<RecoverMisfiredJobsResult> RecoverMisfiredJobs(ConnectionAndTransactionHolder conn,
+        public virtual async Task<RecoverMisfiredJobsResult> RecoverMisfiredJobsAsync(ConnectionAndTransactionHolder conn,
             bool recovering)
         {
             // If recovering, we want to handle all of the misfired
@@ -708,7 +708,7 @@ namespace Quartz.Impl.AdoJobStore
             // We must still look for the MISFIRED state in case triggers were left 
             // in this state when upgrading to this version that does not support it. 
             bool hasMoreMisfiredTriggers =
-                await Delegate.HasMisfiredTriggersInState(conn, StateWaiting, MisfireTime, maxMisfiresToHandleAtATime, misfiredTriggers).ConfigureAwait(false);
+                await Delegate.HasMisfiredTriggersInStateAsync(conn, StateWaiting, MisfireTime, maxMisfiresToHandleAtATime, misfiredTriggers).ConfigureAwait(false);
 
             if (hasMoreMisfiredTriggers)
             {
@@ -739,7 +739,7 @@ namespace Quartz.Impl.AdoJobStore
                     continue;
                 }
 
-                await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                await DoUpdateOfMisfiredTriggerAsync(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
 
                 DateTimeOffset? nextTime = trig.GetNextFireTimeUtc();
                 if (nextTime.HasValue && nextTime.Value < earliestNewTime)
@@ -770,7 +770,7 @@ namespace Quartz.Impl.AdoJobStore
                     return false;
                 }
 
-                await DoUpdateOfMisfiredTrigger(conn, trig, forceState, newStateIfNotComplete, false).ConfigureAwait(false);
+                await DoUpdateOfMisfiredTriggerAsync(conn, trig, forceState, newStateIfNotComplete, false).ConfigureAwait(false);
 
                 return true;
             }
@@ -780,7 +780,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
+        private async Task DoUpdateOfMisfiredTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
             bool forceState, string newStateIfNotComplete, bool recovering)
         {
             ICalendar cal = null;
@@ -789,18 +789,18 @@ namespace Quartz.Impl.AdoJobStore
                 cal = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
             }
 
-            await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
+            await schedSignaler.NotifyTriggerListenersMisfiredAsync(trig).ConfigureAwait(false);
 
             trig.UpdateAfterMisfire(cal);
 
             if (!trig.GetNextFireTimeUtc().HasValue)
             {
-                await StoreTrigger(conn, trig, null, true, StateComplete, forceState, recovering).ConfigureAwait(false);
-                await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
+                await StoreTriggerAsync(conn, trig, null, true, StateComplete, forceState, recovering).ConfigureAwait(false);
+                await schedSignaler.NotifySchedulerListenersFinalizedAsync(trig).ConfigureAwait(false);
             }
             else
             {
-                await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, false).ConfigureAwait(false);
+                await StoreTriggerAsync(conn, trig, null, true, newStateIfNotComplete, forceState, false).ConfigureAwait(false);
             }
         }
 
@@ -809,12 +809,12 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="newJob">Job to be stored.</param>
         /// <param name="newTrigger">Trigger to be stored.</param>
-        public async Task StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger)
+        public async Task StoreJobAndTriggerAsync(IJobDetail newJob, IOperableTrigger newTrigger)
         {
-            await ExecuteInLock<object>((LockOnInsert) ? LockTriggerAccess : null, async conn =>
+            await ExecuteInLockAsync<object>((LockOnInsert) ? LockTriggerAccess : null, async conn =>
             {
-                await StoreJob(conn, newJob, false).ConfigureAwait(false);
-                await StoreTrigger(conn, newTrigger, newJob, false, StateWaiting, false, false).ConfigureAwait(false);
+                await StoreJobAsync(conn, newJob, false).ConfigureAwait(false);
+                await StoreTriggerAsync(conn, newTrigger, newJob, false, StateWaiting, false, false).ConfigureAwait(false);
                 return null;
             }).ConfigureAwait(false);
         }
@@ -825,7 +825,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public Task<bool> IsJobGroupPaused(string groupName)
+        public Task<bool> IsJobGroupPausedAsync(string groupName)
         {
             throw new NotImplementedException();
         }
@@ -836,7 +836,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public Task<bool> IsTriggerGroupPaused(string groupName)
+        public Task<bool> IsTriggerGroupPausedAsync(string groupName)
         {
             throw new NotImplementedException();
         }
@@ -849,22 +849,22 @@ namespace Quartz.Impl.AdoJobStore
         /// If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name &amp; group should be over-written.
         /// </param>
-        public async Task StoreJob(IJobDetail newJob, bool replaceExisting)
+        public async Task StoreJobAsync(IJobDetail newJob, bool replaceExisting)
         {
-            await ExecuteInLock(
+            await ExecuteInLockAsync(
                 (LockOnInsert || replaceExisting) ? LockTriggerAccess : null,
-                conn => StoreJob(conn, newJob, replaceExisting)).ConfigureAwait(false);
+                conn => StoreJobAsync(conn, newJob, replaceExisting)).ConfigureAwait(false);
         }
 
         /// <summary> <para>
         /// Insert or update a job.
         /// </para>
         /// </summary>
-        protected virtual async Task StoreJob(ConnectionAndTransactionHolder conn,
+        protected virtual async Task StoreJobAsync(ConnectionAndTransactionHolder conn,
             IJobDetail newJob,
             bool replaceExisting)
         {
-            bool existingJob = await JobExists(conn, newJob.Key).ConfigureAwait(false);
+            bool existingJob = await JobExistsAsync(conn, newJob.Key).ConfigureAwait(false);
             try
             {
                 if (existingJob)
@@ -873,11 +873,11 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         throw new ObjectAlreadyExistsException(newJob);
                     }
-                    await Delegate.UpdateJobDetail(conn, newJob).ConfigureAwait(false);
+                    await Delegate.UpdateJobDetailAsync(conn, newJob).ConfigureAwait(false);
                 }
                 else
                 {
-                    await Delegate.InsertJobDetail(conn, newJob).ConfigureAwait(false);
+                    await Delegate.InsertJobDetailAsync(conn, newJob).ConfigureAwait(false);
                 }
             }
             catch (IOException e)
@@ -893,11 +893,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Check existence of a given job.
         /// </summary>
-        protected virtual async Task<bool> JobExists(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        protected virtual async Task<bool> JobExistsAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             try
             {
-                return await Delegate.JobExists(conn, jobKey).ConfigureAwait(false);
+                return await Delegate.JobExistsAsync(conn, jobKey).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -919,19 +919,19 @@ namespace Quartz.Impl.AdoJobStore
         /// if a <see cref="ITrigger" /> with the same name/group already
         /// exists, and replaceExisting is set to false.
         /// </exception>
-        public async Task StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting)
+        public async Task StoreTriggerAsync(IOperableTrigger newTrigger, bool replaceExisting)
         {
-            await ExecuteInLock(
+            await ExecuteInLockAsync(
                 (LockOnInsert || replaceExisting) ? LockTriggerAccess : null,
-                conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false)).ConfigureAwait(false);
+                conn => StoreTriggerAsync(conn, newTrigger, null, replaceExisting, StateWaiting, false, false)).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Insert or update a trigger.
         /// </summary>
-        protected virtual async Task StoreTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger newTrigger, IJobDetail job, bool replaceExisting, string state, bool forceState, bool recovering)
+        protected virtual async Task StoreTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger newTrigger, IJobDetail job, bool replaceExisting, string state, bool forceState, bool recovering)
         {
-            bool existingTrigger = await TriggerExists(conn, newTrigger.Key).ConfigureAwait(false);
+            bool existingTrigger = await TriggerExistsAsync(conn, newTrigger.Key).ConfigureAwait(false);
 
             if ((existingTrigger) && !replaceExisting)
             {
@@ -942,15 +942,15 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (!forceState)
                 {
-                    bool shouldBepaused = await Delegate.IsTriggerGroupPaused(conn, newTrigger.Key.Group).ConfigureAwait(false);
+                    bool shouldBepaused = await Delegate.IsTriggerGroupPausedAsync(conn, newTrigger.Key.Group).ConfigureAwait(false);
 
                     if (!shouldBepaused)
                     {
-                        shouldBepaused = await Delegate.IsTriggerGroupPaused(conn, AllGroupsPaused).ConfigureAwait(false);
+                        shouldBepaused = await Delegate.IsTriggerGroupPausedAsync(conn, AllGroupsPaused).ConfigureAwait(false);
 
                         if (shouldBepaused)
                         {
-                            await Delegate.InsertPausedTriggerGroup(conn, newTrigger.Key.Group).ConfigureAwait(false);
+                            await Delegate.InsertPausedTriggerGroupAsync(conn, newTrigger.Key.Group).ConfigureAwait(false);
                         }
                     }
 
@@ -972,15 +972,15 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 if (job.ConcurrentExecutionDisallowed && !recovering)
                 {
-                    state = await CheckBlockedState(conn, job.Key, state).ConfigureAwait(false);
+                    state = await CheckBlockedStateAsync(conn, job.Key, state).ConfigureAwait(false);
                 }
                 if (existingTrigger)
                 {
-                    await Delegate.UpdateTrigger(conn, newTrigger, state, job).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerAsync(conn, newTrigger, state, job).ConfigureAwait(false);
                 }
                 else
                 {
-                    await Delegate.InsertTrigger(conn, newTrigger, state, job).ConfigureAwait(false);
+                    await Delegate.InsertTriggerAsync(conn, newTrigger, state, job).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -993,11 +993,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Check existence of a given trigger.
         /// </summary>
-        protected virtual async Task<bool> TriggerExists(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        protected virtual async Task<bool> TriggerExistsAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             try
             {
-                return await Delegate.TriggerExists(conn, triggerKey).ConfigureAwait(false);
+                return await Delegate.TriggerExistsAsync(conn, triggerKey).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1021,9 +1021,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="IJob" /> with the given name &amp;
         /// group was found and removed from the store.
         /// </returns>
-        public async Task<bool> RemoveJob(JobKey jobKey)
+        public async Task<bool> RemoveJobAsync(JobKey jobKey)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => RemoveJob(conn, jobKey, true)).ConfigureAwait(false);
+            return await ExecuteInLockAsync(LockTriggerAccess, conn => RemoveJob(conn, jobKey, true)).ConfigureAwait(false);
         }
 
         protected virtual async Task<bool> RemoveJob(ConnectionAndTransactionHolder conn,
@@ -1031,7 +1031,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                var jobTriggers = await Delegate.SelectTriggerNamesForJob(conn, jobKey).ConfigureAwait(false);
+                var jobTriggers = await Delegate.SelectTriggerNamesForJobAsync(conn, jobKey).ConfigureAwait(false);
 
                 foreach (TriggerKey jobTrigger in jobTriggers)
                 {
@@ -1046,9 +1046,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public async Task<bool> RemoveJobs(IList<JobKey> jobKeys)
+        public async Task<bool> RemoveJobsAsync(IList<JobKey> jobKeys)
         {
-            return await ExecuteInLock(
+            return await ExecuteInLockAsync(
                 LockTriggerAccess, async conn =>
                 {
                     bool allFound = true;
@@ -1063,9 +1063,9 @@ namespace Quartz.Impl.AdoJobStore
                 }).ConfigureAwait(false);
         }
 
-        public async Task<bool> RemoveTriggers(IList<TriggerKey> triggerKeys)
+        public async Task<bool> RemoveTriggersAsync(IList<TriggerKey> triggerKeys)
         {
-            return await ExecuteInLock(LockTriggerAccess, async conn =>
+            return await ExecuteInLockAsync(LockTriggerAccess, async conn =>
             {
                 bool allFound = true;
 
@@ -1079,18 +1079,18 @@ namespace Quartz.Impl.AdoJobStore
             }).ConfigureAwait(false);
         }
 
-        public async Task StoreJobsAndTriggers(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
+        public async Task StoreJobsAndTriggersAsync(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
         {
-            await ExecuteInLock(
+            await ExecuteInLockAsync(
                 (LockOnInsert || replace) ? LockTriggerAccess : null, async conn =>
                 {
                     // TODO: make this more efficient with a true bulk operation...
                     foreach (IJobDetail job in triggersAndJobs.Keys)
                     {
-                        await StoreJob(conn, job, replace).ConfigureAwait(false);
+                        await StoreJobAsync(conn, job, replace).ConfigureAwait(false);
                         foreach (ITrigger trigger in triggersAndJobs[job])
                         {
-                            await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false).ConfigureAwait(false);
+                            await StoreTriggerAsync(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false).ConfigureAwait(false);
                         }
                     }
                 }).ConfigureAwait(false);
@@ -1103,7 +1103,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail)" />
         private async Task<bool> DeleteJobAndChildren(ConnectionAndTransactionHolder conn, JobKey key)
         {
-            return await Delegate.DeleteJobDetail(conn, key).ConfigureAwait(false) > 0;
+            return await Delegate.DeleteJobDetailAsync(conn, key).ConfigureAwait(false) > 0;
         }
 
         /// <summary>
@@ -1114,7 +1114,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, TriggerKey, IOperableTrigger)" />
         private async Task<bool> DeleteTriggerAndChildren(ConnectionAndTransactionHolder conn, TriggerKey key)
         {
-            return await Delegate.DeleteTrigger(conn, key).ConfigureAwait(false) > 0;
+            return await Delegate.DeleteTriggerAsync(conn, key).ConfigureAwait(false) > 0;
         }
 
         /// <summary>
@@ -1123,17 +1123,17 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="jobKey">The key identifying the job.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-        public async Task<IJobDetail> RetrieveJob(JobKey jobKey)
+        public async Task<IJobDetail> RetrieveJobAsync(JobKey jobKey)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey)).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(conn => RetrieveJob(conn, jobKey)).ConfigureAwait(false);
         }
 
         protected virtual async Task<IJobDetail> RetrieveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             try
             {
-                IJobDetail job = await Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper).ConfigureAwait(false);
+                IJobDetail job = await Delegate.SelectJobDetailAsync(conn, jobKey, TypeLoadHelper).ConfigureAwait(false);
                 return job;
             }
             catch (TypeLoadException e)
@@ -1173,9 +1173,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="ITrigger" /> with the given
         /// name &amp; group was found and removed from the store.
         ///</returns>
-        public async Task<bool> RemoveTrigger(TriggerKey triggerKey)
+        public async Task<bool> RemoveTriggerAsync(TriggerKey triggerKey)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => RemoveTrigger(conn, triggerKey)).ConfigureAwait(false);
+            return await ExecuteInLockAsync(LockTriggerAccess, conn => RemoveTrigger(conn, triggerKey)).ConfigureAwait(false);
         }
 
         protected virtual async Task<bool> RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
@@ -1192,21 +1192,21 @@ namespace Quartz.Impl.AdoJobStore
                 // we use fault tolerant type loading as we only want to delete things
                 if (job == null)
                 {
-                    job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NoOpJobTypeLoader(), false).ConfigureAwait(false);
+                    job = await Delegate.SelectJobForTriggerAsync(conn, triggerKey, new NoOpJobTypeLoader(), false).ConfigureAwait(false);
                 }
 
                 removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey).ConfigureAwait(false);
 
                 if (null != job && !job.Durable)
                 {
-                    int numTriggers = await Delegate.SelectNumTriggersForJob(conn, job.Key).ConfigureAwait(false);
+                    int numTriggers = await Delegate.SelectNumTriggersForJobAsync(conn, job.Key).ConfigureAwait(false);
                     if (numTriggers == 0)
                     {
                         // Don't call RemoveJob() because we don't want to check for
                         // triggers again.
                         if (await DeleteJobAndChildren(conn, job.Key).ConfigureAwait(false))
                         {
-                            await schedSignaler.NotifySchedulerListenersJobDeleted(job.Key).ConfigureAwait(false);
+                            await schedSignaler.NotifySchedulerListenersJobDeletedAsync(job.Key).ConfigureAwait(false);
                         }
                     }
                 }
@@ -1241,10 +1241,10 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <see cref="IJobStore.ReplaceTrigger(TriggerKey, IOperableTrigger)" />
-        public async Task<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger)
+        /// <see cref="IJobStore.ReplaceTriggerAsync" />
+        public async Task<bool> ReplaceTriggerAsync(TriggerKey triggerKey, IOperableTrigger newTrigger)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => ReplaceTrigger(conn, triggerKey, newTrigger)).ConfigureAwait(false);
+            return await ExecuteInLockAsync(LockTriggerAccess, conn => ReplaceTrigger(conn, triggerKey, newTrigger)).ConfigureAwait(false);
         }
 
         protected virtual async Task<bool> ReplaceTrigger(ConnectionAndTransactionHolder conn,
@@ -1253,7 +1253,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // this must be called before we delete the trigger, obviously
-                IJobDetail job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper).ConfigureAwait(false);
+                IJobDetail job = await Delegate.SelectJobForTriggerAsync(conn, triggerKey, TypeLoadHelper).ConfigureAwait(false);
 
                 if (job == null)
                 {
@@ -1267,7 +1267,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey).ConfigureAwait(false);
 
-                await StoreTrigger(conn, newTrigger, job, false, StateWaiting, false, false).ConfigureAwait(false);
+                await StoreTriggerAsync(conn, newTrigger, job, false, StateWaiting, false, false).ConfigureAwait(false);
 
                 return removedTrigger;
             }
@@ -1282,9 +1282,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <returns>The desired <see cref="ITrigger" />, or null if there is no match.</returns>
-        public async Task<IOperableTrigger> RetrieveTrigger(TriggerKey triggerKey)
+        public async Task<IOperableTrigger> RetrieveTriggerAsync(TriggerKey triggerKey)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
+            return await ExecuteWithoutLockAsync( // no locks necessary for read...
                 conn => RetrieveTrigger(conn, triggerKey)).ConfigureAwait(false);
         }
 
@@ -1292,7 +1292,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                IOperableTrigger trigger = await Delegate.SelectTrigger(conn, triggerKey).ConfigureAwait(false);
+                IOperableTrigger trigger = await Delegate.SelectTriggerAsync(conn, triggerKey).ConfigureAwait(false);
                 return trigger;
             }
             catch (Exception e)
@@ -1309,10 +1309,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="TriggerState.Complete" />
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.None" />
-        public async Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
+        public async Task<TriggerState> GetTriggerStateAsync(TriggerKey triggerKey)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => GetTriggerState(conn, triggerKey)).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(conn => GetTriggerState(conn, triggerKey)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1325,7 +1325,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                string ts = await Delegate.SelectTriggerState(conn, triggerKey).ConfigureAwait(false);
+                string ts = await Delegate.SelectTriggerStateAsync(conn, triggerKey).ConfigureAwait(false);
 
                 if (ts == null)
                 {
@@ -1386,15 +1386,15 @@ namespace Quartz.Impl.AdoJobStore
         ///           if a <see cref="ICalendar" /> with the same name already
         ///           exists, and replaceExisting is set to false.
         /// </exception>
-        public async Task StoreCalendar(string calName, ICalendar calendar, bool replaceExisting,
+        public async Task StoreCalendarAsync(string calName, ICalendar calendar, bool replaceExisting,
             bool updateTriggers)
         {
-            await ExecuteInLock(
+            await ExecuteInLockAsync(
                 (LockOnInsert || updateTriggers) ? LockTriggerAccess : null,
-                conn => StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers)).ConfigureAwait(false);
+                conn => StoreCalendarAsync(conn, calName, calendar, replaceExisting, updateTriggers)).ConfigureAwait(false);
         }
 
-        protected virtual async Task StoreCalendar(ConnectionAndTransactionHolder conn,
+        protected virtual async Task StoreCalendarAsync(ConnectionAndTransactionHolder conn,
             string calName,
             ICalendar calendar, bool replaceExisting, bool updateTriggers)
         {
@@ -1408,25 +1408,25 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (existingCal)
                 {
-                    if (await Delegate.UpdateCalendar(conn, calName, calendar).ConfigureAwait(false) < 1)
+                    if (await Delegate.UpdateCalendarAsync(conn, calName, calendar).ConfigureAwait(false) < 1)
                     {
                         throw new JobPersistenceException("Couldn't store calendar.  Update failed.");
                     }
 
                     if (updateTriggers)
                     {
-                        var triggers = await Delegate.SelectTriggersForCalendar(conn, calName).ConfigureAwait(false);
+                        var triggers = await Delegate.SelectTriggersForCalendarAsync(conn, calName).ConfigureAwait(false);
 
                         foreach (IOperableTrigger trigger in triggers)
                         {
                             trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
-                            await StoreTrigger(conn, trigger, null, true, StateWaiting, false, false).ConfigureAwait(false);
+                            await StoreTriggerAsync(conn, trigger, null, true, StateWaiting, false, false).ConfigureAwait(false);
                         }
                     }
                 }
                 else
                 {
-                    if (await Delegate.InsertCalendar(conn, calName, calendar).ConfigureAwait(false) < 1)
+                    if (await Delegate.InsertCalendarAsync(conn, calName, calendar).ConfigureAwait(false) < 1)
                     {
                         throw new JobPersistenceException("Couldn't store calendar.  Insert failed.");
                     }
@@ -1452,7 +1452,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                return await Delegate.CalendarExists(conn, calName).ConfigureAwait(false);
+                return await Delegate.CalendarExistsAsync(conn, calName).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1474,9 +1474,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         ///</returns>
-        public async Task<bool> RemoveCalendar(string calName)
+        public async Task<bool> RemoveCalendarAsync(string calName)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calName)).ConfigureAwait(false);
+            return await ExecuteInLockAsync(LockTriggerAccess, conn => RemoveCalendar(conn, calName)).ConfigureAwait(false);
         }
 
         protected virtual async Task<bool> RemoveCalendar(ConnectionAndTransactionHolder conn,
@@ -1484,7 +1484,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                if (await Delegate.CalendarIsReferenced(conn, calName).ConfigureAwait(false))
+                if (await Delegate.CalendarIsReferencedAsync(conn, calName).ConfigureAwait(false))
                 {
                     throw new JobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
                 }
@@ -1494,7 +1494,7 @@ namespace Quartz.Impl.AdoJobStore
                     calendarCache.Remove(calName);
                 }
 
-                return (await Delegate.DeleteCalendar(conn, calName).ConfigureAwait(false) > 0);
+                return (await Delegate.DeleteCalendarAsync(conn, calName).ConfigureAwait(false) > 0);
             }
             catch (Exception e)
             {
@@ -1507,9 +1507,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
         /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
-        public async Task<ICalendar> RetrieveCalendar(string calName)
+        public async Task<ICalendar> RetrieveCalendarAsync(string calName)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
+            return await ExecuteWithoutLockAsync( // no locks necessary for read...
                 conn => RetrieveCalendar(conn, calName)).ConfigureAwait(false);
         }
 
@@ -1529,7 +1529,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                cal = await Delegate.SelectCalendar(conn, calName).ConfigureAwait(false);
+                cal = await Delegate.SelectCalendarAsync(conn, calName).ConfigureAwait(false);
                 if (!Clustered)
                 {
                     calendarCache[calName] = cal; // lazy-cache...
@@ -1551,17 +1551,17 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="IJob" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public async Task<int> GetNumberOfJobs()
+        public async Task<int> GetNumberOfJobsAsync()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetNumberOfJobs).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(GetNumberOfJobs).ConfigureAwait(false);
         }
 
         protected virtual async Task<int> GetNumberOfJobs(ConnectionAndTransactionHolder conn)
         {
             try
             {
-                return await Delegate.SelectNumJobs(conn).ConfigureAwait(false);
+                return await Delegate.SelectNumJobsAsync(conn).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1573,17 +1573,17 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="ITrigger" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public async Task<int> GetNumberOfTriggers()
+        public async Task<int> GetNumberOfTriggersAsync()
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
-                conn => GetNumberOfTriggers(conn)).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync( // no locks necessary for read...
+                conn => GetNumberOfTriggersAsync(conn)).ConfigureAwait(false);
         }
 
-        protected virtual async Task<int> GetNumberOfTriggers(ConnectionAndTransactionHolder conn)
+        protected virtual async Task<int> GetNumberOfTriggersAsync(ConnectionAndTransactionHolder conn)
         {
             try
             {
-                return await Delegate.SelectNumTriggers(conn).ConfigureAwait(false);
+                return await Delegate.SelectNumTriggersAsync(conn).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1595,17 +1595,17 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public async Task<int> GetNumberOfCalendars()
+        public async Task<int> GetNumberOfCalendarsAsync()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetNumberOfCalendars).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(GetNumberOfCalendars).ConfigureAwait(false);
         }
 
         protected virtual async Task<int> GetNumberOfCalendars(ConnectionAndTransactionHolder conn)
         {
             try
             {
-                return await Delegate.SelectNumCalendars(conn).ConfigureAwait(false);
+                return await Delegate.SelectNumCalendarsAsync(conn).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1621,10 +1621,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no jobs in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public async Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public async Task<ISet<JobKey>> GetJobKeysAsync(GroupMatcher<JobKey> matcher)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => GetJobNames(conn, matcher)).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(conn => GetJobNames(conn, matcher)).ConfigureAwait(false);
         }
 
         protected virtual async Task<ISet<JobKey>> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
@@ -1633,7 +1633,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                jobNames = await Delegate.SelectJobsInGroup(conn, matcher).ConfigureAwait(false);
+                jobNames = await Delegate.SelectJobsInGroupAsync(conn, matcher).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1651,9 +1651,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="calName">the identifier to check for</param>
         /// <returns>true if a calendar exists with the given identifier</returns>
-        public async Task<bool> CalendarExists(string calName)
+        public async Task<bool> CalendarExistsAsync(string calName)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
+            return await ExecuteWithoutLockAsync( // no locks necessary for read...
                 conn => CheckExists(conn, calName)).ConfigureAwait(false);
         }
 
@@ -1661,7 +1661,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                return await Delegate.CalendarExists(conn, calName).ConfigureAwait(false);
+                return await Delegate.CalendarExistsAsync(conn, calName).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1677,9 +1677,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="jobKey">the identifier to check for</param>
         /// <returns>true if a Job exists with the given identifier</returns>
-        public async Task<bool> CheckExists(JobKey jobKey)
+        public async Task<bool> CheckExistsAsync(JobKey jobKey)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
+            return await ExecuteWithoutLockAsync( // no locks necessary for read...
                 conn => CheckExists(conn, jobKey)).ConfigureAwait(false);
         }
 
@@ -1687,7 +1687,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                return await Delegate.JobExists(conn, jobKey).ConfigureAwait(false);
+                return await Delegate.JobExistsAsync(conn, jobKey).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1703,9 +1703,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="triggerKey">the identifier to check for</param>
         /// <returns>true if a Trigger exists with the given identifier</returns>
-        public async Task<bool> CheckExists(TriggerKey triggerKey)
+        public async Task<bool> CheckExistsAsync(TriggerKey triggerKey)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
+            return await ExecuteWithoutLockAsync( // no locks necessary for read...
                 conn => CheckExists(conn, triggerKey)).ConfigureAwait(false);
         }
 
@@ -1713,7 +1713,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                return await Delegate.TriggerExists(conn, triggerKey).ConfigureAwait(false);
+                return await Delegate.TriggerExistsAsync(conn, triggerKey).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1727,16 +1727,16 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <remarks>
         /// </remarks>
-        public async Task ClearAllSchedulingData()
+        public async Task ClearAllSchedulingDataAsync()
         {
-            await ExecuteInLock(LockTriggerAccess, ClearAllSchedulingData).ConfigureAwait(false);
+            await ExecuteInLockAsync(LockTriggerAccess, ClearAllSchedulingDataAsync).ConfigureAwait(false);
         }
 
-        protected async Task ClearAllSchedulingData(ConnectionAndTransactionHolder conn)
+        protected async Task ClearAllSchedulingDataAsync(ConnectionAndTransactionHolder conn)
         {
             try
             {
-                await Delegate.ClearData(conn).ConfigureAwait(false);
+                await Delegate.ClearDataAsync(conn).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1752,19 +1752,19 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no triggers in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public async Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public async Task<ISet<TriggerKey>> GetTriggerKeysAsync(GroupMatcher<TriggerKey> matcher)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher)).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(conn => GetTriggerNamesAsync(conn, matcher)).ConfigureAwait(false);
         }
 
-        protected virtual async Task<ISet<TriggerKey>> GetTriggerNames(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        protected virtual async Task<ISet<TriggerKey>> GetTriggerNamesAsync(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             ISet<TriggerKey> triggerNames;
 
             try
             {
-                triggerNames = await Delegate.SelectTriggersInGroup(conn, matcher).ConfigureAwait(false);
+                triggerNames = await Delegate.SelectTriggersInGroupAsync(conn, matcher).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1783,19 +1783,19 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public Task<IReadOnlyList<string>> GetJobGroupNames()
+        public Task<IReadOnlyList<string>> GetJobGroupNamesAsync()
         {
             // no locks necessary for read...
-            return ExecuteWithoutLock(GetJobGroupNames);
+            return ExecuteWithoutLockAsync(GetJobGroupNamesAsync);
         }
 
-        protected virtual async Task<IReadOnlyList<string>> GetJobGroupNames(ConnectionAndTransactionHolder conn)
+        protected virtual async Task<IReadOnlyList<string>> GetJobGroupNamesAsync(ConnectionAndTransactionHolder conn)
         {
             IReadOnlyList<string> groupNames;
 
             try
             {
-                groupNames = await Delegate.SelectJobGroups(conn).ConfigureAwait(false);
+                groupNames = await Delegate.SelectJobGroupsAsync(conn).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1814,10 +1814,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public async Task<IReadOnlyList<string>> GetTriggerGroupNames()
+        public async Task<IReadOnlyList<string>> GetTriggerGroupNamesAsync()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetTriggerGroupNames).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(GetTriggerGroupNames).ConfigureAwait(false);
         }
 
         protected virtual async Task<IReadOnlyList<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn)
@@ -1826,7 +1826,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                groupNames = await Delegate.SelectTriggerGroups(conn).ConfigureAwait(false);
+                groupNames = await Delegate.SelectTriggerGroupsAsync(conn).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1844,17 +1844,17 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no Calendars in the given group name, the result should be
         /// a zero-length array (not <see langword="null" />).
         /// </remarks>
-        public async Task<IReadOnlyList<string>> GetCalendarNames()
+        public async Task<IReadOnlyList<string>> GetCalendarNamesAsync()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetCalendarNames).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(GetCalendarNamesAsync).ConfigureAwait(false);
         }
 
-        protected virtual async Task<IReadOnlyList<string>> GetCalendarNames(ConnectionAndTransactionHolder conn)
+        protected virtual async Task<IReadOnlyList<string>> GetCalendarNamesAsync(ConnectionAndTransactionHolder conn)
         {
             try
             {
-                return await Delegate.SelectCalendars(conn).ConfigureAwait(false);
+                return await Delegate.SelectCalendarsAsync(conn).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1868,19 +1868,19 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// If there are no matches, a zero-length array should be returned.
         /// </remarks>
-        public async Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(JobKey jobKey)
+        public async Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJobAsync(JobKey jobKey)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => GetTriggersForJob(conn, jobKey)).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(conn => GetTriggersForJobAsync(conn, jobKey)).ConfigureAwait(false);
         }
 
-        protected virtual async Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        protected virtual async Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJobAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             IReadOnlyList<IOperableTrigger> array;
 
             try
             {
-                array = await Delegate.SelectTriggersForJob(conn, jobKey).ConfigureAwait(false);
+                array = await Delegate.SelectTriggersForJobAsync(conn, jobKey).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -1893,27 +1893,27 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
-        public async Task PauseTrigger(TriggerKey triggerKey)
+        public async Task PauseTriggerAsync(TriggerKey triggerKey)
         {
-            await ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey)).ConfigureAwait(false);
+            await ExecuteInLockAsync(LockTriggerAccess, conn => PauseTriggerAsync(conn, triggerKey)).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
-        public virtual async Task PauseTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task PauseTriggerAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             try
             {
-                string oldState = await Delegate.SelectTriggerState(conn, triggerKey).ConfigureAwait(false);
+                string oldState = await Delegate.SelectTriggerStateAsync(conn, triggerKey).ConfigureAwait(false);
 
                 if (oldState.Equals(StateWaiting) || oldState.Equals(StateAcquired))
                 {
-                    await Delegate.UpdateTriggerState(conn, triggerKey, StatePaused).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateAsync(conn, triggerKey, StatePaused).ConfigureAwait(false);
                 }
                 else if (oldState.Equals(StateBlocked))
                 {
-                    await Delegate.UpdateTriggerState(conn, triggerKey, StatePausedBlocked).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateAsync(conn, triggerKey, StatePausedBlocked).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -1927,15 +1927,15 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause the <see cref="IJob" /> with the given name - by
         /// pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
-        /// <seealso cref="ResumeJob(JobKey)" />
-        public virtual async Task PauseJob(JobKey jobKey)
+        /// <seealso cref="ResumeJobAsync" />
+        public virtual async Task PauseJobAsync(JobKey jobKey)
         {
-            await ExecuteInLock(LockTriggerAccess, async conn =>
+            await ExecuteInLockAsync(LockTriggerAccess, async conn =>
             {
-                var triggers = await GetTriggersForJob(conn, jobKey).ConfigureAwait(false);
+                var triggers = await GetTriggersForJobAsync(conn, jobKey).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
                 {
-                    await PauseTrigger(conn, trigger.Key).ConfigureAwait(false);
+                    await PauseTriggerAsync(conn, trigger.Key).ConfigureAwait(false);
                 }
             }).ConfigureAwait(false);
         }
@@ -1944,20 +1944,20 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause all of the <see cref="IJob" />s in the given
         /// group - by pausing all of their <see cref="ITrigger" />s.
         /// </summary>
-        /// <seealso cref="ResumeJobs" />
-        public virtual async Task<IReadOnlyList<string>> PauseJobs(GroupMatcher<JobKey> matcher)
+        /// <seealso cref="ResumeJobsAsync" />
+        public virtual async Task<IReadOnlyList<string>> PauseJobsAsync(GroupMatcher<JobKey> matcher)
         {
-            return await ExecuteInLock(LockTriggerAccess, async conn =>
+            return await ExecuteInLockAsync(LockTriggerAccess, async conn =>
             {
                 ISet<string> groupNames = new HashSet<string>();
                 ISet<JobKey> jobNames = await GetJobNames(conn, matcher).ConfigureAwait(false);
 
                 foreach (JobKey jobKey in jobNames)
                 {
-                    var triggers = await GetTriggersForJob(conn, jobKey).ConfigureAwait(false);
+                    var triggers = await GetTriggersForJobAsync(conn, jobKey).ConfigureAwait(false);
                     foreach (IOperableTrigger trigger in triggers)
                     {
-                        await PauseTrigger(conn, trigger.Key).ConfigureAwait(false);
+                        await PauseTriggerAsync(conn, trigger.Key).ConfigureAwait(false);
                     }
                     groupNames.Add(jobKey.Group);
                 }
@@ -1972,7 +1972,7 @@ namespace Quartz.Impl.AdoJobStore
         /// StatePaused/StateWaiting respectively.
         /// </summary>
         /// <returns>StatePausedBlocked, StateBlocked, or the currentState. </returns>
-        protected virtual async Task<string> CheckBlockedState(ConnectionAndTransactionHolder conn, JobKey jobKey, string currentState)
+        protected virtual async Task<string> CheckBlockedStateAsync(ConnectionAndTransactionHolder conn, JobKey jobKey, string currentState)
         {
             // State can only transition to BLOCKED from PAUSED or WAITING.
             if ((currentState.Equals(StateWaiting) == false) &&
@@ -1983,7 +1983,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                var lst = await Delegate.SelectFiredTriggerRecordsByJob(conn, jobKey.Name, jobKey.Group).ConfigureAwait(false);
+                var lst = await Delegate.SelectFiredTriggerRecordsByJobAsync(conn, jobKey.Name, jobKey.Group).ConfigureAwait(false);
 
                 if (lst.Count > 0)
                 {
@@ -2003,9 +2003,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task ResumeTrigger(TriggerKey triggerKey)
+        public virtual async Task ResumeTriggerAsync(TriggerKey triggerKey)
         {
-            await ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey)).ConfigureAwait(false);
+            await ExecuteInLockAsync(LockTriggerAccess, conn => ResumeTriggerAsync(conn, triggerKey)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2016,11 +2016,11 @@ namespace Quartz.Impl.AdoJobStore
         /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
-        public virtual async Task ResumeTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task ResumeTriggerAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             try
             {
-                TriggerStatus status = await Delegate.SelectTriggerStatus(conn, triggerKey).ConfigureAwait(false);
+                TriggerStatus status = await Delegate.SelectTriggerStatusAsync(conn, triggerKey).ConfigureAwait(false);
 
                 if (status == null || !status.NextFireTimeUtc.HasValue || status.NextFireTimeUtc == DateTimeOffset.MinValue)
                 {
@@ -2029,7 +2029,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 bool blocked = StatePausedBlocked.Equals(status.Status);
 
-                string newState = await CheckBlockedState(conn, status.JobKey, StateWaiting).ConfigureAwait(false);
+                string newState = await CheckBlockedStateAsync(conn, status.JobKey, StateWaiting).ConfigureAwait(false);
 
                 bool misfired = false;
 
@@ -2042,11 +2042,11 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (blocked)
                     {
-                        await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StatePausedBlocked).ConfigureAwait(false);
+                        await Delegate.UpdateTriggerStateFromOtherStateAsync(conn, triggerKey, newState, StatePausedBlocked).ConfigureAwait(false);
                     }
                     else
                     {
-                        await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StatePaused).ConfigureAwait(false);
+                        await Delegate.UpdateTriggerStateFromOtherStateAsync(conn, triggerKey, newState, StatePaused).ConfigureAwait(false);
                     }
                 }
             }
@@ -2065,15 +2065,15 @@ namespace Quartz.Impl.AdoJobStore
         /// or more fire-times, then the <see cref="ITrigger" />'s misfire
         /// instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseJob(JobKey)" />
-        public virtual async Task ResumeJob(JobKey jobKey)
+        /// <seealso cref="PauseJobAsync" />
+        public virtual async Task ResumeJobAsync(JobKey jobKey)
         {
-            await ExecuteInLock(LockTriggerAccess, async conn =>
+            await ExecuteInLockAsync(LockTriggerAccess, async conn =>
             {
-                var triggers = await GetTriggersForJob(conn, jobKey).ConfigureAwait(false);
+                var triggers = await GetTriggersForJobAsync(conn, jobKey).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
                 {
-                    await ResumeTrigger(conn, trigger.Key).ConfigureAwait(false);
+                    await ResumeTriggerAsync(conn, trigger.Key).ConfigureAwait(false);
                 }
             }).ConfigureAwait(false);
         }
@@ -2087,20 +2087,20 @@ namespace Quartz.Impl.AdoJobStore
         /// missed one or more fire-times, then the <see cref="ITrigger" />'s
         /// misfire instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseJobs" />
-        public virtual async Task<ISet<string>> ResumeJobs(GroupMatcher<JobKey> matcher)
+        /// <seealso cref="PauseJobsAsync" />
+        public virtual async Task<ISet<string>> ResumeJobsAsync(GroupMatcher<JobKey> matcher)
         {
-            return await ExecuteInLock(LockTriggerAccess, async conn =>
+            return await ExecuteInLockAsync(LockTriggerAccess, async conn =>
             {
                 ISet<JobKey> jobKeys = await GetJobNames(conn, matcher).ConfigureAwait(false);
                 ISet<string> groupNames = new HashSet<string>();
 
                 foreach (JobKey jobKey in jobKeys)
                 {
-                    var triggers = await GetTriggersForJob(conn, jobKey).ConfigureAwait(false);
+                    var triggers = await GetTriggersForJobAsync(conn, jobKey).ConfigureAwait(false);
                     foreach (IOperableTrigger trigger in triggers)
                     {
-                        await ResumeTrigger(conn, trigger.Key).ConfigureAwait(false);
+                        await ResumeTriggerAsync(conn, trigger.Key).ConfigureAwait(false);
                     }
                     groupNames.Add(jobKey.Group);
                 }
@@ -2111,10 +2111,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
-        /// <seealso cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
-        public virtual async Task<ISet<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        /// <seealso cref="ResumeTriggersAsync(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
+        public virtual async Task<ISet<string>> PauseTriggersAsync(GroupMatcher<TriggerKey> matcher)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => PauseTriggerGroup(conn, matcher)).ConfigureAwait(false);
+            return await ExecuteInLockAsync(LockTriggerAccess, conn => PauseTriggerGroup(conn, matcher)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2124,14 +2124,14 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                await Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, StatePaused,
+                await Delegate.UpdateTriggerGroupStateFromOtherStatesAsync(conn, matcher, StatePaused,
                     StateAcquired, StateWaiting,
                     StateWaiting).ConfigureAwait(false);
 
-                await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, StatePausedBlocked,
+                await Delegate.UpdateTriggerGroupStateFromOtherStateAsync(conn, matcher, StatePausedBlocked,
                     StateBlocked).ConfigureAwait(false);
 
-                var groups = new List<string>(await Delegate.SelectTriggerGroups(conn, matcher).ConfigureAwait(false));
+                var groups = new List<string>(await Delegate.SelectTriggerGroupsAsync(conn, matcher).ConfigureAwait(false));
 
                 // make sure to account for an exact group match for a group that doesn't yet exist
                 StringOperator op = matcher.CompareWithOperator;
@@ -2142,9 +2142,9 @@ namespace Quartz.Impl.AdoJobStore
 
                 foreach (string group in groups)
                 {
-                    if (!await Delegate.IsTriggerGroupPaused(conn, group).ConfigureAwait(false))
+                    if (!await Delegate.IsTriggerGroupPausedAsync(conn, group).ConfigureAwait(false))
                     {
-                        await Delegate.InsertPausedTriggerGroup(conn, group).ConfigureAwait(false);
+                        await Delegate.InsertPausedTriggerGroupAsync(conn, group).ConfigureAwait(false);
                     }
                 }
 
@@ -2156,10 +2156,10 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public async Task<ISet<string>> GetPausedTriggerGroups()
+        public async Task<ISet<string>> GetPausedTriggerGroupsAsync()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetPausedTriggerGroups).ConfigureAwait(false);
+            return await ExecuteWithoutLockAsync(GetPausedTriggerGroups).ConfigureAwait(false);
         }
 
         /// <summary> 
@@ -2170,7 +2170,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                return await Delegate.SelectPausedTriggerGroups(conn).ConfigureAwait(false);
+                return await Delegate.SelectPausedTriggerGroupsAsync(conn).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2178,9 +2178,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task<IReadOnlyList<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual async Task<IReadOnlyList<string>> ResumeTriggersAsync(GroupMatcher<TriggerKey> matcher)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => ResumeTriggers(conn, matcher)).ConfigureAwait(false);
+            return await ExecuteInLockAsync(LockTriggerAccess, conn => ResumeTriggersAsync(conn, matcher)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2191,18 +2191,18 @@ namespace Quartz.Impl.AdoJobStore
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual async Task<IReadOnlyList<string>> ResumeTriggers(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        public virtual async Task<IReadOnlyList<string>> ResumeTriggersAsync(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             try
             {
-                await Delegate.DeletePausedTriggerGroup(conn, matcher).ConfigureAwait(false);
+                await Delegate.DeletePausedTriggerGroupAsync(conn, matcher).ConfigureAwait(false);
                 var groups = new HashSet<string>();
 
-                ISet<TriggerKey> keys = await Delegate.SelectTriggersInGroup(conn, matcher).ConfigureAwait(false);
+                ISet<TriggerKey> keys = await Delegate.SelectTriggersInGroupAsync(conn, matcher).ConfigureAwait(false);
 
                 foreach (TriggerKey key in keys)
                 {
-                    await ResumeTrigger(conn, key).ConfigureAwait(false);
+                    await ResumeTriggerAsync(conn, key).ConfigureAwait(false);
                     groups.Add(key.Group);
                 }
 
@@ -2247,22 +2247,22 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task PauseAll()
+        public virtual async Task PauseAllAsync()
         {
-            await ExecuteInLock(LockTriggerAccess, PauseAll).ConfigureAwait(false);
+            await ExecuteInLockAsync(LockTriggerAccess, PauseAllAsync).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey})" />
+        /// Pause all triggers - equivalent of calling <see cref="PauseTriggersAsync" />
         /// on every group.
         /// <para>
-        /// When <see cref="ResumeAll()" /> is called (to un-pause), trigger misfire
+        /// When <see cref="ResumeAllAsync()" /> is called (to un-pause), trigger misfire
         /// instructions WILL be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="ResumeAll()" />
+        /// <seealso cref="ResumeAllAsync()" />
         /// <seealso cref="String" />
-        public virtual async Task PauseAll(ConnectionAndTransactionHolder conn)
+        public virtual async Task PauseAllAsync(ConnectionAndTransactionHolder conn)
         {
             var groupNames = await GetTriggerGroupNames(conn).ConfigureAwait(false);
 
@@ -2273,9 +2273,9 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                if (!await Delegate.IsTriggerGroupPaused(conn, AllGroupsPaused).ConfigureAwait(false))
+                if (!await Delegate.IsTriggerGroupPausedAsync(conn, AllGroupsPaused).ConfigureAwait(false))
                 {
-                    await Delegate.InsertPausedTriggerGroup(conn, AllGroupsPaused).ConfigureAwait(false);
+                    await Delegate.InsertPausedTriggerGroupAsync(conn, AllGroupsPaused).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -2285,40 +2285,40 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggersAsync(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
         /// on every group.
         /// </summary>
         /// <remarks>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
-        /// <seealso cref="PauseAll()" />
-        public virtual async Task ResumeAll()
+        /// <seealso cref="PauseAllAsync()" />
+        public virtual async Task ResumeAllAsync()
         {
-            await ExecuteInLock(LockTriggerAccess, ResumeAll).ConfigureAwait(false);
+            await ExecuteInLockAsync(LockTriggerAccess, ResumeAllAsync).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggersAsync(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
         /// on every group.
         /// <para>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="PauseAll()" />
-        public virtual async Task ResumeAll(ConnectionAndTransactionHolder conn)
+        /// <seealso cref="PauseAllAsync()" />
+        public virtual async Task ResumeAllAsync(ConnectionAndTransactionHolder conn)
         {
             var triggerGroupNames = await GetTriggerGroupNames(conn).ConfigureAwait(false);
 
             foreach (string groupName in triggerGroupNames)
             {
-                await ResumeTriggers(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName)).ConfigureAwait(false);
+                await ResumeTriggersAsync(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName)).ConfigureAwait(false);
             }
 
             try
             {
-                await Delegate.DeletePausedTriggerGroup(conn, AllGroupsPaused).ConfigureAwait(false);
+                await Delegate.DeletePausedTriggerGroupAsync(conn, AllGroupsPaused).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2332,8 +2332,8 @@ namespace Quartz.Impl.AdoJobStore
         /// Get a handle to the next N triggers to be fired, and mark them as 'reserved'
         /// by the calling scheduler.
         /// </summary>
-        /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger)" />
-        public virtual async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+        /// <seealso cref="ReleaseAcquiredTriggerAsync(IOperableTrigger)" />
+        public virtual async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggersAsync(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             string lockName;
             if (AcquireTriggersWithinLock || maxCount > 1)
@@ -2345,12 +2345,12 @@ namespace Quartz.Impl.AdoJobStore
                 lockName = null;
             }
 
-            return await ExecuteInNonManagedTXLock(lockName,
-                conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow), async (conn, result) =>
+            return await ExecuteInNonManagedTXLockAsync(lockName,
+                conn => AcquireNextTriggerAsync(conn, noLaterThan, maxCount, timeWindow), async (conn, result) =>
                 {
                     try
                     {
-                        var acquired = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId).ConfigureAwait(false);
+                        var acquired = await Delegate.SelectInstancesFiredTriggerRecordsAsync(conn, InstanceId).ConfigureAwait(false);
                         var fireInstanceIds = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
@@ -2375,7 +2375,7 @@ namespace Quartz.Impl.AdoJobStore
         // TODO: this really ought to return something like a FiredTriggerBundle,
         // so that the fireInstanceId doesn't have to be on the trigger...
 
-        protected virtual async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTrigger(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+        protected virtual async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggerAsync(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             if (timeWindow < TimeSpan.Zero)
             {
@@ -2393,7 +2393,7 @@ namespace Quartz.Impl.AdoJobStore
                 currentLoopCount++;
                 try
                 {
-                    var keys = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount).ConfigureAwait(false);
+                    var keys = await Delegate.SelectTriggerToAcquireAsync(conn, noLaterThan + timeWindow, MisfireTime, maxCount).ConfigureAwait(false);
 
                     // No trigger is ready to fire yet.
                     if (keys == null || keys.Count == 0)
@@ -2423,7 +2423,7 @@ namespace Quartz.Impl.AdoJobStore
                             try
                             {
                                 Log.ErrorException("Error retrieving job, setting trigger state to ERROR.", jpe);
-                                await Delegate.UpdateTriggerState(conn, triggerKey, StateError).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStateAsync(conn, triggerKey, StateError).ConfigureAwait(false);
                             }
                             catch (Exception ex)
                             {
@@ -2446,14 +2446,14 @@ namespace Quartz.Impl.AdoJobStore
 
                         // We now have a acquired trigger, let's add to return list.
                         // If our trigger was no longer in the expected state, try a new one.
-                        int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StateAcquired, StateWaiting).ConfigureAwait(false);
+                        int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateAsync(conn, triggerKey, StateAcquired, StateWaiting).ConfigureAwait(false);
                         if (rowsUpdated <= 0)
                         {
                             // TODO: Hum... shouldn't we log a warning here?
                             continue; // next trigger
                         }
                         nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
-                        await Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null).ConfigureAwait(false);
+                        await Delegate.InsertFiredTriggerAsync(conn, nextTrigger, StateAcquired, null).ConfigureAwait(false);
 
                         acquiredTriggers.Add(nextTrigger);
                         if (firstAcquiredTriggerFireTime == null)
@@ -2487,17 +2487,17 @@ namespace Quartz.Impl.AdoJobStore
         /// fire the given <see cref="ITrigger" />, that it had previously acquired
         /// (reserved).
         /// </summary>
-        public Task ReleaseAcquiredTrigger(IOperableTrigger trigger)
+        public Task ReleaseAcquiredTriggerAsync(IOperableTrigger trigger)
         {
-            return RetryExecuteInNonManagedTXLock(LockTriggerAccess, conn => ReleaseAcquiredTrigger(conn, trigger));
+            return RetryExecuteInNonManagedTXLockAsync(LockTriggerAccess, conn => ReleaseAcquiredTriggerAsync(conn, trigger));
         }
 
-        protected virtual async Task ReleaseAcquiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
+        protected virtual async Task ReleaseAcquiredTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
         {
             try
             {
-                await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateAcquired).ConfigureAwait(false);
-                await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStateFromOtherStateAsync(conn, trigger.Key, StateWaiting, StateAcquired).ConfigureAwait(false);
+                await Delegate.DeleteFiredTriggerAsync(conn, trigger.FireInstanceId).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2505,9 +2505,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task<IReadOnlyList<TriggerFiredResult>> TriggersFired(IList<IOperableTrigger> triggers)
+        public virtual async Task<IReadOnlyList<TriggerFiredResult>> TriggersFiredAsync(IList<IOperableTrigger> triggers)
         {
-            return await ExecuteInNonManagedTXLock(LockTriggerAccess, async conn =>
+            return await ExecuteInNonManagedTXLockAsync(LockTriggerAccess, async conn =>
             {
                 List<TriggerFiredResult> results = new List<TriggerFiredResult>();
 
@@ -2537,7 +2537,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    var acquired = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId).ConfigureAwait(false);
+                    var acquired = await Delegate.SelectInstancesFiredTriggerRecordsAsync(conn, InstanceId).ConfigureAwait(false);
                     var executingTriggers = new HashSet<string>();
                     foreach (FiredTriggerRecord ft in acquired)
                     {
@@ -2571,7 +2571,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // if trigger was deleted, state will be StateDeleted
-                string state = await Delegate.SelectTriggerState(conn, trigger.Key).ConfigureAwait(false);
+                string state = await Delegate.SelectTriggerStateAsync(conn, trigger.Key).ConfigureAwait(false);
                 if (!state.Equals(StateAcquired))
                 {
                     return null;
@@ -2595,7 +2595,7 @@ namespace Quartz.Impl.AdoJobStore
                 try
                 {
                     Log.ErrorException("Error retrieving job, setting trigger state to ERROR.", jpe);
-                    await Delegate.UpdateTriggerState(conn, trigger.Key, StateError).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateAsync(conn, trigger.Key, StateError).ConfigureAwait(false);
                 }
                 catch (Exception sqle)
                 {
@@ -2615,7 +2615,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                await Delegate.UpdateFiredTrigger(conn, trigger, StateExecuting, job).ConfigureAwait(false);
+                await Delegate.UpdateFiredTriggerAsync(conn, trigger, StateExecuting, job).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2636,9 +2636,9 @@ namespace Quartz.Impl.AdoJobStore
                 force = false;
                 try
                 {
-                    await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StateBlocked, StateWaiting).ConfigureAwait(false);
-                    await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StateBlocked, StateAcquired).ConfigureAwait(false);
-                    await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StatePausedBlocked, StatePaused).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, job.Key, StateBlocked, StateWaiting).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, job.Key, StateBlocked, StateAcquired).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, job.Key, StatePausedBlocked, StatePaused).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -2652,7 +2652,7 @@ namespace Quartz.Impl.AdoJobStore
                 force = true;
             }
 
-            await StoreTrigger(conn, trigger, job, true, state2, force, false).ConfigureAwait(false);
+            await StoreTriggerAsync(conn, trigger, job, true, state2, force, false).ConfigureAwait(false);
 
             job.JobDataMap.ClearDirtyFlag();
 
@@ -2674,13 +2674,13 @@ namespace Quartz.Impl.AdoJobStore
         /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
         /// is stateful.
         /// </summary>
-        public virtual Task TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail,
+        public virtual Task TriggeredJobCompleteAsync(IOperableTrigger trigger, IJobDetail jobDetail,
             SchedulerInstruction triggerInstCode)
         {
-            return RetryExecuteInNonManagedTXLock(LockTriggerAccess, conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode));
+            return RetryExecuteInNonManagedTXLockAsync(LockTriggerAccess, conn => TriggeredJobCompleteAsync(conn, trigger, jobDetail, triggerInstCode));
         }
 
-        protected virtual async Task TriggeredJobComplete(ConnectionAndTransactionHolder conn,
+        protected virtual async Task TriggeredJobCompleteAsync(ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
             IJobDetail jobDetail, SchedulerInstruction triggerInstCode)
         {
@@ -2692,7 +2692,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         // double check for possible reschedule within job 
                         // execution, which would cancel the need to delete...
-                        TriggerStatus stat = await Delegate.SelectTriggerStatus(conn, trigger.Key).ConfigureAwait(false);
+                        TriggerStatus stat = await Delegate.SelectTriggerStatusAsync(conn, trigger.Key).ConfigureAwait(false);
                         if (stat != null && !stat.NextFireTimeUtc.HasValue)
                         {
                             await RemoveTrigger(conn, trigger.Key, jobDetail).ConfigureAwait(false);
@@ -2706,31 +2706,31 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
-                    await Delegate.UpdateTriggerState(conn, trigger.Key, StateComplete).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateAsync(conn, trigger.Key, StateComplete).ConfigureAwait(false);
                     SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     Log.Info("Trigger " + trigger.Key + " set to ERROR state.");
-                    await Delegate.UpdateTriggerState(conn, trigger.Key, StateError).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateAsync(conn, trigger.Key, StateError).ConfigureAwait(false);
                     SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
-                    await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateComplete).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStatesForJobAsync(conn, trigger.JobKey, StateComplete).ConfigureAwait(false);
                     SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     Log.Info("All triggers of Job " + trigger.JobKey + " set to ERROR state.");
-                    await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateError).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStatesForJobAsync(conn, trigger.JobKey, StateError).ConfigureAwait(false);
                     SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
 
                 if (jobDetail.ConcurrentExecutionDisallowed)
                 {
-                    await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked).ConfigureAwait(false);
-                    await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, jobDetail.Key, StateWaiting, StateBlocked).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, jobDetail.Key, StatePaused, StatePausedBlocked).ConfigureAwait(false);
                     SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
                 }
                 if (jobDetail.PersistJobDataAfterExecution)
@@ -2739,7 +2739,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         if (jobDetail.JobDataMap.Dirty)
                         {
-                            await Delegate.UpdateJobData(conn, jobDetail).ConfigureAwait(false);
+                            await Delegate.UpdateJobDataAsync(conn, jobDetail).ConfigureAwait(false);
                         }
                     }
                     catch (IOException e)
@@ -2759,7 +2759,7 @@ namespace Quartz.Impl.AdoJobStore
 
             try
             {
-                await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId).ConfigureAwait(false);
+                await Delegate.DeleteFiredTriggerAsync(conn, trigger.FireInstanceId).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2783,7 +2783,7 @@ namespace Quartz.Impl.AdoJobStore
                 // trigger lock, peek ahead to see if it is likely we would find
                 // misfired triggers requiring recovery.
                 int misfireCount = DoubleCheckLockMisfireHandler
-                    ? await Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime).ConfigureAwait(false)
+                    ? await Delegate.CountMisfiredTriggersInStateAsync(conn, StateWaiting, MisfireTime).ConfigureAwait(false)
                     : int.MaxValue;
 
                 if (misfireCount == 0)
@@ -2793,9 +2793,9 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 else
                 {
-                    transOwner = await LockHandler.ObtainLock(DbProvider.Metadata, conn, LockTriggerAccess).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLockAsync(DbProvider.Metadata, conn, LockTriggerAccess).ConfigureAwait(false);
 
-                    result = await RecoverMisfiredJobs(conn, false).ConfigureAwait(false);
+                    result = await RecoverMisfiredJobsAsync(conn, false).ConfigureAwait(false);
                 }
 
                 CommitConnection(conn, false);
@@ -2815,7 +2815,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(LockTriggerAccess, transOwner).ConfigureAwait(false);
+                    await ReleaseLockAsync(LockTriggerAccess, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -2884,7 +2884,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (firstCheckIn || (failedRecords != null && failedRecords.Count > 0))
                 {
-                    await LockHandler.ObtainLock(DbProvider.Metadata, conn, LockStateAccess).ConfigureAwait(false);
+                    await LockHandler.ObtainLockAsync(DbProvider.Metadata, conn, LockStateAccess).ConfigureAwait(false);
                     transStateOwner = true;
 
                     // Now that we own the lock, make sure we still have work to do. 
@@ -2893,11 +2893,11 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (failedRecords.Count > 0)
                     {
-                        await LockHandler.ObtainLock(DbProvider.Metadata, conn, LockTriggerAccess).ConfigureAwait(false);
+                        await LockHandler.ObtainLockAsync(DbProvider.Metadata, conn, LockTriggerAccess).ConfigureAwait(false);
                         //getLockHandler().obtainLock(conn, LockJobAccess);
                         transOwner = true;
 
-                        await ClusterRecover(conn, failedRecords).ConfigureAwait(false);
+                        await ClusterRecoverAsync(conn, failedRecords).ConfigureAwait(false);
                         recovered = true;
                     }
                 }
@@ -2913,13 +2913,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(LockTriggerAccess, transOwner).ConfigureAwait(false);
+                    await ReleaseLockAsync(LockTriggerAccess, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {
                     try
                     {
-                        await ReleaseLock(LockStateAccess, transStateOwner).ConfigureAwait(false);
+                        await ReleaseLockAsync(LockStateAccess, transStateOwner).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -2944,7 +2944,7 @@ namespace Quartz.Impl.AdoJobStore
                 List<SchedulerStateRecord> failedInstances = new List<SchedulerStateRecord>();
                 bool foundThisScheduler = false;
 
-                var states = await Delegate.SelectSchedulerStateRecords(conn, null).ConfigureAwait(false);
+                var states = await Delegate.SelectSchedulerStateRecordsAsync(conn, null).ConfigureAwait(false);
 
                 foreach (SchedulerStateRecord rec in states)
                 {
@@ -3005,7 +3005,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             List<SchedulerStateRecord> orphanedInstances = new List<SchedulerStateRecord>();
 
-            ISet<string> allFiredTriggerInstanceNames = await Delegate.SelectFiredTriggerInstanceNames(conn).ConfigureAwait(false);
+            ISet<string> allFiredTriggerInstanceNames = await Delegate.SelectFiredTriggerInstanceNamesAsync(conn).ConfigureAwait(false);
             if (allFiredTriggerInstanceNames.Count > 0)
             {
                 foreach (SchedulerStateRecord rec in schedulerStateRecords)
@@ -3043,9 +3043,9 @@ namespace Quartz.Impl.AdoJobStore
 
                 // check in...
                 LastCheckin = SystemTime.UtcNow();
-                if (await Delegate.UpdateSchedulerState(conn, InstanceId, LastCheckin).ConfigureAwait(false) == 0)
+                if (await Delegate.UpdateSchedulerStateAsync(conn, InstanceId, LastCheckin).ConfigureAwait(false) == 0)
                 {
-                    await Delegate.InsertSchedulerState(conn, InstanceId, LastCheckin, ClusterCheckinInterval).ConfigureAwait(false);
+                    await Delegate.InsertSchedulerStateAsync(conn, InstanceId, LastCheckin, ClusterCheckinInterval).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -3056,7 +3056,7 @@ namespace Quartz.Impl.AdoJobStore
             return failedInstances;
         }
 
-        protected virtual async Task ClusterRecover(ConnectionAndTransactionHolder conn, IReadOnlyList<SchedulerStateRecord> failedInstances)
+        protected virtual async Task ClusterRecoverAsync(ConnectionAndTransactionHolder conn, IReadOnlyList<SchedulerStateRecord> failedInstances)
         {
             if (failedInstances.Count > 0)
             {
@@ -3071,7 +3071,7 @@ namespace Quartz.Impl.AdoJobStore
                         Log.Info("ClusterManager: Scanning for instance \"" + rec.SchedulerInstanceId +
                                  "\"'s failed in-progress jobs.");
 
-                        var firedTriggerRecs = await Delegate.SelectInstancesFiredTriggerRecords(conn, rec.SchedulerInstanceId).ConfigureAwait(false);
+                        var firedTriggerRecs = await Delegate.SelectInstancesFiredTriggerRecordsAsync(conn, rec.SchedulerInstanceId).ConfigureAwait(false);
 
                         int acquiredCount = 0;
                         int recoveredCount = 0;
@@ -3089,24 +3089,24 @@ namespace Quartz.Impl.AdoJobStore
                             // release blocked triggers..
                             if (ftRec.FireInstanceState.Equals(StateBlocked))
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StateWaiting, StateBlocked).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, jKey, StateWaiting, StateBlocked).ConfigureAwait(false);
                             }
                             else if (ftRec.FireInstanceState.Equals(StatePausedBlocked))
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StatePaused, StatePausedBlocked).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, jKey, StatePaused, StatePausedBlocked).ConfigureAwait(false);
                             }
 
                             // release acquired triggers..
                             if (ftRec.FireInstanceState.Equals(StateAcquired))
                             {
-                                await Delegate.UpdateTriggerStateFromOtherState(conn, tKey, StateWaiting, StateAcquired).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStateFromOtherStateAsync(conn, tKey, StateWaiting, StateAcquired).ConfigureAwait(false);
                                 acquiredCount++;
                             }
                             else if (ftRec.JobRequestsRecovery)
                             {
                                 // handle jobs marked for recovery that were not fully
                                 // executed..
-                                if (await JobExists(conn, jKey).ConfigureAwait(false))
+                                if (await JobExistsAsync(conn, jKey).ConfigureAwait(false))
                                 {
                                     SimpleTriggerImpl rcvryTrig =
                                         new SimpleTriggerImpl(
@@ -3117,14 +3117,14 @@ namespace Quartz.Impl.AdoJobStore
                                     rcvryTrig.JobGroup = jKey.Group;
                                     rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
                                     rcvryTrig.Priority = ftRec.Priority;
-                                    JobDataMap jd = await Delegate.SelectTriggerJobDataMap(conn, tKey).ConfigureAwait(false);
+                                    JobDataMap jd = await Delegate.SelectTriggerJobDataMapAsync(conn, tKey).ConfigureAwait(false);
                                     jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, tKey.Name);
                                     jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, tKey.Group);
                                     jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture));
                                     rcvryTrig.JobDataMap = jd;
 
                                     rcvryTrig.ComputeFirstFireTimeUtc(null);
-                                    await StoreTrigger(conn, rcvryTrig, null, false, StateWaiting, false, true).ConfigureAwait(false);
+                                    await StoreTriggerAsync(conn, rcvryTrig, null, false, StateWaiting, false, true).ConfigureAwait(false);
                                     recoveredCount++;
                                 }
                                 else
@@ -3142,21 +3142,21 @@ namespace Quartz.Impl.AdoJobStore
                             // free up stateful job's triggers
                             if (ftRec.JobDisallowsConcurrentExecution)
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StateWaiting, StateBlocked).ConfigureAwait(false);
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StatePaused, StatePausedBlocked).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, jKey, StateWaiting, StateBlocked).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherStateAsync(conn, jKey, StatePaused, StatePausedBlocked).ConfigureAwait(false);
                             }
                         }
 
-                        await Delegate.DeleteFiredTriggers(conn, rec.SchedulerInstanceId).ConfigureAwait(false);
+                        await Delegate.DeleteFiredTriggersAsync(conn, rec.SchedulerInstanceId).ConfigureAwait(false);
 
                         // Check if any of the fired triggers we just deleted were the last fired trigger
                         // records of a COMPLETE trigger.
                         int completeCount = 0;
                         foreach (TriggerKey triggerKey in triggerKeys)
                         {
-                            if (StateComplete.Equals((await Delegate.SelectTriggerState(conn, triggerKey).ConfigureAwait(false))))
+                            if (StateComplete.Equals((await Delegate.SelectTriggerStateAsync(conn, triggerKey).ConfigureAwait(false))))
                             {
-                                var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, triggerKey.Name, triggerKey.Group).ConfigureAwait(false);
+                                var firedTriggers = await Delegate.SelectFiredTriggerRecordsAsync(conn, triggerKey.Name, triggerKey.Group).ConfigureAwait(false);
                                 if (firedTriggers.Count == 0)
                                 {
                                     if (await RemoveTrigger(conn, triggerKey).ConfigureAwait(false))
@@ -3178,7 +3178,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (rec.SchedulerInstanceId.Equals(InstanceId) == false)
                         {
-                            await Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId).ConfigureAwait(false);
+                            await Delegate.DeleteSchedulerStateAsync(conn, rec.SchedulerInstanceId).ConfigureAwait(false);
                         }
                     }
                 }
@@ -3316,14 +3316,14 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// This method just forwards to ExecuteInLock() with a null lockName.
         /// </remarks>
-        protected async Task<T> ExecuteWithoutLock<T>(Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+        protected async Task<T> ExecuteWithoutLockAsync<T>(Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
-            return await ExecuteInLock(null, txCallback).ConfigureAwait(false);
+            return await ExecuteInLockAsync(null, txCallback).ConfigureAwait(false);
         }
 
-        protected async Task ExecuteInLock(string lockName, Func<ConnectionAndTransactionHolder, Task> txCallback)
+        protected async Task ExecuteInLockAsync(string lockName, Func<ConnectionAndTransactionHolder, Task> txCallback)
         {
-            await ExecuteInLock<object>(lockName, async conn =>
+            await ExecuteInLockAsync<object>(lockName, async conn =>
             {
                 await txCallback(conn).ConfigureAwait(false);
                 return null;
@@ -3343,30 +3343,30 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">
         /// The callback to execute after having acquired the given lock.
         /// </param>
-        protected abstract Task<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback);
+        protected abstract Task<T> ExecuteInLockAsync<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback);
 
-        protected virtual async Task RetryExecuteInNonManagedTXLock(string lockName, Func<ConnectionAndTransactionHolder, Task> txCallback)
+        protected virtual async Task RetryExecuteInNonManagedTXLockAsync(string lockName, Func<ConnectionAndTransactionHolder, Task> txCallback)
         {
-            await RetryExecuteInNonManagedTXLock<object>(lockName, async holder =>
+            await RetryExecuteInNonManagedTXLockAsync<object>(lockName, async holder =>
             {
                 await txCallback(holder).ConfigureAwait(false);
                 return null;
             }).ConfigureAwait(false);
         }
 
-        protected virtual async Task<T> RetryExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+        protected virtual async Task<T> RetryExecuteInNonManagedTXLockAsync<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
             for (int retry = 1; !shutdown; retry++)
             {
                 try
                 {
-                    return await ExecuteInNonManagedTXLock(lockName, txCallback, null).ConfigureAwait(false);
+                    return await ExecuteInNonManagedTXLockAsync(lockName, txCallback, null).ConfigureAwait(false);
                 }
                 catch (JobPersistenceException jpe)
                 {
                     if (retry%RetryableActionErrorLogThreshold == 0)
                     {
-                        await schedSignaler.NotifySchedulerListenersError("An error occurred while " + txCallback, jpe).ConfigureAwait(false);
+                        await schedSignaler.NotifySchedulerListenersErrorAsync("An error occurred while " + txCallback, jpe).ConfigureAwait(false);
                     }
                 }
                 catch (Exception e)
@@ -3381,18 +3381,18 @@ namespace Quartz.Impl.AdoJobStore
             throw new InvalidOperationException("JobStore is shutdown - aborting retry");
         }
 
-        protected async Task ExecuteInNonManagedTXLock(string lockName, Func<ConnectionAndTransactionHolder, Task> txCallback)
+        protected async Task ExecuteInNonManagedTXLockAsync(string lockName, Func<ConnectionAndTransactionHolder, Task> txCallback)
         {
-            await ExecuteInNonManagedTXLock(lockName, async conn =>
+            await ExecuteInNonManagedTXLockAsync(lockName, async conn =>
             {
                 await txCallback(conn).ConfigureAwait(false);
                 return true;
             }).ConfigureAwait(false);
         }
 
-        protected async Task<T> ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+        protected async Task<T> ExecuteInNonManagedTXLockAsync<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
-            return await ExecuteInNonManagedTXLock<T>(lockName, txCallback, null).ConfigureAwait(false);
+            return await ExecuteInNonManagedTXLockAsync<T>(lockName, txCallback, null).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -3408,7 +3408,7 @@ namespace Quartz.Impl.AdoJobStore
         /// The callback to execute after having acquired the given lock.
         /// </param>
         /// <param name="txValidator"></param>>
-        protected async Task<T> ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback, Func<ConnectionAndTransactionHolder, T, Task<bool>> txValidator)
+        protected async Task<T> ExecuteInNonManagedTXLockAsync<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback, Func<ConnectionAndTransactionHolder, T, Task<bool>> txValidator)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
@@ -3423,7 +3423,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(DbProvider.Metadata, conn, lockName).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLockAsync(DbProvider.Metadata, conn, lockName).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -3439,7 +3439,7 @@ namespace Quartz.Impl.AdoJobStore
                 catch (JobPersistenceException)
                 {
                     RollbackConnection(conn);
-                    if (txValidator == null || !await RetryExecuteInNonManagedTXLock(lockName, async connection => await txValidator(connection, result).ConfigureAwait(false)).ConfigureAwait(false))
+                    if (txValidator == null || !await RetryExecuteInNonManagedTXLockAsync(lockName, async connection => await txValidator(connection, result).ConfigureAwait(false)).ConfigureAwait(false))
                     {
                         throw;
                     }
@@ -3467,7 +3467,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(lockName, transOwner).ConfigureAwait(false);
+                    await ReleaseLockAsync(lockName, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {

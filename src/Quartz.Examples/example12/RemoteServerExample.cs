@@ -38,7 +38,7 @@ namespace Quartz.Examples.Example12
 		/// </summary>
 		/// <author>  James House, Bill Kratzer
 		/// </author>
-		public virtual async Task Run()
+		public virtual async Task RunAsync()
 		{
 			ILog log = LogProvider.GetLogger(typeof(RemoteServerExample));
 			
@@ -69,7 +69,7 @@ namespace Quartz.Examples.Example12
 			log.Info("------- Starting Scheduler ----------------");
 			
 			// start the schedule
-			await sched.Start();
+			await sched.StartAsync();
 			
 			log.Info("------- Started Scheduler -----------------");
 			
@@ -80,10 +80,10 @@ namespace Quartz.Examples.Example12
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-			await sched.Shutdown(true);
+			await sched.ShutdownAsync(true);
 			log.Info("------- Shutdown Complete -----------------");
 			
-			SchedulerMetaData metaData = await sched.GetMetaData();
+			SchedulerMetaData metaData = await sched.GetMetaDataAsync();
 			log.Info("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
 		}
 

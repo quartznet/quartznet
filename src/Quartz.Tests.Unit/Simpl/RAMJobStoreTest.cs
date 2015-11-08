@@ -51,12 +51,12 @@ namespace Quartz.Tests.Unit.Simpl
         {
             fJobStore = new RAMJobStore();
             fSignaler = new SampleSignaler();
-            fJobStore.Initialize(null, fSignaler);
-            fJobStore.SchedulerStarted();
+            fJobStore.InitializeAsync(null, fSignaler);
+            fJobStore.SchedulerStartedAsync();
 
             fJobDetail = new JobDetailImpl("job1", "jobGroup1", typeof (NoOpJob));
             fJobDetail.Durable = true;
-            fJobStore.StoreJob(fJobDetail, false);
+            fJobStore.StoreJobAsync(fJobDetail, false);
         }
 
         [Test]
@@ -70,22 +70,22 @@ namespace Quartz.Tests.Unit.Simpl
             trigger1.ComputeFirstFireTimeUtc(null);
             trigger2.ComputeFirstFireTimeUtc(null);
             trigger3.ComputeFirstFireTimeUtc(null);
-            await fJobStore.StoreTrigger(trigger1, false);
-            await fJobStore.StoreTrigger(trigger2, false);
-            await fJobStore.StoreTrigger(trigger3, false);
+            await fJobStore.StoreTriggerAsync(trigger1, false);
+            await fJobStore.StoreTriggerAsync(trigger2, false);
+            await fJobStore.StoreTriggerAsync(trigger3, false);
 
             DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc().Value;
 
-            Assert.AreEqual(0, (await fJobStore.AcquireNextTriggers(d.AddMilliseconds(10), 1, TimeSpan.Zero)).Count);
-            Assert.AreEqual(trigger2, (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero))[0]);
-            Assert.AreEqual(trigger3, (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero))[0]);
-            Assert.AreEqual(trigger1, (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero))[0]);
-            Assert.AreEqual(0, (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).Count);
+            Assert.AreEqual(0, (await fJobStore.AcquireNextTriggersAsync(d.AddMilliseconds(10), 1, TimeSpan.Zero)).Count);
+            Assert.AreEqual(trigger2, (await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero))[0]);
+            Assert.AreEqual(trigger3, (await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero))[0]);
+            Assert.AreEqual(trigger1, (await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero))[0]);
+            Assert.AreEqual(0, (await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).Count);
 
 
             // release trigger3
-            await fJobStore.ReleaseAcquiredTrigger(trigger3);
-            Assert.AreEqual(trigger3, (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1)))[0]);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger3);
+            Assert.AreEqual(trigger3, (await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1)))[0]);
         }
 
         [Test]
@@ -106,71 +106,71 @@ namespace Quartz.Tests.Unit.Simpl
             trigger3.ComputeFirstFireTimeUtc(null);
             trigger4.ComputeFirstFireTimeUtc(null);
             trigger10.ComputeFirstFireTimeUtc(null);
-            await fJobStore.StoreTrigger(early, false);
-            await fJobStore.StoreTrigger(trigger1, false);
-            await fJobStore.StoreTrigger(trigger2, false);
-            await fJobStore.StoreTrigger(trigger3, false);
-            await fJobStore.StoreTrigger(trigger4, false);
-            await fJobStore.StoreTrigger(trigger10, false);
+            await fJobStore.StoreTriggerAsync(early, false);
+            await fJobStore.StoreTriggerAsync(trigger1, false);
+            await fJobStore.StoreTriggerAsync(trigger2, false);
+            await fJobStore.StoreTriggerAsync(trigger3, false);
+            await fJobStore.StoreTriggerAsync(trigger4, false);
+            await fJobStore.StoreTriggerAsync(trigger10, false);
 
             DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc().Value;
 
-            var acquiredTriggers = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromSeconds(1));
+            var acquiredTriggers = await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddSeconds(10), 4, TimeSpan.FromSeconds(1));
             Assert.AreEqual(4, acquiredTriggers.Count);
             Assert.AreEqual(early.Key, acquiredTriggers[0].Key);
             Assert.AreEqual(trigger1.Key, acquiredTriggers[1].Key);
             Assert.AreEqual(trigger2.Key, acquiredTriggers[2].Key);
             Assert.AreEqual(trigger3.Key, acquiredTriggers[3].Key);
-            await fJobStore.ReleaseAcquiredTrigger(early);
-      		await fJobStore.ReleaseAcquiredTrigger(trigger1);
-        	await fJobStore.ReleaseAcquiredTrigger(trigger2);
-        	await fJobStore.ReleaseAcquiredTrigger(trigger3);
+            await fJobStore.ReleaseAcquiredTriggerAsync(early);
+      		await fJobStore.ReleaseAcquiredTriggerAsync(trigger1);
+        	await fJobStore.ReleaseAcquiredTriggerAsync(trigger2);
+        	await fJobStore.ReleaseAcquiredTriggerAsync(trigger3);
 			
-            acquiredTriggers = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 5, TimeSpan.FromMilliseconds(1000));
+            acquiredTriggers = await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddSeconds(10), 5, TimeSpan.FromMilliseconds(1000));
             Assert.AreEqual(5, acquiredTriggers.Count);
             Assert.AreEqual(early.Key, acquiredTriggers[0].Key);
             Assert.AreEqual(trigger1.Key, acquiredTriggers[1].Key);
             Assert.AreEqual(trigger2.Key, acquiredTriggers[2].Key);
             Assert.AreEqual(trigger3.Key, acquiredTriggers[3].Key);
             Assert.AreEqual(trigger4.Key, acquiredTriggers[4].Key);
-            await fJobStore.ReleaseAcquiredTrigger(early);
-            await fJobStore.ReleaseAcquiredTrigger(trigger1);
-            await fJobStore.ReleaseAcquiredTrigger(trigger2);
-            await fJobStore.ReleaseAcquiredTrigger(trigger3);
-            await fJobStore.ReleaseAcquiredTrigger(trigger4);
+            await fJobStore.ReleaseAcquiredTriggerAsync(early);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger1);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger2);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger3);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger4);
 
-            acquiredTriggers = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 6, TimeSpan.FromSeconds(1));
+            acquiredTriggers = await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddSeconds(10), 6, TimeSpan.FromSeconds(1));
             Assert.AreEqual(5, acquiredTriggers.Count);
             Assert.AreEqual(early.Key, acquiredTriggers[0].Key);
             Assert.AreEqual(trigger1.Key, acquiredTriggers[1].Key);
             Assert.AreEqual(trigger2.Key, acquiredTriggers[2].Key);
             Assert.AreEqual(trigger3.Key, acquiredTriggers[3].Key);
             Assert.AreEqual(trigger4.Key, acquiredTriggers[4].Key);
-            await fJobStore.ReleaseAcquiredTrigger(early);
-            await fJobStore.ReleaseAcquiredTrigger(trigger1);
-            await fJobStore.ReleaseAcquiredTrigger(trigger2);
-            await fJobStore.ReleaseAcquiredTrigger(trigger3);
-            await fJobStore.ReleaseAcquiredTrigger(trigger4);
+            await fJobStore.ReleaseAcquiredTriggerAsync(early);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger1);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger2);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger3);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger4);
 
-            acquiredTriggers = await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(1), 5, TimeSpan.Zero);
+            acquiredTriggers = await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddMilliseconds(1), 5, TimeSpan.Zero);
             Assert.AreEqual(2, acquiredTriggers.Count);
-            await fJobStore.ReleaseAcquiredTrigger(early);
-            await fJobStore.ReleaseAcquiredTrigger(trigger1);
+            await fJobStore.ReleaseAcquiredTriggerAsync(early);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger1);
 
-            acquiredTriggers = await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(250), 5, TimeSpan.FromMilliseconds(199));
+            acquiredTriggers = await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddMilliseconds(250), 5, TimeSpan.FromMilliseconds(199));
             Assert.AreEqual(5, acquiredTriggers.Count);
-            await fJobStore.ReleaseAcquiredTrigger(early); 
-            await fJobStore.ReleaseAcquiredTrigger(trigger1);
-            await fJobStore.ReleaseAcquiredTrigger(trigger2);
-            await fJobStore.ReleaseAcquiredTrigger(trigger3);
-            await fJobStore.ReleaseAcquiredTrigger(trigger4);
+            await fJobStore.ReleaseAcquiredTriggerAsync(early); 
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger1);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger2);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger3);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger4);
 
-            acquiredTriggers = await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(150), 5, TimeSpan.FromMilliseconds(50L));
+            acquiredTriggers = await fJobStore.AcquireNextTriggersAsync(firstFireTime.AddMilliseconds(150), 5, TimeSpan.FromMilliseconds(50L));
             Assert.AreEqual(4, acquiredTriggers.Count);
-            await fJobStore.ReleaseAcquiredTrigger(early);
-            await fJobStore.ReleaseAcquiredTrigger(trigger1);
-            await fJobStore.ReleaseAcquiredTrigger(trigger2);
-            await fJobStore.ReleaseAcquiredTrigger(trigger3);
+            await fJobStore.ReleaseAcquiredTriggerAsync(early);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger1);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger2);
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger3);
         }
 
         [Test]
@@ -178,22 +178,22 @@ namespace Quartz.Tests.Unit.Simpl
         {
             IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
-            Assert.AreEqual(TriggerState.None, await fJobStore.GetTriggerState(trigger.Key));
-            await fJobStore.StoreTrigger(trigger, false);
-            Assert.AreEqual(TriggerState.Normal, await fJobStore.GetTriggerState(trigger.Key));
+            Assert.AreEqual(TriggerState.None, await fJobStore.GetTriggerStateAsync(trigger.Key));
+            await fJobStore.StoreTriggerAsync(trigger, false);
+            Assert.AreEqual(TriggerState.Normal, await fJobStore.GetTriggerStateAsync(trigger.Key));
 
-            await fJobStore.PauseTrigger(trigger.Key);
-            Assert.AreEqual(TriggerState.Paused, await fJobStore.GetTriggerState(trigger.Key));
+            await fJobStore.PauseTriggerAsync(trigger.Key);
+            Assert.AreEqual(TriggerState.Paused, await fJobStore.GetTriggerStateAsync(trigger.Key));
 
-            await fJobStore.ResumeTrigger(trigger.Key);
-            Assert.AreEqual(TriggerState.Normal, await fJobStore.GetTriggerState(trigger.Key));
+            await fJobStore.ResumeTriggerAsync(trigger.Key);
+            Assert.AreEqual(TriggerState.Normal, await fJobStore.GetTriggerStateAsync(trigger.Key));
 
-            trigger = (await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1)))[0];
+            trigger = (await fJobStore.AcquireNextTriggersAsync(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1)))[0];
             Assert.IsNotNull(trigger);
-            await fJobStore.ReleaseAcquiredTrigger(trigger);
-            trigger = (await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1)))[0];
+            await fJobStore.ReleaseAcquiredTriggerAsync(trigger);
+            trigger = (await fJobStore.AcquireNextTriggersAsync(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1)))[0];
             Assert.IsNotNull(trigger);
-            Assert.AreEqual(0, (await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).Count);
+            Assert.AreEqual(0, (await fJobStore.AcquireNextTriggersAsync(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).Count);
         }
 
         [Test]
@@ -204,10 +204,10 @@ namespace Quartz.Tests.Unit.Simpl
             IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
             ICalendar cal = new MonthlyCalendar();
-            fJobStore.StoreTrigger(trigger, false);
-            fJobStore.StoreCalendar("cal", cal, false, true);
+            fJobStore.StoreTriggerAsync(trigger, false);
+            fJobStore.StoreCalendarAsync("cal", cal, false, true);
 
-            fJobStore.RemoveCalendar("cal");
+            fJobStore.RemoveCalendarAsync("cal");
         }
 
         [Test]
@@ -216,7 +216,7 @@ namespace Quartz.Tests.Unit.Simpl
             string jobName = "StoreTriggerReplacesTrigger";
             string jobGroup = "StoreTriggerReplacesTriggerGroup";
             JobDetailImpl detail = new JobDetailImpl(jobName, jobGroup, typeof (NoOpJob));
-            await fJobStore.StoreJob(detail, false);
+            await fJobStore.StoreJobAsync(detail, false);
 
             string trName = "StoreTriggerReplacesTrigger";
             string trGroup = "StoreTriggerReplacesTriggerGroup";
@@ -224,19 +224,19 @@ namespace Quartz.Tests.Unit.Simpl
             tr.JobKey = new JobKey(jobName, jobGroup);
             tr.CalendarName = null;
 
-            await fJobStore.StoreTrigger(tr, false);
-            Assert.AreEqual(tr, await fJobStore.RetrieveTrigger(new TriggerKey(trName, trGroup)));
+            await fJobStore.StoreTriggerAsync(tr, false);
+            Assert.AreEqual(tr, await fJobStore.RetrieveTriggerAsync(new TriggerKey(trName, trGroup)));
 
             tr.CalendarName = "NonExistingCalendar";
-            await fJobStore.StoreTrigger(tr, true);
-            Assert.AreEqual(tr, await fJobStore.RetrieveTrigger(new TriggerKey(trName, trGroup)));
-            var trigger = await fJobStore.RetrieveTrigger(new TriggerKey(trName, trGroup));
+            await fJobStore.StoreTriggerAsync(tr, true);
+            Assert.AreEqual(tr, await fJobStore.RetrieveTriggerAsync(new TriggerKey(trName, trGroup)));
+            var trigger = await fJobStore.RetrieveTriggerAsync(new TriggerKey(trName, trGroup));
             Assert.AreEqual(tr.CalendarName, trigger.CalendarName, "StoreJob doesn't replace triggers");
 
             bool exceptionRaised = false;
             try
             {
-                await fJobStore.StoreTrigger(tr, false);
+                await fJobStore.StoreTriggerAsync(tr, false);
             }
             catch (ObjectAlreadyExistsException)
             {
@@ -253,26 +253,26 @@ namespace Quartz.Tests.Unit.Simpl
             string jobGroup = "PauseJobGroupPausesNewJobGroup";
             JobDetailImpl detail = new JobDetailImpl(jobName1, jobGroup, typeof (NoOpJob));
             detail.Durable = true;
-            await fJobStore.StoreJob(detail, false);
-            await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+            await fJobStore.StoreJobAsync(detail, false);
+            await fJobStore.PauseJobsAsync(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
             detail = new JobDetailImpl(jobName2, jobGroup, typeof (NoOpJob));
             detail.Durable = true;
-            await fJobStore.StoreJob(detail, false);
+            await fJobStore.StoreJobAsync(detail, false);
 
             string trName = "PauseJobGroupPausesNewJobTrigger";
             string trGroup = "PauseJobGroupPausesNewJobTriggerGroup";
             IOperableTrigger tr = new SimpleTriggerImpl(trName, trGroup, DateTimeOffset.UtcNow);
             tr.JobKey = new JobKey(jobName2, jobGroup);
-            await fJobStore.StoreTrigger(tr, false);
-            Assert.AreEqual(TriggerState.Paused, await fJobStore.GetTriggerState(tr.Key));
+            await fJobStore.StoreTriggerAsync(tr, false);
+            Assert.AreEqual(TriggerState.Paused, await fJobStore.GetTriggerStateAsync(tr.Key));
         }
 
         [Test]
         public async Task TestRetrieveJob_NoJobFound()
         {
             RAMJobStore store = new RAMJobStore();
-            IJobDetail job = await store.RetrieveJob(new JobKey("not", "existing"));
+            IJobDetail job = await store.RetrieveJobAsync(new JobKey("not", "existing"));
             Assert.IsNull(job);
         }
 
@@ -280,7 +280,7 @@ namespace Quartz.Tests.Unit.Simpl
         public async Task TestRetrieveTrigger_NoTriggerFound()
         {
             RAMJobStore store = new RAMJobStore();
-            IOperableTrigger trigger = await store.RetrieveTrigger(new TriggerKey("not", "existing"));
+            IOperableTrigger trigger = await store.RetrieveTriggerAsync(new TriggerKey("not", "existing"));
             Assert.IsNull(trigger);
         }
 
@@ -293,13 +293,13 @@ namespace Quartz.Tests.Unit.Simpl
             for (int i = 0; i < 10; i++)
             {
                 IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job" + i).Build();
-                await store.StoreJob(job, false);
+                await store.StoreJobAsync(job, false);
             }
             // Retrieve jobs.
             for (int i = 0; i < 10; i++)
             {
                 JobKey jobKey = JobKey.Create("job" + i);
-                IJobDetail storedJob = await store.RetrieveJob(jobKey);
+                IJobDetail storedJob = await store.RetrieveJobAsync(jobKey);
                 Assert.AreEqual(jobKey, storedJob.Key);
             }
         }
@@ -313,20 +313,20 @@ namespace Quartz.Tests.Unit.Simpl
             for (int i = 0; i < 10; i++)
             {
                 IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job" + i).Build();
-                await store.StoreJob(job, true);
+                await store.StoreJobAsync(job, true);
                 SimpleScheduleBuilder schedule = SimpleScheduleBuilder.Create();
                 ITrigger trigger = TriggerBuilder.Create().WithIdentity("job" + i).WithSchedule(schedule).ForJob(job).Build();
-                await store.StoreTrigger((IOperableTrigger)trigger, true);
+                await store.StoreTriggerAsync((IOperableTrigger)trigger, true);
             }
             // Retrieve job and trigger.
             for (int i = 0; i < 10; i++)
             {
                 JobKey jobKey = JobKey.Create("job" + i);
-                IJobDetail storedJob = await store.RetrieveJob(jobKey);
+                IJobDetail storedJob = await store.RetrieveJobAsync(jobKey);
                 Assert.AreEqual(jobKey, storedJob.Key);
 
                 TriggerKey triggerKey = new TriggerKey("job" + i);
-                ITrigger storedTrigger = await store.RetrieveTrigger(triggerKey);
+                ITrigger storedTrigger = await store.RetrieveTriggerAsync(triggerKey);
                 Assert.AreEqual(triggerKey, storedTrigger.Key);
             }
         }
@@ -339,7 +339,7 @@ namespace Quartz.Tests.Unit.Simpl
             loadHelper.Initialize();
 
             RAMJobStore store = new RAMJobStore();
-            await store.Initialize(loadHelper, schedSignaler);
+            await store.InitializeAsync(loadHelper, schedSignaler);
 
             // Setup: Store jobs and triggers.
             DateTime startTime0 = DateTime.UtcNow.AddMinutes(1).ToUniversalTime(); // a min from now.
@@ -355,7 +355,7 @@ namespace Quartz.Tests.Unit.Simpl
                 DateTimeOffset? fireTime = trigger.ComputeFirstFireTimeUtc(null);
                 Assert.AreEqual(true, fireTime != null);
 
-                await store.StoreJobAndTrigger(job, trigger);
+                await store.StoreJobAndTriggerAsync(job, trigger);
             }
 
             // Test acquire one trigger at a time
@@ -364,12 +364,12 @@ namespace Quartz.Tests.Unit.Simpl
                 DateTimeOffset noLaterThan = startTime0.AddMinutes(i);
                 int maxCount = 1;
                 TimeSpan timeWindow = TimeSpan.Zero;
-                var triggers = await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow);
+                var triggers = await store.AcquireNextTriggersAsync(noLaterThan, maxCount, timeWindow);
                 Assert.AreEqual(1, triggers.Count);
                 Assert.AreEqual("job" + i, triggers[0].Key.Name);
 
                 // Let's remove the trigger now.
-                await store.RemoveJob(triggers[0].JobKey);
+                await store.RemoveJobAsync(triggers[0].JobKey);
             }
         }
 
@@ -381,7 +381,7 @@ namespace Quartz.Tests.Unit.Simpl
             loadHelper.Initialize();
 
             RAMJobStore store = new RAMJobStore();
-            await store.Initialize(loadHelper, schedSignaler);
+            await store.InitializeAsync(loadHelper, schedSignaler);
 
             // Setup: Store jobs and triggers.
             DateTimeOffset startTime0 = DateTimeOffset.UtcNow.AddMinutes(1); // a min from now.
@@ -397,14 +397,14 @@ namespace Quartz.Tests.Unit.Simpl
                 DateTimeOffset? fireTime = trigger.ComputeFirstFireTimeUtc(null);
                 Assert.AreEqual(true, fireTime != null);
 
-                await store.StoreJobAndTrigger(job, trigger);
+                await store.StoreJobAndTriggerAsync(job, trigger);
             }
 
             // Test acquire batch of triggers at a time
             DateTimeOffset noLaterThan = startTime0.AddMinutes(10);
             int maxCount = 7;
             TimeSpan timeWindow = TimeSpan.FromMinutes(8);
-            var triggers = await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow);
+            var triggers = await store.AcquireNextTriggersAsync(noLaterThan, maxCount, timeWindow);
             Assert.AreEqual(7, triggers.Count);
             for (int i = 0; i < 7; i++)
             {
@@ -416,13 +416,13 @@ namespace Quartz.Tests.Unit.Simpl
         {
             internal int fMisfireCount = 0;
 
-            public Task NotifyTriggerListenersMisfired(ITrigger trigger)
+            public Task NotifyTriggerListenersMisfiredAsync(ITrigger trigger)
             {
                 fMisfireCount++;
                 return TaskUtil.CompletedTask;
             }
 
-            public Task NotifySchedulerListenersFinalized(ITrigger trigger)
+            public Task NotifySchedulerListenersFinalizedAsync(ITrigger trigger)
             {
                 return TaskUtil.CompletedTask;
             }
@@ -431,12 +431,12 @@ namespace Quartz.Tests.Unit.Simpl
             {
             }
 
-            public Task NotifySchedulerListenersError(string message, SchedulerException jpe)
+            public Task NotifySchedulerListenersErrorAsync(string message, SchedulerException jpe)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task NotifySchedulerListenersJobDeleted(JobKey jobKey)
+            public Task NotifySchedulerListenersJobDeletedAsync(JobKey jobKey)
             {
                 return TaskUtil.CompletedTask;
             }

@@ -29,7 +29,7 @@ namespace Quartz.Web.Api
         public async Task<SchedulerDto> SchedulerDetails(string schedulerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            var metaData = await scheduler.GetMetaData().ConfigureAwait(false);
+            var metaData = await scheduler.GetMetaDataAsync().ConfigureAwait(false);
             return new SchedulerDto(scheduler, metaData);
         }
 
@@ -40,11 +40,11 @@ namespace Quartz.Web.Api
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             if (delayMilliseconds == null)
             {
-                await scheduler.Start().ConfigureAwait(false);
+                await scheduler.StartAsync().ConfigureAwait(false);
             }
             else
             {
-                await scheduler.StartDelayed(TimeSpan.FromMilliseconds(delayMilliseconds.Value)).ConfigureAwait(false);
+                await scheduler.StartDelayedAsync(TimeSpan.FromMilliseconds(delayMilliseconds.Value)).ConfigureAwait(false);
             }
         }
 
@@ -53,7 +53,7 @@ namespace Quartz.Web.Api
         public async Task Standby(string schedulerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.Standby().ConfigureAwait(false);
+            await scheduler.StandbyAsync().ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -61,7 +61,7 @@ namespace Quartz.Web.Api
         public async Task Shutdown(string schedulerName, bool waitForJobsToComplete = false)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.Shutdown(waitForJobsToComplete).ConfigureAwait(false);
+            await scheduler.ShutdownAsync(waitForJobsToComplete).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -69,7 +69,7 @@ namespace Quartz.Web.Api
         public async Task Clear(string schedulerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.Clear().ConfigureAwait(false);
+            await scheduler.ClearAsync().ConfigureAwait(false);
         }
 
         private static async Task<IScheduler> GetScheduler(string schedulerName)

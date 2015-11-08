@@ -98,19 +98,19 @@ namespace Quartz.Listener
 
         public IReadOnlyList<IJobListener> Listeners => listeners;
 
-        public Task JobToBeExecuted(IJobExecutionContext context)
+        public Task JobToBeExecutedAsync(IJobExecutionContext context)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobToBeExecuted(context)));
+            return Task.WhenAll(listeners.Select(l => l.JobToBeExecutedAsync(context)));
         }
 
-        public Task JobExecutionVetoed(IJobExecutionContext context)
+        public Task JobExecutionVetoedAsync(IJobExecutionContext context)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobExecutionVetoed(context)));
+            return Task.WhenAll(listeners.Select(l => l.JobExecutionVetoedAsync(context)));
         }
 
-        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobWasExecuted(context, jobException)));
+            return Task.WhenAll(listeners.Select(l => l.JobWasExecutedAsync(context, jobException)));
         }
     }
 }

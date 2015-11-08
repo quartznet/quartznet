@@ -41,9 +41,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="loadHelper"></param>
         /// <param name="signaler"></param>
-        public override Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
+        public override Task InitializeAsync(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
         {
-            base.Initialize(loadHelper, signaler);
+            base.InitializeAsync(loadHelper, signaler);
             Log.Info("JobStoreTX initialized.");
             return TaskUtil.CompletedTask;
         }
@@ -62,7 +62,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Execute the given callback having optionally acquired the given lock.
         /// For <see cref="JobStoreTX" />, because it manages its own transactions
         /// and only has the one datasource, this is the same behavior as 
-        /// <see cref="JobStoreSupport.ExecuteInNonManagedTXLock" />.
+        /// <see cref="JobStoreSupport.ExecuteInNonManagedTXLockAsync" />.
         /// </summary>
         /// <param name="lockName">
         /// The name of the lock to acquire, for example "TRIGGER_ACCESS". 
@@ -71,13 +71,13 @@ namespace Quartz.Impl.AdoJobStore
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
         /// <returns></returns>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
-        /// <seealso cref="JobStoreCMT.ExecuteInLock{T}(string, Func{ConnectionAndTransactionHolder, Task{T}})" />
+        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLockAsync" />
+        /// <seealso cref="JobStoreCMT.ExecuteInLockAsync{T}" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
-        protected override async Task<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+        protected override async Task<T> ExecuteInLockAsync<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
-            return await ExecuteInNonManagedTXLock(lockName, txCallback).ConfigureAwait(false);
+            return await ExecuteInNonManagedTXLockAsync(lockName, txCallback).ConfigureAwait(false);
         }
     }
 }

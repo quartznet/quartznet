@@ -15,7 +15,7 @@ namespace Quartz.Web.Api
         public async Task<IReadOnlyList<string>> Calendars(string schedulerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            var calendarNames = await scheduler.GetCalendarNames().ConfigureAwait(false);
+            var calendarNames = await scheduler.GetCalendarNamesAsync().ConfigureAwait(false);
 
             return calendarNames;
         }
@@ -25,7 +25,7 @@ namespace Quartz.Web.Api
         public async Task<CalendarDetailDto> CalendarDetails(string schedulerName, string calendarName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            var calendar = await scheduler.GetCalendar(calendarName).ConfigureAwait(false);
+            var calendar = await scheduler.GetCalendarAsync(calendarName).ConfigureAwait(false);
             return CalendarDetailDto.Create(calendar);
         }
 
@@ -35,7 +35,7 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             ICalendar calendar = null;
-            await scheduler.AddCalendar(calendarName, calendar, replace, updateTriggers).ConfigureAwait(false);
+            await scheduler.AddCalendarAsync(calendarName, calendar, replace, updateTriggers).ConfigureAwait(false);
         }
 
         [HttpDelete]
@@ -43,7 +43,7 @@ namespace Quartz.Web.Api
         public async Task DeleteCalendar(string schedulerName, string calendarName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.DeleteCalendar(calendarName).ConfigureAwait(false);
+            await scheduler.DeleteCalendarAsync(calendarName).ConfigureAwait(false);
         }
 
         private static async Task<IScheduler> GetScheduler(string schedulerName)

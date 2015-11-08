@@ -50,16 +50,16 @@ namespace Quartz.Core
         /// Notifies the scheduler about misfired trigger.
         /// </summary>
         /// <param name="trigger">The trigger that misfired.</param>
-        public virtual async Task NotifyTriggerListenersMisfired(ITrigger trigger)
+        public virtual async Task NotifyTriggerListenersMisfiredAsync(ITrigger trigger)
         {
             try
             {
-                await sched.NotifyTriggerListenersMisfired(trigger).ConfigureAwait(false);
+                await sched.NotifyTriggerListenersMisfiredAsync(trigger).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 log.ErrorException("Error notifying listeners of trigger misfire.", se);
-                await sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se).ConfigureAwait(false);
+                await sched.NotifySchedulerListenersErrorAsync("Error notifying listeners of trigger misfire.", se).ConfigureAwait(false);
             }
         }
 
@@ -68,9 +68,9 @@ namespace Quartz.Core
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        public async Task NotifySchedulerListenersFinalized(ITrigger trigger)
+        public async Task NotifySchedulerListenersFinalizedAsync(ITrigger trigger)
         {
-            await sched.NotifySchedulerListenersFinalized(trigger).ConfigureAwait(false);
+            await sched.NotifySchedulerListenersFinalizedAsync(trigger).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -81,14 +81,14 @@ namespace Quartz.Core
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
         }
 
-        public async Task NotifySchedulerListenersJobDeleted(JobKey jobKey)
+        public async Task NotifySchedulerListenersJobDeletedAsync(JobKey jobKey)
         {
-            await sched.NotifySchedulerListenersJobDeleted(jobKey).ConfigureAwait(false);
+            await sched.NotifySchedulerListenersJobDeletedAsync(jobKey).ConfigureAwait(false);
         }
 
-        public async Task NotifySchedulerListenersError(string message, SchedulerException jpe)
+        public async Task NotifySchedulerListenersErrorAsync(string message, SchedulerException jpe)
         {
-            await sched.NotifySchedulerListenersError(message, jpe).ConfigureAwait(false);
+            await sched.NotifySchedulerListenersErrorAsync(message, jpe).ConfigureAwait(false);
         }
     }
 }

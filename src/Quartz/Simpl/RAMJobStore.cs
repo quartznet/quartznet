@@ -108,7 +108,7 @@ namespace Quartz.Simpl
         /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        public virtual Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler s)
+        public virtual Task InitializeAsync(ITypeLoadHelper loadHelper, ISchedulerSignaler s)
         {
             signaler = s;
             Log.Info("RAMJobStore initialized.");
@@ -119,7 +119,7 @@ namespace Quartz.Simpl
         /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
         /// the scheduler has started.
         /// </summary>
-        public virtual Task SchedulerStarted()
+        public virtual Task SchedulerStartedAsync()
         {
             // nothing to do
             return TaskUtil.CompletedTask;
@@ -129,7 +129,7 @@ namespace Quartz.Simpl
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has been paused.
         /// </summary>
-        public Task SchedulerPaused()
+        public Task SchedulerPausedAsync()
         {
             // nothing to do
             return TaskUtil.CompletedTask;
@@ -139,7 +139,7 @@ namespace Quartz.Simpl
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has resumed after being paused.
         /// </summary>
-        public Task SchedulerResumed()
+        public Task SchedulerResumedAsync()
         {
             // nothing to do
             return TaskUtil.CompletedTask;
@@ -150,7 +150,7 @@ namespace Quartz.Simpl
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task ShutdownAsync()
         {
             return TaskUtil.CompletedTask;
         }
@@ -166,7 +166,7 @@ namespace Quartz.Simpl
         /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
         /// <see cref="ICalendar"/>s.
         /// </summary>
-        public Task ClearAllSchedulingData()
+        public Task ClearAllSchedulingDataAsync()
         {
             lock (lockObject)
             {
@@ -205,7 +205,7 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="newJob">The <see cref="IJobDetail" /> to be stored.</param>
         /// <param name="newTrigger">The <see cref="ITrigger" /> to be stored.</param>
-        public virtual Task StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger)
+        public virtual Task StoreJobAndTriggerAsync(IJobDetail newJob, IOperableTrigger newTrigger)
         {
             StoreJobInternal(newJob, false);
             StoreTriggerInternal(newTrigger, false);
@@ -217,7 +217,7 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="groupName">Job group name</param>
         /// <returns></returns>
-        public virtual Task<bool> IsJobGroupPaused(string groupName)
+        public virtual Task<bool> IsJobGroupPausedAsync(string groupName)
         {
             return Task.FromResult(pausedJobGroups.Contains(groupName));
         }
@@ -227,7 +227,7 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public virtual Task<bool> IsTriggerGroupPaused(string groupName)
+        public virtual Task<bool> IsTriggerGroupPausedAsync(string groupName)
         {
             return Task.FromResult(pausedTriggerGroups.Contains(groupName));
         }
@@ -239,7 +239,7 @@ namespace Quartz.Simpl
         /// <param name="replaceExisting">If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name and group should be
         /// over-written.</param>
-        public virtual Task StoreJob(IJobDetail newJob, bool replaceExisting)
+        public virtual Task StoreJobAsync(IJobDetail newJob, bool replaceExisting)
         {
             StoreJobInternal(newJob, replaceExisting);
             return TaskUtil.CompletedTask;
@@ -294,7 +294,7 @@ namespace Quartz.Simpl
         /// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
         /// group was found and removed from the store.
         /// </returns>
-        public virtual Task<bool> RemoveJob(JobKey jobKey)
+        public virtual Task<bool> RemoveJobAsync(JobKey jobKey)
         {
             return Task.FromResult(RemoveJobInternal(jobKey));
         }
@@ -332,7 +332,7 @@ namespace Quartz.Simpl
             }
         }
 
-        public Task<bool> RemoveJobs(IList<JobKey> jobKeys)
+        public Task<bool> RemoveJobsAsync(IList<JobKey> jobKeys)
         {
             lock (lockObject)
             {
@@ -345,7 +345,7 @@ namespace Quartz.Simpl
             }
         }
 
-        public Task<bool> RemoveTriggers(IList<TriggerKey> triggerKeys)
+        public Task<bool> RemoveTriggersAsync(IList<TriggerKey> triggerKeys)
         {
             lock (lockObject)
             {
@@ -358,7 +358,7 @@ namespace Quartz.Simpl
             }
         }
 
-        public Task StoreJobsAndTriggers(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
+        public Task StoreJobsAndTriggersAsync(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
         {
             lock (lockObject)
             {
@@ -402,7 +402,7 @@ namespace Quartz.Simpl
         /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
         /// name and group was found and removed from the store.
         /// </returns>
-        public virtual Task<bool> RemoveTrigger(TriggerKey triggerKey)
+        public virtual Task<bool> RemoveTriggerAsync(TriggerKey triggerKey)
         {
             return RemoveTrigger(triggerKey, true);
         }
@@ -414,7 +414,7 @@ namespace Quartz.Simpl
         /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ITrigger" /> existing in
         /// the <see cref="IJobStore" /> with the same name and group should
         /// be over-written.</param>
-        public virtual Task StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting)
+        public virtual Task StoreTriggerAsync(IOperableTrigger newTrigger, bool replaceExisting)
         {
             StoreTriggerInternal(newTrigger, replaceExisting);
             return TaskUtil.CompletedTask;
@@ -535,7 +535,7 @@ namespace Quartz.Simpl
                         {
                             if (RemoveJobInternal(jw.Key))
                             {
-                                signaler.NotifySchedulerListenersJobDeleted(jw.Key).ConfigureAwait(false).GetAwaiter().GetResult();
+                                signaler.NotifySchedulerListenersJobDeletedAsync(jw.Key).ConfigureAwait(false).GetAwaiter().GetResult();
                             }
                         }
                     }
@@ -550,7 +550,7 @@ namespace Quartz.Simpl
         /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
         /// <param name="newTrigger">The new trigger.</param>
         /// <returns></returns>
-        public virtual Task<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger)
+        public virtual Task<bool> ReplaceTriggerAsync(TriggerKey triggerKey, IOperableTrigger newTrigger)
         {
             bool found;
 
@@ -615,7 +615,7 @@ namespace Quartz.Simpl
         /// <returns>
         /// The desired <see cref="IJob" />, or null if there is no match.
         /// </returns>
-        public virtual Task<IJobDetail> RetrieveJob(JobKey jobKey)
+        public virtual Task<IJobDetail> RetrieveJobAsync(JobKey jobKey)
         {
             return Task.FromResult(RetrieveJobInternal(jobKey));
         }
@@ -634,7 +634,7 @@ namespace Quartz.Simpl
         /// <returns>
         /// The desired <see cref="ITrigger" />, or null if there is no match.
         /// </returns>
-        public virtual Task<IOperableTrigger> RetrieveTrigger(TriggerKey triggerKey)
+        public virtual Task<IOperableTrigger> RetrieveTriggerAsync(TriggerKey triggerKey)
         {
             TriggerWrapper tw;
             triggersByKey.TryGetValue(triggerKey, out tw);
@@ -650,7 +650,7 @@ namespace Quartz.Simpl
         /// </remarks>
         /// <param name="calName">the identifier to check for</param>
         /// <returns>true if a calendar exists with the given identifier</returns>
-        public Task<bool> CalendarExists(string calName)
+        public Task<bool> CalendarExistsAsync(string calName)
         {
             return Task.FromResult(calendarsByName.ContainsKey(calName));
         }
@@ -661,7 +661,7 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="jobKey">the identifier to check for</param>
         /// <returns>true if a Job exists with the given identifier</returns>
-        public Task<bool> CheckExists(JobKey jobKey)
+        public Task<bool> CheckExistsAsync(JobKey jobKey)
         {
             return Task.FromResult(jobsByKey.ContainsKey(jobKey));
         }
@@ -672,7 +672,7 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="triggerKey">triggerKey the identifier to check for</param>
         /// <returns>true if a Trigger exists with the given identifier</returns>
-        public Task<bool> CheckExists(TriggerKey triggerKey)
+        public Task<bool> CheckExistsAsync(TriggerKey triggerKey)
         {
             return Task.FromResult(triggersByKey.ContainsKey(triggerKey));
         }
@@ -686,7 +686,7 @@ namespace Quartz.Simpl
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.Blocked" />
         /// <seealso cref="TriggerState.None"/>
-        public virtual Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
+        public virtual Task<TriggerState> GetTriggerStateAsync(TriggerKey triggerKey)
         {
             TriggerWrapper tw;
             triggersByKey.TryGetValue(triggerKey, out tw);
@@ -730,7 +730,7 @@ namespace Quartz.Simpl
         /// in the <see cref="IJobStore" /> that reference an existing
         /// Calendar with the same name with have their next fire time
         /// re-computed with the new <see cref="ICalendar" />.</param>
-        public virtual Task StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers)
+        public virtual Task StoreCalendarAsync(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers)
         {
             calendar = (ICalendar) calendar.Clone();
 
@@ -785,7 +785,7 @@ namespace Quartz.Simpl
         /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         /// </returns>
-        public virtual Task<bool> RemoveCalendar(string calName)
+        public virtual Task<bool> RemoveCalendarAsync(string calName)
         {
             return Task.FromResult(RemoveCalendarInternal(calName));
         }
@@ -820,7 +820,7 @@ namespace Quartz.Simpl
         /// <returns>
         /// The desired <see cref="ICalendar" />, or null if there is no match.
         /// </returns>
-        public virtual Task<ICalendar> RetrieveCalendar(string calName)
+        public virtual Task<ICalendar> RetrieveCalendarAsync(string calName)
         {
             ICalendar calendar;
             calendarsByName.TryGetValue(calName, out calendar);
@@ -832,7 +832,7 @@ namespace Quartz.Simpl
         /// Get the number of <see cref="IJobDetail" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public virtual Task<int> GetNumberOfJobs()
+        public virtual Task<int> GetNumberOfJobsAsync()
         {
             return Task.FromResult(jobsByKey.Count);
         }
@@ -841,7 +841,7 @@ namespace Quartz.Simpl
         /// Get the number of <see cref="ITrigger" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public virtual Task<int> GetNumberOfTriggers()
+        public virtual Task<int> GetNumberOfTriggersAsync()
         {
             return Task.FromResult(triggers.Count);
         }
@@ -850,7 +850,7 @@ namespace Quartz.Simpl
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public virtual Task<int> GetNumberOfCalendars()
+        public virtual Task<int> GetNumberOfCalendarsAsync()
         {
             return Task.FromResult(calendarsByName.Count);
         }
@@ -859,7 +859,7 @@ namespace Quartz.Simpl
         /// Get the names of all of the <see cref="IJob" /> s that
         /// match the given group matcher.
         /// </summary>
-        public virtual Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public virtual Task<ISet<JobKey>> GetJobKeysAsync(GroupMatcher<JobKey> matcher)
         {
             return Task.FromResult(GetJobKeysInternal(matcher));
         }
@@ -921,7 +921,7 @@ namespace Quartz.Simpl
         /// a zero-length array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetCalendarNames()
+        public virtual Task<IReadOnlyList<string>> GetCalendarNamesAsync()
         {
             return Task.FromResult<IReadOnlyList<string>>(new List<string>(calendarsByName.Keys));
         }
@@ -930,7 +930,7 @@ namespace Quartz.Simpl
         /// Get the names of all of the <see cref="ITrigger" /> s
         /// that have the given group name.
         /// </summary>
-        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<ISet<TriggerKey>> GetTriggerKeysAsync(GroupMatcher<TriggerKey> matcher)
         {
             return Task.FromResult(GetTriggerKeysInternal(matcher));
         }
@@ -988,7 +988,7 @@ namespace Quartz.Simpl
         /// Get the names of all of the <see cref="IJob" />
         /// groups.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetJobGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetJobGroupNamesAsync()
         {
             return Task.FromResult((IReadOnlyList<string>) new List<string>(jobsByGroup.Keys));
         }
@@ -996,7 +996,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Get the names of all of the <see cref="ITrigger" /> groups.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNamesAsync()
         {
             return Task.FromResult<IReadOnlyList<string>>(new List<string>(triggersByGroup.Keys));
         }
@@ -1007,7 +1007,7 @@ namespace Quartz.Simpl
         /// If there are no matches, a zero-length array should be returned.
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(JobKey jobKey)
+        public virtual Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJobAsync(JobKey jobKey)
         {
             return Task.FromResult(GetTriggersForJobInternal(jobKey));
         }
@@ -1072,7 +1072,7 @@ namespace Quartz.Simpl
         /// <summary> 
         /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
-        public virtual Task PauseTrigger(TriggerKey triggerKey)
+        public virtual Task PauseTriggerAsync(TriggerKey triggerKey)
         {
             PauseTriggerInternal(triggerKey);
             return TaskUtil.CompletedTask;
@@ -1114,7 +1114,7 @@ namespace Quartz.Simpl
         /// paused.
         /// </para>
         /// </summary>
-        public virtual Task<ISet<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<ISet<string>> PauseTriggersAsync(GroupMatcher<TriggerKey> matcher)
         {
             return Task.FromResult<ISet<string>>(PauseTriggersInternal(matcher));
         }
@@ -1165,7 +1165,7 @@ namespace Quartz.Simpl
         /// Pause the <see cref="IJobDetail" /> with the given
         /// name - by pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
-        public virtual Task PauseJob(JobKey jobKey)
+        public virtual Task PauseJobAsync(JobKey jobKey)
         {
             lock (lockObject)
             {
@@ -1187,7 +1187,7 @@ namespace Quartz.Simpl
         /// paused.
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> PauseJobs(GroupMatcher<JobKey> matcher)
+        public virtual Task<IReadOnlyList<string>> PauseJobsAsync(GroupMatcher<JobKey> matcher)
         {
             lock (lockObject)
             {
@@ -1236,7 +1236,7 @@ namespace Quartz.Simpl
         /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
-        public virtual Task ResumeTrigger(TriggerKey triggerKey)
+        public virtual Task ResumeTriggerAsync(TriggerKey triggerKey)
         {
             ResumeTriggerInternal(triggerKey);
             return TaskUtil.CompletedTask;
@@ -1289,7 +1289,7 @@ namespace Quartz.Simpl
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<IReadOnlyList<string>> ResumeTriggersAsync(GroupMatcher<TriggerKey> matcher)
         {
             return Task.FromResult<IReadOnlyList<string>>(ResumeTriggersInternal(matcher).ToList());
         }
@@ -1333,7 +1333,7 @@ namespace Quartz.Simpl
         /// instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual Task ResumeJob(JobKey jobKey)
+        public virtual Task ResumeJobAsync(JobKey jobKey)
         {
             lock (lockObject)
             {
@@ -1355,7 +1355,7 @@ namespace Quartz.Simpl
         /// misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual Task<ISet<string>> ResumeJobs(GroupMatcher<JobKey> matcher)
+        public virtual Task<ISet<string>> ResumeJobsAsync(GroupMatcher<JobKey> matcher)
         {
             lock (lockObject)
             {
@@ -1388,15 +1388,15 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
+        /// Pause all triggers - equivalent of calling <see cref="PauseTriggersAsync" />
         /// on every group.
         /// <para>
-        /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
+        /// When <see cref="ResumeAllAsync" /> is called (to un-pause), trigger misfire
         /// instructions WILL be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="ResumeAll()" /> 
-        public virtual Task PauseAll()
+        /// <seealso cref="ResumeAllAsync" /> 
+        public virtual Task PauseAllAsync()
         {
             lock (lockObject)
             {
@@ -1409,15 +1409,15 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggersAsync" />
         /// on every trigger group and setting all job groups unpaused />.
         /// <para>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="PauseAll()" />
-        public virtual Task ResumeAll()
+        /// <seealso cref="PauseAllAsync" />
+        public virtual Task ResumeAllAsync()
         {
             lock (lockObject)
             {
@@ -1458,14 +1458,14 @@ namespace Quartz.Simpl
                 calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
             }
 
-            signaler.NotifyTriggerListenersMisfired((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult(); ;
+            signaler.NotifyTriggerListenersMisfiredAsync((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult(); ;
 
             tw.Trigger.UpdateAfterMisfire(cal);
 
             if (!tw.Trigger.GetNextFireTimeUtc().HasValue)
             {
                 tw.state = InternalTriggerState.Complete;
-                signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false).GetAwaiter().GetResult(); ;
+                signaler.NotifySchedulerListenersFinalizedAsync(tw.Trigger).ConfigureAwait(false).GetAwaiter().GetResult(); ;
                 lock (lockObject)
                 {
                     timeTriggers.Remove(tw);
@@ -1484,7 +1484,7 @@ namespace Quartz.Simpl
         /// by the calling scheduler.
         /// </summary>
         /// <seealso cref="ITrigger" />
-        public virtual Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+        public virtual Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggersAsync(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
             lock (lockObject)
             {
@@ -1581,7 +1581,7 @@ namespace Quartz.Simpl
         /// fire the given <see cref="ITrigger" />, that it had previously acquired
         /// (reserved).
         /// </summary>
-        public virtual Task ReleaseAcquiredTrigger(IOperableTrigger trigger)
+        public virtual Task ReleaseAcquiredTriggerAsync(IOperableTrigger trigger)
         {
             lock (lockObject)
             {
@@ -1600,7 +1600,7 @@ namespace Quartz.Simpl
         /// given <see cref="ITrigger" /> (executing its associated <see cref="IJob" />),
         /// that it had previously acquired (reserved).
         /// </summary>
-        public virtual Task<IReadOnlyList<TriggerFiredResult>> TriggersFired(IList<IOperableTrigger> triggers)
+        public virtual Task<IReadOnlyList<TriggerFiredResult>> TriggersFiredAsync(IList<IOperableTrigger> triggers)
         {
             lock (lockObject)
             {
@@ -1687,7 +1687,7 @@ namespace Quartz.Simpl
         /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
         /// is stateful.
         /// </summary>
-        public virtual Task TriggeredJobComplete(
+        public virtual Task TriggeredJobCompleteAsync(
             IOperableTrigger trigger,
             IJobDetail jobDetail,
             SchedulerInstruction triggerInstCode)
@@ -1869,8 +1869,8 @@ namespace Quartz.Simpl
             return Task.FromResult(str.ToString());
         }
 
-        /// <seealso cref="IJobStore.GetPausedTriggerGroups()" />
-        public virtual Task<ISet<string>> GetPausedTriggerGroups()
+        /// <seealso cref="IJobStore.GetPausedTriggerGroupsAsync" />
+        public virtual Task<ISet<string>> GetPausedTriggerGroupsAsync()
         {
             ISet<string> data = new HashSet<string>(pausedTriggerGroups);
             return Task.FromResult(data);

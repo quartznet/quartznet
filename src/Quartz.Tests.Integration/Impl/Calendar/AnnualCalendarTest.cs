@@ -41,7 +41,7 @@ namespace Quartz.Tests.Integration.Impl.Calendar
         [Test]
         public async Task TestTriggerFireExclusion()
         {
-            await sched.Start();
+            await sched.StartAsync();
             TestJob.JobHasFired = false;
             IJobDetail jobDetail = JobBuilder.Create<TestJob>()
                 .WithIdentity("name", "group")
@@ -55,9 +55,9 @@ namespace Quartz.Tests.Integration.Impl.Calendar
 
             AnnualCalendar calendar = new AnnualCalendar();
             calendar.SetDayExcluded(DateTime.Now, true);
-            await sched.AddCalendar("calendar", calendar, true, true);
+            await sched.AddCalendarAsync("calendar", calendar, true, true);
 
-            await sched.ScheduleJob(jobDetail, trigger);
+            await sched.ScheduleJobAsync(jobDetail, trigger);
 
             ITrigger triggerreplace = TriggerBuilder.Create()
                 .WithIdentity("foo", "trigGroup")
@@ -66,19 +66,19 @@ namespace Quartz.Tests.Integration.Impl.Calendar
                 .WithCronSchedule("0/15 * * * * ?")
                 .Build();
 
-            await sched.RescheduleJob(new TriggerKey("trigName", "trigGroup"), triggerreplace);
+            await sched.RescheduleJobAsync(new TriggerKey("trigName", "trigGroup"), triggerreplace);
             await Task.Delay(TimeSpan.FromSeconds(20));
             Assert.IsFalse(TestJob.JobHasFired, "task must not be neglected - it is forbidden by the calendar");
 
             calendar.SetDayExcluded(DateTime.Now, false);
-            await sched.AddCalendar("calendar", calendar, true, true);
+            await sched.AddCalendarAsync("calendar", calendar, true, true);
             await Task.Delay(TimeSpan.FromSeconds(20));
             Assert.IsTrue(TestJob.JobHasFired, "task must be neglected - it is permitted by the calendar");
 
-            await sched.DeleteJob(new JobKey("name", "group"));
-            await sched.DeleteCalendar("calendar");
+            await sched.DeleteJobAsync(new JobKey("name", "group"));
+            await sched.DeleteCalendarAsync("calendar");
 
-            await sched.Shutdown();
+            await sched.ShutdownAsync();
         }
     }
 }

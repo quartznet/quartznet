@@ -15,137 +15,137 @@ namespace Quartz.Web.LiveLog
 
         public string Name { get; }
 
-        public Task JobToBeExecuted(IJobExecutionContext context)
+        public Task JobToBeExecutedAsync(IJobExecutionContext context)
         {
             return SendToClients(x => x.jobToBeExecuted(new KeyDto(context.JobDetail.Key), new KeyDto(context.Trigger.Key)));
         }
 
-        public Task JobExecutionVetoed(IJobExecutionContext context)
+        public Task JobExecutionVetoedAsync(IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException)
         {
             return SendToClients(x => x.jobWasExecuted(new KeyDto(context.JobDetail.Key), new KeyDto(context.Trigger.Key), jobException?.Message));
         }
 
-        public Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public Task TriggerFiredAsync(ITrigger trigger, IJobExecutionContext context)
         {
             return SendToClients(x => x.triggerFired(new KeyDto(trigger.Key)));
         }
 
-        public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public Task<bool> VetoJobExecutionAsync(ITrigger trigger, IJobExecutionContext context)
         {
             return Task.FromResult(false);
         }
 
-        public Task TriggerMisfired(ITrigger trigger)
+        public Task TriggerMisfiredAsync(ITrigger trigger)
         {
             return SendToClients(x => x.triggerMisfired(new KeyDto(trigger.Key)));
         }
 
-        public Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public Task TriggerCompleteAsync(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
             return SendToClients(x => x.triggerComplete(new KeyDto(trigger.Key)));
         }
 
-        public Task JobScheduled(ITrigger trigger)
+        public Task JobScheduledAsync(ITrigger trigger)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobUnscheduled(TriggerKey triggerKey)
+        public Task JobUnscheduledAsync(TriggerKey triggerKey)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task TriggerFinalized(ITrigger trigger)
+        public Task TriggerFinalizedAsync(ITrigger trigger)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task TriggerPaused(TriggerKey triggerKey)
+        public Task TriggerPausedAsync(TriggerKey triggerKey)
         {
             return SendToClients(x => x.triggerPaused(new KeyDto(triggerKey)));
         }
 
-        public Task TriggersPaused(string triggerGroup)
+        public Task TriggersPausedAsync(string triggerGroup)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task TriggerResumed(TriggerKey triggerKey)
+        public Task TriggerResumedAsync(TriggerKey triggerKey)
         {
             return SendToClients(x => x.triggerResumed(new KeyDto(triggerKey)));
         }
 
-        public Task TriggersResumed(string triggerGroup)
+        public Task TriggersResumedAsync(string triggerGroup)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobAdded(IJobDetail jobDetail)
+        public Task JobAddedAsync(IJobDetail jobDetail)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobDeleted(JobKey jobKey)
+        public Task JobDeletedAsync(JobKey jobKey)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobPaused(JobKey jobKey)
+        public Task JobPausedAsync(JobKey jobKey)
         {
             return SendToClients(x => x.jobPaused(jobKey));
         }
 
-        public Task JobsPaused(string jobGroup)
+        public Task JobsPausedAsync(string jobGroup)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobResumed(JobKey jobKey)
+        public Task JobResumedAsync(JobKey jobKey)
         {
             return SendToClients(x => x.jobResumed(jobKey));
         }
 
-        public Task JobsResumed(string jobGroup)
+        public Task JobsResumedAsync(string jobGroup)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task SchedulerError(string msg, SchedulerException cause)
+        public Task SchedulerErrorAsync(string msg, SchedulerException cause)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task SchedulerInStandbyMode()
+        public Task SchedulerInStandbyModeAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task SchedulerStarted()
+        public Task SchedulerStartedAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task SchedulerStarting()
+        public Task SchedulerStartingAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task SchedulerShutdown()
+        public Task SchedulerShutdownAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task SchedulerShuttingdown()
+        public Task SchedulerShuttingdownAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task SchedulingDataCleared()
+        public Task SchedulingDataClearedAsync()
         {
             return TaskUtil.CompletedTask;
         }

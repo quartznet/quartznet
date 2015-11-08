@@ -30,7 +30,7 @@ namespace Quartz.Plugin.Management
     /// This plugin catches the event of the VM terminating (such as upon a CRTL-C)
     /// and tells the scheduler to Shutdown.
     /// </summary>
-    /// <seealso cref="IScheduler.Shutdown(bool)" />
+    /// <seealso cref="IScheduler.ShutdownAsync(bool)" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public class ShutdownHookPlugin : ISchedulerPlugin
@@ -49,7 +49,7 @@ namespace Quartz.Plugin.Management
         /// The default value is <see langword="true" />.
         /// </para>
         /// </summary>
-        /// <seealso cref="IScheduler.Shutdown(bool)" />
+        /// <seealso cref="IScheduler.ShutdownAsync(bool)" />
         public bool CleanShutdown { get; set; }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace Quartz.Plugin.Management
                                                 log.Info("Shutting down Quartz...");
                                                 try
                                                 {
-                                                    scheduler.Shutdown(CleanShutdown);
+                                                    scheduler.ShutdownAsync(CleanShutdown);
                                                 }
                                                 catch (SchedulerException e)
                                                 {
@@ -79,7 +79,7 @@ namespace Quartz.Plugin.Management
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start()
+        public virtual Task StartAsync()
         {
             // do nothing.
             return TaskUtil.CompletedTask;
@@ -90,7 +90,7 @@ namespace Quartz.Plugin.Management
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task ShutdownAsync()
         {
             // nothing to do in this case (since the scheduler is already shutting
             // down)

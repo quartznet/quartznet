@@ -71,17 +71,17 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [TearDown]
         public void TearDown()
         {
-            scheduler.Shutdown(true);
+            scheduler.ShutdownAsync(true);
         }
 
         [Test]
         public void DeleteJobDetailOnly()
         {
             IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob").StoreDurably().Build();
-            scheduler.AddJob(jobDetail, true);
+            scheduler.AddJobAsync(jobDetail, true);
             ModifyStoredJobClassName();
 
-            scheduler.DeleteJob(jobDetail.Key);
+            scheduler.DeleteJobAsync(jobDetail.Key);
         }
 
         [Test]
@@ -92,10 +92,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 .WithIdentity("testjob2")
                 .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                 .Build();
-            scheduler.ScheduleJob(jobDetail, trigger);
+            scheduler.ScheduleJobAsync(jobDetail, trigger);
             ModifyStoredJobClassName();
 
-            scheduler.DeleteJob(jobDetail.Key);
+            scheduler.DeleteJobAsync(jobDetail.Key);
         }
 
         [Test]
@@ -106,10 +106,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 .WithIdentity("testjob3")
                 .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                 .Build();
-            scheduler.ScheduleJob(jobDetail, trigger);
+            scheduler.ScheduleJobAsync(jobDetail, trigger);
             ModifyStoredJobClassName();
 
-            scheduler.UnscheduleJob(trigger.Key);
+            scheduler.UnscheduleJobAsync(trigger.Key);
         }
 
         [Test]
@@ -120,11 +120,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 .WithIdentity("testjob3")
                 .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                 .Build();
-            scheduler.ScheduleJob(jobDetail, trigger);
+            scheduler.ScheduleJobAsync(jobDetail, trigger);
             ModifyStoredJobClassName();
 
             jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob3").StoreDurably().Build();
-            scheduler.AddJob(jobDetail, true);
+            scheduler.AddJobAsync(jobDetail, true);
         }
 
         private void ModifyStoredJobClassName()

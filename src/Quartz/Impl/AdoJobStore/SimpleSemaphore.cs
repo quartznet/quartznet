@@ -72,7 +72,7 @@ namespace Quartz.Impl.AdoJobStore
         /// until it is available).
         /// </summary>
         /// <returns>True if the lock was obtained.</returns>
-        public virtual Task<bool> ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
+        public virtual Task<bool> ObtainLockAsync(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
         {
             lock (this)
             {
@@ -124,7 +124,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary> Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
-        public virtual Task ReleaseLock(string lockName)
+        public virtual Task ReleaseLockAsync(string lockName)
         {
             lock (this)
             {
@@ -167,8 +167,8 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <value></value>
         /// <seealso cref="IsLockOwner"/>
-        /// <seealso cref="ObtainLock"/>
-        /// <seealso cref="ReleaseLock"/>
+        /// <seealso cref="ObtainLockAsync"/>
+        /// <seealso cref="ReleaseLockAsync"/>
         public bool RequiresConnection => false;
     }
 }

@@ -38,19 +38,19 @@ namespace Quartz.Examples.Example9
             get { return "job1_to_job2"; }
         }
 
-        public virtual Task JobToBeExecuted(IJobExecutionContext inContext)
+        public virtual Task JobToBeExecutedAsync(IJobExecutionContext inContext)
         {
             log.Info("Job1Listener says: Job Is about to be executed.");
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobExecutionVetoed(IJobExecutionContext inContext)
+        public virtual Task JobExecutionVetoedAsync(IJobExecutionContext inContext)
         {
             log.Info("Job1Listener says: Job Execution was vetoed.");
             return TaskUtil.CompletedTask;
         }
 
-        public virtual async Task JobWasExecuted(IJobExecutionContext inContext, JobExecutionException inException)
+        public virtual async Task JobWasExecutedAsync(IJobExecutionContext inContext, JobExecutionException inException)
         {
             log.Info("Job1Listener says: Job was executed.");
 
@@ -67,7 +67,7 @@ namespace Quartz.Examples.Example9
             try
             {
                 // schedule the job to run!
-                await inContext.Scheduler.ScheduleJob(job2, trigger);
+                await inContext.Scheduler.ScheduleJobAsync(job2, trigger);
             }
             catch (SchedulerException e)
             {
