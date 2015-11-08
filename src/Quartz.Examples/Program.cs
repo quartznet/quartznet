@@ -71,7 +71,7 @@ namespace Quartz.Examples
 				int num = Convert.ToInt32(Console.ReadLine());
 				Type eType = typeMap[num];
 				IExample example = ObjectUtils.InstantiateType<IExample>(eType);
-				example.Run().Wait();
+				example.RunAsync().Wait();
 				Console.WriteLine("Example run successfully.");
 			}
 			catch (Exception ex)

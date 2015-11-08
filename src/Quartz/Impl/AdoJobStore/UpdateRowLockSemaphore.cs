@@ -71,16 +71,16 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="lockName"></param>
         /// <param name="expandedSql"></param>
         /// <param name="expandedInsertSql"></param>
-        protected override async Task ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql)
+        protected override async Task ExecuteSQLAsync(ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql)
         {
             Exception lastFailure = null;
             for (int i = 0; i < RetryCount; i++)
             {
                 try
                 {
-                    if (!await LockViaUpdate(conn, lockName, expandedSql).ConfigureAwait(false))
+                    if (!await LockViaUpdateAsync(conn, lockName, expandedSql).ConfigureAwait(false))
                     {
-                        await LockViaInsert(conn, lockName, expandedInsertSql).ConfigureAwait(false);
+                        await LockViaInsertAsync(conn, lockName, expandedInsertSql).ConfigureAwait(false);
                     }
                     return;
                 }
@@ -105,7 +105,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task<bool> LockViaUpdate(ConnectionAndTransactionHolder conn, string lockName, string sql)
+        private async Task<bool> LockViaUpdateAsync(ConnectionAndTransactionHolder conn, string lockName, string sql)
         {
             using (DbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
             {
@@ -116,7 +116,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task LockViaInsert(ConnectionAndTransactionHolder conn, string lockName, string sql)
+        private async Task LockViaInsertAsync(ConnectionAndTransactionHolder conn, string lockName, string sql)
         {
             if (sql == null)
             {

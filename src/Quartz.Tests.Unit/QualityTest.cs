@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-
+using System.Text.RegularExpressions;
 using NUnit.Framework;
-
 using Quartz.Web.Api;
 
 namespace Quartz.Tests.Unit
@@ -17,11 +17,40 @@ namespace Quartz.Tests.Unit
     public class QualityTest
     {
         [Test]
+        public void EnsureAsyncNamingConventions()
+        {
+            var regex = new Regex(@"Task\s+(\w+(?<!Async))\(");
+
+            var paths = new[]
+            {
+                @"..\..\..\..\src\Quartz",
+                @"..\..\..\..\src\Quartz.Examples",
+                @"..\..\..\..\src\Quartz.Server"
+            };
+
+            var files = new List<string>();
+            foreach (var path in paths)
+            {
+                files.AddRange(Directory.GetFiles(Path.GetFullPath(path), "*.cs", SearchOption.AllDirectories));
+            }
+            var problemFiles = new List<string>();
+            foreach (var file in files)
+            {
+                var matches = regex.Matches(File.ReadAllText(file));
+                foreach (Match match in matches)
+                {
+                    problemFiles.Add($"{file}: {match.Groups[1].Value}{Environment.NewLine}");
+                }
+            }
+            Assert.That(problemFiles, Is.Empty, "Async postfix missing in files");
+        }
+
+        [Test]
         public void EnsureNoAsyncVoidMethods()
         {
             AssertNoAsyncVoidMethods(GetType().Assembly);
             AssertNoAsyncVoidMethods(typeof (IJob).Assembly);
-            AssertNoAsyncVoidMethods(typeof(TriggersController).Assembly);
+            AssertNoAsyncVoidMethods(typeof (TriggersController).Assembly);
         }
 
         private static void AssertNoAsyncVoidMethods(Assembly assembly)

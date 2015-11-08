@@ -52,8 +52,8 @@ namespace Quartz.Tests.Unit
                 .WithDailyTimeIntervalSchedule(x => x.WithIntervalInSeconds(3))
                 .Build();
 
-            await scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
-            await scheduler.Shutdown();
+            await scheduler.ScheduleJobAsync(job, trigger); //We are not verify anything other than just run through the scheduler.
+            await scheduler.ShutdownAsync();
         }
 
         [Test]
@@ -77,9 +77,9 @@ namespace Quartz.Tests.Unit
                 .StartAt(currTime)
                 .Build();
 
-            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJobAsync(job, trigger);
 
-            trigger = await scheduler.GetTrigger(trigger.Key);
+            trigger = await scheduler.GetTriggerAsync(trigger.Key);
 
             Console.WriteLine("testScheduleInMiddleOfDailyInterval: currTime = " + currTime);
             Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
@@ -96,16 +96,16 @@ namespace Quartz.Tests.Unit
                     .WithIntervalInMinutes(5))
                 .StartAt(startTime)
                 .Build();
-            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJobAsync(job, trigger);
 
-            trigger = await scheduler.GetTrigger(trigger.Key);
+            trigger = await scheduler.GetTriggerAsync(trigger.Key);
 
             Console.WriteLine("testScheduleInMiddleOfDailyInterval: startTime = " + startTime);
             Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
 
             Assert.That(trigger.GetNextFireTimeUtc() == startTime);
 
-            await scheduler.Shutdown();
+            await scheduler.ShutdownAsync();
         }
 
         [Test]

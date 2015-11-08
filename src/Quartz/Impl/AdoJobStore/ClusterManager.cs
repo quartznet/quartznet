@@ -24,16 +24,16 @@ namespace Quartz.Impl.AdoJobStore
             cancellationTokenSource = new CancellationTokenSource();
         }
 
-        public async Task Initialize()
+        public async Task InitializeAsync()
         {
-            await Manage().ConfigureAwait(false);
+            await ManageAsync().ConfigureAwait(false);
             string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_ClusterManager";
 
             taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadPriority: ThreadPriority.AboveNormal, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
-            task = Task.Factory.StartNew(() => Run(cancellationTokenSource.Token), cancellationTokenSource.Token, TaskCreationOptions.HideScheduler, taskScheduler);
+            task = Task.Factory.StartNew(() => RunAsync(cancellationTokenSource.Token), cancellationTokenSource.Token, TaskCreationOptions.HideScheduler, taskScheduler);
         }
 
-        public async Task Shutdown()
+        public async Task ShutdownAsync()
         {
             cancellationTokenSource.Cancel();
             try
@@ -45,7 +45,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task<bool> Manage()
+        private async Task<bool> ManageAsync()
         {
             bool res = false;
             try
@@ -66,7 +66,7 @@ namespace Quartz.Impl.AdoJobStore
             return res;
         }
 
-        private async Task Run(CancellationToken token)
+        private async Task RunAsync(CancellationToken token)
         {
             while (true)
             {
@@ -89,7 +89,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 token.ThrowIfCancellationRequested();
 
-                if (await Manage().ConfigureAwait(false))
+                if (await ManageAsync().ConfigureAwait(false))
                 {
                     jobStoreSupport.SignalSchedulingChangeImmediately(SchedulerConstants.SchedulingSignalDateTime);
                 }

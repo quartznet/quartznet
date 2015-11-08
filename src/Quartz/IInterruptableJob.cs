@@ -60,8 +60,8 @@ namespace Quartz
 	/// </para>
     /// </remarks>
 	/// <seealso cref="IJob" />
-	/// <seealso cref="IScheduler.Interrupt(JobKey)"/>
-    /// <seealso cref="IScheduler.Interrupt(string)"/>
+	/// <seealso cref="IScheduler.InterruptAsync(JobKey)"/>
+    /// <seealso cref="IScheduler.InterruptAsync(string)"/>
     /// <author>Marko Lahma (.NET)</author>
     [Obsolete("You should check for JobExecutionContext.IsCancellationRequested or call JobExecutionContext.ThrowIfCancellationRequested()")]
     public interface IInterruptableJob : IJob

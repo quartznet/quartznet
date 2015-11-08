@@ -28,9 +28,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public async Task TestRecoverMisfiredJobs_ShouldCheckForMisfiredTriggersInStateWaiting()
         {
-            await jobStoreSupport.RecoverMisfiredJobs(null, false);
+            await jobStoreSupport.RecoverMisfiredJobsAsync(null, false);
 
-            A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
+            A.CallTo(() => driverDelegate.HasMisfiredTriggersInStateAsync(
                 A<ConnectionAndTransactionHolder>.Ignored,
                 A<string>.That.IsEqualTo(AdoConstants.StateWaiting),
                 A<DateTimeOffset>.Ignored,
@@ -45,7 +45,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 return new ConnectionAndTransactionHolder(null, null);
             }
 
-            protected override Task<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+            protected override Task<T> ExecuteInLockAsync<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
             {
                 return Task.FromResult(default(T));
             }

@@ -38,7 +38,7 @@ namespace Quartz.Examples.Example8
     {
         public string Name => GetType().Name;
 
-        public virtual async Task Run()
+        public virtual async Task RunAsync()
         {
             ILog log = LogProvider.GetLogger(typeof (CalendarExample));
 
@@ -68,7 +68,7 @@ namespace Quartz.Examples.Example8
             holidays.SetDayExcluded(christmas, true);
 
             // tell the schedule about our holiday calendar
-            await sched.AddCalendar("holidays", holidays, false, false);
+            await sched.AddCalendarAsync("holidays", holidays, false, false);
 
             // schedule a job to run hourly, starting on halloween
             // at 10 am
@@ -87,7 +87,7 @@ namespace Quartz.Examples.Example8
                 .Build();
 
             // schedule the job and print the first run date
-            DateTimeOffset firstRunTime = await sched.ScheduleJob(job, trigger);
+            DateTimeOffset firstRunTime = await sched.ScheduleJobAsync(job, trigger);
 
             // print out the first execution date.
             // Note:  Since Halloween (Oct 31) is a holiday, then
@@ -97,7 +97,7 @@ namespace Quartz.Examples.Example8
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
             log.Info("------- Starting Scheduler ----------------");
-            await sched.Start();
+            await sched.StartAsync();
 
             // wait 30 seconds:
             // note:  nothing will run
@@ -109,10 +109,10 @@ namespace Quartz.Examples.Example8
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
+            await sched.ShutdownAsync(true);
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaData();
+            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
             log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }

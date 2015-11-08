@@ -40,25 +40,25 @@ namespace Quartz
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// is scheduled.
         /// </summary>
-        Task JobScheduled(ITrigger trigger);
+        Task JobScheduledAsync(ITrigger trigger);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// is unscheduled.
         /// </summary>
-        /// <seealso cref="SchedulingDataCleared"/>
-        Task JobUnscheduled(TriggerKey triggerKey);
+        /// <seealso cref="SchedulingDataClearedAsync"/>
+        Task JobUnscheduledAsync(TriggerKey triggerKey);
 
         /// <summary> 
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// has reached the condition in which it will never fire again.
         /// </summary>
-        Task TriggerFinalized(ITrigger trigger);
+        Task TriggerFinalizedAsync(ITrigger trigger);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> a <see cref="ITrigger"/>s has been paused.
         /// </summary>
-        Task TriggerPaused(TriggerKey triggerKey);
+        Task TriggerPausedAsync(TriggerKey triggerKey);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> a group of 
@@ -69,13 +69,13 @@ namespace Quartz
         /// will be null.
         /// </remarks>
         /// <param name="triggerGroup">The trigger group.</param>
-        Task TriggersPaused(string triggerGroup);
+        Task TriggersPausedAsync(string triggerGroup);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// has been un-paused.
         /// </summary>
-        Task TriggerResumed(TriggerKey triggerKey);
+        Task TriggerResumedAsync(TriggerKey triggerKey);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a
@@ -86,26 +86,26 @@ namespace Quartz
         /// will be null.
         /// </remarks>
         /// <param name="triggerGroup">The trigger group.</param>
-        Task TriggersResumed(string triggerGroup);
+        Task TriggersResumedAsync(string triggerGroup);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been added.
         /// </summary>
         /// <param name="jobDetail"></param>
-        Task JobAdded(IJobDetail jobDetail);
+        Task JobAddedAsync(IJobDetail jobDetail);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been deleted.
         /// </summary>
-        Task JobDeleted(JobKey jobKey);
+        Task JobDeletedAsync(JobKey jobKey);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
         /// has been  paused.
         /// </summary>
-        Task JobPaused(JobKey jobKey);
+        Task JobPausedAsync(JobKey jobKey);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a
@@ -116,20 +116,20 @@ namespace Quartz
         /// </para>
         /// </summary>
         /// <param name="jobGroup">The job group.</param>
-        Task JobsPaused(string jobGroup);
+        Task JobsPausedAsync(string jobGroup);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been  un-paused.
         /// </summary>
-        Task JobResumed(JobKey jobKey);
+        Task JobResumedAsync(JobKey jobKey);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been  un-paused.
         /// </summary>
         /// <param name="jobGroup">The job group.</param>
-        Task JobsResumed(string jobGroup);
+        Task JobsResumedAsync(string jobGroup);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a serious error has
@@ -137,41 +137,41 @@ namespace Quartz
         /// or the inability to instantiate a <see cref="IJob" /> instance when its
         /// <see cref="ITrigger" /> has fired.
         /// </summary>
-        Task SchedulerError(string msg, SchedulerException cause);
+        Task SchedulerErrorAsync(string msg, SchedulerException cause);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that it has move to standby mode.
         /// </summary>
-        Task SchedulerInStandbyMode();
+        Task SchedulerInStandbyModeAsync();
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that it has started.
         /// </summary>
-        Task SchedulerStarted();
+        Task SchedulerStartedAsync();
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener that it is starting.
         /// </summary>
-        Task SchedulerStarting();
+        Task SchedulerStartingAsync();
 
         /// <summary> 
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that it has Shutdown.
         /// </summary>
-        Task SchedulerShutdown();
+        Task SchedulerShutdownAsync();
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that it has begun the shutdown sequence.
         /// </summary>
-        Task SchedulerShuttingdown();
+        Task SchedulerShuttingdownAsync();
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that all jobs, triggers and calendars were deleted.
         /// </summary>
-        Task SchedulingDataCleared();
+        Task SchedulingDataClearedAsync();
     }
 }

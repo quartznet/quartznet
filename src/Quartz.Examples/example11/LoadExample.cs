@@ -37,7 +37,7 @@ namespace Quartz.Examples.Example11
 
         public string Name => GetType().Name;
 
-        public virtual async Task Run()
+        public virtual async Task RunAsync()
         {
             ILog log = LogProvider.GetLogger(typeof (LoadExample));
 
@@ -68,7 +68,7 @@ namespace Quartz.Examples.Example11
                     .StartAt(DateBuilder.FutureDate((10000 + (count*100)), IntervalUnit.Millisecond)) // space fire times a small bit
                     .Build();
 
-                await sched.ScheduleJob(job, trigger);
+                await sched.ScheduleJobAsync(job, trigger);
                 if (count%25 == 0)
                 {
                     log.Info("...scheduled " + count + " jobs");
@@ -78,7 +78,7 @@ namespace Quartz.Examples.Example11
             log.Info("------- Starting Scheduler ----------------");
 
             // start the schedule 
-            await sched.Start();
+            await sched.StartAsync();
 
             log.Info("------- Started Scheduler -----------------");
 
@@ -89,10 +89,10 @@ namespace Quartz.Examples.Example11
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
+            await sched.ShutdownAsync(true);
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaData();
+            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
             log.Info("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
         }
     }

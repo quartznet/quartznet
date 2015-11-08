@@ -59,7 +59,7 @@ namespace Quartz.Examples.Example5
             get { throw new NotImplementedException(); }
         }
 
-        public virtual async Task Run()
+        public virtual async Task RunAsync()
         {
             ILog log = LogProvider.GetLogger(typeof (MisfireExample));
 
@@ -92,7 +92,7 @@ namespace Quartz.Examples.Example5
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(3).RepeatForever())
                 .Build();
 
-            DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
+            DateTimeOffset ft = await sched.ScheduleJobAsync(job, trigger);
             log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // statefulJob2 will run every three seconds
@@ -110,14 +110,14 @@ namespace Quartz.Examples.Example5
                     .RepeatForever()
                     .WithMisfireHandlingInstructionNowWithExistingCount()) // set misfire instructions
                 .Build();
-            ft = await sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJobAsync(job, trigger);
 
             log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 
             // jobs don't start firing until start() has been called...
-            await sched.Start();
+            await sched.StartAsync();
 
             log.Info("------- Started Scheduler -----------------");
 
@@ -126,11 +126,11 @@ namespace Quartz.Examples.Example5
 
             log.Info("------- Shutting Down ---------------------");
 
-            await sched.Shutdown(true);
+            await sched.ShutdownAsync(true);
 
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaData();
+            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
             log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }

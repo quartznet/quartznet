@@ -127,7 +127,7 @@ namespace Quartz
         /// JobExecutionContext instance as well.
         /// </summary>
         ///  <returns>the unique fire instance id</returns>
-        /// <seealso cref="IScheduler.Interrupt(string)" />
+        /// <seealso cref="IScheduler.InterruptAsync(string)" />
         string FireInstanceId { get; }
 
         /// <summary>
@@ -186,8 +186,8 @@ namespace Quartz
         object Get(object key);
 
         /// <summary>
-        /// Returns whether the job cancellation has been requested via <see cref="IScheduler.Interrupt(Quartz.JobKey)"/>
-        /// or <see cref="IScheduler.Interrupt(string)"/>.
+        /// Returns whether the job cancellation has been requested via <see cref="IScheduler.InterruptAsync(JobKey)"/>
+        /// or <see cref="IScheduler.InterruptAsync(string)"/>.
         /// </summary>
         bool IsCancellationRequested { get; }
 

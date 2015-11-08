@@ -28,10 +28,10 @@ namespace Quartz.Impl.AdoJobStore
 
         public virtual void Initialize()
         {
-            task = Task.Factory.StartNew(() => Run(), CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler);
+            task = Task.Factory.StartNew(() => RunAsync(), CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler);
         }
 
-        private async Task Run()
+        private async Task RunAsync()
         {
             CancellationToken token = cancellationTokenSource.Token;
             while (true)
@@ -40,7 +40,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 DateTimeOffset sTime = SystemTime.UtcNow();
 
-                RecoverMisfiredJobsResult recoverMisfiredJobsResult = await Manage().ConfigureAwait(false);
+                RecoverMisfiredJobsResult recoverMisfiredJobsResult = await ManageAsync().ConfigureAwait(false);
 
                 if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
                 {
@@ -69,7 +69,7 @@ namespace Quartz.Impl.AdoJobStore
             // ReSharper disable once FunctionNeverReturns
         }
 
-        public virtual async Task Shutdown()
+        public virtual async Task ShutdownAsync()
         {
             cancellationTokenSource.Cancel();
             try
@@ -81,7 +81,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task<RecoverMisfiredJobsResult> Manage()
+        private async Task<RecoverMisfiredJobsResult> ManageAsync()
         {
             try
             {

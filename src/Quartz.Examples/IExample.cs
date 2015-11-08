@@ -31,6 +31,6 @@ namespace Quartz.Examples
     {
         string Name { get; }
 
-        Task Run();
+        Task RunAsync();
     }
 }

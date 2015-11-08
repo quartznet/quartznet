@@ -72,7 +72,7 @@ namespace Quartz.Core
             log = LogProvider.GetLogger(GetType());
         }
 
-        public override Task SchedulerShuttingdown()
+        public override Task SchedulerShuttingdownAsync()
         {
             RequestShutdown();
             return TaskUtil.CompletedTask;
@@ -82,7 +82,7 @@ namespace Quartz.Core
         /// Initializes the job execution context with given scheduler and bundle.
         /// </summary>
         /// <param name="sched">The scheduler.</param>
-        public virtual async Task Initialize(QuartzScheduler sched)
+        public virtual async Task InitializeAsync(QuartzScheduler sched)
         {
             qs = sched;
 
@@ -95,13 +95,13 @@ namespace Quartz.Core
             }
             catch (SchedulerException se)
             {
-                await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}'", se).ConfigureAwait(false);
+                await sched.NotifySchedulerListenersErrorAsync($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}'", se).ConfigureAwait(false);
                 throw;
             }
             catch (Exception e)
             {
                 SchedulerException se = new SchedulerException($"Problem instantiating type '{jobDetail.JobType.FullName}'", e);
-                await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}'", se).ConfigureAwait(false);
+                await sched.NotifySchedulerListenersErrorAsync($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}'", se).ConfigureAwait(false);
                 throw se;
             }
 
@@ -119,7 +119,7 @@ namespace Quartz.Core
         /// This method has to be implemented in order that starting of the thread causes the object's
         /// run method to be called in that separately executing thread.
         /// </summary>
-        public virtual async Task Run()
+        public virtual async Task RunAsync()
         {
             qs.AddInternalSchedulerListener(this);
 
@@ -139,7 +139,7 @@ namespace Quartz.Core
                     catch (SchedulerException se)
                     {
                         string msg = $"Error executing Job {jec.JobDetail.Key}: couldn't begin execution.";
-                        qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false).GetAwaiter().GetResult();
+                        qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false).GetAwaiter().GetResult();
                         break;
                     }
 
@@ -147,7 +147,7 @@ namespace Quartz.Core
                     SchedulerInstruction instCode;
                     try
                     {
-                        if (!NotifyListenersBeginning(jec).ConfigureAwait(false).GetAwaiter().GetResult())
+                        if (!NotifyListenersBeginningAsync(jec).ConfigureAwait(false).GetAwaiter().GetResult())
                         {
                             break;
                         }
@@ -157,19 +157,19 @@ namespace Quartz.Core
                         try
                         {
                             instCode = trigger.ExecutionComplete(jec, null);
-                            qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode).ConfigureAwait(false).GetAwaiter().GetResult();
+                            qs.NotifyJobStoreJobVetoedAsync(trigger, jobDetail, instCode).ConfigureAwait(false).GetAwaiter().GetResult();
 
                             // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
                             if (jec.Trigger.GetNextFireTimeUtc() == null)
                             {
-                                qs.NotifySchedulerListenersFinalized(jec.Trigger).ConfigureAwait(false).GetAwaiter().GetResult();
+                                qs.NotifySchedulerListenersFinalizedAsync(jec.Trigger).ConfigureAwait(false).GetAwaiter().GetResult();
                             }
                             Complete(true);
                         }
                         catch (SchedulerException se)
                         {
                             string msg = $"Error during veto of Job {jec.JobDetail.Key}: couldn't finalize execution.";
-                            qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false).GetAwaiter().GetResult();
+                            qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false).GetAwaiter().GetResult();
                         }
                         break;
                     }
@@ -190,7 +190,7 @@ namespace Quartz.Core
                         if (syncJob == null)
                         {
                             var asyncJob = job as IAsyncJob;
-                            await asyncJob.Execute(jec);
+                            await asyncJob.ExecuteAsync(jec);
                         }
 
                         endTime = SystemTime.UtcNow();
@@ -212,14 +212,14 @@ namespace Quartz.Core
                         log.ErrorException($"Job {jobDetail.Key} threw an unhandled Exception: ", e);
                         SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
                         string msg = $"Job {jec.JobDetail.Key} threw an exception.";
-                        qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false).GetAwaiter().GetResult();
+                        qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false).GetAwaiter().GetResult();
                         jobExEx = new JobExecutionException(se, false);
                     }
 
                     jec.JobRunTime = endTime - startTime;
 
                     // notify all job listeners
-                    if (!NotifyJobListenersComplete(jec, jobExEx).ConfigureAwait(false).GetAwaiter().GetResult())
+                    if (!NotifyJobListenersCompleteAsync(jec, jobExEx).ConfigureAwait(false).GetAwaiter().GetResult())
                     {
                         break;
                     }
@@ -239,11 +239,11 @@ namespace Quartz.Core
                     {
                         // If this happens, there's a bug in the trigger...
                         SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
-                        qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se).ConfigureAwait(false).GetAwaiter().GetResult();
+                        qs.NotifySchedulerListenersErrorAsync("Please report this error to the Quartz developers.", se).ConfigureAwait(false).GetAwaiter().GetResult();
                     }
 
                     // notify all trigger listeners
-                    if (!NotifyTriggerListenersComplete(jec, instCode).ConfigureAwait(false).GetAwaiter().GetResult())
+                    if (!NotifyTriggerListenersCompleteAsync(jec, instCode).ConfigureAwait(false).GetAwaiter().GetResult())
                     {
                         break;
                     }
@@ -261,7 +261,7 @@ namespace Quartz.Core
                         }
                         catch (SchedulerException se)
                         {
-                            qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se).ConfigureAwait(false).GetAwaiter().GetResult();
+                            qs.NotifySchedulerListenersErrorAsync($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se).ConfigureAwait(false).GetAwaiter().GetResult();
                         }
                         continue;
                     }
@@ -272,11 +272,11 @@ namespace Quartz.Core
                     }
                     catch (SchedulerException se)
                     {
-                        qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se).ConfigureAwait(false).GetAwaiter().GetResult();
+                        qs.NotifySchedulerListenersErrorAsync($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se).ConfigureAwait(false).GetAwaiter().GetResult();
                         continue;
                     }
 
-                    qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode).ConfigureAwait(false).GetAwaiter().GetResult();
+                    qs.NotifyJobStoreJobCompleteAsync(trigger, jobDetail, instCode).ConfigureAwait(false).GetAwaiter().GetResult();
 
                     break;
                 } while (true);
@@ -315,19 +315,19 @@ namespace Quartz.Core
             qs = null;
         }
 
-        private async Task<bool> NotifyListenersBeginning(IJobExecutionContext ctx)
+        private async Task<bool> NotifyListenersBeginningAsync(IJobExecutionContext ctx)
         {
             bool vetoed;
 
             // notify all trigger listeners
             try
             {
-                vetoed = await qs.NotifyTriggerListenersFired(ctx).ConfigureAwait(false);
+                vetoed = await qs.NotifyTriggerListenersFiredAsync(ctx).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 string msg = $"Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false);
+                await qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false);
 
                 return false;
             }
@@ -336,12 +336,12 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await qs.NotifyJobListenersWasVetoed(ctx).ConfigureAwait(false);
+                    await qs.NotifyJobListenersWasVetoedAsync(ctx).ConfigureAwait(false);
                 }
                 catch (SchedulerException se)
                 {
                     string msg = $"Unable to notify JobListener(s) of vetoed execution while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                    await qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false);
+                    await qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false);
                 }
                 throw new VetoedException(this);
             }
@@ -349,12 +349,12 @@ namespace Quartz.Core
             // notify all job listeners
             try
             {
-                await qs.NotifyJobListenersToBeExecuted(ctx).ConfigureAwait(false);
+                await qs.NotifyJobListenersToBeExecutedAsync(ctx).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 string msg = $"Unable to notify JobListener(s) of Job to be executed: (Job will NOT be executed!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false);
+                await qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false);
 
                 return false;
             }
@@ -362,16 +362,16 @@ namespace Quartz.Core
             return true;
         }
 
-        private async Task<bool> NotifyJobListenersComplete(IJobExecutionContext ctx, JobExecutionException jobExEx)
+        private async Task<bool> NotifyJobListenersCompleteAsync(IJobExecutionContext ctx, JobExecutionException jobExEx)
         {
             try
             {
-                await qs.NotifyJobListenersWasExecuted(ctx, jobExEx).ConfigureAwait(false);
+                await qs.NotifyJobListenersWasExecutedAsync(ctx, jobExEx).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 string msg = $"Unable to notify JobListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false);
+                await qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false);
 
                 return false;
             }
@@ -379,23 +379,23 @@ namespace Quartz.Core
             return true;
         }
 
-        private async Task<bool> NotifyTriggerListenersComplete(IJobExecutionContext ctx, SchedulerInstruction instCode)
+        private async Task<bool> NotifyTriggerListenersCompleteAsync(IJobExecutionContext ctx, SchedulerInstruction instCode)
         {
             try
             {
-                await qs.NotifyTriggerListenersComplete(ctx, instCode).ConfigureAwait(false);
+                await qs.NotifyTriggerListenersCompleteAsync(ctx, instCode).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 string msg = $"Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false);
+                await qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false);
 
                 return false;
             }
 
             if (!ctx.Trigger.GetNextFireTimeUtc().HasValue)
             {
-                await qs.NotifySchedulerListenersFinalized(ctx.Trigger).ConfigureAwait(false);
+                await qs.NotifySchedulerListenersFinalizedAsync(ctx.Trigger).ConfigureAwait(false);
             }
 
             return true;

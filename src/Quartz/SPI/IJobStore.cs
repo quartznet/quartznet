@@ -51,32 +51,32 @@ namespace Quartz.Spi
         /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler);
+        Task InitializeAsync(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler);
 
         /// <summary>
         /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
         /// the scheduler has started.
         /// </summary>
-        Task SchedulerStarted();
+        Task SchedulerStartedAsync();
 
         /// <summary>
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has been paused.
         /// </summary>
-        Task SchedulerPaused();
+        Task SchedulerPausedAsync();
 
         /// <summary>
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has resumed after being paused.
         /// </summary>
-        Task SchedulerResumed();
+        Task SchedulerResumedAsync();
 
         /// <summary>
         /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        Task Shutdown();
+        Task ShutdownAsync();
 
         /// <summary>
         /// Indicates whether job store supports persistence.
@@ -102,14 +102,14 @@ namespace Quartz.Spi
         /// <param name="newJob">The <see cref="IJobDetail" /> to be stored.</param>
         /// <param name="newTrigger">The <see cref="ITrigger" /> to be stored.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
-        Task StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger);
+        Task StoreJobAndTriggerAsync(IJobDetail newJob, IOperableTrigger newTrigger);
 
         /// <summary>
         /// returns true if the given JobGroup is paused
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        Task<bool> IsJobGroupPaused(string groupName);
+        Task<bool> IsJobGroupPausedAsync(string groupName);
 
         /// <summary>
         /// returns true if the given TriggerGroup
@@ -117,7 +117,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        Task<bool> IsTriggerGroupPaused(string groupName);
+        Task<bool> IsTriggerGroupPausedAsync(string groupName);
 
         /// <summary>
         /// Store the given <see cref="IJobDetail" />.
@@ -128,9 +128,9 @@ namespace Quartz.Spi
         /// <see cref="IJobStore" /> with the same name and group should be
         /// over-written.
         /// </param>
-        Task StoreJob(IJobDetail newJob, bool replaceExisting);
+        Task StoreJobAsync(IJobDetail newJob, bool replaceExisting);
 
-        Task StoreJobsAndTriggers(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
+        Task StoreJobsAndTriggersAsync(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
 
         /// <summary>
         /// Remove (delete) the <see cref="IJob" /> with the given
@@ -146,9 +146,9 @@ namespace Quartz.Spi
         /// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
         /// group was found and removed from the store.
         /// </returns>
-        Task<bool> RemoveJob(JobKey jobKey);
+        Task<bool> RemoveJobAsync(JobKey jobKey);
 
-        Task<bool> RemoveJobs(IList<JobKey> jobKeys);
+        Task<bool> RemoveJobsAsync(IList<JobKey> jobKeys);
 
         /// <summary>
         /// Retrieve the <see cref="IJobDetail" /> for the given
@@ -157,7 +157,7 @@ namespace Quartz.Spi
         /// <returns>
         /// The desired <see cref="IJob" />, or null if there is no match.
         /// </returns>
-        Task<IJobDetail> RetrieveJob(JobKey jobKey);
+        Task<IJobDetail> RetrieveJobAsync(JobKey jobKey);
 
         /// <summary>
         /// Store the given <see cref="ITrigger" />.
@@ -167,7 +167,7 @@ namespace Quartz.Spi
         /// the <see cref="IJobStore" /> with the same name and group should
         /// be over-written.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
-        Task StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting);
+        Task StoreTriggerAsync(IOperableTrigger newTrigger, bool replaceExisting);
 
         /// <summary>
         /// Remove (delete) the <see cref="ITrigger" /> with the given key.
@@ -188,9 +188,9 @@ namespace Quartz.Spi
         /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
         /// name and group was found and removed from the store.
         /// </returns>
-        Task<bool> RemoveTrigger(TriggerKey triggerKey);
+        Task<bool> RemoveTriggerAsync(TriggerKey triggerKey);
 
-        Task<bool> RemoveTriggers(IList<TriggerKey> triggerKeys);
+        Task<bool> RemoveTriggersAsync(IList<TriggerKey> triggerKeys);
 
         /// <summary>
         /// Remove (delete) the <see cref="ITrigger" /> with the
@@ -203,7 +203,7 @@ namespace Quartz.Spi
         /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
         /// name and group was found and removed from the store.
         /// </returns>
-        Task<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger);
+        Task<bool> ReplaceTriggerAsync(TriggerKey triggerKey, IOperableTrigger newTrigger);
 
         /// <summary>
         /// Retrieve the given <see cref="ITrigger" />.
@@ -212,7 +212,7 @@ namespace Quartz.Spi
         /// The desired <see cref="ITrigger" />, or null if there is no
         /// match.
         /// </returns>
-        Task<IOperableTrigger> RetrieveTrigger(TriggerKey triggerKey);
+        Task<IOperableTrigger> RetrieveTriggerAsync(TriggerKey triggerKey);
 
         /// <summary>
         /// Determine whether a <see cref="ICalendar" /> with the given identifier already
@@ -222,7 +222,7 @@ namespace Quartz.Spi
         /// </remarks>
         /// <param name="calName">the identifier to check for</param>
         /// <returns>true if a calendar exists with the given identifier</returns>
-        Task<bool> CalendarExists(string calName);
+        Task<bool> CalendarExistsAsync(string calName);
 
         /// <summary>
         /// Determine whether a <see cref="IJob" /> with the given identifier already
@@ -232,7 +232,7 @@ namespace Quartz.Spi
         /// </remarks>
         /// <param name="jobKey">the identifier to check for</param>
         /// <returns>true if a job exists with the given identifier</returns>
-        Task<bool> CheckExists(JobKey jobKey);
+        Task<bool> CheckExistsAsync(JobKey jobKey);
 
         /// <summary>
         /// Determine whether a <see cref="ITrigger" /> with the given identifier already
@@ -242,7 +242,7 @@ namespace Quartz.Spi
         /// </remarks>
         /// <param name="triggerKey">the identifier to check for</param>
         /// <returns>true if a trigger exists with the given identifier</returns>
-        Task<bool> CheckExists(TriggerKey triggerKey);
+        Task<bool> CheckExistsAsync(TriggerKey triggerKey);
 
         /// <summary>
         /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
@@ -250,7 +250,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <remarks>
         /// </remarks>
-        Task ClearAllSchedulingData();
+        Task ClearAllSchedulingDataAsync();
 
         /// <summary>
         /// Store the given <see cref="ICalendar" />.
@@ -265,7 +265,7 @@ namespace Quartz.Spi
         /// Calendar with the same name with have their next fire time
         /// re-computed with the new <see cref="ICalendar" />.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
-        Task StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers);
+        Task StoreCalendarAsync(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers);
 
         /// <summary>
         /// Remove (delete) the <see cref="ICalendar" /> with the
@@ -281,7 +281,7 @@ namespace Quartz.Spi
         /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         /// </returns>
-        Task<bool> RemoveCalendar(string calName);
+        Task<bool> RemoveCalendarAsync(string calName);
 
         /// <summary>
         /// Retrieve the given <see cref="ITrigger" />.
@@ -291,28 +291,28 @@ namespace Quartz.Spi
         /// The desired <see cref="ICalendar" />, or null if there is no
         /// match.
         /// </returns>
-        Task<ICalendar> RetrieveCalendar(string calName);
+        Task<ICalendar> RetrieveCalendarAsync(string calName);
 
         /// <summary>
         /// Get the number of <see cref="IJob" />s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
         /// <returns></returns>
-        Task<int> GetNumberOfJobs();
+        Task<int> GetNumberOfJobsAsync();
 
         /// <summary>
         /// Get the number of <see cref="ITrigger" />s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
         /// <returns></returns>
-        Task<int> GetNumberOfTriggers();
+        Task<int> GetNumberOfTriggersAsync();
 
         /// <summary>
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
         /// <returns></returns>
-        Task<int> GetNumberOfCalendars();
+        Task<int> GetNumberOfCalendarsAsync();
 
         /// <summary>
         /// Get the names of all of the <see cref="IJob" /> s that
@@ -324,7 +324,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <param name="matcher"></param>
         /// <returns></returns>
-        Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher);
+        Task<ISet<JobKey>> GetJobKeysAsync(GroupMatcher<JobKey> matcher);
 
         /// <summary>
         /// Get the names of all of the <see cref="ITrigger" />s
@@ -334,7 +334,7 @@ namespace Quartz.Spi
         /// zero-length array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+        Task<ISet<TriggerKey>> GetTriggerKeysAsync(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Get the names of all of the <see cref="IJob" />
@@ -344,7 +344,7 @@ namespace Quartz.Spi
         /// array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        Task<IReadOnlyList<string>> GetJobGroupNames();
+        Task<IReadOnlyList<string>> GetJobGroupNamesAsync();
 
         /// <summary>
         /// Get the names of all of the <see cref="ITrigger" />
@@ -354,7 +354,7 @@ namespace Quartz.Spi
         /// array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        Task<IReadOnlyList<string>> GetTriggerGroupNames();
+        Task<IReadOnlyList<string>> GetTriggerGroupNamesAsync();
 
         /// <summary>
         /// Get the names of all of the <see cref="ICalendar" /> s
@@ -365,7 +365,7 @@ namespace Quartz.Spi
         /// a zero-length array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        Task<IReadOnlyList<string>> GetCalendarNames();
+        Task<IReadOnlyList<string>> GetCalendarNamesAsync();
 
         /// <summary>
         /// Get all of the Triggers that are associated to the given Job.
@@ -373,13 +373,13 @@ namespace Quartz.Spi
         /// <remarks>
         /// If there are no matches, a zero-length array should be returned.
         /// </remarks>
-        Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(JobKey jobKey);
+        Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJobAsync(JobKey jobKey);
 
         /// <summary>
         /// Get the current state of the identified <see cref="ITrigger" />.
         /// </summary>
         /// <seealso cref="TriggerState" />
-        Task<TriggerState> GetTriggerState(TriggerKey triggerKey);
+        Task<TriggerState> GetTriggerStateAsync(TriggerKey triggerKey);
 
         /////////////////////////////////////////////////////////////////////////////
         //
@@ -390,7 +390,7 @@ namespace Quartz.Spi
         /// <summary>
         /// Pause the <see cref="ITrigger" /> with the given key.
         /// </summary>
-        Task PauseTrigger(TriggerKey triggerKey);
+        Task PauseTriggerAsync(TriggerKey triggerKey);
 
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the
@@ -401,13 +401,13 @@ namespace Quartz.Spi
         /// pause on any new triggers that are added to the group while the group is
         /// paused.
         /// </remarks>
-        Task<ISet<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher);
+        Task<ISet<string>> PauseTriggersAsync(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Pause the <see cref="IJob" /> with the given key - by
         /// pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
-        Task PauseJob(JobKey jobKey);
+        Task PauseJobAsync(JobKey jobKey);
 
         /// <summary>
         /// Pause all of the <see cref="IJob" />s in the given
@@ -420,7 +420,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <seealso cref="string">
         /// </seealso>
-        Task<IReadOnlyList<string>> PauseJobs(GroupMatcher<JobKey> matcher);
+        Task<IReadOnlyList<string>> PauseJobsAsync(GroupMatcher<JobKey> matcher);
 
         /// <summary>
         /// Resume (un-pause) the <see cref="ITrigger" /> with the
@@ -433,7 +433,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <seealso cref="string">
         /// </seealso>
-        Task ResumeTrigger(TriggerKey triggerKey);
+        Task ResumeTriggerAsync(TriggerKey triggerKey);
 
         /// <summary>
         /// Resume (un-pause) all of the <see cref="ITrigger" />s
@@ -443,13 +443,13 @@ namespace Quartz.Spi
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        Task<IReadOnlyList<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher);
+        Task<IReadOnlyList<string>> ResumeTriggersAsync(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Gets the paused trigger groups.
         /// </summary>
         /// <returns></returns>
-        Task<ISet<string>> GetPausedTriggerGroups();
+        Task<ISet<string>> GetPausedTriggerGroupsAsync();
 
         /// <summary> 
         /// Resume (un-pause) the <see cref="IJob" /> with the
@@ -460,7 +460,7 @@ namespace Quartz.Spi
         /// instruction will be applied.
         /// </para>
         /// </summary>
-        Task ResumeJob(JobKey jobKey);
+        Task ResumeJobAsync(JobKey jobKey);
 
         /// <summary>
         /// Resume (un-pause) all of the <see cref="IJob" />s in
@@ -471,21 +471,21 @@ namespace Quartz.Spi
         /// misfire instruction will be applied.
         /// </para> 
         /// </summary>
-        Task<ISet<string>> ResumeJobs(GroupMatcher<JobKey> matcher);
+        Task<ISet<string>> ResumeJobsAsync(GroupMatcher<JobKey> matcher);
 
         /// <summary>
-        /// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
+        /// Pause all triggers - equivalent of calling <see cref="PauseTriggersAsync" />
         /// on every group.
         /// <para>
-        /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
+        /// When <see cref="ResumeAllAsync" /> is called (to un-pause), trigger misfire
         /// instructions WILL be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="ResumeAll" />
-        Task PauseAll();
+        /// <seealso cref="ResumeAllAsync" />
+        Task PauseAllAsync();
 
         /// <summary>
-        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
+        /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggersAsync" />
         /// on every group.
         /// <para>
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -493,8 +493,8 @@ namespace Quartz.Spi
         /// </para>
         /// 
         /// </summary>
-        /// <seealso cref="PauseAll" />
-        Task ResumeAll();
+        /// <seealso cref="PauseAllAsync" />
+        Task ResumeAllAsync();
 
         /// <summary>
         /// Get a handle to the next trigger to be fired, and mark it as 'reserved'
@@ -508,14 +508,14 @@ namespace Quartz.Spi
         /// <returns></returns>
         /// <seealso cref="ITrigger">
         /// </seealso>
-        Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow);
+        Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggersAsync(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow);
 
         /// <summary> 
         /// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
         /// fire the given <see cref="ITrigger" />, that it had previously acquired
         /// (reserved).
         /// </summary>
-        Task ReleaseAcquiredTrigger(IOperableTrigger trigger);
+        Task ReleaseAcquiredTriggerAsync(IOperableTrigger trigger);
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> that the scheduler is now firing the
@@ -528,7 +528,7 @@ namespace Quartz.Spi
         /// state.  Preference is to return an empty list if none of the triggers
         /// could be fired.
         /// </returns>
-        Task<IReadOnlyList<TriggerFiredResult>> TriggersFired(IList<IOperableTrigger> triggers);
+        Task<IReadOnlyList<TriggerFiredResult>> TriggersFiredAsync(IList<IOperableTrigger> triggers);
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> that the scheduler has completed the
@@ -537,7 +537,7 @@ namespace Quartz.Spi
         /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
         /// is stateful.
         /// </summary>
-        Task TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode);
+        Task TriggeredJobCompleteAsync(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode);
 
         /// <summary>
         /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id, 

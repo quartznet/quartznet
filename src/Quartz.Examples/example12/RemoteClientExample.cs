@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example12
     /// <author>Marko Lahma (.NET)</author>
     public class RemoteClientExample : IExample
     {
-        public virtual async Task Run()
+        public virtual async Task RunAsync()
         {
             ILog log = LogProvider.GetLogger(typeof (RemoteClientExample));
 
@@ -76,7 +76,7 @@ namespace Quartz.Examples.Example12
                 .Build();
 
             // schedule the job
-            await sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJobAsync(job, trigger);
 
             log.Info("Remote job scheduled.");
         }

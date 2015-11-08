@@ -52,102 +52,102 @@ namespace Quartz.Listener
             get { return log; }
         }
 
-        public virtual Task JobScheduled(ITrigger trigger)
+        public virtual Task JobScheduledAsync(ITrigger trigger)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobUnscheduled(TriggerKey triggerKey)
+        public virtual Task JobUnscheduledAsync(TriggerKey triggerKey)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task TriggerFinalized(ITrigger trigger)
+        public virtual Task TriggerFinalizedAsync(ITrigger trigger)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task TriggersPaused(string triggerGroup)
+        public virtual Task TriggersPausedAsync(string triggerGroup)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task TriggerPaused(TriggerKey triggerKey)
+        public virtual Task TriggerPausedAsync(TriggerKey triggerKey)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task TriggersResumed(string triggerGroup)
+        public virtual Task TriggersResumedAsync(string triggerGroup)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task TriggerResumed(TriggerKey triggerKey)
+        public virtual Task TriggerResumedAsync(TriggerKey triggerKey)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobAdded(IJobDetail jobDetail)
+        public virtual Task JobAddedAsync(IJobDetail jobDetail)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobDeleted(JobKey jobKey)
+        public virtual Task JobDeletedAsync(JobKey jobKey)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobsPaused(string jobGroup)
+        public virtual Task JobsPausedAsync(string jobGroup)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobPaused(JobKey jobKey)
+        public virtual Task JobPausedAsync(JobKey jobKey)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobsResumed(string jobGroup)
+        public virtual Task JobsResumedAsync(string jobGroup)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobResumed(JobKey jobKey)
+        public virtual Task JobResumedAsync(JobKey jobKey)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerError(string msg, SchedulerException cause)
+        public virtual Task SchedulerErrorAsync(string msg, SchedulerException cause)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerInStandbyMode()
+        public virtual Task SchedulerInStandbyModeAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerStarted()
+        public virtual Task SchedulerStartedAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerStarting()
+        public virtual Task SchedulerStartingAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerShutdown()
+        public virtual Task SchedulerShutdownAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerShuttingdown()
+        public virtual Task SchedulerShuttingdownAsync()
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulingDataCleared()
+        public virtual Task SchedulingDataClearedAsync()
         {
             return TaskUtil.CompletedTask;
         }

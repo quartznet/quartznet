@@ -111,11 +111,11 @@ namespace Quartz.Plugin.Xml
         /// 
         /// </summary>
         /// <param name="fName"></param>
-        public virtual Task FileUpdated(string fName)
+        public virtual Task FileUpdatedAsync(string fName)
         {
             if (started)
             {
-                return ProcessFile(fName);
+                return ProcessFileAsync(fName);
             }
 
             return TaskUtil.CompletedTask;
@@ -152,7 +152,7 @@ namespace Quartz.Plugin.Xml
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual async Task Start()
+        public virtual async Task StartAsync()
         {
             try
             {
@@ -174,7 +174,7 @@ namespace Quartz.Plugin.Xml
                             TriggerKey tKey = new TriggerKey(jobTriggerName, JobInitializationPluginName);
 
                             // remove pre-existing job/trigger, if any
-                            await Scheduler.UnscheduleJob(tKey).ConfigureAwait(false);
+                            await Scheduler.UnscheduleJobAsync(tKey).ConfigureAwait(false);
 
                             // TODO: convert to use builder
                             var trig = new SimpleTriggerImpl();
@@ -194,11 +194,11 @@ namespace Quartz.Plugin.Xml
                             job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
                             job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
 
-                            await Scheduler.ScheduleJob(job, trig).ConfigureAwait(false);
+                            await Scheduler.ScheduleJobAsync(job, trig).ConfigureAwait(false);
                             Log.DebugFormat("Scheduled file scan job for data file: {0}, at interval: {1}", jobFile.FileName, ScanInterval);
                         }
 
-                        await ProcessFile(jobFile).ConfigureAwait(false);
+                        await ProcessFileAsync(jobFile).ConfigureAwait(false);
                     }
                 }
             }
@@ -263,13 +263,13 @@ namespace Quartz.Plugin.Xml
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task ShutdownAsync()
         {
             // nothing to do
             return TaskUtil.CompletedTask;
         }
 
-        private async Task ProcessFile(JobFile jobFile)
+        private async Task ProcessFileAsync(JobFile jobFile)
         {
             if ((jobFile == null) || (jobFile.FileFound == false))
             {
@@ -283,7 +283,7 @@ namespace Quartz.Plugin.Xml
                 processor.AddJobGroupToNeverDelete(JobInitializationPluginName);
                 processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);
 
-                await processor.ProcessFileAndScheduleJobs(
+                await processor.ProcessFileAndScheduleJobsAsync(
                     jobFile.FileName,
                     jobFile.FileName, // systemId 
                     Scheduler).ConfigureAwait(false);
@@ -294,7 +294,7 @@ namespace Quartz.Plugin.Xml
             }
         }
 
-        public Task ProcessFile(string filePath)
+        public Task ProcessFileAsync(string filePath)
         {
             JobFile file = null;
             int idx = jobFiles.FindIndex(pair => pair.Key == filePath);
@@ -302,7 +302,7 @@ namespace Quartz.Plugin.Xml
             {
                 file = jobFiles[idx].Value;
             }
-           return ProcessFile(file);
+           return ProcessFileAsync(file);
         }
 
         /// <summary>

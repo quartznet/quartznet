@@ -278,7 +278,7 @@ namespace Quartz.Plugin.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start()
+        public virtual Task StartAsync()
         {
             // do nothing...
             return TaskUtil.CompletedTask;
@@ -289,7 +289,7 @@ namespace Quartz.Plugin.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task ShutdownAsync()
         {
             // nothing to do...
             return TaskUtil.CompletedTask;
@@ -300,13 +300,13 @@ namespace Quartz.Plugin.History
         /// has fired, and it's associated <see cref="IJobDetail" />
         /// is about to be executed.
         /// <para>
-        /// It is called before the <see cref="VetoJobExecution" /> method of this
+        /// It is called before the <see cref="VetoJobExecutionAsync" /> method of this
         /// interface.
         /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has fired.</param>
         /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
-        public virtual Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task TriggerFiredAsync(ITrigger trigger, IJobExecutionContext context)
         {
             if (!Log.IsInfoEnabled())
             {
@@ -340,7 +340,7 @@ namespace Quartz.Plugin.History
         /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
-        public virtual Task TriggerMisfired(ITrigger trigger)
+        public virtual Task TriggerMisfiredAsync(ITrigger trigger)
         {
             if (!Log.IsInfoEnabled())
             {
@@ -372,7 +372,7 @@ namespace Quartz.Plugin.History
         /// <param name="context">The <see cref="IJobExecutionContext" /> that was passed to the
         /// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
         /// <param name="triggerInstructionCode">The result of the call on the <see cref="IOperableTrigger" />'s <see cref="IOperableTrigger.Triggered" />  method.</param>
-        public virtual Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public virtual Task TriggerCompleteAsync(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
             if (!Log.IsInfoEnabled())
             {
@@ -424,7 +424,7 @@ namespace Quartz.Plugin.History
         /// has fired, and it's associated <see cref="IJobDetail" />
         /// is about to be executed.
         /// <para>
-        /// It is called after the <see cref="TriggerFired" /> method of this
+        /// It is called after the <see cref="TriggerFiredAsync" /> method of this
         /// interface.
         /// </para>
         /// </summary>
@@ -432,7 +432,7 @@ namespace Quartz.Plugin.History
         /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to
         /// the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
         /// <returns></returns>
-        public virtual Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task<bool> VetoJobExecutionAsync(ITrigger trigger, IJobExecutionContext context)
         {
             return Task.FromResult(false);
         }

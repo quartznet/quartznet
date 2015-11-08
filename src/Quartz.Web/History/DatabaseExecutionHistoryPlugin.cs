@@ -61,7 +61,7 @@ namespace Quartz.Web.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start()
+        public virtual Task StartAsync()
         {
             // do nothing...
             return TaskUtil.CompletedTask;
@@ -72,7 +72,7 @@ namespace Quartz.Web.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task ShutdownAsync()
         {
             // nothing to do...
             return TaskUtil.CompletedTask;
@@ -86,8 +86,8 @@ namespace Quartz.Web.History
         ///         <see cref="ITriggerListener"/>.
         ///     </para>
         /// </summary>
-        /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
-        public virtual Task JobToBeExecuted(IJobExecutionContext context)
+        /// <seealso cref="JobExecutionVetoedAsync"/>
+        public virtual Task JobToBeExecutedAsync(IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }
@@ -99,7 +99,7 @@ namespace Quartz.Web.History
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>
-        public virtual Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public virtual Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException)
         {
             return Delegate.InsertJobHistoryEntry(context, jobException);
         }
@@ -111,8 +111,8 @@ namespace Quartz.Web.History
         /// execution.
         /// </summary>
         /// <param name="context"></param>
-        /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
-        public virtual Task JobExecutionVetoed(IJobExecutionContext context)
+        /// <seealso cref="JobToBeExecutedAsync"/>
+        public virtual Task JobExecutionVetoedAsync(IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }

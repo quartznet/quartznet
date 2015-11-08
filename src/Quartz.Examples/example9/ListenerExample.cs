@@ -41,7 +41,7 @@ namespace Quartz.Examples.Example9
             get { return GetType().Name; }
         }
 
-        public virtual async Task Run()
+        public virtual async Task RunAsync()
         {
             ILog log = LogProvider.GetLogger(typeof (ListenerExample));
 
@@ -71,12 +71,12 @@ namespace Quartz.Examples.Example9
             sched.ListenerManager.AddJobListener(listener, matcher);
 
             // schedule the job to run
-            await sched.ScheduleJob(job, trigger);
+            await sched.ScheduleJobAsync(job, trigger);
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
             log.Info("------- Starting Scheduler ----------------");
-            await sched.Start();
+            await sched.StartAsync();
 
             // wait 30 seconds:
             // note:  nothing will run
@@ -88,10 +88,10 @@ namespace Quartz.Examples.Example9
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
+            await sched.ShutdownAsync(true);
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaData();
+            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
             log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }

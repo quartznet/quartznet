@@ -181,7 +181,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="oldState1">the first old state to update</param>
         /// <param name="oldState2">the second old state to update</param>
         /// <returns>number of rows updated</returns>
-        public virtual async Task<int> UpdateTriggerStatesFromOtherStates(ConnectionAndTransactionHolder conn, string newState,
+        public virtual async Task<int> UpdateTriggerStatesFromOtherStatesAsync(ConnectionAndTransactionHolder conn, string newState,
             string oldState1,
             string oldState2)
         {
@@ -200,7 +200,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="ts">The ts.</param>
         /// <returns>an array of <see cref="TriggerKey" /> objects</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectMisfiredTriggers(ConnectionAndTransactionHolder conn, DateTimeOffset ts)
+        public virtual async Task<IReadOnlyList<TriggerKey>> SelectMisfiredTriggersAsync(ConnectionAndTransactionHolder conn, DateTimeOffset ts)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggers)))
             {
@@ -225,7 +225,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="state">The state the triggers must be in</param>
         /// <returns> an array of trigger <see cref="TriggerKey" />s </returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggersInState(ConnectionAndTransactionHolder conn, string state)
+        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggersInStateAsync(ConnectionAndTransactionHolder conn, string state)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersInState)))
             {
@@ -251,7 +251,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="ts">The time stamp.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state, DateTimeOffset ts)
+        public virtual async Task<IReadOnlyList<TriggerKey>> HasMisfiredTriggersInStateAsync(ConnectionAndTransactionHolder conn, string state, DateTimeOffset ts)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInState)))
             {
@@ -285,7 +285,7 @@ namespace Quartz.Impl.AdoJobStore
         ///   Output parameter.  A List of <see cref="TriggerKey" /> objects.  Must not be null
         /// </param>
         /// <returns>Whether there are more misfired triggers left to find beyond the given count.</returns>
-        public virtual async Task<bool> HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts, int count, IList<TriggerKey> resultList)
+        public virtual async Task<bool> HasMisfiredTriggersInStateAsync(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts, int count, IList<TriggerKey> resultList)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectHasMisfiredTriggersInState)))
             {
@@ -322,7 +322,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state1"></param>
         /// <param name="ts"></param>
         /// <returns></returns>
-        public virtual async Task<int> CountMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts)
+        public virtual async Task<int> CountMisfiredTriggersInStateAsync(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountMisfiredTriggersInStates)))
             {
@@ -349,7 +349,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="ts">The timestamp.</param>
         /// <returns>an array of <see cref="TriggerKey" /> objects</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectMisfiredTriggersInGroupInState(ConnectionAndTransactionHolder conn, string groupName, string state, DateTimeOffset ts)
+        public virtual async Task<IReadOnlyList<TriggerKey>> SelectMisfiredTriggersInGroupInStateAsync(ConnectionAndTransactionHolder conn, string groupName, string state, DateTimeOffset ts)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInGroupInState))
                 )
@@ -386,7 +386,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="conn">The DB Connection</param>
         /// <returns> an array of <see cref="ITrigger" /> objects</returns>
-        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn)
+        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForRecoveringJobsAsync(ConnectionAndTransactionHolder conn)
         {
             List<IOperableTrigger> triggers = new List<IOperableTrigger>();
             List<FiredTriggerRecord> triggerData = new List<FiredTriggerRecord>();
@@ -438,7 +438,7 @@ namespace Quartz.Impl.AdoJobStore
                 FiredTriggerRecord dataHolder = triggerData[i];
 
                 // load job data map and transfer information
-                JobDataMap jd = await SelectTriggerJobDataMap(conn, key).ConfigureAwait(false);
+                JobDataMap jd = await SelectTriggerJobDataMapAsync(conn, key).ConfigureAwait(false);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, key.Name);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, key.Group);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture));
@@ -454,7 +454,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns>The number of rows deleted.</returns>
-        public virtual async Task<int> DeleteFiredTriggers(ConnectionAndTransactionHolder conn)
+        public virtual async Task<int> DeleteFiredTriggersAsync(ConnectionAndTransactionHolder conn)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers)))
             {
@@ -468,7 +468,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="instanceName">The instance id.</param>
         /// <returns>The number of rows deleted</returns>
-        public virtual async Task<int> DeleteFiredTriggers(ConnectionAndTransactionHolder conn, string instanceName)
+        public virtual async Task<int> DeleteFiredTriggersAsync(ConnectionAndTransactionHolder conn, string instanceName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteInstancesFiredTriggers)))
             {
@@ -483,7 +483,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <remarks>
         /// </remarks>
-        public virtual async Task ClearData(ConnectionAndTransactionHolder conn)
+        public virtual async Task ClearDataAsync(ConnectionAndTransactionHolder conn)
         {
             DbCommand ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllSimpleTriggers));
             await ps.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -513,7 +513,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="job">The job to insert.</param>
         /// <returns>Number of rows inserted.</returns>
-        public virtual async Task<int> InsertJobDetail(ConnectionAndTransactionHolder conn, IJobDetail job)
+        public virtual async Task<int> InsertJobDetailAsync(ConnectionAndTransactionHolder conn, IJobDetail job)
         {
             byte[] baos = null;
             if (job.JobDataMap.Count > 0)
@@ -649,7 +649,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="job">The job to update.</param>
         /// <returns>Number of rows updated.</returns>
-        public virtual async Task<int> UpdateJobDetail(ConnectionAndTransactionHolder conn, IJobDetail job)
+        public virtual async Task<int> UpdateJobDetailAsync(ConnectionAndTransactionHolder conn, IJobDetail job)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -677,7 +677,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="jobKey">The key identifying the job.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggerNamesForJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggerNamesForJobAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForJob)))
             {
@@ -703,7 +703,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="jobKey">The key identifying the job.</param>
         /// <returns>the number of rows deleted</returns>
-        public virtual async Task<int> DeleteJobDetail(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        public virtual async Task<int> DeleteJobDetailAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteJobDetail)))
             {
@@ -725,7 +725,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// true if the job exists and is stateful, false otherwise
         /// </returns>
-        public virtual async Task<bool> IsJobStateful(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        public virtual async Task<bool> IsJobStatefulAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobNonConcurrent)))
             {
@@ -748,7 +748,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="jobKey">The key identifying the job.</param>
         /// <returns>true if the job exists, false otherwise</returns>
-        public virtual async Task<bool> JobExists(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        public virtual async Task<bool> JobExistsAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobExistence)))
             {
@@ -772,7 +772,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The conn.</param>
         /// <param name="job">the job to update</param>
         /// <returns>the number of rows updated</returns>
-        public virtual async Task<int> UpdateJobData(ConnectionAndTransactionHolder conn, IJobDetail job)
+        public virtual async Task<int> UpdateJobDataAsync(ConnectionAndTransactionHolder conn, IJobDetail job)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -793,7 +793,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="loadHelper">The load helper.</param>
         /// <returns>The populated JobDetail object.</returns>
-        public virtual async Task<IJobDetail> SelectJobDetail(ConnectionAndTransactionHolder conn, JobKey jobKey, ITypeLoadHelper loadHelper)
+        public virtual async Task<IJobDetail> SelectJobDetailAsync(ConnectionAndTransactionHolder conn, JobKey jobKey, ITypeLoadHelper loadHelper)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobDetail)))
             {
@@ -891,7 +891,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns>The total number of jobs stored.</returns>
-        public virtual async Task<int> SelectNumJobs(ConnectionAndTransactionHolder conn)
+        public virtual async Task<int> SelectNumJobsAsync(ConnectionAndTransactionHolder conn)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumJobs)))
             {
@@ -904,7 +904,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns>An array of <see cref="String" /> group names.</returns>
-        public virtual async Task<IReadOnlyList<string>> SelectJobGroups(ConnectionAndTransactionHolder conn)
+        public virtual async Task<IReadOnlyList<string>> SelectJobGroupsAsync(ConnectionAndTransactionHolder conn)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobGroups)))
             {
@@ -927,7 +927,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="matcher"></param>
         /// <returns>An array of <see cref="String" /> job names.</returns>
-        public virtual async Task<ISet<JobKey>> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
+        public virtual async Task<ISet<JobKey>> SelectJobsInGroupAsync(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
         {
             string sql;
             string parameter;
@@ -1011,7 +1011,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">the state that the trigger should be stored in</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>the number of rows inserted</returns>
-        public virtual async Task<int> InsertTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public virtual async Task<int> InsertTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             byte[] baos = null;
             if (trigger.JobDataMap.Count > 0)
@@ -1058,7 +1058,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (tDel == null)
                 {
-                    await InsertBlobTrigger(conn, trigger).ConfigureAwait(false);
+                    await InsertBlobTriggerAsync(conn, trigger).ConfigureAwait(false);
                 }
                 else
                 {
@@ -1075,7 +1075,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="trigger">The trigger to insert.</param>
         /// <returns>The number of rows inserted.</returns>
-        public virtual async Task<int> InsertBlobTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
+        public virtual async Task<int> InsertBlobTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertBlobTrigger)))
             {
@@ -1097,7 +1097,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state that the trigger should be stored in.</param>
         /// <param name="jobDetail">The job detail.</param>
         /// <returns>The number of rows updated.</returns>
-        public virtual async Task<int> UpdateTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public virtual async Task<int> UpdateTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
         {
             // save some clock cycles by unnecessarily writing job data blob ...
             bool updateJobData = trigger.JobDataMap.Dirty;
@@ -1165,7 +1165,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (tDel == null)
             {
-                await UpdateBlobTrigger(conn, trigger).ConfigureAwait(false);
+                await UpdateBlobTriggerAsync(conn, trigger).ConfigureAwait(false);
             }
             else
             {
@@ -1181,7 +1181,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="trigger">The trigger to insert.</param>
         /// <returns>The number of rows updated.</returns>
-        public virtual async Task<int> UpdateBlobTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
+        public virtual async Task<int> UpdateBlobTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateBlobTrigger)))
             {
@@ -1202,7 +1202,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="triggerKey">the key of the trigger</param>
         /// <returns>true if the trigger exists, false otherwise</returns>
-        public virtual async Task<bool> TriggerExists(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task<bool> TriggerExistsAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerExistence)))
             {
@@ -1227,7 +1227,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">the key of the trigger</param>
         /// <param name="state">The new state for the trigger.</param>
         /// <returns>The number of rows updated.</returns>
-        public virtual async Task<int> UpdateTriggerState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, string state)
+        public virtual async Task<int> UpdateTriggerStateAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, string state)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerState)))
             {
@@ -1250,7 +1250,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="oldState2">One of the old state the trigger must be in.</param>
         /// <param name="oldState3">One of the old state the trigger must be in.</param>
         /// <returns>The number of rows updated.</returns>
-        public virtual async Task<int> UpdateTriggerStateFromOtherStates(ConnectionAndTransactionHolder conn, TriggerKey triggerKey,
+        public virtual async Task<int> UpdateTriggerStateFromOtherStatesAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey,
             string newState, string oldState1, string oldState2,
             string oldState3)
         {
@@ -1278,7 +1278,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="oldState2">One of the old state the trigger must be in.</param>
         /// <param name="oldState3">One of the old state the trigger must be in.</param>
         /// <returns>The number of rows updated.</returns>
-        public virtual async Task<int> UpdateTriggerGroupStateFromOtherStates(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, string newState, string oldState1, string oldState2, string oldState3)
+        public virtual async Task<int> UpdateTriggerGroupStateFromOtherStatesAsync(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, string newState, string oldState1, string oldState2, string oldState3)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerGroupStateFromStates)))
             {
@@ -1301,7 +1301,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="newState">the new state for the trigger</param>
         /// <param name="oldState">the old state the trigger must be in</param>
         /// <returns>int the number of rows updated</returns>
-        public virtual async Task<int> UpdateTriggerStateFromOtherState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey,
+        public virtual async Task<int> UpdateTriggerStateFromOtherStateAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey,
             string newState, string oldState)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStateFromState)))
@@ -1324,7 +1324,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="newState">the new state for the trigger group</param>
         /// <param name="oldState">the old state the triggers must be in</param>
         /// <returns>int the number of rows updated</returns>
-        public virtual async Task<int> UpdateTriggerGroupStateFromOtherState(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, string newState, string oldState)
+        public virtual async Task<int> UpdateTriggerGroupStateFromOtherStateAsync(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, string newState, string oldState)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerGroupStateFromState)))
             {
@@ -1343,7 +1343,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">the key of the job</param>
         /// <param name="state">the new state for the triggers</param>
         /// <returns>the number of rows updated</returns>
-        public virtual async Task<int> UpdateTriggerStatesForJob(ConnectionAndTransactionHolder conn, JobKey jobKey, string state)
+        public virtual async Task<int> UpdateTriggerStatesForJobAsync(ConnectionAndTransactionHolder conn, JobKey jobKey, string state)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobTriggerStates)))
             {
@@ -1363,7 +1363,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state.</param>
         /// <param name="oldState">The old state.</param>
         /// <returns></returns>
-        public virtual async Task<int> UpdateTriggerStatesForJobFromOtherState(ConnectionAndTransactionHolder conn, JobKey jobKey,
+        public virtual async Task<int> UpdateTriggerStatesForJobFromOtherStateAsync(ConnectionAndTransactionHolder conn, JobKey jobKey,
             string state, string oldState)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobTriggerStatesFromOtherState)))
@@ -1383,7 +1383,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="triggerKey">the key of the trigger</param>
         /// <returns>the number of rows deleted</returns>
-        public virtual async Task<int> DeleteBlobTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task<int> DeleteBlobTriggerAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteBlobTrigger)))
             {
@@ -1400,9 +1400,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="triggerKey">the key of the trigger</param>
         /// <returns>the number of rows deleted</returns>
-        public virtual async Task<int> DeleteTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task<int> DeleteTriggerAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            await DeleteTriggerExtension(conn, triggerKey).ConfigureAwait(false);
+            await DeleteTriggerExtensionAsync(conn, triggerKey).ConfigureAwait(false);
 
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteTrigger)))
             {
@@ -1413,7 +1413,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual async Task DeleteTriggerExtension(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        protected virtual async Task DeleteTriggerExtensionAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             foreach (ITriggerPersistenceDelegate tDel in triggerPersistenceDelegates)
             {
@@ -1423,7 +1423,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
 
-            await DeleteBlobTrigger(conn, triggerKey).ConfigureAwait(false);
+            await DeleteBlobTriggerAsync(conn, triggerKey).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1432,7 +1432,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="jobKey">the key of the job</param>
         /// <returns>the number of triggers for the given job</returns>
-        public virtual async Task<int> SelectNumTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        public virtual async Task<int> SelectNumTriggersForJobAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggersForJob)))
             {
@@ -1450,12 +1450,12 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual Task<IJobDetail> SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper)
+        public virtual Task<IJobDetail> SelectJobForTriggerAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper)
         {
-            return SelectJobForTrigger(conn, triggerKey, loadHelper, true);
+            return SelectJobForTriggerAsync(conn, triggerKey, loadHelper, true);
         }
 
-        public virtual async Task<IJobDetail> SelectJobForTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper, bool loadJobType)
+        public virtual async Task<IJobDetail> SelectJobForTriggerAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, ITypeLoadHelper loadHelper, bool loadJobType)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobForTrigger)))
             {
@@ -1495,7 +1495,7 @@ namespace Quartz.Impl.AdoJobStore
         /// an array of <see cref="ITrigger" /> objects
         /// associated with a given job.
         /// </returns>
-        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForJobAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             List<IOperableTrigger> trigList = new List<IOperableTrigger>();
             List<TriggerKey> keys = new List<TriggerKey>();
@@ -1516,7 +1516,7 @@ namespace Quartz.Impl.AdoJobStore
 
             foreach (TriggerKey triggerKey in keys)
             {
-                IOperableTrigger t = await SelectTrigger(conn, triggerKey).ConfigureAwait(false);
+                IOperableTrigger t = await SelectTriggerAsync(conn, triggerKey).ConfigureAwait(false);
 
                 if (t != null)
                 {
@@ -1535,7 +1535,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// An array of <see cref="ITrigger" /> objects associated with a given job.
         /// </returns>
-        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForCalendar(ConnectionAndTransactionHolder conn, string calName)
+        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForCalendarAsync(ConnectionAndTransactionHolder conn, string calName)
         {
             List<TriggerKey> keys = new List<TriggerKey>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForCalendar)))
@@ -1553,7 +1553,7 @@ namespace Quartz.Impl.AdoJobStore
             List<IOperableTrigger> triggers = new List<IOperableTrigger>();
             foreach (var key in keys)
             {
-                triggers.Add(await SelectTrigger(conn, key).ConfigureAwait(false));
+                triggers.Add(await SelectTriggerAsync(conn, key).ConfigureAwait(false));
             }
             return triggers;
         }
@@ -1564,7 +1564,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="triggerKey">the key of the trigger</param>
         /// <returns>The <see cref="ITrigger" /> object</returns>
-        public virtual async Task<IOperableTrigger> SelectTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task<IOperableTrigger> SelectTriggerAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             IOperableTrigger trigger = null;
             string triggerType;
@@ -1692,7 +1692,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="triggerKey">the key of the trigger</param>
         /// <returns>The <see cref="JobDataMap" /> of the Trigger, never null, but possibly empty. </returns>
-        public virtual async Task<JobDataMap> SelectTriggerJobDataMap(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task<JobDataMap> SelectTriggerJobDataMapAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerData)))
             {
@@ -1721,7 +1721,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="triggerKey">the key of the trigger</param>
         /// <returns>The <see cref="ITrigger" /> object</returns>
-        public virtual async Task<string> SelectTriggerState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task<string> SelectTriggerStateAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerState)))
             {
@@ -1752,7 +1752,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// a <see cref="TriggerStatus" /> object, or null
         /// </returns>
-        public virtual async Task<TriggerStatus> SelectTriggerStatus(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public virtual async Task<TriggerStatus> SelectTriggerStatusAsync(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerStatus)))
             {
@@ -1785,7 +1785,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">the DB Connection</param>
         /// <returns>the total number of triggers stored</returns>
-        public virtual async Task<int> SelectNumTriggers(ConnectionAndTransactionHolder conn)
+        public virtual async Task<int> SelectNumTriggersAsync(ConnectionAndTransactionHolder conn)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggers)))
             {
@@ -1810,7 +1810,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// an array of <see cref="String" /> group names
         /// </returns>
-        public virtual async Task<IReadOnlyList<string>> SelectTriggerGroups(ConnectionAndTransactionHolder conn)
+        public virtual async Task<IReadOnlyList<string>> SelectTriggerGroupsAsync(ConnectionAndTransactionHolder conn)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerGroups)))
             {
@@ -1827,7 +1827,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task<IReadOnlyList<string>> SelectTriggerGroups(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        public virtual async Task<IReadOnlyList<string>> SelectTriggerGroupsAsync(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerGroupsFiltered)))
             {
@@ -1853,7 +1853,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// an array of <see cref="String" /> trigger names
         /// </returns>
-        public virtual async Task<ISet<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        public virtual async Task<ISet<TriggerKey>> SelectTriggersInGroupAsync(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             string sql;
             string parameter;
@@ -1890,7 +1890,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The conn.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns></returns>
-        public virtual async Task<int> InsertPausedTriggerGroup(ConnectionAndTransactionHolder conn, string groupName)
+        public virtual async Task<int> InsertPausedTriggerGroupAsync(ConnectionAndTransactionHolder conn, string groupName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertPausedTriggerGroup)))
             {
@@ -1907,7 +1907,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The conn.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns></returns>
-        public virtual async Task<int> DeletePausedTriggerGroup(ConnectionAndTransactionHolder conn, string groupName)
+        public virtual async Task<int> DeletePausedTriggerGroupAsync(ConnectionAndTransactionHolder conn, string groupName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroup)))
             {
@@ -1918,7 +1918,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task<int> DeletePausedTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
+        public virtual async Task<int> DeletePausedTriggerGroupAsync(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroup)))
             {
@@ -1934,7 +1934,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The conn.</param>
         /// <returns></returns>
-        public virtual async Task<int> DeleteAllPausedTriggerGroups(ConnectionAndTransactionHolder conn)
+        public virtual async Task<int> DeleteAllPausedTriggerGroupsAsync(ConnectionAndTransactionHolder conn)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroups)))
             {
@@ -1951,7 +1951,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// 	<c>true</c> if trigger group is paused; otherwise, <c>false</c>.
         /// </returns>
-        public virtual async Task<bool> IsTriggerGroupPaused(ConnectionAndTransactionHolder conn, string groupName)
+        public virtual async Task<bool> IsTriggerGroupPausedAsync(ConnectionAndTransactionHolder conn, string groupName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroup)))
             {
@@ -1971,7 +1971,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// 	<c>true</c> if trigger group exists; otherwise, <c>false</c>.
         /// </returns>
-        public virtual async Task<bool> IsExistingTriggerGroup(ConnectionAndTransactionHolder conn, string groupName)
+        public virtual async Task<bool> IsExistingTriggerGroupAsync(ConnectionAndTransactionHolder conn, string groupName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggersInGroup)))
             {
@@ -2000,7 +2000,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendar">The calendar.</param>
         /// <returns>the number of rows inserted</returns>
         /// <throws>  IOException </throws>
-        public virtual async Task<int> InsertCalendar(ConnectionAndTransactionHolder conn, string calendarName, ICalendar calendar)
+        public virtual async Task<int> InsertCalendarAsync(ConnectionAndTransactionHolder conn, string calendarName, ICalendar calendar)
         {
             byte[] baos = SerializeObject(calendar);
 
@@ -2021,7 +2021,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendar">The calendar.</param>
         /// <returns>the number of rows updated</returns>
         /// <throws>  IOException </throws>
-        public virtual async Task<int> UpdateCalendar(ConnectionAndTransactionHolder conn, string calendarName, ICalendar calendar)
+        public virtual async Task<int> UpdateCalendarAsync(ConnectionAndTransactionHolder conn, string calendarName, ICalendar calendar)
         {
             byte[] baos = SerializeObject(calendar);
 
@@ -2042,7 +2042,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// true if the trigger exists, false otherwise
         /// </returns>
-        public virtual async Task<bool> CalendarExists(ConnectionAndTransactionHolder conn, string calendarName)
+        public virtual async Task<bool> CalendarExistsAsync(ConnectionAndTransactionHolder conn, string calendarName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendarExistence)))
             {
@@ -2067,7 +2067,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>the Calendar</returns>
         /// <throws>  ClassNotFoundException </throws>
         /// <throws>  IOException </throws>
-        public virtual async Task<ICalendar> SelectCalendar(ConnectionAndTransactionHolder conn, string calendarName)
+        public virtual async Task<ICalendar> SelectCalendarAsync(ConnectionAndTransactionHolder conn, string calendarName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendar)))
             {
@@ -2096,7 +2096,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// true if any triggers reference the calendar, false otherwise
         /// </returns>
-        public virtual async Task<bool> CalendarIsReferenced(ConnectionAndTransactionHolder conn, string calendarName)
+        public virtual async Task<bool> CalendarIsReferencedAsync(ConnectionAndTransactionHolder conn, string calendarName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectReferencedCalendar)))
             {
@@ -2119,7 +2119,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="calendarName">The name of the trigger.</param>
         /// <returns>the number of rows deleted</returns>
-        public virtual async Task<int> DeleteCalendar(ConnectionAndTransactionHolder conn, string calendarName)
+        public virtual async Task<int> DeleteCalendarAsync(ConnectionAndTransactionHolder conn, string calendarName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteCalendar)))
             {
@@ -2133,7 +2133,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">the DB Connection</param>
         /// <returns>the total number of calendars stored</returns>
-        public virtual async Task<int> SelectNumCalendars(ConnectionAndTransactionHolder conn)
+        public virtual async Task<int> SelectNumCalendarsAsync(ConnectionAndTransactionHolder conn)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumCalendars)))
             {
@@ -2156,7 +2156,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// an array of <see cref="String" /> calendar names
         /// </returns>
-        public virtual async Task<IReadOnlyList<string>> SelectCalendars(ConnectionAndTransactionHolder conn)
+        public virtual async Task<IReadOnlyList<string>> SelectCalendarsAsync(ConnectionAndTransactionHolder conn)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendars)))
             {
@@ -2186,7 +2186,7 @@ namespace Quartz.Impl.AdoJobStore
         /// trigger that will be fired at the given fire time, or null if no
         /// trigger will be fired at that time
         /// </returns>
-        public virtual async Task<TriggerKey> SelectTriggerForFireTime(ConnectionAndTransactionHolder conn, DateTimeOffset fireTime)
+        public virtual async Task<TriggerKey> SelectTriggerForFireTimeAsync(ConnectionAndTransactionHolder conn, DateTimeOffset fireTime)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerForFireTime)))
             {
@@ -2214,7 +2214,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="noEarlierThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
         /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
         /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggerToAcquire(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, DateTimeOffset noEarlierThan, int maxCount)
+        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggerToAcquireAsync(ConnectionAndTransactionHolder conn, DateTimeOffset noLaterThan, DateTimeOffset noEarlierThan, int maxCount)
         {
             if (maxCount < 1)
             {
@@ -2254,7 +2254,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">the state that the trigger should be stored in</param>
         /// <param name="job">The job.</param>
         /// <returns>the number of rows inserted</returns>
-        public virtual async Task<int> InsertFiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state,
+        public virtual async Task<int> InsertFiredTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state,
             IJobDetail job)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertFiredTrigger)))
@@ -2302,7 +2302,7 @@ namespace Quartz.Impl.AdoJobStore
         /// the trigger
         /// the state that the trigger should be stored in
         /// <returns>the number of rows inserted</returns>
-        public virtual async Task<int> UpdateFiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail job)
+        public virtual async Task<int> UpdateFiredTriggerAsync(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail job)
         {
             var ps = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateFiredTrigger));
             AddCommandParameter(ps, "instanceName", instanceId);
@@ -2338,7 +2338,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerName">Name of the trigger.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns>a List of <see cref="FiredTriggerRecord" /> objects.</returns>
-        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectFiredTriggerRecords(ConnectionAndTransactionHolder conn, string triggerName,
+        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectFiredTriggerRecordsAsync(ConnectionAndTransactionHolder conn, string triggerName,
             string groupName)
         {
             DbCommand cmd;
@@ -2390,7 +2390,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobName">Name of the job.</param>
         /// <param name="groupName">Name of the group.</param>
         /// <returns>a List of <see cref="FiredTriggerRecord" /> objects.</returns>
-        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectFiredTriggerRecordsByJob(ConnectionAndTransactionHolder conn, string jobName,
+        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectFiredTriggerRecordsByJobAsync(ConnectionAndTransactionHolder conn, string jobName,
             string groupName)
         {
             List<FiredTriggerRecord> lst = new List<FiredTriggerRecord>();
@@ -2440,7 +2440,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="instanceName">Name of the instance.</param>
         /// <returns>A list of FiredTriggerRecord objects.</returns>
-        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(ConnectionAndTransactionHolder conn, string instanceName)
+        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectInstancesFiredTriggerRecordsAsync(ConnectionAndTransactionHolder conn, string instanceName)
         {
             List<FiredTriggerRecord> lst = new List<FiredTriggerRecord>();
 
@@ -2482,7 +2482,7 @@ namespace Quartz.Impl.AdoJobStore
         /// This is useful when trying to identify orphaned fired triggers (a
         /// fired trigger without a scheduler state record.)
         /// </remarks>
-        public virtual async Task<ISet<string>> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn)
+        public virtual async Task<ISet<string>> SelectFiredTriggerInstanceNamesAsync(ConnectionAndTransactionHolder conn)
         {
             var instanceNames = new HashSet<string>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames)))
@@ -2505,7 +2505,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">the DB Connection</param>
         /// <param name="entryId">the fired trigger entry to delete</param>
         /// <returns>the number of rows deleted</returns>
-        public virtual async Task<int> DeleteFiredTrigger(ConnectionAndTransactionHolder conn, string entryId)
+        public virtual async Task<int> DeleteFiredTriggerAsync(ConnectionAndTransactionHolder conn, string entryId)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTrigger)))
             {
@@ -2520,7 +2520,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB connection.</param>
         /// <param name="jobKey">The key of the job.</param>
         /// <returns></returns>
-        public virtual async Task<int> SelectJobExecutionCount(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        public virtual async Task<int> SelectJobExecutionCountAsync(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobExecutionCount)))
             {
@@ -2547,7 +2547,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="checkInTime">The check in time.</param>
         /// <param name="interval">The interval.</param>
         /// <returns></returns>
-        public virtual async Task<int> InsertSchedulerState(ConnectionAndTransactionHolder conn, string instanceName, DateTimeOffset checkInTime, TimeSpan interval)
+        public virtual async Task<int> InsertSchedulerStateAsync(ConnectionAndTransactionHolder conn, string instanceName, DateTimeOffset checkInTime, TimeSpan interval)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertSchedulerState)))
             {
@@ -2565,7 +2565,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The database connection.</param>
         /// <param name="instanceName">The instance id.</param>
         /// <returns></returns>
-        public virtual async Task<int> DeleteSchedulerState(ConnectionAndTransactionHolder conn, string instanceName)
+        public virtual async Task<int> DeleteSchedulerStateAsync(ConnectionAndTransactionHolder conn, string instanceName)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteSchedulerState)))
             {
@@ -2582,7 +2582,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceName">The instance id.</param>
         /// <param name="checkInTime">The check in time.</param>
         /// <returns></returns>
-        public virtual async Task<int> UpdateSchedulerState(ConnectionAndTransactionHolder conn, string instanceName, DateTimeOffset checkInTime)
+        public virtual async Task<int> UpdateSchedulerStateAsync(ConnectionAndTransactionHolder conn, string instanceName, DateTimeOffset checkInTime)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSchedulerState)))
             {
@@ -2603,7 +2603,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="instanceName">The instance id.</param>
         /// <returns></returns>
-        public virtual async Task<IReadOnlyList<SchedulerStateRecord>> SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string instanceName)
+        public virtual async Task<IReadOnlyList<SchedulerStateRecord>> SelectSchedulerStateRecordsAsync(ConnectionAndTransactionHolder conn, string instanceName)
         {
             DbCommand cmd;
             List<SchedulerStateRecord> list = new List<SchedulerStateRecord>();
@@ -2842,7 +2842,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <returns></returns>
-        public virtual async Task<ISet<string>> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn)
+        public virtual async Task<ISet<string>> SelectPausedTriggerGroupsAsync(ConnectionAndTransactionHolder conn)
         {
             HashSet<string> retValue = new HashSet<string>();
 

@@ -54,8 +54,8 @@ namespace Quartz
         /// by a <see cref="ITriggerListener" />.
         /// </para>
         /// </summary>
-        /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)" />
-        Task JobToBeExecuted(IJobExecutionContext context);
+        /// <seealso cref="JobExecutionVetoedAsync" />
+        Task JobToBeExecutedAsync(IJobExecutionContext context);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
@@ -63,14 +63,14 @@ namespace Quartz
         /// has occurred), but a <see cref="ITriggerListener" /> vetoed it's 
         /// execution.
         /// </summary>
-        /// <seealso cref="JobToBeExecuted(IJobExecutionContext)" />
-        Task JobExecutionVetoed(IJobExecutionContext context);
+        /// <seealso cref="JobToBeExecutedAsync" />
+        Task JobExecutionVetoedAsync(IJobExecutionContext context);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> after a <see cref="IJobDetail" />
         /// has been executed, and be for the associated <see cref="IOperableTrigger" />'s
         /// <see cref="IOperableTrigger.Triggered" /> method has been called.
         /// </summary>
-        Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
+        Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException);
     }
 }
