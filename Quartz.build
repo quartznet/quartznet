@@ -7,6 +7,11 @@
   <property name="build.keyfile" value="quartz.public.snk" overwrite="false" />
 
   <property name="nuget.location" value="tools/NuGet/NuGet.exe" />
+  <property name="msbuild.location" value="C:\Program Files (x86)\MSBuild\14.0\Bin\msbuild.exe" />
+  <property name="node.location" value="C:\Program Files\nodejs" />
+  <property name="npm.location" value="${node.location}\npm.cmd" overwrite="false" />
+  <property name="jspm.location" value="C:\Users\${environment::get-user-name()}\AppData\Roaming\npm\jspm.cmd" overwrite="false" />
+  <property name="grunt.location" value="C:\Users\${environment::get-user-name()}\AppData\Roaming\npm\grunt.cmd" overwrite="false" />
 
   <property name="version.major" value="2" overwrite="false" />
   <property name="version.minor" value="3" overwrite="false" />
@@ -49,13 +54,38 @@
   </target>
 
   <target name="restore-nuget-packages" unless="${target::has-executed('restore-nuget-packages')}">
-	<exec program="${nuget.location}" commandline="restore Quartz.2010.sln" />
-	<exec program="${nuget.location}" commandline="restore Quartz.Server.2010.sln" />
+    <exec program="${nuget.location}" commandline="restore Quartz.sln" />
+  </target>
+  
+  <target name="restore-web-modules">
+    <fail message="jspm not installed, run: npm install -g jspm" unless="${file::exists(jspm.location)}" />
+
+    <property name="webdir" value="${project::get-base-directory()}\src\Quartz.Web\App" />
+    <echo message="Operating in directory ${webdir}" />
+
+    <!-- for some reason the installation breaks, better delete and reinstall -->
+    <delete dir="${webdir}/node_modules" />
+
+    <exec
+      program="${jspm.location}"
+      workingdir="${webdir}">
+      <arg value="install"/>
+    </exec>
+    
   </target>
 
   <target name="build">
+
+  <call target="restore-nuget-packages" />
+	<exec
+		program="${msbuild.location}"
+		commandline="/p:Configuration=Release /v:m /m Quartz.sln" 
+	/>
+
+	<!--
     <call target="build-4.0" />
 	<call target="build-server" />
+	-->
   </target>
 
   <target name="build-all">
@@ -99,19 +129,6 @@
     <property name="client-profile" value="true" />
     <call target="compile-quartz" />
     <property name="build.defines" value="${original.build.defines}" />
-
-    <copy todir="${buildoutputbasedir}/" flatten="true" >
-      <fileset>
-        <include name="${common-logging-dll}" />
-        <include name="${common-logging-core-dll}" />
-      </fileset>
-    </copy>
-    <copy todir="${buildoutputbasedir}/ClientProfile/" flatten="true" >
-        <fileset>
-            <include name="${common-logging-dll}" />
-            <include name="${common-logging-core-dll}" />
-        </fileset>
-    </copy>
             
   </target>
 
@@ -183,7 +200,6 @@
         <include name="System.Runtime.Remoting.dll" />
         <include name="System.Web.dll" unless="${client-profile}" />
         <include name="System.Xml.dll" />
-        <include name="${common-logging-dll}" />
       </references>
     </csc>
      
@@ -219,8 +235,6 @@
         <include name="System.Core.dll"/>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="${common-logging-dll}" />
-        <include name="${common-logging-core-dll}" />
         <include name="${buildoutputbasedir}/Quartz.dll" />
       </references>
     </csc>
@@ -228,8 +242,6 @@
     <copy todir="${buildoutputbasedir}.Examples/" flatten="true" >
       <fileset>
         <include name="${buildoutputbasedir}/Quartz.*" />
-        <include name="${common-logging-dll}" />
-        <include name="${common-logging-core-dll}" />
       </fileset>
     </copy>
     <copy file="src/Quartz.Examples/App.config" tofile="${buildoutputbasedir}.Examples/Quartz.Examples.exe.config" />
@@ -275,8 +287,6 @@
         <include name="System.Core.dll"/>
         <include name="System.dll" />
         <include name="System.Data.dll" />
-        <include name="${common-logging-dll}" />
-        <include name="${common-logging-core-dll}" />
         <include name="${topshelf-dll}" />
         <include name="${buildoutputbasedir}/Quartz.dll" />
       </references>
@@ -285,9 +295,6 @@
       <fileset>
         <include name="${buildoutputbasedir}/Quartz.dll" />
         <include name="${buildoutputbasedir}/Quartz.pdb" />
-        <include name="${common-logging-dll}" />
-        <include name="${common-logging-core-dll}" />
-        <include name="${common-logging-log4net-dll}" />
         <include name="${log4net-dll}" />
         <include name="${topshelf-dll}" />
       </fileset>
@@ -341,8 +348,6 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="System.Transactions.dll" />
-        <include name="${common-logging-dll}" />
-        <include name="${common-logging-core-dll}" />
         <include name="${nunit-dll}" />
         <include name="${fakeiteasy-dll}" />
         <include name="${buildoutputbasedir}/Quartz.dll" />
@@ -353,8 +358,6 @@
     <copy todir="${buildoutputbasedir}.Tests.${test.project}/" flatten="true" >
       <fileset>
         <include name="${buildoutputbasedir}/Quartz.*" />
-        <include name="${common-logging-dll}" />
-        <include name="${common-logging-core-dll}" />
         <include name="${nunit-dll}" />
         <include name="${fakeiteasy-dll}" />
       </fileset>
@@ -402,12 +405,12 @@
     <echo message="Building documentation...." />
 	
 	<exec
-		program="C:\Program Files (x86)\MSBuild\12.0\Bin\msbuild.exe"
-		commandline="/p:Configuration=Release Quartz.2010.sln" 
+		program="${msbuild.location}"
+		commandline="/p:Configuration=Release Quartz.sln" 
 	/>
 	
 	<exec
-		program="C:\Program Files (x86)\MSBuild\12.0\Bin\msbuild.exe"
+		program="${msbuild.location}"
 		commandline="/p:CleanIntermediates=True /p:Configuration=Release /p:CustomBeforeSHFBTargets=doc/quartznet-2.0.targets &quot;doc/quartznet.shfbproj&quot;" 
 	/>
 

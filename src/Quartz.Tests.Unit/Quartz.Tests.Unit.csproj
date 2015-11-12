@@ -248,10 +248,6 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz.Web\Quartz.Web.csproj">
-      <Project>{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}</Project>
-      <Name>Quartz.Web</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Quartz\Quartz.csproj">
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
       <Name>Quartz.2010</Name>
