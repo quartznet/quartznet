@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
-using Quartz.Web.Api;
 
 namespace Quartz.Tests.Unit
 {
@@ -50,7 +49,7 @@ namespace Quartz.Tests.Unit
         {
             AssertNoAsyncVoidMethods(GetType().Assembly);
             AssertNoAsyncVoidMethods(typeof (IJob).Assembly);
-            AssertNoAsyncVoidMethods(typeof (TriggersController).Assembly);
+            // AssertNoAsyncVoidMethods(typeof (TriggersController).Assembly);
         }
 
         private static void AssertNoAsyncVoidMethods(Assembly assembly)
