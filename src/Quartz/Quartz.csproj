@@ -162,6 +162,7 @@
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />
     <Compile Include="Job\DirectoryScanJob.cs" />
+    <Compile Include="IDirectoryProvider.cs" />
     <Compile Include="Job\IDirectoryScanListener.cs" />
     <Compile Include="Listener\BroadcastJobListener.cs" />
     <Compile Include="Listener\BroadcastTriggerListener.cs" />
