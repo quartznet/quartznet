@@ -15,6 +15,6 @@ namespace Quartz
         /// to montitor - absolute paths are recommended.
         /// </summary>
         /// <returns></returns>
-        IEnumerable<string> GetDirectoriesToScan();
+        IEnumerable<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap);
     }
 }
