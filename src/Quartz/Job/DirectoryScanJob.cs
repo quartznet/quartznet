@@ -49,7 +49,7 @@ namespace Quartz.Job
         /// <para>If this parameter is not specified, a default value of 5000 (five seconds) will be used.</para>
         public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
 
-        private const string LastModifiedTime = "LAST_MODIFIED_TIME";
+        internal const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
         private readonly ILog log;
 
@@ -66,12 +66,16 @@ namespace Quartz.Job
         /// the job will use during execution.</param>
         public void Execute(IJobExecutionContext context)
         {
-            DirectoryScanModel model = DirectoryScanModel.GetInstance(context);
+            DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context);
 
             List<FileInfo> updatedFiles = new List<FileInfo>();
             Parallel.ForEach(model.DirectoriesToScan, d =>
             {
-                updatedFiles.AddRange(GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate));
+                var newFiles = GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate);
+                if (newFiles != null)
+                {
+                    updatedFiles.AddRange(GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate));
+                }
             });
 
             if (updatedFiles.Any())
@@ -86,10 +90,7 @@ namespace Quartz.Job
                 model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles);
 
                 DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
-                DateTime newLastModifiedDate = latestWriteTimeFromFiles > model.LastModTime
-                    ? latestWriteTimeFromFiles
-                    : model.LastModTime;
-                model.UpdateLastModifiedDate(newLastModifiedDate);
+                model.UpdateLastModifiedDate(latestWriteTimeFromFiles);
             }
             else if (log.IsDebugEnabled())
             {
@@ -111,119 +112,6 @@ namespace Quartz.Job
 
             FileInfo[] files = dir.GetFiles();
             return files.Where(fileInfo => fileInfo.LastWriteTime > lastModifiedDate && fileInfo.LastWriteTime < maxAgeDate);
-        }
-
-
-        /// <summary>
-        /// Internal model to hold settings used by <see cref="DirectoryScanJob"/>
-        /// </summary>
-        private class DirectoryScanModel
-        {
-            public IReadOnlyCollection<string> DirectoriesToScan { get; private set; }
-            public IDirectoryScanListener DirectoryScanListener { get; private set; }
-            private TimeSpan MinUpdateAge { get; set; }
-            public DateTime LastModTime { get; private set; }
-            public DateTime MaxAgeDate => DateTime.Now - this.MinUpdateAge;
-            private JobDataMap JobDetailJobDataMap { get; set; }
-
-            private DirectoryScanModel()
-            {
-            }
-
-            public static DirectoryScanModel GetInstance(IJobExecutionContext context)
-            {
-                JobDataMap mergedJobDataMap = context.MergedJobDataMap;
-                SchedulerContext schedCtxt;
-                try
-                {
-                    schedCtxt = context.Scheduler.Context;
-                }
-                catch (SchedulerException e)
-                {
-                    throw new JobExecutionException("Error obtaining scheduler context.", e, false);
-                }
-
-                return new DirectoryScanModel
-                {
-                    DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap),
-                    DirectoryScanListener = GetListener(mergedJobDataMap, schedCtxt),
-                    LastModTime = mergedJobDataMap.ContainsKey(LastModifiedTime)
-                        ? mergedJobDataMap.GetDateTime(LastModifiedTime)
-                        : DateTime.MinValue,
-                    MinUpdateAge = mergedJobDataMap.ContainsKey(MinimumUpdateAge)
-                        ? TimeSpan.FromMilliseconds(mergedJobDataMap.GetLong(MinimumUpdateAge))
-                        : TimeSpan.FromSeconds(5), // default of 5 seconds
-                    JobDetailJobDataMap = context.JobDetail.JobDataMap
-                };
-            }
-
-            public void UpdateLastModifiedDate(DateTime lastModifiedDate)
-            {
-                // It is the JobDataMap on the JobDetail which is actually stateful
-                this.JobDetailJobDataMap.Put(LastModifiedTime, lastModifiedDate);
-            }
-
-            private static List<string> GetDirectoriesToScan(SchedulerContext schedCtxt, JobDataMap mergedJobDataMap)
-            {
-                List<string> directoriesToScan = new List<string>();
-                string dirName = mergedJobDataMap.GetString(DirectoryName);
-                string dirNames = mergedJobDataMap.GetString(DirectoryNames);
-                string dirProviderName = mergedJobDataMap.GetString(DirectoryProviderName);
-
-                if (dirName == null && dirNames == null && dirProviderName == null)
-                {
-                    throw new JobExecutionException($"The parameter '{DirectoryName}', '{DirectoryNames}', or '{DirectoryProviderName} " +
-                                                    "is required and was not found in merged JobDataMap");
-                }
-
-                if (dirName != null)
-                {
-                    directoriesToScan.Add(dirName);
-                }
-                else if (dirNames != null)
-                {
-                    directoriesToScan.AddRange(
-                        dirNames.Split(new[] {";"}, StringSplitOptions.RemoveEmptyEntries)
-                            .Distinct()); // just in case their are duplicates
-                }
-                else
-                {
-                    object temp;
-                    schedCtxt.TryGetValue(dirProviderName, out temp);
-                    IDirectoryProvider provider = (IDirectoryProvider)temp;
-                    if (provider == null)
-                    {
-                        throw new JobExecutionException("IDirectoryProvider named '" +
-                                                    dirProviderName + "' not found in SchedulerContext");
-                    }
-                    directoriesToScan.AddRange(provider.GetDirectoriesToScan());
-                }
-
-                return directoriesToScan;
-            }
-
-            private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt)
-            {
-                string listenerName = mergedJobDataMap.GetString(DirectoryScanListenerName);
-
-                if (listenerName == null)
-                {
-                    throw new JobExecutionException("Required parameter '" +
-                                                    DirectoryScanListenerName + "' not found in merged JobDataMap");
-                }
-
-                object temp;
-                schedCtxt.TryGetValue(listenerName, out temp);
-                IDirectoryScanListener listener = (IDirectoryScanListener)temp;
-
-                if (listener == null)
-                {
-                    throw new JobExecutionException("IDirectoryScanListener named '" +
-                                                    listenerName + "' not found in SchedulerContext");
-                }
-
-                return listener;
-            }
         }
     }
 }
