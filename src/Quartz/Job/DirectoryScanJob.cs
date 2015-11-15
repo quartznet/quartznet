@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Quartz.Logging;
+using Quartz.Spi;
 
 namespace Quartz.Job
 {
@@ -68,25 +70,25 @@ namespace Quartz.Job
         {
             DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context);
 
-            List<FileInfo> updatedFiles = new List<FileInfo>();
+            ConcurrentQueue<FileInfo> updatedFiles = new ConcurrentQueue<FileInfo>();
             Parallel.ForEach(model.DirectoriesToScan, d =>
             {
-                var newFiles = GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate);
-                if (newFiles != null)
+                var newOrUpdatedFiles = GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate);
+                if (newOrUpdatedFiles == null) return;
+                foreach (var fileInfo in newOrUpdatedFiles)
                 {
-                    updatedFiles.AddRange(GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate));
+                    updatedFiles.Enqueue(fileInfo);
                 }
             });
 
             if (updatedFiles.Any())
             {
+                foreach (var fileInfo in updatedFiles)
+                {
+                    log.Info($"Directory '{fileInfo.DirectoryName}' contents updated, notifying listener.");
+                }
+
                 // notify call back...
-                updatedFiles.Select(x => x.DirectoryName)
-                    .Distinct().ToList()
-                    .ForEach(dir =>
-                    {
-                        log.Info("Directory '" + dir + "' contents updated, notifying listener.");
-                    });
                 model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles);
 
                 DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
@@ -94,10 +96,10 @@ namespace Quartz.Job
             }
             else if (log.IsDebugEnabled())
             {
-                model.DirectoriesToScan.ToList().ForEach(dir =>
+                foreach (var dir in model.DirectoriesToScan)
                 {
-                    log.Debug("Directory '" + dir + "' contents unchanged.");
-                });
+                    log.Debug($"Directory '{dir}' contents unchanged.");
+                }
             }
         }
 
@@ -106,7 +108,7 @@ namespace Quartz.Job
             DirectoryInfo dir = new DirectoryInfo(dirName);
             if (!dir.Exists)
             {
-                log.Warn("Directory '" + dirName + "' does not exist.");
+                log.Warn($"Directory '{dirName}' does not exist.");
                 return null;
             }
 

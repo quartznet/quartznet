@@ -161,9 +161,9 @@
     <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />
-    <Compile Include="DefaultDirectoryProvider.cs" />
+    <Compile Include="Simpl\DefaultDirectoryProvider.cs" />
     <Compile Include="Job\DirectoryScanJob.cs" />
-    <Compile Include="IDirectoryProvider.cs" />
+    <Compile Include="SPI\IDirectoryProvider.cs" />
     <Compile Include="DirectoryScanJobModel.cs" />
     <Compile Include="Job\IDirectoryScanListener.cs" />
     <Compile Include="Listener\BroadcastJobListener.cs" />

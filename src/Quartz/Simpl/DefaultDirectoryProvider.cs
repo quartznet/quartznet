@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Quartz.Job;
+using Quartz.Spi;
 
-namespace Quartz
+namespace Quartz.Simpl
 {
+    /// <summary>
+    /// Default directory provider that inspects and parses the merged JobDataMap <see cref="JobDataMap"/> 
+    /// for the entries <see cref="DirectoryScanJob.DirectoryName"/> and <see cref="DirectoryScanJob.DirectoryNames"/> 
+    /// to supply the directory paths
+    /// </summary>
     internal class DefaultDirectoryProvider : IDirectoryProvider
     {
         public IEnumerable<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
@@ -19,15 +24,18 @@ namespace Quartz
                                                 "is required and was not found in merged JobDataMap");
             }
 
+            /* 
+                If the user supplied both DirectoryScanJob.DirectoryName and DirectoryScanJob.DirectoryNames,
+                then just use both. The directory names will be 'distincted' by the caller.
+            */
             if (dirName != null)
             {
                 directoriesToScan.Add(dirName);
             }
-            else
+            if (dirNames != null)
             {
                 directoriesToScan.AddRange(
-                    dirNames.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries)
-                        .Distinct()); // just in case their are duplicates
+                    dirNames.Split(new[] {";"}, StringSplitOptions.RemoveEmptyEntries));
             }
 
             return directoriesToScan;
