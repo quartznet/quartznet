@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Quartz.Job;
 
-namespace Quartz
+namespace Quartz.Spi
 {
     ///<summary>Interface for objects that wish to provide a list of directory paths to be 
     /// monitored to <see cref="DirectoryScanJob"/></summary>

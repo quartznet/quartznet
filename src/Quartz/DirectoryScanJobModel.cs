@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Quartz.Job;
+using Quartz.Simpl;
+using Quartz.Spi;
 
 namespace Quartz
 {
@@ -10,17 +12,22 @@ namespace Quartz
     /// </summary>
     internal class DirectoryScanJobModel
     {
-        internal IReadOnlyCollection<string> DirectoriesToScan { get; private set; }
+        /// <summary>
+        /// We only want this type of object to be instantiated by inspecting the data 
+        /// of a IJobExecutionContext <see cref="IJobExecutionContext"/>. Use the 
+        /// GetInstance() <see cref="GetInstance"/> method to create an instance of this
+        /// object type
+        /// </summary>
+        private DirectoryScanJobModel()
+        {
+        }
+
+        internal IReadOnlyList<string> DirectoriesToScan { get; private set; }
         internal IDirectoryScanListener DirectoryScanListener { get; private set; }
         internal DateTime LastModTime { get; private set; }
         internal DateTime MaxAgeDate => DateTime.Now - this.MinUpdateAge;
         private TimeSpan MinUpdateAge { get; set; }
         private JobDataMap JobDetailJobDataMap { get; set; }
-
-
-        private DirectoryScanJobModel()
-        {
-        }
 
         /// <summary>
         /// Creates an instance of DirectoryScanJobModel by inspecting the provided IJobExecutionContext <see cref="IJobExecutionContext"/>
@@ -51,6 +58,7 @@ namespace Quartz
                     : TimeSpan.FromSeconds(5), // default of 5 seconds
                 JobDetailJobDataMap = context.JobDetail.JobDataMap,
                 DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
+                    .Distinct().ToList()
             };
 
             return model;
