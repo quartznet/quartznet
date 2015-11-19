@@ -168,7 +168,7 @@
     <Compile Include="Simpl\DefaultDirectoryProvider.cs" />
     <Compile Include="Job\DirectoryScanJob.cs" />
     <Compile Include="SPI\IDirectoryProvider.cs" />
-    <Compile Include="DirectoryScanJobModel.cs" />
+    <Compile Include="Job\DirectoryScanJobModel.cs" />
     <Compile Include="Job\IDirectoryScanListener.cs" />
     <Compile Include="Listener\BroadcastJobListener.cs" />
     <Compile Include="Listener\BroadcastTriggerListener.cs" />
