@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
 
-namespace Quartz
+namespace Quartz.Job
 {
     /// <summary>
     /// Internal model to hold settings used by <see cref="DirectoryScanJob"/>
