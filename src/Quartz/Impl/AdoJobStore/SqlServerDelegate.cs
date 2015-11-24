@@ -50,7 +50,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 paramValue = (bool) paramValue ? 1 : 0;
             }
-
+            
             base.AddCommandParameter(cmd, paramName, paramValue, dataType);
         }
     }
