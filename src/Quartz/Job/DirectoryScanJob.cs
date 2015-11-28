@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
+using Quartz.Spi;
 
 namespace Quartz.Job
 {
@@ -17,7 +19,7 @@ namespace Quartz.Job
     /// <author>pl47ypus</author>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    /// 
+    /// <author>Chris Knight (.NET)</author>
     [DisallowConcurrentExecution]
     [PersistJobDataAfterExecution]
     public class DirectoryScanJob : IJob
@@ -25,6 +27,15 @@ namespace Quartz.Job
         ///<see cref="JobDataMap"/> key with which to specify the directory to be 
         /// monitored - an absolute path is recommended. 
         public const string DirectoryName = "DIRECTORY_NAME";
+
+        ///<see cref="JobDataMap"/> key with which to specify the directories to be 
+        /// monitored. Directory paths should be separated by a semi-colon (;) - absolute paths are recommended.
+        public const string DirectoryNames = "DIRECTORY_NAMES";
+
+        /// <see cref="JobDataMap"/> key with which to specify the 
+        /// <see cref="IDirectoryProvider"/> to be used to provide
+        /// the directory paths to be monitored - absolute paths are recommended.
+        public const string DirectoryProviderName = "DIRECTORY_PROVIDER_NAME";
 
         /// <see cref="JobDataMap"/> key with which to specify the 
         /// <see cref="IDirectoryScanListener"/> to be 
@@ -40,7 +51,7 @@ namespace Quartz.Job
         /// <para>If this parameter is not specified, a default value of 5000 (five seconds) will be used.</para>
         public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
 
-        private const string LastModifiedTime = "LAST_MODIFIED_TIME";
+        internal const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
         private readonly ILog log;
 
@@ -57,95 +68,52 @@ namespace Quartz.Job
         /// the job will use during execution.</param>
         public void Execute(IJobExecutionContext context)
         {
-            JobDataMap mergedJobDataMap = context.MergedJobDataMap;
-            SchedulerContext schedCtxt;
-            try
+            DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context);
+
+            ConcurrentQueue<FileInfo> updatedFiles = new ConcurrentQueue<FileInfo>();
+            Parallel.ForEach(model.DirectoriesToScan, d =>
             {
-                schedCtxt = context.Scheduler.Context;
-            }
-            catch (SchedulerException e)
-            {
-                throw new JobExecutionException("Error obtaining scheduler context.", e, false);
-            }
-
-            string dirName = mergedJobDataMap.GetString(DirectoryName);
-            string listenerName = mergedJobDataMap.GetString(DirectoryScanListenerName);
-
-            if (dirName == null)
-            {
-                throw new JobExecutionException("Required parameter '" +
-                                                DirectoryName + "' not found in merged JobDataMap");
-            }
-            if (listenerName == null)
-            {
-                throw new JobExecutionException("Required parameter '" +
-                                                DirectoryScanListenerName + "' not found in merged JobDataMap");
-            }
-
-            object temp;
-            schedCtxt.TryGetValue(listenerName, out temp);
-            IDirectoryScanListener listener = (IDirectoryScanListener) temp;
-
-            if (listener == null)
-            {
-                throw new JobExecutionException("DirectoryScanListener named '" +
-                                                listenerName + "' not found in SchedulerContext");
-            }
-
-            DateTime lastDate = DateTime.MinValue;
-            if (mergedJobDataMap.ContainsKey(LastModifiedTime))
-            {
-                lastDate = mergedJobDataMap.GetDateTime(LastModifiedTime);
-            }
-
-            TimeSpan minAge = TimeSpan.FromSeconds(5);
-            if (mergedJobDataMap.ContainsKey(MinimumUpdateAge))
-            {
-                minAge = TimeSpan.FromMilliseconds(mergedJobDataMap.GetLong(MinimumUpdateAge));
-            }
-
-            DateTime maxAgeDate = DateTime.Now - minAge;
-
-            IEnumerable<FileInfo> updatedFiles = GetUpdatedOrNewFiles(dirName, lastDate, maxAgeDate);
-
-            if (updatedFiles == null)
-            {
-                log.Warn("Directory '" + dirName + "' does not exist.");
-            }
-
-            DateTime latestMod = lastDate;
-            foreach (FileInfo updFile in updatedFiles)
-            {
-                DateTime lm = updFile.LastWriteTime;
-                latestMod = (lm > latestMod) ? lm : latestMod;
-            }
+                var newOrUpdatedFiles = GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate);
+                if (newOrUpdatedFiles == null) return;
+                foreach (var fileInfo in newOrUpdatedFiles)
+                {
+                    updatedFiles.Enqueue(fileInfo);
+                }
+            });
 
             if (updatedFiles.Any())
             {
+                foreach (var fileInfo in updatedFiles)
+                {
+                    log.Info($"Directory '{fileInfo.DirectoryName}' contents updated, notifying listener.");
+                }
+
                 // notify call back...
-                log.Info("Directory '" + dirName + "' contents updated, notifying listener.");
-                listener.FilesUpdatedOrAdded(updatedFiles);
+                model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles);
+
+                DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
+                model.UpdateLastModifiedDate(latestWriteTimeFromFiles);
             }
             else if (log.IsDebugEnabled())
             {
-                log.Debug("Directory '" + dirName + "' contents unchanged.");
+                foreach (var dir in model.DirectoriesToScan)
+                {
+                    log.Debug($"Directory '{dir}' contents unchanged.");
+                }
             }
-
-            // It is the JobDataMap on the JobDetail which is actually stateful
-            context.JobDetail.JobDataMap.Put(LastModifiedTime, latestMod);
         }
 
-        protected static IEnumerable<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastDate, DateTime maxAgeDate)
+        protected IEnumerable<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate)
         {
             DirectoryInfo dir = new DirectoryInfo(dirName);
             if (!dir.Exists)
             {
+                log.Warn($"Directory '{dirName}' does not exist.");
                 return null;
             }
 
             FileInfo[] files = dir.GetFiles();
-
-            return files.Where(fileInfo => fileInfo.LastWriteTime > lastDate && fileInfo.LastWriteTime < maxAgeDate);
+            return files.Where(fileInfo => fileInfo.LastWriteTime > lastModifiedDate && fileInfo.LastWriteTime < maxAgeDate);
         }
     }
 }
