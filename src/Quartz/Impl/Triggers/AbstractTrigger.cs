@@ -394,7 +394,7 @@ namespace Quartz.Impl.Triggers
 				if (!HasMillisecondPrecision)
 				{
 					// round off millisecond...	
-					startTimeUtc = new DateTime(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second);
+					startTimeUtc = value.AddMilliseconds(-value.Millisecond);
 				}
 				else
 				{
