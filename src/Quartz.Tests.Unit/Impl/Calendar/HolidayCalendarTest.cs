@@ -54,8 +54,10 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             // use end of day to get by with utc offsets
             DateTime excluded = new DateTime(2007, 12, 31);
             cal.AddExcludedDate(excluded);
+            bool isDaylightSaving = TimeZoneInfo.Local.IsDaylightSavingTime(DateTime.Now);
+            TimeSpan currTimeSpan = isDaylightSaving ? cal.TimeZone.BaseUtcOffset.Add(new TimeSpan(0, 1, 0, 0)) : cal.TimeZone.BaseUtcOffset;
             
-            Assert.AreEqual(new DateTimeOffset(2008, 1, 1, 0,0,0, cal.TimeZone.BaseUtcOffset), cal.GetNextIncludedTimeUtc(excluded));
+            Assert.AreEqual(new DateTimeOffset(2008, 1, 1, 0,0,0, currTimeSpan), cal.GetNextIncludedTimeUtc(excluded));
         }
     
         /// <summary>
