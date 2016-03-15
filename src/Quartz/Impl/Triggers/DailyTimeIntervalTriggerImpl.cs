@@ -678,7 +678,7 @@ namespace Quartz.Impl.Triggers
             long secondsAfterStart = (long)(fireTime.Value - startTimeUtc).TotalSeconds;
             long repeatLong = RepeatInterval;
 
-            DateTimeOffset sTime = fireTimeStartDate;
+            DateTimeOffset sTime = fireTimeStartDate.ToUniversalTime();
             IntervalUnit repeatUnit = RepeatIntervalUnit;
             if (repeatUnit == IntervalUnit.Second)
             {
@@ -689,7 +689,7 @@ namespace Quartz.Impl.Triggers
                 }
 
                 sTime = sTime.AddSeconds(RepeatInterval * (int)jumpCount);
-                fireTime = sTime;
+                fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
             else if (repeatUnit == IntervalUnit.Minute)
             {
@@ -699,7 +699,7 @@ namespace Quartz.Impl.Triggers
                     jumpCount++;
                 }
                 sTime = sTime.AddMinutes(RepeatInterval * (int)jumpCount);
-                fireTime = sTime;
+                fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
             else if (repeatUnit == IntervalUnit.Hour)
             {
@@ -709,7 +709,7 @@ namespace Quartz.Impl.Triggers
                     jumpCount++;
                 }
                 sTime = sTime.AddHours(RepeatInterval * (int)jumpCount);
-                fireTime = sTime;
+                fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
 
             // g. Ensure this new fireTime is within the day, or else we need to advance to next day.
@@ -726,11 +726,7 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            // apply proper offset
-            var d = fireTime.Value;
-            d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, TimeZone.GetUtcOffset(d.DateTime));
-
-            return d.ToUniversalTime();
+            return fireTime.Value.ToUniversalTime();
         }
 
         private bool IsSameDay(DateTimeOffset d1, DateTimeOffset d2)
