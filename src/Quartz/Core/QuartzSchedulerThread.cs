@@ -561,7 +561,7 @@ namespace Quartz.Core
         public void Start()
         {
             cancellationTokenSource = new CancellationTokenSource();
-            task = Task.Factory.StartNew(() => RunAsync(cancellationTokenSource.Token), CancellationToken.None);
+            task = Task.Run(() => RunAsync(cancellationTokenSource.Token));
         }
 
         public async Task ShutdownAsync()
