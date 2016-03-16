@@ -1,0 +1,7 @@
+version: 1.0.{build}
+build_script:
+-nuget restore
+build:
+  project: Quartz.2010.sln
+  parallel: true
+  verbosity: minimal
