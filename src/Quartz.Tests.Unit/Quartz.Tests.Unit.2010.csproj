@@ -93,8 +93,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>
     </Reference>
-    <Reference Include="Oracle.ManagedDataAccess">
-      <HintPath>../../packages/odp.net.managed.121.1.1/lib/net40/Oracle.ManagedDataAccess.dll</HintPath>
+    <Reference Include="Oracle.ManagedDataAccess, Version=4.121.1.0, Culture=neutral, PublicKeyToken=89b483f429c47342, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\odp.net.managed.121.1.2\lib\net40\Oracle.ManagedDataAccess.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Rhino.Mocks, Version=3.6.0.0, Culture=neutral, PublicKeyToken=0b3305902db7183f, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -127,7 +128,9 @@
     <Compile Include="Impl\AdoJobStore\JobStoreCMTTest.cs" />
     <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
     <Compile Include="Impl\AdoJobStore\StubConnection.cs" />
-    <Compile Include="Impl\AdoJobStore\UpdateTriggerTest.cs" />
+    <Compile Include="Impl\AdoJobStore\UpdateTriggerTest.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
     <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
     <Compile Include="Impl\Triggers\AbstractTriggerTest.cs" />
@@ -149,7 +152,9 @@
     </Compile>
     <Compile Include="Impl\AdoJobStore\Common\DbMetadataTest.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbProviderTest.cs" />
-    <Compile Include="Impl\AdoJobStore\StdAdoDelegateTest.cs" />
+    <Compile Include="Impl\AdoJobStore\StdAdoDelegateTest.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Impl\Calendar\AnnualCalendarTest.cs" />
     <Compile Include="Impl\Calendar\MonthlyCalendarTest.cs" />
     <Compile Include="Impl\Calendar\WeeklyCalendarTest.cs" />
