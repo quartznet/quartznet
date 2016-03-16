@@ -664,10 +664,16 @@ namespace Quartz.Impl.Triggers
             // e. Check fireTime against startTime or startTimeOfDay to see which go first.
             DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
 
-            // apply the proper offset for the start date
-            fireTimeStartDate = new DateTimeOffset(fireTimeStartDate.DateTime, TimeZone.GetUtcOffset(fireTimeStartDate.DateTime));
+            // apply the proper offset for the start date. If the start is an ambiguous time (Daylight->Standard change)
+            // then we leave the offset the same as the startTimeOfDay in order to capture the first hour.
+            TimeSpan fireTimeStartOffset = TimeZone.GetUtcOffset(fireTimeStartDate.DateTime);
+            if(!TimeZone.IsAmbiguousTime(fireTimeStartDate.DateTime))
+            {
+                fireTimeStartDate = new DateTimeOffset(fireTimeStartDate.DateTime, fireTimeStartOffset);
+            }
 
-            if (fireTime < fireTimeStartDate)
+            // If fire time is not yet at the startDate, return the start date
+            if (fireTime.Value.ToUniversalTime() < fireTimeStartDate.ToUniversalTime())
             {
                 return fireTimeStartDate.ToUniversalTime();
             }
