@@ -47,20 +47,18 @@ namespace Quartz.Examples.example16
 
             log.InfoFormat("Job initially executing on thread {0}", Thread.CurrentThread.ManagedThreadId);
 
-            context.ThrowIfCancellationRequested();
-            await Task.Delay(TimeSpan.FromSeconds(1));
+            await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
 
             log.InfoFormat("Job continuing executing on thread {0} after first await", Thread.CurrentThread.ManagedThreadId);
 
-            context.ThrowIfCancellationRequested();
-            await Task.Delay(TimeSpan.FromSeconds(1));
+            await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
 
             log.InfoFormat("Job continuing executing on thread {0} after second await", Thread.CurrentThread.ManagedThreadId);
 
-            await Task.Delay(TimeSpan.FromSeconds(10));
-            log.InfoFormat("Cancellation requested: {0}", context.IsCancellationRequested);
+            await Task.Delay(TimeSpan.FromSeconds(10), context.CancellationToken);
+            log.InfoFormat("Cancellation requested: {0}", context.CancellationToken.IsCancellationRequested);
    
-            context.ThrowIfCancellationRequested();
+            context.CancellationToken.ThrowIfCancellationRequested();
 
             log.InfoFormat("Finished Executing job: {0} at {1}", jobKey, DateTime.Now.ToString("r"));
         }

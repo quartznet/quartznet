@@ -53,7 +53,7 @@ namespace Quartz.Examples.Example11
             // wait for a period of time
             long delayTime = context.JobDetail.JobDataMap.GetLong(DelayTime);
 
-            await Task.Delay(new TimeSpan(10000 * delayTime));
+            await Task.Delay(new TimeSpan(10000 * delayTime), context.CancellationToken);
 
             log.InfoFormat("Finished Executing job: {0} at {1}", jobKey, DateTime.Now.ToString("r"));
         }
