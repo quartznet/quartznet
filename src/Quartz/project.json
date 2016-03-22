@@ -13,6 +13,7 @@
         "warningsAsErrors": true,
         "define": [ "LIBLOG_PUBLIC" ]
     },
+    "runtimes": { "win": { } },
     "frameworks": {
         "net45": {
             "frameworkAssemblies": {
