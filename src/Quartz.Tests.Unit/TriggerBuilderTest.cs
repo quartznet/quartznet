@@ -1,5 +1,5 @@
 using System;
-
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -11,15 +11,17 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         public class TestStatefulJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return Task.FromResult(0);
             }
         }
 
         public class TestJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return Task.FromResult(0);
             }
         }
 
@@ -27,8 +29,9 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         public class TestAnnotatedJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return Task.FromResult(0);
             }
         }
 

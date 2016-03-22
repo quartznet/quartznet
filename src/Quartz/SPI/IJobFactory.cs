@@ -58,11 +58,11 @@ namespace Quartz.Spi
 	    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
 	    /// <returns> the newly instantiated Job
 	    /// </returns>
-	    IQuartzJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler);
+	    IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler);
 
         /// <summary>
         /// Allows the job factory to destroy/cleanup the job if needed.
         /// </summary>
-	    void ReturnJob(IQuartzJob job);
+	    void ReturnJob(IJob job);
 	}
 }

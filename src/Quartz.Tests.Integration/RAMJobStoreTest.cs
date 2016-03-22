@@ -19,15 +19,17 @@ namespace Quartz.Tests.Integration
         [PersistJobDataAfterExecution]
         public class TestStatefulJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return Task.FromResult(0);
             }
         }
 
         public class TestJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return Task.FromResult(0);
             }
         }
 
@@ -35,7 +37,7 @@ namespace Quartz.Tests.Integration
 
         public class TestJobWithSync : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
                 try
                 {
@@ -45,12 +47,14 @@ namespace Quartz.Tests.Integration
                     jobExecTimestamps.Add(DateTime.UtcNow);
 
                     barrier.SignalAndWait(testTimeout);
+                    return Task.FromResult(0);
                 }
                 catch (Exception e)
                 {
                     Console.Write(e);
                     Assert.Fail("Await on barrier was interrupted: " + e);
                 }
+                return Task.FromResult(0);
             }
         }
 
@@ -58,8 +62,9 @@ namespace Quartz.Tests.Integration
         [PersistJobDataAfterExecution]
         public class TestAnnotatedJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return Task.FromResult(0);
             }
         }
 

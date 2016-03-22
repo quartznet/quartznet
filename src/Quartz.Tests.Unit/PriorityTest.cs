@@ -118,9 +118,10 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         private class TestJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
                 result.Append(context.Trigger.Key.Name);
+                return Task.FromResult(0);
             }
         }
     }

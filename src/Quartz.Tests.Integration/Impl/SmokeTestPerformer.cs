@@ -361,9 +361,10 @@ namespace Quartz.Tests.Integration.Impl
 
     public class GenericJobType<T> : IJob
     {
-        public void Execute(IJobExecutionContext context)
+        public Task Execute(IJobExecutionContext context)
         {
             TriggeredCount++;
+            return Task.FromResult(0);
         }
 
         public static int TriggeredCount { get; private set; }

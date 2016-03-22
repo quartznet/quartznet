@@ -425,15 +425,7 @@ namespace Quartz.Core
                                     continue;
                                 }
 
-                                bool threadPoolRunResult;
-                                if (typeof (IAsyncJob).IsAssignableFrom(bndle.JobDetail.JobType))
-                                {
-                                    threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.RunAsync());
-                                }
-                                else
-                                {
-                                    threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.RunAsync().GetAwaiter().GetResult());
-                                }
+                                var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.RunAsync());
                                 if (threadPoolRunResult == false)
                                 {
                                     // this case should never happen, as it is indicative of the

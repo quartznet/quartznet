@@ -20,7 +20,7 @@
 #endregion
 
 using System;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example1
@@ -50,10 +50,11 @@ namespace Quartz.Examples.Example1
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(IJobExecutionContext context)
+        public virtual Task Execute(IJobExecutionContext context)
         {
             // Say Hello to the World and display the date/time
             _log.Info($"Hello World! - {DateTime.Now.ToString("r")}");
+            return Task.FromResult(0);
         }
     }
 }

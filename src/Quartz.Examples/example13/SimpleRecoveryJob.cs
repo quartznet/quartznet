@@ -21,7 +21,7 @@
 
 using System;
 using System.Threading;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example13
@@ -41,7 +41,7 @@ namespace Quartz.Examples.Example13
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(IJobExecutionContext context)
+        public virtual async Task Execute(IJobExecutionContext context)
         {
             JobKey jobKey = context.JobDetail.Key;
 
@@ -56,7 +56,7 @@ namespace Quartz.Examples.Example13
             }
 
             // delay for ten seconds
-            Thread.Sleep(TimeSpan.FromSeconds(10));
+            await Task.Delay(TimeSpan.FromSeconds(10));
 
             JobDataMap data = context.JobDetail.JobDataMap;
             int count;

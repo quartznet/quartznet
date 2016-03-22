@@ -76,7 +76,7 @@ namespace Quartz.Tests.Integration.Core
         private static readonly List<TimeSpan> durationBetweenFireTimes = new List<TimeSpan>();
         private static readonly ILog log = LogProvider.GetLogger(typeof (CollectDurationBetweenFireTimesJob));
 
-        public void Execute(IJobExecutionContext context)
+        public Task Execute(IJobExecutionContext context)
         {
             DateTime now = DateTime.UtcNow;
             log.Info("Fire time: " + now);
@@ -86,6 +86,7 @@ namespace Quartz.Tests.Integration.Core
             }
 
             lastFireTime = now;
+            return Task.FromResult(0);
         }
 
         public static List<TimeSpan> Durations => durationBetweenFireTimes;

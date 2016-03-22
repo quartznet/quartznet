@@ -89,9 +89,9 @@ namespace Quartz.Simpl
 	    /// <param name="scheduler"></param>
 	    /// <returns>the newly instantiated Job</returns>
 	    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-	    public override IQuartzJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
+	    public override IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
 		{
-			IQuartzJob job = base.NewJob(bundle, scheduler);
+			IJob job = base.NewJob(bundle, scheduler);
 
 			JobDataMap jobDataMap = new JobDataMap();
             jobDataMap.PutAll(scheduler.Context);
