@@ -172,7 +172,7 @@ namespace Quartz.Core
         public virtual bool IsStarted => !shuttingDown && !closed && !InStandbyMode && initialStart != null;
 
         /// <summary>
-        /// Return a list of <see cref="IJobExecutionContext" /> objects that
+        /// Return a list of <see cref="ICancellableJobExecutionContext" /> objects that
         /// represent all currently executing Jobs in this Scheduler instance.
         /// <para>
         /// This method is not cluster aware.  That is, it will only return Jobs
@@ -480,20 +480,17 @@ namespace Quartz.Core
             if ((resources.InterruptJobsOnShutdown && !waitForJobsToComplete) || (resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete))
             {
                 var jobs = CurrentlyExecutingJobs;
-                foreach (IJobExecutionContext job in jobs)
+                foreach (ICancellableJobExecutionContext job in jobs)
                 {
-                    IInterruptableJob jobInstance = job.JobInstance as IInterruptableJob;
-                    if (jobInstance != null)
+                    try
                     {
-                        try
-                        {
-                            jobInstance.Interrupt();
-                        }
-                        catch (Exception ex)
-                        {
-                            // do nothing, this was just a courtesy effort
-                            log.WarnFormat("Encountered error when interrupting job {0} during shutdown: {1}", job.JobDetail.Key, ex);
-                        }
+                        job.Cancel();
+                    }
+                    catch (Exception ex)
+                    {
+                        // TODO: Is this still needed? Probably not.
+                        // do nothing, this was just a courtesy effort
+                        log.WarnFormat("Encountered error when interrupting job {0} during shutdown: {1}", job.JobDetail.Key, ex);
                     }
                 }
             }
@@ -2004,20 +2001,16 @@ namespace Quartz.Core
         /// </summary>
         public virtual Task<bool> InterruptAsync(JobKey jobKey)
         {
-            var jobs = CurrentlyExecutingJobs;
+            var cancellableJobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
 
             bool interrupted = false;
 
-            foreach (var jobExecutionContext in jobs)
+            foreach (var cancellableJobExecutionContext in cancellableJobs)
             {
-                var jec = (JobExecutionContextImpl) jobExecutionContext;
-                var jobDetail = jec.JobDetail;
+                var jobDetail = cancellableJobExecutionContext.JobDetail;
                 if (jobKey.Equals(jobDetail.Key))
                 {
-                    // set botch cancellation token and interrupt if interface is implemented
-                    jec.Cancel();
-                    IInterruptableJob jobInstance = jec.JobInstance as IInterruptableJob;
-                    jobInstance?.Interrupt();
+                    cancellableJobExecutionContext.Cancel();
                     interrupted = true;
                 }
             }
@@ -2038,22 +2031,20 @@ namespace Quartz.Core
         /// <returns></returns>
         public Task<bool> InterruptAsync(string fireInstanceId)
         {
-            var jobs = CurrentlyExecutingJobs;
+            var cancellableJobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
 
-            foreach (var jobExecutionContext in jobs)
+            bool interrupted = false;
+
+            foreach (var cancellableJobExecutionContext in cancellableJobs)
             {
-                var jec = (JobExecutionContextImpl) jobExecutionContext;
-                if (jec.FireInstanceId.Equals(fireInstanceId))
+                if (cancellableJobExecutionContext.FireInstanceId.Equals(fireInstanceId))
                 {
-                    // set botch cancellation token and interrupt if interface is implemented
-                    jec.Cancel();
-                    IInterruptableJob jobInstance = jec.JobInstance as IInterruptableJob;
-                    jobInstance?.Interrupt();
-                    return Task.FromResult(true);
+                    cancellableJobExecutionContext.Cancel();
+                    interrupted = true;
                 }
             }
 
-            return Task.FromResult(false);
+            return Task.FromResult(interrupted);
         }
 
         private async Task ShutdownPluginsAsync()

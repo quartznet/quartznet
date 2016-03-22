@@ -20,7 +20,6 @@
 #endregion
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Quartz.Logging;
 
@@ -32,9 +31,7 @@ namespace Quartz.Examples.Example7
     /// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
-#pragma warning disable 618
-    public class DumbInterruptableJob : IInterruptableJob
-#pragma warning restore 618
+    public class DumbInterruptableJob : IJob
     {
         // logging services
         private static readonly ILog log = LogProvider.GetLogger(typeof (DumbInterruptableJob));
@@ -59,7 +56,7 @@ namespace Quartz.Examples.Example7
 
                 for (int i = 0; i < 4; i++)
                 {
-                    await Task.Delay(10*1000);
+                    await Task.Delay(10*1000, context.CancellationToken);
 
                     // periodically check if we've been interrupted...
                     if (interrupted)

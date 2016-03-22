@@ -101,12 +101,11 @@ namespace Quartz.Tests.Unit.Plugin.History
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
-        protected virtual IJobExecutionContext CreateJobExecutionContext()
+        protected virtual ICancellableJobExecutionContext CreateJobExecutionContext()
         {
             IOperableTrigger t = new SimpleTriggerImpl("name", "group");
             TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
-            IJobExecutionContext ctx = new JobExecutionContextImpl(null,  firedBundle, null);
-
+            ICancellableJobExecutionContext ctx = new JobExecutionContextImpl(null,  firedBundle, null);
             return ctx;
         }
 

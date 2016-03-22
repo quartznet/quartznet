@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace Quartz
 {
@@ -186,14 +187,9 @@ namespace Quartz
         object Get(object key);
 
         /// <summary>
-        /// Returns whether the job cancellation has been requested via <see cref="IScheduler.InterruptAsync(JobKey)"/>
+        /// Returns the cancellation token which will be cancelled when the job cancellation has been requested via <see cref="IScheduler.InterruptAsync(JobKey)"/>
         /// or <see cref="IScheduler.InterruptAsync(string)"/>.
         /// </summary>
-        bool IsCancellationRequested { get; }
-
-        /// <summary>
-        /// Allows job to throw <see cref="OperationCanceledException"/> if job has been requested to be interrupted.
-        /// </summary>
-        void ThrowIfCancellationRequested();
+        CancellationToken CancellationToken { get; }
     }
 }
