@@ -18,7 +18,7 @@
 #endregion
 
 using System;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example6
@@ -49,7 +49,7 @@ namespace Quartz.Examples.Example6
 		/// </para>
 		/// </summary>
 		/// <param name="context">Execution context.</param>
-		public virtual void Execute(IJobExecutionContext context)
+		public virtual Task Execute(IJobExecutionContext context)
 		{
 			JobKey jobKey = context.JobDetail.Key;
 			log.InfoFormat("---{0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
@@ -74,6 +74,7 @@ namespace Quartz.Examples.Example6
 			}
 			
 			log.InfoFormat("---{0} completed at {1}", jobKey, DateTime.Now.ToString("r"));
+		    return Task.FromResult(0);
 		}
 	}
 }

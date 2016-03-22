@@ -20,7 +20,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Job
@@ -118,7 +118,7 @@ namespace Quartz.Job
 		/// </para>
 		/// </summary>
 		/// <param name="context"></param>
-		public virtual void Execute(IJobExecutionContext context)
+		public virtual Task Execute(IJobExecutionContext context)
 		{
 			JobDataMap data = context.MergedJobDataMap;
 
@@ -141,7 +141,8 @@ namespace Quartz.Job
 
 			int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
 		    context.Result = exitCode;
-		}
+            return Task.FromResult(0);
+        }
 
 		private int RunNativeCommand(string command, string parameters, string workingDirectory, bool wait, bool consumeStreams)
 		{

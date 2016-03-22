@@ -27,11 +27,11 @@ namespace Quartz.Tests.Unit
         [DisallowConcurrentExecution]
         public class TestJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public async Task Execute(IJobExecutionContext context)
             {
                 jobExecDates.Add(DateTime.UtcNow);
 
-                Thread.Sleep(jobBlockTime);
+                await Task.Delay(jobBlockTime);
             }
         }
 

@@ -42,7 +42,7 @@ namespace Quartz.Tests.Unit
         {
             public static bool interrupted;
 
-            public void Execute(IJobExecutionContext context)
+            public async Task Execute(IJobExecutionContext context)
             {
                 Console.WriteLine("TestInterruptableJob is executing.");
                 try
@@ -60,7 +60,7 @@ namespace Quartz.Tests.Unit
                     {
                         break;
                     }
-                    Thread.Sleep(50); // simulate being busy for a while, then checking interrupted flag...
+                    await Task.Delay(50); // simulate being busy for a while, then checking interrupted flag...
                 }
                 try
                 {

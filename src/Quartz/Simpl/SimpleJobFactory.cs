@@ -55,7 +55,7 @@ namespace Quartz.Simpl
 	    /// <param name="scheduler"></param>
 	    /// <returns>the newly instantiated Job</returns>
 	    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-	    public virtual IQuartzJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
+	    public virtual IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
 		{
 			IJobDetail jobDetail = bundle.JobDetail;
 			Type jobType = jobDetail.JobType;
@@ -66,7 +66,7 @@ namespace Quartz.Simpl
 					log.Debug($"Producing instance of Job '{jobDetail.Key}', class={jobType.FullName}");
 				}
 
-				return ObjectUtils.InstantiateType<IQuartzJob>(jobType);
+				return ObjectUtils.InstantiateType<IJob>(jobType);
 			}
 			catch (Exception e)
 			{
@@ -79,7 +79,7 @@ namespace Quartz.Simpl
 	    /// Allows the job factory to destroy/cleanup the job if needed. 
 	    /// No-op when using SimpleJobFactory.
 	    /// </summary>
-	    public virtual void ReturnJob(IQuartzJob job)
+	    public virtual void ReturnJob(IJob job)
 	    {
 	        var disposable = job as IDisposable;
 	        disposable?.Dispose();

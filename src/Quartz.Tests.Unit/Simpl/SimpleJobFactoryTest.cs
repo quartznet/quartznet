@@ -1,5 +1,5 @@
 ﻿using System;
-
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Simpl;
@@ -29,8 +29,9 @@ namespace Quartz.Tests.Unit.Simpl
         {
             private bool wasDisposed;
 
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return Task.FromResult(0);
             }
 
             public void Dispose()

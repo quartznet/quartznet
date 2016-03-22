@@ -74,7 +74,7 @@ namespace Quartz.Impl
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;
-        [NonSerialized] private readonly IQuartzJob job;
+        [NonSerialized] private readonly IJob job;
 
         private readonly ICalendar calendar;
         private readonly bool recovering;
@@ -90,7 +90,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Create a JobExecutionContext with the given context data.
         /// </summary>
-        public JobExecutionContextImpl(IScheduler scheduler, TriggerFiredBundle firedBundle, IQuartzJob job)
+        public JobExecutionContextImpl(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
         {
             this.scheduler = scheduler;
             trigger = firedBundle.Trigger;
@@ -189,7 +189,7 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IQuartzJob JobInstance => job;
+        public virtual IJob JobInstance => job;
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may

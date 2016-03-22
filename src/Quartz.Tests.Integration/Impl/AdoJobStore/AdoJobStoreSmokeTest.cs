@@ -464,7 +464,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             await scheduler.StartAsync();
 
-            var manualResetEvent = new ManualResetEvent(false);
+            var manualResetEvent = new ManualResetEventSlim(false);
             scheduler.Context.Put(KeyResetEvent, manualResetEvent);
 
             IJobDetail goodJob = JobBuilder.Create<GoodJob>().WithIdentity("good").Build();
@@ -490,7 +490,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             });
             await scheduler.ScheduleJobsAsync(toSchedule, true);
 
-            manualResetEvent.WaitOne(TimeSpan.FromSeconds(20));
+            manualResetEvent.Wait(TimeSpan.FromSeconds(20));
 
             Assert.That(scheduler.GetTriggerStateAsync(badTrigger.Key), Is.EqualTo(TriggerState.Error));
         }
@@ -594,18 +594,20 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         public class BadJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return Task.FromResult(0);
             }
         }
 
         public class GoodJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
                 try
                 {
-                    ((ManualResetEvent) context.Scheduler.Context.Get(KeyResetEvent)).WaitOne(TimeSpan.FromSeconds(20));
+                    ((ManualResetEventSlim) context.Scheduler.Context.Get(KeyResetEvent)).Wait(TimeSpan.FromSeconds(20));
+                    return Task.FromResult(0);
                 }
                 catch (SchedulerException ex)
                 {
@@ -690,10 +692,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(IJobExecutionContext context)
+        public virtual async Task Execute(IJobExecutionContext context)
         {
             // delay for ten seconds
-            Thread.Sleep(TimeSpan.FromSeconds(10));
+            await Task.Delay(TimeSpan.FromSeconds(10));
 
             JobDataMap data = context.JobDetail.JobDataMap;
             int count;

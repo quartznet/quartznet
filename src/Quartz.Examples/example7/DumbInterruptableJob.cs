@@ -21,7 +21,7 @@
 
 using System;
 using System.Threading;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example7
@@ -47,7 +47,7 @@ namespace Quartz.Examples.Example7
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(IJobExecutionContext context)
+        public virtual async Task Execute(IJobExecutionContext context)
         {
             jobKey = context.JobDetail.Key;
             log.InfoFormat("---- {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
@@ -59,7 +59,7 @@ namespace Quartz.Examples.Example7
 
                 for (int i = 0; i < 4; i++)
                 {
-                    Thread.Sleep(10*1000);
+                    await Task.Delay(10*1000);
 
                     // periodically check if we've been interrupted...
                     if (interrupted)

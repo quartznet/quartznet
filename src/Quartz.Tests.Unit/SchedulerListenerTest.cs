@@ -22,10 +22,11 @@ namespace Quartz.Tests.Unit
 
         public class Qtz205Job : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
                 jobExecutionCount++;
                 logger.Info("Job executed. jobExecutionCount=" + jobExecutionCount);
+                return Task.FromResult(0);
             }
         }
 

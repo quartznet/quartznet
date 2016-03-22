@@ -20,7 +20,7 @@
 #endregion
 
 using System;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example12
@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example12
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(IJobExecutionContext context)
+        public virtual Task Execute(IJobExecutionContext context)
         {
             // This job simply prints out its job name and the
             // date and time that it is running
@@ -50,6 +50,8 @@ namespace Quartz.Examples.Example12
 
             log.InfoFormat("SimpleJob: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
             log.InfoFormat("SimpleJob: msg: {0}", message);
+
+            return Task.FromResult(0);
         }
     }
 }

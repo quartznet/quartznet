@@ -30,7 +30,7 @@ namespace Quartz.Examples.example16
     /// This is a job that is meant to run using async/await pattern in .NET CLR thread pool.
     /// </summary>
     /// <author>Marko Lahma</author>
-    public class AsyncJob : IAsyncJob
+    public class AsyncJob : IJob
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof (AsyncJob));
 
@@ -39,7 +39,7 @@ namespace Quartz.Examples.example16
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual async Task ExecuteAsync(IJobExecutionContext context)
+        public virtual async Task Execute(IJobExecutionContext context)
         {
             // This job simply prints out its job name and the
             // date and time that it is running

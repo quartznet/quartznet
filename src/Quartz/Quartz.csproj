@@ -96,7 +96,6 @@
     <Compile Include="Core\ErrorLogger.cs" />
     <Compile Include="Core\ExecutingJobsManager.cs" />
     <Compile Include="IInterruptableJob.cs" />
-    <Compile Include="IAsyncJob.cs" />
     <Compile Include="Impl\AdoJobStore\RecoverMisfiredJobsResult.cs" />
     <Compile Include="Impl\AdoJobStore\ClusterManager.cs" />
     <Compile Include="Impl\AdoJobStore\FirebirdDelegate.cs" />
@@ -126,7 +125,6 @@
     <Compile Include="Impl\AdoJobStore\TriggerPropertyBundle.cs" />
     <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImpl.cs" />
     <Compile Include="ICalendarIntervalTrigger.cs" />
-    <Compile Include="IQuartzJob.cs" />
     <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />

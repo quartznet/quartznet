@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 namespace Quartz.Job
 {
 	/// <summary>
@@ -32,8 +34,9 @@ namespace Quartz.Job
 		/// <summary>
 		/// Do nothing.
 		/// </summary>
-		public void Execute(IJobExecutionContext context)
+		public Task Execute(IJobExecutionContext context)
 		{
-		}
+            return Task.FromResult(0);
+        }
 	}
 }

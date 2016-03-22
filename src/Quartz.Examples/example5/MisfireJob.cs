@@ -20,8 +20,7 @@
 #endregion
 
 using System;
-using System.Threading;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example5
@@ -46,7 +45,7 @@ namespace Quartz.Examples.Example5
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(IJobExecutionContext context)
+        public virtual async Task Execute(IJobExecutionContext context)
         {
             JobKey jobKey = context.JobDetail.Key;
             log.Info($"---{jobKey} executing at {DateTime.Now.ToString("r")}");
@@ -61,7 +60,7 @@ namespace Quartz.Examples.Example5
                 delay = map.GetInt(ExecutionDelay);
             }
 
-            Thread.Sleep(TimeSpan.FromSeconds(delay));
+            await Task.Delay(TimeSpan.FromSeconds(delay));
 
             log.Info($"---{jobKey} completed at {DateTime.Now.ToString("r")}");
         }

@@ -24,7 +24,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Job
@@ -76,7 +76,7 @@ namespace Quartz.Job
         /// Executes the job.
         /// </summary>
         /// <param name="context">The job execution context.</param>
-        public virtual void Execute(IJobExecutionContext context)
+        public virtual Task Execute(IJobExecutionContext context)
         {
             JobDataMap data = context.MergedJobDataMap;
 
@@ -105,6 +105,7 @@ namespace Quartz.Job
             {
                 throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
             }
+            return Task.FromResult(0);
         }
 
         protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)

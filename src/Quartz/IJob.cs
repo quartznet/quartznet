@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 namespace Quartz
 {
 	/// <summary> 
@@ -36,7 +38,7 @@ namespace Quartz
 	/// <seealso cref="IScheduler" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
-	public interface IJob : IQuartzJob
+	public interface IJob
 	{
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -51,6 +53,6 @@ namespace Quartz
 		/// execution.
 		/// </remarks>
 		/// <param name="context">The execution context.</param>
-        void Execute(IJobExecutionContext context);
+        Task Execute(IJobExecutionContext context);
 	}
 }

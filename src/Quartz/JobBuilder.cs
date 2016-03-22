@@ -117,7 +117,7 @@ namespace Quartz
         /// and set the class name of the job to be executed.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
-        public static JobBuilder CreateForAsync<T>() where T : IAsyncJob
+        public static JobBuilder CreateForAsync<T>() where T : IJob
         {
             JobBuilder b = new JobBuilder();
             b.OfType(typeof(T));

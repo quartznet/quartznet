@@ -42,7 +42,7 @@ namespace Quartz.Examples.Example11
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual async void Execute(IJobExecutionContext context)
+        public virtual async Task Execute(IJobExecutionContext context)
         {
             // This job simply prints out its job name and the
             // date and time that it is running
@@ -53,7 +53,7 @@ namespace Quartz.Examples.Example11
             // wait for a period of time
             long delayTime = context.JobDetail.JobDataMap.GetLong(DelayTime);
 
-            await Task.Delay(new TimeSpan(10000*delayTime));
+            await Task.Delay(new TimeSpan(10000 * delayTime));
 
             log.InfoFormat("Finished Executing job: {0} at {1}", jobKey, DateTime.Now.ToString("r"));
         }

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Specialized;
 using System.Data;
-
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -139,9 +139,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         public class TestJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
                 log.InfoFormat("Job is executing {0}", context);
+                return Task.FromResult(0);
             }
         }
     }

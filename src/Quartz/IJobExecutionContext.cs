@@ -89,7 +89,7 @@ namespace Quartz
         /// interfaces.
         /// </para>
         /// </summary>
-        IQuartzJob JobInstance { get; }
+        IJob JobInstance { get; }
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
