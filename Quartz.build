@@ -526,7 +526,7 @@
 	<property name="nunit-dll" value="packages/NUnit.2.6.3/lib/nunit.framework.dll" />
 	<property name="fakeiteasy-dll" value="packages/FakeItEasy.1.25.2/lib/net40/FakeItEasy.dll" />
   <property name="topshelf-dll" value="packages/TopShelf.3.1.4/lib/net40-full/Topshelf.dll" />
-	<property name="oracle-odp-managed-dll" value="packages/odp.net.managed.121.1.1/lib/net40/Oracle.ManagedDataAccess.dll" />
+	<property name="oracle-odp-managed-dll" value="packages/Oracle.ManagedDataAccess.12.1.2400/lib/net40/Oracle.ManagedDataAccess.dll" />
 	
 	<property name="log4net-dll" value="packages/log4net.2.0.3/lib/${nuget-framework}-full/log4net.dll" unless="${client-profile}" />
 	<property name="log4net-dll" value="packages/log4net.2.0.3/lib/${nuget-framework}-client/log4net.dll" if="${client-profile}" />
