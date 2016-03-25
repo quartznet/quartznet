@@ -28,6 +28,7 @@
       "compilationOptions": {
         "define": [
           "BINARY_SERIALIZATION",
+          "DESIGNER",
           "ICLONEABLE",
           "MAIL",
           "REMOTING"
@@ -45,6 +46,7 @@
       "compilationOptions": {
         "define": [
           "BINARY_SERIALIZATION",
+          "DESIGNER",
           "ICLONEABLE",
           "MAIL",
           "REMOTING"

@@ -23,7 +23,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(AnonymousType=true, Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     [XmlRoot("job-scheduling-data", Namespace="http://quartznet.sourceforge.net/JobSchedulingData", IsNullable=false)]
     public partial class QuartzXmlConfiguration20 {
@@ -85,7 +87,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(TypeName="pre-processing-commandsType", Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class preprocessingcommandsType {
         
@@ -146,7 +150,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(AnonymousType=true, Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class preprocessingcommandsTypeDeletejob {
         
@@ -182,7 +188,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public abstract partial class abstractTriggerType {
         
@@ -332,7 +340,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(TypeName="job-data-mapType", Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class jobdatamapType {
         
@@ -354,7 +364,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class entryType {
         
@@ -387,7 +399,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class calendarIntervalTriggerType : abstractTriggerType {
         
@@ -435,7 +449,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class cronTriggerType : abstractTriggerType {
         
@@ -483,7 +499,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class simpleTriggerType : abstractTriggerType {
         
@@ -531,7 +549,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class triggerType {
         
@@ -555,7 +575,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(TypeName="job-detailType", Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class jobdetailType {
         
@@ -650,7 +672,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(TypeName="processing-directivesType", Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class processingdirectivesType {
         
@@ -707,7 +731,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(AnonymousType=true, Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class preprocessingcommandsTypeDeletetrigger {
         
@@ -740,7 +766,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [GeneratedCode("xsd", "4.0.30319.17929")]
     [Serializable()]
     [DebuggerStepThrough()]
+#if DESIGNER
     [DesignerCategory("code")]
+#endif // DESIGNER
     [XmlType(AnonymousType=true, Namespace="http://quartznet.sourceforge.net/JobSchedulingData")]
     public partial class jobschedulingdataSchedule {
         
