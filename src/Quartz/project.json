@@ -25,6 +25,33 @@
   },
   "frameworks": {
     "net45": {
+      "frameworkAssemblies": {
+        "System.Configuration": "4.0.0.0",
+        "System.Data": "4.0.0.0",
+        "System.Runtime.Remoting": "4.0.0.0",
+        "System.Web": "4.0.0.0",
+        "System.Xml": "4.0.0.0"
+      }
+    },
+    "dnx451": {
+      "frameworkAssemblies": {
+        "System.Configuration": "4.0.0.0",
+        "System.Data": "4.0.0.0",
+        "System.Runtime.Remoting": "4.0.0.0",
+        "System.Web": "4.0.0.0",
+        "System.Xml": "4.0.0.0"
+      }
+    },
+    "netstandard1.3": {
+      "compilationOptions": {
+        "debugType": "portable"
+      },
+      "dependencies": {
+        "NETStandard.Library": "1.0.0-*"
+      },
+      "imports": [
+        "dotnet54"
+      ]
     }
   }
 }
