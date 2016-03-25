@@ -20,10 +20,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+#if REMOTING
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
 using System.Runtime.Remoting.Channels.Tcp;
+#endif // REMOTING
 using System.Runtime.Serialization.Formatters;
 using System.Security;
 
@@ -49,7 +51,9 @@ namespace Quartz.Simpl
         public RemotingSchedulerExporter()
         {
             ChannelType = ChannelTypeTcp;
+#if REMOTING
             TypeFilterLevel = TypeFilterLevel.Full;
+#endif // REMOTING
             ChannelName = DefaultChannelName;
             BindName = DefaultBindName;
             log = LogProvider.GetLogger(GetType());
@@ -66,6 +70,7 @@ namespace Quartz.Simpl
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
             }
 
+#if REMOTING
             RegisterRemotingChannelIfNeeded();
 
             try
@@ -85,8 +90,12 @@ namespace Quartz.Simpl
             {
                 Log.ErrorException("Exception during Bind", ex);
             }
+#else // REMOTING
+            // TODO : Replace with HTTP communication
+#endif // REMOTING
         }
 
+#if REMOTING
         /// <summary>
         /// Registers remoting channel if needed. This is determined
         /// by checking whether there is a positive value for port.
@@ -98,6 +107,7 @@ namespace Quartz.Simpl
                 // try remoting bind
                 var props = CreateConfiguration();
 
+#if REMOTING
                 // use binary formatter
                 var formatprovider = new BinaryServerFormatterSinkProvider(props, null);
                 formatprovider.TypeFilterLevel = TypeFilterLevel;
@@ -136,6 +146,9 @@ namespace Quartz.Simpl
                 ChannelServices.RegisterChannel(chan, false);
 
                 registeredChannels.Add(channelRegistrationKey, new object());
+#else // REMOTING
+                // TODO : Replace with HTTP communication
+#endif // REMOTING
                 Log.Info("Remoting channel registered successfully");
             }
             else
@@ -143,6 +156,7 @@ namespace Quartz.Simpl
                 log.Error("Cannot register remoting if port or channel type not specified");
             }
         }
+#endif // REMOTING
 
         protected virtual IDictionary CreateConfiguration()
         {
@@ -169,8 +183,12 @@ namespace Quartz.Simpl
 
             try
             {
+#if REMOTING
                 RemotingServices.Disconnect((MarshalByRefObject)scheduler);
                 Log.Info("Successfully disconnected remotable scheduler");
+#else // REMOTING
+                // TODO : Replace with HTTP communication
+#endif // REMOTING
             }
             catch (ArgumentException ex)
             {
@@ -213,12 +231,14 @@ namespace Quartz.Simpl
         /// </summary>
         public virtual string ChannelType { get; set; }
 
+#if REMOTING
         /// <summary>
         /// Sets the <see cref="TypeFilterLevel" /> used when
         /// exporting to remoting context. Defaults to
         /// <see cref="System.Runtime.Serialization.Formatters.TypeFilterLevel.Full" />.
         /// </summary>
         public virtual TypeFilterLevel TypeFilterLevel { get; set; }
+#endif // REMOTING
 
         /// <summary>
         /// A Boolean value (true or false) that specifies whether to refuse requests from other computers. 

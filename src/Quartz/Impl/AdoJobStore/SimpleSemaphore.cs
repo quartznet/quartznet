@@ -22,7 +22,9 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+#if REMOTING
 using System.Runtime.Remoting.Messaging;
+#endif // REMOTING
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -58,6 +60,7 @@ namespace Quartz.Impl.AdoJobStore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static HashSet<string> GetThreadLocks()
         {
+#if REMOTING
             HashSet<string> threadLocks = (HashSet<string>) CallContext.LogicalGetData(KeyThreadLockOwners);
             if (threadLocks == null)
             {
@@ -65,6 +68,10 @@ namespace Quartz.Impl.AdoJobStore
                 CallContext.LogicalSetData(KeyThreadLockOwners, threadLocks);
             }
             return threadLocks;
+#else // REMOTING
+            // TODO : Use System.Threading.AsyncLocal<T>
+            return null;
+#endif // REMOTING
         }
 
         /// <summary> 

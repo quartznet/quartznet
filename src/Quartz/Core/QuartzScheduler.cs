@@ -25,7 +25,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+#if REMOTING
 using System.Runtime.Remoting;
+#endif // REMOTING
 using System.Security;
 using System.Text;
 using System.Threading.Tasks;
@@ -510,7 +512,11 @@ namespace Quartz.Core
                 {
                     UnBind();
                 }
+#if REMOTING
                 catch (RemotingException)
+#else // REMOTING
+                catch (Exception) // TODO : Determine the correct exception type
+#endif // REMOTING
                 {
                 }
             }
