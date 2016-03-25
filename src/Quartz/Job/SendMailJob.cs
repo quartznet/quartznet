@@ -22,7 +22,9 @@
 using System;
 using System.Linq;
 using System.Net;
+#if MAIL
 using System.Net.Mail;
+#endif // MAIL
 using System.Text;
 using System.Threading.Tasks;
 using Quartz.Logging;
@@ -80,6 +82,7 @@ namespace Quartz.Job
         {
             JobDataMap data = context.MergedJobDataMap;
 
+#if MAIL
             MailMessage message = BuildMessageFromParameters(data);
 
             try
@@ -105,9 +108,13 @@ namespace Quartz.Job
             {
                 throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
             }
+#else // MAIL
+            // TODO : Replace with MailKit (https://www.nuget.org/packages/MailKit/1.3.0-beta7)
+#endif // MAIL
             return Task.FromResult(0);
         }
 
+#if MAIL
         protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)
         {
             string to = GetRequiredParameter(data, PropertyRecipient);
@@ -146,6 +153,7 @@ namespace Quartz.Job
 
             return mailMessage;
         }
+#endif // MAIL
 
         protected virtual string GetRequiredParameter(JobDataMap data, string propertyName)
         {
@@ -169,6 +177,7 @@ namespace Quartz.Job
             return value;
         }
 
+#if MAIL
         protected virtual void Send(MailInfo mailInfo)
         {
             log.Info($"Sending message {GetMessageDescription(mailInfo.MailMessage)}");
@@ -205,10 +214,15 @@ namespace Quartz.Job
             string mailDesc = $"'{message.Subject}' to: {string.Join(", ", message.To.Select(x => x.Address).ToArray())}";
             return mailDesc;
         }
+#endif // MAIL
 
         public class MailInfo
         {
+#if MAIL
             public MailMessage MailMessage { get; set; }
+#else // MAIL
+            // TODO : Replace with MailKit (https://www.nuget.org/packages/MailKit/1.3.0-beta7)
+#endif // MAIL
 
             public string SmtpHost { get; set; }
 
