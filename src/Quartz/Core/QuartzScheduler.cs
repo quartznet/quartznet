@@ -53,7 +53,11 @@ namespace Quartz.Core
     /// <seealso cref="IThreadPool" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler
+    public class QuartzScheduler : 
+#if REMOTING
+        MarshalByRefObject,
+#endif // REMOTING
+        IRemotableQuartzScheduler
     {
         private readonly ILog log;
         private static readonly Version version;

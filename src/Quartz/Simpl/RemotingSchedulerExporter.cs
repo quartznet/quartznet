@@ -65,12 +65,13 @@ namespace Quartz.Simpl
             {
                 throw new ArgumentNullException("scheduler");
             }
+
+#if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
             }
 
-#if REMOTING
             RegisterRemotingChannelIfNeeded();
 
             try
@@ -176,10 +177,12 @@ namespace Quartz.Simpl
             {
                 throw new ArgumentNullException("scheduler");
             }
+#if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
                 throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
             }
+#endif // REMOTING
 
             try
             {
