@@ -67,5 +67,14 @@ project.lock.json
 /*.iml
 jspm_packagesnode_modules
 
+
 /src/Quartz.Web/App/views/*.map
 /src/Quartz.Web/App/views/*.js
+/src/Quartz.Web/views/*.js
+/src/Quartz.Web/views/*.map
+/src/Quartz.Web/resources/*.js
+/src/Quartz.Web/resources/*.map
+
+/.idea
+/*.iml
+
