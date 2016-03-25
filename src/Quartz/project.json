@@ -25,6 +25,13 @@
   },
   "frameworks": {
     "net45": {
+      "compilationOptions": {
+        "define": [
+          "BINARY_SERIALIZATION",
+          "ICLONEABLE",
+          "REMOTING"
+        ]
+      },
       "frameworkAssemblies": {
         "System.Configuration": "4.0.0.0",
         "System.Data": "4.0.0.0",
@@ -34,6 +41,13 @@
       }
     },
     "dnx451": {
+      "compilationOptions": {
+        "define": [
+          "BINARY_SERIALIZATION",
+          "ICLONEABLE",
+          "REMOTING"
+        ]
+      },
       "frameworkAssemblies": {
         "System.Configuration": "4.0.0.0",
         "System.Data": "4.0.0.0",

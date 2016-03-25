@@ -32,7 +32,13 @@ namespace Quartz.Util
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ICloneable, ISerializable
+    public class DirtyFlagMap<TKey, TValue> : 
+        IDictionary<TKey, TValue>, 
+        IDictionary,
+#if ICLONEABLE
+        ICloneable,
+#endif // ICLONEABLE
+        ISerializable
     {
         private bool dirty;
         private Dictionary<TKey, TValue> map;

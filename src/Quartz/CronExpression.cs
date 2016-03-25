@@ -209,7 +209,11 @@ namespace Quartz
     /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class CronExpression : ICloneable, IDeserializationCallback
+    public class CronExpression :
+#if ICLONEABLE
+        ICloneable,
+#endif // ICLONEABLE
+        IDeserializationCallback
     {
 		/// <summary>
 		/// Field specification for second.

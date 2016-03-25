@@ -47,7 +47,10 @@ namespace Quartz
     /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public interface IJobDetail : ICloneable
+    public interface IJobDetail
+#if ICLONEABLE
+        : ICloneable
+#endif // ICLONEABLE
     {
         /// <summary>
         /// The key that identifies this jobs uniquely.

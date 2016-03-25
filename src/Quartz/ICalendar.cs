@@ -44,14 +44,17 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
-    public interface ICalendar : ICloneable
-	{
-		/// <summary> 
-		/// Gets or sets a description for the <see cref="ICalendar" /> instance - may be
-		/// useful for remembering/displaying the purpose of the calendar, though
-		/// the description has no meaning to Quartz.
-		/// </summary>
-		string Description { get; set; }
+    public interface ICalendar
+#if ICLONEABLE        
+        : ICloneable
+#endif // ICLONEABLE
+    {
+        /// <summary> 
+        /// Gets or sets a description for the <see cref="ICalendar" /> instance - may be
+        /// useful for remembering/displaying the purpose of the calendar, though
+        /// the description has no meaning to Quartz.
+        /// </summary>
+        string Description { get; set; }
 
 		/// <summary>
 		/// Set a new base calendar or remove the existing one.

@@ -54,7 +54,11 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
-    public interface ITrigger : ICloneable, IComparable<ITrigger>
+    public interface ITrigger :
+#if ICLONEABLE
+        ICloneable,
+#endif // ICLONEABLE
+        IComparable<ITrigger>
     {
         TriggerKey Key { get; }
 
