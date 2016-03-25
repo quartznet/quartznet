@@ -63,6 +63,16 @@ website
 
 jspm_packages
 node_modules
+
 *.lock.json
+
 /src/Quartz.Web/App/views/*.map
 /src/Quartz.Web/App/views/*.js
+/src/Quartz.Web/views/*.js
+/src/Quartz.Web/views/*.map
+/src/Quartz.Web/resources/*.js
+/src/Quartz.Web/resources/*.map
+
+/.idea
+/*.iml
+

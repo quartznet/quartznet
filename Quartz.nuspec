@@ -13,21 +13,10 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="build\3.5\release\Quartz\ClientProfile\Quartz.dll" target="lib\net35-client" />
-    <file src="build\3.5\release\Quartz\ClientProfile\Quartz.xml" target="lib\net35-client" />
-    <file src="build\3.5\release\Quartz\ClientProfile\Quartz.pdb" target="lib\net35-client" />
-    
-    <file src="build\3.5\release\Quartz\Quartz.dll" target="lib\net35" />
-    <file src="build\3.5\release\Quartz\Quartz.xml" target="lib\net35" />
-    <file src="build\3.5\release\Quartz\Quartz.pdb" target="lib\net35" />
 
-    <file src="build\4.0\release\Quartz\ClientProfile\Quartz.dll" target="lib\net40-client" />
-    <file src="build\4.0\release\Quartz\ClientProfile\Quartz.xml" target="lib\net40-client" />
-    <file src="build\4.0\release\Quartz\ClientProfile\Quartz.pdb" target="lib\net40-client" />
-
-    <file src="build\4.0\release\Quartz\Quartz.dll" target="lib\net40" />
-    <file src="build\4.0\release\Quartz\Quartz.xml" target="lib\net40" />
-    <file src="build\4.0\release\Quartz\Quartz.pdb" target="lib\net40" />
+    <file src="build\4.5\release\Quartz\Quartz.dll" target="lib\net45" />
+    <file src="build\4.5\release\Quartz\Quartz.xml" target="lib\net45" />
+    <file src="build\4.5\release\Quartz\Quartz.pdb" target="lib\net45" />
 
     <file src="src\Quartz\Xml\job_scheduling_data_2_0.xsd" target="content" />
   </files>

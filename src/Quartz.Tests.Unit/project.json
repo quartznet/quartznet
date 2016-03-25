@@ -1,0 +1,13 @@
+﻿{
+  "dependencies": {
+    "FakeItEasy": "1.25.3",
+    "NUnit": "2.6.3",
+    "Oracle.ManagedDataAccess": "12.1.2400"
+  },
+  "frameworks": {
+    "net45": {}
+  },
+  "runtimes": {
+    "win": {}
+  }
+}
