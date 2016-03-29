@@ -69,7 +69,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             return threadLocks;
 #else // REMOTING
-            // TODO : Use System.Threading.AsyncLocal<T>
+            // TODO (NetCore Port): Use System.Threading.AsyncLocal<T>
             return null;
 #endif // REMOTING
         }

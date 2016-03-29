@@ -92,7 +92,7 @@ namespace Quartz.Simpl
                 Log.ErrorException("Exception during Bind", ex);
             }
 #else // REMOTING
-            // TODO : Replace with HTTP communication
+            // TODO (NetCore Port): Replace with HTTP communication
 #endif // REMOTING
         }
 
@@ -148,7 +148,7 @@ namespace Quartz.Simpl
 
                 registeredChannels.Add(channelRegistrationKey, new object());
 #else // REMOTING
-                // TODO : Replace with HTTP communication
+                // TODO (NetCore Port): Replace with HTTP communication
 #endif // REMOTING
                 Log.Info("Remoting channel registered successfully");
             }
@@ -190,7 +190,7 @@ namespace Quartz.Simpl
                 RemotingServices.Disconnect((MarshalByRefObject)scheduler);
                 Log.Info("Successfully disconnected remotable scheduler");
 #else // REMOTING
-                // TODO : Replace with HTTP communication
+                // TODO (NetCore Port): Replace with HTTP communication
 #endif // REMOTING
             }
             catch (ArgumentException ex)

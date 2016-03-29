@@ -519,7 +519,7 @@ namespace Quartz.Core
 #if REMOTING
                 catch (RemotingException)
 #else // REMOTING
-                catch (Exception) // TODO : Determine the correct exception type
+                catch (Exception) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
                 {
                 }

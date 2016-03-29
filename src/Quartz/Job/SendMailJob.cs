@@ -109,7 +109,7 @@ namespace Quartz.Job
                 throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
             }
 #else // MAIL
-            // TODO : Replace with MailKit (https://www.nuget.org/packages/MailKit/1.3.0-beta7)
+            // TODO (NetCore Port): Replace with MailKit (https://www.nuget.org/packages/MailKit/1.3.0-beta7)
 #endif // MAIL
             return Task.FromResult(0);
         }
@@ -221,7 +221,7 @@ namespace Quartz.Job
 #if MAIL
             public MailMessage MailMessage { get; set; }
 #else // MAIL
-            // TODO : Replace with MailKit (https://www.nuget.org/packages/MailKit/1.3.0-beta7)
+            // TODO (NetCore Port): Replace with MailKit (https://www.nuget.org/packages/MailKit/1.3.0-beta7)
 #endif // MAIL
 
             public string SmtpHost { get; set; }

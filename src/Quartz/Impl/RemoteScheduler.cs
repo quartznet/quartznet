@@ -242,7 +242,7 @@ namespace Quartz.Impl
 #if REMOTING
             catch (RemotingException re)
 #else // REMOTING
-            catch (Exception re) // TODO : Determine the correct exception type
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
@@ -551,7 +551,7 @@ namespace Quartz.Impl
 #if REMOTING
             catch (RemotingException re)
 #else // REMOTING
-            catch (Exception re) // TODO : Determine the correct exception type
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
             {
                 throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
@@ -571,7 +571,7 @@ namespace Quartz.Impl
 #if REMOTING
             catch (RemotingException re)
 #else // REMOTING
-            catch (Exception re) // TODO : Determine the correct exception type
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
             {
                 throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
@@ -591,7 +591,7 @@ namespace Quartz.Impl
 #if REMOTING
             catch (RemotingException re)
 #else // REMOTING
-            catch (Exception re) // TODO : Determine the correct exception type
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
@@ -607,7 +607,7 @@ namespace Quartz.Impl
 #if REMOTING
             catch (RemotingException re)
 #else // REMOTING
-            catch (Exception re) // TODO : Determine the correct exception type
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
@@ -623,7 +623,7 @@ namespace Quartz.Impl
 #if REMOTING
             catch (RemotingException re)
 #else // REMOTING
-            catch (Exception re) // TODO : Determine the correct exception type
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
