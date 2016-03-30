@@ -17,9 +17,11 @@
  */
 #endregion
 
+#if REMOTING
 using System.Runtime.Remoting.Messaging;
+#endif // REMOTING
 using System.Security;
-#if !ClientProfile
+#if !ClientProfile && HTTPCONTEXT
 using System.Web;
 #endif
 
@@ -41,23 +43,29 @@ namespace Quartz.Util
 		/// <returns>The object in the call context associated with the specified name or null if no object has been stored previously</returns>
         public static T GetData<T>(string name)
 		{
-#if !ClientProfile
+#if !ClientProfile && HTTPCONTEXT
 		    if (HttpContext.Current != null)
 			{
                 return (T)HttpContext.Current.Items[name];
             }
 #endif
+           
+#if REMOTING
             return (T)CallContext.LogicalGetData(name);
-		}
+#else // REMOTING
+            // TODO (NetCore Port): Replace with AsyncLocal<T>
+            return default(T);
+#endif // REMOTING
+        }
 
-		/// <summary>
-		/// Stores a given object and associates it with the specified name.
-		/// </summary>
-		/// <param name="name">The name with which to associate the new item.</param>
-		/// <param name="value">The object to store in the call context.</param>
+        /// <summary>
+        /// Stores a given object and associates it with the specified name.
+        /// </summary>
+        /// <param name="name">The name with which to associate the new item.</param>
+        /// <param name="value">The object to store in the call context.</param>
         public static void SetData(string name, object value)
 		{
-#if !ClientProfile
+#if !ClientProfile && HTTPCONTEXT
             if (HttpContext.Current != null)
 			{
                 HttpContext.Current.Items[name] = value;
@@ -65,7 +73,11 @@ namespace Quartz.Util
 			else
 #endif
 			{
+#if REMOTING
                 CallContext.LogicalSetData(name, value);
+#else // REMOTING
+                // TODO (NetCore Port): Replace with AsyncLocal<T>
+#endif // REMOTING
             }
 		}
 
@@ -75,7 +87,7 @@ namespace Quartz.Util
 		/// <param name="name">The name of the data slot to empty.</param>
         public static void FreeNamedDataSlot(string name)
 		{
-#if !ClientProfile
+#if !ClientProfile && HTTPCONTEXT
 		    if (HttpContext.Current != null)
 			{
                 HttpContext.Current.Items.Remove(name);
@@ -83,8 +95,12 @@ namespace Quartz.Util
 			else
 #endif
 			{
+#if REMOTING
                 CallContext.FreeNamedDataSlot(name);
-			}
-		}
+#else // REMOTING
+                // TODO (NetCore Port): Replace with AsyncLocal<T>
+#endif // REMOTING
+            }
+        }
 	}
 }
