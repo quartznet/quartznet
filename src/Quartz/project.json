@@ -35,7 +35,8 @@
           "MAIL",
           "REMOTING",
           "THREAD_APARTMENTSTATE",
-          "THREAD_PRIORITY"
+          "THREAD_PRIORITY",
+          "XML_SCHEMA"
         ]
       },
       "frameworkAssemblies": {
@@ -58,7 +59,8 @@
           "MAIL",
           "REMOTING",
           "THREAD_APARTMENTSTATE",
-          "THREAD_PRIORITY"
+          "THREAD_PRIORITY",
+          "XML_SCHEMA"
         ]
       },
       "frameworkAssemblies": {
