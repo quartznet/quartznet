@@ -20,7 +20,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+#if CONFIGURATION
 using System.Configuration;
+#endif // CONFIGURATION
 using System.IO;
 using System.Reflection;
 using System.Security;
@@ -205,7 +207,12 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            NameValueCollection props = (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
+            NameValueCollection props =
+#if CONFIGURATION
+                (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
+#else // CONFIGURATION
+            null;
+#endif // CONFIGURATION
 
             string requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
 
@@ -583,9 +590,9 @@ Please add configuration to your application config file to correctly initialize
                     string dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
                     string dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
 
+#if CONFIGURATION
                     if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName))
                     {
-
                         ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
                         if (connectionStringSettings == null)
                         {
@@ -594,6 +601,7 @@ Please add configuration to your application config file to correctly initialize
                         }
                         dsConnectionString = connectionStringSettings.ConnectionString;
                     }
+#endif // CONFIGURATION
 
                     if (dsProvider == null)
                     {

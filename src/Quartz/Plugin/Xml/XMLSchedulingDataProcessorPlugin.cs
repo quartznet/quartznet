@@ -34,9 +34,6 @@ using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
-#if !ClientProfile
-using System.Web;
-#endif
 
 namespace Quartz.Plugin.Xml
 {
@@ -347,7 +344,7 @@ namespace Quartz.Plugin.Xml
                         if (url != null)
                         {
 #if !ClientProfile
-                            furl = HttpUtility.UrlDecode(url.AbsolutePath);
+                            furl = WebUtility.UrlDecode(url.AbsolutePath);
 #else
                         furl = url.AbsolutePath;
 #endif
