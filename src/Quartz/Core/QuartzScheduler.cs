@@ -2089,7 +2089,13 @@ namespace Quartz.Core
         ///Obtains a lifetime service object to control the lifetime policy for this instance.
         ///</summary>
         [SecurityCritical]
-        public override object InitializeLifetimeService()
+        public
+#if REMOTING
+            override
+#else // REMOTING
+            virtual
+#endif // REMOTING
+            object InitializeLifetimeService()
         {
             // overridden to initialize null life time service,
             // this basically means that remoting object will live as long
