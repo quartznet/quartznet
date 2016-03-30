@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -30,9 +31,16 @@ namespace Quartz.Impl.Matchers
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
+    [KnownType(typeof(JobKey))]
+    [KnownType(typeof(Key<>))]
+    [KnownType(typeof(TriggerKey))]
     public class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
+        [DataMember]
         private readonly TKey compareTo;
 
         protected KeyMatcher(TKey compareTo)

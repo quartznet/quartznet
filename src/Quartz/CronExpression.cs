@@ -208,16 +208,21 @@ namespace Quartz
     /// <author>Contributions from Mads Henderson</author>
     /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-    public class CronExpression :
+#endif // BINARY_SERIALIZATION
+    [DataContract]
+    public class CronExpression : object
 #if ICLONEABLE
-        ICloneable,
+        , ICloneable
 #endif // ICLONEABLE
-        IDeserializationCallback
+#if BINARY_SERIALIZATION
+        , IDeserializationCallback
+#endif // BINARY_SERIALIZATION
     {
-		/// <summary>
-		/// Field specification for second.
-		/// </summary>
+        /// <summary>
+        /// Field specification for second.
+        /// </summary>
         protected const int Second = 0;
 
 		/// <summary>
@@ -273,84 +278,116 @@ namespace Quartz
         private static readonly Dictionary<string, int> monthMap = new Dictionary<string, int>(20);
         private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(60);
 
+        [DataMember]
         private readonly string cronExpressionString;
 
+        [DataMember]
         private TimeZoneInfo timeZone;
 
         /// <summary>
         /// Seconds.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> seconds;
         /// <summary>
         /// minutes.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> minutes;
         /// <summary>
         /// Hours.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> hours;
         /// <summary>
         /// Days of month.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> daysOfMonth;
         /// <summary>
         /// Months.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> months;
         /// <summary>
         /// Days of week.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> daysOfWeek;
         /// <summary>
         /// Years.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> years;
 
         /// <summary>
         /// Last day of week.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool lastdayOfWeek;
         /// <summary>
         /// Nth day of week.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected int nthdayOfWeek;
         /// <summary>
         /// Last day of month.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool lastdayOfMonth;
         /// <summary>
         /// Nearest weekday.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool nearestWeekday;
 
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected int lastdayOffset = 0;
 
         /// <summary>
         /// Calendar day of week.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool calendardayOfWeek;
         /// <summary>
         /// Calendar day of month.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool calendardayOfMonth;
         /// <summary>
         /// Expression parsed.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool expressionParsed;
 
         public static readonly int MaxYear = DateTime.Now.Year + 100;
@@ -2125,6 +2162,12 @@ namespace Quartz
         public void OnDeserialization(object sender)
         {
             BuildExpression(cronExpressionString);
+        }
+
+        [OnDeserialized]
+        internal void OnDeserializedCallback(StreamingContext context)
+        {
+            OnDeserialization(null);
         }
 
         /// <summary>

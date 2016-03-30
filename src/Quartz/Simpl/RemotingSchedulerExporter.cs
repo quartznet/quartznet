@@ -25,8 +25,8 @@ using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
 using System.Runtime.Remoting.Channels.Tcp;
-#endif // REMOTING
 using System.Runtime.Serialization.Formatters;
+#endif // REMOTING
 using System.Security;
 
 using Quartz.Logging;

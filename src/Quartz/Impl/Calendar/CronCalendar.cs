@@ -45,9 +45,13 @@ namespace Quartz.Impl.Calendar
     /// </remarks>
     /// <author>Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class CronCalendar : BaseCalendar
     {
+        [DataMember]
         private CronExpression cronExpression;
 
         /// <summary>
@@ -90,6 +94,7 @@ namespace Quartz.Impl.Calendar
             cronExpression = new CronExpression(expression);
         }
 
+#if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -125,6 +130,7 @@ namespace Quartz.Impl.Calendar
             info.AddValue("version", 1);
             info.AddValue("cronExpression", cronExpression);
         }
+#endif // BINARY_SERIALIZATION
 
         public override TimeZoneInfo TimeZone
         {

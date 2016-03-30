@@ -31,17 +31,22 @@ namespace Quartz.Util
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class DirtyFlagMap<TKey, TValue> : 
         IDictionary<TKey, TValue>, 
-        IDictionary,
+        IDictionary
 #if ICLONEABLE
-        ICloneable,
+        ,ICloneable
 #endif // ICLONEABLE
-        ISerializable
+#if BINARY_SERIALIZATION
+        ,ISerializable
+#endif // BINARY_SERIALIZATION
     {
-        private bool dirty;
-        private Dictionary<TKey, TValue> map;
+        [DataMember] private bool dirty;
+        [DataMember] private Dictionary<TKey, TValue> map;
         private readonly object syncRoot = new object();
 
         /// <summary>
@@ -61,6 +66,8 @@ namespace Quartz.Util
             map = new Dictionary<TKey, TValue>(initialCapacity);
         }
 
+#if BINARY_SERIALIZATION    // NetCore versions of Quartz can't use old serialized data. 
+                            // Make sure that future DirtyFlagMap version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -133,6 +140,7 @@ namespace Quartz.Util
             info.AddValue("dirty", dirty);
             info.AddValue("map", map);
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Determine whether the <see cref="IDictionary" /> is flagged dirty.

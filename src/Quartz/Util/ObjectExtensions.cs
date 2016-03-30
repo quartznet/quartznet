@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+#if BINARY_SERIALIZATION
 using System.Runtime.Serialization.Formatters.Binary;
+#endif // BINARY_SERIALIZATION
 
 namespace Quartz.Util
 {
@@ -9,6 +11,7 @@ namespace Quartz.Util
     /// </summary>
     public static class ObjectExtensions
     {
+#if BINARY_SERIALIZATION // This is unused in Quartz.Net. If it's needed, similar functionality could be implemented with DCS
         /// <summary>
         /// Creates a deep copy of object by serializing to memory stream.
         /// </summary>
@@ -20,14 +23,15 @@ namespace Quartz.Util
                 return null;
             }
 
-            BinaryFormatter bf = new BinaryFormatter();
             using (MemoryStream ms = new MemoryStream())
             {
+                BinaryFormatter bf = new BinaryFormatter();
                 bf.Serialize(ms, obj);
                 ms.Seek(0, SeekOrigin.Begin);
                 return (T) bf.Deserialize(ms);
             }
         }
+#endif // BINARY_SERIALIZATION
 
         public static string AssemblyQualifiedNameWithoutVersion(this Type type)
         {

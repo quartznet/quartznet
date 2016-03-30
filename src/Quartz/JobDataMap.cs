@@ -56,7 +56,10 @@ namespace Quartz
     /// <seealso cref="IJobExecutionContext" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class JobDataMap : StringKeyDirtyFlagMap
     {
         /// <summary>
@@ -85,6 +88,7 @@ namespace Quartz
             }
         }
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -93,6 +97,7 @@ namespace Quartz
         protected JobDataMap(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Adds the given <see cref="bool" /> value as a string version to the

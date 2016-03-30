@@ -1,15 +1,19 @@
 using System;
+using System.Runtime.Serialization;
 
 namespace Quartz.Spi
 {
     /// <summary>
     /// Result holder for trigger firing event.
     /// </summary>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class TriggerFiredResult
     {
-        private readonly TriggerFiredBundle triggerFiredBundle;
-        private readonly Exception exception;
+        [DataMember] private readonly TriggerFiredBundle triggerFiredBundle;
+        [DataMember] private readonly Exception exception;
 
         ///<summary>
         /// Constructor.

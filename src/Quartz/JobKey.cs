@@ -22,6 +22,7 @@
 using System;
 
 using Quartz.Util;
+using System.Runtime.Serialization;
 
 namespace Quartz
 {
@@ -57,7 +58,10 @@ namespace Quartz
     /// </remarks>
     /// <seealso cref="IJob"/>
     /// <seealso cref="Key{T}.DefaultGroup" />
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public sealed class JobKey : Key<JobKey>
     {
         public JobKey(string name) : base(name, null)

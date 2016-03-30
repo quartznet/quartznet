@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -30,10 +31,22 @@ namespace Quartz.Impl.Matchers
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
+    [KnownType(typeof(AndMatcher<>))]
+    [KnownType(typeof(GroupMatcher<>))]
+    [KnownType(typeof(KeyMatcher<>))]
+    [KnownType(typeof(NameMatcher<>))]
+    [KnownType(typeof(NotMatcher<>))]
+    [KnownType(typeof(OrMatcher<>))]
+    [KnownType(typeof(StringMatcher<>))]
     public class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
+        [DataMember]
         private readonly IMatcher<TKey> leftOperand;
+        [DataMember]
         private readonly IMatcher<TKey> rightOperand;
 
         protected OrMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)

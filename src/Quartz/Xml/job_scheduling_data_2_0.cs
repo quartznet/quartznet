@@ -21,7 +21,9 @@ using System.Xml.Serialization;
 namespace Quartz.Xml.JobSchedulingData20 {
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -85,7 +87,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -148,7 +152,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -186,7 +192,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     [XmlInclude(typeof(cronTriggerType))]
     [XmlInclude(typeof(simpleTriggerType))]
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -338,7 +346,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -362,7 +372,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -397,7 +409,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -447,7 +461,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -497,7 +513,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -547,7 +565,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -573,7 +593,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -670,7 +692,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -729,7 +753,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]
@@ -764,7 +790,9 @@ namespace Quartz.Xml.JobSchedulingData20 {
     
     /// <remarks/>
     [GeneratedCode("xsd", "4.0.30319.17929")]
+#if BINARY_SERIALIZATION
     [Serializable()]
+#endif // BINARY_SERIALIZATION
     [DebuggerStepThrough()]
 #if DESIGNER
     [DesignerCategory("code")]

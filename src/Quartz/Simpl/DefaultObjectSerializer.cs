@@ -1,5 +1,9 @@
 ﻿using System.IO;
+#if BINARY_SERIALIZATION
 using System.Runtime.Serialization.Formatters.Binary;
+#else // BINARY_SERIALIZATION
+using System.Runtime.Serialization;
+#endif // BINARY_SERIALIZATION
 
 using Quartz.Spi;
 
@@ -21,8 +25,13 @@ namespace Quartz.Simpl
         {
             using (MemoryStream ms = new MemoryStream())
             {
+#if BINARY_SERIALIZATION
                 BinaryFormatter bf = new BinaryFormatter();
                 bf.Serialize(ms, obj);
+#else // BINARY_SERIALIZATION
+                DataContractSerializer dcs = new DataContractSerializer(typeof(T));
+                dcs.WriteObject(ms, obj);
+#endif // BINARY_SERIALIZATION
                 return ms.ToArray();
             }
         }
@@ -35,8 +44,13 @@ namespace Quartz.Simpl
         {
             using (MemoryStream ms = new MemoryStream(data))
             {
+#if BINARY_SERIALIZATION
                 BinaryFormatter bf = new BinaryFormatter();
                 return (T) bf.Deserialize(ms);
+#else // BINARY_SERIALIZATION
+                DataContractSerializer dcs = new DataContractSerializer(typeof(T));
+                return (T) dcs.ReadObject(ms);
+#endif // BINARY_SERIALIZATION
             }
         }
     }

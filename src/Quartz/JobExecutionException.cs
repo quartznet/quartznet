@@ -39,8 +39,10 @@ namespace Quartz
 	/// <seealso cref="SchedulerException" />
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-	public class JobExecutionException : SchedulerException
+#endif // BINARY_SERIALIZATION
+    public class JobExecutionException : SchedulerException
 	{
 		private bool refire;
 		private bool unscheduleTrigg;
@@ -130,6 +132,7 @@ namespace Quartz
 			refire = refireImmediately;
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="JobExecutionException"/> class.
         /// </summary>
@@ -140,6 +143,7 @@ namespace Quartz
         protected JobExecutionException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif // BINARY_SERIALIZATION
 
 		/// <summary>
 		/// Gets or sets a value indicating whether to refire immediately.

@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 namespace Quartz
 {
@@ -35,12 +36,15 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class TimeOfDay
     {
-        private readonly int hour;
-        private readonly int minute;
-        private readonly int second;
+        [DataMember] private readonly int hour;
+        [DataMember] private readonly int minute;
+        [DataMember] private readonly int second;
 
         /// <summary>
         /// Create a TimeOfDay instance for the given hour, minute and second.

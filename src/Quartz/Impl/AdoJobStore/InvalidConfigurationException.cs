@@ -22,14 +22,18 @@ using System.Runtime.Serialization;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary>
-	/// Exception class for when a driver delegate cannot be found for a given
-	/// configuration, or lack thereof.
-	/// </summary>
-	/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
-	/// <author>Marko Lahma (.NET)</author>
-	[Serializable]
-	public class InvalidConfigurationException : SchedulerException
+    /// <summary>
+    /// Exception class for when a driver delegate cannot be found for a given
+    /// configuration, or lack thereof.
+    /// </summary>
+    /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+    /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
+    [Serializable]
+#endif // BINARY_SERIALIZATION
+    // TODO (NetCore Port): Is this actually persisted anywhere or is it only serializable for remoting?
+    // [DataContract]
+    public class InvalidConfigurationException : SchedulerException
 	{
 		public InvalidConfigurationException(string msg) : base(msg)
 		{
@@ -39,6 +43,7 @@ namespace Quartz.Impl.AdoJobStore
 		{
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="InvalidConfigurationException"/> class.
         /// </summary>
@@ -49,6 +54,6 @@ namespace Quartz.Impl.AdoJobStore
         protected InvalidConfigurationException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-
-	}
+#endif // BINARY_SERIALIZATION
+    }
 }

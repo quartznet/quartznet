@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -72,7 +73,10 @@ namespace Quartz.Impl.Triggers
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
     {
         /// <summary>
@@ -84,19 +88,19 @@ namespace Quartz.Impl.Triggers
 
         private static readonly int YearToGiveupSchedulingAt = DateTime.Now.Year + 100;
 
-        private DateTimeOffset startTimeUtc;
-        private DateTimeOffset? endTimeUtc;
-        private DateTimeOffset? nextFireTimeUtc;
-        private DateTimeOffset? previousFireTimeUtc;
-        private int repeatInterval = 1;
-        private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
-        private ISet<DayOfWeek> daysOfWeek;
-        private TimeOfDay startTimeOfDay;
-        private TimeOfDay endTimeOfDay;
-        private int timesTriggered;
-        private bool complete;
-        private int repeatCount = RepeatIndefinitely;
-        private TimeZoneInfo timeZone;
+        [DataMember] private DateTimeOffset startTimeUtc;
+        [DataMember] private DateTimeOffset? endTimeUtc;
+        [DataMember] private DateTimeOffset? nextFireTimeUtc;
+        [DataMember] private DateTimeOffset? previousFireTimeUtc;
+        [DataMember] private int repeatInterval = 1;
+        [DataMember] private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
+        [DataMember] private ISet<DayOfWeek> daysOfWeek;
+        [DataMember] private TimeOfDay startTimeOfDay;
+        [DataMember] private TimeOfDay endTimeOfDay;
+        [DataMember] private int timesTriggered;
+        [DataMember] private bool complete;
+        [DataMember] private int repeatCount = RepeatIndefinitely;
+        [DataMember] private TimeZoneInfo timeZone;
 
         /// <summary>
         /// Create a  <see cref="IDailyTimeIntervalTrigger"/> with no settings.

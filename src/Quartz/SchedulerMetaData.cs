@@ -20,55 +20,80 @@
 using System;
 using System.Text;
 using System.Threading;
+using System.Runtime.Serialization;
 
 using Quartz.Spi;
 
 namespace Quartz
 {
-	/// <summary>
-	/// Describes the settings and capabilities of a given <see cref="IScheduler" />
-	/// instance.
-	/// </summary>
-	/// <author>James House</author>
+    /// <summary>
+    /// Describes the settings and capabilities of a given <see cref="IScheduler" />
+    /// instance.
+    /// </summary>
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-	public class SchedulerMetaData
+#endif // BINARY_SERIALIZATION
+    [DataContract]
+    public class SchedulerMetaData
 	{
-		private readonly string schedName;
-		private readonly string schedInst;
-		private readonly Type schedType;
-		private readonly bool isRemote;
-		private readonly bool started;
-		private readonly bool isInStandbyMode;
-		private readonly bool shutdown;
-        private readonly DateTimeOffset? startTime;
-        private readonly int numberOfJobsExec;
-		private readonly Type jsType;
-		private readonly bool jsPersistent;
-	    private readonly bool jsClustered;
-		private readonly Type tpType;
-		private readonly int tpSize;
-		private readonly string version;
+		[DataMember] private readonly string schedName;
+		[DataMember] private readonly string schedInst;
+		private Type schedType;
+		[DataMember] private readonly bool isRemote;
+		[DataMember] private readonly bool started;
+		[DataMember] private readonly bool isInStandbyMode;
+		[DataMember] private readonly bool shutdown;
+        [DataMember] private readonly DateTimeOffset? startTime;
+        [DataMember] private readonly int numberOfJobsExec;
+		private Type jsType;
+		[DataMember] private readonly bool jsPersistent;
+	    [DataMember] private readonly bool jsClustered;
+		private Type tpType;
+		[DataMember] private readonly int tpSize;
+		[DataMember] private readonly string version;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
-		/// </summary>
-		/// <param name="schedName">Name of the scheduler.</param>
-		/// <param name="schedInst">The scheduler instance.</param>
-		/// <param name="schedType">The scheduler type.</param>
-		/// <param name="isRemote">if set to <c>true</c>, scheduler is a remote scheduler.</param>
-		/// <param name="started">if set to <c>true</c>, scheduler is started.</param>
-		/// <param name="isInStandbyMode">if set to <c>true</c>, scheduler is in standby mode.</param>
-		/// <param name="shutdown">if set to <c>true</c>, scheduler is shutdown.</param>
-		/// <param name="startTime">The start time.</param>
-		/// <param name="numberOfJobsExec">The number of jobs executed.</param>
-		/// <param name="jsType">The job store type.</param>
-		/// <param name="jsPersistent">if set to <c>true</c>, job store is persistent.</param>
-		/// <param name="jsClustered">if set to <c>true</c>, the job store is clustered</param>
-		/// <param name="tpType">The thread pool type.</param>
-		/// <param name="tpSize">Size of the thread pool.</param>
-		/// <param name="version">The version string.</param>
-		public SchedulerMetaData(
+        [DataMember]
+        private string schedTypeName
+        {
+            get { return schedType.FullName; }
+            set { schedType = Type.GetType(value); }
+        }
+
+        [DataMember]
+        private string jsTypeName
+        {
+            get { return jsType.FullName; }
+            set { jsType = Type.GetType(value); }
+        }
+
+        [DataMember]
+        private string tpTypeName
+        {
+            get { return tpType.FullName; }
+            set { tpType = Type.GetType(value); }
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
+        /// </summary>
+        /// <param name="schedName">Name of the scheduler.</param>
+        /// <param name="schedInst">The scheduler instance.</param>
+        /// <param name="schedType">The scheduler type.</param>
+        /// <param name="isRemote">if set to <c>true</c>, scheduler is a remote scheduler.</param>
+        /// <param name="started">if set to <c>true</c>, scheduler is started.</param>
+        /// <param name="isInStandbyMode">if set to <c>true</c>, scheduler is in standby mode.</param>
+        /// <param name="shutdown">if set to <c>true</c>, scheduler is shutdown.</param>
+        /// <param name="startTime">The start time.</param>
+        /// <param name="numberOfJobsExec">The number of jobs executed.</param>
+        /// <param name="jsType">The job store type.</param>
+        /// <param name="jsPersistent">if set to <c>true</c>, job store is persistent.</param>
+        /// <param name="jsClustered">if set to <c>true</c>, the job store is clustered</param>
+        /// <param name="tpType">The thread pool type.</param>
+        /// <param name="tpSize">Size of the thread pool.</param>
+        /// <param name="version">The version string.</param>
+        public SchedulerMetaData(
             string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
 			bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered, 
             Type tpType, int tpSize, string version)

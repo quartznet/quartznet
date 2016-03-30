@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 using Quartz.Core;
 
@@ -30,17 +31,35 @@ namespace Quartz.Spi
     /// <seealso cref="QuartzScheduler" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
+    // TODO (NetCore Port) :    Figure out how these types are serialized and if Quartz always controls the serialization,
+    //                          consider removing KnownType attributes from Quartz types and listing the types in the serializer.
+    [KnownType(typeof(Impl.Triggers.AbstractTrigger))]
+    [KnownType(typeof(Impl.Triggers.CalendarIntervalTriggerImpl))]
+    [KnownType(typeof(Impl.Triggers.CronTriggerImpl))]
+    [KnownType(typeof(Impl.Triggers.DailyTimeIntervalTriggerImpl))]
+    [KnownType(typeof(Impl.Triggers.SimpleTriggerImpl))]
+    [KnownType(typeof(Impl.JobDetailImpl))]
+    [KnownType(typeof(Impl.Calendar.AnnualCalendar))]
+    [KnownType(typeof(Impl.Calendar.BaseCalendar))]
+    [KnownType(typeof(Impl.Calendar.CronCalendar))]
+    [KnownType(typeof(Impl.Calendar.DailyCalendar))]
+    [KnownType(typeof(Impl.Calendar.HolidayCalendar))]
+    [KnownType(typeof(Impl.Calendar.MonthlyCalendar))]
+    [KnownType(typeof(Impl.Calendar.WeeklyCalendar))]
     public class TriggerFiredBundle
     {
-        private readonly IJobDetail job;
-        private readonly IOperableTrigger trigger;
-        private readonly ICalendar cal;
-        private readonly bool jobIsRecovering;
-        private readonly DateTimeOffset? fireTimeUtc;
-        private readonly DateTimeOffset? scheduledFireTimeUtc;
-        private readonly DateTimeOffset? prevFireTimeUtc;
-        private readonly DateTimeOffset? nextFireTimeUtc;
+        [DataMember] private readonly IJobDetail job;
+        [DataMember] private readonly IOperableTrigger trigger;
+        [DataMember] private readonly ICalendar cal;
+        [DataMember] private readonly bool jobIsRecovering;
+        [DataMember] private readonly DateTimeOffset? fireTimeUtc;
+        [DataMember] private readonly DateTimeOffset? scheduledFireTimeUtc;
+        [DataMember] private readonly DateTimeOffset? prevFireTimeUtc;
+        [DataMember] private readonly DateTimeOffset? nextFireTimeUtc;
 
         /// <summary>
         /// Gets the job detail.

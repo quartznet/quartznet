@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 namespace Quartz.Util
 {
@@ -28,7 +29,10 @@ namespace Quartz.Util
     /// </summary>
     /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class Key<T> : IComparable<Key<T>>
     {
         /// <summary>
@@ -36,7 +40,9 @@ namespace Quartz.Util
         /// </summary>
         public const string DefaultGroup = "DEFAULT";
 
+        [DataMember]
         private readonly string name;
+        [DataMember]
         private readonly string group;
 
         /// <summary> 

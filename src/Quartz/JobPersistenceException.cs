@@ -28,8 +28,10 @@ namespace Quartz
 	/// </summary>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-	public class JobPersistenceException : SchedulerException
+#endif // BINARY_SERIALIZATION
+    public class JobPersistenceException : SchedulerException
 	{
 		/// <summary> <para>
 		/// Create a <see cref="JobPersistenceException" /> with the given message.
@@ -39,6 +41,7 @@ namespace Quartz
 		{
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="JobPersistenceException"/> class.
         /// </summary>
@@ -49,6 +52,7 @@ namespace Quartz
         protected JobPersistenceException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif // BINARY_SERIALIZATION
 
 		/// <summary> <para>
 		/// Create a <see cref="JobPersistenceException" /> with the given message

@@ -395,7 +395,11 @@ namespace Quartz.Core
             return true;
         }
 
+#if BINARY_SERIALIZATION
         [Serializable]
+#endif // BINARY_SERIALIZATION
+        // TODO (NetCore Port): Is this type ever persisted or is it only serializable for remoting purposes?
+        // [DataContract]
         internal class VetoedException : Exception
         {
             private readonly JobRunShell enclosingInstance;

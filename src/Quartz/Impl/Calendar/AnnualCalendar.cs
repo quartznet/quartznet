@@ -37,9 +37,13 @@ namespace Quartz.Impl.Calendar
     /// <seealso cref="BaseCalendar" />
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class AnnualCalendar : BaseCalendar
     {
+        [DataMember]
         private List<DateTimeOffset> excludeDays = new List<DateTimeOffset>();
 
         // true, if excludeDays is sorted
@@ -62,6 +66,9 @@ namespace Quartz.Impl.Calendar
         public AnnualCalendar(ICalendar baseCalendar) : base(baseCalendar)
         {
         }
+
+#if BINARY_SERIALIZATION    // NetCore versions of Quartz can't use old serialized data. 
+                            // Make sure that future calendar version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
 
         /// <summary>
         /// Serialization constructor.
@@ -114,6 +121,7 @@ namespace Quartz.Impl.Calendar
             info.AddValue("version", 1);
             info.AddValue("excludeDays", excludeDays);
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary> 
         /// Get or the array which defines the exclude-value of each day of month.

@@ -31,7 +31,9 @@ namespace Quartz
     /// </remarks>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class SchedulerException : Exception
     {
         /// <summary>
@@ -49,6 +51,7 @@ namespace Quartz
         {
         }
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
@@ -59,6 +62,7 @@ namespace Quartz
         protected SchedulerException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
