@@ -1932,11 +1932,7 @@ namespace Quartz.Logging.LogProviders
 
         internal static Type GetBaseTypePortable(this Type type)
         {
-#if LIBLOG_PORTABLE
             return type.GetTypeInfo().BaseType;
-#else
-            return type.BaseType;
-#endif
         }
 
 #if LIBLOG_PORTABLE
@@ -1951,20 +1947,9 @@ namespace Quartz.Logging.LogProviders
         }
 #endif
 
-#if !LIBLOG_PORTABLE
-        internal static object CreateDelegate(this MethodInfo methodInfo, Type delegateType)
-        {
-            return Delegate.CreateDelegate(delegateType, methodInfo);
-        }
-#endif
-
         internal static Assembly GetAssemblyPortable(this Type type)
         {
-#if LIBLOG_PORTABLE
             return type.GetTypeInfo().Assembly;
-#else
-            return type.Assembly;
-#endif
         }
     }
 
