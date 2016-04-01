@@ -592,7 +592,7 @@
 	<property name="nunit-dll" value="packages/NUnit.2.6.3/lib/nunit.framework.dll" />
 	<property name="rhino-mocks-dll" value="packages/RhinoMocks.3.6.1/lib/net/Rhino.Mocks.dll" />
     <property name="topshelf-dll" value="packages/TopShelf.3.1.4/lib/net40-full/Topshelf.dll" />
-	<property name="oracle-odp-managed-dll" value="packages/odp.net.managed.121.1.2/lib/net40/Oracle.ManagedDataAccess.dll" />
+	<property name="oracle-odp-managed-dll" value="packages/Oracle.ManagedDataAccess.12.1.2400/lib/net40/Oracle.ManagedDataAccess.dll" />
 	
 	<if test="${target.framework == '3.5'}">
 		<property name="topshelf-dll" value="packages/TopShelf.3.1.4/lib/net35/Topshelf.dll" />

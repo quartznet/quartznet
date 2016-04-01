@@ -2102,10 +2102,10 @@ namespace Quartz
                 copy = new CronExpression(CronExpressionString);
                 copy.TimeZone = TimeZone;
             }
-            catch (FormatException)
+            catch (FormatException e)
             {
                 // never happens since the source is valid...
-                throw new Exception("Not Cloneable.");
+                throw new Exception("Not Cloneable.", e);
             }
             return copy;
         }
