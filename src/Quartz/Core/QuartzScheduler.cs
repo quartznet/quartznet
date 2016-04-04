@@ -2012,6 +2012,7 @@ namespace Quartz.Core
                 {
                     cancellableJobExecutionContext.Cancel();
                     interrupted = true;
+                    break;
                 }
             }
 
@@ -2041,6 +2042,7 @@ namespace Quartz.Core
                 {
                     cancellableJobExecutionContext.Cancel();
                     interrupted = true;
+                    break;
                 }
             }
 
