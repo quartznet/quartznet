@@ -22,9 +22,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -49,7 +47,7 @@ namespace Quartz.Tests.Unit.Impl
 			DirectSchedulerFactory.Instance.CreateScheduler(
 				"MyScheduler", "Instance1", threadPool,
 				new RAMJobStore(), data, 
-				TimeSpan.Zero, TimeSpan.Zero);
+				TimeSpan.Zero);
             
 
 			IScheduler scheduler = await DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");
