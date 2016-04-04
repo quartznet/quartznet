@@ -47,7 +47,7 @@ namespace Quartz.Tests.Unit.Impl
 			DirectSchedulerFactory.Instance.CreateScheduler(
 				"MyScheduler", "Instance1", threadPool,
 				new RAMJobStore(), data, 
-				TimeSpan.Zero, TimeSpan.Zero);
+				TimeSpan.Zero);
             
 
 			IScheduler scheduler = DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");

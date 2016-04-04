@@ -194,64 +194,58 @@ namespace Quartz.Impl
 		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
 		                                    IJobStore jobStore)
 		{
-			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, TimeSpan.Zero, TimeSpan.Zero);
+			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, TimeSpan.Zero);
 		}
 
-        /// <summary>
-		/// Creates a scheduler using the specified thread pool and job store and
-		/// binds it for remote access.
-		/// </summary>
-		/// <param name="schedulerName">The name for the scheduler.</param>
-		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-		/// <param name="threadPool">The thread pool for executing jobs</param>
-		/// <param name="jobStore">The type of job store</param>
-		/// <param name="idleWaitTime">The idle wait time. You can specify "-1" for
-		/// the default value, which is currently 30000 ms.</param>
-		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
-        public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-                                            IJobStore jobStore, TimeSpan idleWaitTime,
-                                            TimeSpan dbFailureRetryInterval)
+	    /// <summary>
+	    /// Creates a scheduler using the specified thread pool and job store and
+	    /// binds it for remote access.
+	    /// </summary>
+	    /// <param name="schedulerName">The name for the scheduler.</param>
+	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+	    /// <param name="threadPool">The thread pool for executing jobs</param>
+	    /// <param name="jobStore">The type of job store</param>
+	    /// <param name="idleWaitTime">The idle wait time. You can specify "-1" for
+	    /// the default value, which is currently 30000 ms.</param>
+	    public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+                                            IJobStore jobStore, TimeSpan idleWaitTime)
         {
-            CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime, dbFailureRetryInterval);
+            CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime);
         }
 
 	    /// <summary>
-		/// Creates a scheduler using the specified thread pool and job store and
-        /// binds it for remote access.
-		/// </summary>
-		/// <param name="schedulerName">The name for the scheduler.</param>
-		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-		/// <param name="threadPool">The thread pool for executing jobs</param>
-		/// <param name="jobStore">The type of job store</param>
-		/// <param name="schedulerPluginMap"></param>
-		/// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
-		/// the default value, which is currently 30000 ms.</param>
-		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
-		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
-		                                    TimeSpan dbFailureRetryInterval)
+	    /// Creates a scheduler using the specified thread pool and job store and
+	    /// binds it for remote access.
+	    /// </summary>
+	    /// <param name="schedulerName">The name for the scheduler.</param>
+	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+	    /// <param name="threadPool">The thread pool for executing jobs</param>
+	    /// <param name="jobStore">The type of job store</param>
+	    /// <param name="schedulerPluginMap"></param>
+	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
+	    /// the default value, which is currently 30000 ms.</param>
+	    public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime)
 		{
 			CreateScheduler(
                 schedulerName, schedulerInstanceId, threadPool, DefaultThreadExecutor, 
-                jobStore, schedulerPluginMap, idleWaitTime, dbFailureRetryInterval);
+                jobStore, schedulerPluginMap, idleWaitTime);
 		}
 
-        /// <summary>
-        /// Creates a scheduler using the specified thread pool and job store and
-        /// binds it for remote access.
-        /// </summary>
-        /// <param name="schedulerName">The name for the scheduler.</param>
-        /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-        /// <param name="threadPool">The thread pool for executing jobs</param>
-        /// <param name="threadExecutor">Thread executor.</param>
-        /// <param name="jobStore">The type of job store</param>
-        /// <param name="schedulerPluginMap"></param>
-        /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
-        /// the default value, which is currently 30000 ms.</param>
-        /// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
-        public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IThreadExecutor threadExecutor,
-                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
-                                            TimeSpan dbFailureRetryInterval)
+	    /// <summary>
+	    /// Creates a scheduler using the specified thread pool and job store and
+	    /// binds it for remote access.
+	    /// </summary>
+	    /// <param name="schedulerName">The name for the scheduler.</param>
+	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+	    /// <param name="threadPool">The thread pool for executing jobs</param>
+	    /// <param name="threadExecutor">Thread executor.</param>
+	    /// <param name="jobStore">The type of job store</param>
+	    /// <param name="schedulerPluginMap"></param>
+	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
+	    /// the default value, which is currently 30000 ms.</param>
+	    public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IThreadExecutor threadExecutor,
+                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime)
         {
             CreateScheduler(schedulerName, schedulerInstanceId, threadPool, threadExecutor, jobStore, schedulerPluginMap, idleWaitTime, DefaultBatchMaxSize, DefaultBatchTimeWindow);
            
