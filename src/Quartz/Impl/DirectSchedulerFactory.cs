@@ -227,10 +227,8 @@ namespace Quartz.Impl
                                             IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime)
 		{
 			CreateScheduler(
-                schedulerName, schedulerInstanceId, threadPool, jobStore, schedulerPluginMap, idleWaitTime);
+                schedulerName, schedulerInstanceId, threadPool, jobStore, schedulerPluginMap, idleWaitTime, DefaultBatchMaxSize, DefaultBatchTimeWindow);
 		}
-
-        
 
 	    /// <summary>
 	    /// Creates a scheduler using the specified thread pool and job store and
